@@ -1,0 +1,75 @@
+####
+#
+#   Makefile for building jemalloc
+#
+####
+
+#-----------------------------------------------------------------------
+# Common JEMALLOC Implementation Files
+#-----------------------------------------------------------------------
+
+vpath %.c $(JEMALLOC_DEPTH)
+vpath %.c $(JEMALLOC_DEPTH)/core
+
+CFILES += jemalloc.c    \
+          arena.c       \
+          base.c        \
+          bitmap.c      \
+          chunk.c       \
+          chunk_dss.c   \
+          chunk_mmap.c  \
+          ckh.c         \
+          ctl.c         \
+          extent.c      \
+          huge.c        \
+          mutex.c       \
+          nstime.c      \
+          pages.c       \
+          prof.c        \
+          quarantine.c  \
+          rtree.c       \
+          stats.c       \
+          tcache.c      \
+          tsd.c         \
+          util.c        \
+          witness.c
+
+ifeq ($(JEMALLOC_DEBUG), 1)
+    CFILES += ticker.c  \
+              prng.c    \
+              mb.c      \
+              hash.c    \
+              atomic.c
+endif
+
+# Enable valgrind: http://valgrind.org/
+#    CFILES += valgrind.c
+# Enable zone allocator
+#    CFILES += zone.c
+
+ifeq ($(JEMALLOC_STATS), 1)
+    LCDEFS += -DJEMALLOC_STATS=1
+endif
+
+ifeq ($(JEMALLOC_DEBUG), 1)
+    LCDEFS += -DJEMALLOC_DEBUG=1
+endif
+
+# Fix for error X "can not be used when making a shared object; recompile with -fPIC"
+# -fPIC signifies Position Independent Code and is specified when building *.so shared objects.
+ifeq ($(PAL_OS_BUILD), lnx64a)
+    LCXXOPTS += -fPIC
+    LCOPTS += -fPIC
+endif
+
+#-----------------------------------------------------------------------
+# Common JEMALLOC Includes
+#-----------------------------------------------------------------------
+
+LCXXINCS += -I$(JEMALLOC_DEPTH)             \
+            -I$(JEMALLOC_DEPTH)/msvc_compat \
+            -I$(JEMALLOC_DEPTH)/core
+
+LCINCS += -I$(JEMALLOC_DEPTH)             \
+          -I$(JEMALLOC_DEPTH)/msvc_compat \
+          -I$(JEMALLOC_DEPTH)/core

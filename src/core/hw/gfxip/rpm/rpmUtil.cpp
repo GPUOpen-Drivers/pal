@@ -1,0 +1,700 @@
+/*
+ *******************************************************************************
+ *
+ * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ ******************************************************************************/
+
+#include "core/cmdStream.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/prefetchMgr.h"
+#include "core/hw/gfxip/rpm/g_rpmComputePipelineInit.h"
+#include "core/hw/gfxip/rpm/g_rpmGfxPipelineInit.h"
+#include "core/hw/gfxip/rpm/rpmUtil.h"
+#include "palFormatInfo.h"
+#include "palMath.h"
+#include "palShader.h"
+
+#include <limits.h>
+
+using namespace Util;
+using namespace Util::Math;
+
+namespace Pal
+{
+namespace RpmUtil
+{
+
+// Lookup table containing the Pipeline and Image-View information for each (Y,Cb,Cr) component of a YUV image when
+// doing color-space-conversion blits.
+const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
+{
+    // Note: YUV packed formats are treated as YUV planar formats in the RPM shaders which convert YUV-to-RGB. The
+    // reason for this is because they often have different sampling rates for Y and for UV, so we still need separate
+    // SRD's for luminance and chrominance. These pseudo-planes are faked by creating Image-views of the whole Image,
+    // but using the channel mappings to fake the behavior of separate image planes.
+
+    // AYUV (4:4:4 packed)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::YCbCr,         // Y pseudo-plane
+                { ChNumFormat::X8Y8Z8W8_Unorm,
+                  { ChannelSwizzle::Z, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::W },
+                }
+            },
+            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
+                { ChNumFormat::X8Y8Z8W8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        // Note: For RGB to YUV conversions, we treat AYUV as a planar format with a single plane, because the luma
+        // and chroma sampling rates are the same. The RgbToYuvPacked shader is intended to handle with macro-pixel
+        // packed formats.
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::YCbCr,
+                { ChNumFormat::X8Y8Z8W8_Unorm,
+                  { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }, },
+                { 0, 1, 2, },
+            },
+        },
+    },
+    // UYVY (4:2:2 packed)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::YCbCr,         // Y pseudo-plane
+                { ChNumFormat::X8Y8_Z8Y8_Unorm,
+                  { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
+                { ChNumFormat::X8Y8_Z8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Z, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPacked,
+        {
+            {   ImageAspect::YCbCr,
+                { ChNumFormat::X16_Uint,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, 1, 2, },
+            },
+        },
+    },
+    // VYUY (4:2:2 packed)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::YCbCr,         // Y pseudo-plane
+                { ChNumFormat::X8Y8_Z8Y8_Unorm,
+                  { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
+                { ChNumFormat::X8Y8_Z8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Z, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPacked,
+        {
+            {   ImageAspect::YCbCr,
+                { ChNumFormat::X16_Uint,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, 2, 1, },
+            },
+        },
+    },
+    // YUY2 (4:2:2 packed)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::YCbCr,         // Y pseudo-plane
+                { ChNumFormat::Y8X8_Y8Z8_Unorm,
+                  { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
+                { ChNumFormat::Y8X8_Y8Z8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Z, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPacked,
+        {
+            {   ImageAspect::YCbCr,
+                { ChNumFormat::X16_Uint,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, 1, 2, },
+            },
+        },
+    },
+    // YVY2 (4:2:2 packed)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::YCbCr,         // Y pseudo-plane
+                { ChNumFormat::Y8X8_Y8Z8_Unorm,
+                  { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
+                { ChNumFormat::Y8X8_Y8Z8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Z, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPacked,
+        {
+            {   ImageAspect::YCbCr,
+                { ChNumFormat::X16_Uint,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, 2, 1, },
+            },
+        },
+    },
+    // YV12 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::Cr,            // Cr plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::Cb,            // Cb plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::Cr,           // Cr plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 1, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::Cb,           // Cb plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 2, USHRT_MAX, USHRT_MAX, },
+            },
+        },
+    },
+    // NV11 (4:1:1 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // NV12 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // NV21 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X8Y8_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 2, 1, USHRT_MAX, },
+            },
+        },
+    },
+    // P016 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // P010 (4:2:0 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   ImageAspect::Y,             // Y plane
+                { ChNumFormat::X16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   ImageAspect::CbCr,          // CbCr plane
+                { ChNumFormat::X16Y16_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+};
+
+// =====================================================================================================================
+// Sets up a color-space conversion matrix for converting RGB data to YUV. The rows of the matrix are "swizzled" based
+// on the supplied channel mapping -- this is due to the fact that the channel mappings aren't always honored for UAV
+// store operations. But we can simulate a swizzled UAV store to the YUV image planes by swapping the rows of the matrix
+// used to convert between color spaces.
+void SetupRgbToYuvCscTable(
+    ChNumFormat                      format,
+    uint32                           pass,
+    const ColorSpaceConversionTable& cscTable,
+    YuvRgbConversionInfo*            pInfo)
+{
+    constexpr size_t RowBytes = (sizeof(float) * 4);
+    constexpr uint32 RowCount = 3;
+
+    const auto& cscViewInfo = RpmUtil::CscInfoTable[static_cast<uint32>(format) -
+                                                    static_cast<uint32>(ChNumFormat::AYUV)].viewInfoRgbToYuv[pass];
+
+    for (uint32 row = 0; row < RowCount; ++row)
+    {
+        const uint16 swizzledRow = cscViewInfo.matrixRowOrder[row];
+        if (swizzledRow == USHRT_MAX)
+        {
+            memset(&pInfo->cscTable[row][0], 0, RowBytes);
+        }
+        else
+        {
+            memcpy(&pInfo->cscTable[row][0], &cscTable.table[swizzledRow][0], RowBytes);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Populates a raw BufferViewInfo that wraps the entire provided memory object.
+void BuildRawBufferViewInfo(
+    BufferViewInfo*   pInfo,
+    const GpuMemory&  bufferMemory,
+    gpusize           byteOffset)
+{
+    pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
+    pInfo->range          = bufferMemory.Desc().size - byteOffset;
+    pInfo->stride         = 1;
+    pInfo->swizzledFormat = UndefinedSwizzledFormat;
+}
+
+// =====================================================================================================================
+// Populates an ImageViewInfo that wraps the given range of the provided image object.
+void BuildImageViewInfo(
+    ImageViewInfo*     pInfo,
+    const Image&       image,
+    const SubresRange& subresRange,
+    SwizzledFormat     swizzledFormat,
+    bool               isShaderWriteable,
+    ImageTexOptLevel   texOptLevel)
+{
+    // We will static cast ImageType to ImageViewType so verify that it will work as expected.
+    static_assert(static_cast<uint32>(ImageType::Tex1d) == static_cast<uint32>(ImageViewType::Tex1d),
+                  "RPM assumes that ImageType::Tex1d == ImageViewType::Tex1d");
+    static_assert(static_cast<uint32>(ImageType::Tex2d) == static_cast<uint32>(ImageViewType::Tex2d),
+                  "RPM assumes that ImageType::Tex2d == ImageViewType::Tex2d");
+    static_assert(static_cast<uint32>(ImageType::Tex3d) == static_cast<uint32>(ImageViewType::Tex3d),
+                  "RPM assumes that ImageType::Tex3d == ImageViewType::Tex3d");
+
+    const ImageType  imageType = image.GetGfxImage()->GetOverrideImageType();
+
+    pInfo->pImage               = &image;
+    pInfo->viewType             = static_cast<ImageViewType>(imageType);
+    pInfo->minLod               = 0;
+    pInfo->subresRange          = subresRange;
+
+    pInfo->swizzledFormat       = swizzledFormat;
+    pInfo->flags.shaderWritable = isShaderWriteable;
+
+    pInfo->texOptLevel          = texOptLevel;
+}
+
+// =====================================================================================================================
+// Gets a raw UINT format that matches the bit depth of the provided format. Some formats may not have such a format
+// in which case a smaller format is selected and the caller must dispatch extra threads.
+SwizzledFormat GetRawFormat(
+    ChNumFormat  format,
+    uint32*      pTexelScale) // [out] If non-null, each texel requires this many raw format texels in the X dimension.
+{
+    SwizzledFormat rawFormat  = UndefinedSwizzledFormat;
+    uint32         texelScale = 1;
+
+    switch(Formats::BitsPerPixel(format))
+    {
+    case 8:
+        rawFormat.format  = ChNumFormat::X8_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
+        break;
+    case 16:
+        rawFormat.format  = Pal::ChNumFormat::X16_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
+        break;
+    case 32:
+        rawFormat.format  = Pal::ChNumFormat::X32_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
+        break;
+    case 64:
+        rawFormat.format  = Pal::ChNumFormat::X32Y32_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Y,    Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
+        break;
+    case 96:
+        // There is no 96-bit raw format; fall back to R32 and copy each channel separately.
+        rawFormat.format  = Pal::ChNumFormat::X32_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::Zero, Pal::ChannelSwizzle::One };
+        texelScale        = 3;
+        break;
+    case 128:
+        rawFormat.format  = Pal::ChNumFormat::X32Y32Z32W32_Uint;
+        rawFormat.swizzle =
+            { Pal::ChannelSwizzle::X, Pal::ChannelSwizzle::Y,    Pal::ChannelSwizzle::Z,    Pal::ChannelSwizzle::W   };
+        break;
+    default:
+        // Unknown bit depth.
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    if (pTexelScale != nullptr)
+    {
+        *pTexelScale = texelScale;
+    }
+    else
+    {
+        // The caller is going to assume that it doesn't need to worry about texelScale, hopefully it's right.
+        PAL_ASSERT(texelScale == 1);
+    }
+
+    return rawFormat;
+}
+
+// =====================================================================================================================
+// Allocates embedded command space for the given number of DWORDs with the specified alignment. The space can be used
+// by RPM for SRDs, inline constants, or nested descriptor tables. The GPU virtual address is written to the two user
+// data registers starting at "registerToBind" for each shader stage in the "shaderStages" mask. Returns a CPU pointer
+// to the embedded space.
+uint32* CreateAndBindEmbeddedUserData(
+    GfxCmdBuffer*     pCmdBuffer,
+    uint32            sizeInDwords,
+    uint32            alignmentInDwords,
+    PipelineBindPoint bindPoint,
+    uint32            entryToBind)
+{
+    gpusize      gpuVirtAddr = 0;
+    uint32*const pCmdSpace   = pCmdBuffer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, &gpuVirtAddr);
+    PAL_ASSERT(pCmdSpace != nullptr);
+
+    const uint32 gpuVirtAddrLo = LowPart(gpuVirtAddr);
+    pCmdBuffer->CmdSetUserData(bindPoint, entryToBind, 1, &gpuVirtAddrLo);
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Converts a color from clearFormat to its native format. The color array must contain four DWORDs in RGBA order.
+void ConvertClearColorToNativeFormat(
+    SwizzledFormat baseFormat,
+    SwizzledFormat clearFormat,
+    uint32*        pColor)
+{
+    // The clear color passed in from the app may have more bits than the format can hold. In this case we want to mask
+    // off the the appropriate number of bits for the format to avoid the clear color being clamped to max value. This
+    // matches the behavior of the compute path.
+    const auto& formatInfo = Formats::FormatInfoTable[static_cast<uint32>(baseFormat.format)];
+
+    for (uint32 rgbaIdx = 0; rgbaIdx < 4; ++rgbaIdx)
+    {
+        // Figure out which component on the data format (if any) this RGBA component maps to.
+        const ChannelSwizzle compSwizzle = baseFormat.swizzle.swizzle[rgbaIdx];
+
+        uint32 compIdx;
+
+        // Map from component swizzle enum to component index.
+        if ((compSwizzle == ChannelSwizzle::Zero) || (compSwizzle == ChannelSwizzle::One))
+        {
+            compIdx = rgbaIdx;
+        }
+        else
+        {
+            compIdx = static_cast<uint32>(compSwizzle) - static_cast<uint32>(ChannelSwizzle::X);
+        }
+
+        // Get the bit count using compIdx as there may be a swizzle (Only occurs for A8 format).
+        const uint32 bitCount = formatInfo.bitCount[compIdx];
+
+        if (bitCount > 0)
+        {
+            const uint32 signBitMask       = static_cast<uint32>(1ULL << (bitCount - 1));
+            const uint32 maxComponentValue = static_cast<uint32>((1ULL << bitCount) - 1);
+
+            // Get the valid range of values on the given input component
+            const uint32 maskedColor       = pColor[rgbaIdx] & maxComponentValue;
+
+            // Convert from format's data representation back to 32-bit float/uint/sint
+            if (Formats::IsDepthStencilOnly(clearFormat.format) || Formats::IsFloat(clearFormat.format))
+            {
+                // Shaders only understand 32-bit floats, so we need to convert the raw color (which is in the
+                // bitness of the format) to 32-bit IEEE format here.
+                pColor[rgbaIdx] = FloatToBits(FloatNumBitsToFloat32(maskedColor, bitCount));
+            }
+            else if (Formats::IsUint(clearFormat.format))
+            {
+                // This is the easy case, uint color data came in, uint color data going out, so the input color was
+                // already in the correct format, etc.
+                pColor[rgbaIdx] = maskedColor;
+            }
+            else if (Formats::IsSrgb(clearFormat.format) || Formats::IsUnorm(clearFormat.format))
+            {
+                // Convert from fixed point to floating point
+                float floatColor = UFixedToFloat(maskedColor, 0, bitCount);
+
+                // Convert the gamma-corrected value back to linear output from the shader; if the clear format
+                // is SRGB, gamma correction will be reapplied during color output.  No gamma correction on alpha.
+                if (Formats::IsSrgb(clearFormat.format) && (rgbaIdx != 3))
+                {
+                    floatColor = Formats::GammaToLinear(floatColor);
+                }
+
+                pColor[rgbaIdx] = FloatToBits(floatColor);
+            }
+            else if (Formats::IsSnorm(clearFormat.format))
+            {
+                float floatColor = SFixedToFloat(static_cast<int32>(maskedColor), 0, bitCount);
+
+                pColor[rgbaIdx] = FloatToBits(floatColor);
+            }
+            else if (Formats::IsSint(clearFormat.format))
+            {
+                // If this is really a negative number and the channel isn't already 32-bits wide, then we need to
+                // sign-extend this value as the shader only understands 32-bit numbers
+                if (((pColor[compIdx] & signBitMask) != 0) && (bitCount != 32))
+                {
+                    pColor[rgbaIdx] |= (~maxComponentValue);
+                }
+            }
+            else
+            {
+                // What is this?
+                PAL_ASSERT_ALWAYS();
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Calculates the normalized form of the unsigned input data. Returns the input data as a uint32 which stores the IEEE
+// bit format representation of the normalized form of the input data.
+uint32 GetNormalizedData(
+    uint32 inputData,         // input data
+    uint32 maxComponentValue) // max possible value of "inputData"
+{
+    float normalized = static_cast<float>(inputData) / static_cast<float>(maxComponentValue);
+
+    return FloatToBits(normalized);
+}
+
+// =====================================================================================================================
+// Writes the user data register required to allow the RPM VS to export the supplied depth value.
+void WriteVsZOut(
+    GfxCmdBuffer* pCmdBuffer,
+    float         depthValue)
+{
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmVsDepthOut, 1, reinterpret_cast<uint32*>(&depthValue));
+}
+
+// =====================================================================================================================
+// Writes the user data register required to allow the RPM multi-layer VS to identify the first slice to render to
+void WriteVsFirstSliceOffet(
+    GfxCmdBuffer*   pCmdBuffer,
+    uint32          firstSliceIndex)
+{
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics,
+                               RpmVsSliceOffset,
+                               1,
+                               &firstSliceIndex);
+}
+
+// =====================================================================================================================
+// Writes a simple, typical raster state for all RPM draws.
+void BindBltRasterState(
+    GfxCmdBuffer* pCmdBuffer)
+{
+    constexpr DepthBiasParams            DepthBias            = { 0.0f, 0.0f, 0.0f };
+    constexpr PointLineRasterStateParams PointLineRasterState = { 1.0f, 1.0f };
+    constexpr TriangleRasterStateParams  TriangleRasterState =
+    {
+        FillMode::Solid,        // fillMode
+        CullMode::_None,        // cullMode
+        FaceOrientation::Cw,    // frontFace
+        ProvokingVertex::First  // provokingVertex
+    };
+
+    pCmdBuffer->CmdSetDepthBiasState(DepthBias);
+    pCmdBuffer->CmdSetPointLineRasterState(PointLineRasterState);
+    pCmdBuffer->CmdSetTriangleRasterState(TriangleRasterState);
+}
+
+// =====================================================================================================================
+// Usually number of fmaskBits needed for a given fragmentCount = log2(fragmentCount)
+// But the hardware can't work with 3 bits (for 8xMSAA) so it is padded to 4 bits
+// For EQAA an extra bit is required to point to the colors for the extra samples.
+// Chart below shows the number of bits required for each EQAA configuration
+//      Frag Count | Sample Count | Fmask bits
+//          2      |      2       |      1
+//          2      |      4       |      2
+//          2      |      8       |      2
+//          2      |     16       |      2
+//-----------------------------------------------
+//          4      |      4       |      4
+//          4      |      8       |      4
+//          4      |     16       |      4
+//-----------------------------------------------
+//          8      |      8       |      4
+uint32 CalculatNumFmaskBits(
+    uint32 fragmentCount,
+    uint32 sampleCount)
+{
+    uint32 fmaskBits = 4;
+    if ((fragmentCount == 1) || (sampleCount == 2))
+    {
+        fmaskBits = 1;
+    }
+    else if ((sampleCount == 4) || (fragmentCount == 2))
+    {
+        fmaskBits = 2;
+    }
+    return fmaskBits;
+}
+
+} // RpmUtil
+} // Pal

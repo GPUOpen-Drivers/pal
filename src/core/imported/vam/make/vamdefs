@@ -1,0 +1,52 @@
+#
+# Build definitions for VAM component
+#
+
+MULTI_THREAD_LIBC = 1
+
+ifdef VAM_OS_BUILD
+    ifeq ($(VAM_OS_BUILD), wnow)
+        VAM_COMPILE_TYPE = 32
+        VAM_OS_TYPE = wnow
+    endif
+
+    ifeq ($(VAM_OS_BUILD), wnow64a)
+        VAM_COMPILE_TYPE = 64
+        VAM_OS_TYPE = wnow
+    endif
+
+    ifeq ($(VAM_OS_BUILD), lnx)
+        VAM_COMPILE_TYPE = 32
+        VAM_OS_TYPE = lnx
+    endif
+
+    ifeq ($(VAM_OS_BUILD), lnx_pic)
+        VAM_COMPILE_TYPE = 32
+        VAM_OS_TYPE = lnx
+    endif
+
+    ifeq ($(VAM_OS_BUILD), lnx_64a)
+        VAM_COMPILE_TYPE = 64
+        VAM_OS_TYPE = lnx
+    endif
+
+    ifeq ($(VAM_OS_BUILD), lnx_64a_pic)
+        VAM_COMPILE_TYPE = 64
+        VAM_OS_TYPE = lnx
+    endif
+
+    VAM_BUILD_ROOT = $(VAM_DEPTH)/build/$(VAM_OS_BUILD)
+
+endif
+
+# Independent layer directories/libs
+VAM_SRC = core
+
+VAM_SRC_DIRS = $(VAM_SRC)
+
+#-----------------------------------------------------------------------
+# Library name
+#-----------------------------------------------------------------------
+ifndef VAM_LIB_NAME
+VAM_LIB_NAME = vam
+endif

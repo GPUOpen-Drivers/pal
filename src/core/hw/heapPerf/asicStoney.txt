@@ -1,0 +1,5 @@
+                  cpuWrite    cpuRead     gpuWrite    gpuRead
+Local             3.8         0.011       8.9         11
+Invisible         0           0           8.9         11
+GartUswc          3.8         0.055       8.9         11
+GartCacheable     3.9         3.7         8.9         10

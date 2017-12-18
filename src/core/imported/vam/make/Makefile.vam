@@ -1,0 +1,33 @@
+ifneq ($(VAM_DEV),1)
+    include $(VAM_DEPTH)/make/vamdefs
+endif
+
+####
+#
+#   Makefile for building vam
+#
+####
+
+#-----------------------------------------------------------------------
+# Common VAM Implementation Files
+#-----------------------------------------------------------------------
+
+vpath %.cpp $(VAM_DEPTH)
+vpath %.cpp $(VAM_DEPTH)/core
+
+CPPFILES += vaminterface.cpp    	\
+            vamobject.cpp       	\
+            vamdevice.cpp       	\
+            vamptb.cpp          	\
+            vamsuballoc.cpp     	\
+            vamsectionalloc.cpp 	\
+            vamrange.cpp
+
+#-----------------------------------------------------------------------
+# Common VAM Includes
+#-----------------------------------------------------------------------
+
+LCXXINCS += -I$(VAM_DEPTH) \
+            -I$(VAM_DEPTH)/core \
+            -I$(DEPTH)/drivers/inc/shared
+

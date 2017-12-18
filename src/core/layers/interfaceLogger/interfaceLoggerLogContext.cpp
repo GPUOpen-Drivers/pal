@@ -1,0 +1,1221 @@
+/*
+ *******************************************************************************
+ *
+ * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ ******************************************************************************/
+
+#include "core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.h"
+#include "core/layers/interfaceLogger/interfaceLoggerCmdAllocator.h"
+#include "core/layers/interfaceLogger/interfaceLoggerCmdBuffer.h"
+#include "core/layers/interfaceLogger/interfaceLoggerColorBlendState.h"
+#include "core/layers/interfaceLogger/interfaceLoggerColorTargetView.h"
+#include "core/layers/interfaceLogger/interfaceLoggerDepthStencilState.h"
+#include "core/layers/interfaceLogger/interfaceLoggerDepthStencilView.h"
+#include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
+#include "core/layers/interfaceLogger/interfaceLoggerFence.h"
+#include "core/layers/interfaceLogger/interfaceLoggerGpuEvent.h"
+#include "core/layers/interfaceLogger/interfaceLoggerGpuMemory.h"
+#include "core/layers/interfaceLogger/interfaceLoggerImage.h"
+#include "core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.h"
+#include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
+#include "core/layers/interfaceLogger/interfaceLoggerMsaaState.h"
+#include "core/layers/interfaceLogger/interfaceLoggerPipeline.h"
+#include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
+#include "core/layers/interfaceLogger/interfaceLoggerPrivateScreen.h"
+#include "core/layers/interfaceLogger/interfaceLoggerQueryPool.h"
+#include "core/layers/interfaceLogger/interfaceLoggerQueue.h"
+#include "core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.h"
+#include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
+#include "core/layers/interfaceLogger/interfaceLoggerShader.h"
+#include "core/layers/interfaceLogger/interfaceLoggerShaderCache.h"
+#include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
+
+using namespace Util;
+
+namespace Pal
+{
+namespace InterfaceLogger
+{
+
+const char*const ObjectNames[] =
+{
+    "IBorderColorPalette",
+    "ICmdAllocator",
+    "ICmdBuffer",
+    "IColorBlendState",
+    "IColorTargetView",
+    "IDepthStencilState",
+    "IDepthStencilView",
+    "IDevice",
+    "IFence",
+    "IGpuEvent",
+    "IGpuMemory",
+    "IImage",
+    "IIndirectCmdGenerator",
+    "IMsaaState",
+    "IPipeline",
+    "IPlatform",
+    "IPrivateScreen",
+    "IQueryPool",
+    "IQueue",
+    "IQueueSemaphore",
+    "IScreen",
+    "IShader",
+    "IShaderCache",
+    "ISwapChain",
+};
+
+static_assert(sizeof(ObjectNames) / sizeof(ObjectNames[0]) == static_cast<size_t>(InterfaceObject::Count),
+              "The ObjectNames array must be updated.");
+
+struct FuncFormattingEntry
+{
+    InterfaceFunc    function;   // The interface function this entry represents.
+    InterfaceObject  objectType; // The object the function belongs to.
+    const char*const pFuncName;  // The name of the function.
+};
+
+static constexpr FuncFormattingEntry FuncFormattingTable[] =
+{
+    { InterfaceFunc::BorderColorPaletteUpdate,                                  InterfaceObject::BorderColorPalette,   "Update"                                  },
+    { InterfaceFunc::BorderColorPaletteBindGpuMemory,                           InterfaceObject::BorderColorPalette,   "BindGpuMemory"                           },
+    { InterfaceFunc::BorderColorPaletteDestroy,                                 InterfaceObject::BorderColorPalette,   "Destroy"                                 },
+    { InterfaceFunc::CmdAllocatorReset,                                         InterfaceObject::CmdAllocator,         "Reset"                                   },
+    { InterfaceFunc::CmdAllocatorDestroy,                                       InterfaceObject::CmdAllocator,         "Destroy"                                 },
+    { InterfaceFunc::CmdBufferBegin,                                            InterfaceObject::CmdBuffer,            "Begin"                                   },
+    { InterfaceFunc::CmdBufferEnd,                                              InterfaceObject::CmdBuffer,            "End"                                     },
+    { InterfaceFunc::CmdBufferReset,                                            InterfaceObject::CmdBuffer,            "Reset"                                   },
+    { InterfaceFunc::CmdBufferCmdBindPipeline,                                  InterfaceObject::CmdBuffer,            "CmdBindPipeline"                         },
+    { InterfaceFunc::CmdBufferCmdBindMsaaState,                                 InterfaceObject::CmdBuffer,            "CmdBindMsaaState"                        },
+    { InterfaceFunc::CmdBufferCmdBindColorBlendState,                           InterfaceObject::CmdBuffer,            "CmdBindColorBlendState"                  },
+    { InterfaceFunc::CmdBufferCmdBindDepthStencilState,                         InterfaceObject::CmdBuffer,            "CmdBindDepthStencilState"                },
+    { InterfaceFunc::CmdBufferCmdSetDepthBounds,                                InterfaceObject::CmdBuffer,            "CmdSetDepthBounds"                       },
+    { InterfaceFunc::CmdBufferCmdSetUserData,                                   InterfaceObject::CmdBuffer,            "CmdSetUserData"                          },
+    { InterfaceFunc::CmdBufferCmdSetIndirectUserData,                           InterfaceObject::CmdBuffer,            "CmdSetIndirectUserData"                  },
+    { InterfaceFunc::CmdBufferCmdSetIndirectUserDataWatermark,                  InterfaceObject::CmdBuffer,            "CmdSetIndirectUserDataWatermark"         },
+    { InterfaceFunc::CmdBufferCmdBindIndexData,                                 InterfaceObject::CmdBuffer,            "CmdBindIndexData"                        },
+    { InterfaceFunc::CmdBufferCmdBindTargets,                                   InterfaceObject::CmdBuffer,            "CmdBindTargets"                          },
+    { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,                          InterfaceObject::CmdBuffer,            "CmdBindStreamOutTargets"                 },
+    { InterfaceFunc::CmdBufferCmdSetBlendConst,                                 InterfaceObject::CmdBuffer,            "CmdSetBlendConst"                        },
+    { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,                         InterfaceObject::CmdBuffer,            "CmdSetInputAssemblyState"                },
+    { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,                        InterfaceObject::CmdBuffer,            "CmdSetTriangleRasterState"               },
+    { InterfaceFunc::CmdBufferCmdSetPointLineRasterState,                       InterfaceObject::CmdBuffer,            "CmdSetPointLineRasterState"              },
+    { InterfaceFunc::CmdBufferCmdSetDepthBiasState,                             InterfaceObject::CmdBuffer,            "CmdSetDepthBiasState"                    },
+    { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                            InterfaceObject::CmdBuffer,            "CmdSetStencilRefMasks"                   },
+    { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                             InterfaceObject::CmdBuffer,            "CmdSetUserClipPlanes"                    },
+    { InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern,                      InterfaceObject::CmdBuffer,            "CmdSetMsaaQuadSamplePattern"             },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
+    { InterfaceFunc::CmdBufferCmdStoreMsaaQuadSamplePattern,                    InterfaceObject::CmdBuffer,            "CmdStoreMsaaQuadSamplePattern"           },
+    { InterfaceFunc::CmdBufferCmdLoadMsaaQuadSamplePattern,                     InterfaceObject::CmdBuffer,            "CmdLoadMsaaQuadSamplePattern"            },
+#endif
+    { InterfaceFunc::CmdBufferCmdSetViewports,                                  InterfaceObject::CmdBuffer,            "CmdSetViewports"                         },
+    { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
+    { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
+    { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
+    { InterfaceFunc::CmdBufferCmdDraw,                                          InterfaceObject::CmdBuffer,            "CmdDraw"                                 },
+    { InterfaceFunc::CmdBufferCmdDrawIndexed,                                   InterfaceObject::CmdBuffer,            "CmdDrawIndexed"                          },
+    { InterfaceFunc::CmdBufferCmdDrawIndirectMulti,                             InterfaceObject::CmdBuffer,            "CmdDrawIndirectMulti"                    },
+    { InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti,                      InterfaceObject::CmdBuffer,            "CmdDrawIndexedIndirectMulti"             },
+    { InterfaceFunc::CmdBufferCmdDispatch,                                      InterfaceObject::CmdBuffer,            "CmdDispatch"                             },
+    { InterfaceFunc::CmdBufferCmdDispatchIndirect,                              InterfaceObject::CmdBuffer,            "CmdDispatchIndirect"                     },
+    { InterfaceFunc::CmdBufferCmdDispatchOffset,                                InterfaceObject::CmdBuffer,            "CmdDispatchOffset"                       },
+    { InterfaceFunc::CmdBufferCmdCopyMemory,                                    InterfaceObject::CmdBuffer,            "CmdCopyMemory"                           },
+    { InterfaceFunc::CmdBufferCmdCopyImage,                                     InterfaceObject::CmdBuffer,            "CmdCopyImage"                            },
+    { InterfaceFunc::CmdBufferCmdCopyMemoryToImage,                             InterfaceObject::CmdBuffer,            "CmdCopyMemoryToImage"                    },
+    { InterfaceFunc::CmdBufferCmdCopyImageToMemory,                             InterfaceObject::CmdBuffer,            "CmdCopyImageToMemory"                    },
+    { InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage,                        InterfaceObject::CmdBuffer,            "CmdCopyMemoryToTiledImage"               },
+    { InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory,                        InterfaceObject::CmdBuffer,            "CmdCopyTiledImageToMemory"               },
+    { InterfaceFunc::CmdBufferCmdCopyTypedBuffer,                               InterfaceObject::CmdBuffer,            "CmdCopyTypedBuffer"                      },
+    { InterfaceFunc::CmdBufferCmdCopyRegisterToMemory,                          InterfaceObject::CmdBuffer,            "CmdCopyRegisterToMemory"                 },
+    { InterfaceFunc::CmdBufferCmdScaledCopyImage,                               InterfaceObject::CmdBuffer,            "CmdScaledCopyImage"                      },
+    { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,                      InterfaceObject::CmdBuffer,            "CmdColorSpaceConversionCopy"             },
+    { InterfaceFunc::CmdBufferCmdCloneImageData,                                InterfaceObject::CmdBuffer,            "CmdCloneImageData"                       },
+    { InterfaceFunc::CmdBufferCmdUpdateMemory,                                  InterfaceObject::CmdBuffer,            "CmdUpdateMemory"                         },
+    { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,              InterfaceObject::CmdBuffer,            "CmdUpdateBusAddressableMemoryMarker"     },
+    { InterfaceFunc::CmdBufferCmdFillMemory,                                    InterfaceObject::CmdBuffer,            "CmdFillMemory"                           },
+    { InterfaceFunc::CmdBufferCmdClearColorBuffer,                              InterfaceObject::CmdBuffer,            "CmdClearColorBuffer"                     },
+    { InterfaceFunc::CmdBufferCmdClearBoundColorTargets,                        InterfaceObject::CmdBuffer,            "CmdClearBoundColorTargets"               },
+    { InterfaceFunc::CmdBufferCmdClearColorImage,                               InterfaceObject::CmdBuffer,            "CmdClearColorImage"                      },
+    { InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets,                 InterfaceObject::CmdBuffer,            "CmdClearBoundDepthStencilTargets"        },
+    { InterfaceFunc::CmdBufferCmdClearDepthStencil,                             InterfaceObject::CmdBuffer,            "CmdClearDepthStencil"                    },
+    { InterfaceFunc::CmdBufferCmdClearBufferView,                               InterfaceObject::CmdBuffer,            "CmdClearBufferView"                      },
+    { InterfaceFunc::CmdBufferCmdClearImageView,                                InterfaceObject::CmdBuffer,            "CmdClearImageView"                       },
+    { InterfaceFunc::CmdBufferCmdResolveImage,                                  InterfaceObject::CmdBuffer,            "CmdResolveImage"                         },
+    { InterfaceFunc::CmdBufferCmdSetEvent,                                      InterfaceObject::CmdBuffer,            "CmdSetEvent"                             },
+    { InterfaceFunc::CmdBufferCmdResetEvent,                                    InterfaceObject::CmdBuffer,            "CmdResetEvent"                           },
+    { InterfaceFunc::CmdBufferCmdPredicateEvent,                                InterfaceObject::CmdBuffer,            "CmdPredicateEvent"                       },
+    { InterfaceFunc::CmdBufferCmdMemoryAtomic,                                  InterfaceObject::CmdBuffer,            "CmdMemoryAtomic"                         },
+    { InterfaceFunc::CmdBufferCmdBeginQuery,                                    InterfaceObject::CmdBuffer,            "CmdBeginQuery"                           },
+    { InterfaceFunc::CmdBufferCmdEndQuery,                                      InterfaceObject::CmdBuffer,            "CmdEndQuery"                             },
+    { InterfaceFunc::CmdBufferCmdResolveQuery,                                  InterfaceObject::CmdBuffer,            "CmdResolveQuery"                         },
+    { InterfaceFunc::CmdBufferCmdResetQueryPool,                                InterfaceObject::CmdBuffer,            "CmdResetQueryPool"                       },
+    { InterfaceFunc::CmdBufferCmdWriteTimestamp,                                InterfaceObject::CmdBuffer,            "CmdWriteTimestamp"                       },
+    { InterfaceFunc::CmdBufferCmdWriteImmediate,                                InterfaceObject::CmdBuffer,            "CmdWriteTimestamp"                       },
+    { InterfaceFunc::CmdBufferCmdLoadGds,                                       InterfaceObject::CmdBuffer,            "CmdLoadGds"                              },
+    { InterfaceFunc::CmdBufferCmdStoreGds,                                      InterfaceObject::CmdBuffer,            "CmdStoreGds"                             },
+    { InterfaceFunc::CmdBufferCmdUpdateGds,                                     InterfaceObject::CmdBuffer,            "CmdUpdateGds"                            },
+    { InterfaceFunc::CmdBufferCmdFillGds,                                       InterfaceObject::CmdBuffer,            "CmdFillGds"                              },
+    { InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes,                         InterfaceObject::CmdBuffer,            "CmdLoadBufferFilledSizes"                },
+    { InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes,                         InterfaceObject::CmdBuffer,            "CmdSaveBufferFilledSizes"                },
+    { InterfaceFunc::CmdBufferCmdBindBorderColorPalette,                        InterfaceObject::CmdBuffer,            "CmdBindBorderColorPalette"               },
+    { InterfaceFunc::CmdBufferCmdSetPredication,                                InterfaceObject::CmdBuffer,            "CmdSetPredication"                       },
+    { InterfaceFunc::CmdBufferCmdIf,                                            InterfaceObject::CmdBuffer,            "CmdIf"                                   },
+    { InterfaceFunc::CmdBufferCmdElse,                                          InterfaceObject::CmdBuffer,            "CmdElse"                                 },
+    { InterfaceFunc::CmdBufferCmdEndIf,                                         InterfaceObject::CmdBuffer,            "CmdEndIf"                                },
+    { InterfaceFunc::CmdBufferCmdWhile,                                         InterfaceObject::CmdBuffer,            "CmdWhile"                                },
+    { InterfaceFunc::CmdBufferCmdEndWhile,                                      InterfaceObject::CmdBuffer,            "CmdEndWhile"                             },
+    { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                             InterfaceObject::CmdBuffer,            "CmdWaitRegisterValue"                    },
+    { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                               InterfaceObject::CmdBuffer,            "CmdWaitMemoryValue"                      },
+    { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,                InterfaceObject::CmdBuffer,            "CmdWaitBusAddressableMemoryMarker"       },
+    { InterfaceFunc::CmdBufferCmdFlglSync,                                      InterfaceObject::CmdBuffer,            "FlglSync"                                },
+    { InterfaceFunc::CmdBufferCmdFlglEnable,                                    InterfaceObject::CmdBuffer,            "FlglEnable"                              },
+    { InterfaceFunc::CmdBufferCmdFlglDisable,                                   InterfaceObject::CmdBuffer,            "FlglDisable"                             },
+    { InterfaceFunc::CmdBufferCmdLoadCeRam,                                     InterfaceObject::CmdBuffer,            "CmdLoadCeRam"                            },
+    { InterfaceFunc::CmdBufferCmdDumpCeRam,                                     InterfaceObject::CmdBuffer,            "CmdDumpCeRam"                            },
+    { InterfaceFunc::CmdBufferCmdWriteCeRam,                                    InterfaceObject::CmdBuffer,            "CmdWriteCeRam"                           },
+    { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,                          InterfaceObject::CmdBuffer,            "CmdAllocateEmbeddedData"                 },
+    { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,                       InterfaceObject::CmdBuffer,            "CmdExecuteNestedCmdBuffers"              },
+    { InterfaceFunc::CmdBufferCmdSaveComputeState,                              InterfaceObject::CmdBuffer,            "CmdSaveComputeState"                     },
+    { InterfaceFunc::CmdBufferCmdRestoreComputeState,                           InterfaceObject::CmdBuffer,            "CmdRestoreComputeState"                  },
+    { InterfaceFunc::CmdBufferCmdExecuteIndirectCmds,                           InterfaceObject::CmdBuffer,            "CmdExecuteIndirectCmds"                  },
+    { InterfaceFunc::CmdBufferCmdSetMarker,                                     InterfaceObject::CmdBuffer,            "CmdSetMarker"                            },
+    { InterfaceFunc::CmdBufferCmdPresent,                                       InterfaceObject::CmdBuffer,            "CmdPresent"                              },
+    { InterfaceFunc::CmdBufferCmdCommentString,                                 InterfaceObject::CmdBuffer,            "CmdCommentString"                        },
+    { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,                           InterfaceObject::CmdBuffer,            "CmdXdmaWaitFlipPending"                  },
+    { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,                       InterfaceObject::CmdBuffer,            "CmdStartGpuProfilerLogging"              },
+    { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,                        InterfaceObject::CmdBuffer,            "CmdStopGpuProfilerLogging"               },
+    { InterfaceFunc::CmdBufferDestroy,                                          InterfaceObject::CmdBuffer,            "Destroy"                                 },
+    { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,                      InterfaceObject::CmdBuffer,            "CmdBufferCopyImageToPackedPixelImage"    },
+    { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,                           InterfaceObject::CmdBuffer,            "CmdSetViewInstanceMask"                  },
+    { InterfaceFunc::ColorBlendStateDestroy,                                    InterfaceObject::ColorBlendState,      "Destroy"                                 },
+    { InterfaceFunc::DepthStencilStateDestroy,                                  InterfaceObject::DepthStencilState,    "Destroy"                                 },
+    { InterfaceFunc::DeviceCommitSettingsAndInit,                               InterfaceObject::Device,               "CommitSettingsAndInit"                   },
+    { InterfaceFunc::DeviceAllocateGds,                                         InterfaceObject::Device,               "AllocateGds"                             },
+    { InterfaceFunc::DeviceFinalize,                                            InterfaceObject::Device,               "Finalize"                                },
+    { InterfaceFunc::DeviceCleanup,                                             InterfaceObject::Device,               "Cleanup"                                 },
+    { InterfaceFunc::DeviceSetMaxQueuedFrames,                                  InterfaceObject::Device,               "SetMaxQueuedFrames"                      },
+    { InterfaceFunc::DeviceAddGpuMemoryReferences,                              InterfaceObject::Device,               "AddGpuMemoryReferences"                  },
+    { InterfaceFunc::DeviceRemoveGpuMemoryReferences,                           InterfaceObject::Device,               "RemoveGpuMemoryReferences"               },
+    { InterfaceFunc::DeviceSetClockMode,                                        InterfaceObject::Device,               "SetClockMode"                            },
+    { InterfaceFunc::DeviceSetMgpuMode,                                         InterfaceObject::Device,               "SetMgpuMode"                             },
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
+    { InterfaceFunc::DeviceTurboSyncControl,                                    InterfaceObject::Device,               "TurboSyncControl"                        },
+#endif
+    { InterfaceFunc::DeviceOfferAllocations,                                    InterfaceObject::Device,               "OfferAllocations"                        },
+    { InterfaceFunc::DeviceReclaimAllocations,                                  InterfaceObject::Device,               "ReclaimAllocations"                      },
+    { InterfaceFunc::DeviceResetFences,                                         InterfaceObject::Device,               "ResetFences"                             },
+    { InterfaceFunc::DeviceWaitForFences,                                       InterfaceObject::Device,               "WaitForFences"                           },
+    { InterfaceFunc::DeviceBindTrapHandler,                                     InterfaceObject::Device,               "BindTrapHandler"                         },
+    { InterfaceFunc::DeviceBindTrapBuffer,                                      InterfaceObject::Device,               "BindTrapBuffer"                          },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
+    { InterfaceFunc::DeviceInitMsaaQuadSamplePatternGpuMemory,                  InterfaceObject::Device,               "InitMsaaQuadSamplePatternGpuMemory"      },
+#endif
+    { InterfaceFunc::DeviceCreateQueue,                                         InterfaceObject::Device,               "CreateQueue"                             },
+    { InterfaceFunc::DeviceCreateGpuMemory,                                     InterfaceObject::Device,               "CreateGpuMemory"                         },
+    { InterfaceFunc::DeviceCreatePinnedGpuMemory,                               InterfaceObject::Device,               "CreatePinnedGpuMemory"                   },
+    { InterfaceFunc::DeviceCreateSvmGpuMemory,                                  InterfaceObject::Device,               "CreateSvmGpuMemory"                      },
+    { InterfaceFunc::DeviceOpenSharedGpuMemory,                                 InterfaceObject::Device,               "OpenSharedGpuMemory"                     },
+    { InterfaceFunc::DeviceOpenExternalSharedGpuMemory,                         InterfaceObject::Device,               "OpenExternalSharedGpuMemory"             },
+    { InterfaceFunc::DeviceOpenPeerGpuMemory,                                   InterfaceObject::Device,               "OpenPeerGpuMemory"                       },
+    { InterfaceFunc::DeviceCreateImage,                                         InterfaceObject::Device,               "CreateImage"                             },
+    { InterfaceFunc::DeviceCreatePresentableImage,                              InterfaceObject::Device,               "CreatePresentableImage"                  },
+    { InterfaceFunc::DeviceOpenPeerImage,                                       InterfaceObject::Device,               "OpenPeerImage"                           },
+    { InterfaceFunc::DeviceOpenExternalSharedImage,                             InterfaceObject::Device,               "OpenExternalSharedImage"                 },
+    { InterfaceFunc::DeviceCreateColorTargetView,                               InterfaceObject::Device,               "CreateColorTargetView"                   },
+    { InterfaceFunc::DeviceCreateDepthStencilView,                              InterfaceObject::Device,               "CreateDepthStencilView"                  },
+    { InterfaceFunc::DeviceCreateTypedBufferViewSrds,                           InterfaceObject::Device,               "CreateTypedBufferViewSrds"               },
+    { InterfaceFunc::DeviceCreateUntypedBufferViewSrds,                         InterfaceObject::Device,               "CreateUntypedBufferViewSrds"             },
+    { InterfaceFunc::DeviceCreateImageViewSrds,                                 InterfaceObject::Device,               "CreateImageViewSrds"                     },
+    { InterfaceFunc::DeviceCreateFmaskViewSrds,                                 InterfaceObject::Device,               "CreateFmaskViewSrds"                     },
+    { InterfaceFunc::DeviceCreateSamplerSrds,                                   InterfaceObject::Device,               "CreateSamplerSrds"                       },
+    { InterfaceFunc::DeviceSetSamplePatternPalette,                             InterfaceObject::Device,               "SetSamplePatternPalette"                 },
+    { InterfaceFunc::DeviceCreateBorderColorPalette,                            InterfaceObject::Device,               "CreateBorderColorPalette"                },
+    { InterfaceFunc::DeviceCreateShader,                                        InterfaceObject::Device,               "CreateShader"                            },
+    { InterfaceFunc::DeviceCreateShaderCache,                                   InterfaceObject::Device,               "CreateShaderCache"                       },
+    { InterfaceFunc::DeviceCreateComputePipeline,                               InterfaceObject::Device,               "CreateComputePipeline"                   },
+    { InterfaceFunc::DeviceCreateGraphicsPipeline,                              InterfaceObject::Device,               "CreateGraphicsPipeline"                  },
+    { InterfaceFunc::DeviceLoadPipeline,                                        InterfaceObject::Device,               "LoadPipeline"                            },
+    { InterfaceFunc::DeviceCreateMsaaState,                                     InterfaceObject::Device,               "CreateMsaaState"                         },
+    { InterfaceFunc::DeviceCreateColorBlendState,                               InterfaceObject::Device,               "CreateColorBlendState"                   },
+    { InterfaceFunc::DeviceCreateDepthStencilState,                             InterfaceObject::Device,               "CreateDepthStencilState"                 },
+    { InterfaceFunc::DeviceCreateQueueSemaphore,                                InterfaceObject::Device,               "CreateQueueSemaphore"                    },
+    { InterfaceFunc::DeviceOpenSharedQueueSemaphore,                            InterfaceObject::Device,               "OpenSharedQueueSemaphore"                },
+    { InterfaceFunc::DeviceOpenExternalSharedQueueSemaphore,                    InterfaceObject::Device,               "OpenExternalSharedQueueSemaphore"        },
+    { InterfaceFunc::DeviceCreateFence,                                         InterfaceObject::Device,               "CreateFence"                             },
+    { InterfaceFunc::DeviceOpenFence,                                           InterfaceObject::Device,               "OpenFence"                               },
+    { InterfaceFunc::DeviceCreateGpuEvent,                                      InterfaceObject::Device,               "CreateGpuEvent"                          },
+    { InterfaceFunc::DeviceCreateQueryPool,                                     InterfaceObject::Device,               "CreateQueryPool"                         },
+    { InterfaceFunc::DeviceCreateCmdAllocator,                                  InterfaceObject::Device,               "CreateCmdAllocator"                      },
+    { InterfaceFunc::DeviceCreateCmdBuffer,                                     InterfaceObject::Device,               "CreateCmdBuffer"                         },
+    { InterfaceFunc::DeviceCreateIndirectCmdGenerator,                          InterfaceObject::Device,               "CreateIndirectCmdGenerator"              },
+    { InterfaceFunc::DeviceGetPrivateScreens,                                   InterfaceObject::Device,               "GetPrivateScreens"                       },
+    { InterfaceFunc::DeviceAddEmulatedPrivateScreen,                            InterfaceObject::Device,               "AddEmulatedPrivateScreen"                },
+    { InterfaceFunc::DeviceRemoveEmulatedPrivateScreen,                         InterfaceObject::Device,               "RemoveEmulatedPrivateScreen"             },
+    { InterfaceFunc::DeviceCreatePrivateScreenImage,                            InterfaceObject::Device,               "CreatePrivateScreenImage"                },
+    { InterfaceFunc::DeviceCreateSwapChain,                                     InterfaceObject::Device,               "CreateSwapChain"                         },
+    { InterfaceFunc::DeviceSetPowerProfile,                                     InterfaceObject::Device,               "SetPowerProfile"                         },
+    { InterfaceFunc::DeviceFlglQueryState,                                      InterfaceObject::Device,               "FlglQueryState"                          },
+    { InterfaceFunc::DeviceFlglSetFrameLock,                                    InterfaceObject::Device,               "FlglSetFrameLock"                        },
+    { InterfaceFunc::DeviceFlglResetFrameCounter,                               InterfaceObject::Device,               "FlglResetFrameCounter"                   },
+    { InterfaceFunc::DeviceFlglGetFrameCounter,                                 InterfaceObject::Device,               "FlglGetFrameCounter"                     },
+    { InterfaceFunc::DeviceFlglGetFrameCounterResetStatus,                      InterfaceObject::Device,               "FlglGetFrameCounterResetStatus"          },
+    { InterfaceFunc::DeviceCreateVirtualDisplay,                                InterfaceObject::Device,               "CreateVirtualDisplay"                    },
+    { InterfaceFunc::DeviceDestroyVirtualDisplay,                               InterfaceObject::Device,               "DestroyVirtualDisplay"                   },
+    { InterfaceFunc::DeviceGetVirtualDisplayProperties,                         InterfaceObject::Device,               "GetVirtualDisplayProperties"             },
+    { InterfaceFunc::FenceDestroy,                                              InterfaceObject::Fence,                "Destroy"                                 },
+    { InterfaceFunc::GpuEventSet,                                               InterfaceObject::GpuEvent,             "Set"                                     },
+    { InterfaceFunc::GpuEventReset,                                             InterfaceObject::GpuEvent,             "Reset"                                   },
+    { InterfaceFunc::GpuEventDestroy,                                           InterfaceObject::GpuEvent,             "Destroy"                                 },
+    { InterfaceFunc::GpuMemorySetPriority,                                      InterfaceObject::GpuMemory,            "SetPriority"                             },
+    { InterfaceFunc::GpuMemoryMap,                                              InterfaceObject::GpuMemory,            "Map"                                     },
+    { InterfaceFunc::GpuMemoryUnmap,                                            InterfaceObject::GpuMemory,            "Unmap"                                   },
+    { InterfaceFunc::GpuMemoryDestroy,                                          InterfaceObject::GpuMemory,            "Destroy"                                 },
+    { InterfaceFunc::ImageBindGpuMemory,                                        InterfaceObject::Image,                "BindGpuMemory"                           },
+    { InterfaceFunc::ImageDestroy,                                              InterfaceObject::Image,                "Destroy"                                 },
+    { InterfaceFunc::IndirectCmdGeneratorBindGpuMemory,                         InterfaceObject::IndirectCmdGenerator, "BindGpuMemory"                           },
+    { InterfaceFunc::IndirectCmdGeneratorDestroy,                               InterfaceObject::IndirectCmdGenerator, "Destroy"                                 },
+    { InterfaceFunc::MsaaStateDestroy,                                          InterfaceObject::MsaaState,            "Destroy"                                 },
+    { InterfaceFunc::PipelineAddShadersToCache,                                 InterfaceObject::Pipeline,             "AddShadersToCache"                       },
+    { InterfaceFunc::PipelineDestroy,                                           InterfaceObject::Pipeline,             "Destroy"                                 },
+    { InterfaceFunc::PlatformEnumerateDevices,                                  InterfaceObject::Platform,             "EnumerateDevices"                        },
+    { InterfaceFunc::PlatformGetScreens,                                        InterfaceObject::Platform,             "GetScreens"                              },
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
+    { InterfaceFunc::PlatformTurboSyncControl,                                  InterfaceObject::Platform,             "TurboSyncControl"                        },
+#endif
+    { InterfaceFunc::PlatformDestroy,                                           InterfaceObject::Platform,             "Destroy"                                 },
+    { InterfaceFunc::PrivateScreenEnable,                                       InterfaceObject::PrivateScreen,        "Enable"                                  },
+    { InterfaceFunc::PrivateScreenDisable,                                      InterfaceObject::PrivateScreen,        "Disable"                                 },
+    { InterfaceFunc::PrivateScreenBlank,                                        InterfaceObject::PrivateScreen,        "Blank"                                   },
+    { InterfaceFunc::PrivateScreenPresent,                                      InterfaceObject::PrivateScreen,        "Present"                                 },
+    { InterfaceFunc::PrivateScreenSetGammaRamp,                                 InterfaceObject::PrivateScreen,        "SetGammaRamp"                            },
+    { InterfaceFunc::PrivateScreenSetPowerMode,                                 InterfaceObject::PrivateScreen,        "SetPowerMode"                            },
+    { InterfaceFunc::PrivateScreenSetDisplayMode,                               InterfaceObject::PrivateScreen,        "SetDisplayMode"                          },
+    { InterfaceFunc::PrivateScreenSetColorMatrix,                               InterfaceObject::PrivateScreen,        "SetColorMatrix"                          },
+    { InterfaceFunc::PrivateScreenSetEventAfterVsync,                           InterfaceObject::PrivateScreen,        "SetEventAfterVsync"                      },
+    { InterfaceFunc::PrivateScreenEnableAudio,                                  InterfaceObject::PrivateScreen,        "EnableAudio"                             },
+    { InterfaceFunc::QueryPoolBindGpuMemory,                                    InterfaceObject::QueryPool,            "BindGpuMemory"                           },
+    { InterfaceFunc::QueryPoolDestroy,                                          InterfaceObject::QueryPool,            "Destroy"                                 },
+    { InterfaceFunc::QueryPoolReset,                                            InterfaceObject::QueryPool,            "Reset"                                   },
+    { InterfaceFunc::QueueSubmit,                                               InterfaceObject::Queue,                "Submit"                                  },
+    { InterfaceFunc::QueueWaitIdle,                                             InterfaceObject::Queue,                "WaitIdle"                                },
+    { InterfaceFunc::QueueSignalQueueSemaphore,                                 InterfaceObject::Queue,                "SignalQueueSemaphore"                    },
+    { InterfaceFunc::QueueWaitQueueSemaphore,                                   InterfaceObject::Queue,                "WaitQueueSemaphore"                      },
+    { InterfaceFunc::QueuePresentDirect,                                        InterfaceObject::Queue,                "PresentDirect"                           },
+    { InterfaceFunc::QueuePresentSwapChain,                                     InterfaceObject::Queue,                "PresentSwapChain"                        },
+    { InterfaceFunc::QueueDelay,                                                InterfaceObject::Queue,                "Delay"                                   },
+    { InterfaceFunc::QueueDelayAfterVsync,                                      InterfaceObject::Queue,                "DelayAfterVsync"                         },
+    { InterfaceFunc::QueueRemapVirtualMemoryPages,                              InterfaceObject::Queue,                "RemapVirtualMemoryPages"                 },
+    { InterfaceFunc::QueueCopyVirtualMemoryPageMappings,                        InterfaceObject::Queue,                "CopyVirtualMemoryPageMappings"           },
+    { InterfaceFunc::QueueAssociateFenceWithLastSubmit,                         InterfaceObject::Queue,                "AssociateFenceWithLastSubmit"            },
+    { InterfaceFunc::QueueSetExecutionPriority,                                 InterfaceObject::Queue,                "SetExecutionPriority"                    },
+    { InterfaceFunc::QueueDestroy,                                              InterfaceObject::Queue,                "Destroy"                                 },
+    { InterfaceFunc::QueueSemaphoreDestroy,                                     InterfaceObject::QueueSemaphore,       "Destroy"                                 },
+    { InterfaceFunc::ScreenTakeFullscreenOwnership,                             InterfaceObject::Screen,               "TakeFullscreenOwnership"                 },
+    { InterfaceFunc::ScreenReleaseFullscreenOwnership,                          InterfaceObject::Screen,               "ReleaseFullscreenOwnership"              },
+    { InterfaceFunc::ScreenSetGammaRamp,                                        InterfaceObject::Screen,               "SetGammaRamp"                            },
+    { InterfaceFunc::ScreenWaitForVerticalBlank,                                InterfaceObject::Screen,               "WaitForVerticalBlank"                    },
+    { InterfaceFunc::ScreenDestroy,                                             InterfaceObject::Screen,               "Destroy"                                 },
+    { InterfaceFunc::ShaderDestroy,                                             InterfaceObject::Shader,               "Destroy"                                 },
+    { InterfaceFunc::ShaderCacheDestroy,                                        InterfaceObject::ShaderCache,          "Destroy"                                 },
+    { InterfaceFunc::ShaderCacheSerialize,                                      InterfaceObject::ShaderCache,          "Serialize"                               },
+    { InterfaceFunc::ShaderCacheReset,                                          InterfaceObject::ShaderCache,          "Reset"                                   },
+    { InterfaceFunc::ShaderCacheMerge,                                          InterfaceObject::ShaderCache,          "Merge"                                   },
+    { InterfaceFunc::SwapChainAcquireNextImage,                                 InterfaceObject::SwapChain,            "AcquireNextImage"                        },
+    { InterfaceFunc::SwapChainWaitIdle,                                         InterfaceObject::SwapChain,            "WaitIdle"                                },
+    { InterfaceFunc::SwapChainDestroy,                                          InterfaceObject::SwapChain,            "Destroy"                                 },
+};
+
+static_assert(sizeof(FuncFormattingTable) / sizeof(FuncFormattingTable[0]) == static_cast<size_t>(InterfaceFunc::Count),
+              "The FuncFormattingTable must be updated.");
+
+// =====================================================================================================================
+LogStream::LogStream(
+    Platform* pPlatform)
+    :
+    m_pPlatform(pPlatform),
+    m_pBuffer(nullptr),
+    m_bufferSize(0),
+    m_bufferUsed(0)
+{
+}
+
+// =====================================================================================================================
+LogStream::~LogStream()
+{
+    if (m_file.IsOpen())
+    {
+        // Write out anything left in the buffer. If the file was never opened nothing gets written.
+        const Result result = WriteFile();
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    PAL_SAFE_FREE(m_pBuffer, m_pPlatform);
+}
+
+// =====================================================================================================================
+Result LogStream::OpenFile(
+    const char* pFilePath)
+{
+    Result result = m_file.Open(pFilePath, Util::FileAccessWrite);
+
+    if (result == Result::Success)
+    {
+        // Write out anything that was logged before now.
+        result = WriteFile();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result LogStream::WriteFile()
+{
+    Result result = Result::Success;
+
+    if (m_file.IsOpen() == false)
+    {
+        result = Result::ErrorUnavailable;
+    }
+    else if (m_bufferUsed > 0)
+    {
+        result       = m_file.Write(m_pBuffer, m_bufferUsed * sizeof(char));
+        m_bufferUsed = 0;
+
+        if (result == Result::Success)
+        {
+            // Flush to disk to make the logs more useful if the application crashes.
+            result = m_file.Flush();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void LogStream::WriteString(
+    const char* pString,
+    uint32      length)
+{
+    VerifyUnusedSpace(length);
+    memcpy(m_pBuffer + m_bufferUsed, pString, length * sizeof(char));
+    m_bufferUsed += length;
+}
+
+// =====================================================================================================================
+void LogStream::WriteCharacter(
+    char character)
+{
+    VerifyUnusedSpace(1);
+    m_pBuffer[m_bufferUsed++] = character;
+}
+
+// =====================================================================================================================
+// Verifies that the buffer has enough space for an additional "size" characters, reallocating if necessary.
+void LogStream::VerifyUnusedSpace(
+    uint32 size)
+{
+    if (m_bufferSize - m_bufferUsed < size)
+    {
+        const char* pOldBuffer = m_pBuffer;
+
+        // Bump up the size of the buffer to the next multiple of 4K that fits the current contents plus "size".
+        m_bufferSize = Pow2Align(m_bufferSize + size, 4096);
+        m_pBuffer     = static_cast<char*>(PAL_MALLOC(m_bufferSize * sizeof(char), m_pPlatform, AllocInternal));
+
+        PAL_ASSERT(m_pBuffer != nullptr);
+
+        memcpy(m_pBuffer, pOldBuffer, m_bufferUsed);
+        PAL_SAFE_FREE(pOldBuffer, m_pPlatform);
+    }
+}
+
+// =====================================================================================================================
+LogContext::LogContext(
+    Platform* pPlatform)
+    :
+    JsonWriter(&m_stream),
+    m_stream(pPlatform)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    for (uint32 idx = 0; idx < static_cast<uint32>(InterfaceFunc::Count); ++idx)
+    {
+        PAL_ASSERT(static_cast<uint32>(FuncFormattingTable[idx].function) == idx);
+    }
+#endif
+
+    // All top-level entries in the log will be contained in a list. If we don't do this, we can only write one entry!
+    BeginList(false);
+}
+
+// =====================================================================================================================
+LogContext::~LogContext()
+{
+    // End the list we started in the constructor.
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::BeginFunc(
+    const BeginFuncInfo& info,
+    uint32               threadId)
+{
+    auto const& funcData = FuncFormattingTable[static_cast<uint32>(info.funcId)];
+
+    BeginMap(false);
+    KeyAndValue("_type", "InterfaceFunc");
+    Key("this");
+    Object(funcData.objectType, info.objectId);
+    KeyAndValue("name", funcData.pFuncName);
+    KeyAndValue("thread", threadId);
+    KeyAndValue("preCallTime", info.preCallTime);
+    KeyAndValue("postCallTime", info.postCallTime);
+}
+
+// =====================================================================================================================
+void LogContext::EndFunc()
+{
+    EndMap();
+
+    // Flush our buffered JSON text to our log file if it's already been opened.
+    if (m_stream.IsFileOpen())
+    {
+        const Result result = m_stream.WriteFile();
+        PAL_ASSERT(result == Result::Success);
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IBorderColorPalette* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::BorderColorPalette, static_cast<const BorderColorPalette*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const ICmdAllocator* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::CmdAllocator, static_cast<const CmdAllocator*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const ICmdBuffer* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::CmdBuffer, static_cast<const CmdBuffer*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IColorBlendState* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::ColorBlendState, static_cast<const ColorBlendState*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IColorTargetView* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::ColorTargetView, static_cast<const ColorTargetView*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IDepthStencilState* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::DepthStencilState, static_cast<const DepthStencilState*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IDepthStencilView* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::DepthStencilView, static_cast<const DepthStencilView*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IDevice* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Device, static_cast<const Device*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IFence* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Fence, static_cast<const Fence*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IGpuEvent* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::GpuEvent, static_cast<const GpuEvent*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IGpuMemory* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::GpuMemory, static_cast<const GpuMemory*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IImage* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Image, static_cast<const Image*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IIndirectCmdGenerator* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::IndirectCmdGenerator, static_cast<const IndirectCmdGenerator*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IMsaaState* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::MsaaState, static_cast<const MsaaState*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IPipeline* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Pipeline, static_cast<const Pipeline*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IPrivateScreen* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::PrivateScreen, static_cast<const PrivateScreen*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IQueryPool* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::QueryPool, static_cast<const QueryPool*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IQueue* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Queue, static_cast<const Queue*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IQueueSemaphore* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::QueueSemaphore, static_cast<const QueueSemaphore*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IScreen* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Screen, static_cast<const Screen*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IShader* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::Shader, static_cast<const Shader*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const IShaderCache* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::ShaderCache, static_cast<const ShaderCache*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    const ISwapChain* pDecorator)
+{
+    if (pDecorator != nullptr)
+    {
+        Object(InterfaceObject::SwapChain, static_cast<const SwapChain*>(pDecorator)->ObjectId());
+    }
+    else
+    {
+        NullValue();
+    }
+}
+
+// =====================================================================================================================
+void LogContext::Object(
+    InterfaceObject objectType,
+    uint32          objectId)
+{
+    BeginMap(true);
+    KeyAndValue("class", ObjectNames[static_cast<uint32>(objectType)]);
+    KeyAndValue("id", objectId);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::CacheCoherencyUsageFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "CoherCpu",                // 0x00000001,
+        "CoherShader",             // 0x00000002,
+        "CoherCopy",               // 0x00000004,
+        "CoherColorTarget",        // 0x00000008,
+        "CoherDepthStencilTarget", // 0x00000010,
+        "CoherResolve",            // 0x00000020,
+        "CoherClear",              // 0x00000040,
+        "CoherIndirectArgs",       // 0x00000080,
+        "CoherIndexData",          // 0x00000100,
+        "CoherQueueAtomic",        // 0x00000200,
+        "CoherTimestamp",          // 0x00000400,
+        "CoherCeLoad",             // 0x00000800,
+        "CoherCeDump",             // 0x00001000,
+        "CoherStreamOut",          // 0x00002000,
+        "CoherMemory",             // 0x00004000,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ComputeStateFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "ComputeStatePipelineAndUserData", // 0x1,
+        "ComputeStateBorderColorPalette",  // 0x2,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::CopyControlFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "CopyFormatConversion", // 0x1,
+        "CopyRawSwizzle",       // 0x2,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::GpuMemoryRefFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "GpuMemoryRefCantTrim",    // 0x1,
+        "GpuMemoryRefMustSucceed", // 0x2,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ImageLayoutEngineFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "LayoutUniversalEngine",   // 0x01,
+        "LayoutComputeEngine",     // 0x02,
+        "LayoutDmaEngine",         // 0x04,
+        "LayoutVideoEncodeEngine", // 0x08,
+        "LayoutVideoDecodeEngine", // 0x10,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ImageLayoutUsageFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "LayoutUninitializedTarget",  // 0x00000001,
+        "LayoutColorTarget",          // 0x00000002,
+        "LayoutDepthStencilTarget",   // 0x00000004,
+        "LayoutShaderRead",           // 0x00000008,
+        "LayoutShaderFmaskBasedRead", // 0x00000010,
+        "LayoutShaderWrite",          // 0x00000020,
+        "LayoutCopySrc",              // 0x00000040,
+        "LayoutCopyDst",              // 0x00000080,
+        "LayoutResolveSrc",           // 0x00000100,
+        "LayoutResolveDst",           // 0x00000200,
+        "LayoutPresentWindowed",      // 0x00000400,
+        "LayoutPresentFullscreen",    // 0x00000800,
+        "LayoutUncompressed",         // 0x00001000,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::QueryPipelineStatsFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "QueryPipelineStatsIaVertices",    // 0x1,
+        "QueryPipelineStatsIaPrimitives",  // 0x2,
+        "QueryPipelineStatsVsInvocations", // 0x4,
+        "QueryPipelineStatsGsInvocations", // 0x8,
+        "QueryPipelineStatsGsPrimitives",  // 0x10,
+        "QueryPipelineStatsCInvocations",  // 0x20,
+        "QueryPipelineStatsCPrimitives",   // 0x40,
+        "QueryPipelineStatsPsInvocations", // 0x80,
+        "QueryPipelineStatsHsInvocations", // 0x100,
+        "QueryPipelineStatsDsInvocations", // 0x200,
+        "QueryPipelineStatsCsInvocations", // 0x400,
+    };
+
+    BeginList(false);
+
+    // Treat the "all stats" flag specially.
+    if (flags == QueryPipelineStatsAll)
+    {
+        Value("QueryPipelineStatsAll");
+    }
+    else
+    {
+        constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
+
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::QueryResultFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "QueryResult64Bit",        // 0x1,
+        "QueryResultWait",         // 0x2,
+        "QueryResultAvailability", // 0x4,
+        "QueryResultPartial",      // 0x8,
+        "QueryResultAccumulate",   // 0x10,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ClearColorImageFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "ColorClearAutoSync", // 0x1,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::ClearDepthStencilFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "DsClearAutoSync", // 0x1,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+const char* LogContext::GetQueueName(
+    QueueType value)
+{
+    const char*const StringTable[] =
+    {
+        "Universal",   // QueueTypeUniversal
+        "Compute",     // QueueTypeCompute
+        "Dma",         // QueueTypeDma
+        "Timer",       // QueueTypeTimer
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
+#else
+        "VideoEncode", // QueueTypeVideoEncode
+        "VideoDecode", // QueueTypeVideoDecode
+#endif
+    };
+
+    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == QueueTypeCount,
+                  "The GetQueueName string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < QueueTypeCount);
+
+    return StringTable[value];
+}
+
+// =====================================================================================================================
+const char* LogContext::GetEngineName(
+    EngineType value)
+{
+    const char*const StringTable[] =
+    {
+        "Universal",        // EngineTypeUniversal
+        "Compute",          // EngineTypeCompute
+        "ExclusiveCompute", // EngineTypeExclusiveCompute
+        "Dma",              // EngineTypeDma
+        "Timer",            // EngineTypeTimer
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
+    #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
+            "HpUniversal",      // EngineTypeHighPriorityUniversal
+            "HpGfxOnly",        // EngineTypeHighPriorityGraphics
+    #endif
+#else
+        "Vce",              // EngineTypeVce
+        "Uvd",              // EngineTypeUvd
+#endif
+    };
+
+    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == EngineTypeCount,
+        "The GetQueueName string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < EngineTypeCount);
+
+    return StringTable[value];
+}
+
+} // InterfaceLogger
+} // Pal
