@@ -131,7 +131,7 @@ Result GpuMemory::AllocateOrPinMemory(
                 // the pinned memory has special requirement for size and base virtual address.
                 // both supposed to be alinged to page boundary otherwise the pinned down operation
                 // will fail.
-                PAL_ASSERT(m_pPinnedMemory != NULL);
+                PAL_ASSERT(m_pPinnedMemory != nullptr);
                 result = pDevice->PinMemory(m_pPinnedMemory, m_desc.size, &m_offset, &bufferHandle);
             }
             else
