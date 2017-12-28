@@ -1,33 +1,33 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/device.h"
 #include "core/presentScheduler.h"
 #include "core/queue.h"
 #include "core/swapChain.h"
 #include "palIntrusiveListImpl.h"
-
 using namespace Util;
 
 namespace Pal
@@ -50,10 +50,6 @@ Result PresentSchedulerJob::CreateInternal(
     {
         PresentSchedulerJob*const pJob = PAL_PLACEMENT_NEW(pMemory) PresentSchedulerJob();
 
-        // The only unusual part of this process is here, where we place our job's fence immediately after it.
-        pMemory = VoidPtrInc(pMemory, sizeof(PresentSchedulerJob));
-        Pal::FenceCreateInfo createInfo = {};
-        result  = pDevice->CreateFence(createInfo, pMemory, &pJob->m_pPriorWorkFence);
         if (result == Result::Success)
         {
             *ppPresentSchedulerJob = pJob;
@@ -80,7 +76,6 @@ void PresentSchedulerJob::DestroyInternal(
 PresentSchedulerJob::PresentSchedulerJob()
     :
     m_node(this),
-    m_pPriorWorkFence(nullptr),
     m_type(PresentJobType::Terminate)
 {
     memset(&m_presentInfo, 0, sizeof(m_presentInfo));
@@ -89,11 +84,6 @@ PresentSchedulerJob::PresentSchedulerJob()
 // =====================================================================================================================
 PresentSchedulerJob::~PresentSchedulerJob()
 {
-    if (m_pPriorWorkFence != nullptr)
-    {
-        m_pPriorWorkFence->Destroy();
-        m_pPriorWorkFence = nullptr;
-    }
 }
 
 // =====================================================================================================================
@@ -233,6 +223,14 @@ static void WorkerThreadCallback(
 }
 
 // =====================================================================================================================
+Result PresentScheduler::PreparePresent(
+    IQueue*              pQueue,
+    PresentSchedulerJob* pJob)
+{
+    return Result::Success;
+}
+
+// =====================================================================================================================
 // Asks the scheduler to queue a present. The present operation may be queued immediately on the given queue or
 // scheduled for presentation at a later time using the internal scheduling thread and queue.
 Result PresentScheduler::Present(
@@ -266,18 +264,7 @@ Result PresentScheduler::Present(
 
         if (result == Result::Success)
         {
-            // Use an empty submit to get the job's fence signaled once the app's prior rendering is completed.
-            // The scheduling thread will use this fence to know when the image is ready to be presented.
-            IFence*const pFence = pJob->PriorWorkFence();
-            result = m_pDevice->ResetFences(1, &pFence);
-
-            if (result == Result::Success)
-            {
-                SubmitInfo submitInfo = {};
-                submitInfo.pFence     = pFence;
-
-                result = pQueue->Submit(submitInfo);
-            }
+            result = PreparePresent(pQueue, pJob);
         }
 
         if (result == Result::Success)
@@ -406,14 +393,6 @@ void PresentScheduler::RunWorkerThread()
 
             case PresentJobType::Present:
                 {
-                    // Block the thread until the current job's image is ready to be presented. Directly waiting on the
-                    // fence is preferable to submitting a queue semaphore wait because some OS-specific presentation
-                    // logic that requires the CPU to know that we can begin executing a present before preceeding.
-                    constexpr uint64 Timeout    = 2000000000;
-                    IFence*const     pFence     = pJob->PriorWorkFence();
-                    const Result     waitResult = m_pDevice->WaitForFences(1, &pFence, true, Timeout);
-                    PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
-
                     const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), m_pPresentQueue, false);
                     PAL_ALERT(IsErrorResult(presentResult));
                 }

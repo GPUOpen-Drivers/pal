@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include <climits>
 #include "core/cmdAllocator.h"
@@ -82,6 +83,7 @@ Result SubmissionContext::Create(
     const Device&            device,
     EngineType               engineType,
     uint32                   engineId,
+    Pal::QueuePriority       priority,
     Pal::SubmissionContext** ppContext)
 {
     Result     result  = Result::ErrorOutOfMemory;
@@ -89,7 +91,7 @@ Result SubmissionContext::Create(
 
     if (pMemory != nullptr)
     {
-        auto*const pContext = PAL_PLACEMENT_NEW(pMemory) SubmissionContext(device, engineType, engineId);
+        auto*const pContext = PAL_PLACEMENT_NEW(pMemory) SubmissionContext(device, engineType, engineId, priority);
         result              = pContext->Init();
 
         if (result == Result::Success)
@@ -108,14 +110,16 @@ Result SubmissionContext::Create(
 
 // =====================================================================================================================
 SubmissionContext::SubmissionContext(
-    const Device& device,
-    EngineType    engineType,
-    uint32        engineId)
+    const Device&       device,
+    EngineType          engineType,
+    uint32              engineId,
+    Pal::QueuePriority  priority)
     :
     Pal::SubmissionContext(device.GetPlatform()),
     m_device(device),
     m_ipType(GetIpType(engineType)),
     m_engineId(engineId),
+    m_queuePriority(priority),
     m_hContext(nullptr)
 {
 }
@@ -135,7 +139,7 @@ SubmissionContext::~SubmissionContext()
 // =====================================================================================================================
 Result SubmissionContext::Init()
 {
-    return m_device.CreateCommandSubmissionContext(&m_hContext);
+    return m_device.CreateCommandSubmissionContext(&m_hContext, m_queuePriority);
 }
 
 // =====================================================================================================================
@@ -232,6 +236,7 @@ Result Queue::Init(
         result = SubmissionContext::Create(static_cast<Device&>(*m_pDevice),
                                            m_engineType,
                                            m_engineId,
+                                           Priority(),
                                            &m_pSubmissionContext);
     }
 

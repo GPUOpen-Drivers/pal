@@ -1,27 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
-
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 /**
  ***********************************************************************************************************************
  * @file  palDevice.h
@@ -365,6 +365,10 @@ enum TextureFilterOptimizationSettings : uint32
 
 };
 
+static constexpr uint32 MaxPathStrLen = 512;
+static constexpr uint32 MaxFileNameStrLen = 256;
+static constexpr uint32 MaxMiscStrLen = 61;
+
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
 {
@@ -405,9 +409,9 @@ struct PalPublicSettings
     ///  provide direct ISA binaries(usually AQL path).
     bool disableScManager;
     /// Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)
-    char renderedByString[61];
+    char renderedByString[MaxMiscStrLen];
     /// Debug information that the client or tester might want reported.
-    char miscellaneousDebugString[61];
+    char miscellaneousDebugString[MaxMiscStrLen];
     /// Allows SC to make optimizations at the expense of IEEE compliance.
     bool allowNonIeeeOperations;
     /// Controls whether or not shaders should execute one atomic instruction per wave for UAV append/consume operations.
@@ -466,6 +470,115 @@ struct PalPublicSettings
     bool disableEscapeCall;
     /// In Win7 requests an extended TDR timeout (6 seconds).
     bool longRunningSubmissions;
+};
+
+/// Command Buffer Logger layer runtime settings
+struct CmdBufferLoggerSettings
+{
+    uint32 cmdBufferLoggerFlags;
+};
+
+/// Location enum for Debug Overlay layer
+enum DebugOverlayLocation : uint32
+{
+    DebugOverlayUpperLeft = 0,
+    DebugOverlayUpperRight = 1,
+    DebugOverlayLowerRight = 2,
+    DebugOverlayLowerLeft = 3,
+    DebugOverlayCount = 4,
+};
+
+/// Enum defining supported colors for Debug Overlay timegraph
+enum TimeGraphColor : uint32
+{
+    BlackColor = 0,
+    RedColor = 1,
+    GreenColor = 2,
+    BlueColor = 3,
+    YellowColor = 4,
+    CyanColor = 5,
+    MagentaColor = 6,
+    WhiteColor = 7,
+};
+
+/// Debug overlay layer runtime settings
+struct DebugOverlaySettings
+{
+    bool                    visualConfirmEnabled;
+    bool                    timeGraphEnabled;
+    DebugOverlayLocation    debugOverlayLocation;
+    TimeGraphColor          timeGraphGridLineColor;
+    TimeGraphColor          timeGraphCpuLineColor;
+    TimeGraphColor          timeGraphGpuLineColor;
+    uint32                  maxBenchmarkTime;
+    bool                    debugUsageLogEnable;
+    char                    debugUsageLogDirectory[MaxPathStrLen];
+    char                    debugUsageLogFilename[MaxPathStrLen];
+    bool                    logFrameStats;
+    char                    frameStatsLogDirectory[MaxPathStrLen];
+    uint32                  maxLoggedFrames;
+    bool                    overlayCombineNonLocal;
+    bool                    overlayReportCmdAllocator;
+    bool                    overlayReportExternal;
+    bool                    overlayReportInternal;
+    char                    renderedByString[MaxMiscStrLen];
+    char                    miscellaneousDebugString[MaxMiscStrLen];
+    bool                    printFrameNumber;
+};
+
+/// Enum describing the supported granularity for the GPU profiler layer
+enum GpuProfilerGranularity : uint32
+{
+    GpuProfilerGranularityDraw = 0,
+    GpuProfilerGranularityCmdBuf = 1,
+    GpuProfilerGranularityFrame = 2,
+};
+
+/// GPU profiler layer runtime settings
+struct GpuProfilerSettings
+{
+    char                      gpuProfilerLogDirectory[MaxPathStrLen];
+    uint32                    gpuProfilerStartFrame;
+    uint32                    gpuProfilerFrameCount;
+    bool                      gpuProfilerRecordPipelineStats;
+    char                      gpuProfilerGlobalPerfCounterConfigFile[MaxFileNameStrLen];
+    bool                      gpuProfilerGlobalPerfCounterPerInstance;
+    bool                      gpuProfilerBreakSubmitBatches;
+    bool                      gpuProfilerCacheFlushOnCounterCollection;
+    GpuProfilerGranularity    gpuProfilerGranularity;
+    uint32                    gpuProfilerSqThreadTraceTokenMask;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
+    uint32                    gpuProfilerSqttPipelineHashHi;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
+    uint32                    gpuProfilerSqttPipelineHashLo;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 298
+    uint64                     gpuProfilerSqttPipelineHash;
+#endif
+    uint32                     gpuProfilerSqttVsHashHi;
+    uint32                     gpuProfilerSqttVsHashLo;
+    uint32                     gpuProfilerSqttHsHashHi;
+    uint32                     gpuProfilerSqttHsHashLo;
+    uint32                     gpuProfilerSqttDsHashHi;
+    uint32                     gpuProfilerSqttDsHashLo;
+    uint32                     gpuProfilerSqttGsHashHi;
+    uint32                     gpuProfilerSqttGsHashLo;
+    uint32                     gpuProfilerSqttPsHashHi;
+    uint32                     gpuProfilerSqttPsHashLo;
+    uint32                     gpuProfilerSqttCsHashHi;
+    uint32                     gpuProfilerSqttCsHashLo;
+    uint32                     gpuProfilerSqttMaxDraws;
+    size_t                     gpuProfilerSqttBufferSize;
+};
+
+/// Interface logger layer runtime settings
+struct InterfaceLoggerSettings
+{
+    char    interfaceLoggerDirectory[MaxPathStrLen];
+    bool    interfaceLoggerMultithreaded;
+    uint32  interfaceLoggerBasePreset;
+    uint32  interfaceLoggerElevatedPreset;
 };
 
 /// Describes the equations needed to interpret the raw memory of a tiled texture.
@@ -1025,6 +1138,11 @@ struct DeviceProperties
         } flags;                                  ///< OS-specific property flags.
 
         bool   supportProSemaphore; ///< Support export/import semaphore in linux KMD.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
+        bool   supportQueuePriority;        ///< Support create queue with priority
+        bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority
+#endif
+
         uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
         VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
     } osProperties;                 ///< OS-specific properties of this device.
@@ -2100,6 +2218,26 @@ public:
     ///
     /// @returns Pointer to this devices public settings for examination and/or modification by the client.
     virtual PalPublicSettings* GetPublicSettings() = 0;
+
+    /// Returns this devices Command Buffer Logger layer settings structure initialized with appropriate defaults.
+    ///
+    /// @returns Pointer to this devices Command Buffer Logger layer settings.
+    virtual const CmdBufferLoggerSettings& GetCmdBufferLoggerSettings() const = 0;
+
+    /// Returns this devices Debug Overlay layer settings structure initialized with appropriate defaults.
+    ///
+    /// @returns Pointer to this devices Debug Overlay layer settings.
+    virtual const DebugOverlaySettings& GetDbgOverlaySettings() const = 0;
+
+    /// Returns this devices GPU Profiler layer settings structure initialized with appropriate defaults.
+    ///
+    /// @returns Pointer to this devices GPU Profiler layer settings.
+    virtual const GpuProfilerSettings& GetGpuProfilerSettings() const = 0;
+
+    /// Returns this devices Interface Logger layer settings structure initialized with appropriate defaults.
+    ///
+    /// @returns Pointer to this devices Interface Logger layer settings.
+    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const = 0;
 
     /// Reads a specific setting from the operating system specific source (e.g. registry or config file).
     ///
@@ -4347,7 +4485,6 @@ public:
     /// @returns True if hardware accelerated stereo rendering can be enabled, False otherwise.
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
-
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

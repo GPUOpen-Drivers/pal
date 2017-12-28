@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/layers/gpuProfiler/gpuProfilerCmdBuffer.h"
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
@@ -107,55 +108,7 @@ Result Platform::Init()
         result = m_pipelinePerfDataLock.Init();
     }
 
-    if (m_layerEnabled && (result == Result::Success))
-    {
-        // Initialize the settings
-        result = UpdateSettings();
-    }
-
     return result;
-}
-
-// =====================================================================================================================
-Result Platform::UpdateSettings()
-{
-    memset(m_profilerSettings.gpuProfilerLogDirectory, 0, 512);
-    strncpy(m_profilerSettings.gpuProfilerLogDirectory, "/tmp/amdpal/", 512);
-    m_profilerSettings.gpuProfilerStartFrame = 0;
-    m_profilerSettings.gpuProfilerFrameCount = 0;
-    m_profilerSettings.gpuProfilerRecordPipelineStats = false;
-    memset(m_profilerSettings.gpuProfilerGlobalPerfCounterConfigFile, 0, 256);
-    strncpy(m_profilerSettings.gpuProfilerGlobalPerfCounterConfigFile, "", 256);
-    m_profilerSettings.gpuProfilerGlobalPerfCounterPerInstance = false;
-    m_profilerSettings.gpuProfilerBreakSubmitBatches = false;
-    m_profilerSettings.gpuProfilerCacheFlushOnCounterCollection = false;
-    m_profilerSettings.gpuProfilerGranularity = GpuProfilerGranularityDraw;
-    m_profilerSettings.gpuProfilerSqThreadTraceTokenMask = 0xFFFF;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    m_profilerSettings.gpuProfilerSqttPipelineHashHi = 0;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    m_profilerSettings.gpuProfilerSqttPipelineHashLo = 0;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 298
-    m_profilerSettings.gpuProfilerSqttPipelineHash = 0;
-#endif
-    m_profilerSettings.gpuProfilerSqttVsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttVsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttHsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttHsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttDsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttDsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttGsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttGsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttPsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttPsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttCsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttCsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttMaxDraws = 0;
-    m_profilerSettings.gpuProfilerSqttBufferSize = 1048576;
-
-    return Result::Success;
 }
 
 // =====================================================================================================================

@@ -1,33 +1,36 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/platform.h"
 #include "core/layers/dbgOverlay/dbgOverlayFpsMgr.h"
 #include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "core/layers/dbgOverlay/dbgOverlayQueue.h"
+#include "core/layers/dbgOverlay/dbgOverlayDevice.h"
 #include "palAutoBuffer.h"
 #include "palDbgPrint.h"
+#include "palDevice.h"
 #include "palFile.h"
 #include "palListImpl.h"
 #include "palMutex.h"
@@ -43,11 +46,11 @@ namespace DbgOverlay
 
 // =====================================================================================================================
 FpsMgr::FpsMgr(
-    Platform*                   pPlatform,
-    const DebugOverlaySettings& settings)
+    Platform*     pPlatform,
+    const Device* pDevice)
     :
     m_pPlatform(pPlatform),
-    m_overlaySettings(settings),
+    m_pDevice(pDevice),
     m_frequency(0.f),
     m_cpuTimeSamples(0),
     m_cpuTimeIndex(0),
@@ -67,8 +70,6 @@ FpsMgr::FpsMgr(
     m_submitTimeList(pPlatform),
     m_prevDebugKeyState(false),
     m_prevGraphKeyState(false),
-    m_debugOverlayLocation(m_overlaySettings.debugOverlayLocation),
-    m_timeGraphLocation(m_overlaySettings.debugOverlayLocation),
     m_numGpuTimeRanges(0)
 {
     memset(&m_cpuTimeList[0],         0, sizeof(m_cpuTimeList));
@@ -91,7 +92,7 @@ FpsMgr::~FpsMgr()
         m_submitTimeList.Erase(&iter);
     }
 
-    if (m_overlaySettings.debugUsageLogEnable)
+    if ((m_pDevice != nullptr) && (m_pDevice->GetDbgOverlaySettings().debugUsageLogEnable))
     {
         Result result = DumpUsageLogs();
         PAL_ASSERT(result == Result::Success);
@@ -114,12 +115,14 @@ Result FpsMgr::DumpUsageLogs()
 
     if (m_frameCount > 0)
     {
+        PAL_ASSERT(m_pDevice != nullptr);
+
         char fileNameAndPath[1024] = {};
         Util::Snprintf(&fileNameAndPath[0],
                        sizeof(fileNameAndPath),
                        "%s/%s",
-                       &m_overlaySettings.debugUsageLogDirectory[0],
-                       &m_overlaySettings.debugUsageLogFilename);
+                       &m_pDevice->GetDbgOverlaySettings().debugUsageLogDirectory[0],
+                       &m_pDevice->GetDbgOverlaySettings().debugUsageLogFilename);
 
         File usageLogFile;
         result = usageLogFile.Open(&fileNameAndPath[0], FileAccessAppend);
@@ -446,24 +449,26 @@ void FpsMgr::GetBenchmarkString(
 
         if (m_benchmarkActive)
         {
+            PAL_ASSERT(m_pDevice != nullptr);
             // Check if the benchmark should be ended due to a settings-imposed maximum time.
-            if ((m_overlaySettings.maxBenchmarkTime != 0) && (time >= m_overlaySettings.maxBenchmarkTime))
+            const uint32 maxBenchmarkTime = m_pDevice->GetDbgOverlaySettings().maxBenchmarkTime;
+            if ((maxBenchmarkTime != 0) && (time >= maxBenchmarkTime))
             {
                 m_benchmarkActive = false;
 
-                if ((m_pFrameTimeLog != nullptr) && m_overlaySettings.logFrameStats)
+                if ((m_pFrameTimeLog != nullptr) && m_pDevice->GetDbgOverlaySettings().logFrameStats)
                 {
                     DumpFrameLogs();
                 }
             }
 
-            if (m_overlaySettings.maxBenchmarkTime == 0)
+            if (maxBenchmarkTime == 0)
             {
                 Util::Snprintf(pString, bufSize, "Benchmark Active:  %7.2f FPS", fps);
             }
             else
             {
-                const uint32 timeLeft = m_overlaySettings.maxBenchmarkTime - static_cast<uint32>(time);
+                const uint32 timeLeft = maxBenchmarkTime - static_cast<uint32>(time);
                 Util::Snprintf(pString, bufSize, "Benchmark (%3ds):  %7.2f FPS", timeLeft, fps);
             }
         }
@@ -478,15 +483,18 @@ void FpsMgr::GetBenchmarkString(
 // Updates benchmark status and composes output string for overlay.
 void FpsMgr::UpdateBenchmark()
 {
+    PAL_ASSERT(m_pDevice != nullptr);
+    const bool logFrameStats = m_pDevice->GetDbgOverlaySettings().logFrameStats;
+
     if (m_benchmarkActive)
     {
         // If the benchmark is active, extend the current benchmark span to now.
         m_benchmarkCounter[CurrentQuery] = GetPerfCpuTime();
 
         // If logging frame times and FPS, save off current frame end time (in ms).
-        if (m_overlaySettings.logFrameStats   &&
+        if (logFrameStats                &&
             (m_pFrameTimeLog != nullptr) &&
-            (m_benchmarkFrames < m_overlaySettings.maxLoggedFrames))
+            (m_benchmarkFrames < m_pDevice->GetDbgOverlaySettings().maxLoggedFrames))
         {
             const float timeMs = static_cast<float>((m_benchmarkCounter[CurrentQuery] -
                                  m_benchmarkCounter[LastQuery]) /
@@ -504,7 +512,7 @@ void FpsMgr::UpdateBenchmark()
         {
             m_benchmarkActive = false;
 
-            if ((m_pFrameTimeLog != nullptr) && m_overlaySettings.logFrameStats)
+            if ((m_pFrameTimeLog != nullptr) && logFrameStats)
             {
                 DumpFrameLogs();
             }
@@ -517,10 +525,13 @@ void FpsMgr::UpdateBenchmark()
             m_benchmarkActive = true;
             m_benchmarkFrames = 0;
 
-            if ((m_pFrameTimeLog == nullptr) && m_overlaySettings.logFrameStats)
+            if ((m_pFrameTimeLog == nullptr) && logFrameStats)
             {
                 m_pFrameTimeLog =
-                    PAL_NEW_ARRAY(float, m_overlaySettings.maxLoggedFrames, m_pPlatform, SystemAllocType::AllocInternal);
+                    PAL_NEW_ARRAY(float,
+                                  m_pDevice->GetDbgOverlaySettings().maxLoggedFrames,
+                                  m_pPlatform,
+                                  SystemAllocType::AllocInternal);
                 PAL_ASSERT(m_pFrameTimeLog != nullptr);
             }
         }
@@ -537,8 +548,13 @@ void FpsMgr::DumpFrameLogs()
     constexpr uint32 BufferSize = 640;
     char buf[BufferSize];
 
+    PAL_ASSERT(m_pDevice != nullptr);
     // Create timeline log file
-    Util::Snprintf(buf, BufferSize, "%s/timelog_%05d.csv", m_overlaySettings.frameStatsLogDirectory, logId);
+    Util::Snprintf(buf,
+                   BufferSize,
+                   "%s/timelog_%05d.csv",
+                   m_pDevice->GetDbgOverlaySettings().frameStatsLogDirectory,
+                   logId);
 
     File timeLogFile;
     timeLogFile.Open(buf, FileAccessWrite);
@@ -547,7 +563,11 @@ void FpsMgr::DumpFrameLogs()
     timeLogFile.Write(FrameTimesHeader, strlen(FrameTimesHeader));
 
     // Create FPS log file
-    Util::Snprintf(buf, BufferSize, "%s/fpslog_%05d.csv", m_overlaySettings.frameStatsLogDirectory, logId);
+    Util::Snprintf(buf,
+                   BufferSize,
+                   "%s/fpslog_%05d.csv",
+                   m_pDevice->GetDbgOverlaySettings().frameStatsLogDirectory,
+                   logId);
 
     File fpsLogFile;
     fpsLogFile.Open(buf, FileAccessWrite);
@@ -562,7 +582,7 @@ void FpsMgr::DumpFrameLogs()
     float  fpsSampleEndTime  = FpsSampleTime;
     uint32 framesInSample    = 0;
 
-    const uint32 loggedFrames = Min(m_benchmarkFrames, m_overlaySettings.maxLoggedFrames);
+    const uint32 loggedFrames = Min(m_benchmarkFrames, m_pDevice->GetDbgOverlaySettings().maxLoggedFrames);
     for (uint32 i = 0; i < loggedFrames; i++)
     {
         Util::Snprintf(buf, BufferSize, "%d, %.3f\n", i, m_pFrameTimeLog[i]);
@@ -593,26 +613,33 @@ void FpsMgr::DumpFrameLogs()
 // =====================================================================================================================
 DebugOverlayLocation FpsMgr::GetDebugOverlayLocation()
 {
+    PAL_ASSERT(m_pDevice != nullptr);
+    DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayLocation;
+
     if (Util::IsKeyPressed(Util::KeyCode::F10, &m_prevDebugKeyState))
     {
-        m_debugOverlayLocation = static_cast<DebugOverlayLocation>((m_debugOverlayLocation + 1) % DebugOverlayCount);
+        overlayLocation = static_cast<DebugOverlayLocation>((overlayLocation + 1) % DebugOverlayCount);
     }
 
-    return m_debugOverlayLocation;
+    return overlayLocation;
 }
 
 // =====================================================================================================================
 DebugOverlayLocation FpsMgr::GetTimeGraphLocation()
 {
-    if (m_debugOverlayLocation == DebugOverlayLowerRight || m_debugOverlayLocation == DebugOverlayUpperRight)
+    PAL_ASSERT(m_pDevice != nullptr);
+    const DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayLocation;
+    DebugOverlayLocation timeGraphLocation = DebugOverlayLowerRight;
+
+    if ((overlayLocation == DebugOverlayLowerRight) || (overlayLocation == DebugOverlayUpperRight))
     {
-        m_timeGraphLocation = DebugOverlayLowerLeft;
+        timeGraphLocation = DebugOverlayLowerLeft;
     }
-    else if (m_debugOverlayLocation == DebugOverlayLowerLeft || m_debugOverlayLocation == DebugOverlayUpperLeft)
+    else if ((overlayLocation == DebugOverlayLowerLeft) || (overlayLocation == DebugOverlayUpperLeft))
     {
-        m_timeGraphLocation = DebugOverlayLowerRight;
+        timeGraphLocation = DebugOverlayLowerRight;
     }
-    return m_timeGraphLocation;
+    return timeGraphLocation;
 }
 
 } // DbgOverlay

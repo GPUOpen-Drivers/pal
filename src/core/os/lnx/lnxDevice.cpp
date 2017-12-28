@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/g_palSettings.h"
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
@@ -356,6 +357,7 @@ Device::Device(
     m_settingsMgr(SettingsFileName, pPlatform),
     m_globalRefMap(MemoryRefMapElements, pPlatform),
     m_semType(SemaphoreType::Legacy),
+    m_supportQueuePriority(false),
 #if defined(PAL_DEBUG_PRINTS)
     m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
@@ -373,6 +375,12 @@ Device::Device(
 
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
     VamMgrSingleton::Init(pPlatform->GetDrmLoader().GetProcsTable());
+
+    // DrmVersion should be equal or greater than 3.22 in case to support queue priority
+    if (pPlatform->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
+    {
+        m_supportQueuePriority = true;
+    }
 }
 
 // =====================================================================================================================
@@ -585,6 +593,12 @@ Result Device::GetProperties(
     if (result == Result::Success)
     {
         pInfo->osProperties.supportProSemaphore = (m_semType == SemaphoreType::ProOnly);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
+        pInfo->osProperties.supportQueuePriority = m_supportQueuePriority;
+        // Linux don't support changing the queue priority at the submission granularity.
+        pInfo->osProperties.supportDynamicQueuePriority = false;
+#endif
     }
 
     return result;
@@ -1912,7 +1926,8 @@ Result Device::WaitBufferIdle(
 // =====================================================================================================================
 // Call amdgpu to create a command submission context.
 Result Device::CreateCommandSubmissionContext(
-    amdgpu_context_handle* pContextHandle
+    amdgpu_context_handle* pContextHandle,
+    QueuePriority          priority
     ) const
 {
     Result result = Result::Success;
@@ -1920,9 +1935,37 @@ Result Device::CreateCommandSubmissionContext(
     // Check if the global scheduling context isn't available and allocate a new one for each queue
     if (m_hContext == nullptr)
     {
-        if (m_drmProcs.pfnAmdgpuCsCtxCreate(m_hDevice, pContextHandle) != 0)
+        if (m_supportQueuePriority)
         {
-            result = Result::ErrorInvalidValue;
+            // for exisiting logic, the QueuePriority::Low refer to the default state.
+            // Therefore the mapping between Pal and amdgpu should be adjusted as:
+            constexpr int OsPriority[] =
+            {
+                AMDGPU_CTX_PRIORITY_NORMAL,     ///< QueuePriority::Low        = 0,
+                AMDGPU_CTX_PRIORITY_HIGH,       ///< QueuePriority::Medium     = 1,
+                AMDGPU_CTX_PRIORITY_VERY_HIGH,  ///< QueuePriority::High       = 2,
+                AMDGPU_CTX_PRIORITY_LOW,        ///< QueuePriority::VeryLow    = 3,
+            };
+
+            static_assert((static_cast<uint32>(QueuePriority::Low) == 0)    &&
+                          (static_cast<uint32>(QueuePriority::Medium) == 1) &&
+                          (static_cast<uint32>(QueuePriority::High) == 2)   &&
+                          (static_cast<uint32>(QueuePriority::VeryLow) == 3), "QueuePriority definition changed");
+
+            if (m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
+                                                 OsPriority[static_cast<uint32>(priority)],
+                                                 pContextHandle) != 0)
+            {
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        // just ignore the priority.
+        else
+        {
+            if (m_drmProcs.pfnAmdgpuCsCtxCreate(m_hDevice, pContextHandle) != 0)
+            {
+                result = Result::ErrorInvalidValue;
+            }
         }
     }
     else

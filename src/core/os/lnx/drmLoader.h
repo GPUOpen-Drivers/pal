@@ -1,27 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
-
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -335,6 +335,11 @@ typedef int (*AmdgpuCsSyncobjImportSyncFile)(
             amdgpu_device_handle  hDevice,
             uint32_t              syncObj,
             int                   syncFileFd);
+
+typedef int (*AmdgpuCsCtxCreate2)(
+            amdgpu_device_handle      hDevice,
+            uint32_t                  priority,
+            amdgpu_context_handle*    pContextHandle);
 
 typedef int (*AmdgpuCsSyncobjExportSyncFile)(
             amdgpu_device_handle  hDevice,
@@ -734,6 +739,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsSyncobjExportSyncFileisValid() const
     {
         return (pfnAmdgpuCsSyncobjExportSyncFile != nullptr);
+    }
+
+    AmdgpuCsCtxCreate2                pfnAmdgpuCsCtxCreate2;
+    bool pfnAmdgpuCsCtxCreate2isValid() const
+    {
+        return (pfnAmdgpuCsCtxCreate2 != nullptr);
     }
 
     DrmGetNodeTypeFromFd              pfnDrmGetNodeTypeFromFd;
@@ -1404,6 +1415,16 @@ public:
     bool pfnAmdgpuCsSyncobjExportSyncFileisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjExportSyncFile != nullptr);
+    }
+
+    int pfnAmdgpuCsCtxCreate2(
+            amdgpu_device_handle      hDevice,
+            uint32_t                  priority,
+            amdgpu_context_handle*    pContextHandle) const;
+
+    bool pfnAmdgpuCsCtxCreate2isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsCtxCreate2 != nullptr);
     }
 
     int pfnDrmGetNodeTypeFromFd(

@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
@@ -409,11 +410,6 @@ Result Platform::Init()
 
         if (result == Result::Success)
         {
-            result = UpdateSettings();
-        }
-
-        if (result == Result::Success)
-        {
             // Create the key we will use to manage thread-specific data.
             result = CreateThreadLocalKey(&m_threadKey);
             m_flags.threadKeyCreated = (result == Result::Success);
@@ -468,18 +464,6 @@ Result Platform::Init()
 }
 
 // =====================================================================================================================
-Result Platform::UpdateSettings()
-{
-    memset(m_interfaceLoggerSettings.interfaceLoggerDirectory, 0, 512);
-    strncpy(m_interfaceLoggerSettings.interfaceLoggerDirectory, "~/.amdpal/", 512);
-    m_interfaceLoggerSettings.interfaceLoggerMultithreaded = false;
-    m_interfaceLoggerSettings.interfaceLoggerBasePreset = 0x7;
-    m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = 0x1F;
-
-    return Result::Success;
-}
-
-// =====================================================================================================================
 // This will initialize all logging directories and other logging settings the first time it is called.
 Result Platform::CommitLoggingSettings()
 {
@@ -491,11 +475,13 @@ Result Platform::CommitLoggingSettings()
     if (m_flags.settingsCommitted == 0)
     {
         // Save a copy of the logging presets.
-        m_loggingPresets[0] = m_interfaceLoggerSettings.interfaceLoggerBasePreset;
-        m_loggingPresets[1] = m_interfaceLoggerSettings.interfaceLoggerElevatedPreset;
+        const auto settings =
+            static_cast<const InterfaceLogger::Device*const>(m_pDevices[0])->GetInterfaceLoggerSettings();
+        m_loggingPresets[0] = settings.interfaceLoggerBasePreset;
+        m_loggingPresets[1] = settings.interfaceLoggerElevatedPreset;
 
         // Try to create the root log directory specified in settings first, which may already exist.
-        const Result tmpResult = MkDir(m_interfaceLoggerSettings.interfaceLoggerDirectory);
+        const Result tmpResult = MkDir(settings.interfaceLoggerDirectory);
         result = (tmpResult == Result::AlreadyExists) ? Result::Success : tmpResult;
 
         if (result == Result::Success)
@@ -516,7 +502,7 @@ Result Platform::CommitLoggingSettings()
             strftime(dateTimeBuffer, sizeof(dateTimeBuffer), "%Y-%m-%d_%H.%M.%S", pTimeInfo);
 
             Snprintf(m_logDirPath, sizeof(m_logDirPath), "%s/%s_%s",
-                     m_interfaceLoggerSettings.interfaceLoggerDirectory, pExecutableName, dateTimeBuffer);
+                     settings.interfaceLoggerDirectory, pExecutableName, dateTimeBuffer);
 
             const Result tmpResult2 = MkDir(m_logDirPath);
             result = (tmpResult2 == Result::AlreadyExists) ? Result::Success: tmpResult2;
@@ -533,7 +519,7 @@ Result Platform::CommitLoggingSettings()
 
         // If multithreaded logging is enabled, we need to go back over our previously allocated ThreadData and give
         // them a context.
-        if ((result == Result::Success) && m_interfaceLoggerSettings.interfaceLoggerMultithreaded)
+        if ((result == Result::Success) && settings.interfaceLoggerMultithreaded)
         {
             m_flags.multithreaded = 1;
 

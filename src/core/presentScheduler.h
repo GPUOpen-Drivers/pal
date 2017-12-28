@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #pragma once
 
@@ -57,8 +58,6 @@ public:
     void DestroyInternal(Device* pDevice);
 
     Node* ListNode() { return &m_node; }
-    IFence* PriorWorkFence() { return m_pPriorWorkFence; }
-
     void SetType(PresentJobType type) { m_type = type; }
     PresentJobType GetType() const { return m_type; }
 
@@ -70,7 +69,6 @@ private:
     ~PresentSchedulerJob();
 
     Node                 m_node;            // The present scheduler maintains intrusive lists of jobs.
-    IFence*              m_pPriorWorkFence; // Signaled when the application's work prior to this present has completed.
     PresentJobType       m_type;            // How to interpret this job (e.g., execute a present).
     PresentSwapChainInfo m_presentInfo;     // All of the information for a present.
 };
@@ -104,6 +102,7 @@ protected:
     virtual ~PresentScheduler();
 
     virtual Result Init(void* pPlacementAddr);
+    virtual Result PreparePresent(IQueue* pQueue, PresentSchedulerJob* pJob);
 
     // The OS-specific present scheduler classes must override these missing pieces of the scheduling algorithm.
     // The CanInlinePresent function should return true if its possible and desirable to immediately queue the present

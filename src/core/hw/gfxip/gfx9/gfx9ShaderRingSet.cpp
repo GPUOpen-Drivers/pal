@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/platform.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
@@ -364,25 +365,37 @@ Result UniversalRingSet::Init()
 
             BufferViewInfo srdCreateInfo[4] = {};
             // Offchip Parameter Cache
-            srdCreateInfo[0].swizzledFormat = UndefinedSwizzledFormat;
-            srdCreateInfo[0].gpuAddr        = primShaderInfo.parameterCacheVa;
-            srdCreateInfo[0].range          = primShaderInfo.parameterCacheSize;
-            srdCreateInfo[0].stride         = 4 * sizeof(uint32);
+            if (primShaderInfo.parameterCacheVa != 0)
+            {
+                srdCreateInfo[0].swizzledFormat = UndefinedSwizzledFormat;
+                srdCreateInfo[0].gpuAddr        = primShaderInfo.parameterCacheVa;
+                srdCreateInfo[0].range          = primShaderInfo.parameterCacheSize;
+                srdCreateInfo[0].stride         = 4 * sizeof(uint32);
+            }
             // Offchip Position Buffer
-            srdCreateInfo[1].swizzledFormat = UndefinedSwizzledFormat;
-            srdCreateInfo[1].gpuAddr        = primShaderInfo.positionBufferVa;
-            srdCreateInfo[1].range          = primShaderInfo.positionBufferSize;
-            srdCreateInfo[1].stride         = 4 * sizeof(uint32);
+            if (primShaderInfo.positionBufferVa != 0)
+            {
+                srdCreateInfo[1].swizzledFormat = UndefinedSwizzledFormat;
+                srdCreateInfo[1].gpuAddr        = primShaderInfo.positionBufferVa;
+                srdCreateInfo[1].range          = primShaderInfo.positionBufferSize;
+                srdCreateInfo[1].stride         = 4 * sizeof(uint32);
+            }
             // Offchip Primitive Ring Buffer
-            srdCreateInfo[2].swizzledFormat = UndefinedSwizzledFormat;
-            srdCreateInfo[2].gpuAddr        = primShaderInfo.primitiveBufferVa;
-            srdCreateInfo[2].range          = primShaderInfo.primitiveBufferSize;
-            srdCreateInfo[2].stride         = sizeof(uint32);
+            if (primShaderInfo.primitiveBufferVa != 0)
+            {
+                srdCreateInfo[2].swizzledFormat = UndefinedSwizzledFormat;
+                srdCreateInfo[2].gpuAddr        = primShaderInfo.primitiveBufferVa;
+                srdCreateInfo[2].range          = primShaderInfo.primitiveBufferSize;
+                srdCreateInfo[2].stride         = sizeof(uint32);
+            }
             // Offchip Control Sideband Buffer
-            srdCreateInfo[3].swizzledFormat = UndefinedSwizzledFormat;
-            srdCreateInfo[3].gpuAddr        = primShaderInfo.controlSidebandVa;
-            srdCreateInfo[3].range          = primShaderInfo.controlSidebandSize;
-            srdCreateInfo[3].stride         = 1;
+            if (primShaderInfo.controlSidebandVa != 0)
+            {
+                srdCreateInfo[3].swizzledFormat = UndefinedSwizzledFormat;
+                srdCreateInfo[3].gpuAddr        = primShaderInfo.controlSidebandVa;
+                srdCreateInfo[3].range          = primShaderInfo.controlSidebandSize;
+                srdCreateInfo[3].stride         = 1;
+            }
 
             BufferSrd* pOffchipParamCache     = &m_pSrdTable[static_cast<uint32>(ShaderRingSrd::NggOffchipParamCache)];
             BufferSrd* pOffchipPositionBuffer = &m_pSrdTable[static_cast<uint32>(ShaderRingSrd::NggPositionBuffer)];

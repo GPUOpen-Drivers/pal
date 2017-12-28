@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/device.h"
 #include "core/image.h"
@@ -712,6 +713,18 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
         }
 
         surfInfoIn.sliceAlign = static_cast<uint32>(planeSize);
+    }
+    else if ((IsGfx9(*m_pDevice) == true) &&
+             (createInfo.swizzledFormat.format == ChNumFormat::YV12) &&
+             (pBaseSubRes->subresId.aspect == ImageAspect::Y))
+    {
+        // For YV12, all UBM clients (UDX/DXX/KMD, etc) and UBM assume pitch of Y plane is exactly twice pitch of U/V
+        // plane. This assumption is also there between MMD and MMD client (UDX/DXX, etc).
+        // Force PAL to follow same assumption, though it is not necessary in theory. Do so to fix DX9 WHQL failure
+        // caused by different pitch requirement of Y plane in KMD(UBM) and DX9P(PAL).
+        // Per Lawrence Liu, limit this change to YV12 format only as well as GFX9 only, in case unexpected regressions.
+        constexpr uint32 Gfx9LinearAlign = 256;
+        surfInfoIn.pitchInElement = Util::Pow2Align(surfInfoIn.width, Gfx9LinearAlign * 2);
     }
 
     ADDR_E_RETURNCODE addrRet = Addr2ComputeSurfaceInfo(AddrLibHandle(), &surfInfoIn, pOut);

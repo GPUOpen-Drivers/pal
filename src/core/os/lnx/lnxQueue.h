@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #pragma once
 #include "core/queue.h"
@@ -70,6 +71,7 @@ public:
         const Device&            device,
         EngineType               engineType,
         uint32                   engineId,
+        QueuePriority            priority,
         Pal::SubmissionContext** ppContext);
 
     virtual bool IsTimestampRetired(uint64 timestamp) const override;
@@ -79,15 +81,16 @@ public:
     amdgpu_context_handle Handle()   const { return m_hContext; }
 
 private:
-    SubmissionContext(const Device& device, EngineType engineType, uint32 engineId);
+    SubmissionContext(const Device& device, EngineType engineType, uint32 engineId, Pal::QueuePriority priority);
     virtual ~SubmissionContext();
 
     Result Init();
 
-    const Device&         m_device;
-    const uint32          m_ipType;    // This context's HW IP type as defined by amdgpu.
-    const uint32          m_engineId;
-    amdgpu_context_handle m_hContext;  // Command submission context handle.
+    const Device&               m_device;
+    const uint32                m_ipType;    // This context's HW IP type as defined by amdgpu.
+    const uint32                m_engineId;
+    QueuePriority               m_queuePriority;
+    amdgpu_context_handle       m_hContext;  // Command submission context handle.
 
     PAL_DISALLOW_DEFAULT_CTOR(SubmissionContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(SubmissionContext);
@@ -123,6 +126,8 @@ public:
         uint32                                    rangeCount,
         const VirtualMemoryCopyPageMappingsRange* pRanges,
         bool                                      doNotWait) override { return Result::ErrorUnavailable; }
+
+    bool IsPendingWait() const { return m_pendingWait; }
 
     Result WaitSemaphore(
         amdgpu_semaphore_handle hSemaphore);

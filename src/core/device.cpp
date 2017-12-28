@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #include "core/cmdAllocator.h"
 #include "core/cmdBuffer.h"
@@ -1064,11 +1065,89 @@ Result Device::CommitSettingsAndInit()
     }
 #endif
 
+    // The layer settings have been temporarily duplicated in the pal core settings struct to allow them to still be
+    // modified while the settings are refactored.  We need to copy the duplicated settings into the appropriate
+    // structures here so the layer can access them.
+    CopyLayerSettings();
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted = true;
 #endif
 
     return LateInit();
+}
+
+// =====================================================================================================================
+void Device::CopyLayerSettings()
+{
+    const auto settings = Settings();
+
+    // Command Buffer Logger Layer
+    m_cmdBufLoggerSettings.cmdBufferLoggerFlags = settings.cmdBufferLoggerFlags;
+
+    // Debug Overlay Layer
+    m_dbgOverlaySettings.visualConfirmEnabled       = settings.visualConfirmEnabled;
+    m_dbgOverlaySettings.timeGraphEnabled           = settings.timeGraphEnabled;
+    m_dbgOverlaySettings.debugOverlayLocation       = settings.debugOverlayLocation;
+    m_dbgOverlaySettings.timeGraphGridLineColor     = settings.timeGraphGpuLineColor;
+    m_dbgOverlaySettings.timeGraphCpuLineColor      = settings.timeGraphCpuLineColor;
+    m_dbgOverlaySettings.timeGraphGpuLineColor      = settings.timeGraphGpuLineColor;
+    m_dbgOverlaySettings.maxBenchmarkTime           = settings.maxBenchmarkTime;
+    m_dbgOverlaySettings.debugUsageLogEnable        = settings.debugUsageLogEnable;
+    m_dbgOverlaySettings.logFrameStats              = settings.logFrameStats;
+    m_dbgOverlaySettings.maxLoggedFrames            = settings.maxLoggedFrames;
+    m_dbgOverlaySettings.overlayCombineNonLocal     = settings.overlayCombineNonLocal;
+    m_dbgOverlaySettings.overlayReportCmdAllocator  = settings.overlayReportCmdAllocator;
+    m_dbgOverlaySettings.overlayReportExternal      = settings.overlayReportExternal;
+    m_dbgOverlaySettings.overlayReportInternal      = settings.overlayReportInternal;
+    m_dbgOverlaySettings.printFrameNumber           = settings.printFrameNumber;
+
+    Strncpy(m_dbgOverlaySettings.debugUsageLogDirectory, settings.debugUsageLogDirectory, MaxPathStrLen);
+    Strncpy(m_dbgOverlaySettings.debugUsageLogFilename, settings.debugUsageLogFilename, MaxPathStrLen);
+    Strncpy(m_dbgOverlaySettings.frameStatsLogDirectory, settings.frameStatsLogDirectory, MaxPathStrLen);
+    Strncpy(m_dbgOverlaySettings.renderedByString, settings.renderedByString, MaxMiscStrLen);
+    Strncpy(m_dbgOverlaySettings.miscellaneousDebugString, settings.miscellaneousDebugString, MaxMiscStrLen);
+
+    // GPU Profiler Layer
+    m_gpuProfilerSettings.gpuProfilerStartFrame                     = settings.gpuProfilerStartFrame;
+    m_gpuProfilerSettings.gpuProfilerFrameCount                     = settings.gpuProfilerFrameCount;
+    m_gpuProfilerSettings.gpuProfilerRecordPipelineStats            = settings.gpuProfilerRecordPipelineStats;
+    m_gpuProfilerSettings.gpuProfilerGlobalPerfCounterPerInstance   = settings.gpuProfilerGlobalPerfCounterPerInstance;
+    m_gpuProfilerSettings.gpuProfilerBreakSubmitBatches             = settings.gpuProfilerBreakSubmitBatches;
+    m_gpuProfilerSettings.gpuProfilerCacheFlushOnCounterCollection  = settings.gpuProfilerCacheFlushOnCounterCollection;
+    m_gpuProfilerSettings.gpuProfilerGranularity                    = settings.gpuProfilerGranularity;
+    m_gpuProfilerSettings.gpuProfilerSqThreadTraceTokenMask         = settings.gpuProfilerSqThreadTraceTokenMask;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
+    m_gpuProfilerSettings.gpuProfilerSqttPipelineHashHi             = settings.gpuProfilerSqttPipelineHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttPipelineHashLo             = settings.gpuProfilerSqttPipelineHashLo;
+#else
+    m_gpuProfilerSettings.gpuProfilerSqttPipelineHash               = settings.gpuProfilerSqttPipelineHash;
+#endif
+    m_gpuProfilerSettings.gpuProfilerSqttVsHashHi                   = settings.gpuProfilerSqttVsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttVsHashLo                   = settings.gpuProfilerSqttVsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttHsHashHi                   = settings.gpuProfilerSqttHsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttHsHashLo                   = settings.gpuProfilerSqttHsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttDsHashHi                   = settings.gpuProfilerSqttDsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttDsHashLo                   = settings.gpuProfilerSqttDsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttGsHashHi                   = settings.gpuProfilerSqttGsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttGsHashLo                   = settings.gpuProfilerSqttGsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttPsHashHi                   = settings.gpuProfilerSqttPsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttPsHashLo                   = settings.gpuProfilerSqttPsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttCsHashHi                   = settings.gpuProfilerSqttCsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttCsHashLo                   = settings.gpuProfilerSqttCsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttMaxDraws                   = settings.gpuProfilerSqttMaxDraws;
+    m_gpuProfilerSettings.gpuProfilerSqttBufferSize                 = settings.gpuProfilerSqttBufferSize;
+
+    Strncpy(m_gpuProfilerSettings.gpuProfilerLogDirectory, settings.gpuProfilerLogDirectory, MaxPathStrLen);
+    Strncpy(m_gpuProfilerSettings.gpuProfilerGlobalPerfCounterConfigFile,
+            settings. gpuProfilerGlobalPerfCounterConfigFile,
+            MaxFileNameStrLen);
+
+    // Interface Logger Layer
+    m_interfaceLoggerSettings.interfaceLoggerMultithreaded  = settings.interfaceLoggerMultithreaded;
+    m_interfaceLoggerSettings.interfaceLoggerBasePreset     = settings.interfaceLoggerBasePreset;
+    m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = settings.interfaceLoggerElevatedPreset;
+    Strncpy(m_interfaceLoggerSettings.interfaceLoggerDirectory, settings.interfaceLoggerDirectory, MaxPathStrLen);
 }
 
 // =====================================================================================================================
@@ -3203,7 +3282,6 @@ Result Device::CreateInternalDepthStencilView(
         m_pGfxDevice->CreateDepthStencilView(createInfo, internalInfo, pPlacementAddr, ppDepthStencilView) :
         Result::ErrorUnavailable;
 }
-
 // =====================================================================================================================
 // Creates and initializes a new graphics pipeline.
 Result Device::CreateGraphicsPipeline(

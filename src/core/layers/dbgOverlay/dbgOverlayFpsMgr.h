@@ -1,26 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #pragma once
 
@@ -34,13 +35,14 @@ namespace Pal
 
 // Forward decl's
 enum   DebugOverlayLocation : uint32;
+struct DebugOverlaySettings;
 
 namespace DbgOverlay
 {
-enum   DebugOverlayLocation : uint32;
-struct DebugOverlaySettings;
+
 struct GpuTimestampPair;
 class  Platform;
+class  Device;
 
 static constexpr uint32 TimeCount             = 100; // Number of times to average for FPS
 static constexpr uint32 NumberOfPixelsToScale = 100; // Number of pixels to scale in the Graph
@@ -51,7 +53,7 @@ static constexpr uint32 NumberOfPixelsToScale = 100; // Number of pixels to scal
 class FpsMgr
 {
 public:
-    FpsMgr(Platform* pPlatform, const DebugOverlaySettings& settings);
+    FpsMgr(Platform* pPlatform, const Device* pDevice);
     ~FpsMgr();
 
     Result Init();
@@ -86,6 +88,9 @@ private:
 
     Platform* m_pPlatform;
 
+    // Pointer to the device that should be queried for overlay settings
+    const Device* m_pDevice;
+
     // Enumerations which indicate which performance query index is being modified.
     enum QueryTime : uint32
     {
@@ -94,7 +99,6 @@ private:
         NumQuery             // Total number of query indices
     };
 
-    const DebugOverlaySettings& m_overlaySettings; // Debug overlay settings
     int64  m_performanceCounters[NumQuery];        // Last and current time queries
     float  m_frequency;                            // Frequency of performance counters
     float  m_cpuTimeList[TimeCount];               // List of times between frames
@@ -124,10 +128,8 @@ private:
     Util::List<GpuTimestampPair*, Platform> m_submitTimeList;   // Contains GpuTimestampPairs of all prior submissions
                                                                 // that must be evaluated into GPU frame times
 
-    bool                 m_prevDebugKeyState;
-    bool                 m_prevGraphKeyState;
-    DebugOverlayLocation m_debugOverlayLocation;
-    DebugOverlayLocation m_timeGraphLocation;
+    bool m_prevDebugKeyState;
+    bool m_prevGraphKeyState;
 
     // A length of GPU time as measured by a GpuTimestampPair.
     struct GpuTimeRange

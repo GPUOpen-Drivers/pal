@@ -1,27 +1,27 @@
 /*
- *******************************************************************************
+ ***********************************************************************************************************************
  *
- * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+ *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- ******************************************************************************/
-
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
@@ -1579,6 +1579,32 @@ int DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjExportSyncFile(
 }
 
 // =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate2(
+    amdgpu_device_handle    hDevice,
+    uint32_t                priority,
+    amdgpu_context_handle*  pContextHandle
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuCsCtxCreate2(hDevice,
+                                              priority,
+                                              pContextHandle);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsCtxCreate2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsCtxCreate2(%p, %x, %p)\n",
+        hDevice,
+        priority,
+        pContextHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnDrmGetNodeTypeFromFd(
     int  fd
     ) const
@@ -2047,6 +2073,9 @@ Result DrmLoader::Init(
             m_funcs.pfnAmdgpuCsSyncobjExportSyncFile = reinterpret_cast<AmdgpuCsSyncobjExportSyncFile>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_cs_syncobj_export_sync_file"));
+            m_funcs.pfnAmdgpuCsCtxCreate2 = reinterpret_cast<AmdgpuCsCtxCreate2>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_cs_ctx_create2"));
         }
 
         // resolve symbols from libdrm.so.2
