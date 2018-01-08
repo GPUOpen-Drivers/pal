@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -192,6 +192,8 @@ public:
     uint32 GetCmask256BAddr() const { return GetMaskRam256BAddr(GetCmask(), ImageAspect::Color); }
     uint32 GetFmask256BAddr() const;
 
+    bool HasDccStateMetaData() const { return m_dccStateMetaDataOffset != 0; }
+
     gpusize GetDccStateMetaDataAddr(uint32 mipLevel, uint32 slice) const;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel, uint32 slice) const;
@@ -273,11 +275,14 @@ public:
 
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const;
 
+    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const;
+
     gpusize GetMipAddr(SubresId subresId) const;
 
-    void BuildMedaDataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
+    void BuildMetadataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
 
     bool IsInMetadataMipTail(uint32 mip) const;
+    bool CanMipSupportMetaData(uint32 mip) const override;
 
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis

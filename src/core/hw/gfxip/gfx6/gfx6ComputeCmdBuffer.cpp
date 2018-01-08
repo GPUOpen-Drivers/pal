@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -81,8 +81,9 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Because Compute pipelines use a fixed user-data entry mapping, the CS CmdSetUserData callback never changes.
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &ComputeCmdBuffer::CmdSetUserDataCs);
 
-    const bool issueSqttMarkerEvent = ((device.Settings().gpuProfilerMode > GpuProfilerSqttOff) |
-                                        device.GetPlatform()->IsDevDriverProfilingEnabled());
+    const bool sqttEnabled = (device.Settings().gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (Util::TestAnyFlagSet(device.Settings().gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    const bool issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     if (issueSqttMarkerEvent)
     {

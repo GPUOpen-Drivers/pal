@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -323,12 +323,20 @@ struct CmdBufferCreateInfo
             /// meaningless and unsupported.  It is an error to attempt to create a nested DMA command buffer.
             ///
             /// @see ICmdBuffer::CmdExecuteNestedCmdBuffers.
-            uint32  nested   :  1;
-            /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
-            uint32  realtimeComputeUnits : 1;
+            uint32  nested               :  1;
 
+            /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
+            uint32  realtimeComputeUnits :  1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370
+            /// Placeholder.
+            uint32  placeholder0         :  1;
             /// Reserved for future use.
-            uint32  reserved : 30;
+            uint32  reserved             : 29;
+#else
+            /// Reserved for future use.
+            uint32  reserved             : 30;
+#endif
         };
 
         /// Flags packed as 32-bit uint.
@@ -534,11 +542,10 @@ struct DepthStencilBindInfo
                                                  ///  have a stencil aspect.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
 /// Container struct for MsaaQuadSamplePattern immediate values vs memory address and offset
 struct SamplePattern
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 282
     union
     {
         struct
@@ -552,7 +559,6 @@ struct SamplePattern
         /// Flags packed as 32-bit uint.
         uint32 u32All;
     } flags;
-#endif
 
     /// pImmediate specifies a custom sample pattern over a 2x2 pixel quad. The position for each sample is specified
     /// on a maximum grid where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is
@@ -569,12 +575,6 @@ struct SamplePattern
     /// the depth surface. pGpuMemory and memOffset allow loading of the sample pattern from memory.
 
     /// pGpuMemory and memOffset allow loading of the sample pattern from memory.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 282
-    /// The client can set both pImmediate and pGpuMemory/memOffset if isLoad is true. Pal would decide
-    /// if a depth decompress is needed, and if so, use the isLoad flag to choose between the two.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    /// If pGpuMemory is being used, then pImmediate need to be set to nullptr by the client.
-#endif
     const IGpuMemory*            pGpuMemory;
     gpusize                      memOffset;
 };
@@ -624,7 +624,7 @@ struct BarrierTransition
                                       ///  between oldLayoutUsageMask and newLayoutUsageMask may result in a
                                       ///  decompression.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         SamplePattern samplePattern;  ///< Msaa quad sample pattern container
 #else
         /// Specifies a custom sample pattern over a 2x2 pixel quad.  The position for each sample is specified on a
@@ -1719,11 +1719,7 @@ public:
     /// @param [in] srcGpuMemory       Source memory for loading the sample pattern
     /// @param [in] srcMemOffset       Source memory offset
     virtual void CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
         const IGpuMemory* pSrcGpuMemory,
-#else
-        const IGpuMemory& srcGpuMemory,
-#endif
         gpusize           srcMemOffset) = 0;
 #endif
 

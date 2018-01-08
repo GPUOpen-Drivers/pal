@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,9 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx9PerfCounter.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
+#include "palDequeImpl.h"
 
 #include "core/hw/amdgpu_asic.h"
 
@@ -36,9 +38,115 @@ namespace Gfx9
 {
 
 // =====================================================================================================================
+SpmTrace::SpmTrace(
+    const Device* pDevice)
+    :
+    Pal::SpmTrace(pDevice->Parent()),
+    m_device(*pDevice)
+{
+    m_ringBaseLo.u32All     = 0;
+    m_ringBaseHi.u32All     = 0;
+    m_segmentSize.u32All    = 0;
+}
+
+// =====================================================================================================================
+// Initializes some member variables and creates copy of SpmTraceCreateInfo.
+Result SpmTrace::Init(
+    const SpmTraceCreateInfo& createInfo)
+{
+    Result result = Result::Success;
+
+    m_ringSize.bits.RING_BASE_SIZE = createInfo.ringSize;
+
+    m_spmPerfmonCntl.u32All = 0;
+    m_spmPerfmonCntl.bits.PERFMON_SAMPLE_INTERVAL = static_cast<uint16>(createInfo.spmInterval);
+
+    PAL_ASSERT(m_spmPerfmonCntl.bits.PERFMON_SAMPLE_INTERVAL == createInfo.spmInterval);
+    m_numPerfCounters = createInfo.numPerfCounters;
+
+    void* pMem = PAL_MALLOC(createInfo.numPerfCounters * sizeof(PerfCounterInfo),
+                            m_device.GetPlatform(),
+                            Util::SystemAllocType::AllocInternal);
+    if (pMem != nullptr)
+    {
+        m_pPerfCounterCreateInfos = static_cast<PerfCounterInfo*>(pMem);
+        memcpy(m_pPerfCounterCreateInfos,
+               createInfo.pPerfCounterInfos,
+               createInfo.numPerfCounters * sizeof(PerfCounterInfo));
+    }
+    else
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Issues the PM4 commands necessary to start this thread trace. The owning Experiment object should have issued and
+// idle before calling this. Returns the next unused DWORD in pCmdSpace.
+uint32* SpmTrace::WriteSetupCommands(
+    gpusize         ringBaseAddr,
+    Pal::CmdStream* pCmdStream,
+    uint32*         pCmdSpace)
+{
+    PAL_NOT_IMPLEMENTED();
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* SpmTrace::WriteStartCommands(
+    Pal::CmdStream* pCmdStream,
+    uint32*         pCmdSpace)
+{
+    // how do you start an spm trace?
+    // cp perfmon master reg
+    // vgt event
+
+    PAL_NOT_IMPLEMENTED();
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* SpmTrace::WriteEndCommands(
+    Pal::CmdStream* pCmdStream,
+    uint32* pCmdSpace)
+{
+    PAL_NOT_IMPLEMENTED();
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+void SpmTrace::CalculateSegmentSize()
+{
+    PAL_NOT_IMPLEMENTED();
+}
+
+// =====================================================================================================================
+void SpmTrace::CalculateMuxRam()
+{
+    PAL_NOT_IMPLEMENTED();
+}
+
+// =====================================================================================================================
+Result SpmTrace::GetTraceLayout(
+    SpmTraceLayout* pLayout
+    ) const
+{
+    Result result = Result::Success;
+
+    PAL_NOT_IMPLEMENTED();
+    return result;
+}
+
+// =====================================================================================================================
 ThreadTrace::ThreadTrace(
     const Device*        pDevice,   ///< [retained] Associated Device object
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     const PerfTraceInfo& info)      ///< [in] Trace creation info
+#else
+    const ThreadTraceInfo& info)    ///< [in] Trace creation info
+#endif
     :
     Pal::ThreadTrace(pDevice->Parent(), info),
     m_device(*pDevice),
@@ -82,7 +190,11 @@ uint32* ThreadTrace::WriteInsertMarker(
 // =====================================================================================================================
 Gfx9ThreadTrace::Gfx9ThreadTrace(
     const Device*         pDevice,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     const PerfTraceInfo&  info)
+#else
+    const ThreadTraceInfo&  info)
+#endif
     :
     ThreadTrace(pDevice, info)
 {

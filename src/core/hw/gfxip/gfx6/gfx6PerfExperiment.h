@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -36,15 +36,6 @@ namespace Gfx6
 
 class CmdStream;
 class Device;
-
-// =====================================================================================================================
-// Key for PerfCtrBlockUsage Map
-struct BlockUsageKey
-{
-    GpuBlock block;
-    uint32   instance;
-    uint32   counter;
-};
 
 // =====================================================================================================================
 // Enumerates the possible "usage" states of a single performance counter resource. Each counter can be shared between 1
@@ -101,9 +92,7 @@ public:
     Result Init();
 
     virtual void IssueBegin(Pal::CmdStream* pPalCmdStream) const override;
-    virtual void UpdateSqttTokenMask(
-        Pal::CmdStream* pCmdStream,
-        uint32          sqttTokenMask) const override;
+    virtual void UpdateSqttTokenMask(Pal::CmdStream* pCmdStream, uint32 sqttTokenMask) const override;
     virtual void IssueEnd(Pal::CmdStream* pPalCmdStream) const override;
 
     void BeginInternalOps(CmdStream* pCmdStream) const;
@@ -115,7 +104,12 @@ protected:
     virtual ~PerfExperiment() {}
 
     virtual Result CreateCounter(const PerfCounterInfo& info, Pal::PerfCounter** ppCounter) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result CreateThreadTrace(const PerfTraceInfo& info) override;
+#else
+    virtual Result CreateThreadTrace(const ThreadTraceInfo& info) override;
+#endif
+    virtual Result CreateSpmTrace(const SpmTraceCreateInfo& info) override;
 
 private:
     Result ReserveCounterResource(const PerfCounterInfo& info, uint32* pCounterId, uint32* pCounterSubId);
@@ -162,7 +156,8 @@ private:
     bool HasTcaCounters() const { return m_counterFlags.tcaCounters; }
 
     const Device&          m_device;
-    CounterFlags           m_counterFlags;   // Flags describing the set of perf counters
+    CounterFlags           m_counterFlags;   // Flags describing the set of perf counters (summary and SPM counters
+                                             // share these flags).
 
     // Performance counter usage status for currently used GPU blocks.
     Util::HashMap<BlockUsageKey, PerfCtrUseStatus, Platform> m_blockUsageMap;

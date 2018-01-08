@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -102,7 +102,7 @@ void LogContext::Struct(
             KeyAndStruct("oldLayout", transition.imageInfo.oldLayout);
             KeyAndStruct("newLayout", transition.imageInfo.newLayout);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
             Key("samplePattern.pImmediate");
             if (transition.imageInfo.samplePattern.pImmediate != nullptr)
             {
@@ -1482,6 +1482,7 @@ void LogContext::Struct(
         Value("stereo");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
     if (value.formatChangeSrd)
     {
         Value("formatChangeSrd");
@@ -1491,6 +1492,7 @@ void LogContext::Struct(
     {
         Value("formatChangeTgt");
     }
+#endif
 
     if (value.cubemap)
     {
@@ -1560,15 +1562,25 @@ void LogContext::Struct(
     KeyAndValue("samples", value.samples);
     KeyAndValue("fragments", value.fragments);
     KeyAndEnum("tiling", value.tiling);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 292
     KeyAndEnum("tilingPreference", value.tilingPreference);
-#endif
     KeyAndEnum("tilingOptMode", value.tilingOptMode);
     KeyAndValue("tileSwizzle", value.tileSwizzle);
     KeyAndValue("maxBaseAlign", value.maxBaseAlign);
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);
     KeyAndStruct("stereoRefreshRate", value.stereoRefreshRate);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    KeyAndValue("viewFormatCount", value.viewFormatCount);
+    KeyAndBeginList("viewFormats", false);
+    if (value.viewFormatCount != AllCompatibleFormats)
+    {
+        for (uint32 idx = 0; idx < value.viewFormatCount; ++idx)
+        {
+            Struct(value.pViewFormats[idx]);
+        }
+    }
+    EndList();
+#endif
     EndMap();
 }
 
@@ -1944,7 +1956,6 @@ void LogContext::Struct(
         Value("sm5_1ResourceBinding");
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 304)
     if (value.disableOptimizationC0)
     {
         Value("disableOptimizationC0");
@@ -1965,12 +1976,6 @@ void LogContext::Struct(
     {
         Value("disableOptimizationC4");
     }
-#else
-    if (value.enableFastCompile)
-    {
-        Value("enableFastCompile");
-    }
-#endif
 
     EndList();
 }
@@ -2142,12 +2147,10 @@ void LogContext::Struct(
         Value("stereo");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 296
     if (value.flags.turbosync)
     {
         Value("turbosync");
     }
-#endif
 
     EndList();
     KeyAndStruct("usageFlags", value.usage);
@@ -2205,12 +2208,10 @@ void LogContext::Struct(
     KeyAndValue("imageIndex", value.imageIndex);
     KeyAndBeginList("flags", true);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 296
     if (value.flags.turboSyncEnabled)
     {
         Value("turboSyncEnabled");
     }
-#endif
 
     EndList();
     EndMap();
@@ -2304,16 +2305,32 @@ void LogContext::Struct(
         Value("invariant");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
     if (value.flags.formatChangeSrd)
     {
         Value("formatChangeSrd");
     }
+#endif
 
     EndList();
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
     KeyAndStruct("usage", value.usage);
     KeyAndStruct("extent", value.extent);
     KeyAndObject("screen", value.pScreen);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    KeyAndValue("viewFormatCount", value.viewFormatCount);
+    KeyAndBeginList("viewFormats", false);
+    if (value.viewFormatCount != AllCompatibleFormats)
+    {
+        for (uint32 idx = 0; idx < value.viewFormatCount; ++idx)
+        {
+            Struct(value.pViewFormats[idx]);
+        }
+    }
+    EndList();
+#endif
+
     EndMap();
 }
 
@@ -2402,12 +2419,10 @@ void LogContext::Struct(
     BeginMap(false);
     KeyAndBeginList("flags", true);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 288
     if (value.windowedPriorBlit)
     {
         Value("windowedPriorBlit");
     }
-#endif
 
     EndList();
     KeyAndEnum("queueType", value.queueType);
@@ -2600,17 +2615,10 @@ void LogContext::Struct(
         Value("truncateCoords");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 284
     if (value.flags.seamlessCubeMapFiltering)
     {
         Value("seamlessCubeMapFiltering");
     }
-#else
-    if (value.flags.cubeMap)
-    {
-        Value("cubeMap");
-    }
-#endif
 
     if (value.flags.prtBlendZeroMode)
     {
@@ -2855,26 +2863,20 @@ void LogContext::Struct(
         Value("removeNullParameterExports");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 291
     if (value.flags.useScAggressiveHoist)
     {
         Value("useScAggressiveHoist");
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 293
     if (value.flags.useScXnackEnable)
     {
         Value("useScXnackEnable");
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 294
     if (value.flags.useNonIeeeFpInstructions)
     {
         Value("useNonIeeeFpInstructions");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 357
     if (value.flags.enabledPerformanceData)
@@ -2946,9 +2948,7 @@ void LogContext::Struct(
 
     KeyAndValue("userDataSpillThreshold", value.userDataSpillThreshold);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 302
     KeyAndValue("csTgPerCu", value.csTgPerCu);
-#endif
 #endif
     EndMap();
 }

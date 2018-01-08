@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,9 +23,35 @@
  #
  #######################################################################################################################
 
-#!/usr/binpython
 import re
 import os,sys
+
+FileHeaderCopyright = '/*\n\
+ ***********************************************************************************************************************\n\
+ *\n\
+ *  Copyright (c) 2017 Advanced Micro Devices, Inc.\n\
+ *\n\
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy\n\
+ *  of this software and associated documentation files (the "Software"), to deal\n\
+ *  in the Software without restriction, including without limitation the rights\n\
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n\
+ *  copies of the Software, and to permit persons to whom the Software is\n\
+ *  furnished to do so, subject to the following conditions:\n\
+ *\n\
+ *  The above copyright notice and this permission notice shall be included in all\n\
+ *  copies or substantial portions of the Software.\n\
+ *\n\
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n\
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n\
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n\
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n\
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n\
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n\
+ *  SOFTWARE.\n\
+ *\n\
+ **********************************************************************************************************************/\n\
+'
+
 class Param:
     def __init__(self, ret, value):
         self.ret = ret
@@ -167,18 +193,7 @@ class ProcMgr:
         fp.write("// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!\n")
         fp.write("///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\n")
     def GenerateHeader(self, fp):
-        fp.write("/*\n")
-        fp.write("***********************************************************************************************************************\n")
-        fp.write("*\n")
-        fp.write("*  Trade secret of Advanced Micro Devices, Inc.\n")
-        fp.write("*  Copyright (c) 2017, Advanced Micro Devices, Inc., (unpublished)\n")
-        fp.write("*\n")
-        fp.write("*  All rights reserved. This notice is intended as a precaution against inadvertent publication and does not imply\n")
-        fp.write("*  publication or any waiver of confidentiality. The year included in the foregoing notice is the year of creation of\n")
-        fp.write("*  the work.\n")
-        fp.write("*\n")
-        fp.write("***********************************************************************************************************************\n")
-        fp.write("*/\n")
+        fp.write(FileHeaderCopyright)
     def GenerateFunctionDeclaration(self, fp, name):
         for key in self.libraries.keys():
             fp.write("// symbols from " + key + "\n")

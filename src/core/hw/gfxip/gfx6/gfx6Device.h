@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -92,9 +92,6 @@ public:
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
 #endif
-
-    // Don't need help from the queue to install trap handlers
-    virtual bool InstallTrapHandlersInQueue() const { return false; }
 
     virtual Result CreateEngine(
         EngineType engineType,
@@ -265,6 +262,8 @@ public:
         const ImageCreateInfo& imageCreateInfo,
         ChNumFormat*           pFormat,
         uint32*                pPixelsPerBlock) const { return false; }
+
+    virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const override;
 
     // Function definition for creating typed buffer view SRDs.
     static void PAL_STDCALL CreateTypedBufferViewSrds(

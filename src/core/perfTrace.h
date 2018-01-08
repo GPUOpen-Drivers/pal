@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,10 @@
 
 #pragma once
 
+#include "palDeque.h"
+#include "perfCounter.h"
 #include "palPerfExperiment.h"
+#include "palUtil.h"
 
 namespace Pal
 {
@@ -33,6 +36,49 @@ namespace Pal
 // Forward decl's
 class CmdStream;
 class Device;
+
+constexpr uint32 MaxNumShaderEngines = 4;
+
+// Datatypes used for streaming performance counters common for both hardware layers.
+struct ParityCount
+{
+    uint32 evenCount;
+    uint32 oddCount;
+};
+
+// In some cases we need 16-bit addressability for the muxsel ram, in other cases we need 32 bit addressability. We use
+// as convenience union.
+union MuxselRamData
+{
+    uint32* pMuxselRamUint32;
+    uint16* pMuxselRamUint16;
+};
+
+// Encoding for the muxsel ram data used for configuring the SPM trace. This corresponds to the PERFMON_SEL_DATA of
+// the per-SE and global muxsel data registers in RLC.
+union PerfmonSelData
+{
+    struct
+    {
+        uint16 counter  : 6;
+        uint16 block    : 5;
+        uint16 instance : 5;
+    };
+
+    uint16 u16All;
+};
+
+// Flags used to track properties of the created spm trace.
+union SpmTraceFlags
+{
+    struct
+    {
+        uint16 hasIndexedCounters : 1;  // Has counters that are indexed and have to be programmed using GRBM_GFX_INDEX.
+        uint16 reserved           : 15;
+    };
+
+    uint16 u16All;
+};
 
 // =====================================================================================================================
 // Core implementation of the 'PerfTrace' object. PerfTrace serves as a common base for both Thread Trace and
@@ -52,7 +98,7 @@ public:
     void SetDataOffset(gpusize offset) { m_dataOffset = offset; }
 
 protected:
-    PerfTrace(Device* pDevice, const PerfTraceInfo& info);
+    explicit PerfTrace(Device* pDevice);
 
     const Device& m_device;
 
@@ -62,6 +108,50 @@ protected:
 private:
     PAL_DISALLOW_DEFAULT_CTOR(PerfTrace);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfTrace);
+};
+
+// =====================================================================================================================
+// Core implementation of SpmTrace. Unlike for ThreadTrace, where a unique instance is created for each ShaderEngine,
+// one SpmTrace corresponds to management of state for the entire GPU.
+class SpmTrace : public PerfTrace
+{
+public:
+    // Represents the size of each "bit line" in each segment (global, se0, se1 etc) of a single sample worth of
+    // spm data.
+    static constexpr uint32 NumBitsPerBitline       = 256;
+
+    // Represents the number of 16bit entries in a bit line in mux ram and in the sample data.
+    static constexpr uint32 MuxselEntriesPerBitline = 16;
+
+    virtual ~SpmTrace();
+    virtual uint32* WriteSetupCommands(gpusize ringBaseAddr, CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
+    virtual uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
+    virtual uint32* WriteEndCommands(CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
+    virtual void CalculateSegmentSize() = 0;
+    virtual void CalculateMuxRam() = 0;
+    virtual gpusize GetRingSize() const = 0;
+    virtual Result GetTraceLayout(SpmTraceLayout* pLayout) const = 0;
+
+    virtual Result Init(const SpmTraceCreateInfo& createInfo) = 0;
+
+    Result AddStreamingCounter(StreamingPerfCounter* pCounter);
+
+protected:
+    explicit SpmTrace(Device* pDevice);
+    bool BlockUsesGlobalMuxsel(GpuBlock block) const;
+    PerfmonSelData GetPerSeMuxselData(GpuBlock block, uint32 instance, uint32 counterId) const;
+    PerfmonSelData GetGlobalMuxselData(GpuBlock block, uint32 instance, uint32 counterId) const;
+
+    Util::Deque<StreamingPerfCounter*, Platform> m_spmCounters;     // Represents HW counters.
+    uint32                                       m_spmInterval;     // Spm trace sampling interval.
+    uint32                                       m_numPerfCounters; // Number of perf counters in this trace.
+    PerfCounterInfo*                             m_pPerfCounterCreateInfos; // Local copy of create infos.
+    SpmTraceFlags                                m_flags;
+
+private:
+
+    PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);
+    PAL_DISALLOW_COPY_AND_ASSIGN(SpmTrace);
 };
 
 // =====================================================================================================================
@@ -95,7 +185,11 @@ public:
     virtual size_t GetInfoAlignment() const = 0;
 
 protected:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     ThreadTrace(Device* pDevice, const PerfTraceInfo& info);
+#else
+    ThreadTrace(Device* pDevice, const ThreadTraceInfo& info);
+#endif
 
     const uint32   m_shaderEngine;  // Shader Engine this thread trace runs on
 

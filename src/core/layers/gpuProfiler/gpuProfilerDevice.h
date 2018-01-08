@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ class TargetCmdBuffer;
 constexpr uint32 MaxNameLength = 128;
 
 // Defines a single performance counter to be collected, as specified by the end-user via config file.
-struct GlobalPerfCounter
+struct PerfCounter
 {
     GpuBlock block;
     uint32   eventId;
@@ -68,7 +68,9 @@ public:
     uint32 MinTimestampAlignment(uint32 engineIdx) const { return m_minTimestampAlignment[engineIdx]; }
 
     uint32 NumGlobalPerfCounters() const { return m_numGlobalPerfCounters; }
-    const GlobalPerfCounter* GlobalPerfCounters() const { return m_pGlobalPerfCounters; }
+    uint32 NumStreamingPerfCounters() const { return m_numStreamingPerfCounters; }
+    const PerfCounter* GlobalPerfCounters() const { return m_pGlobalPerfCounters; }
+    const PerfCounter* StreamingPerfCounters() const { return m_pStreamingPerfCounters; }
 
     uint32 GetSqttMaxDraws() const { return m_maxDrawsForThreadTrace; }
     uint32 GetSqttCurDraws() const { return m_curDrawsForThreadTrace; }
@@ -127,13 +129,35 @@ public:
 
     GpuProfilerMode GetProfilerMode() const { return static_cast<Platform*>(GetPlatform())->GetProfilerMode(); }
 
+    // Returns true if the settings config has successfully requested for SQ thread trace.
+    bool IsThreadTraceEnabled() const
+    {
+        return ((GetProfilerMode() > GpuProfilerSqttOff) &&
+                (Util::TestAnyFlagSet(m_profilerSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt)));
+    }
+
+    // Returns true if the settings config has successfully requested for Streaming counter trace.
+    bool IsSpmTraceEnabled() const
+    {
+        return ((GetProfilerMode() > GpuProfilerSqttOff) &&
+                (Util::TestAnyFlagSet(m_profilerSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSpm)));
+    }
+
 private:
     virtual ~Device();
 
     Result UpdateSettings();
 
     Result InitGlobalPerfCounterState();
-    uint32 CountGlobalPerfCounters(Util::File* pFile);
+    uint32 CountPerfCounters(Util::File* pFile);
+
+    Result InitSpmTraceCounterState();
+    Result ExtractPerfCounterInfo(
+        const PerfExperimentProperties& perfExpProps,
+        const PerfCounterType&          type,
+        const uint32                    numCounters,
+        Util::File*                     pConfigFile,
+        PerfCounter*                    pPerfCounters);
 
     const uint32 m_id;  // Unique ID for this device for reporting purposes.
 
@@ -163,8 +187,11 @@ private:
     uint32                 m_minTimestampAlignment[EngineTypeCount];
 
     // Track array of which performance counters the user has requested to capture.
-    GlobalPerfCounter* m_pGlobalPerfCounters;
-    uint32             m_numGlobalPerfCounters;
+    PerfCounter* m_pGlobalPerfCounters;
+    uint32       m_numGlobalPerfCounters;
+
+    PerfCounter* m_pStreamingPerfCounters;
+    uint32       m_numStreamingPerfCounters; // Tracks number of counters requested.
 
     // The following array is used for assigning unique IDs when the client creates multiple queues for a single engine.
     // Useful for reporting purposes.

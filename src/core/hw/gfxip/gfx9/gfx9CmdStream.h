@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -71,9 +71,12 @@ public:
         uint32                          regData,
         uint32*                         pCmdSpace,
         PFP_SET_UCONFIG_REG_index_enum  index = index__pfp_set_uconfig_reg__default);
+
     template <bool pm4OptImmediate>
     uint32* WriteSetOneContextReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
     uint32* WriteSetOneContextReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
+    uint32* WriteSetOneContextRegNoOpt(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
+
     uint32* WriteSetOnePerfCtrReg(
         uint32  regAddr,
         uint32  value,
@@ -82,6 +85,7 @@ public:
         uint32     regAddr,
         uint32     value,
         uint32*    pCmdSpace);
+
     template <Pm4ShaderType shaderType, bool pm4OptImmediate>
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
     template <Pm4ShaderType shaderType>
@@ -168,7 +172,6 @@ protected:
 
 private:
     virtual void CleanupTempObjects() override;
-    virtual bool OptimizedCommit(const uint32* pSrcBuffer, uint32* pDstBuffer, uint32* pNumDwords) override;
     virtual void BeginCurrentChunk() override;
     virtual void EndCurrentChunk(bool atEndOfStream) override;
 

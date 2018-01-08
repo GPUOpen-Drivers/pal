@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -616,33 +616,21 @@ void CmdBuffer::CmdStoreMsaaQuadSamplePattern(
 
 // =====================================================================================================================
 void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     const IGpuMemory* pSrcGpuMemory,
-#else
-    const IGpuMemory& srcGpuMemory,
-#endif
     gpusize           srcMemOffset)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId = InterfaceFunc::CmdBufferCmdLoadMsaaQuadSamplePattern;
     funcInfo.objectId = m_objectId;
     funcInfo.preCallTime = m_pPlatform->GetTime();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     m_pNextLayer->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset);
-#else
-    m_pNextLayer->CmdLoadMsaaQuadSamplePattern(srcGpuMemory, srcMemOffset);
-#endif
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
         pLogContext->KeyAndObject("pSrcGpuMemory", pSrcGpuMemory);
-#else
-        pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
-#endif
         pLogContext->KeyAndValue("srcMemOffset", srcMemOffset);
         pLogContext->EndInput();
 

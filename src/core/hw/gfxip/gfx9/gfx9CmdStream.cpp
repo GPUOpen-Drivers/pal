@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -361,6 +361,24 @@ uint32* CmdStream::WriteSetOneContextReg(
     {
         pCmdSpace = WriteSetOneContextReg<false>(regAddr, regData, pCmdSpace);
     }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given register when the caller already guarantees that the write is not redundant. The
+// caller should be careful not to mix this function with the regular WriteSetOneContextReg() for the same register(s).
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* CmdStream::WriteSetOneContextRegNoOpt(
+    uint32  regAddr,
+    uint32  regData,
+    uint32* pCmdSpace)
+{
+    const size_t totalDwords = m_cmdUtil.BuildSetOneContextReg(regAddr, pCmdSpace);
+
+    pCmdSpace[CmdUtil::ContextRegSizeDwords] = regData;
+    pCmdSpace += totalDwords;
+    m_contextRollDetected = true;
 
     return pCmdSpace;
 }
@@ -927,18 +945,6 @@ void CmdStream::EndCurrentChunk(
         m_cmdUtil.BuildDmaData(dmaInfo, m_pChunkPreamble);
         m_pChunkPreamble = nullptr;
     }
-}
-
-// =====================================================================================================================
-// Simply apply the generic PM4 image optimizer to the given commands. See the comment in cmdStream.h for more details.
-bool CmdStream::OptimizedCommit(
-    const uint32* pSrcBuffer,
-    uint32*       pDstBuffer,
-    uint32*       pNumDwords)
-{
-    m_pPm4Optimizer->OptimizePm4Commands(pSrcBuffer, pDstBuffer, pNumDwords);
-
-    return true;
 }
 
 // =====================================================================================================================

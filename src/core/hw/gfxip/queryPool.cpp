@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -74,10 +74,17 @@ Result QueryPool::GetResults(
     QueryType        queryType,
     uint32           startQuery,
     uint32           queryCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
+    const void*      pMappedGpuAddr,
+#endif
     size_t*          pDataSize,
     void*            pData,
     size_t           stride)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 371
+    const void*      pMappedGpuAddr = nullptr;
+#endif
+
     PAL_ASSERT((queryType != QueryType::StreamoutStats)  &&
                (queryType != QueryType::StreamoutStats1) &&
                (queryType != QueryType::StreamoutStats2) &&
@@ -108,7 +115,15 @@ Result QueryPool::GetResults(
             void* pGpuData = nullptr;
             if (result == Result::Success)
             {
-                result = m_gpuMemory.Map(&pGpuData);
+                if (pMappedGpuAddr == nullptr)
+                {
+                    result = m_gpuMemory.Map(&pGpuData);
+                }
+                else
+                {
+                    // Use the mapped GPU memory that was supplied.
+                    pGpuData = const_cast<void*>(pMappedGpuAddr);
+                }
             }
 
             if (result == Result::Success)
@@ -122,9 +137,12 @@ Result QueryPool::GetResults(
                     result = Result::NotReady;
                 }
 
-                // Don't store the result from this as it will overwrite the result from retrieving the data.
-                const Result unmapResult = m_gpuMemory.Unmap();
-                PAL_ASSERT(unmapResult == Result::Success);
+                if (pMappedGpuAddr == nullptr)
+                {
+                    // Don't store the result from this as it will overwrite the result from retrieving the data.
+                    const Result unmapResult = m_gpuMemory.Unmap();
+                    PAL_ASSERT(unmapResult == Result::Success);
+                }
             }
         }
         else

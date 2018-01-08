@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -90,6 +90,9 @@ Image::Image(
 {
     m_imageInfo.internalCreateInfo     = internalCreateInfo;
     m_imageInfo.resolveMethod.u32All   = 0;
+    m_imageInfo.flags.u32All           = 0;
+
+    m_imageInfo.flags.dccCompatibleFormatChange = m_pDevice->GetGfxDevice()->AreImageFormatsDccCompatible(createInfo);
 
     if (IsDepthStencil())
     {
@@ -583,6 +586,13 @@ Result Image::Init()
                                          &m_gpuMemLayout,
                                          &m_gpuMemSize,
                                          &m_gpuMemAlignment);
+
+        if (result == Result::ErrorNotShareable)
+        {
+            // This image is going to be re-created without shared metadata info, so the creator needs to be notified
+            // that metadata should be fully expanded.
+            SetOptimalSharingLevel(MetadataSharingLevel::FullExpand);
+        }
     }
 
     if (result == Result::Success)
@@ -1304,7 +1314,6 @@ void ConvertPrivateScreenImageCreateInfo(
     pImageInfo->extent.width          = privateImageCreateInfo.extent.width;
     pImageInfo->extent.height         = privateImageCreateInfo.extent.height;
     pImageInfo->extent.depth          = 1;
-    pImageInfo->flags.formatChangeSrd = privateImageCreateInfo.flags.formatChangeSrd;
     pImageInfo->flags.invariant       = privateImageCreateInfo.flags.invariant;
     pImageInfo->fragments             = 1;
     pImageInfo->samples               = 1;
@@ -1313,6 +1322,12 @@ void ConvertPrivateScreenImageCreateInfo(
     pImageInfo->imageType             = ImageType::Tex2d;
     pImageInfo->tiling                = ImageTiling::Optimal;
     pImageInfo->usageFlags            = privateImageCreateInfo.usage;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    pImageInfo->viewFormatCount       = privateImageCreateInfo.viewFormatCount;
+    pImageInfo->pViewFormats          = privateImageCreateInfo.pViewFormats;
+#else
+    pImageInfo->flags.formatChangeSrd = privateImageCreateInfo.flags.formatChangeSrd;
+#endif
 }
 
 // =====================================================================================================================

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,26 +65,6 @@ namespace GpuUtil
 {
 // Sample id initialization value.
 constexpr Pal::uint32 InvalidSampleId = 0xFFFFFFFF;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 286
-/// Helper function to fill SqttCpuInfo required for writing RGP files.
-///
-/// @param [out] pCpuInfo    Pointer to the struct which will be filled.
-///
-extern void FillSqttCpuInfo(
-    SqttFileChunkCpuInfo* pCpuInfo);
-
-/// Helper function to fill SqttAsicInfo required for writing RGP files.
-///
-/// @param [in] properties    The device properties.
-/// @param [in] perfExpProps  The PerfExperimentProperties of the device.
-/// @param [out] pAsicInfo    Pointer to the struct which will be filled.
-///
-extern void FillSqttAsicInfo(
-    const Pal::DeviceProperties&         properties,
-    const Pal::PerfExperimentProperties& perfExpProps,
-    SqttFileChunkAsicInfo*               pAsicInfo);
-#endif
 
 /// The available states of GpaSession
 enum class GpaSessionState : Pal::uint32
@@ -752,11 +732,13 @@ private:
         Pal::IQueryPool**       ppQuery);
 
     // Dump SQ thread trace data in rgp format
-    Pal::Result DumpRgpData(
-        Pal::ThreadTraceLayout* pThreadTraceLayout,
-        const void*             pResults,
-        void*                   pRgpOutput,
-        size_t*                 pTraceSize) const;
+    Pal::Result DumpRgpData(TraceSample* pTraceSample, void* pRgpOutput, size_t* pTraceSize) const;
+
+    // Dumps the spm trace data in the buffer provided.
+    Pal::Result AppendSpmTraceData(TraceSample*  pTraceSample,
+                                   size_t        bufferSize,
+                                   void*         pData,
+                                   Pal::gpusize* pSizeInBytes) const;
 
     // recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();

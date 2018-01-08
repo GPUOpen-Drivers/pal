@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,6 @@
  **********************************************************************************************************************/
 
 #pragma once
-
-typedef enum StereoMode {
-SHADER_STEREO_X                          = 0x00000000,
-STATE_STEREO_X                           = 0x00000001,
-SHADER_STEREO_XYZW                       = 0x00000002,
-} StereoMode;
 
 typedef enum ArrayMode {
 ARRAY_LINEAR_GENERAL                     = 0x00000000,
@@ -119,9 +113,6 @@ ADDR_SURF_BANK_WH_2                      = 0x00000001,
 ADDR_SURF_BANK_WH_4                      = 0x00000002,
 ADDR_SURF_BANK_WH_8                      = 0x00000003,
 } BankWidthHeight;
-
-typedef enum BinEventCntl {
-} BinEventCntl;
 
 typedef enum BinSizeExtend {
 BIN_SIZE_32_PIXELS                       = 0x00000000,
@@ -904,18 +895,9 @@ typedef enum DFSMFlushEvents {
 DB_CACHE_FLUSH                           = 0x00000002,
 } DFSMFlushEvents;
 
-typedef enum DSM_ENABLE_ERROR_INJECT {
-} DSM_ENABLE_ERROR_INJECT;
-
-typedef enum DSM_SELECT_INJECT_DELAY {
-} DSM_SELECT_INJECT_DELAY;
-
 typedef enum DSM_SINGLE_WRITE {
 DSM_SINGLE_WRITE_EN                      = 0x00000001,
 } DSM_SINGLE_WRITE;
-
-typedef enum DbMemArbWatermarks {
-} DbMemArbWatermarks;
 
 typedef enum DbPRTFaultBehavior {
 FAULT_ZERO                               = 0x00000000,
@@ -1327,9 +1309,6 @@ IMG_NUM_FORMAT_ASTC_2D_12x10__GFX09      = 0x0000000c,
 IMG_NUM_FORMAT_ASTC_2D_12x12__GFX09      = 0x0000000d,
 } IMG_NUM_FORMAT_ASTC_2D;
 
-typedef enum IMG_NUM_FORMAT_ASTC_3D {
-} IMG_NUM_FORMAT_ASTC_3D;
-
 typedef enum IMG_NUM_FORMAT_FMASK {
 IMG_NUM_FORMAT_FMASK_8_2_1               = 0x00000000,
 IMG_NUM_FORMAT_FMASK_8_4_1               = 0x00000001,
@@ -1346,9 +1325,6 @@ IMG_NUM_FORMAT_FMASK_64_16_4             = 0x0000000b,
 IMG_NUM_FORMAT_FMASK_64_16_8             = 0x0000000c,
 } IMG_NUM_FORMAT_FMASK;
 
-typedef enum IMG_NUM_FORMAT_N_IN_16 {
-} IMG_NUM_FORMAT_N_IN_16;
-
 typedef enum MTYPE {
 MTYPE_NC__GFX09                          = 0x00000000,
 MTYPE_WC__GFX09                          = 0x00000001,
@@ -1362,9 +1338,6 @@ ADDR_SURF_MACRO_ASPECT_2                 = 0x00000001,
 ADDR_SURF_MACRO_ASPECT_4                 = 0x00000002,
 ADDR_SURF_MACRO_ASPECT_8                 = 0x00000003,
 } MacroTileAspect;
-
-typedef enum MemArbMode {
-} MemArbMode;
 
 typedef enum MicroTileMode {
 ADDR_SURF_DISPLAY_MICRO_TILING           = 0x00000000,
@@ -1393,9 +1366,6 @@ ADDR_SURF_8_BANK                         = 0x00000002,
 ADDR_SURF_16_BANK                        = 0x00000003,
 } NumBanks;
 
-typedef enum NumBanksConfig {
-} NumBanksConfig;
-
 typedef enum NumGPUs {
 ADDR_CONFIG_1_GPU                        = 0x00000000,
 ADDR_CONFIG_2_GPU                        = 0x00000001,
@@ -1407,9 +1377,6 @@ ADDR_CONFIG_1_LOWER_PIPES                = 0x00000000,
 ADDR_CONFIG_2_LOWER_PIPES                = 0x00000001,
 } NumLowerPipes;
 
-typedef enum NumMaxCompressedFragments {
-} NumMaxCompressedFragments;
-
 typedef enum NumPipes {
 ADDR_CONFIG_1_PIPE                       = 0x00000000,
 ADDR_CONFIG_2_PIPE                       = 0x00000001,
@@ -1417,9 +1384,6 @@ ADDR_CONFIG_4_PIPE                       = 0x00000002,
 ADDR_CONFIG_8_PIPE                       = 0x00000003,
 ADDR_CONFIG_16_PIPE                      = 0x00000004,
 } NumPipes;
-
-typedef enum NumRbPerShaderEngine {
-} NumRbPerShaderEngine;
 
 typedef enum NumShaderEngines {
 ADDR_CONFIG_1_SHADER_ENGINE              = 0x00000000,
@@ -1833,9 +1797,6 @@ EXPORT_8P_32BPC_R                        = 0x00000005,
 typedef enum RMIPerfSel {
 RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3    = 0x00000100,
 } RMIPerfSel;
-
-typedef enum RMI_CID {
-} RMI_CID;
 
 typedef enum RbMap {
 RASTER_CONFIG_RB_MAP_0                   = 0x00000000,
@@ -2556,9 +2517,6 @@ SEM_PERF_SEL_ATC_XNACK                   = 0x000000ac,
 SEM_PERF_SEL_ATC_INVALIDATION            = 0x000000ad,
 } SEM_PERF_SEL;
 
-typedef enum SH_MEM_ADDRESS_MODE {
-} SH_MEM_ADDRESS_MODE;
-
 typedef enum SH_MEM_ALIGNMENT_MODE {
 SH_MEM_ALIGNMENT_MODE_DWORD              = 0x00000000,
 SH_MEM_ALIGNMENT_MODE_DWORD_STRICT       = 0x00000001,
@@ -2828,9 +2786,6 @@ SQ_INTERRUPT_WORD_ENCODING_AUTO          = 0x00000000,
 SQ_INTERRUPT_WORD_ENCODING_INST          = 0x00000001,
 SQ_INTERRUPT_WORD_ENCODING_ERROR         = 0x00000002,
 } SQ_INTERRUPT_WORD_ENCODING;
-
-typedef enum SQ_LB_CTR_SEL_VALUES {
-} SQ_LB_CTR_SEL_VALUES;
 
 typedef enum SQ_PERF_SEL {
 SQ_PERF_SEL_NONE                         = 0x00000000,
@@ -3623,9 +3578,6 @@ RASTER_CONFIG_SC_YSEL_32_WIDE_TILE       = 0x00000002,
 RASTER_CONFIG_SC_YSEL_64_WIDE_TILE       = 0x00000003,
 } ScYsel;
 
-typedef enum SeEnable {
-} SeEnable;
-
 typedef enum SeMap {
 RASTER_CONFIG_SE_MAP_0                   = 0x00000000,
 RASTER_CONFIG_SE_MAP_1                   = 0x00000001,
@@ -3703,6 +3655,12 @@ STENCIL_NAND                             = 0x0000000d,
 STENCIL_NOR                              = 0x0000000e,
 STENCIL_XNOR                             = 0x0000000f,
 } StencilOp;
+
+typedef enum StereoMode {
+SHADER_STEREO_X                          = 0x00000000,
+STATE_STEREO_X                           = 0x00000001,
+SHADER_STEREO_XYZW                       = 0x00000002,
+} StereoMode;
 
 typedef enum SurfaceArray {
 ARRAY_1D                                 = 0x00000000,
@@ -4216,9 +4174,6 @@ TCP_DSM_SEL1                             = 0x00000002,
 TCP_DSM_SEL_BOTH                         = 0x00000003,
 } TCP_DSM_DATA_SEL;
 
-typedef enum TCP_DSM_INJECT_SEL {
-} TCP_DSM_INJECT_SEL;
-
 typedef enum TCP_DSM_SINGLE_WRITE {
 TCP_DSM_SINGLE_WRITE_EN                  = 0x00000001,
 } TCP_DSM_SINGLE_WRITE;
@@ -4301,12 +4256,6 @@ TCP_WATCH_MODE_NONREAD                   = 0x00000001,
 TCP_WATCH_MODE_ATOMIC                    = 0x00000002,
 TCP_WATCH_MODE_ALL                       = 0x00000003,
 } TCP_WATCH_MODES;
-
-typedef enum TC_EA_CID {
-} TC_EA_CID;
-
-typedef enum TC_MICRO_TILE_MODE {
-} TC_MICRO_TILE_MODE;
 
 typedef enum TC_NACKS {
 TC_NACK_NO_FAULT                         = 0x00000000,
@@ -4777,12 +4726,6 @@ ARRAY_COLOR_TILE                         = 0x00000000,
 ARRAY_DEPTH_TILE                         = 0x00000001,
 } TileType;
 
-typedef enum UTCL1FaultType {
-} UTCL1FaultType;
-
-typedef enum UTCL1RequestType {
-} UTCL1RequestType;
-
 typedef enum VGT_CACHE_INVALID_MODE {
 VC_ONLY                                  = 0x00000000,
 TC_ONLY                                  = 0x00000001,
@@ -5183,9 +5126,6 @@ VTX_MemRequestSize_32B                   = 0x00000000,
 VTX_MemRequestSize_64B                   = 0x00000001,
 } VTX_MEM_REQUEST_SIZE;
 
-typedef enum WD_IA_DRAW_REG_XFER {
-} WD_IA_DRAW_REG_XFER;
-
 typedef enum WD_IA_DRAW_SOURCE {
 WD_IA_DRAW_SOURCE_DMA                    = 0x00000000,
 WD_IA_DRAW_SOURCE_IMMD                   = 0x00000001,
@@ -5418,6 +5358,13 @@ BUF_FMT_RESERVED_125                     = 0x0000007d,
 BUF_FMT_RESERVED_126                     = 0x0000007e,
 BUF_FMT_RESERVED_127                     = 0x0000007f,
 } BUF_FMT;
+
+typedef enum BinEventCntl {
+BINNER_BREAK_BATCH                       = 0x00000000,
+BINNER_PIPELINE                          = 0x00000001,
+BINNER_DROP                              = 0x00000002,
+BINNER_PIPELINE_BREAK                    = 0x00000003,
+} BinEventCntl;
 
 typedef enum BinMapMode {
 BIN_MAP_MODE_NONE                        = 0x00000000,
@@ -5665,6 +5612,29 @@ DSM_DATA_SEL_0                           = 0x00000001,
 DSM_DATA_SEL_1                           = 0x00000002,
 DSM_DATA_SEL_BOTH                        = 0x00000003,
 } DSM_DATA_SEL;
+
+typedef enum DSM_ENABLE_ERROR_INJECT {
+DSM_ENABLE_ERROR_INJECT_FED_IN           = 0x00000000,
+DSM_ENABLE_ERROR_INJECT_SINGLE           = 0x00000001,
+DSM_ENABLE_ERROR_INJECT_UNCORRECTABLE    = 0x00000002,
+DSM_ENABLE_ERROR_INJECT_UNCORRECTABLE_LIMITED = 0x00000003,
+} DSM_ENABLE_ERROR_INJECT;
+
+typedef enum DSM_SELECT_INJECT_DELAY {
+DSM_SELECT_INJECT_DELAY_NO_DELAY         = 0x00000000,
+DSM_SELECT_INJECT_DELAY_DELAY_ERROR      = 0x00000001,
+} DSM_SELECT_INJECT_DELAY;
+
+typedef enum DbMemArbWatermarks {
+TRANSFERRED_64_BYTES                     = 0x00000000,
+TRANSFERRED_128_BYTES                    = 0x00000001,
+TRANSFERRED_256_BYTES                    = 0x00000002,
+TRANSFERRED_512_BYTES                    = 0x00000003,
+TRANSFERRED_1024_BYTES                   = 0x00000004,
+TRANSFERRED_2048_BYTES                   = 0x00000005,
+TRANSFERRED_4096_BYTES                   = 0x00000006,
+TRANSFERRED_8192_BYTES                   = 0x00000007,
+} DbMemArbWatermarks;
 
 typedef enum FullTileWaveBreak {
 FULL_TILE_WAVE_BREAK_NBC_ONLY            = 0x00000000,
@@ -7201,6 +7171,51 @@ IMG_FMT_RESERVED_510                     = 0x000001fe,
 IMG_FMT_RESERVED_511                     = 0x000001ff,
 } IMG_FMT;
 
+typedef enum IMG_NUM_FORMAT_ASTC_3D {
+IMG_NUM_FORMAT_ASTC_3D_3X3X3             = 0x00000000,
+IMG_NUM_FORMAT_ASTC_3D_4X3X3             = 0x00000001,
+IMG_NUM_FORMAT_ASTC_3D_4X4X3             = 0x00000002,
+IMG_NUM_FORMAT_ASTC_3D_4X4X4             = 0x00000003,
+IMG_NUM_FORMAT_ASTC_3D_5X4X4             = 0x00000004,
+IMG_NUM_FORMAT_ASTC_3D_5X5X4             = 0x00000005,
+IMG_NUM_FORMAT_ASTC_3D_5X5X5             = 0x00000006,
+IMG_NUM_FORMAT_ASTC_3D_6X5X5             = 0x00000007,
+IMG_NUM_FORMAT_ASTC_3D_6X6X5             = 0x00000008,
+IMG_NUM_FORMAT_ASTC_3D_6X6X6             = 0x00000009,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_10       = 0x0000000a,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_11       = 0x0000000b,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_12       = 0x0000000c,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_13       = 0x0000000d,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_14       = 0x0000000e,
+IMG_NUM_FORMAT_ASTC_3D_RESERVED_15       = 0x0000000f,
+} IMG_NUM_FORMAT_ASTC_3D;
+
+typedef enum IMG_NUM_FORMAT_N_IN_16 {
+IMG_NUM_FORMAT_N_IN_16_RESERVED_0        = 0x00000000,
+IMG_NUM_FORMAT_N_IN_16_UNORM_10          = 0x00000001,
+IMG_NUM_FORMAT_N_IN_16_UNORM_9           = 0x00000002,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_3        = 0x00000003,
+IMG_NUM_FORMAT_N_IN_16_UINT_10           = 0x00000004,
+IMG_NUM_FORMAT_N_IN_16_UINT_9            = 0x00000005,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_6        = 0x00000006,
+IMG_NUM_FORMAT_N_IN_16_UNORM_UINT_10     = 0x00000007,
+IMG_NUM_FORMAT_N_IN_16_UNORM_UINT_9      = 0x00000008,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_9        = 0x00000009,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_10       = 0x0000000a,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_11       = 0x0000000b,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_12       = 0x0000000c,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_13       = 0x0000000d,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_14       = 0x0000000e,
+IMG_NUM_FORMAT_N_IN_16_RESERVED_15       = 0x0000000f,
+} IMG_NUM_FORMAT_N_IN_16;
+
+typedef enum MemArbMode {
+MEM_ARB_MODE_FIXED                       = 0x00000000,
+MEM_ARB_MODE_AGE                         = 0x00000001,
+MEM_ARB_MODE_WEIGHT                      = 0x00000002,
+MEM_ARB_MODE_BOTH                        = 0x00000003,
+} MemArbMode;
+
 typedef enum NUM_BANKS_BC_ENUM {
 ADDR_NUM_BANKS_BC_BANKS_1                = 0x00000000,
 ADDR_NUM_BANKS_BC_BANKS_2                = 0x00000001,
@@ -7213,6 +7228,27 @@ typedef enum NUM_PIPES_BC_ENUM {
 ADDR_NUM_PIPES_BC_P8                     = 0x00000000,
 ADDR_NUM_PIPES_BC_P16                    = 0x00000001,
 } NUM_PIPES_BC_ENUM;
+
+typedef enum NumBanksConfig {
+ADDR_CONFIG_1_BANK                       = 0x00000000,
+ADDR_CONFIG_2_BANK                       = 0x00000001,
+ADDR_CONFIG_4_BANK                       = 0x00000002,
+ADDR_CONFIG_8_BANK                       = 0x00000003,
+ADDR_CONFIG_16_BANK                      = 0x00000004,
+} NumBanksConfig;
+
+typedef enum NumMaxCompressedFragments {
+ADDR_CONFIG_1_MAX_COMPRESSED_FRAGMENTS   = 0x00000000,
+ADDR_CONFIG_2_MAX_COMPRESSED_FRAGMENTS   = 0x00000001,
+ADDR_CONFIG_4_MAX_COMPRESSED_FRAGMENTS   = 0x00000002,
+ADDR_CONFIG_8_MAX_COMPRESSED_FRAGMENTS   = 0x00000003,
+} NumMaxCompressedFragments;
+
+typedef enum NumRbPerShaderEngine {
+ADDR_CONFIG_1_RB_PER_SHADER_ENGINE       = 0x00000000,
+ADDR_CONFIG_2_RB_PER_SHADER_ENGINE       = 0x00000001,
+ADDR_CONFIG_4_RB_PER_SHADER_ENGINE       = 0x00000002,
+} NumRbPerShaderEngine;
 
 typedef enum PH_PERFCNT_SEL {
 PH_SC0_SRPS_WINDOW_VALID                 = 0x00000000,
@@ -8184,12 +8220,28 @@ GEN_TWO                                  = 0x00000002,
 GEN_RESERVED                             = 0x00000003,
 } PIPE_COMPAT_LEVEL;
 
+typedef enum RMI_CID {
+RMI_CID_CC                               = 0x00000000,
+RMI_CID_FC                               = 0x00000001,
+RMI_CID_CM                               = 0x00000002,
+RMI_CID_DC                               = 0x00000003,
+RMI_CID_Z                                = 0x00000004,
+RMI_CID_S                                = 0x00000005,
+RMI_CID_TILE                             = 0x00000006,
+RMI_CID_ZPCPSD                           = 0x00000007,
+} RMI_CID;
+
 typedef enum ReadPolicy {
 CACHE_LRU_RD                             = 0x00000000,
 CACHE_STREAM_RD                          = 0x00000001,
 CACHE_NOA                                = 0x00000002,
 RESERVED_RDPOLICY                        = 0x00000003,
 } ReadPolicy;
+
+typedef enum SH_MEM_ADDRESS_MODE {
+SH_MEM_ADDRESS_MODE_64                   = 0x00000000,
+SH_MEM_ADDRESS_MODE_32                   = 0x00000001,
+} SH_MEM_ADDRESS_MODE;
 
 typedef enum SH_MEM_RETRY_MODE {
 SH_MEM_RETRY_MODE_ALL                    = 0x00000000,
@@ -8323,6 +8375,11 @@ SC_UR_4X                                 = 0x00000002,
 SC_UR_8X                                 = 0x00000003,
 } ScUncertaintyRegionMult;
 
+typedef enum SeEnable {
+ADDR_CONFIG_DISABLE_SE                   = 0x00000000,
+ADDR_CONFIG_ENABLE_SE                    = 0x00000001,
+} SeEnable;
+
 typedef enum TA_TC_REQ_MODES {
 TA_TC_REQ_MODE_BORDER                    = 0x00000000,
 TA_TC_REQ_MODE_TEX2                      = 0x00000001,
@@ -8340,6 +8397,13 @@ MTYPE_WC                                 = 0x00000001,
 MTYPE_CC                                 = 0x00000002,
 } TCC_MTYPE;
 
+typedef enum TCP_DSM_INJECT_SEL {
+TCP_DSM_INJECT_SEL0                      = 0x00000000,
+TCP_DSM_INJECT_SEL1                      = 0x00000001,
+TCP_DSM_INJECT_SEL2                      = 0x00000002,
+TCP_DSM_INJECT_SEL3                      = 0x00000003,
+} TCP_DSM_INJECT_SEL;
+
 typedef enum TCP_OPCODE_TYPE {
 TCP_OPCODE_READ                          = 0x00000000,
 TCP_OPCODE_WRITE                         = 0x00000001,
@@ -8350,6 +8414,35 @@ TCP_OPCODE_SAMPLER                       = 0x00000005,
 TCP_OPCODE_LOAD                          = 0x00000006,
 TCP_OPCODE_GATHERH                       = 0x00000007,
 } TCP_OPCODE_TYPE;
+
+typedef enum TC_EA_CID {
+TC_EA_CID_RT                             = 0x00000000,
+TC_EA_CID_FMASK                          = 0x00000001,
+TC_EA_CID_DCC                            = 0x00000002,
+TC_EA_CID_TCPMETA                        = 0x00000003,
+TC_EA_CID_Z                              = 0x00000004,
+TC_EA_CID_STENCIL                        = 0x00000005,
+TC_EA_CID_HTILE                          = 0x00000006,
+TC_EA_CID_MISC                           = 0x00000007,
+TC_EA_CID_TCP                            = 0x00000008,
+TC_EA_CID_SQC                            = 0x00000009,
+TC_EA_CID_CPF                            = 0x0000000a,
+TC_EA_CID_CPG                            = 0x0000000b,
+TC_EA_CID_IA                             = 0x0000000c,
+TC_EA_CID_WD                             = 0x0000000d,
+TC_EA_CID_PA                             = 0x0000000e,
+TC_EA_CID_UTCL2_TPI                      = 0x0000000f,
+} TC_EA_CID;
+
+typedef enum TC_MICRO_TILE_MODE {
+MICRO_TILE_MODE_LINEAR                   = 0x00000000,
+MICRO_TILE_MODE_RENDER_TARGET            = 0x00000001,
+MICRO_TILE_MODE_STD_2D                   = 0x00000002,
+MICRO_TILE_MODE_STD_3D                   = 0x00000003,
+MICRO_TILE_MODE_DISPLAY_2D               = 0x00000004,
+MICRO_TILE_MODE_DISPLAY_3D               = 0x00000005,
+MICRO_TILE_MODE_Z                        = 0x00000006,
+} TC_MICRO_TILE_MODE;
 
 typedef enum UTCL0FaultType {
 UTCL0_XNACK_SUCCESS                      = 0x00000000,
@@ -8363,6 +8456,13 @@ UTCL0_TYPE_NORMAL                        = 0x00000000,
 UTCL0_TYPE_SHOOTDOWN                     = 0x00000001,
 UTCL0_TYPE_BYPASS                        = 0x00000002,
 } UTCL0RequestType;
+
+typedef enum UTCL1FaultType {
+UTCL1_XNACK_SUCCESS                      = 0x00000000,
+UTCL1_XNACK_RETRY                        = 0x00000001,
+UTCL1_XNACK_PRT                          = 0x00000002,
+UTCL1_XNACK_NO_RETRY                     = 0x00000003,
+} UTCL1FaultType;
 
 typedef enum UTCL1PerfSel {
 UTCL1_PERF_SEL_NONE                      = 0x00000000,
@@ -8382,6 +8482,12 @@ UTCL1_PERF_SEL_NONRANGE_INV_REQS         = 0x0000000d,
 UTCL1_PERF_SEL_RANGE_INV_REQS            = 0x0000000e,
 } UTCL1PerfSel;
 
+typedef enum UTCL1RequestType {
+UTCL1_TYPE_NORMAL                        = 0x00000000,
+UTCL1_TYPE_SHOOTDOWN                     = 0x00000001,
+UTCL1_TYPE_BYPASS                        = 0x00000002,
+} UTCL1RequestType;
+
 typedef enum VGT_DETECT_ONE {
 ENABLE_TF1_OPT                           = 0x00000000,
 DISABLE_TF1_OPT                          = 0x00000001,
@@ -8397,6 +8503,13 @@ VMEMCMD_RETURN_OUT_OF_ORDER              = 0x00000000,
 VMEMCMD_RETURN_IN_ORDER                  = 0x00000001,
 VMEMCMD_RETURN_IN_ORDER_READ             = 0x00000002,
 } VMEMCMD_RETURN_ORDER;
+
+typedef enum WD_IA_DRAW_REG_XFER {
+WD_IA_DRAW_REG_XFER_IA_MULTI_VGT_PARAM   = 0x00000000,
+WD_IA_DRAW_REG_XFER_VGT_MULTI_PRIM_IB_RESET_EN = 0x00000001,
+WD_IA_DRAW_REG_XFER_VGT_INSTANCE_BASE_ID = 0x00000002,
+WD_IA_DRAW_REG_XFER_GE_CNTL              = 0x00000003,
+} WD_IA_DRAW_REG_XFER;
 
 typedef enum WritePolicy {
 CACHE_LRU_WR                             = 0x00000000,

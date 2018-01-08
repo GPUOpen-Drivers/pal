@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -571,7 +571,7 @@ Result UniversalQueueContext::PreProcessSubmit(
     Result result     = Result::Success;
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
-    if (submitInfo.cmdBufferCount != 0)
+    if ((result == Result::Success) && (submitInfo.cmdBufferCount != 0))
     {
         result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
 

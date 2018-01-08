@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -657,14 +657,9 @@ void LogContext::Enum(
         "EngineTypeExclusiveCompute", // 0x2,
         "EngineTypeDma",              // 0x3,
         "EngineTypeTimer",            // 0x4,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
         "EngineTypeHpUniversal",
         "EngineTypeHpGfxOnly",
-#endif
-#else
-        "EngineTypeVce",              // 0x5,
-        "EngineTypeUvd",              // 0x6,
 #endif
     };
 
@@ -1450,11 +1445,6 @@ void LogContext::Enum(
         "QueueTypeCompute",     // 0x1,
         "QueueTypeDma",         // 0x2,
         "QueueTypeTimer",       // 0x3,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
-#else
-        "QueueTypeVideoEncode", // 0x4,
-        "QueueTypeVideoDecode", // 0x5,
-#endif
     };
 
     static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == QueueTypeCount,

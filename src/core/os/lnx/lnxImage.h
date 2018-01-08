@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -90,6 +90,9 @@ public:
     {
         return Util::VoidPtrInc(m_pTileInfoList, (subResId * m_tileInfoBytes));
     }
+
+    virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override { PAL_NOT_IMPLEMENTED(); }
+    virtual MetadataSharingLevel GetOptimalSharingLevel() const override { return MetadataSharingLevel::FullExpand; }
 
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;

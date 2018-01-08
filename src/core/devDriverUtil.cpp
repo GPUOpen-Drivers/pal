@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -248,29 +248,6 @@ void DevDriverFree(
 
     PAL_FREE(pMemory, pAllocator);
 }
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-// =====================================================================================================================
-// Callback function used to route debug prints into the logging protocol.
-void PAL_STDCALL DevDriverDbgPrint(
-    void*                  pUserdata,
-    Util::DbgPrintCategory category,
-    const char*            pText)
-{
-    IPlatform* pPlatform = reinterpret_cast<IPlatform*>(pUserdata);
-
-    // Convert the debug print category into a log level.
-    constexpr LogLevel LogLevelLookup[DbgPrintCatCount] =
-    {
-        LogLevel::Info,
-        LogLevel::Alert,
-        LogLevel::Error,
-        LogLevel::Info
-    };
-
-    pPlatform->LogMessage(LogLevelLookup[category], LogCategoryMaskInternal, "%s", pText);
-}
-#endif
 
 // =====================================================================================================================
 PipelineDumpService::PipelineDumpService(

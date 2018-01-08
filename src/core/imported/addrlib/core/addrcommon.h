@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@
 // ADDR_LNX_KERNEL_BUILD is for internal build
 // Moved from addrinterface.h so __KERNEL__ is not needed any more
 #if ADDR_LNX_KERNEL_BUILD // || (defined(__GNUC__) && defined(__KERNEL__))
-    #include "lnx_common_defs.h" // ported from cmmqs
+    #include <string.h>
 #else
     #include <stdlib.h>
     #include <string.h>

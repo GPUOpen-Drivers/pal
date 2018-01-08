@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -88,7 +88,6 @@ enum EngineType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer            = 0x4,
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
         #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
             /// Corresponds to a hw engine that supports all operations (graphics and compute)
             EngineTypeHighPriorityUniversal = 0x5,
@@ -96,14 +95,6 @@ enum EngineType : uint32
             /// Corresponds to a hw engine that supports only graphics operations
             EngineTypeHighPriorityGraphics  = 0x6,
         #endif
-#else
-        /// Corresponds to the VCE engine that can perform video encoding.
-        EngineTypeVce              = 0x5,
-
-        /// Corresponds to the UVD engine that can perform video decoding.
-        EngineTypeUvd              = 0x6,
-#endif
-
     /// Number of engine types.
     EngineTypeCount,
 };
@@ -125,15 +116,6 @@ enum QueueType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame pacing.  This is a software-only
     /// queue.
     QueueTypeTimer       = 0x3,
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
-#else
-    /// Supports video encode.
-    QueueTypeVideoEncode = 0x4,
-
-    /// Supports Video decode.
-    QueueTypeVideoDecode = 0x5,
-#endif
 
     /// Number of queue types.
     QueueTypeCount,
@@ -919,15 +901,18 @@ static constexpr LogCategoryMask LogCategoryMaskInternal    = (1 << static_cast<
 /// Log category mask for messages related to display information (e.g. HDR format)
 static constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(LogCategory::Display));
 
-/// Defines the modes that the GPU Profiling layer can be enabled with.
+/// Defines the modes that the GPU Profiling layer can be enabled with. If the GpuProfilerMode is
+/// GpuProfilerThreadTraceView or GpuProfilerRgp, then the GpuProfilerTraceModeMask is examined to configure
+/// the trace type (spm, sqtt or both) requested.
 enum GpuProfilerMode : uint32
 {
-    GpuProfilerDisabled = 0,
-    GpuProfilerSqttOff = 1,
-    GpuProfilerSqttThreadTraceView = 2,
-    GpuProfilerSqttRgp = 3,
+    GpuProfilerDisabled            = 0, ///< Gpu Profiler is disabled.
+    GpuProfilerSqttOff             = 1, ///< Traces are disabled but perf counter and timing operations are enabled.
+    GpuProfilerSqttThreadTraceView = 2, ///< Traces are output in format (.csv, .out) for Thread trace viewer.
+    GpuProfilerSqttRgp             = 3, ///< Trace data is output as .rgp file for Radeon Gpu Profiler.
 };
 
+/// Defines the modes that the GPU Profiling layer can be enabled with.
 /**
  ***********************************************************************************************************************
  * @mainpage

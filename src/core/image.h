@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -122,7 +122,8 @@ union InternalImageFlags
                                                   // addressing calculations.  Should be set when opening
                                                   // external shared images.
         uint32 turbosync                   :  1;  // Image supports turbosync flip.
-        uint32 reserved                    :  25;
+        uint32 useSharedMetadata           :  1;  // Indicate SharedMetadataInfo will be used.
+        uint32 reserved                    :  24;
     };
     uint32 value;
 };
@@ -143,14 +144,16 @@ struct ImageInternalCreateInfo
 
         struct
         {
-            AddrSwizzleMode    sharedSwizzleMode;  // Swizzle mdoe for shared iamge
-            uint32             sharedPipeBankXor;  // Pipe-bank-xor setting for shared image
+            AddrSwizzleMode    sharedSwizzleMode;       // Swizzle mdoe for shared iamge
+            uint32             sharedPipeBankXor;       // Pipe-bank-xor setting for shared image
+            uint32             sharedPipeBankXorFmask;  // Pipe-bank-xor setting for fmask
         } gfx9;
     };
 
     const Image*       pOriginalImage;       // Original image (peer image)
     InternalImageFlags flags;                // Flags to create an internal image object
     gpusize            chromaPlaneOffset[2]; // The offset of chroma planes
+    SharedMetadataInfo sharedMetadata;       // Shared metadata info
 };
 
 // Contains the information describing a image's sub-resource.
@@ -179,13 +182,13 @@ struct SubResourceInfo
     gpusize        rowPitch;             // Row pitch in bytes.
     gpusize        depthPitch;           // Depth pitch in bytes.
 
-    uint32        tileToken;            // This subresource's tiling token.
+    uint32         tileToken;            // This subresource's tiling token.
 
-    gpusize       stereoOffset;         // Mem offset to the right eye data, in bytes
-    uint32        stereoLineOffset;     // Y offset to the right eye data, in texels
+    gpusize        stereoOffset;         // Mem offset to the right eye data, in bytes
+    uint32         stereoLineOffset;     // Y offset to the right eye data, in texels
 
     // Dimensions in pixels for a tile block - micro tile for 1D tiling and macro tile for 2D tiling.
-    Extent3d      blockSize;
+    Extent3d       blockSize;
 
     union
     {
@@ -206,6 +209,16 @@ struct ImageInfo
     size_t                  numPlanes;          // Number of planes in the image
     size_t                  numSubresources;    // Total number of subresources in the image
     ResolveMethod           resolveMethod;      // Resolve method RPM will use for this Image
+
+    union
+    {
+        struct
+        {
+            uint32 dccCompatibleFormatChange   :  1;  // Indicates that all possible view formats are DCC compatible
+            uint32 reserved                    : 31;
+        };
+        uint32      u32All;
+    } flags;
 };
 
 constexpr uint32 MaxArraySlices    = 2048;
@@ -250,7 +263,7 @@ public:
         }
     }
 
-    Result Init();
+    virtual Result Init();
 
     virtual void Destroy() override;
     void DestroyInternal();
@@ -385,13 +398,21 @@ public:
     bool IsSubResourceLinear(const SubresId& subresource) const
         { return (m_pGfxImage == nullptr) ? false : m_pGfxImage->IsSubResourceLinear(subresource); }
 
-    // Returns whether or not SRDs created for this image can use different formats.
-    bool SrdsCanChangeFormat() const
-        { return (m_createInfo.flags.formatChangeSrd != 0); }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    // Returns whether or not the format of views created from the image can be different than the base format.
+    // We can simply use the viewFormatCount parameter provided at image creation time as that's expected to
+    // be zero in case the base format is the only valid view format.
+    bool CanChangeFormat() const
+        { return (m_createInfo.viewFormatCount != 0); }
+#else
+    // Returns whether or not the format of views created from the image can be different than the base format.
+    bool CanChangeFormat() const
+        { return (m_createInfo.flags.formatChangeSrd != 0) || (m_createInfo.flags.formatChangeTgt != 0); }
+#endif
 
-    // Returns whether or not targets created for this image can use different formats.
-    bool TargetsCanChangeFormat() const
-        { return (m_createInfo.flags.formatChangeTgt != 0); }
+    // Returns whether or not all possible view formats are DCC compatible
+    bool AllViewFormatsDccCompatible() const
+        { return (m_imageInfo.flags.dccCompatibleFormatChange != 0); }
 
     // Returns the memory object that's bound to this surface.  It's the callers responsibility to verify that the
     // returned object is valid.

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -55,13 +55,18 @@ public:
     // Returns true if the GPU block this counter samples from is indexed for reads and writes
     bool IsIndexed() const { return (m_flags.isIndexed != 0); }
 
+    // Helper functions used by both PerfCounter and StreamingPerfCounter.
+    static uint32 GetSeIndex(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance)
+    {
+        return InstanceIdToSe(perfInfo, block, instance);
+    }
+    static uint32 InstanceIdToSe(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
+    static uint32 InstanceIdToSh(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
+    static uint32 InstanceIdToInstance(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
+
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-
-    uint32 InstanceIdToSe() const;
-    uint32 InstanceIdToSh() const;
-    uint32 InstanceIdToInstance() const;
 
     union Flags
     {
@@ -85,6 +90,29 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(PerfCounter);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfCounter);
+};
+
+// =====================================================================================================================
+// Provides Gfx6-specific functionality for streaming performance counters.
+class StreamingPerfCounter : public Pal::StreamingPerfCounter
+{
+public:
+    StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
+
+    virtual Result AddEvent(const GpuBlock& block, uint32 event) override;
+    uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+
+protected:
+    bool IsSelect0RegisterValid() const;
+    bool IsSelect1RegisterValid() const;
+    uint32 GetSelect0RegisterData() const;
+    uint32 GetSelect1RegisterData() const;
+
+private:
+    const Device& m_device;
+
+    PAL_DISALLOW_DEFAULT_CTOR(StreamingPerfCounter);
+    PAL_DISALLOW_COPY_AND_ASSIGN(StreamingPerfCounter);
 };
 
 } // Gfx6

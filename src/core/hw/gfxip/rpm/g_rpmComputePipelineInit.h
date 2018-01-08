@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -120,20 +120,20 @@ enum class RpmComputePipeline : uint32
     Gfx6GenerateCmdDispatch           = 81,
     Gfx6GenerateCmdDraw               = 82,
 #if PAL_BUILD_GFX9
-    Gfx9BuildHtileLookupTable         = 84,
-    Gfx9ClearDccMultiSample2d         = 85,
-    Gfx9ClearDccOptimized2d           = 86,
-    Gfx9ClearDccSingleSample2d        = 87,
-    Gfx9ClearDccSingleSample3d        = 88,
-    Gfx9ClearHtileFast                = 89,
-    Gfx9ClearHtileMultiSample         = 90,
-    Gfx9ClearHtileOptimized2d         = 91,
-    Gfx9ClearHtileSingleSample        = 92,
-    Gfx9Fill4x4Dword                  = 93,
-    Gfx9GenerateCmdDispatch           = 94,
-    Gfx9GenerateCmdDraw               = 95,
-    Gfx9HtileCopyAndFixUp             = 96,
-    Gfx9InitCmaskSingleSample         = 97,
+    Gfx9BuildHtileLookupTable         = 86,
+    Gfx9ClearDccMultiSample2d         = 87,
+    Gfx9ClearDccOptimized2d           = 88,
+    Gfx9ClearDccSingleSample2d        = 89,
+    Gfx9ClearDccSingleSample3d        = 90,
+    Gfx9ClearHtileFast                = 91,
+    Gfx9ClearHtileMultiSample         = 92,
+    Gfx9ClearHtileOptimized2d         = 93,
+    Gfx9ClearHtileSingleSample        = 94,
+    Gfx9Fill4x4Dword                  = 95,
+    Gfx9GenerateCmdDispatch           = 96,
+    Gfx9GenerateCmdDraw               = 97,
+    Gfx9HtileCopyAndFixUp             = 98,
+    Gfx9InitCmaskSingleSample         = 99,
 #endif
     Count
 };

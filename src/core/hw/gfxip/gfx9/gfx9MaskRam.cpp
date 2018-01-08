@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1196,7 +1196,8 @@ uint32 Gfx9Htile::GetNumSamplesLog2(
 Result Gfx9Htile::Init(
     const Pal::Device& device,
     const Image&       image,
-    gpusize*           pGpuOffset)    // [in,out] Current GPU memory offset & size
+    gpusize*           pGpuOffset,    // [in,out] Current GPU memory offset & size
+    bool               hasEqGpuAccess)
 {
     const  Gfx9PalSettings&  settings         = GetGfx9Settings(device);
     const  Pal::Image*const  pParent          = image.Parent();
@@ -1323,8 +1324,11 @@ Result Gfx9Htile::Init(
         // The addressing equation is the same for all sub-resources, so only bother to calculate it once
         CalcMetaEquation(image);
 
-        // Calculate info as to where the GPU can find the hTile equation
-        InitEqGpuAccess(image, pGpuOffset);
+        if (hasEqGpuAccess)
+        {
+            // Calculate info as to where the GPU can find the hTile equation
+            InitEqGpuAccess(image, pGpuOffset);
+        }
     }
 
     return result;
@@ -1707,7 +1711,8 @@ void Gfx9Dcc::GetXyzInc(
 // =====================================================================================================================
 Result Gfx9Dcc::Init(
     const Image&   image,
-    gpusize*       pGpuOffset)
+    gpusize*       pGpuOffset,
+    bool           hasEqGpuAccess)
 {
     Result result = ComputeDccInfo(image);
 
@@ -1718,8 +1723,11 @@ Result Gfx9Dcc::Init(
 
         SetControlReg(image);
 
-        // Calculate info as to where the GPU can find the DCC equation
-        InitEqGpuAccess(image, pGpuOffset);
+        if (hasEqGpuAccess)
+        {
+            // Calculate info as to where the GPU can find the DCC equation
+            InitEqGpuAccess(image, pGpuOffset);
+        }
     }
 
     return result;
@@ -1878,10 +1886,9 @@ bool Gfx9Dcc::UseDccForImage(
         // Don't use DCC if the caller asked that we allocate no metadata.
         useDcc = false;
     }
-    else if (pParent->TargetsCanChangeFormat() || pParent->SrdsCanChangeFormat())
+    else if (pParent->AllViewFormatsDccCompatible() == false)
     {
-        // Don't use DCC if the caller can switch between color target formats.
-        // Or if caller can switch between shader formats
+        // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
         useDcc = false;
     }
     else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
@@ -2249,7 +2256,8 @@ AddrSwizzleMode Gfx9Cmask::GetSwizzleMode(
 // =====================================================================================================================
 Result Gfx9Cmask::Init(
     const Image&   image,
-    gpusize*       pGpuOffset)
+    gpusize*       pGpuOffset,
+    bool           hasEqGpuAccess)
 {
     Result result = ComputeCmaskInfo(image);
 
@@ -2262,8 +2270,11 @@ Result Gfx9Cmask::Init(
         // The addressing equation is the same for all sub-resources, so only bother to calculate it once
         CalcMetaEquation(image);
 
-        // Calculate info as to where the GPU can find the cMask equation
-        InitEqGpuAccess(image, pGpuOffset);
+        if (hasEqGpuAccess)
+        {
+            // Calculate info as to where the GPU can find the cMask equation
+            InitEqGpuAccess(image, pGpuOffset);
+        }
     }
 
     return result;
@@ -2277,10 +2288,21 @@ bool Gfx9Cmask::UseCmaskForImage(
 {
     const Pal::Image*const pParent = image.Parent();
 
-    return (pParent->IsRenderTarget()               &&
-           (pParent->IsShared() == false)           &&
-           (pParent->IsMetadataDisabled() == false) &&
-           (pParent->GetImageCreateInfo().samples > 1));
+    bool useCmask = false;
+
+    if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
+    {
+        useCmask = (pParent->GetInternalCreateInfo().sharedMetadata.cmaskOffset != 0);
+    }
+    else
+    {
+        useCmask = (pParent->IsRenderTarget()               &&
+                   (pParent->IsShared() == false)           &&
+                   (pParent->IsMetadataDisabled() == false) &&
+                   (pParent->GetImageCreateInfo().samples > 1));
+    }
+
+    return useCmask;
 }
 
 //=============== Implementation for Gfx9Fmask: ========================================================================

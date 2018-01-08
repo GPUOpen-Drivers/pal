@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,10 +65,11 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_device(device),
     m_pTimestampMem(nullptr),
     m_timestampOffset(0),
-    m_computeStateIsSaved(false)
+    m_computeStateIsSaved(false),
 #if PAL_ENABLE_PRINTS_ASSERTS
-    , m_computeStateFlags(0)
+    m_computeStateFlags(0),
 #endif
+    m_spmTraceEnabled(false)
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -918,6 +919,11 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pExperiment != nullptr);
     CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
+
+    // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
+    // may be needed during submit time.
+    EnableSpmTrace();
+
     pExperiment->IssueBegin(pCmdStream);
     m_pCurrentExperiment = pExperiment;
 }
@@ -945,8 +951,8 @@ void GfxCmdBuffer::CmdEndPerfExperiment(
     // when gathering full-frame SQ thread traces, an experiment could be opened in one command buffer and ended in
     // another.
     PAL_ASSERT((pPerfExperiment == m_pCurrentExperiment) || (m_pCurrentExperiment == nullptr));
-    pExperiment->IssueEnd(pCmdStream);
 
+    pExperiment->IssueEnd(pCmdStream);
 }
 
 // =====================================================================================================================

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -725,9 +725,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeCmaskAddrFromCoord(
         UINT_32 metaBlkWidthLog2      = Log2(output.metaBlkWidth);
         UINT_32 metaBlkHeightLog2     = Log2(output.metaBlkHeight);
 
-        const CoordEq* pMetaEq = GetMetaEquation({0, fmaskElementBytesLog2, 0, pIn->cMaskFlags,
-                                                  Gfx9DataFmask, pIn->swizzleMode, pIn->resourceType,
-                                                  metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0});
+        MetaEqParams metaEqParams = {0, fmaskElementBytesLog2, 0, pIn->cMaskFlags,
+                                     Gfx9DataFmask, pIn->swizzleMode, pIn->resourceType,
+                                     metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0};
+
+        const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
 
         UINT_32 xb = pIn->x / output.metaBlkWidth;
         UINT_32 yb = pIn->y / output.metaBlkHeight;
@@ -798,9 +800,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeHtileAddrFromCoord(
             UINT_32 metaBlkHeightLog2 = Log2(output.metaBlkHeight);
             UINT_32 numSamplesLog2    = Log2(pIn->numSamples);
 
-            const CoordEq* pMetaEq = GetMetaEquation({0, elementBytesLog2, numSamplesLog2, pIn->hTileFlags,
-                                                      Gfx9DataDepthStencil, pIn->swizzleMode, ADDR_RSRC_TEX_2D,
-                                                      metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0});
+            MetaEqParams metaEqParams = {0, elementBytesLog2, numSamplesLog2, pIn->hTileFlags,
+                                         Gfx9DataDepthStencil, pIn->swizzleMode, ADDR_RSRC_TEX_2D,
+                                         metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0};
+
+            const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
 
             UINT_32 xb = pIn->x / output.metaBlkWidth;
             UINT_32 yb = pIn->y / output.metaBlkHeight;
@@ -870,9 +874,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeHtileCoordFromAddr(
             UINT_32 metaBlkHeightLog2 = Log2(output.metaBlkHeight);
             UINT_32 numSamplesLog2    = Log2(pIn->numSamples);
 
-            const CoordEq* pMetaEq = GetMetaEquation({0, elementBytesLog2, numSamplesLog2, pIn->hTileFlags,
-                                                      Gfx9DataDepthStencil, pIn->swizzleMode, ADDR_RSRC_TEX_2D,
-                                                      metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0});
+            MetaEqParams metaEqParams = {0, elementBytesLog2, numSamplesLog2, pIn->hTileFlags,
+                                         Gfx9DataDepthStencil, pIn->swizzleMode, ADDR_RSRC_TEX_2D,
+                                         metaBlkWidthLog2, metaBlkHeightLog2, 0, 3, 3, 0};
+
+            const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
 
             UINT_32 numPipeBits = GetPipeLog2ForMetaAddressing(pIn->hTileFlags.pipeAligned,
                                                                pIn->swizzleMode);
@@ -948,10 +954,12 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeDccAddrFromCoord(
             UINT_32 compBlkHeightLog2 = Log2(output.compressBlkHeight);
             UINT_32 compBlkDepthLog2  = Log2(output.compressBlkDepth);
 
-            const CoordEq* pMetaEq = GetMetaEquation({pIn->mipId, elementBytesLog2, numSamplesLog2, pIn->dccKeyFlags,
-                                                      Gfx9DataColor, pIn->swizzleMode, pIn->resourceType,
-                                                      metaBlkWidthLog2, metaBlkHeightLog2, metaBlkDepthLog2,
-                                                      compBlkWidthLog2, compBlkHeightLog2, compBlkDepthLog2});
+            MetaEqParams metaEqParams = {pIn->mipId, elementBytesLog2, numSamplesLog2, pIn->dccKeyFlags,
+                                         Gfx9DataColor, pIn->swizzleMode, pIn->resourceType,
+                                         metaBlkWidthLog2, metaBlkHeightLog2, metaBlkDepthLog2,
+                                         compBlkWidthLog2, compBlkHeightLog2, compBlkDepthLog2};
+
+            const CoordEq* pMetaEq = GetMetaEquation(metaEqParams);
 
             UINT_32 xb = pIn->x / output.metaBlkWidth;
             UINT_32 yb = pIn->y / output.metaBlkHeight;

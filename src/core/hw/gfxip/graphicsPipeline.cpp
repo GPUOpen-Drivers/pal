@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -81,7 +81,6 @@ Result GraphicsPipeline::Init(
     {
         result = Result::ErrorInvalidPointer;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 305
     else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         m_pipelineBinaryLen = createInfo.pipelineBinarySize;
@@ -96,7 +95,6 @@ Result GraphicsPipeline::Init(
         }
     }
     else
-#endif
     {
         PAL_ASSERT_ALWAYS();
         result = Result::ErrorInvalidPointer;

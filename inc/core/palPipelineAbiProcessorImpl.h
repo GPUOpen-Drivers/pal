@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -855,7 +855,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                 switch (static_cast<PipelineAbiNoteType>(type))
                 {
                 case PipelineAbiNoteType::HsaIsa:
-                    PAL_ASSERT(descSize == AbiAmdGpuVersionNoteSize);
+                    PAL_ASSERT(descSize >= AbiAmdGpuVersionNoteSize);
                     m_gpuVersionNote = *static_cast<const AbiAmdGpuVersionNote*>(pDesc);
                     break;
                 case PipelineAbiNoteType::AbiMinorVersion:
@@ -898,7 +898,7 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                     break;
                 }
                 default:
-                    PAL_ASSERT_ALWAYS(); // Unknown note type.
+                    // Unknown note type.
                     break;
                 }
             }

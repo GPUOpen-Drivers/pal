@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -100,6 +100,19 @@ struct SyncReqs
     };
 };
 
+// Structure for storing GFX9-specific workaround flags
+union Workarounds
+{
+     struct
+     {
+        uint32  waForce256bCbFetch        :  1;
+        uint32  waAllowMetaDataForAllMips :  1;
+        uint32  reserved                  : 30;
+     };
+
+     uint32  u32All;
+};
+
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
 // pipeline bind point. Client CE RAM will be allocated after and CE load command needs a start alignment of 32 bytes,
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
@@ -119,8 +132,6 @@ constexpr uint32 MinUcodeFeatureVersionForLoadRegIndex = 29;
 class Device : public GfxDevice
 {
 public:
-    static constexpr uint32 CpCoherStartDelay = 0;
-
     explicit Device(Pal::Device* pDevice);
     virtual ~Device() { }
 
@@ -143,9 +154,6 @@ public:
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
 #endif
-
-    // Installing trap handlers on GFX9 requires help from the queue to install the necessary VCOPs
-    virtual bool InstallTrapHandlersInQueue() const { return true; }
 
     virtual Result CreateEngine(
         EngineType engineType,
@@ -326,6 +334,8 @@ public:
         ChNumFormat*           pFormat,
         uint32*                pPixelsPerBlock) const override;
 
+    virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const override;
+
     // Function definition for creating typed buffer view SRDs.
     static void PAL_STDCALL Gfx9CreateTypedBufferViewSrds(
         const IDevice*        pDevice,
@@ -485,6 +495,9 @@ public:
                 (Parent()->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionForLoadRegIndex)) ? false : true;
     }
 
+    bool AllowMetaDataForAllMips() const { return m_workarounds.waAllowMetaDataForAllMips; }
+    bool GetForce256bCbFetch() const     { return m_workarounds.waForce256bCbFetch; }
+
 private:
     Result InitOcclusionResetMem();
     const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
@@ -530,6 +543,7 @@ private:
     const GfxIpLevel  m_gfxIpLevel;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
+    Workarounds    m_workarounds;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ namespace PerfCtrInfo
 struct  BlockPerfCounterInfo
 {
     uint32  numRegs;
-    uint32  regOffsets[Gfx9MaxCountersPerBlock];
+    uint32  regOffsets[MaxCountersPerBlock];
 };
 
 // Table of all the primary perf-counter select registers.  We list all the register offsets since the delta's
@@ -332,7 +332,7 @@ void SetupBlockInfo(
     const auto*               pSelReg1 = GetSecondaryBlockCounterInfo(pProps, block);
     Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
 
-    PAL_ASSERT(pSelReg0->numRegs <= Gfx9MaxCountersPerBlock);
+    PAL_ASSERT(pSelReg0->numRegs <= MaxCountersPerBlock);
 
     pInfo->block[blockIdx].available        = true;
     pInfo->block[blockIdx].numShaderEngines = numShaderEngines;
@@ -340,6 +340,60 @@ void SetupBlockInfo(
     pInfo->block[blockIdx].numInstances     = numInstances;
     pInfo->block[blockIdx].numCounters      = pSelReg0->numRegs;
     pInfo->block[blockIdx].maxEventId       = GetMaxEventId(pProps, block);
+
+    if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        // Initialize the streaming performance counter numbers for each block.
+        switch (block)
+        {
+        case GpuBlock::Cpg:
+        case GpuBlock::Cpf:
+        case GpuBlock::Cpc:
+        case GpuBlock::Cb:
+        case GpuBlock::Gds:
+        case GpuBlock::Ia:
+        case GpuBlock::Rmi:
+        case GpuBlock::Sc:
+        case GpuBlock::Ta:
+        case GpuBlock::Tcs:
+        case GpuBlock::Td:
+            pInfo->block[blockIdx].numStreamingCounters    = 4;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 1;
+            break;
+        case GpuBlock::Db:
+        case GpuBlock::Pa:
+        case GpuBlock::Tcp:
+        case GpuBlock::Vgt:
+            // NOTE: The perfmon doc claims DB/PA/TCP/VGT each have six streaming counters, though the regspec
+            //       indicates there is room for eight.
+            pInfo->block[blockIdx].numStreamingCounters    = 6;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 2;
+            break;
+        case GpuBlock::Sx:
+        case GpuBlock::Tca:
+        case GpuBlock::Tcc:
+            pInfo->block[blockIdx].numStreamingCounters    = 8;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 2;
+            break;
+        case GpuBlock::Spi:
+            pInfo->block[blockIdx].numStreamingCounters    = 16;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 4;
+            break;
+        case GpuBlock::Sq:
+            // NOTE: SQ streaming counters are not packed.
+            pInfo->block[blockIdx].numStreamingCounters    = 16;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 16;
+            break;
+        default:
+            pInfo->block[blockIdx].numStreamingCounters    = 0;
+            pInfo->block[blockIdx].numStreamingCounterRegs = 0;
+            break;
+        }
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
 
     // Setup the register addresses for each counter for this block.
     for (uint32  idx = 0; idx < pSelReg0->numRegs; idx++)

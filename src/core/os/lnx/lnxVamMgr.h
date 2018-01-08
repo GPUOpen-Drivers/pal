@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,12 +28,15 @@
 #include "core/vamMgr.h"
 #include "core/os/lnx/lnxPlatform.h"
 #include "palMutex.h"
+#include "palSysMemory.h"
 
 namespace Pal
 {
 
 namespace Linux
 {
+
+class Device;
 
 // =====================================================================================================================
 // VamMgr provides a clean interface between PAL and the VAM library, which is used to allocate and free GPU virtual
@@ -51,10 +54,6 @@ class VamMgr : public Pal::VamMgr
 public:
     VamMgr();
     virtual ~VamMgr();
-
-    virtual Result EarlyInit(
-        AmdgpuVaRangeAlloc pfnAlloc,
-        AmdgpuVaRangeFree  pfnFree);
 
     virtual Result LateInit(
         Pal::Device*const pDevice) override;
@@ -74,24 +73,11 @@ public:
     virtual Result Cleanup(
         Pal::Device*const pDevice) override;
 
-    virtual void GetVaRangeInfo(
-        uint32       partIndex,
-        VaRangeInfo* pVaRange);
-    virtual bool IsAllocated() { return m_allocated; }
+    bool IsAllocated() const { return m_allocated; }
+
 protected:
     void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr);
     void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc);
-
-    // DRM Methods of VA management.
-    AmdgpuVaRangeAlloc m_pfnAlloc;
-    AmdgpuVaRangeFree  m_pfnFree;
-    AmdgpuVaRangeQuery m_pfnQuery;
-
-    // Handle of each allocated VAs.
-    amdgpu_va_handle   m_allocatedVa[static_cast<uint32>(VaPartition::Count)];
-    // Size and start address of each allocated VA.
-    VaRangeInfo        m_vaRangeInfo[static_cast<uint32>(VaPartition::Count)];
-    bool               m_allocated;
 
     // VAM callbacks.
     static void*             VAM_STDCALL AllocSysMemCb(VAM_CLIENT_HANDLE hPal, uint32 sizeInBytes);
@@ -106,10 +92,20 @@ protected:
     static VAM_RETURNCODE    VAM_STDCALL ReclaimVidMemCb(VAM_CLIENT_HANDLE hPal, VAM_VIDMEM_HANDLE hVidMem);
     static VAM_RETURNCODE    VAM_STDCALL NeedPtbCb();
 
-    size_t  m_maxPtbIndex;      // Maximum possible PTB index.
-    size_t  m_ptbIndexShift;    // Bits to right-shift when converting a VA to a PTB index.
+private:
+    bool    m_allocated;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgr);
+};
+
+// =====================================================================================================================
+// ReservedVaRangeInfo holds information about reserved ranges on the physical GPU device. New logical devices can
+// retrieve this information without extra reservations.
+struct ReservedVaRangeInfo
+{
+    gpusize          baseVirtualAddr[static_cast<uint32>(VaPartition::Count)];  // Virtual base address of the range
+    amdgpu_va_handle allocatedVa[static_cast<uint32>(VaPartition::Count)];      // Handles of each allocated VAs
+    uint32           devCounter;                                                // Number of allocated logical devices
 };
 
 // =====================================================================================================================
@@ -121,10 +117,10 @@ class VamMgrSingleton
 {
 public:
     static void Cleanup();
-    static void Init(const DrmLoaderFuncs& drmFuncs);
+    static void Init();
 
     static Result InitVaRangesAndFinalizeVam(
-        Pal::Device* pDevice);
+        Pal::Linux::Device* pDevice);
 
     static Result AssignVirtualAddress(
         Pal::Device*              pDevice,
@@ -135,10 +131,25 @@ public:
         Pal::Device*          pDevice,
         const Pal::GpuMemory& gpuMemory);
 
+    static Result GetReservedVaRange(
+        const DrmLoaderFuncs& drmFuncs,
+        amdgpu_device_handle  devHandle,
+        bool                  isDtifEnabled,
+        GpuMemoryProperties*  memoryProperties);
+
+    static void FreeReservedVaRange(
+        const DrmLoaderFuncs& drmFuncs,
+        amdgpu_device_handle  devHandle);
+
 private:
-    static Util::Mutex        s_mutex;
-    static volatile uint32    s_refCount;
-    static VamMgr             s_vammgr;
+    typedef Util::HashMap<amdgpu_device_handle, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
+    static constexpr uint32     InitialGpuNumber = 32;
+    static GenericAllocatorAuto s_mapAllocator;
+    static ReservedVaMap        s_reservedVaMap;
+    static Util::Mutex          s_vaMapLock;
+    static Util::Mutex          s_mutex;
+    static volatile uint32      s_refCount;
+    static VamMgr               s_vammgr;
 };
 
 } // Linux

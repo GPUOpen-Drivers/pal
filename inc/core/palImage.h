@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,10 @@ class      IImage;
 class      IPrivateScreen;
 class      IScreen;
 class      ISwapChain;
+
+/// When used as the value of the viewFormatCount parameter of image creation it indicates that all compatible formats
+/// can be used for views of the created image.
+constexpr uint32 AllCompatibleFormats = UINT32_MAX;
 
 /// Specifies dimensionality of an image (i.e., 1D, 2D, or 3D).
 enum class ImageType : uint32
@@ -104,6 +108,15 @@ enum class ImageAspect : uint32
     Count
 };
 
+/// Image shared metadata support level
+enum class MetadataSharingLevel : uint32
+{
+    FullExpand  = 0,    ///< The metadata need to be fully expanded at ownership transition time.
+    ReadOnly    = 1,    ///< The metadata are expected to have read-only usage after the ownership is transitioned.
+    FullOptimal = 2,    ///< The metadata can remain as-is if possible at ownership transition time.
+};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
 /// Specifies a set of image creation flags.
 union ImageCreateFlags
 {
@@ -147,6 +160,50 @@ union ImageCreateFlags
     };
     uint32 u32All;                     ///< Flags packed as 32-bit uint.
 };
+#else // if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+/// Specifies a set of image creation flags.
+union ImageCreateFlags
+{
+    struct
+    {
+        uint32 invariant               :  1; ///< Images with this flag set and all other creation identical are
+                                             ///  guaranteed to have a consistent data layout.
+        uint32 cloneable               :  1; ///< Image is valid as a source or destination of a clone operation.
+        uint32 shareable               :  1; ///< Image can be shared between compatible devices.
+        uint32 flippable               :  1; ///< Image can be used for flip presents.
+        uint32 stereo                  :  1; ///< Whether it is a stereo image
+        uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
+        uint32 prt                     :  1; ///< Image is a partially resident texture (aka, sparse image or tiled
+                                             ///  resource)
+        uint32 noMetadata              :  1; ///< This image's GPU memory will not contain any metadata.
+        uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
+        uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
+                                             ///  CmdBarrier calls out of the uninitialized layout.
+        uint32 separateDepthAspectInit :  1; ///< If set, the caller may transition the stencil and depth aspects from
+                                             ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
+                                             ///  transitioned in the same barrier call.  Only meaningful if
+                                             /// "perSubresInit" is set
+        uint32 copyFormatsMatch        :  1; ///< Optimization: When this image is used as an argument to CmdCopyImage,
+                                             ///  its format must match the format of the other image.
+        uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
+                                             ///  is mostly similar to this image?
+        uint32 preferSwizzleEqs        :  1; ///< Image prefers valid swizzle equations, but an invalid swizzle
+                                             ///  equation is also acceptable.
+        uint32 fixedTileSwizzle        :  1; ///< Fix this image's tile swizzle to ImageCreateInfo::tileSwizzle. This
+                                             ///  is only supported for single-sampled color images.
+        uint32 videoReferenceOnly      :  1; ///< Image is used by video hardware for reference buffer only.
+                                             ///  It uses a different tiling format than the decoder output buffer.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
+        uint32 optimalShareable        :  1; ///< Indicates metadata information is to be added into private data on
+                                             ///  creation time and honored on open time.
+        uint32 reserved                : 15; ///< Reserved for future use.
+#else
+        uint32 reserved                : 16; ///< Reserved for future use.
+#endif
+    };
+    uint32 u32All;                     ///< Flags packed as 32-bit uint.
+};
+#endif
 
 /// Specifies a set of ways an image might be used by the GPU (color target, shader read, etc.).
 union ImageUsageFlags
@@ -212,9 +269,7 @@ struct ImageCreateInfo
                                           ///  greater than or equal to the number of fragments.
     uint32             fragments;         ///< Number of color/depth fragments.  Set to 1 for single sample images.
     ImageTiling        tiling;            ///< Controls layout of pixels in the image.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 292
     ImageTilingPattern tilingPreference;  ///< Controls preferred tile swizzle organization for this image.
-#endif
     TilingOptMode      tilingOptMode;     ///< Hints to pal to select the appropriate tiling mode.
     uint32             tileSwizzle;       ///< If fixedTileSwizzle is set, use this value for the image's base tile
                                           ///  swizzle.
@@ -228,6 +283,21 @@ struct ImageCreateInfo
     uint32             depthPitch;        ///< The image must have this depth pitch for all subresources (in bytes).
 
     Rational           stereoRefreshRate; ///< The expected refresh rate when presenting this stero image.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
+                                          ///  or the special value AllCompatibleFormats to indicate that all
+                                          ///  compatible formats can be used as a view format.
+    const SwizzledFormat* pViewFormats;   ///< Array of viewFormatCount number of additional image formats views of
+                                          ///  this image can be used with. If viewFormatCount is AllCompatibleFormats,
+                                          ///  this must be nullptr. The array should not contain the base format of
+                                          ///  the image, as that's always assumed to be a supported view format,
+                                          ///  so if the image is only expected to be used with the base format of
+                                          ///  the image then viewFormatCount and pViewFormats should be left with
+                                          ///  the default values of zero and nullptr, respectively.
+                                          ///  Note that this array is consumed at image creation time and should
+                                          ///  not be accessed afterwards through GetImageCreateInfo().
+#endif
 
 };
 
@@ -262,7 +332,7 @@ struct PresentableImageCreateInfo
     ISwapChain*         pSwapChain;     ///< SwapChain object which the presentable image belongs to.
 };
 
-/// Specifies properties for private screen @ref IImage image creationm.  Input structure to
+/// Specifies properties for private screen @ref IImage image creation.  Input structure to
 /// IDevice::CreatePrivateScreenImage().
 struct PrivateScreenImageCreateInfo
 {
@@ -272,8 +342,12 @@ struct PrivateScreenImageCreateInfo
         {
             uint32 invariant       :  1; ///< Images with this flag set and all other creation identical are guaranteed
                                          ///  to have a consistent data layout.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+            uint32 reserved        : 31; ///< Reserved for future use.
+#else
             uint32 formatChangeSrd :  1; ///< Indicates views created for this image can use a different format.
             uint32 reserved        : 30; ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                 ///< Flags packed as 32-bit uint.
     } flags;                           ///< Private screen image creation flags.
@@ -283,6 +357,20 @@ struct PrivateScreenImageCreateInfo
     Extent2d        extent;         ///< Width/height of the image.
     IPrivateScreen* pScreen;        ///< Private screen this image is created on (then this image can be used to be
                                     ///  presented on this private screen).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
+                                          ///  or the special value AllCompatibleFormats to indicate that all
+                                          ///  compatible formats can be used as a view format.
+    const SwizzledFormat* pViewFormats;   ///< Array of viewFormatCount number of additional image formats views of
+                                          ///  this image can be used with. If viewFormatCount is AllCompatibleFormats,
+                                          ///  this must be nullptr. The array should not contain the base format of
+                                          ///  the image, as that's always assumed to be a supported view format,
+                                          ///  so if the image is only expected to be used with the base format of
+                                          ///  the image then viewFormatCount and pViewFormats should be left with
+                                          ///  the default values of zero and nullptr, respectively.
+                                          ///  Note that this array is consumed at image creation time and should
+                                          ///  not be accessed afterwards through GetImageCreateInfo().
+#endif
 };
 
 /// Specifies parameters for opening another device's image for peer access from this device.  Input structure to
@@ -438,6 +526,18 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+    /// Sets level of optimal sharing by opening APIs using this optimal sharable image and pass this information to the
+    /// creator. This function is supposed to be called by openers only. The call by creator is ignored.
+    ///
+    /// @param  [in]    level        Level to be set to specified client API.
+    virtual void SetOptimalSharingLevel(
+        MetadataSharingLevel level) = 0;
+
+    /// Returns support level set by all possible opening APIs.
+    ///
+    /// @returns A summarized supporting level.
+    virtual MetadataSharingLevel GetOptimalSharingLevel() const = 0;
 
 protected:
     /// @internal Constructor.

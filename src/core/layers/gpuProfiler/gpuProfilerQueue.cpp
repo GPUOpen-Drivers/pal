@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -328,8 +328,9 @@ void Queue::BeginNextFrame(
             // Begin a GPA session.
             pStartFrameTgtCmdBuf->BeginGpaSession(this);
 
-            const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0) ||
-                                 (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff);
+            const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
+                                 (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                                 (m_pDevice->GetProfilerMode() > GpuProfilerDisabled);
 
             pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
             pStartFrameTgtCmdBuf->End();
@@ -822,7 +823,7 @@ void Queue::AcquireGpuMem(
             const auto&   settings = m_pDevice->ProfilerSettings();
             const gpusize pageSize = m_pDevice->FragmentSize();
 
-            const gpusize sqttBufferSize = (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff) ?
+            const gpusize sqttBufferSize = (m_pDevice->GetProfilerMode() > GpuProfilerDisabled) ?
                                            (settings.gpuProfilerSqttBufferSize * m_shaderEngineCount + pageSize) : 0;
 
             // If there aren't any idle allocations, allocate a new piece of GPU memory.
@@ -1149,8 +1150,12 @@ Result Queue::BuildGpaSessionSampleConfig()
 {
     const auto& settings = m_pDevice->ProfilerSettings();
 
-    const uint32             numCounters = m_pDevice->NumGlobalPerfCounters();
-    const GlobalPerfCounter* pCounters   = m_pDevice->GlobalPerfCounters();
+    const uint32 numCounters                           = m_pDevice->NumGlobalPerfCounters();
+    const uint32 numSpmCountersRequested               = m_pDevice->NumStreamingPerfCounters();
+    const GpuProfiler::PerfCounter* pCounters          = m_pDevice->GlobalPerfCounters();
+    const GpuProfiler::PerfCounter* pStreamingCounters = m_pDevice->StreamingPerfCounters();
+
+    m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
 
     if (numCounters != 0)
     {
@@ -1214,7 +1219,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
                     for (uint32 j = 0; j < blockProps.instanceCount; j++)
                     {
-                        counterInfo.instance = j;
+                        counterInfo.instance  = j;
                         pIds[instanceIndex++] = counterInfo;
                     }
                 }
@@ -1226,7 +1231,77 @@ Result Queue::BuildGpaSessionSampleConfig()
         }
         else if (m_gpaSessionSampleConfig.type == GpuUtil::GpaSampleType::Trace)
         {
-            m_gpaSessionSampleConfig.sqtt.flags.enable = (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff);
+            // Streaming performance counter trace config.
+            if (numSpmCountersRequested > 0)
+            {
+                uint32 numTotalInstances = 0;
+                for (uint32 i = 0; i < numSpmCountersRequested; i++)
+                {
+                    numTotalInstances +=
+                        perfExpProps.blocks[static_cast<uint32>(pStreamingCounters[i].block)].instanceCount;
+                }
+
+                gpusize ringSizeInBytes = settings.gpuProfilerSpmTraceBufferSize;
+
+                if (ringSizeInBytes == 0)
+                {
+                    switch (settings.gpuProfilerGranularity)
+                    {
+                    case GpuProfilerGranularityDraw:
+                        ringSizeInBytes = 1024 * 1024; // 1 MB
+                        break;
+                    case GpuProfilerGranularityCmdBuf:
+                        ringSizeInBytes = 32 * 1024 * 1024; // 32 MB
+                        break;
+                    case GpuProfilerGranularityFrame:
+                        ringSizeInBytes = 128 * 1024 * 1024; // 128 MB
+                        break;
+                    default:
+                        break;
+                    }
+                }
+
+                // Each instance of the requested block is a unique perf counter according to GpaSession.
+                m_gpaSessionSampleConfig.perfCounters.numCounters            = numTotalInstances;
+                m_gpaSessionSampleConfig.perfCounters.spmTraceSampleInterval = settings.gpuProfilerSpmTraceInterval;
+                m_gpaSessionSampleConfig.perfCounters.gpuMemoryLimit         = ringSizeInBytes;
+
+                // Create pIds for the counters that were requested in the config file.
+                GpuUtil::PerfCounterId* pIds =
+                   static_cast<GpuUtil::PerfCounterId*>(PAL_CALLOC(numTotalInstances * sizeof(GpuUtil::PerfCounterId),
+                                                                   m_pDevice->GetPlatform(),
+                                                                   AllocInternal));
+                if (pIds != nullptr)
+                {
+                    m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
+
+                    uint32 pIdIndex = 0;
+
+                    // Create PerfCounterIds with same eventId for all instances of the block.
+                    for (uint32 counter = 0; counter < numSpmCountersRequested; ++counter)
+                    {
+                        GpuUtil::PerfCounterId counterInfo;
+                        counterInfo.block   = pStreamingCounters[counter].block;
+                        counterInfo.eventId = pStreamingCounters[counter].eventId;
+
+                        const auto& blockProps =
+                            perfExpProps.blocks[static_cast<uint32>(pStreamingCounters[counter].block)];
+
+                        for (uint32 blockInstance = 0; blockInstance < blockProps.instanceCount; ++blockInstance)
+                        {
+                            counterInfo.instance = blockInstance;
+                            pIds[pIdIndex++]     = counterInfo;
+                        }
+                    }
+                }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+            }
+
+            // Thread trace specific config.
+            m_gpaSessionSampleConfig.sqtt.flags.enable = m_pDevice->IsThreadTraceEnabled();
             m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit
                 = settings.gpuProfilerSqttBufferSize * perfExpProps.shaderEngineCount;
             m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens

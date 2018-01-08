@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -110,6 +110,7 @@ public:
     void UploadEq(
         CmdBuffer*         pCmdBuffer,
         const Pal::Image*  pParentImg) const;
+    bool HasEqGpuAccess() const { return m_eqGpuAccess.offset != 0; }
     static bool SupportFastColorClear(
         const Pal::Device& device,
         const Image&       image,
@@ -212,7 +213,8 @@ public:
     Result Init(
         const Pal::Device& device,
         const Image&       image,
-        gpusize*           pGpuOffset);
+        gpusize*           pGpuOffset,
+        bool               hasEqGpuAccess);
 
     bool DepthCompressed() const { return m_flags.compressZ; }
     bool StencilCompressed() const { return m_flags.compressS; }
@@ -327,7 +329,7 @@ public:
     // Destructor has nothing to do.
     virtual ~Gfx9Dcc() {}
 
-    Result Init(const Image&   image, gpusize*  pSize);
+    Result Init(const Image&   image, gpusize*  pSize, bool  hasEqGpuAccess);
     static bool UseDccForImage(const Image& image, bool metaDataTexFetchSupported);
 
     // Returns the value of the DCC control register for this DCC surface
@@ -386,7 +388,8 @@ public:
 
     Result Init(
         const Image&   image,
-        gpusize*       pGpuOffset);
+        gpusize*       pGpuOffset,
+        bool           hasEqGpuAccess);
     static bool UseCmaskForImage(
         const Pal::Device& device,
         const Image&       image);

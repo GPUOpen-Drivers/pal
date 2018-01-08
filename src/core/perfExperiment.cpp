@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 #include "core/perfTrace.h"
 #include "core/platform.h"
 #include "palDequeImpl.h"
+#include "palHashMapImpl.h"
 
 namespace Pal
 {
@@ -44,9 +45,11 @@ PerfExperiment::PerfExperiment(
     m_ctrBeginOffset(0),
     m_ctrEndOffset(0),
     m_thdTraceOffset(0),
+    m_spmTraceOffset(0),
     m_totalMemSize(0),
     m_globalCtrs(pDevice->GetPlatform()),
     m_numThreadTrace(0),
+    m_pSpmTrace(nullptr),
     m_device(*pDevice),
     m_shaderMask(PerfShaderMaskAll)
 {
@@ -87,10 +90,12 @@ PerfExperiment::~PerfExperiment()
     {
         PAL_SAFE_DELETE(m_pThreadTrace[idx], m_device.GetPlatform());
     }
+
+    PAL_SAFE_DELETE(m_pSpmTrace, m_device.GetPlatform());
 }
 
 // =====================================================================================================================
-// Adds a new performance counter to this Experiment.
+// Adds a new summary performance counter to this Experiment.
 Result PerfExperiment::AddCounter(
     const PerfCounterInfo& info)
 {
@@ -104,31 +109,41 @@ Result PerfExperiment::AddCounter(
 
     if (result == Result::Success)
     {
-        if (info.counterType == PerfCounterType::Global)
+        // Only global (summary) counters are expected in this path.
+        PAL_ASSERT(info.counterType == PerfCounterType::Global);
+
+        // Delegate to the HWL for counter creation.
+        PerfCounter* pCounter = nullptr;
+        result = CreateCounter(info, &pCounter);
+
+        if (result == Result::Success)
         {
-            // Delegate to the HWL for counter creation.
-            PerfCounter* pCounter = nullptr;
-            result = CreateCounter(info, &pCounter);
+            PAL_ASSERT(pCounter != nullptr);
+            result = m_globalCtrs.PushBack(pCounter);
 
-            if (result == Result::Success)
+            if (result != Result::Success)
             {
-                PAL_ASSERT(pCounter != nullptr);
-                result = m_globalCtrs.PushBack(pCounter);
-
-                if (result != Result::Success)
-                {
-                    // Something went wrong when adding the counter to our list...
-                    // need to clean-up the counter now to prevent leaks.
-                    PAL_SAFE_DELETE(pCounter, m_device.GetPlatform());
-                }
+                // Something went wrong when adding the counter to our list...
+                // need to clean-up the counter now to prevent leaks.
+                PAL_SAFE_DELETE(pCounter, m_device.GetPlatform());
             }
         }
-        else
-        {
-            // NOTE: SPM counters are not implemented yet.
-            PAL_NOT_IMPLEMENTED();
-            result = Result::ErrorUnavailable;
-        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Adds a new streaming counter trace to this Perf Experiment.
+Result PerfExperiment::AddSpmTrace(
+    const SpmTraceCreateInfo& info)
+{
+    // Cannot add traces to an already-finalized Experiment!
+    Result result = Result::ErrorUnavailable;
+
+    if (IsFinalized() == false)
+    {
+        result = CreateSpmTrace(info);
     }
 
     return result;
@@ -161,8 +176,14 @@ Result PerfExperiment::ValidatePerfCounterInfo(
 
 // =====================================================================================================================
 // Adds a new trace to this Experiment.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
 Result PerfExperiment::AddTrace(
     const PerfTraceInfo& info)
+#else
+Result PerfExperiment::AddThreadTrace(
+    const ThreadTraceInfo& info)
+#endif
+
 {
     Result result = Result::Success;
 
@@ -191,12 +212,6 @@ Result PerfExperiment::AddTrace(
                 // one per Engine.
                 result = Result::ErrorUnavailable;
             }
-        }
-        else
-        {
-            // NOTE: SPM traces are not implemented yet.
-            PAL_NOT_IMPLEMENTED();
-            result = Result::ErrorUnavailable;
         }
     }
 
@@ -273,6 +288,19 @@ Result PerfExperiment::Finalize()
                     m_totalMemSize += m_pThreadTrace[idx]->GetDataSize();
                 }
             }
+        }
+
+        if (HasSpmTrace())
+        {
+             // Use this opportunity to finalize the spm trace based on the configuration.
+             m_pSpmTrace->CalculateSegmentSize();
+             m_pSpmTrace->CalculateMuxRam();
+
+            // Set the start offset of spm data. The Spm trace data starts from where the thread trace results end.
+            m_pSpmTrace->SetDataOffset(m_totalMemSize);
+
+            // The size of the spm data is the size of the ring buffer allocated.
+            m_totalMemSize += m_pSpmTrace->GetRingSize();
         }
 
         // Mark this Experiment as 'finalized'.
@@ -384,10 +412,9 @@ Result PerfExperiment::GetSpmTraceLayout(
     SpmTraceLayout* pLayout
     ) const
 {
-    PAL_ASSERT(pLayout != nullptr);
-    PAL_NOT_IMPLEMENTED();
+    PAL_ASSERT((pLayout != nullptr) && IsFinalized());
 
-    return Result::ErrorUnavailable;
+    return m_pSpmTrace->GetTraceLayout(pLayout);
 }
 
 // =====================================================================================================================
@@ -395,12 +422,11 @@ void PerfExperiment::GetGpuMemoryRequirements(
     GpuMemoryRequirements* pGpuMemReqs
     ) const
 {
-    if (HasThreadTraces())
+    if (HasThreadTraces() || HasSpmTrace())
     {
         pGpuMemReqs->heapCount = 2;
         pGpuMemReqs->heaps[0]  = Pal::GpuHeapInvisible;
         pGpuMemReqs->heaps[1]  = Pal::GpuHeapLocal;
-
     }
     else
     {

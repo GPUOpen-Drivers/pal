@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -258,6 +258,7 @@ private:
         uint32 drawId,
         Util::File* pFile,
         const LogItem& logItem);
+    void OpenSpmFile(Util::File* pFile, const LogItem& logItem);
     void OutputRgpFile(const GpuUtil::GpaSession& gpaSession, uint32 gpaSampleId);
     void OutputQueueCallToFile(const LogItem& logItem);
     void OutputCmdBufCallToFile(const LogItem& logItem, const char* pNestedCmdBufPrefix);
@@ -266,7 +267,7 @@ private:
     void OutputTimestampsToFile(const LogItem& logItem);
     void OutputPipelineStatsToFile(const LogItem& logItem);
     void OutputGlobalPerfCountersToFile(const LogItem& logItem);
-    void OutputSqThreadTraceToFile(const LogItem& logItem);
+    void OutputTraceDataToFile(const LogItem& logItem);
 
     void ProfilingClockMode(bool enable);
 

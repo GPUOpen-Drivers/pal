@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -213,7 +213,8 @@ struct GpuMemoryProperties
             uint32 iommuv2Support             :  1; // Indicates support for IOMMUv2
             uint32 autoPrioritySupport        :  1; // Indiciates that the platform supports automatic allocation
                                                     // priority management.
-            uint32 reserved                   : 18;
+            uint32 placeholder0               :  1; // Placeholder.
+            uint32 reserved                   : 17;
         };
         uint32 u32All;
     } flags;
@@ -375,10 +376,10 @@ struct Gfx6PerfCounterInfo
 #endif // PAL_BUILD_GFX6
 
 #if PAL_BUILD_GFX9
-// Maximum amount of counters per GPU block.
-constexpr size_t Gfx9MaxCountersPerBlock = 16;
+// Maximum amount of counters per GPU block for Gfx9/10.
+constexpr size_t MaxCountersPerBlock = 16;
 
-// Contains information for perf counters for Gfx6 HW.
+// Contains information for perf counters for Gfx9 and Gfx10 HW.
 struct Gfx9PerfCounterInfo
 {
     PerfExperimentDeviceFeatureFlags features;       // Performance experiment feature flags.
@@ -403,7 +404,7 @@ struct Gfx9PerfCounterInfo
             uint32  perfCountLoAddr;                // Performance counter low address register offset
             uint32  perfCountHiAddr;                // Performance counter high address register offset
             uint32  perfRsltCntlRegAddr;            // Perf result control register offset
-        } regInfo[Gfx9MaxCountersPerBlock];         // Register information for each counter
+        } regInfo[MaxCountersPerBlock];             // Register information for each counter
     } block[static_cast<size_t>(GpuBlock::Count)];  // Counter information for each GPU block
 };
 #endif // PAL_BUILD_GFX9

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -170,6 +170,10 @@ Device::Device(
         m_firstUserDataReg[shaderStage] = GetBaseUserDataReg(static_cast<HwShaderStage>(shaderStage)) +
                                           FastUserDataStartReg;
     }
+
+    m_workarounds.u32All                    = 0;
+    m_workarounds.waAllowMetaDataForAllMips = 1;
+
 }
 
 // =====================================================================================================================
@@ -317,15 +321,17 @@ Result Device::Finalize()
     Result result = GfxDevice::Finalize();
 
     // In order for NGG pipelines to work on Gfx9, GDS must be requested for various shader operations inside of the
-    // primitive shader. If the client has not requested any GDS, we must at a minimum request some for the Universal
+    // primitive shader.  If the client has not requested any GDS, we must at a minimum request some for the Universal
     // engine.
     if ((result == Result::Success)                                  &&
         (m_pParent->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
         (settings.nggMode != Gfx9NggDisabled)                        &&
-        (m_pParent->GdsEngineSizes(EngineTypeUniversal) == 0))
+        (m_pParent->GdsEngineSizes(EngineTypeUniversal) == 0)        &&
+        (m_pParent->GdsEngineSizes(EngineTypeCompute)   == 0))
     {
         const auto& engineProps = m_pParent->EngineProperties();
-        DeviceGdsAllocInfo allocInfo = {};
+
+        DeviceGdsAllocInfo allocInfo = { };
         allocInfo.gdsSizes[EngineTypeUniversal][0] = engineProps.perEngine[EngineTypeUniversal].availableGdsSize;
 
         result = m_pParent->AllocateGds(allocInfo);
@@ -1541,6 +1547,78 @@ Result Device::InitAddrLibCreateInput(
 }
 
 // =====================================================================================================================
+// Helper function telling whether an image created with the specified creation image has all of its potential view
+// formats compatible with DCC.
+bool Device::AreImageFormatsDccCompatible(
+    const ImageCreateInfo& imageCreateInfo
+    ) const
+{
+    bool dccCompatible = true;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    if (imageCreateInfo.viewFormatCount == AllCompatibleFormats)
+    {
+        // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
+        // the format compatibility classes comprise only of formats that are DCC compatible.
+        dccCompatible = false;
+    }
+    else
+    {
+        // If an array of possible view formats is specified at image creation time we can check whether all of
+        // those are DCC compatible with each other or not.
+        // The channel format has to match for all of these formats, but otherwise the number format may change
+        // as long as all formats are from within one of the following compatible buckets:
+        // (1) Unorm, Uint, Uscaled, and Srgb
+        // (2) Snorm, Sint, and Sscaled
+        bool baseFormatIsUnsigned = Formats::IsUnorm(imageCreateInfo.swizzledFormat.format)   ||
+                                    Formats::IsUint(imageCreateInfo.swizzledFormat.format)    ||
+                                    Formats::IsUscaled(imageCreateInfo.swizzledFormat.format) ||
+                                    Formats::IsSrgb(imageCreateInfo.swizzledFormat.format);
+        bool baseFormatIsSigned   = Formats::IsSnorm(imageCreateInfo.swizzledFormat.format)   ||
+                                    Formats::IsSint(imageCreateInfo.swizzledFormat.format)    ||
+                                    Formats::IsSscaled(imageCreateInfo.swizzledFormat.format);
+
+        // If viewFormatCount is not zero then pViewFormats must point to a valid array.
+        PAL_ASSERT((imageCreateInfo.viewFormatCount == 0) || (imageCreateInfo.pViewFormats != nullptr));
+
+        const SwizzledFormat* pFormats = imageCreateInfo.pViewFormats;
+
+        for (uint32 i = 0; i < imageCreateInfo.viewFormatCount; ++i)
+        {
+            // The pViewFormats array should not contain the base format of the image.
+            PAL_ASSERT(memcmp(&imageCreateInfo.swizzledFormat, &pFormats[i], sizeof(SwizzledFormat)) != 0);
+
+            bool viewFormatIsUnsigned = Formats::IsUnorm(pFormats[i].format)   ||
+                                        Formats::IsUint(pFormats[i].format)    ||
+                                        Formats::IsUscaled(pFormats[i].format) ||
+                                        Formats::IsSrgb(pFormats[i].format);
+            bool viewFormatIsSigned   = Formats::IsSnorm(pFormats[i].format)   ||
+                                        Formats::IsSint(pFormats[i].format)    ||
+                                        Formats::IsSscaled(pFormats[i].format);
+
+            if ((Formats::ShareChFmt(imageCreateInfo.swizzledFormat.format, pFormats[i].format) == false) ||
+                (baseFormatIsUnsigned != viewFormatIsUnsigned) ||
+                (baseFormatIsSigned != viewFormatIsSigned))
+            {
+                dccCompatible = false;
+                break;
+            }
+        }
+    }
+#else
+    if ((imageCreateInfo.flags.formatChangeSrd != 0) || (imageCreateInfo.flags.formatChangeTgt != 0))
+    {
+        // In the generic case if formatChangeSrd or formatChangeTgt is requested then all compatible formats are
+        // assumed to be potential valid view formats and none of the format compatibility classes comprise only of
+        // formats that are DCC compatible.
+        dccCompatible = false;
+    }
+#endif
+
+    return dccCompatible;
+}
+
+// =====================================================================================================================
 // Computes the image view SRD DEPTH field based on image view parameters
 static PAL_INLINE uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
@@ -2553,14 +2631,7 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
             pSrd->word0.bits.DEPTH_COMPARE_FUNC = static_cast<uint32>(pInfo->compareFunc);
             pSrd->word0.bits.FORCE_UNNORMALIZED = pInfo->flags.unnormalizedCoords;
             pSrd->word0.bits.TRUNC_COORD        = pInfo->flags.truncateCoords;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 284
             pSrd->word0.bits.DISABLE_CUBE_WRAP  = (pInfo->flags.seamlessCubeMapFiltering == 1) ? 0 : 1;
-#else
-            pSrd->word0.bits.DISABLE_CUBE_WRAP  = pInfo->flags.cubeMap &&
-                                                  (pInfo->addressU != TexAddressMode::Wrap ||
-                                                   pInfo->addressV != TexAddressMode::Wrap ||
-                                                   pInfo->addressW != TexAddressMode::Wrap);
-#endif
 
             constexpr uint32 Gfx9SamplerLodMinMaxIntBits  = 4;
             constexpr uint32 Gfx9SamplerLodMinMaxFracBits = 8;

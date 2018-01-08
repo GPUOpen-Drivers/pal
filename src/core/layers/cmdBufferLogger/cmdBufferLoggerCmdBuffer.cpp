@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1572,11 +1572,7 @@ void CmdBuffer::CmdStoreMsaaQuadSamplePattern(
 
 // =====================================================================================================================
 void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     const IGpuMemory* pSrcGpuMemory,
-#else
-    const IGpuMemory& srcGpuMemory,
-#endif
     gpusize           srcMemOffset)
 {
     if (m_flags.logCmdSets)
@@ -1586,11 +1582,7 @@ void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
         // TODO: Add comment string.
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     GetNextLayer()->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset);
-#else
-    GetNextLayer()->CmdLoadMsaaQuadSamplePattern(srcGpuMemory, srcMemOffset);
-#endif
 }
 #endif
 
@@ -1781,7 +1773,7 @@ static void BarrierTransitionToString(
         ImageLayoutToString(transition.imageInfo.newLayout, &string[0]);
         pCmdBuffer->CmdCommentString(&string[0]);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         if (transition.imageInfo.samplePattern.pImmediate != nullptr)
         {
             DumpMsaaQuadSamplePattern(

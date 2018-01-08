@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -374,7 +374,7 @@ Device::Device(
     m_chipProperties.gpuConnectedViaThunderbolt = false;
 
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
-    VamMgrSingleton::Init(pPlatform->GetDrmLoader().GetProcsTable());
+    VamMgrSingleton::Init();
 
     // DrmVersion should be equal or greater than 3.22 in case to support queue priority
     if (pPlatform->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
@@ -414,7 +414,12 @@ Device::~Device()
 // This must clean up all internal GPU memory allocations and all objects created after EarlyInit and OsEarlyInit.
 Result Device::Cleanup()
 {
-    return Pal::Device::Cleanup();
+    Result result = Pal::Device::Cleanup();
+    // Note: Pal::Device::Cleanup() uses m_memoryProperties.vaRanges to find VAM sections for memory release.
+    // If ranges aren't provided, then VAM silently leaks virtual addresses.
+    VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
+    memset(&m_memoryProperties.vaRange, 0, sizeof(m_memoryProperties.vaRange));
+    return result;
 }
 
 // =====================================================================================================================
@@ -614,7 +619,7 @@ Result Device::InitGpuProperties()
 
     m_chipProperties.familyId   = m_gpuInfo.family_id;
     m_chipProperties.eRevId     = m_gpuInfo.chip_external_rev;
-    m_chipProperties.revisionId = m_gpuInfo.chip_rev;
+    m_chipProperties.revisionId = m_gpuInfo.pci_rev_id;
     m_chipProperties.deviceId   = m_gpuInfo.asic_id;
     m_chipProperties.gpuIndex   = 0; // Multi-GPU is not supported so far.
 
@@ -2817,6 +2822,7 @@ Result Device::SignalSemaphore(
     else if (m_semType == SemaphoreType::SyncObj)
     {
         PAL_NEVER_CALLED();
+        result = Result::ErrorUnknown;
     }
     else
     {
@@ -3148,6 +3154,16 @@ void Device::FreeVirtualAddress(
         PAL_ASSERT_ALWAYS();
     }
     pMemory->SetVaRangeHandle(nullptr);
+}
+
+// =====================================================================================================================
+Result Device::InitReservedVaRanges()
+{
+    return VamMgrSingleton::GetReservedVaRange(
+        GetPlatform()->GetDrmLoader().GetProcsTable(),
+        m_hDevice,
+        GetPlatform()->IsDtifEnabled(),
+        &m_memoryProperties);
 }
 
 // =====================================================================================================================

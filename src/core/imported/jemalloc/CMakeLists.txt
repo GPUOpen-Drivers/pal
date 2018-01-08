@@ -8,23 +8,12 @@ install(TARGETS jemalloc DESTINATION ${CMAKE_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE}
 option(JEMALLOC_STATS "Build ${PROJECT_NAME} with statistics support?" ${PAL_JEMALLOC_STATS})
 option(JEMALLOC_DEBUG "Build ${PROJECT_NAME} in debug mode?" ${PAL_JEMALLOC_DEBUG})
 
-set(JEMALLOC_SCOPE PRIVATE)
-if(AMD_MAKE_BUILD)
-    # CMAKE-TODO: As there is some difficulty specifying multiple libs to link to with the AMD make system
-    # embedded builds will be used instead.
-    # ${PROJECT_SOURCE_DIR}/ also has to be added in front of the sources.
-    option(JEMALLOC_EMBEDDED "Build ${PROJECT_NAME} embedded into parent project?" ON)
-    if(JEMALLOC_EMBEDDED)
-        set(JEMALLOC_SCOPE PUBLIC)
-    endif()
-endif()
-
 ### Compiler Options ###################################################################################################
 if(WIN32)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
         # CMAKE-TODO: These are /W4 (level 4) warnings
         # Review what is acceptable and what is not.
-        target_compile_options(jemalloc ${JEMALLOC_SCOPE}
+        target_compile_options(jemalloc PRIVATE
             /wd4057 # 'function' : 'X' differs in indirection to slightly different base types from 'Y'
             /wd4100 # unreferenced formal parameter
             /wd4127 # conditional expression is constant
@@ -44,7 +33,7 @@ if(WIN32)
         )
 
         if(TARGET_ARCHETECTURE_BITS EQUAL 32)
-            target_compile_options(jemalloc ${JEMALLOC_SCOPE} /wd4310) # cast truncates constant value
+            target_compile_options(jemalloc PRIVATE /wd4310) # cast truncates constant value
         endif()
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for MSVC.")
@@ -55,8 +44,8 @@ elseif(UNIX)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         # SEE: https://gcc.gnu.org/onlinedocs/gcc-6.2.0/gcc/Option-Summary.html#Option-Summary
         # for a list of all options and documentation.
-        target_compile_options(jemalloc ${JEMALLOC_SCOPE} -pthread -fPIC)
-        target_compile_options(jemalloc ${JEMALLOC_SCOPE} -Wno-unused-parameter -Wno-shift-negative-value -Wno-type-limits)
+        target_compile_options(jemalloc PRIVATE -pthread -fPIC)
+        target_compile_options(jemalloc PRIVATE -Wno-unused-parameter -Wno-shift-negative-value -Wno-type-limits)
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -69,18 +58,18 @@ endif()
 
 ### Defines/Includes/Sources ###########################################################################################
 if(JEMALLOC_STATS)
-    target_compile_definitions(jemalloc ${JEMALLOC_SCOPE} JEMALLOC_STATS)
+    target_compile_definitions(jemalloc PRIVATE JEMALLOC_STATS)
 endif()
 
 target_include_directories(jemalloc
     PUBLIC
         ${PROJECT_SOURCE_DIR}
-    ${JEMALLOC_SCOPE}
+    PRIVATE
         ${PROJECT_SOURCE_DIR}/msvc_compat
         ${PROJECT_SOURCE_DIR}/core
     )
 
-target_sources(jemalloc ${JEMALLOC_SCOPE}
+target_sources(jemalloc PRIVATE
     ${PROJECT_SOURCE_DIR}/core/jemalloc.c
     ${PROJECT_SOURCE_DIR}/core/arena.c
     ${PROJECT_SOURCE_DIR}/core/base.c
@@ -106,8 +95,8 @@ target_sources(jemalloc ${JEMALLOC_SCOPE}
 )
 
 if (JEMALLOC_DEBUG)
-    target_compile_definitions(jemalloc ${JEMALLOC_SCOPE} JEMALLOC_DEBUG)
-    target_sources(jemalloc ${JEMALLOC_SCOPE}
+    target_compile_definitions(jemalloc PRIVATE JEMALLOC_DEBUG)
+    target_sources(jemalloc PRIVATE
         ${PROJECT_SOURCE_DIR}/core/ticker.c
         ${PROJECT_SOURCE_DIR}/core/prng.c
         ${PROJECT_SOURCE_DIR}/core/mb.c
@@ -117,9 +106,9 @@ if (JEMALLOC_DEBUG)
 endif()
 
 # Enable valgrind: http://valgrind.org/
-#    target_sources(jemalloc ${JEMALLOC_SCOPE} ${PROJECT_SOURCE_DIR}/core/valgrind.c)
+#    target_sources(jemalloc PRIVATE ${PROJECT_SOURCE_DIR}/core/valgrind.c)
 # Enable zone allocator
-#    target_sources(jemalloc ${JEMALLOC_SCOPE} ${PROJECT_SOURCE_DIR}/core/zone.c)
+#    target_sources(jemalloc PRIVATE ${PROJECT_SOURCE_DIR}/core/zone.c)
 
 ### Link Libraries #####################################################################################################
 if(UNIX)

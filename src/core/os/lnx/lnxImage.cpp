@@ -1,7 +1,7 @@
  /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -132,7 +132,11 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.mipLevels             = 1;
         imgCreateInfo.samples               = 1;
         imgCreateInfo.fragments             = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+        imgCreateInfo.viewFormatCount       = AllCompatibleFormats;
+#else
         imgCreateInfo.flags.formatChangeSrd = 1;
+#endif
         imgCreateInfo.flags.flippable       = 1;
 
         // Linux doesn't support stereo images.
@@ -290,8 +294,12 @@ void Image::GetExternalSharedImageCreateInfo(
 
         if (changeFormat)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+            pCreateInfo->viewFormatCount = AllCompatibleFormats;
+#else
             pCreateInfo->flags.formatChangeSrd = 1;
             pCreateInfo->flags.formatChangeTgt = 1;
+#endif
         }
         pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
     }
@@ -334,9 +342,13 @@ void Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
     pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
-    // This image must be shareable (as it has already been shared); specify formatChangeSrd as well to be safe.
+    // This image must be shareable (as it has already been shared); request view format change as well to be safe.
     pCreateInfo->flags.shareable       = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+    pCreateInfo->viewFormatCount       = AllCompatibleFormats;
+#else
     pCreateInfo->flags.formatChangeSrd = 1;
+#endif
     pCreateInfo->flags.flippable       = false;
 }
 

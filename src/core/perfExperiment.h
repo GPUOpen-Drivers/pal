@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,18 @@ class CmdBuffer;
 class Device;
 class PerfCounter;
 class Platform;
+class StreamingPerfCounter;
+class SpmTrace;
 class ThreadTrace;
+
+// =====================================================================================================================
+// Key for PerfCtrBlockUsage Map
+struct BlockUsageKey
+{
+    GpuBlock block;
+    uint32   instance;
+    uint32   counter;
+};
 
 // =====================================================================================================================
 // Flags representing the properties of a PerfExperiment object.
@@ -65,12 +76,19 @@ public:
 
     virtual Result GetGlobalCounterLayout(
         GlobalCounterLayout* pLayout) const override;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result AddTrace(
-        const PerfTraceInfo& traceInfo) override;
+        const PerfTraceInfo& info) override;
+#else
+    virtual Result AddThreadTrace(
+        const ThreadTraceInfo& info) override;
+#endif
 
     virtual Result GetThreadTraceLayout(
         ThreadTraceLayout* pLayout) const override;
+
+    virtual Result AddSpmTrace(
+        const SpmTraceCreateInfo& counterInfo) override;
 
     virtual Result GetSpmTraceLayout(
         SpmTraceLayout* pLayout) const override;
@@ -97,7 +115,12 @@ protected:
     virtual ~PerfExperiment();
 
     virtual Result CreateCounter(const PerfCounterInfo& info, PerfCounter** ppCounter) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result CreateThreadTrace(const PerfTraceInfo& info) = 0;
+#else
+    virtual Result CreateThreadTrace(const ThreadTraceInfo& info) = 0;
+#endif
+    virtual Result CreateSpmTrace(const SpmTraceCreateInfo& info) = 0;
 
     // Returns true if the Experiment issues a cache-flush when sampling perf counters.
     bool CacheFlushOnPerfCounter() const { return m_flags.cacheFlushOnPerfCounter; }
@@ -111,11 +134,13 @@ protected:
     // Returns true if the Experiment is in the 'Finalized' state.
     bool IsFinalized() const { return (m_flags.isFinalized != 0); }
 
-    // Returns GR_TRUE if the Experiment has any global counters.
+    // Returns true if the Experiment has any global counters.
     bool HasGlobalCounters() const { return (m_globalCtrs.NumElements() > 0); }
 
-    // Returns GR_TRUE if the Experiment has any thread traces.
+    // Returns true if the Experiment has any thread traces.
     bool HasThreadTraces() const { return (m_numThreadTrace > 0); }
+
+    bool HasSpmTrace() const { return (m_pSpmTrace != nullptr); }
 
     const PerfExperimentCreateInfo m_info;
     BoundGpuMemory                 m_vidMem;
@@ -123,6 +148,7 @@ protected:
     gpusize m_ctrBeginOffset;   // GPU mem offset to ctr begin samples
     gpusize m_ctrEndOffset;     // GPU mem offset to ctr end samples
     gpusize m_thdTraceOffset;   // GPU mem offset to thread trace data
+    gpusize m_spmTraceOffset;   // GPU mem offset to SPM trace data
     gpusize m_totalMemSize;     // Total GPU memory size
 
     Util::Deque<PerfCounter*, Platform> m_globalCtrs; //  List of global performance counters
@@ -133,6 +159,9 @@ protected:
     // Array of pointers to thread trace objects for each Shader Engine.
     ThreadTrace*            m_pThreadTrace[MaxNumThreadTrace];
     size_t                  m_numThreadTrace;                   // Number of active thread traces
+
+    SpmTrace*               m_pSpmTrace; // The spm trace can have multiple perf counter instances added to it.
+                                         // A single perf experiment can have one spm trace active at a time.
 
 private:
     Result ValidatePerfCounterInfo(const PerfCounterInfo& info) const;

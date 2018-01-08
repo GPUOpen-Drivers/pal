@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         const SamplePattern*         pSamplePattern,
 #else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -112,7 +112,7 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         const SamplePattern*         pSamplePattern,
 #else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -137,7 +137,7 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         const SamplePattern*         pSamplePattern,
 #else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -148,7 +148,7 @@ public:
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         const SamplePattern*         pSamplePattern,
 #else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -166,10 +166,6 @@ protected:
 
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const override
         { return (RsrcProcMgr::UseMipLevelInSrd && (isCompressed == false)); }
-
-    virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
-        const Pal::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const;
 
     virtual void ClearDccCompute(
         GfxCmdBuffer*      pCmdBuffer,
@@ -411,6 +407,10 @@ protected:
         const SubresRange& range,
         uint32             htileValue,
         uint32             clearMask) const override;
+
+    virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
+        const Pal::IndirectCmdGenerator& generator,
+        const CmdBuffer&                 cmdBuffer) const;
 
     void HwlDecodeBufferViewSrd(
         const void*     pBufferViewSrd,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -114,16 +114,17 @@ union GpuMemoryCreateFlags
                                       ///  markerBusAddr in GpuMemoryCreateInfo. The page mappings for an allocation
                                       ///  with this flag set must be initialized by including a reference to it in
                                       ///  the ppExternPhysMem list for the first submission that references it.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 290
         uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 312
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
-        uint32 reserved          : 16; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370
+        uint32 placeholder0      :  1; ///< Placeholder.
+        uint32 reserved          : 15; ///< Reserved for future use.
 #else
-        uint32 reserved          : 17; ///< Reserved for future use.
+        uint32 reserved          : 16; ///< Reserved for future use.
 #endif
 #else
-        uint32 reserved          : 19; ///< Reserved for future use.
+        uint32 reserved          : 17; ///< Reserved for future use.
 #endif
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.

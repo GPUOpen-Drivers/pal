@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -520,7 +520,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     const uint32 addr2PreferredSwizzleTypeSet = GetDevice()->Settings().addr2PreferredSwizzleTypeSet;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 292
     if (createInfo.tilingPreference != ImageTilingPattern::Default)
     {
         surfSettingInput.preferredSwSet.sw_Z = (createInfo.tilingPreference == ImageTilingPattern::Interleaved);
@@ -529,7 +528,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_R = (createInfo.tilingPreference == ImageTilingPattern::YMajor);
     }
     else
-#endif
     if (addr2PreferredSwizzleTypeSet != Addr2PreferredDefault)
     {
         surfSettingInput.preferredSwSet.sw_Z = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_Z);
@@ -542,12 +540,8 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     // Retry without tiling preference and preferredSwSet mask.
     if ((addrRet != ADDR_OK) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 292
         !((createInfo.tilingPreference  == ImageTilingPattern::Default) &&
           (addr2PreferredSwizzleTypeSet == Addr2PreferredDefault)))
-#else
-        (addr2PreferredSwizzleTypeSet != Addr2PreferredDefault))
-#endif
     {
         surfSettingInput.preferredSwSet.value = Addr2PreferredDefault;
         addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
@@ -559,7 +553,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             pOut->swizzleMode = ADDR_SW_64KB_S;
         }
-        else if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides)
+        else if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides && (forFmask == false))
         {
             pOut->swizzleMode = imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode;
         }

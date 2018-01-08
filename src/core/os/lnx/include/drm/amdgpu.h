@@ -798,9 +798,9 @@ int amdgpu_bo_get_phys_address(amdgpu_bo_handle buf_handle,
  *          <0 - Negative POSIX Error code
  *
  * \note In the case of memory shared between different applications all
- *	 resources will be “physically” freed only all such applications
+ *	 resources will be "physically" freed only all such applications
  *	 will be terminated
- * \note If is UMD responsibility to ‘free’ buffer only when there is no
+ * \note If is UMD responsibility to 'free' buffer only when there is no
  *	 more GPU access
  *
  * \sa amdgpu_bo_set_metadata(), amdgpu_bo_alloc()

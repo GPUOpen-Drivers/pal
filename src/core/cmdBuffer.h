@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -272,11 +272,7 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
         const IGpuMemory* pSrcGpuMemory,
-#else
-        const IGpuMemory& srcGpuMemory,
-#endif
         gpusize           srcMemOffset) override
         { PAL_NEVER_CALLED(); }
 #endif
@@ -913,6 +909,18 @@ protected:
     gpusize            m_p2pBltWaLastChunkAddr;  // Scratch variable to avoid starting a new chunk if the starting
                                                  // address of a chunk matches the last chunk.
 
+    // Some flags to track internal command buffer state.
+    union
+    {
+        struct
+        {
+            uint32 internalMemAllocator  : 1;  // True if m_pMemAllocator is owned internally by PAL.
+            uint32 reserved              : 31;
+        };
+
+        uint32     u32All;
+    } m_flags;
+
 private:
     CmdStreamChunk* GetNextDataChunk(
         CmdAllocType type,
@@ -931,18 +939,6 @@ private:
     const Device&         m_device;
     CmdBufferRecordState  m_recordState;
     const CmdStream*const m_pVmRemapStream; // Command stream for virtual memory remapping.
-
-    // Some flags to track internal command buffer state.
-    union
-    {
-        struct
-        {
-            uint32 internalMemAllocator : 1;  // True if m_pMemAllocator is owned internally by PAL.
-            uint32 reserved             : 31;
-        };
-
-        uint32     u32All;
-    } m_flags;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // These member variables are only for command buffer dumping support.

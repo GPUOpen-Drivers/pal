@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,6 +61,29 @@ static_assert(static_cast<uint32>(LogLevel::Always)  == static_cast<uint32>(DevD
               "DevDriver::LogLevel enum mismatch!");
 #endif
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+// =====================================================================================================================
+// Callback function used to route debug prints into the logging protocol.
+void PAL_STDCALL DbgPrintCb(
+    void*                  pUserdata,
+    Util::DbgPrintCategory category,
+    const char*            pText)
+{
+    IPlatform* pPlatform = static_cast<IPlatform*>(pUserdata);
+
+    // Convert the debug print category into a log level.
+    constexpr LogLevel LogLevelLookup[DbgPrintCatCount] =
+    {
+        LogLevel::Info,
+        LogLevel::Alert,
+        LogLevel::Error,
+        LogLevel::Info
+    };
+
+    pPlatform->LogMessage(LogLevelLookup[category], LogCategoryMaskInternal, "%s", pText);
+}
+#endif
+
 // =====================================================================================================================
 Platform::Platform(
     const PlatformCreateInfo& createInfo,
@@ -77,7 +100,12 @@ Platform::Platform(
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
-    m_maxSvmSize(createInfo.maxSvmSize)
+    m_maxSvmSize(createInfo.maxSvmSize),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
+    m_pfnLogCb(createInfo.pfnLogCb)
+#else
+    m_pfnLogCb(nullptr)
+#endif
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -293,6 +321,14 @@ Result Platform::Init()
     }
 #endif
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Set the debug print callback to make debug prints visible over the logging protocol.
+    Util::DbgPrintCallback dbgPrintCallback = {};
+    dbgPrintCallback.pCallbackFunc = &DbgPrintCb;
+    dbgPrintCallback.pUserdata = this;
+    Util::SetDbgPrintCallback(dbgPrintCallback);
+#endif
+
     if (result == Result::Success)
     {
         result = ConnectToOsInterface();
@@ -412,14 +448,6 @@ void Platform::EarlyInitDevDriver()
 
                 // Initialize the logging subsystem if we successfully started the dev driver server.
                 m_pLoggingServer->AddCategoryTable(0, static_cast<uint32>(LogCategory::Count), LogCategoryTable);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-                // Set the debug print callback to make debug prints visible over the logging protocol.
-                Util::DbgPrintCallback dbgPrintCallback = {};
-                dbgPrintCallback.pCallbackFunc = &DevDriverDbgPrint;
-                dbgPrintCallback.pUserdata = this;
-                Util::SetDbgPrintCallback(dbgPrintCallback);
-#endif
 
                 // Only create the pipeline dump service if pipeline dumps are enabled by the associated tool.
                 if (pipelineDumpsEnabled)
@@ -608,6 +636,15 @@ void Platform::LogMessage(
                               categoryMask,
                               pFormat,
                               args);
+    }
+#endif
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if (m_pfnLogCb != nullptr)
+    {
+        m_pfnLogCb(static_cast<uint32>(level),
+                   categoryMask,
+                   pFormat,
+                   args);
     }
 #endif
 }

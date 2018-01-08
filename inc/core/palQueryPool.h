@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -125,6 +125,8 @@ public:
     /// @param [in]     queryType  Specifies what data the query slots must produce.
     /// @param [in]     startQuery First query pool slot to retrieve data for.
     /// @param [in]     queryCount Number of query pool slots to retrieve data for.
+    /// @param [in]     pMappedGpuAddr Specify the query buffer mapped address. If the parameter equals nullptr,
+    //                                 this method will use Map\UnMap to access the data.
     /// @param [in,out] pDataSize  Input value specifies the available size in pData in bytes; output value reports the
     ///                            number of bytes required to hold all result data.
     /// @param [out]    pData      Location where the query results should be written. Can be null in order to query the
@@ -148,6 +150,9 @@ public:
         QueryType        queryType,
         uint32           startQuery,
         uint32           queryCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
+        const void*      pMappedGpuAddr,
+#endif
         size_t*          pDataSize,
         void*            pData,
         size_t           stride) = 0;

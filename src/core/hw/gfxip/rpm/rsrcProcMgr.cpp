@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -3856,8 +3856,9 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     const PalSettings& settings = m_pDevice->Parent()->Settings();
 
-    const bool issueSqttMarkerEvent = ((settings.gpuProfilerMode > GpuProfilerSqttOff) |
-                                        m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    const bool issueSqttMarkerEvent = (sqttEnabled | m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
     pTableMem[0] = issueSqttMarkerEvent;
@@ -4519,7 +4520,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         image,
     const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern* pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -4593,7 +4594,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 282
+#else
     if (pSamplePattern != nullptr)
     {
         if (pSamplePattern->flags.isLoad == 0)
@@ -4607,30 +4608,8 @@ void RsrcProcMgr::ExpandDepthStencil(
         else
         {
             PAL_ASSERT(pSamplePattern->pGpuMemory != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
             pCmdBuffer->CmdLoadMsaaQuadSamplePattern(pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-#else
-            pCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-#endif
         }
-    }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    if (pSamplePattern != nullptr)
-    {
-        if (pSamplePattern->pImmediate != nullptr)
-        {
-            PAL_ASSERT(pSamplePattern->pGpuMemory == nullptr);
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-        }
-        else if (pSamplePattern->pGpuMemory != nullptr)
-        {
-            pCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-        }
-    }
-#else
-    if (pQuadSamplePattern != nullptr)
-    {
-        pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 #endif
 
@@ -4649,55 +4628,58 @@ void RsrcProcMgr::ExpandDepthStencil(
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-        LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
-
-        const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
-        const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
-
-        // All slices of the same mipmap level can re-use the same viewport/scissor state.
-        viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
-        viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
-
-        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
-        scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
-
-        pCmdBuffer->CmdSetViewports(viewportInfo);
-        pCmdBuffer->CmdSetScissorRects(scissorInfo);
-
-        for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
-             depthViewInfo.baseArraySlice <= lastSlice;
-             ++depthViewInfo.baseArraySlice)
+        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
         {
-            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+            LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
-            // Create and bind a depth stencil view of the current subresource.
-            IDepthStencilView* pDepthView = nullptr;
-            void* pDepthViewMem =
-                PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
+            const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
-            if (pDepthViewMem == nullptr)
+            // All slices of the same mipmap level can re-use the same viewport/scissor state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+            for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
+                 depthViewInfo.baseArraySlice <= lastSlice;
+                 ++depthViewInfo.baseArraySlice)
             {
-                pCmdBuffer->NotifyAllocFailure();
-            }
-            else
-            {
-                Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
-                                                                  depthViewInfoInternal,
-                                                                  pDepthViewMem,
-                                                                  &pDepthView);
-                PAL_ASSERT(result == Result::Success);
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-                bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                // Create and bind a depth stencil view of the current subresource.
+                IDepthStencilView* pDepthView = nullptr;
+                void* pDepthViewMem =
+                    PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
 
-                // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                if (pDepthViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                      depthViewInfoInternal,
+                                                                      pDepthViewMem,
+                                                                      &pDepthView);
+                    PAL_ASSERT(result == Result::Success);
 
-                PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
-                // Unbind the depth view and destroy it.
-                bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+
+                    PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+
+                    // Unbind the depth view and destroy it.
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
             }
         }
     }
@@ -4714,7 +4696,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const Image&         image,
     ImageLayout          imageLayout,
     const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern* pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -4786,7 +4768,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 282
+#else
     if (pSamplePattern != nullptr)
     {
         // ResummarizeDepthStencil always needs to set the sample pattern in immediate mode. It does not need
@@ -4795,24 +4777,6 @@ void RsrcProcMgr::ResummarizeDepthStencil(
         {
             pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
         }
-    }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    if (pSamplePattern != nullptr)
-    {
-        if (pSamplePattern->pImmediate != nullptr)
-        {
-            PAL_ASSERT(pSamplePattern->pGpuMemory == nullptr);
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-        }
-        else if (pSamplePattern->pGpuMemory != nullptr)
-        {
-            pCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-        }
-    }
-#else
-    if (pQuadSamplePattern != nullptr)
-    {
-        pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 #endif
 
@@ -4831,55 +4795,58 @@ void RsrcProcMgr::ResummarizeDepthStencil(
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-        LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
-
-        const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
-        const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
-
-        // All slices of the same mipmap level can re-use the same viewport/scissor state.
-        viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
-        viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
-
-        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
-        scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
-
-        pCmdBuffer->CmdSetViewports(viewportInfo);
-        pCmdBuffer->CmdSetScissorRects(scissorInfo);
-
-        for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
-             depthViewInfo.baseArraySlice <= lastSlice;
-             ++depthViewInfo.baseArraySlice)
+        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
         {
-            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+            LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
-            // Create and bind a depth stencil view of the current subresource.
-            IDepthStencilView* pDepthView = nullptr;
-            void* pDepthViewMem =
-                PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
+            const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
-            if (pDepthViewMem == nullptr)
+            // All slices of the same mipmap level can re-use the same viewport/scissor state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+            for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
+                 depthViewInfo.baseArraySlice <= lastSlice;
+                 ++depthViewInfo.baseArraySlice)
             {
-                pCmdBuffer->NotifyAllocFailure();
-            }
-            else
-            {
-                Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
-                                                                  depthViewInfoInternal,
-                                                                  pDepthViewMem,
-                                                                  &pDepthView);
-                PAL_ASSERT(result == Result::Success);
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-                bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                // Create and bind a depth stencil view of the current subresource.
+                IDepthStencilView* pDepthView = nullptr;
+                void* pDepthViewMem =
+                    PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
 
-                // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+                if (pDepthViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                      depthViewInfoInternal,
+                                                                      pDepthViewMem,
+                                                                      &pDepthView);
+                    PAL_ASSERT(result == Result::Success);
 
-                PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
 
-                // Unbind the depth view and destroy it.
-                bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+
+                    PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+
+                    // Unbind the depth view and destroy it.
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
             }
         }
     }
@@ -4897,7 +4864,7 @@ void RsrcProcMgr::GenericColorBlit(
     const Image&         dstImage,
     const SubresRange&   range,
     const IMsaaState&    msaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern* pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -4915,6 +4882,9 @@ void RsrcProcMgr::GenericColorBlit(
 
     const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
     const bool  is3dImage       = (imageCreateInfo.imageType == ImageType::Tex3d);
+    const bool  isDecompress    = ((pipeline == RpmGfxPipeline::DccDecompress) ||
+                                   (pipeline == RpmGfxPipeline::FastClearElim) ||
+                                   (pipeline == RpmGfxPipeline::FmaskDecompress));
 
     ViewportParams viewportInfo;
     viewportInfo.count                 = 1;
@@ -4986,7 +4956,7 @@ void RsrcProcMgr::GenericColorBlit(
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 282
+#else
     if (pSamplePattern != nullptr)
     {
         // GenericColorBlit always needs to set the sample pattern in immediate mode. It does not need
@@ -4995,24 +4965,6 @@ void RsrcProcMgr::GenericColorBlit(
         {
             pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
         }
-    }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    if (pSamplePattern != nullptr)
-    {
-        if (pSamplePattern->pImmediate != nullptr)
-        {
-            PAL_ASSERT(pSamplePattern->pGpuMemory == nullptr);
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-        }
-        else if (pSamplePattern->pGpuMemory != nullptr)
-        {
-            pCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-        }
-    }
-#else
-    if (pQuadSamplePattern != nullptr)
-    {
-        pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
 #endif
 
@@ -5030,112 +4982,118 @@ void RsrcProcMgr::GenericColorBlit(
 #endif
     for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
     {
-        // Use predication to skip this operation based on the image's conditional dwords.
-        // We can only perform this optimization if the client is not currently using predication.
-        bool needDisablePredication = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
-        if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (pGpuMemory != nullptr))
+        // If this is a decompress operation of some sort, then don't bother continuing unless this
+        // subresource supports expansion.
+        if ((isDecompress == false) ||
+            (dstImage.GetGfxImage()->CanMipSupportMetaData(mip)))
         {
-            // Set/Enable predication
-            pCmdBuffer->CmdSetPredication(nullptr,
-                                          0,
-                                          pGpuMemory,
-                                          mipCondDwordsOffset,
-                                          PredicateType::Boolean,
-                                          true,
-                                          false,
-                                          false);
-            mipCondDwordsOffset += PredicationAlign; // Advance to the next mip's conditional meta-data.
+            // Use predication to skip this operation based on the image's conditional dwords.
+            // We can only perform this optimization if the client is not currently using predication.
+            bool needDisablePredication = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
+            if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (pGpuMemory != nullptr))
+            {
+                // Set/Enable predication
+                pCmdBuffer->CmdSetPredication(nullptr,
+                                              0,
+                                              pGpuMemory,
+                                              mipCondDwordsOffset,
+                                              PredicateType::Boolean,
+                                              true,
+                                              false,
+                                              false);
+                mipCondDwordsOffset += PredicationAlign; // Advance to the next mip's conditional meta-data.
 
-            needDisablePredication = true;
-        }
+                needDisablePredication = true;
+            }
 #else
-        if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (mipCondDwordsAddr != 0))
-        {
-            // Set/Enable predication
-            pCmdBuffer->CmdSetPredication(nullptr,
-                                          0,
-                                          mipCondDwordsAddr,
-                                          PredicateType::Boolean,
-                                          true,
-                                          false,
-                                          false);
-            mipCondDwordsAddr += PredicationAlign; // Advance to the next mip's conditional meta-data.
+            if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (mipCondDwordsAddr != 0))
+            {
+                // Set/Enable predication
+                pCmdBuffer->CmdSetPredication(nullptr,
+                                              0,
+                                              mipCondDwordsAddr,
+                                              PredicateType::Boolean,
+                                              true,
+                                              false,
+                                              false);
+                mipCondDwordsAddr += PredicationAlign; // Advance to the next mip's conditional meta-data.
 
-            needDisablePredication = true;
-        }
+                needDisablePredication = true;
+            }
 #endif
 
-        const SubresId mipSubres  = { range.startSubres.aspect, mip, 0 };
-        const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
+            const SubresId mipSubres  = { range.startSubres.aspect, mip, 0 };
+            const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
-        // All slices of the same mipmap level can re-use the same viewport & scissor states.
-        viewportInfo.viewports[0].width       = static_cast<float>(subResInfo.extentTexels.width);
-        viewportInfo.viewports[0].height      = static_cast<float>(subResInfo.extentTexels.height);
-        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
-        scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+            // All slices of the same mipmap level can re-use the same viewport & scissor states.
+            viewportInfo.viewports[0].width       = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height      = static_cast<float>(subResInfo.extentTexels.height);
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
 
-        pCmdBuffer->CmdSetViewports(viewportInfo);
-        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
 
-        // We need to draw each array slice individually because we cannot select which array slice to render to
-        // without a Geometry Shader. If this is a 3D Image, we need to include all slices for this mipmap level.
-        const uint32 baseSlice = (is3dImage ? 0                             : range.startSubres.arraySlice);
-        const uint32 numSlices = (is3dImage ? subResInfo.extentTexels.depth : range.numSlices);
-        const uint32 lastSlice = baseSlice + numSlices - 1;
+            // We need to draw each array slice individually because we cannot select which array slice to render to
+            // without a Geometry Shader. If this is a 3D Image, we need to include all slices for this mipmap level.
+            const uint32 baseSlice = (is3dImage ? 0                             : range.startSubres.arraySlice);
+            const uint32 numSlices = (is3dImage ? subResInfo.extentTexels.depth : range.numSlices);
+            const uint32 lastSlice = baseSlice + numSlices - 1;
 
-        for (uint32 arraySlice = baseSlice; arraySlice <= lastSlice; ++arraySlice)
-        {
-            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
-
-            // Create and bind a color-target view for this mipmap level and slice.
-            IColorTargetView* pColorView = nullptr;
-            void* pColorViewMem =
-                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
-
-            if (pColorViewMem == nullptr)
+            for (uint32 arraySlice = baseSlice; arraySlice <= lastSlice; ++arraySlice)
             {
-                pCmdBuffer->NotifyAllocFailure();
-            }
-            else
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+                // Create and bind a color-target view for this mipmap level and slice.
+                IColorTargetView* pColorView = nullptr;
+                void* pColorViewMem =
+                    PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                if (pColorViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
+                    colorViewInfo.imageInfo.baseSubRes.mipLevel   = mip;
+
+                    Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
+                                                                     colorViewInfoInternal,
+                                                                     pColorViewMem,
+                                                                     &pColorView);
+                    PAL_ASSERT(result == Result::Success);
+
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
+                    bindTargetsInfo.colorTargetCount = 1;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1);
+
+                    // Unbind the color-target view and destroy it.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+                }
+            } // End for each array slice.
+
+            if (needDisablePredication)
             {
-                colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
-                colorViewInfo.imageInfo.baseSubRes.mipLevel   = mip;
-
-                Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
-                                                                 colorViewInfoInternal,
-                                                                 pColorViewMem,
-                                                                 &pColorView);
-                PAL_ASSERT(result == Result::Success);
-
-                bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
-                bindTargetsInfo.colorTargetCount = 1;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-
-                // Draw a fullscreen quad.
-                pCmdBuffer->CmdDraw(0, 3, 0, 1);
-
-                // Unbind the color-target view and destroy it.
-                bindTargetsInfo.colorTargetCount = 0;
-                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-
-                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
-            }
-        } // End for each array slice.
-
-        if (needDisablePredication)
-        {
-            // Disable predication
-            pCmdBuffer->CmdSetPredication(nullptr,
-                                            0,
+                // Disable predication
+                pCmdBuffer->CmdSetPredication(nullptr,
+                                              0,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
-                                            nullptr,
+                                              nullptr,
 #endif
-                                            0,
-                                            static_cast<PredicateType>(0),
-                                            false,
-                                            false,
-                                            false);
+                                              0,
+                                              static_cast<PredicateType>(0),
+                                              false,
+                                              false,
+                                              false);
+            }
         }
     } // End for each mip level.
 
@@ -6002,7 +5960,7 @@ struct BltMonitorDesc
     uint32      numPixels;          // Number of pixels packed into a single word
     bool        isColorType;        // True if color monitor, False for monochrome
     bool        isSplitType;        // True if the packed pixels are not adjacent (on screen)
-    float       scalingParams[4];   // scaling parameters which is used to convert from float to 10-bit unsigned integers
+    float       scalingParams[4];   // scaling parameters which is used to convert from float to 10-bit uints
     float       grayScalingMap[12]; // Luminance constants which convert color to monochrome
     uint32      packParams[24];     // parametrized packing layout
 };

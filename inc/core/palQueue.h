@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,14 +65,9 @@ enum class PresentMode : uint32
 /// Defines flags for describing which types of present modes are supported on a given queue.
 enum PresentModeSupport : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 288
     SupportWindowedPresent          = 0x1,
     SupportWindowedPriorBlitPresent = 0x2,
     SupportFullscreenPresent        = 0x4,
-#else
-    SupportWindowedPresent   = (1 << static_cast<uint32>(PresentMode::Windowed)),
-    SupportFullscreenPresent = (1 << static_cast<uint32>(PresentMode::Fullscreen)),
-#endif
 };
 
 /// Defines submit-time bottlenecks which PAL can potentially optimize.

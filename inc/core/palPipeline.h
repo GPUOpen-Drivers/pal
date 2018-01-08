@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -195,7 +195,6 @@ union PipelineCreateFlags
                                            ///  In addition, the 'stride' and 'startIndex' fields of
                                            ///  ResourceMappindNode's 'srdRange' structure are ignored.
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 304)
         uint32 disableOptimizationC0  :  1;  ///< Disable SC optimization option SCOption_C0
         uint32 disableOptimizationC1  :  1;  ///< Disable SC optimization option SCOption_C1
         uint32 disableOptimizationC2  :  1;  ///< Disable SC optimization option SCOption_C2
@@ -206,10 +205,6 @@ union PipelineCreateFlags
         uint32 reserved               : 23;  ///< Reserved for future use.
 #else
         uint32 reserved               : 24;  ///< Reserved for future use.
-#endif
-#else
-        uint32 enableFastCompile    :  1;  ///< Enables fast shader compiles in exchange for a shader performance hit.
-        uint32 reserved             : 28;  ///< Reserved for future use.
 #endif
     };
     uint32 u32All;                         ///< Flags packed as 32-bit uint.
@@ -386,21 +381,12 @@ struct PipelineShaderInfo
             uint32   shadowFmask   :  1;  ///< All FMask descriptors will be loaded out of shadow descriptor tables.
                                           ///  @see VaRange::ShadowDescriptorTable
             uint32   initUndefZero :  1;  ///< If set, undefined IL registers will be initialized to zero.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 299
             uint32   switchWinding :  1;  ///< If true, reverse the HS declared output primitive vertex order.
             uint32   reserved      : 25;  ///< Reserved for future use.
-#else
-            uint32   reserved      : 26;  ///< Reserved for future use.
-#endif
         };
         uint32 u32All;                ///< Flags packed as 32-bit uint.
     } flags;                          ///< Various boolean settings controlling compilation of individual shaders.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 287
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 289
-#endif
     uint32 psOnlyPointCoordEnable;    ///< Pixelshader only - 32-bit mask enabling point texture coordinate generation
                                       ///  per interpolator.  Bit0 controls v0 in IL, bit1 controls v1 in IL, etc.
     const uint8* pPsTexWrapping;      ///< Pixelshader only - texture wrapping array with each entry
@@ -465,12 +451,10 @@ struct ComputePipelineCreateInfo
     IShaderCache*       pShaderCache;
     const void*         pShaderCacheClientData;  ///< Private client data, used to support external shader cache.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 305
     const void*         pPipelineBinary;         ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
                                                  ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                  ///  register values, and additional metadata.
     size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
-#endif
 
     PipelineShaderInfo  cs;                      ///< Compute shader information.
 };
@@ -510,13 +494,10 @@ struct GraphicsPipelineCreateInfo
     PipelineShaderInfo  gs;                    ///< Geometry shader information.
     PipelineShaderInfo  ps;                    ///< Pixel shader information.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 305
     const void*         pPipelineBinary;         ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
                                                  ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                  ///  register values, and additional metadata.
     size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
-#endif
-
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,11 @@ namespace Pal
 // Forward decl's
 class  Device;
 struct GpuChipProperties;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
 struct PerfTraceInfo;
+#else
+struct ThreadTraceInfo;
+#endif
 
 namespace Gfx9
 {
@@ -43,11 +47,13 @@ namespace PerfCtrInfo
 
 extern void   InitPerfCtrInfo(GpuChipProperties* pProps);
 
+// Maximum number of ShaderEngines
+constexpr uint32 MaxNumShaderEngines = 4;
 // Maximum number of instances per shader array (SH): max number of CU's.
 constexpr uint32 MaxNumInstances      = 16;
 // Maximum number of instances per GPU block (incl. max. possible shader arrays: either two
 // SE's and 2 SH's per SE, or 4 SE's with one SH each).
-constexpr uint32 MaxNumBlockInstances = (MaxNumInstances * 4);
+constexpr uint32 MaxNumBlockInstances = (MaxNumInstances * MaxNumShaderEngines);
 // Defines an invalid counter ID.
 constexpr uint32 InvalidCounterId     = 0xFFFFFFFF;
 // Maximum number of perf-ctr select registers per counter.
@@ -98,6 +104,11 @@ constexpr uint32 Gfx9PerfCtrlRpbMaxEvent    = 63;
 constexpr uint32 Gfx9PerfCtrlMcVmL2MaxEvent = 21;
 
 constexpr uint32 Gfx9PerfCtrRmiMaxEvent    = (RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3 + 1);
+
+// Max Streaming Counters in a block instance (Gfx7+)
+constexpr uint32 Gfx9MaxStreamingCounters = 16;
+// The number of streaming perf counters packed into one summary counter (Gfx7+)
+constexpr uint32 Gfx9StreamingCtrsPerSummaryCtr = 4;
 
 // Constants defining the number of counters per block:
 // CB/DB/PA/SC/SX/SQ/TA/TCP/TCC/TCA/GDS/VGT/IA/CPG/CPC/CPF/SPI/TD support variable bit widths

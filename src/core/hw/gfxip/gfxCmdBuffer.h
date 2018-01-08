@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -361,6 +361,9 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) = 0;
 
+    void EnableSpmTrace() { m_spmTraceEnabled = true; }
+    bool SpmTraceEnabled() const { return m_spmTraceEnabled; }
+
 protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
@@ -467,6 +470,9 @@ private:
 #if PAL_ENABLE_PRINTS_ASSERTS
     uint32  m_computeStateFlags;       // The flags that CmdSaveCompputeState was called with.
 #endif
+
+    bool m_spmTraceEnabled;            // Used to indicate whether Spm Trace has been enabled through this command
+                                       // buffer so that appropriate submit-time operations can be done.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

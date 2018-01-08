@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -230,11 +230,7 @@ public:
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
     virtual void CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
         const IGpuMemory* pSrcGpuMemory,
-#else
-        const IGpuMemory& srcGpuMemory,
-#endif
         gpusize           srcMemOffset) override;
 #endif
     virtual void CmdSetViewports(

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -134,7 +134,7 @@ void ColorTargetView::BuildPm4Headers(
             }
         }
 
-        if (m_flags.dccCompressionEnabled)
+        if (m_flags.dccCompressionEnabled && m_flags.hasDccStateMetaData)
         {
             // Our PM4 image layout assumes that the loadMetaData packet is always used in this case.
             PAL_ASSERT(m_flags.fastClearSupported);
@@ -489,6 +489,7 @@ void ColorTargetView::Init(
         m_flags.hasCmask              = m_pImage->HasCmaskData();
         m_flags.hasFmask              = m_pImage->HasFmaskData();
         m_flags.hasDcc                = m_pImage->HasDccData();
+        m_flags.hasDccStateMetaData   = m_pImage->HasDccStateMetaData();
         m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData() && !internalInfo.flags.depthStencilCopy);
         m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
     }
@@ -551,7 +552,7 @@ void ColorTargetView::UpdateImageVa(
         {
             pPm4Img->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(m_subresource);
 
-            if (m_flags.dccCompressionEnabled)
+            if (m_flags.dccCompressionEnabled && m_flags.hasDccStateMetaData)
             {
                 // Program the DCC state metadata address.  (See Gfx6DccMipMetaData in gfx6MaskRam.h).
                 const gpusize metaDataVirtAddr = m_pImage->GetDccStateMetaDataAddr(MipLevel());

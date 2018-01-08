@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1803,20 +1803,9 @@ void GraphicsPipeline::SetupSignatureFromElf(
         m_signature.userDataLimit = static_cast<uint16>(value);
     }
 
-    // Finally, compact the array of view ID register addresses so that all of the mapped ones are at the front of
-    // the array.
-    uint16 viewIdRegAddr[NumHwShaderStagesGfx] = { };
-    uint16 viewIdRegCount = 0;
-
-    for (uint16 i = 0; i < NumHwShaderStagesGfx; ++i)
-    {
-        if (m_signature.viewIdRegAddr[i] != UserDataNotMapped)
-        {
-            viewIdRegAddr[viewIdRegCount] = m_signature.viewIdRegAddr[i];
-            ++viewIdRegCount;
-        }
-    }
-    memcpy(&m_signature.viewIdRegAddr[0], &viewIdRegAddr[0], sizeof(viewIdRegAddr));
+    // Finally, compact the array of view ID register addresses
+    // so that all of the mapped ones are at the front of the array.
+    PackArray(m_signature.viewIdRegAddr, UserDataNotMapped);
 }
 
 // =====================================================================================================================

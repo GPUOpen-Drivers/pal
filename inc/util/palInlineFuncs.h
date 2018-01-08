@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,8 @@
 #include "palAssert.h"
 #include <cstdlib>
 #include <cstring>
+#include <cwchar>
+#include <type_traits>
 
 namespace Util
 {
@@ -591,6 +593,127 @@ PAL_INLINE uint32 CountSetBits(
     x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 
     return x;
+}
+
+/// Indicates that an object may be moved from.
+/// Can be understood as preparation for possible move operation.
+///
+/// @warning Do not read object after it has been moved from!
+///
+/// @param[in] object Universal reference to an object that may be moved from.
+///
+/// @returns Rvalue reference to the parameter object.
+template <typename T>
+PAL_INLINE typename std::remove_reference<T>::type&& Move(T&& object)
+{
+    // Cast universal reference to rvalue reference.
+    return static_cast<typename std::remove_reference<T>::type&&>(object);
+}
+
+/// Exchanges values between two variables.
+///
+/// @param[in] left First variable used in swap operation.
+/// @param[in] right Second variable used in swap operation.
+template <typename T>
+PAL_INLINE void Swap(T& left, T& right)
+{
+    T tmp = Move(left);
+    left = Move(right);
+    right = Move(tmp);
+}
+
+/// Convenient alias for C style arrays.
+template <typename Element, size_t Size>
+using Array = Element[Size];
+
+/// Prevent swapping arrays because of the cost of this operation.
+template <typename Element, size_t Size>
+PAL_INLINE void Swap(Array<Element, Size>& a, Array<Element, Size>& b);
+
+/// Compacts an array by moving all empty slots to the end of the array.
+///         +---+---+---+---+---+---+---+---+---+---+
+///  Input: | A |   | C | D |   | E |   | A | X | J |
+///         +---+---+---+---+---+---+---+---+---+---+
+///         +---+---+---+---+---+---+---+---+---+---+
+/// Output: | A | C | D | E | A | X | J |   |   |   |
+///         +---+---+---+---+---+---+---+---+---+---+
+template <typename Element, size_t Size>
+void PackArray(Array<Element, Size>& array, const Element& emptySlot)
+{
+    int lastOccupiedSlot = -1;
+
+    for (size_t i = 0; i < Size; ++i)
+    {
+        if (array[i] != emptySlot)
+        {
+            Swap(array[i], array[lastOccupiedSlot + 1]);
+            ++lastOccupiedSlot;
+        }
+    }
+}
+
+/// Performs a safe mbstowcs by requiring the destination buffer size.
+PAL_INLINE void Mbstowcs(
+    wchar_t*      pDst,           ///< [out] dst string
+    const char*   pSrc,           ///< [in] src string
+    size_t        dstSizeInWords) ///< size of the destination buffer in words
+{
+    PAL_ASSERT(pDst != NULL);
+    PAL_ASSERT(pSrc != NULL);
+
+    bool result = false;
+    // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)
+    size_t retCode = mbstowcs(pDst, pSrc, (dstSizeInWords - 1));
+
+    result = (retCode == static_cast<size_t>(-1)) ? false : true;
+
+    if (result == false)
+    {
+        // A non-convertible character was encountered.
+        PAL_ASSERT_ALWAYS();
+        pDst[0] = '\0';
+    }
+
+    if (strlen(pSrc) >= dstSizeInWords)
+    {
+        // Assert to alert the user when the string has been truncated.
+        PAL_ASSERT_ALWAYS();
+
+        // NULL terminate the string.
+        pDst[dstSizeInWords - 1] = '\0';
+    }
+}
+
+/// Performs a safe wcstombs by requiring the destination buffer size.
+PAL_INLINE void Wcstombs(
+    char*          pDst,           ///< [out] dst string
+    const wchar_t* pSrc,           ///< [in] src string
+    size_t         dstSizeInBytes) ///< size of the destination buffer in bytes
+{
+    PAL_ASSERT(pDst != NULL);
+    PAL_ASSERT(pSrc != NULL);
+
+    bool result = false;
+    // clamp the conversion to the size of the dst buffer (1 char reserved for the NULL terminator)
+    size_t retCode = wcstombs(pDst, pSrc, (dstSizeInBytes - 1));
+
+    result = (retCode == static_cast<size_t>(-1)) ? false : true;
+
+    if (result == false)
+    {
+        // A non-convertible character was encountered.
+        PAL_ASSERT_ALWAYS();
+        pDst[0] = '\0';
+    }
+
+    if (wcslen(pSrc) >= dstSizeInBytes)
+    {
+        // Assert to alert the user when the string has been truncated.
+        PAL_ASSERT_ALWAYS();
+
+        // NULL terminate the string.
+        pDst[dstSizeInBytes - 1] = '\0';
+    }
 }
 
 } // Util

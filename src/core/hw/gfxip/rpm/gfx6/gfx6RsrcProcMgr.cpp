@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -843,7 +843,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -948,7 +948,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     else
     {
         // Do the expand the legacy way.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pSamplePattern, range);
 #else
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
@@ -1511,15 +1511,16 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-                    metaDataClearFlags |=
+                    const uint32 currentClearFlag =
                         (pRanges[idx].startSubres.aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
+                    metaDataClearFlags |= currentClearFlag;
 
                     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
                         pCmdBuffer->GetGfxCmdBufState().packetPredicate);
 
                     uint32* pCmdSpace = pCmdStream->ReserveCommands();
                     pCmdSpace = gfx6Image.UpdateDepthClearMetaData(pRanges[idx],
-                                                                   metaDataClearFlags,
+                                                                   currentClearFlag,
                                                                    depth,
                                                                    stencil,
                                                                    packetPredicate,
@@ -1527,7 +1528,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
                     // Update the metadata for the waTcCompatZRange workaround
                     if (m_pDevice->WaTcCompatZRange() &&
-                        ((metaDataClearFlags & HtileAspectDepth) != 0) &&
+                        ((currentClearFlag & HtileAspectDepth) != 0) &&
                         GetMetaDataTexFetchSupport(gfx6Image.Parent(),
                             gfx6Image.Parent()->GetBaseSubResource().aspect,
                             gfx6Image.Parent()->GetBaseSubResource().mipLevel))
@@ -2775,7 +2776,7 @@ void RsrcProcMgr::FastClearEliminate(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -2795,7 +2796,7 @@ void RsrcProcMgr::FastClearEliminate(
     }
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
 #else
@@ -2806,13 +2807,8 @@ void RsrcProcMgr::FastClearEliminate(
     const gpusize metaDataAddr = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pSamplePattern, RpmGfxPipeline::FastClearElim, metaDataAddr);
-#else
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pQuadSamplePattern, RpmGfxPipeline::FastClearElim, metaDataAddr);
-#endif
 #endif
 
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
@@ -2834,7 +2830,7 @@ void RsrcProcMgr::FmaskDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -2852,14 +2848,10 @@ void RsrcProcMgr::FmaskDecompress(
 #elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
 #else
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
+                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
 #endif
-
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
@@ -2989,7 +2981,7 @@ void RsrcProcMgr::DccDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -3065,13 +3057,8 @@ void RsrcProcMgr::DccDecompress(
             const gpusize metaDataAddr =
                 alwaysDecompress ? 0 : image.GetDccStateMetaDataAddr(decompressRange.startSubres.mipLevel);
             // Execute a generic CB blit using the appropriate DCC decompress pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
             GenericColorBlit(pCmdBuffer, *pParentImg, decompressRange, *pMsaaState,
                              pSamplePattern, RpmGfxPipeline::DccDecompress, metaDataAddr);
-#else
-            GenericColorBlit(pCmdBuffer, *pParentImg, decompressRange, *pMsaaState,
-                             pQuadSamplePattern, RpmGfxPipeline::DccDecompress, metaDataAddr);
-#endif
 #endif
 
             // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't

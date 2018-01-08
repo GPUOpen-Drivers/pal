@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -135,9 +135,9 @@ void SetupBlockInfo(
         pInfo->block[blockIdx].numStreamingCounters    = 0;
         pInfo->block[blockIdx].numStreamingCounterRegs = 0;
     }
-    else if (gfxIpLevel == GfxIpLevel::GfxIp7)
+    else if (gfxIpLevel >= GfxIpLevel::GfxIp7)
     {
-        // For Gfx7, the number of streaming counters depends on which block we're looking at.
+        // For Gfx7,8 the number of streaming counters depends on which block we're looking at.
         switch (block)
         {
         case GpuBlock::Cb:
@@ -182,11 +182,6 @@ void SetupBlockInfo(
             pInfo->block[blockIdx].numStreamingCounterRegs = 0;
             break;
         }
-    }
-    else if (gfxIpLevel >= GfxIpLevel::GfxIp8)
-    {
-        pInfo->block[blockIdx].numStreamingCounters    = 0;
-        pInfo->block[blockIdx].numStreamingCounterRegs = 0;
     }
 }
 
@@ -1132,9 +1127,13 @@ void InitPerfCtrInfo(
 
 // =====================================================================================================================
 // Validates the value of a thread-trace creation option.
-Result ValidateTraceOptions(
+Result ValidateThreadTraceOptions(
     const Device&        device,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     const PerfTraceInfo& info)
+#else
+    const ThreadTraceInfo& info)
+#endif
 {
     const GpuChipProperties& chipProps = device.ChipProperties();
     const GfxIpLevel gfxIpLevel        = chipProps.gfxLevel;
@@ -1237,6 +1236,40 @@ Result ValidateTraceOptions(
     {
         result = Result::ErrorInvalidValue;
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Validates the spm trace configuration.
+Result ValidateSpmTraceOptions(
+    const Device&             device,
+    const SpmTraceCreateInfo& info)
+{
+    Result result = Result::ErrorInvalidValue;
+
+    auto pChipProps = &device.ChipProperties();
+    auto pPerfCounterInfo  = &pChipProps->gfx6.perfCounterInfo;
+
+    for (uint32 i = 0; i < info.numPerfCounters; i++)
+    {
+        auto blockIdx = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+
+        // Check if block, eventid and instance number are within bounds.
+        if ((info.pPerfCounterInfos[i].block < GpuBlock::Count) &&
+            (info.pPerfCounterInfos[i].eventId < pPerfCounterInfo->block[blockIdx].maxEventId) &&
+            (info.pPerfCounterInfos[i].instance < (pPerfCounterInfo->block[blockIdx].numInstances *
+             pPerfCounterInfo->block[blockIdx].numShaderEngines)))
+        {
+            result = Result::Success;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    PAL_ALERT(result == Result::Success);
 
     return result;
 }

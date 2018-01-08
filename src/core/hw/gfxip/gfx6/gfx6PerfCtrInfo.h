@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,11 @@ namespace Pal
 // Forward decl's
 class  Device;
 struct GpuChipProperties;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
 struct PerfTraceInfo;
+#else
+struct ThreadTraceInfo;
+#endif
 
 namespace Gfx6
 {
@@ -42,7 +46,13 @@ namespace PerfCtrInfo
 {
 
 extern void   InitPerfCtrInfo(GpuChipProperties* pProps);
-extern Result ValidateTraceOptions(const Pal::Device& device, const PerfTraceInfo& info);
+extern Result ValidateThreadTraceOptions(const Pal::Device& device,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
+ const PerfTraceInfo& info);
+ #else
+ const ThreadTraceInfo& info);
+ #endif
+extern Result ValidateSpmTraceOptions(const Pal::Device& device, const SpmTraceCreateInfo& info);
 
 // These registers do exist on *some* Gfx8 variations. The Gfx8 headers used to create the merged headers don't include
 // them though so they got the __SI__CI tag, but we know better, so we redefine them here without their tags for
@@ -61,11 +71,13 @@ typedef regMC_SEQ_PERF_CNTL_1__SI__CI  regMC_SEQ_PERF_CNTL_1;
 #define mmMC_SEQ_PERF_CNTL                      mmMC_SEQ_PERF_CNTL__SI__CI
 #define mmMC_SEQ_PERF_CNTL_1                    mmMC_SEQ_PERF_CNTL_1__SI__CI
 
+// Maximum number of ShaderEngines
+constexpr uint32 MaxNumShaderEngines = 4;
 // Maximum number of instances per shader array (SH): max number of CU's.
 constexpr uint32 MaxNumInstances      = 16;
 // Maximum number of instances per GPU block (incl. max. possible shader arrays: either two
 // SE's and 2 SH's per SE, or 4 SE's with one SH each).
-constexpr uint32 MaxNumBlockInstances = (MaxNumInstances * 4);
+constexpr uint32 MaxNumBlockInstances = (MaxNumInstances * MaxNumShaderEngines);
 // Defines an invalid counter ID.
 constexpr uint32 InvalidCounterId     = 0xFFFFFFFF;
 // Maximum number of perf-ctr select registers per counter.

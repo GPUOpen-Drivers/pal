@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -72,27 +72,35 @@ bool Gfx6Htile::UseHtileForImage(
     // Htile will only ever be used for depth stencil images.
     if (pParent->IsDepthStencil())
     {
-        const ImageCreateInfo  createInfo      = pParent->GetImageCreateInfo();
-        const bool             supportsStencil = device.SupportsStencil(createInfo.swizzledFormat.format,
-                                                                        createInfo.tiling);
+        if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
+        {
+            const auto& metadata = pParent->GetInternalCreateInfo().sharedMetadata;
+            useHtile = (metadata.htileOffset != 0) && (metadata.fastClearMetaDataOffset != 0);
+        }
+        else
+        {
+            const ImageCreateInfo  createInfo      = pParent->GetImageCreateInfo();
+            const bool             supportsStencil = device.SupportsStencil(createInfo.swizzledFormat.format,
+                                                                            createInfo.tiling);
 
-        // The waTcCompatZRange workaround requires tileStencilDisable = 0 for TC-compatible images. However, images
-        // with both depth and stencil, per-subresource initialization, and separate aspect initialization require
-        // tileStencilDisable = 1 if the metadata aspects cannot be initialized separately. If all of these things are
-        // true, we must report that we cannot use Htile, which will result in TC-compatibility being disabled for the
-        // image but will still allow us to use Htile.
-        const bool waDisableHtile = (device.GetGfxDevice()->WaTcCompatZRange()                          &&
-                                     metaDataTexFetchSupported                                          &&
-                                     (ExpectedHtileContents(device, image) == HtileContents::DepthOnly) &&
-                                     supportsStencil);
+            // The waTcCompatZRange workaround requires tileStencilDisable = 0 for TC-compatible images. However, images
+            // with both depth and stencil, per-subresource initialization, and separate aspect initialization require
+            // tileStencilDisable = 1 if the metadata aspects cannot be initialized separately. If all of these things are
+            // true, we must report that we cannot use Htile, which will result in TC-compatibility being disabled for the
+            // image but will still allow us to use Htile.
+            const bool waDisableHtile = (device.GetGfxDevice()->WaTcCompatZRange()                          &&
+                                         metaDataTexFetchSupported                                          &&
+                                         (ExpectedHtileContents(device, image) == HtileContents::DepthOnly) &&
+                                         supportsStencil);
 
-        // Disabling Htile for this type of image could potentially cause performance issues for the apps using them.
-        PAL_ALERT(waDisableHtile);
+            // Disabling Htile for this type of image could potentially cause performance issues for the apps using them.
+            PAL_ALERT(waDisableHtile);
 
-        useHtile = ((pParent->IsShared()           == false) &&
-                    (pParent->IsMetadataDisabled() == false) &&
-                    (settings.htileEnable          == true)  &&
-                    (waDisableHtile                == false));
+            useHtile = ((pParent->IsShared()           == false) &&
+                        (pParent->IsMetadataDisabled() == false) &&
+                        (settings.htileEnable          == true)  &&
+                        (waDisableHtile                == false));
+        }
     }
 
     return useHtile;
@@ -661,7 +669,11 @@ bool Gfx6Cmask::UseCmaskForImage(
 
     bool useCmask = false;
 
-    if (pParent->IsRenderTarget() && (pParent->IsShared() == false) && (pParent->IsMetadataDisabled() == false))
+    if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
+    {
+        useCmask = (pParent->GetInternalCreateInfo().sharedMetadata.cmaskOffset != 0);
+    }
+    else if (pParent->IsRenderTarget() && (pParent->IsShared() == false) && (pParent->IsMetadataDisabled() == false))
     {
         if (pParent->GetImageCreateInfo().samples > 1)
         {
@@ -1132,127 +1144,137 @@ bool Gfx6Dcc::UseDccForImage(
     // Assume that DCC is available; check for conditions where it won't work.
     bool useDcc = true;
 
-    bool allMipsShaderWritable = pParent->IsShaderWritable();
-
-    allMipsShaderWritable = (allMipsShaderWritable && (pParent->FirstShaderWritableMip() == 0));
-
-    // DCC is never available on Gfx6 or Gfx7 ASICs
-    if ((device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp6) ||
-        (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp7))
+    if (pParent->GetInternalCreateInfo().flags.useSharedMetadata)
     {
-        useDcc = false;
-    }
-    else if (pParent->IsMetadataDisabled())
-    {
-        // Don't use DCC if the caller asked that we allocate no metadata.
-        useDcc = false;
-    }
-    else if (pParent->TargetsCanChangeFormat() || pParent->SrdsCanChangeFormat())
-    {
-        // Don't use DCC if the caller can switch between color target formats.
-        // Or if caller can switch between shader formats
-        useDcc = false;
-    }
-    else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
-    {
-        // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
-        // not shader writable
-        useDcc = false;
-    }
-    // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-    // be readable by a shader.
-    else if ((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
-             (metaDataTexFetchSupported == false) &&
-             (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccNonTcCompatShaderRead) == false))
-    {
-        // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
-        // for RT->SR barrier.
-        useDcc = false;
-    }
-    else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
-    {
-        // DCC is never available for shared, presentable, or flippable images.
-        useDcc = false;
-    }
-    else if (tileType == ADDR_THICK)
-    {
-        // THICK micro-tiling does not support DCC. The reason for this is that the CB does not support doing a DCC
-        // decompress operation on THICK micro-tiled Images.
-        useDcc = false;
-    }
-    else if (image.IsMacroTiled(tileMode) == false)
-    {
-        // If the tile-mode is 1D or linear, then this surface has no chance of using DCC memory.  2D tiled surfaces
-        // get much more complicated...  allow DCC for whatever levels of the surface can support it.
-        useDcc = false;
-    }
-    else if ((createInfo.extent.width  <= pPalSettings->hintDisableSmallSurfColorCompressionSize) &&
-             (createInfo.extent.height <= pPalSettings->hintDisableSmallSurfColorCompressionSize))
-    {
-        // DCC should be disabled if the client has indicated that they want to disable color compression on small
-        // surfaces and this surface qualifies.
-        useDcc = false;
+        const auto& metadata = image.Parent()->GetInternalCreateInfo().sharedMetadata;
+        useDcc = (metadata.dccOffset != 0) && (metadata.fastClearMetaDataOffset != 0);
     }
     else
     {
-        // Make sure the settings allow use of DCC surfaces for sRGB Images.
-        if (IsSrgb(createInfo.swizzledFormat.format) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSrgb) == false))
-        {
-            useDcc = false;
-        }
-        else if (IsYuv(createInfo.swizzledFormat.format))
-        {
-            // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
-            useDcc = false;
-        }
-        else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccPrt) == false))
-        {
-            // Disable DCC for PRT if the settings don't allow it.
-            useDcc = false;
-        }
-        else if (createInfo.samples > 1)
-        {
-            // Make sure the settings allow use of DCC surfaces for MSAA.
-            if (createInfo.samples == 2)
-            {
-                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample2x);
-            }
-            else if (createInfo.samples == 4)
-            {
-                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample4x);
-            }
-            else if (createInfo.samples == 8)
-            {
-                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample8x);
-            }
+        bool allMipsShaderWritable = pParent->IsShaderWritable();
 
-            if (createInfo.samples != createInfo.fragments)
+        allMipsShaderWritable = (allMipsShaderWritable && (pParent->FirstShaderWritableMip() == 0));
+
+        // DCC is never available on Gfx6 or Gfx7 ASICs
+        if ((device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp6) ||
+            (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp7))
+        {
+            useDcc = false;
+        }
+        else if (pParent->IsMetadataDisabled())
+        {
+            // Don't use DCC if the caller asked that we allocate no metadata.
+            useDcc = false;
+        }
+        else if (pParent->AllViewFormatsDccCompatible() == false)
+        {
+            // Don't use DCC if the caller can switch between color target formats.
+            // Or if caller can switch between shader formats
+            useDcc = false;
+        }
+        else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
+        {
+            // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
+            // not shader writable
+            useDcc = false;
+        }
+        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
+        // be readable by a shader.
+        else if ((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
+                 (metaDataTexFetchSupported == false) &&
+                 (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccNonTcCompatShaderRead) == false))
+        {
+            // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
+            // for RT->SR barrier.
+            useDcc = false;
+        }
+        else if (pParent->IsShared() || pParent->IsPresentable() || pParent->IsFlippable())
+        {
+            // DCC is never available for shared, presentable, or flippable images.
+            useDcc = false;
+        }
+        else if (tileType == ADDR_THICK)
+        {
+            // THICK micro-tiling does not support DCC. The reason for this is that the CB does not support doing a DCC
+            // decompress operation on THICK micro-tiled Images.
+            useDcc = false;
+        }
+        else if (image.IsMacroTiled(tileMode) == false)
+        {
+            // If the tile-mode is 1D or linear, then this surface has no chance of using DCC memory.  2D tiled surfaces
+            // get much more complicated...  allow DCC for whatever levels of the surface can support it.
+            useDcc = false;
+        }
+        else if ((createInfo.extent.width  <= pPalSettings->hintDisableSmallSurfColorCompressionSize) &&
+                 (createInfo.extent.height <= pPalSettings->hintDisableSmallSurfColorCompressionSize))
+        {
+            // DCC should be disabled if the client has indicated that they want to disable color compression on small
+            // surfaces and this surface qualifies.
+            useDcc = false;
+        }
+        else
+        {
+            const ChNumFormat format = createInfo.swizzledFormat.format;
+
+            // Make sure the settings allow use of DCC surfaces for sRGB Images.
+            if (IsSrgb(format) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSrgb) == false))
             {
-                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccEqaa);
+                useDcc = false;
+            }
+            else if (IsYuv(format))
+            {
+                // DCC isn't useful for YUV formats, since those are usually accessed heavily by the multimedia engines.
+                useDcc = false;
+            }
+            else if ((createInfo.flags.prt == 1) && (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccPrt) == false))
+            {
+                // Disable DCC for PRT if the settings don't allow it.
+                useDcc = false;
+            }
+            else if (createInfo.samples > 1)
+            {
+                // Make sure the settings allow use of DCC surfaces for MSAA.
+                if (createInfo.samples == 2)
+                {
+                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample2x);
+                }
+                else if (createInfo.samples == 4)
+                {
+                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample4x);
+                }
+                else if (createInfo.samples == 8)
+                {
+                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccMultiSample8x);
+                }
+
+                if (createInfo.samples != createInfo.fragments)
+                {
+                    useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccEqaa);
+                }
+
+                if (useDcc)
+                {
+                    // There is known issue that CB can only partially decompress DCC KEY for 4x+ 8bpp MSAA resource
+                    // (even with sample_split = 4).
+                    if (BitsPerPixel(format) == 8)
+                    {
+                        useDcc = Pal::Gfx6::Device::WaEnableDcc8bppWithMsaa;
+                    }
+                }
+            }
+            else
+            {
+                // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
+                useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSingleSample);
             }
 
             if (useDcc)
             {
-                // There is known issue that CB can only partially decompress DCC KEY for 4x+ 8bpp MSAA resource
-                // (even with sample_split = 4).
-                if (BitsPerPixel(createInfo.swizzledFormat.format) == 8)
+                // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
+                if ((createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
                 {
-                    useDcc = Pal::Gfx6::Device::WaEnableDcc8bppWithMsaa;
+                    useDcc = false;
                 }
-            }
-        }
-        else
-        {
-            // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
-            useDcc = useDcc && TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccSingleSample);
-        }
-
-        if (useDcc)
-        {
-            // According to DXX engineers, using DCC for mipmapped arrays has worse performance, so just disable it.
-            if ((createInfo.arraySize > 1) && (createInfo.mipLevels > 1))
-            {
-                useDcc = false;
             }
         }
     }

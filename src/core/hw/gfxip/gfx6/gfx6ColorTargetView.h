@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -154,10 +154,11 @@ private:
             uint32 hasCmask              :  1;
             uint32 hasFmask              :  1;
             uint32 hasDcc                :  1;
+            uint32 hasDccStateMetaData   :  1;
             uint32 fastClearSupported    :  1; // Fast clears are supported using the CLEAR_COLOR registers.
             uint32 dccCompressionEnabled :  1; // DCC can be disabled per-mip even if the image has DCC memory.
             uint32 usesLoadRegIndexPkt   :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
-            uint32 reserved              : 24;
+            uint32 reserved              : 23;
         };
 
         uint32 u32All;

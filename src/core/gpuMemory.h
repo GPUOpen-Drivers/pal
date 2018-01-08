@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -142,7 +142,7 @@ union GpuMemoryFlags
         uint32 autoPriority             :  1; // GPU memory priority is to be managed automatically
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
-        uint32 reserved                 :  1;
+        uint32 placeholder0             :  1; // Placeholder.
     };
     uint32  u32All;
 };

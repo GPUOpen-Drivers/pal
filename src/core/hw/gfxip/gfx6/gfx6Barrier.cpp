@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -280,7 +280,7 @@ void Device::DepthStencilExpand(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                      *gfx6Image.Parent(),
                                      pMsaaState,
@@ -345,7 +345,7 @@ void Device::DepthStencilResummarize(
                                           *gfx6Image.Parent(),
                                           transition.imageInfo.newLayout,
                                           pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
                                           &transition.imageInfo.samplePattern,
 #else
                                           transition.imageInfo.pQuadSamplePattern,
@@ -656,7 +656,7 @@ void Device::DccDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     RsrcProcMgr().DccDecompress(pCmdBuf,
                                 pCmdStream,
                                 gfx6Image,
@@ -696,7 +696,7 @@ void Device::FmaskDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                   pCmdStream,
                                   gfx6Image,
@@ -783,7 +783,7 @@ void Device::FastClearEliminate(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     RsrcProcMgr().FastClearEliminate(pCmdBuf,
                                      pCmdStream,
                                      gfx6Image,

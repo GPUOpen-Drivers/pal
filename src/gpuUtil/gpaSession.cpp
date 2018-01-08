@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1141,7 +1141,7 @@ Result GpaSession::End(
                 }
 
                 // Add cmd to copy from gpu local invisible memory to Gart heap memory for CPU access.
-                static_cast<TraceSample*>(pSampleItem->pPerfSample)->WriteCopyThreadTraceData(pCmdBuf);
+                static_cast<TraceSample*>(pSampleItem->pPerfSample)->WriteCopyTraceData(pCmdBuf);
             }
         }
 
@@ -1268,10 +1268,21 @@ uint32 GpaSession::BeginSample(
                 if (pTraceSample != nullptr)
                 {
                     pSampleItem->pPerfSample = pTraceSample;
-                    pTraceSample->SetThreadTraceMemory(primaryGpuMemInfo, primaryOffset, heapSize);
                     pTraceSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
+                    pTraceSample->SetTraceMemory(primaryGpuMemInfo, primaryOffset, heapSize);
 
-                    result = pTraceSample->Init(m_deviceProps.gfxipProperties.shaderCore.numShaderEngines);
+                    // Initialize the thread trace portion of the TraceSample.
+                    if (pSampleItem->sampleConfig.sqtt.flags.enable)
+                    {
+                        result = pTraceSample->InitThreadTrace(
+                                    m_deviceProps.gfxipProperties.shaderCore.numShaderEngines);
+                    }
+
+                    // Spm trace is enabled, so init the Spm trace portion of the TraceSample.
+                    if (pSampleItem->sampleConfig.perfCounters.numCounters > 0)
+                    {
+                        result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig.perfCounters.numCounters);
+                    }
                 }
                 else
                 {
@@ -1282,6 +1293,7 @@ uint32 GpaSession::BeginSample(
             if (result == Result::Success)
             {
                 // Begin the perf experiment once the samples have been successfully initialized.
+                // The perf experiment has been configured with perf counters/trace at this point.
                 pCmdBuf->CmdBeginPerfExperiment(pPerfExperiment);
             }
         }
@@ -1508,21 +1520,21 @@ Result GpaSession::GetResults(
         // Thread trace results.
         TraceSample* pTraceSample = static_cast<TraceSample*>(pSampleItem->pPerfSample);
 
-        if (pTraceSample->GetThreadTraceBufferSize() > 0)
+        if (pTraceSample->GetTraceBufferSize() > 0)
         {
             if (pSizeInBytes == nullptr)
             {
                 result = Result::ErrorInvalidPointer;
             }
 
-            if (result == Result::Success)
+            if ((result == Result::Success) &&
+                (pTraceSample->IsThreadTraceEnabled() || pTraceSample->IsSpmTraceEnabled()))
             {
-                // To write the RGP file, info from the GpaSession itself in addition to the results from the
-                // TraceSample is required.
-                result = DumpRgpData(pTraceSample->GetThreadTraceLayout(),
-                                     pTraceSample->GetPerfExpResults(),
-                                     pData,
-                                     pSizeInBytes);
+                // The client is expected to query size or provide size of data already in the buffer.
+                PAL_ASSERT(pSizeInBytes != nullptr);
+
+                // Dump both thread trace and spm trace results in the RGP file.
+                result = DumpRgpData(pTraceSample, pData, pSizeInBytes);
             }
         }
     }
@@ -2603,32 +2615,82 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
                 }
             }
         }
-        else if ((sampleConfig.type == GpaSampleType::Trace) && (sampleConfig.sqtt.flags.enable))
+        else if (sampleConfig.type == GpaSampleType::Trace)
         {
             // Add SQ thread trace to the experiment.
-            const size_t sqttSeBufferSize = static_cast<size_t>((sampleConfig.sqtt.gpuMemoryLimit == 0) ?
-            m_perfExperimentProps.maxSqttSeBufferSize :
-                sampleConfig.sqtt.gpuMemoryLimit / m_perfExperimentProps.shaderEngineCount);
-
-            const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
-
-            PerfTraceInfo sqttInfo = {};
-
-            sqttInfo.traceType               = PerfTraceType::ThreadTrace;
-            sqttInfo.optionFlags.bufferSize  = 1;
-            sqttInfo.optionValues.bufferSize = sqttSeBufferSize;
-
-            // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
-            // updated to a different value at a later time when sample updates are enabled.
-            const uint32 standardTokenMask             = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
-            sqttInfo.optionFlags.threadTraceTokenMask  = 1;
-            sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal
-                                                                                     : standardTokenMask;
-
-            for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
+            if (sampleConfig.sqtt.flags.enable)
             {
-                sqttInfo.instance = i;
-                result = pExperiment->AddTrace(sqttInfo);
+                const size_t sqttSeBufferSize = static_cast<size_t>((sampleConfig.sqtt.gpuMemoryLimit == 0) ?
+                m_perfExperimentProps.maxSqttSeBufferSize :
+                    sampleConfig.sqtt.gpuMemoryLimit / m_perfExperimentProps.shaderEngineCount);
+
+                const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
+                PerfTraceInfo sqttInfo = { };
+#else
+                ThreadTraceInfo sqttInfo = { };
+#endif
+                sqttInfo.traceType               = PerfTraceType::ThreadTrace;
+                sqttInfo.optionFlags.bufferSize  = 1;
+                sqttInfo.optionValues.bufferSize = sqttSeBufferSize;
+
+                // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
+                // updated to a different value at a later time when sample updates are enabled.
+                const uint32 standardTokenMask             = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
+                sqttInfo.optionFlags.threadTraceTokenMask  = 1;
+                sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal
+                                                                                         : standardTokenMask;
+
+                for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
+                {
+                    sqttInfo.instance = i;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
+                    result = pExperiment->AddTrace(sqttInfo);
+#else
+                    result = pExperiment->AddThreadTrace(sqttInfo);
+#endif
+                }
+            }
+
+            // Configure and add an Spm trace to the perf experiment if the GpaSampleType is a Trace while perf counters
+            // are also requested.
+            if (sampleConfig.perfCounters.numCounters > 0)
+            {
+                const uint32 numStreamingCounters = sampleConfig.perfCounters.numCounters;
+                const PerfCounterId* pCounters    = sampleConfig.perfCounters.pIds;
+
+                SpmTraceCreateInfo spmCreateInfo = {};
+                spmCreateInfo.numPerfCounters    = numStreamingCounters;
+                spmCreateInfo.spmInterval        = sampleConfig.perfCounters.spmTraceSampleInterval;
+                spmCreateInfo.ringSize           = sampleConfig.perfCounters.gpuMemoryLimit;
+
+                void* pMem = PAL_CALLOC(numStreamingCounters * sizeof(PerfCounterInfo),
+                                        m_pPlatform,
+                                        Util::SystemAllocType::AllocInternal);
+
+                if (pMem != nullptr)
+                {
+                    spmCreateInfo.pPerfCounterInfos = static_cast<PerfCounterInfo*>(pMem);
+                    PerfCounterInfo* pCounterInfo   = nullptr;
+
+                    // Add each perfCounter instance to perfExperiment.
+                    for (uint32 i = 0; i < numStreamingCounters; i++)
+                    {
+                        pCounterInfo = &(static_cast<PerfCounterInfo*>(pMem)[i]);
+                        pCounterInfo->block    = pCounters[i].block;
+                        pCounterInfo->eventId  = pCounters[i].eventId;
+                        pCounterInfo->instance = pCounters[i].instance;
+                    }
+
+                    result = pExperiment->AddSpmTrace(spmCreateInfo);
+
+                    // Free the memory allocated for the PerfCounterInfo(s) once AddSpmTrace returns.
+                    PAL_SAFE_FREE(pMem, m_pPlatform);
+                }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
             }
         }
         else
@@ -2664,10 +2726,9 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
             *pSecondaryGpuMem = *pGpuMem;
             *pSecondaryOffset = *pOffset;
 
-            // Acquire new local invisible gpu memory for use as the thread trace buffer into which the thread
-            // trace data is written by the GPU. Thread trace data will later be copied to the secondary memory
-            // which is CPU-visible.
-            if ((sampleConfig.type == GpaSampleType::Trace) && sampleConfig.sqtt.flags.enable)
+            // Acquire new local invisible gpu memory for use as the trace buffer into which the  trace data is written
+            // by the GPU. Trace data will later be copied to the secondary memory which is CPU-visible.
+            if (sampleConfig.type == GpaSampleType::Trace)
             {
                 result = AcquireGpuMem(gpuMemReqs.size,
                                        gpuMemReqs.alignment,
@@ -2748,14 +2809,16 @@ Result GpaSession::AcquirePipeStatsQuery(
 }
 
 // =====================================================================================================================
-// Dump SQ thread trace data in rgp format.
+// Dump SQ thread trace data and spm trace data, if available, in rgp format.
 Result GpaSession::DumpRgpData(
-    ThreadTraceLayout*  pThreadTraceLayout,
-    const void*         pResults,
-    void*               pRgpOutput,
-    size_t*             pTraceSize
+    TraceSample* pTraceSample,
+    void*        pRgpOutput,
+    size_t*      pTraceSize   // [in|out] Size of the thread trace data and/or spm trace data.
     ) const
 {
+    ThreadTraceLayout* pThreadTraceLayout = nullptr;
+    void* pResults = pTraceSample->GetPerfExpResults();
+
     // Some of the calculations performed below depend on the assumed position of some fields in the chunk headers
     // defined in sqtt_file_format.h. TODO: Remove after some form of versioning is in place.
     static_assert((sizeof(SqttFileChunkHeader) == 16U) && (sizeof(SqttFileChunkIsaDatabase) == 28U),
@@ -2763,7 +2826,7 @@ Result GpaSession::DumpRgpData(
 
     Result result = Result::Success;
 
-    uint32 curFileOffset = 0;
+    gpusize curFileOffset = 0;
 
     SqttFileHeader fileHeader   = {};
     SqttFileHeader* pFileHeader = &fileHeader;
@@ -2859,149 +2922,154 @@ Result GpaSession::DumpRgpData(
     }
     curFileOffset += sizeof(apiInfo);
 
-    // Get each shader engine's data for rgp dump
-    uint32 shaderEngineCount = m_deviceProps.gfxipProperties.shaderCore.numShaderEngines;
-    for (uint32 i = 0; i < shaderEngineCount; i++)
+    if (pTraceSample->IsThreadTraceEnabled())
     {
-        const ThreadTraceSeLayout& seLayout     = pThreadTraceLayout->traces[i];
+        pThreadTraceLayout = pTraceSample->GetThreadTraceLayout();
 
-        // Get desc info for rgp dump
-        SqttFileChunkSqttDesc desc             = {};
-        desc.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DESC;
-        desc.header.chunkIdentifier.chunkIndex = i;
-        desc.header.version                    = 1;
-        desc.header.sizeInBytes                = sizeof(desc);
-        desc.shaderEngineIndex                 = seLayout.shaderEngine;
-        desc.v1.instrumentationSpecVersion     = m_instrumentationSpecVersion;
-        desc.v1.instrumentationApiVersion      = m_instrumentationApiVersion;
-        desc.v1.computeUnitIndex               = seLayout.computeUnit;
-
-        desc.sqttVersion = GfxipToSqttVersionTranslation[static_cast<uint32>(m_deviceProps.gfxLevel)];
-
-        if ((result == Result::Success) && (pRgpOutput != nullptr))
+        // Get each shader engine's data for rgp dump
+        uint32 shaderEngineCount = m_deviceProps.gfxipProperties.shaderCore.numShaderEngines;
+        for (uint32 i = 0; i < shaderEngineCount; i++)
         {
-            if (static_cast<size_t>(curFileOffset + sizeof(desc)) > *pTraceSize)
+            const ThreadTraceSeLayout& seLayout     = pThreadTraceLayout->traces[i];
+
+            // Get desc info for rgp dump
+            SqttFileChunkSqttDesc desc             = {};
+            desc.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DESC;
+            desc.header.chunkIdentifier.chunkIndex = i;
+            desc.header.version                    = 1;
+            desc.header.sizeInBytes                = sizeof(desc);
+            desc.shaderEngineIndex                 = seLayout.shaderEngine;
+            desc.v1.instrumentationSpecVersion     = m_instrumentationSpecVersion;
+            desc.v1.instrumentationApiVersion      = m_instrumentationApiVersion;
+            desc.v1.computeUnitIndex               = seLayout.computeUnit;
+
+            desc.sqttVersion = GfxipToSqttVersionTranslation[static_cast<uint32>(m_deviceProps.gfxLevel)];
+
+            if ((result == Result::Success) && (pRgpOutput != nullptr))
             {
-                result = Result::ErrorInvalidMemorySize;
-            }
-            else
-            {
-                memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)), &desc, sizeof(desc));
-            }
-        }
-        curFileOffset += sizeof(desc);
-
-        // Get data info and data for rgp dump
-        const auto& info  = *static_cast<const ThreadTraceInfoData*>(
-            Util::VoidPtrInc(pResults, static_cast<size_t>(seLayout.infoOffset)));
-        const void* pData = static_cast<const void*>(
-            Util::VoidPtrInc(pResults, static_cast<size_t>(seLayout.dataOffset)));
-
-        // curOffset reports the amount of SQTT data written by the hardware in units of 32 bytes.
-        const uint32 sqttBytesWritten = info.curOffset * 32;
-
-        SqttFileChunkSqttData data             = {};
-        data.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DATA;
-        data.header.chunkIdentifier.chunkIndex = i;
-        data.header.version                    = 0;
-        data.header.sizeInBytes                = sizeof(data) + sqttBytesWritten;
-        data.offset                            = curFileOffset + sizeof(data);
-        data.size                              = sqttBytesWritten;
-
-        if ((result == Result::Success) && (pRgpOutput != nullptr))
-        {
-            if (static_cast<size_t>(curFileOffset + sizeof(data)) > *pTraceSize)
-            {
-                result = Result::ErrorInvalidMemorySize;
-            }
-            else
-            {
-                memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)), &data, sizeof(data));
-            }
-        }
-        curFileOffset += sizeof(data);
-
-        if ((result == Result::Success) && (pRgpOutput != nullptr))
-        {
-            if (static_cast<size_t>(curFileOffset + sqttBytesWritten) > *pTraceSize)
-            {
-                result = Result::ErrorInvalidMemorySize;
-            }
-            else
-            {
-                memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                       pData,
-                       sqttBytesWritten);
-            }
-        }
-        curFileOffset += sqttBytesWritten;
-    }
-
-    // Write Shader ISA Database to the RGP file.
-    if (result == Result::Success)
-    {
-        // Shader ISA database header.
-        if (pRgpOutput != nullptr)
-        {
-            if (static_cast<size_t>(curFileOffset + sizeof(SqttFileChunkIsaDatabase)) > *pTraceSize)
-            {
-                result = Result::ErrorInvalidMemorySize;
-            }
-            else
-            {
-                SqttFileChunkIsaDatabase shaderIsaDb          = {};
-                shaderIsaDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ISA_DATABASE;
-                shaderIsaDb.header.chunkIdentifier.chunkIndex = 0;
-                shaderIsaDb.header.version                    = 0;
-                shaderIsaDb.recordCount                       = static_cast<uint32>(m_curShaderRecords.NumElements());
-
-                int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
-                auto iter = m_curShaderRecords.Begin();
-                while (iter.Get())
-                {
-                    shaderDatabaseSize += (*iter.Get()).recordSize;
-                    iter.Next();
-                }
-
-                // The sizes must be updated by adding the size of the rest of the chunk later.
-                shaderIsaDb.header.sizeInBytes                = shaderDatabaseSize;
-                // TODO: Duplicate - will have to remove later once RGP spec is updated.
-                shaderIsaDb.size                              = shaderDatabaseSize;
-
-                // The ISA database starts from the beginning of the chunk.
-                shaderIsaDb.offset                            = curFileOffset;
-
-                memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                       &shaderIsaDb,
-                       sizeof(SqttFileChunkIsaDatabase));
-            }
-        }
-
-        curFileOffset += sizeof(SqttFileChunkIsaDatabase);
-
-        auto iter = m_curShaderRecords.Begin();
-
-        while (iter.Get())
-        {
-            ShaderRecord* pShaderRecord = iter.Get();
-
-            if (pRgpOutput != nullptr)
-            {
-                if (static_cast<size_t>(curFileOffset + pShaderRecord->recordSize) > *pTraceSize)
+                if (static_cast<size_t>(curFileOffset + sizeof(desc)) > *pTraceSize)
                 {
                     result = Result::ErrorInvalidMemorySize;
                 }
                 else
                 {
-                    // Copy one record to the buffer provided.
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)), &desc, sizeof(desc));
+                }
+            }
+            curFileOffset += sizeof(desc);
+
+            // Get data info and data for rgp dump
+            const auto& info  = *static_cast<const ThreadTraceInfoData*>(
+                Util::VoidPtrInc(pResults, static_cast<size_t>(seLayout.infoOffset)));
+            const void* pData = static_cast<const void*>(
+                Util::VoidPtrInc(pResults, static_cast<size_t>(seLayout.dataOffset)));
+
+            // curOffset reports the amount of SQTT data written by the hardware in units of 32 bytes.
+            const uint32 sqttBytesWritten = info.curOffset * 32;
+
+            SqttFileChunkSqttData data             = {};
+            data.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DATA;
+            data.header.chunkIdentifier.chunkIndex = i;
+            data.header.version                    = 0;
+            data.header.sizeInBytes                = sizeof(data) + sqttBytesWritten;
+            data.offset                            = static_cast<int32>(curFileOffset + sizeof(data));
+            data.size                              = sqttBytesWritten;
+
+            if ((result == Result::Success) && (pRgpOutput != nullptr))
+            {
+                if (static_cast<size_t>(curFileOffset + sizeof(data)) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)), &data, sizeof(data));
+                }
+            }
+            curFileOffset += sizeof(data);
+
+            if ((result == Result::Success) && (pRgpOutput != nullptr))
+            {
+                if (static_cast<size_t>(curFileOffset + sqttBytesWritten) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
                     memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                           pShaderRecord->pRecord,
-                           pShaderRecord->recordSize);
+                           pData,
+                           sqttBytesWritten);
+                }
+            }
+            curFileOffset += sqttBytesWritten;
+        }
+
+        // Write Shader ISA Database to the RGP file.
+        if (result == Result::Success)
+        {
+            // Shader ISA database header.
+            if (pRgpOutput != nullptr)
+            {
+                if (static_cast<size_t>(curFileOffset + sizeof(SqttFileChunkIsaDatabase)) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    SqttFileChunkIsaDatabase shaderIsaDb          = {};
+                    shaderIsaDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ISA_DATABASE;
+                    shaderIsaDb.header.chunkIdentifier.chunkIndex = 0;
+                    shaderIsaDb.header.version                    = 0;
+                    shaderIsaDb.recordCount = static_cast<uint32>(m_curShaderRecords.NumElements());
+
+                    int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
+                    auto iter = m_curShaderRecords.Begin();
+                    while (iter.Get())
+                    {
+                        shaderDatabaseSize += (*iter.Get()).recordSize;
+                        iter.Next();
+                    }
+
+                    // The sizes must be updated by adding the size of the rest of the chunk later.
+                    shaderIsaDb.header.sizeInBytes                = shaderDatabaseSize;
+                    // TODO: Duplicate - will have to remove later once RGP spec is updated.
+                    shaderIsaDb.size                              = shaderDatabaseSize;
+
+                    // The ISA database starts from the beginning of the chunk.
+                    shaderIsaDb.offset                            = static_cast<int32>(curFileOffset);
+
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &shaderIsaDb,
+                           sizeof(SqttFileChunkIsaDatabase));
                 }
             }
 
-            curFileOffset += pShaderRecord->recordSize;
-            iter.Next();
+            curFileOffset += sizeof(SqttFileChunkIsaDatabase);
+
+            auto iter = m_curShaderRecords.Begin();
+
+            while (iter.Get())
+            {
+                ShaderRecord* pShaderRecord = iter.Get();
+
+                if (pRgpOutput != nullptr)
+                {
+                    if (static_cast<size_t>(curFileOffset + pShaderRecord->recordSize) > *pTraceSize)
+                    {
+                        result = Result::ErrorInvalidMemorySize;
+                    }
+                    else
+                    {
+                        // Copy one record to the buffer provided.
+                        memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                               pShaderRecord->pRecord,
+                               pShaderRecord->recordSize);
+                    }
+                }
+
+                curFileOffset += pShaderRecord->recordSize;
+                iter.Next();
+            }
         }
     }
 
@@ -3222,7 +3290,60 @@ Result GpaSession::DumpRgpData(
         }
     }
 
-    *pTraceSize = curFileOffset;
+    if ((result == Result::Success) && (pTraceSample->IsSpmTraceEnabled()))
+    {
+        // Add Spm chunk to RGP file.
+        result = AppendSpmTraceData(pTraceSample, (*pTraceSize), pRgpOutput, &curFileOffset);
+    }
+
+    *pTraceSize = static_cast<size_t>(curFileOffset);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Appends the spm trace data in the buffer provided. If nullptr buffer is provided, it returns the size required for
+// the spm data.
+Result GpaSession::AppendSpmTraceData(
+    TraceSample* pTraceSample,  // [in] The PerfSample from which to get the spm trace data.
+    size_t       bufferSize,    // [in] Size of the buffer.
+    void*        pRgpOutput,    // [out] The buffer into which spm trace data is written. May contain thread trace data.
+    gpusize*     pCurFileOffset // [in|out] Current wptr position in buffer.
+    ) const
+{
+    Result result = Result::Success;
+
+    // Initialize the Sqtt chunk, get the spm trace results and add to the file.
+    gpusize spmDataSize   = 0;
+    gpusize numSpmSamples = 0;
+    pTraceSample->GetSpmResultsSize(&spmDataSize, &numSpmSamples);
+
+    if (pRgpOutput != nullptr)
+    {
+        // Header for spm chunk.
+        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb) + spmDataSize) > bufferSize)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            // Write the chunk header first.
+            SqttFileChunkSpmDb spmDbChunk               = { };
+            spmDbChunk.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_SPM_DB;
+            spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SqttFileChunkSpmDb) + spmDataSize);
+            spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
+            spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
+
+            memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &spmDbChunk, sizeof(spmDbChunk));
+
+            size_t curWriteOffset = static_cast<size_t>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb));
+
+            result = pTraceSample->GetSpmTraceResults(Util::VoidPtrInc(pRgpOutput, curWriteOffset),
+                                                      (bufferSize - curWriteOffset));
+        }
+    }
+
+    (*pCurFileOffset) += (sizeof(SqttFileChunkSpmDb) + spmDataSize);
 
     return result;
 }
@@ -3375,19 +3496,4 @@ Result GpaSession::CreateShaderRecord(
 
     return result;
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 286
-// =====================================================================================================================
-// Helper function to fill in the SqttFileChunkAsicInfo struct based on the DeviceProperties and PerfExperimentProperties
-// provided. Required for writing RGP files.
-void FillSqttAsicInfo(
-    const Pal::DeviceProperties&         properties,
-    const Pal::PerfExperimentProperties& perfExpProps,
-    SqttFileChunkAsicInfo*               pAsicInfo)
-{
-    // This function has been removed from the external interface and should no longer be used.
-    // This function cannot write the latest RGP asic info chunk correctly with the existing parameters.
-    PAL_ASSERT_ALWAYS();
-}
-#endif
 } //GpuUtil

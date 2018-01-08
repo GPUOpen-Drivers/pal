@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -73,9 +73,9 @@ enum DbgPrintStyle : uint32
 
 /// Definition for debug print callback.
 ///
-/// @param [in] pPrivateData Private data that is installed with the callback for use by the installer.
-/// @param [in] category     Debug print category that the message belongs to.
-/// @param [in] pText        Text data to be printed by the callback.
+/// @param [in] pUserData User data that is installed with the callback for use by the installer.
+/// @param [in] category  Debug print category that the message belongs to.
+/// @param [in] pText     Text data to be printed by the callback.
 typedef void (PAL_STDCALL *DbgPrintCallbackFunc)(
     void*            pUserdata,
     DbgPrintCategory category,
@@ -170,6 +170,18 @@ extern void SetDbgPrintCallback(
     const DbgPrintCallback& callback);
 
 #endif
+
+/// Logs a text string via client callback when provided.
+///
+/// @param [in] level        Log priority level associated with the message.
+/// @param [in] categoryMask Log category mask that represents what category fields the message relates to.
+/// @param [in] pFormat      Format string for the log message.
+/// @param [in] args         Variable arguments that correspond to the format string.
+typedef void (PAL_STDCALL *LogCallbackFunc)(
+    uint32      level,
+    uint64      categoryMask,
+    const char* pFormat,
+    va_list     args);
 
 /// Compiler-specific wrapper of the standard snprintf implementation.
 ///

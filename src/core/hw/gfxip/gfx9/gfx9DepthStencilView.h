@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -163,7 +163,6 @@ private:
 // needed by setting several registers at once.
 struct Gfx9DepthStencilViewPm4Img
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 301
     PM4PFP_SET_CONTEXT_REG           hdrDbZInfoToDfsmControl;
     regDB_Z_INFO__GFX09              dbZInfo;
     regDB_STENCIL_INFO__GFX09        dbStencilInfo;
@@ -180,22 +179,6 @@ struct Gfx9DepthStencilViewPm4Img
     PM4PFP_SET_CONTEXT_REG           hdrDbZInfo2ToStencilInfo2;
     regDB_Z_INFO2__GFX09             dbZInfo2;
     regDB_STENCIL_INFO2__GFX09       dbStencilInfo2;
-#else
-    PM4PFP_SET_CONTEXT_REG           hdrDbZInfoToStencilInfo2;
-    regDB_Z_INFO__GFX09              dbZInfo;
-    regDB_STENCIL_INFO__GFX09        dbStencilInfo;
-    regDB_Z_READ_BASE                dbZReadBase;
-    regDB_Z_READ_BASE_HI             dbZReadBaseHi;
-    regDB_STENCIL_READ_BASE          dbStencilReadBase;
-    regDB_STENCIL_READ_BASE_HI       dbStencilReadBaseHi;
-    regDB_Z_WRITE_BASE               dbZWriteBase;
-    regDB_Z_WRITE_BASE_HI            dbZWriteBaseHi;
-    regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
-    regDB_STENCIL_WRITE_BASE_HI      dbStencilWriteBaseHi;
-    regDB_DFSM_CONTROL               dbDfsmControl;
-    regDB_Z_INFO2__GFX09             dbZInfo2;
-    regDB_STENCIL_INFO2__GFX09       dbStencilInfo2;
-#endif
 
     PM4PFP_SET_CONTEXT_REG           hdrDbDepthView;
     regDB_DEPTH_VIEW                 dbDepthView;

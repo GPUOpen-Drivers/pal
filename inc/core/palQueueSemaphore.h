@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -48,17 +48,12 @@ struct QueueSemaphoreCreateInfo
         struct
         {
             uint32 shareable         :  1;  ///< This queue semaphore may be opened for use by a different device.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 290
             uint32 sharedViaNtHandle :  1;  ///< This queue semaphore can only be shared through Nt handle.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 350
             uint32 externalOpened    :  1;  ///< Semaphore was created by other APIs
             uint32 reserved          : 29;  ///< Reserved for future use.
 #else
             uint32 reserved          : 30;  ///< Reserved for future use.
-#endif
-
-#else
-            uint32 reserved          : 31;
 #endif
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
@@ -86,12 +81,8 @@ struct ExternalQueueSemaphoreOpenInfo
         struct
         {
             uint32 crossProcess       :  1;   ///< This semaphore is created in another process.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 290
             uint32 sharedViaNtHandle  :  1;   ///< The shared semaphore handle is NT handle.
             uint32 reserved           : 30;   ///< Resevered for future use.
-#else
-            uint32 reserved           : 31;
-#endif
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< External queue semaphore open flags.
@@ -127,11 +118,7 @@ public:
     /// @note This function is only available for Linux builds.
     ///
     /// @returns An OS-specific handle which can be used to access the semaphore object across processes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 290
     virtual OsExternalHandle ExportExternalHandle() const = 0;
-#else
-    virtual OsExternalHandle ExportExternalHandle() const = 0;
-#endif
 
     /// Returns an OS-specific handle which can be used by another device to access the semaphore object.
     /// This interface is used to share semaphore between mantle and d3d in same process.

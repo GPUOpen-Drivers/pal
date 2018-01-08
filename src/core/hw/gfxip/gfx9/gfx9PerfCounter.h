@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -60,11 +60,23 @@ public:
     // Returns true if the GPU block this counter samples from is indexed for reads and writes
     bool IsIndexed() const { return (m_flags.isIndexed != 0); }
 
+    static uint32 GetSeIndex(
+    const Gfx9PerfCounterInfo& perfCounterInfo,
+    const GpuBlock&            block,
+    uint32                     instance)
+    {
+        return InstanceIdToSe(perfCounterInfo, block, instance);
+    }
+
+    static uint32 InstanceIdToSe(
+    const Gfx9PerfCounterInfo& perfCounterInfo,
+    const GpuBlock&            block,
+    uint32                     instance);
+
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint32 InstanceIdToSe() const;
     uint32 InstanceIdToSh() const;
     uint32 InstanceIdToInstance() const;
 
@@ -91,6 +103,29 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(PerfCounter);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfCounter);
+};
+
+// =====================================================================================================================
+// Provides Gfx9-specific functionality for streaming performance counters.
+class StreamingPerfCounter : public Pal::StreamingPerfCounter
+{
+public:
+    StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
+
+    virtual Result AddEvent(const GpuBlock& block, uint32 eventId) override;
+    uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace);
+
+protected:
+    bool IsSelect0RegisterValid() const;
+    bool IsSelect1RegisterValid() const;
+    uint32 GetSelect0RegisterData() const;
+    uint32 GetSelect1RegisterData() const;
+
+private:
+    const Device& m_device;
+
+    PAL_DISALLOW_DEFAULT_CTOR(StreamingPerfCounter);
+    PAL_DISALLOW_COPY_AND_ASSIGN(StreamingPerfCounter);
 };
 
 } // Gfx9

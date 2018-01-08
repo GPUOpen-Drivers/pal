@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -107,7 +107,8 @@ bool Pipeline::OpenUniqueDumpFile(
 
     PAL_ASSERT(ShaderHashIsNonzero(dumpInfo.hash));
 
-    Util::Snprintf(&fileName[0], sizeof(fileName), "%s/0x%016llX%016llX_%s.spd",
+    Util::Snprintf(&fileName[0], sizeof(fileName), "%s/%s/0x%016llX%016llX_%s.spd",
+                   m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
                    pLogDir,
                    dumpInfo.hash.upper,
                    dumpInfo.hash.lower,
@@ -220,7 +221,7 @@ void Pipeline::Destroy()
 
     // Pipelines can only be destroyed if they are not being used by the GPU, so it is safe to perform the performance
     // data retrieval now.
-    for (uint32 i = 0; i < static_cast<uint32>(ApiShaderType::Count); i++)
+    for (uint32 i = 0; (m_hasPerformanceData && (i < static_cast<uint32>(ApiShaderType::Count))); i++)
     {
         if ((ShaderHashIsNonzero(info.shader[i].hash)) && (m_apiHwMapping.apiShaders[i] != 0))
         {
@@ -304,7 +305,6 @@ Result Pipeline::InitGfx(
 {
     Result result = Result::ErrorInvalidPointer;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 305
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
     {
         PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
@@ -347,7 +347,6 @@ Result Pipeline::InitGfx(
         }
     }
     else
-#endif
     {
         if ((createInfo.vs.pShader != nullptr) &&
             (static_cast<const Shader*>(createInfo.vs.pShader)->HasPerformanceData()))
@@ -396,7 +395,6 @@ Result Pipeline::InitCompute(
 {
     Result result = Result::ErrorInvalidPointer;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 305
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
     {
         PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
@@ -422,7 +420,6 @@ Result Pipeline::InitCompute(
         }
     }
     else
-#endif
     {
         m_hasPerformanceData = static_cast<const Shader*>(createInfo.cs.pShader)->HasPerformanceData();
         m_apiHwMapping       = m_pNextLayer->ApiHwShaderMapping();

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -298,7 +298,7 @@ int32 Platform::GetSupportedSemaphoreTypes() const
 SwizzledFormat AmdgpuFormatToPalFormat(
     AMDGPU_PIXEL_FORMAT format,
     bool*               pFormatChange,      // [out] If non-null, this will indicate if the image associated with this
-                                            //       format must set formatChangeSrd and formatChangeTgt.
+                                            //       format must opt in for view format change.
     bool*               pDepthStencilUsage) // [out] If non-null, this will indicate if the image associated with this
                                             //       format must enable depth stencil usage.
 {

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1261,17 +1261,10 @@ public:
         const MsaaQuadSamplePattern& quadSamplePattern) override
         { m_pNextLayer->CmdStoreMsaaQuadSamplePattern(dstGpuMemory, dstMemOffset, numSamplesPerPixel, quadSamplePattern); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     virtual void CmdLoadMsaaQuadSamplePattern(
         const IGpuMemory* pSrcGpuMemory,
         gpusize           srcMemOffset) override
         { m_pNextLayer->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset); }
-#else
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory& srcGpuMemory,
-        gpusize           srcMemOffset) override
-        { m_pNextLayer->CmdLoadMsaaQuadSamplePattern(srcGpuMemory, srcMemOffset); }
-#endif
 #endif
     virtual void CmdSetViewports(
         const ViewportParams& params) override
@@ -2298,6 +2291,12 @@ public:
         gpusize     offset) override
         { return m_pNextLayer->BindGpuMemory(NextGpuMemory(pGpuMemory), offset); }
 
+    virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override
+        { m_pNextLayer->SetOptimalSharingLevel(level); }
+
+    virtual MetadataSharingLevel GetOptimalSharingLevel() const override
+        { return m_pNextLayer->GetOptimalSharingLevel(); }
+
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
     {
@@ -2407,9 +2406,19 @@ public:
         GlobalCounterLayout* pLayout) const override
         { return m_pNextLayer->GetGlobalCounterLayout(pLayout); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result AddTrace(
         const PerfTraceInfo& traceInfo) override
         { return m_pNextLayer->AddTrace(traceInfo); }
+#else
+    virtual Result AddThreadTrace(
+        const ThreadTraceInfo& traceInfo) override
+        { return m_pNextLayer->AddThreadTrace(traceInfo); }
+#endif
+
+    virtual Result AddSpmTrace(
+        const SpmTraceCreateInfo& spmInfo) override
+        { return m_pNextLayer->AddSpmTrace(spmInfo); }
 
     virtual Result GetThreadTraceLayout(
         ThreadTraceLayout* pLayout) const override
@@ -2528,10 +2537,24 @@ public:
         QueryType        queryType,
         uint32           startQuery,
         uint32           queryCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
+        const void*      pMappedGpuAddr,
+#endif
         size_t*          pDataSize,
         void*            pData,
         size_t           stride) override
-        { return m_pNextLayer->GetResults(flags, queryType, startQuery, queryCount, pDataSize, pData, stride); }
+        {
+            return m_pNextLayer->GetResults(flags,
+                                            queryType,
+                                            startQuery,
+                                            queryCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
+                                            pMappedGpuAddr,
+#endif
+                                            pDataSize,
+                                            pData,
+                                            stride);
+        }
 
     virtual Result Reset(
         uint32 startQuery,
@@ -2679,13 +2702,8 @@ public:
     virtual bool HasStalledQueues() override
         { return m_pNextLayer->HasStalledQueues(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 287
     virtual OsExternalHandle ExportExternalHandle() const override
         { return m_pNextLayer->ExportExternalHandle(); }
-#else
-    virtual OsExternalHandle ExportExternalHandle() const override
-        { return m_pNextLayer->ExportExternalHandle(); }
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

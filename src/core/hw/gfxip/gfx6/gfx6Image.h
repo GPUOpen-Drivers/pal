@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -189,6 +189,8 @@ public:
         gpusize*    pOffset,
         gpusize*    pDataSize) const;
 
+    bool HasDccStateMetaData() const { return m_dccStateMetaDataOffset != 0; }
+
     gpusize GetDccStateMetaDataAddr(uint32 mipLevel) const;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel) const;
@@ -273,6 +275,9 @@ public:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment) override;
+
+    // Fills metadata info to be used in memory export
+    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const;
 
 private:
     PAL_INLINE bool IsFastClearColorMetaFetchable(const uint32* pColor) const;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -60,7 +60,9 @@ Device::Device(
     m_startFrame(0),
     m_endFrame(0),
     m_pGlobalPerfCounters(nullptr),
-    m_numGlobalPerfCounters(0)
+    m_numGlobalPerfCounters(0),
+    m_pStreamingPerfCounters(nullptr),
+    m_numStreamingPerfCounters(0)
 {
     memset(m_queueIds, 0, sizeof(m_queueIds));
 
@@ -77,6 +79,11 @@ Device::Device(
 Device::~Device()
 {
     PAL_SAFE_DELETE_ARRAY(m_pGlobalPerfCounters, GetPlatform());
+
+    if (m_pStreamingPerfCounters != nullptr)
+    {
+        PAL_SAFE_DELETE_ARRAY(m_pStreamingPerfCounters, GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -136,12 +143,7 @@ Result Device::CommitSettingsAndInit()
         m_imageSrdDwords      = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
         m_timestampFreq       = info.timestampFrequency;
         m_logPipeStats        = settings.gpuProfilerRecordPipelineStats;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 298
-        m_sqttCompilerHash    = (static_cast<uint64>(settings.gpuProfilerSqttPipelineHashLo) |
-                                 (static_cast<uint64>(settings.gpuProfilerSqttPipelineHashHi) << 32));
-#else
         m_sqttCompilerHash    = settings.gpuProfilerSqttPipelineHash;
-#endif
 
         // TODO: Add support for 128-bit hashes
         m_sqttVsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttVsHashLo) |
@@ -200,6 +202,13 @@ Result Device::CommitSettingsAndInit()
     if ((result == Result::Success) && (settings.gpuProfilerGlobalPerfCounterConfigFile[0] != '\0'))
     {
         result = InitGlobalPerfCounterState();
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    if ((result == Result::Success) && (settings.gpuProfilerSpmPerfCounterConfigFile[0] != '\0'))
+    {
+        result = InitSpmTraceCounterState();
+        PAL_ASSERT(result == Result::Success);
     }
 
     return result;
@@ -220,15 +229,7 @@ Result Device::UpdateSettings()
     m_profilerSettings.gpuProfilerCacheFlushOnCounterCollection = false;
     m_profilerSettings.gpuProfilerGranularity = GpuProfilerGranularityDraw;
     m_profilerSettings.gpuProfilerSqThreadTraceTokenMask = 0xFFFF;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    m_profilerSettings.gpuProfilerSqttPipelineHashHi = 0;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    m_profilerSettings.gpuProfilerSqttPipelineHashLo = 0;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 298
     m_profilerSettings.gpuProfilerSqttPipelineHash = 0;
-#endif
     m_profilerSettings.gpuProfilerSqttVsHashHi = 0;
     m_profilerSettings.gpuProfilerSqttVsHashLo = 0;
     m_profilerSettings.gpuProfilerSqttHsHashHi = 0;
@@ -243,6 +244,11 @@ Result Device::UpdateSettings()
     m_profilerSettings.gpuProfilerSqttCsHashLo = 0;
     m_profilerSettings.gpuProfilerSqttMaxDraws = 0;
     m_profilerSettings.gpuProfilerSqttBufferSize = 1048576;
+
+    // Spm trace config.
+    memset(m_profilerSettings.gpuProfilerSpmPerfCounterConfigFile, 0, 256);
+    m_profilerSettings.gpuProfilerSpmTraceBufferSize = 1048576;
+    m_profilerSettings.gpuProfilerSpmTraceInterval   = 4096;
 
     // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
     const auto coreLayerSettings = GetGpuProfilerSettings();
@@ -333,7 +339,7 @@ Result Device::CreateCmdBuffer(
         PAL_ASSERT(pNextCmdBuffer != nullptr);
         pNextCmdBuffer->SetClientData(pPlacementAddr);
 
-        const bool enableSqtt = (GetProfilerMode() > GpuProfilerSqttOff);
+        const bool enableSqtt = IsThreadTraceEnabled();
 
         pCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer,
                                                                  this,
@@ -533,38 +539,24 @@ Result Device::CreateComputePipeline(
 }
 
 // =====================================================================================================================
-// Parse the setting-specified global perf counter config file to determine which global perf counters should be
-// captured.
-Result Device::InitGlobalPerfCounterState()
+// Helper function to extract perf counter info from config file and store in member variable according to
+// PerfCounterType.
+Result Device::ExtractPerfCounterInfo(
+    const PerfExperimentProperties& perfExpProps,
+    const PerfCounterType&          type,
+    const uint32                    numCounters,
+    File*                           pConfigFile,
+    PerfCounter*                    pPerfCounters)
 {
-    File configFile;
-    Result result = configFile.Open(ProfilerSettings().gpuProfilerGlobalPerfCounterConfigFile, FileAccessRead);
-
-    // Get performance experiment properties from the device in order to validate the requested counters.
-    PerfExperimentProperties perfExpProps;
-    if (result == Result::Success)
-    {
-        result = m_pNextLayer->GetPerfExperimentProperties(&perfExpProps);
-    }
-
-    if (result == Result::Success)
-    {
-        m_numGlobalPerfCounters = CountGlobalPerfCounters(&configFile);
-
-        if (m_numGlobalPerfCounters > 0)
-        {
-            m_pGlobalPerfCounters =
-                PAL_NEW_ARRAY(GlobalPerfCounter, m_numGlobalPerfCounters, GetPlatform(), AllocInternal);
-        }
-
-        uint32 counterIdx = 0;
-        while ((counterIdx < m_numGlobalPerfCounters) && (result == Result::Success))
+    Result result = Result::Success;
+     uint32 counterIdx = 0;
+        while ((counterIdx < numCounters) && (result == Result::Success))
         {
             constexpr size_t BufSize = 512;
             char buf[BufSize];
             size_t lineLength;
 
-            if (configFile.ReadLine(&buf[0], BufSize, &lineLength) == Result::Success)
+            if (pConfigFile->ReadLine(&buf[0], BufSize, &lineLength) == Result::Success)
             {
                 buf[lineLength] = '\0';
 
@@ -582,8 +574,8 @@ Result Device::InitGlobalPerfCounterState()
                     const int scanfRet = sscanf(&buf[0],
                                                 "%31s %u %127s",
                                                 &blockName[0],
-                                                &m_pGlobalPerfCounters[counterIdx].eventId,
-                                                &m_pGlobalPerfCounters[counterIdx].name[0]);
+                                                &pPerfCounters[counterIdx].eventId,
+                                                &pPerfCounters[counterIdx].name[0]);
 
                     if (scanfRet == 3)
                     {
@@ -592,9 +584,8 @@ Result Device::InitGlobalPerfCounterState()
 
                         if ((block != GpuBlock::Count) && perfExpProps.blocks[blockIdx].available)
                         {
-                            m_pGlobalPerfCounters[counterIdx].block         = block;
-                            m_pGlobalPerfCounters[counterIdx].instanceCount =
-                                perfExpProps.blocks[blockIdx].instanceCount;
+                            pPerfCounters[counterIdx].block         = block;
+                            pPerfCounters[counterIdx].instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
                             counterIdx++;
                         }
                         else
@@ -617,23 +608,26 @@ Result Device::InitGlobalPerfCounterState()
                 result = Result::ErrorInitializationFailed;
             }
         }
-    }
 
     if (result == Result::Success)
     {
         // Counts how many counters are enabled per hardware block.
         uint32 count[static_cast<size_t>(GpuBlock::Count)] = { };
 
-        for (uint32 i = 0; (i < m_numGlobalPerfCounters) && (result == Result::Success); i++)
+        for (uint32 i = 0; (i < numCounters) && (result == Result::Success); i++)
         {
-            const uint32 blockIdx = static_cast<uint32>(m_pGlobalPerfCounters[i].block);
+            const uint32 blockIdx = static_cast<uint32>(pPerfCounters[i].block);
 
-            if (++count[blockIdx] > perfExpProps.blocks[blockIdx].maxGlobalSharedCounters)
+            const uint32 maxCounters = (type == PerfCounterType::Global) ?
+                                       perfExpProps.blocks[blockIdx].maxGlobalSharedCounters :
+                                       perfExpProps.blocks[blockIdx].maxSpmCounters;
+
+            if (++count[blockIdx] > maxCounters)
             {
                 // Too many counters enabled for this block.
                 result = Result::ErrorInitializationFailed;
             }
-            else if (m_pGlobalPerfCounters[i].eventId > perfExpProps.blocks[blockIdx].maxEventId)
+            else if (pPerfCounters[i].eventId > perfExpProps.blocks[blockIdx].maxEventId)
             {
                 // Invalid event ID.
                 result = Result::ErrorInitializationFailed;
@@ -645,11 +639,49 @@ Result Device::InitGlobalPerfCounterState()
 }
 
 // =====================================================================================================================
+// Parse the setting-specified global perf counter config file to determine which global perf counters should be
+// captured.
+Result Device::InitGlobalPerfCounterState()
+{
+    File configFile;
+    Result result = configFile.Open(ProfilerSettings().gpuProfilerGlobalPerfCounterConfigFile, FileAccessRead);
+
+    // Get performance experiment properties from the device in order to validate the requested counters.
+    PerfExperimentProperties perfExpProps;
+    if (result == Result::Success)
+    {
+        result = m_pNextLayer->GetPerfExperimentProperties(&perfExpProps);
+    }
+
+    if (result == Result::Success)
+    {
+        m_numGlobalPerfCounters = CountPerfCounters(&configFile);
+
+        if (m_numGlobalPerfCounters > 0)
+        {
+            m_pGlobalPerfCounters =
+                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, m_numGlobalPerfCounters, GetPlatform(), AllocInternal);
+        }
+
+        if (m_pGlobalPerfCounters != nullptr)
+        {
+            result = ExtractPerfCounterInfo(perfExpProps,
+                                            PerfCounterType::Global,
+                                            m_numGlobalPerfCounters,
+                                            &configFile,
+                                            m_pGlobalPerfCounters);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Reads the specified global perf counter config file to determine how many global perf counters should be enabled.
-uint32 Device::CountGlobalPerfCounters(
+uint32 Device::CountPerfCounters(
     File* pFile)
 {
-    uint32 numGlobalPerfCounters = 0;
+    uint32 numPerfCounters = 0;
 
     constexpr size_t BufSize = 512;
     char buf[BufSize];
@@ -668,12 +700,51 @@ uint32 Device::CountGlobalPerfCounters(
         }
         else
         {
-            numGlobalPerfCounters++;
+            numPerfCounters++;
         }
     }
 
     pFile->Rewind();
-    return numGlobalPerfCounters;
+    return numPerfCounters;
+}
+
+// =====================================================================================================================
+// Configures streaming performance counters based on device support and number requested in config file.
+Result Device::InitSpmTraceCounterState()
+{
+    Result result = Result::Success;
+
+    File configFile;
+    result = configFile.Open(ProfilerSettings().gpuProfilerSpmPerfCounterConfigFile, FileAccessRead);
+
+    PerfExperimentProperties perfExpProps;
+    if (result == Result::Success)
+    {
+        result = m_pNextLayer->GetPerfExperimentProperties(&perfExpProps);
+    }
+
+    if (result == Result::Success)
+    {
+        m_numStreamingPerfCounters = CountPerfCounters(&configFile);
+
+        if (m_numStreamingPerfCounters > 0)
+        {
+            m_pStreamingPerfCounters =
+                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, m_numStreamingPerfCounters, GetPlatform(), AllocInternal);
+        }
+
+        if (m_pStreamingPerfCounters != nullptr)
+        {
+            result = ExtractPerfCounterInfo(perfExpProps,
+                                            PerfCounterType::Spm,
+                                            m_numStreamingPerfCounters,
+                                            &configFile,
+                                            m_pStreamingPerfCounters);
+        }
+    }
+
+    return result;
+
 }
 
 // =====================================================================================================================

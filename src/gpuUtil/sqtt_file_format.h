@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,6 +70,7 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,               /*!< A chunk containing the timings for queue events that occurred during the trace. */
     SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,                 /*!< A chunk containing the information required to correlate between clock domains. */
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                          /*!< A chunk containing the description of the CPU on which the trace was made. */
+    SQTT_FILE_CHUNK_TYPE_SPM_DB,                            /*!< A chunk containing the SPM trace data. */
 
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
@@ -450,6 +451,65 @@ typedef struct SqttFileChunkCpuInfo
     uint32_t            numPhysicalCores;      /*!< The number of physical cores in the cpu. */
     uint32_t            systemRamSize;         /*!< The size of system RAM in MB. */
 } SqttFileChunkCpuInfo;
+
+typedef enum SpmGpuBlock
+{
+    CPF = 0,
+    IA,
+    VGT,
+    PA,
+    SC,
+    SPI,
+    SQ,
+    SX,
+    TA,
+    TD,
+    TCP,
+    TCC,
+    TCA,
+    DB,
+    CB,
+    GDS,
+    SRBM,
+    GRBM,
+    GRBMSE,
+    RLC,
+    DMA,
+    MC,
+    CPG,
+    CPC,
+    WD,
+    TCS,
+    ATC,
+    ATCL2,
+    MCVML2,
+    EA,
+    RPB,
+    RMI,
+
+/*Gfx10 blocks*/
+    GE,
+    GL1A,
+    GL1C,
+    GL1CG,
+    GL2A,           // TCA is used in Gfx9, and changed to GL2A in Gfx10
+    GL2C,           // TCC is used in Gfx9, and changed to GL2C in Gfx10
+    COUNT
+} SpmGpuBlock;
+
+typedef struct SpmCounterInfo
+{
+    SpmGpuBlock   block;
+    uint32_t      instance;
+    uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
+} SpmCounterInfo;
+
+typedef struct SqttFileChunkSpmDb
+{
+    SqttFileChunkHeader header;
+    uint32_t            numTimestamps;          /*!<  Number of timestamps in this trace. */
+    uint32_t            numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+} SqttFileChunkSpmDb;
 
 /** A structure encapsulating the state of the SQTT file parser.
  */

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -130,12 +130,13 @@ protected:
             uint32 viewVaLocked          :  1; // Whether the view's VA range is locked and won't change. This will
                                                // always be set for buffer views.
             uint32 hasCmaskFmask         :  1; // set if the associated image contains fMask and cMask meta data
-            uint32 hasDcc                :  1; // set if the associated iamge contains DCC meta data
+            uint32 hasDcc                :  1; // set if the associated image contains DCC meta data
+            uint32 hasDccStateMetaData   :  1; // set if the associated image contains DCC state metadata.
             uint32 usesLoadRegIndexPkt   :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
             uint32 isDccDecompress       :  1; // Indicates if dcc metadata need to be set to decompress state.
             uint32 waitOnMetadataMipTail :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                // view object.
-            uint32 reserved              : 25;
+            uint32 reserved              : 24;
         };
 
         uint32 u32All;

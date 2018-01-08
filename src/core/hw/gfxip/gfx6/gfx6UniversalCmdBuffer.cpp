@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -255,8 +255,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
     }
 
-    m_cachedSettings.issueSqttMarkerEvent = ((settings.gpuProfilerMode > GpuProfilerSqttOff) ||
-                                             m_device.GetPlatform()->IsDevDriverProfilingEnabled());
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
+                                            m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
@@ -670,16 +672,14 @@ void UniversalCmdBuffer::SwitchGraphicsPipeline(
     // Write VS_OUT_CONFIG if the register changed or this is the first pipeline switch
     if ((pOldPipeline == nullptr) || (m_spiVsOutConfig.u32All != spiVsOutConfig.u32All))
     {
-        pDeCmdSpace =
-            m_deCmdStream.WriteSetOneContextReg<false>(mmSPI_VS_OUT_CONFIG, spiVsOutConfig.u32All, pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmSPI_VS_OUT_CONFIG, spiVsOutConfig.u32All, pDeCmdSpace);
         m_spiVsOutConfig = spiVsOutConfig;
     }
 
     // Write PS_IN_CONTROL if the register changed or this is the first pipeline switch
     if ((pOldPipeline == nullptr) || (m_spiPsInControl.u32All != spiPsInControl.u32All))
     {
-        pDeCmdSpace =
-            m_deCmdStream.WriteSetOneContextReg<false>(mmSPI_PS_IN_CONTROL, spiPsInControl.u32All, pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmSPI_PS_IN_CONTROL, spiPsInControl.u32All, pDeCmdSpace);
         m_spiPsInControl = spiPsInControl;
     }
 
@@ -838,11 +838,12 @@ void UniversalCmdBuffer::SwitchGraphicsPipeline(
         }
     }
 
-    const bool isViewIdEnableChanging = ((signature.viewIdRegAddr[0] != UserDataNotMapped) !=
-                                         (m_pSignatureGfx->viewIdRegAddr[0] != UserDataNotMapped));
+    const bool newViewInstancingEnable =        signature.viewIdRegAddr[0] != UserDataNotMapped;
+    const bool oldViewInstancingEnable = m_pSignatureGfx->viewIdRegAddr[0] != UserDataNotMapped;
+    const bool isViewIdEnableChanging  = newViewInstancingEnable != oldViewInstancingEnable;
     if (isViewIdEnableChanging)
     {
-        SwitchDrawFunctions((m_pSignatureGfx->viewIdRegAddr[0] != UserDataNotMapped));
+        SwitchDrawFunctions(newViewInstancingEnable);
     }
 
     if (m_primGroupOpt.windowSize != 0)
@@ -968,7 +969,7 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     m_graphicsState.samplePatternState.isLoad                        = false;
     m_graphicsState.samplePatternState.immediate                     = quadSamplePattern;
     m_graphicsState.samplePatternState.pGpuMemory                    = nullptr;
@@ -1085,19 +1086,13 @@ void UniversalCmdBuffer::CmdStoreMsaaQuadSamplePattern(
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     const IGpuMemory* pSrcGpuMemory,
-#else
-    const IGpuMemory& srcGpuMemory,
-#endif
     gpusize           srcMemOffset)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     m_graphicsState.samplePatternState.isLoad                        = true;
     m_graphicsState.samplePatternState.pGpuMemory                    = pSrcGpuMemory;
     m_graphicsState.samplePatternState.memOffset                     = srcMemOffset;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
-#endif
 
     LoadDataIndexPm4Img loadCentroidPriorityPm4Img  = {};
     LoadDataIndexPm4Img loadQuadSamplePatternPm4Img = {};
@@ -1109,12 +1104,7 @@ void UniversalCmdBuffer::CmdLoadMsaaQuadSamplePattern(
     // the CP uses that register offset for both the register address and to compute the final GPU address to
     // fetch from. The newer LOAD_CONTEXT_REG_INDEX packet does not add the register offset to the GPU address.
     bool usesLoadRegIndexPkt = m_device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt != 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     gpusize srcGpuMemoryAddr = pSrcGpuMemory->Desc().gpuVirtAddr + srcMemOffset;
-#else
-    gpusize srcGpuMemoryAddr = srcGpuMemory.Desc().gpuVirtAddr + srcMemOffset;
-#endif
     PAL_ASSERT((srcGpuMemoryAddr != 0) && ((srcGpuMemoryAddr & 0x3) == 0));
 
     // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
@@ -4203,8 +4193,8 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
-        pZMinMaxImg->zMin.f32All = viewport.minDepth;
-        pZMinMaxImg->zMax.f32All = viewport.maxDepth;
+        pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
+        pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
     }
 
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_SC_VPORT_ZMIN_0,
@@ -5093,7 +5083,7 @@ void UniversalCmdBuffer::PopGraphicsState()
         CmdBindMsaaState(m_graphicsRestoreState.pMsaaState);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     if (memcmp(&m_graphicsRestoreState.samplePatternState,
         &m_graphicsState.samplePatternState,
         sizeof(SamplePattern)) != 0)

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -100,17 +100,11 @@ union ShaderOptimizationStrategyFlags
         uint32 useScUnsafeConvertToF16    :  1; ///< SC option to attempt a potentially unsafe conversion of F32 to F16.
         uint32 removeNullParameterExports :  1; ///< If possible, null paramter exports will be optimized out of
                                                 ///  the compile primitive shader.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 291
         uint32 useScAggressiveHoist       :  1; ///< SC option to disable register pressure checking when evaluating a
                                                 ///  potential hoist of loop invariant.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 293
         uint32 useScXnackEnable           :  1; ///< SC option to enable XNack support if it is not already enabled
                                                 ///  due to intra-submit migration requirements.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 294
         uint32 useNonIeeeFpInstructions   :  1; ///< Use legacy non-ieee floating point instructions
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 357
         uint32 enabledPerformanceData     :  1; ///< Enables the compiler to generate extra instructions to gather
                                                 ///  various performance-related data.
@@ -127,14 +121,8 @@ union ShaderOptimizationStrategyFlags
         uint32 reserved                   : 16; ///< Reserved for future use.
 #elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 357
         uint32 reserved                   : 18; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 294
-        uint32 reserved                   : 19; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 293
-        uint32 reserved                   : 20; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 291
-        uint32 reserved                   : 21; ///< Reserved for future use.
 #else
-        uint32 reserved                   : 22; ///< Reserved for future use.
+        uint32 reserved                   : 19; ///< Reserved for future use.
 #endif
     };
     uint32 u32All;                   ///< Flags packed as 32-bit uint.
@@ -155,11 +143,9 @@ struct ShaderOptimizationStrategy
                                                             ///  will spill all client user data entries to memory)
                                                             ///  - ignored unless the userDataSpill flag is set.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 302
     uint32                          csTgPerCu;              ///< Override the number of threadgroups that a particular
                                                             ///  CS can run on, throttling it, to enable more graphics
                                                             ///  work to complete.
-#endif
 #endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 341

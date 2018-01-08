@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -260,9 +260,6 @@ enum class VcnIpLevel : uint32
     VcnIp1   = 0x1,
 };
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 285)
-#endif
-
 /// Specified video decode type
 enum class VideoDecodeType : uint32
 {
@@ -400,7 +397,6 @@ struct PalPublicSettings
     ///  Disables compilation of internal PAL shaders. It can be enabled only if a PAL client won't use any of PAL blit
     ///  functionalities on gfx/compute engines.
     bool disableResourceProcessingManager;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 363
     /// Controls app detect and image quality altering optimizations exposed by CCC.
     uint32 catalystAI;
     /// Controls texture filtering optimizations exposed by CCC.
@@ -417,7 +413,6 @@ struct PalPublicSettings
     /// Controls whether or not shaders should execute one atomic instruction per wave for UAV append/consume operations.
     /// If false, one atomic will be executed per thread.
     bool appendBufPerWaveAtomic;
-#endif
     ///  Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
     ///  color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
     ///  0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
@@ -529,9 +524,17 @@ struct DebugOverlaySettings
 /// Enum describing the supported granularity for the GPU profiler layer
 enum GpuProfilerGranularity : uint32
 {
-    GpuProfilerGranularityDraw = 0,
+    GpuProfilerGranularityDraw   = 0,
     GpuProfilerGranularityCmdBuf = 1,
-    GpuProfilerGranularityFrame = 2,
+    GpuProfilerGranularityFrame  = 2,
+};
+
+/// Enum describing trace modes available in Gpu Profiler layer.
+enum GpuProfilerTraceModeFlags : uint32
+{
+    GpuProfilerTraceDisabled =  0x0, ///< All tracing is disabled.
+    GpuProfilerTraceSpm      =  0x1, ///< Streaming performance counter trace flag.
+    GpuProfilerTraceSqtt     =  0x2  ///< SQ thread trace flag.
 };
 
 /// GPU profiler layer runtime settings
@@ -547,15 +550,7 @@ struct GpuProfilerSettings
     bool                      gpuProfilerCacheFlushOnCounterCollection;
     GpuProfilerGranularity    gpuProfilerGranularity;
     uint32                    gpuProfilerSqThreadTraceTokenMask;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    uint32                    gpuProfilerSqttPipelineHashHi;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    uint32                    gpuProfilerSqttPipelineHashLo;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 298
     uint64                     gpuProfilerSqttPipelineHash;
-#endif
     uint32                     gpuProfilerSqttVsHashHi;
     uint32                     gpuProfilerSqttVsHashLo;
     uint32                     gpuProfilerSqttHsHashHi;
@@ -570,6 +565,13 @@ struct GpuProfilerSettings
     uint32                     gpuProfilerSqttCsHashLo;
     uint32                     gpuProfilerSqttMaxDraws;
     size_t                     gpuProfilerSqttBufferSize;
+
+    uint32                     gpuProfilerTraceModeMask;
+
+    // Streaming performance counter specific settings
+    char                       gpuProfilerSpmPerfCounterConfigFile[MaxFileNameStrLen];
+    uint32                     gpuProfilerSpmTraceInterval;
+    size_t                     gpuProfilerSpmTraceBufferSize;
 };
 
 /// Interface logger layer runtime settings
@@ -828,11 +830,6 @@ struct DeviceProperties
         {
             struct
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 300
-                /// OS supports dynamic GPU memory migration.  I.e., GPU memory may be moved between allowed heaps
-                /// between submits.
-                uint32 migrationSupport        :  1;
-#endif
                 /// Indicates support for virtual GPU memory allocations.  @see IQueue::RemapVirtualMemoryPages.
                 uint32 virtualRemappingSupport :  1;
 
@@ -865,9 +862,15 @@ struct DeviceProperties
                 /// Indicates KMD has enabled HBCC(High Bandwidth Cache Controller) page migration support.
                 /// This means shaders must be compiled such that all memory clauses can be replayed in response to an XNACK.
                 uint32 pageMigrationEnabled    :  1;
-
+                /// Placeholder.
+                uint32 placeholder0            :  1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 300
                 /// Reserved for future use.
                 uint32 reserved                : 22;
+#else
+                /// Reserved for future use.
+                uint32 reserved                : 21;
+#endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -980,16 +983,9 @@ struct DeviceProperties
             struct
             {
                 uint32 support8bitIndices                       : 1; ///< Hardware natively supports 8bit indices
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 281
-                uint32 supportMinPrecisionInstruction           : 1; ///< Hardware supports 16-bit floating point,
-                                                                     ///  10-bit uint precision shader instructions.
-                uint32 supportMinPrecisionFetch                 : 1; ///< Hardware supports 16-bit floating point
-                                                                     ///  texture fetches.
-#else
                 uint32 support16BitInstructions                 : 1; ///< Hardware supports FP16 and INT16 instructions
                 uint32 supportDoubleRate16BitInstructions       : 1; ///< Hardware supports double rate packed math
                 uint32 supportFp16Fetch                         : 1; ///< Hardware supports FP16 texture fetches
-#endif
                 uint32 supportConservativeRasterization         : 1; ///< Hardware supports conservative rasterization
                 uint32 supportImplicitPrimitiveShader           : 1; ///< Device supports implicit compiling of the
                                                                      ///  hardware vertex shader as a primitive
@@ -1018,26 +1014,14 @@ struct DeviceProperties
                                                                      ///  separately.
 #endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 287)
                 uint32 placeholder0                             : 1; ///< Reserved for future hardware.
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 289)
                 uint32 placeholder1                             : 1; ///< Reserved for future hardware.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
                 uint32 reserved                                 : 15; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 301
-                uint32 reserved                                 : 14; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 289
-                uint32 reserved                                 : 15; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 287
-                uint32 reserved                                 : 16; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 281
-                uint32 reserved                                 : 17; ///< Reserved for future use.
 #else
-                uint32 reserved                                 : 18; ///< Reserved for future use.
+                uint32 reserved                                 : 14; ///< Reserved for future use.
 #endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
@@ -1372,7 +1356,8 @@ struct GpuMemoryHeapProperties
             uint32 holdsPinned      :  1;  ///< GPU memory objects created by IDevice::CreatePinnedGpuMemory() are in
                                            ///  this heap.
             uint32 shareable        :  1;  ///< GPU memory objects in this heap can be shared between multiple devices.
-            uint32 reserved         : 26;  ///< Reserved for future use.
+            uint32 placeholder0     :  1;  ///< Placeholder.
+            uint32 reserved         : 25;  ///< Reserved for future use.
         };
         uint32 u32All;                     ///< Flags packed as 32-bit uint.
     } flags;                               ///< GPU memory heap property flags.
@@ -1699,11 +1684,7 @@ struct SamplerInfo
             uint32 truncateCoords      : 1;  ///< If set then hardware will truncate mantissa instead of
                                              ///  rounding to nearest even in float point to fixed point
                                              ///  texture coordinate conversion
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 284
             uint32 seamlessCubeMapFiltering : 1;  ///< If set then there's filtering across the edges of the cube map.
-#else
-            uint32 cubeMap             : 1;  ///< Cube map sampler
-#endif
             uint32 prtBlendZeroMode    : 1;  ///< Allow unmapped PRT texels to be treated as zero and blended with
                                              ///  mapped texels. If set to 0, the destination of the sample instruction
                                              ///  is written with all 0s when TFE == 0; if set to 1, Treat unmapped
@@ -4003,9 +3984,7 @@ public:
     ///
     /// @returns Size, in bytes, of system memory required for an IGpuEvent object.
     virtual size_t GetGpuEventSize(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= PAL_CLIENT_INTERFACE_MAJOR_VERSION_GPU_EVENT_INTERNAL_MEMORY
         const GpuEventCreateInfo& createInfo,
-#endif
         Result*                   pResult) const = 0;
 
     /// Creates a GPU event object.

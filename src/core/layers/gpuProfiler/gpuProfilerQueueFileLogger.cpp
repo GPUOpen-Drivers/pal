@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -263,7 +263,6 @@ void Queue::OpenLogFile(
 
     m_logFile.Close();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
     const char* pEngineTypeStrings[] =
     {
         "Gfx",
@@ -276,9 +275,7 @@ void Queue::OpenLogFile(
         "HpGfxOnly",
 #endif
     };
-#else
-    const char* pEngineTypeStrings[] = { "Gfx", "Ace", "XAce", "Dma", "Timer", "Vce", "Uvd" };
-#endif
+
     static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,
                  "Missing entry in pEngineTypeStrings.");
 
@@ -339,7 +336,7 @@ void Queue::OpenLogFile(
         }
     }
 
-    if (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff)
+    if (m_pDevice->IsThreadTraceEnabled())
     {
         m_logFile.Printf("ThreadTraceId, ");
     }
@@ -356,7 +353,6 @@ void Queue::OpenSqttFile(
     File*          pFile,
     const LogItem& logItem)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
     const char* pEngineTypeStrings[] =
     {
         "Gfx",
@@ -369,9 +365,7 @@ void Queue::OpenSqttFile(
         "HpGfxOnly",
 #endif
     };
-#else
-    const char* pEngineTypeStrings[] = { "Gfx", "Ace", "XAce", "Dma", "Timer", "Vce", "Uvd" };
-#endif
+
     static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,
         "Missing entry in pEngineTypeStrings.");
 
@@ -420,6 +414,27 @@ void Queue::OpenSqttFile(
              shaderEngineId,
              computeUnitId,
              crcInfo);
+
+    Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
+    PAL_ASSERT(result == Result::Success);
+}
+
+// =====================================================================================================================
+// Opens a .csv file for writing spm trace data, mainly used for ThreadTraceViewer.
+void Queue::OpenSpmFile(
+    Util::File*    pFile,
+    const LogItem& logItem)
+{
+    // frameAAAAAA.csv, where:
+    //     - AAAAAA: Frame number.
+    char logFilePath[512];
+    Snprintf(&logFilePath[0],
+             sizeof(logFilePath),
+             "%s/%s/frame%06u_cb%03u_spm.csv",
+             m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
+             static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName(),
+             m_curLogFrame,
+             m_curLogCmdBufIdx);
 
     Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
     PAL_ASSERT(result == Result::Success);
@@ -568,7 +583,7 @@ void Queue::OutputCmdBufCallToFile(
 
     OutputPipelineStatsToFile(logItem);
     OutputGlobalPerfCountersToFile(logItem);
-    OutputSqThreadTraceToFile(logItem);
+    OutputTraceDataToFile(logItem);
 
     m_logFile.Printf("\n");
 }
@@ -617,7 +632,7 @@ void Queue::OutputFrameToFile(
             }
         }
 
-        if (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff)
+        if (m_pDevice->IsThreadTraceEnabled())
         {
             m_logFile.Printf("ThreadTraceId, ");
         }
@@ -629,7 +644,7 @@ void Queue::OutputFrameToFile(
 
     OutputTimestampsToFile(logItem);
     OutputGlobalPerfCountersToFile(logItem);
-    OutputSqThreadTraceToFile(logItem);
+    OutputTraceDataToFile(logItem);
 
     m_logFile.Printf("\n");
     m_logFile.Flush();
@@ -725,9 +740,9 @@ void Queue::OutputPipelineStatsToFile(
 void Queue::OutputGlobalPerfCountersToFile(
     const LogItem& logItem)
 {
-    const auto&              settings              = m_pDevice->ProfilerSettings();
-    const GlobalPerfCounter* pGlobalPerfCounters   = m_pDevice->GlobalPerfCounters();
-    const uint32             numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
+    const auto&        settings              = m_pDevice->ProfilerSettings();
+    const PerfCounter* pGlobalPerfCounters   = m_pDevice->GlobalPerfCounters();
+    const uint32       numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
     if ((numGlobalPerfCounters > 0) && HasValidGpaSample(&logItem, false))
@@ -811,77 +826,86 @@ void Queue::OutputGlobalPerfCountersToFile(
 }
 
 // =====================================================================================================================
-// Dumps the SQ thread trace data from this experiment out to file.
-void Queue::OutputSqThreadTraceToFile(
+// Dumps the SQ thread trace data and/or spm trace data from this experiment out to file.
+void Queue::OutputTraceDataToFile(
     const LogItem& logItem)
 {
     const auto& settings = m_pDevice->ProfilerSettings();
 
-    if (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff)
-    {
+    if ((m_pDevice->GetProfilerMode() > GpuProfilerSqttOff) &&
+        (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        if (HasValidGpaSample(&logItem, false))
+        (HasValidGpaSample(&logItem, false)))
 #else
-        if (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace))
+        (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace)))
 #endif
+    {
+        // Output trace data in RGP format.
+        if ((m_pDevice->GetProfilerMode() == GpuProfilerSqttRgp))
         {
-            if (m_pDevice->GetProfilerMode() == GpuProfilerSqttRgp)
+            if (settings.gpuProfilerGranularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
-                if (settings.gpuProfilerGranularity == GpuProfilerGranularityFrame)
-                {
-                    OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
-                    m_logFile.Printf("%u, ", m_curLogFrame);
-                }
-                else
-                {
-                    m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP, ");
-                }
+                OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
+                m_logFile.Printf("%u, ", m_curLogFrame);
             }
             else
             {
-                void*  pResult     = nullptr;
-                void*  pResultBase = nullptr;
-                size_t dataSize    = 0;
-                Result result      = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
-                                                                     &dataSize,
-                                                                     pResult);
-                PAL_ASSERT(dataSize != 0);
+                m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP, ");
+            }
+        }
+        else if (m_pDevice->GetProfilerMode() == GpuProfilerSqttThreadTraceView)
+        {
+            // Output trace data in thread trace viewer format.
+            // Output separate files for thread trace data (.out) and spm trace data (.csv) for ThreadTraceViewer.
+            void*  pResult     = nullptr;
+            void*  pResultBase = nullptr;
+            size_t dataSize    = 0;
+            Result result      = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
+                                                                 &dataSize,
+                                                                 pResult);
+            PAL_ASSERT(dataSize != 0);
 
-                if (result == Result::Success)
+            if (result == Result::Success)
+            {
+                pResult = static_cast<void*>(PAL_MALLOC(dataSize, m_pDevice->GetPlatform(), AllocInternal));
+                if (pResult == nullptr)
                 {
-                    pResult = static_cast<void*>(PAL_MALLOC(dataSize, m_pDevice->GetPlatform(), AllocInternal));
-                    if (pResult == nullptr)
-                    {
-                        result = Result::ErrorOutOfMemory;
-                    }
-                    else
-                    {
-                        pResultBase = pResult;
-                    }
+                    result = Result::ErrorOutOfMemory;
                 }
-
-                if (result == Result::Success)
+                else
                 {
-                    result = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
-                                                                     &dataSize,
-                                                                     pResult);
+                    pResultBase = pResult;
                 }
+            }
 
-                // Below crack open the .rgp blob in the GpuProfiler to translate it to ThreadTraceView format
-                if (result == Result::Success)
+            if (result == Result::Success)
+            {
+                result = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
+                                                                 &dataSize,
+                                                                 pResult);
+            }
+
+            // Below crack open the .rgp blob in the GpuProfiler to translate it to ThreadTraceView format
+            if (result == Result::Success)
+            {
+                // Mandatory chunks: The following chunks are expected to be in the rgp file whether or not thread
+                // trace is enabled.
+                SqttFileHeader* pFileHeader = static_cast<SqttFileHeader*>(pResult);
+                pResult = Util::VoidPtrInc(pResult, pFileHeader->chunkOffset);
+
+                SqttFileChunkCpuInfo* pCpuInfo = static_cast<SqttFileChunkCpuInfo*>(pResult);
+                pResult = Util::VoidPtrInc(pResult, pCpuInfo->header.sizeInBytes);
+
+                SqttFileChunkAsicInfo* pGpuInfo = static_cast<SqttFileChunkAsicInfo*>(pResult);
+                pResult = Util::VoidPtrInc(pResult, pGpuInfo->header.sizeInBytes);
+
+                SqttFileChunkApiInfo* pApiInfo = static_cast<SqttFileChunkApiInfo*>(pResult);
+                pResult = Util::VoidPtrInc(pResult, pApiInfo->header.sizeInBytes);
+
+                if (m_pDevice->IsThreadTraceEnabled())
                 {
-                    SqttFileHeader* pFileHeader = static_cast<SqttFileHeader*>(pResult);
-                    pResult = Util::VoidPtrInc(pResult, pFileHeader->chunkOffset);
-
-                    SqttFileChunkCpuInfo* pCpuInfo = static_cast<SqttFileChunkCpuInfo*>(pResult);
-                    pResult = Util::VoidPtrInc(pResult, pCpuInfo->header.sizeInBytes);
-
-                    SqttFileChunkAsicInfo* pGpuInfo = static_cast<SqttFileChunkAsicInfo*>(pResult);
-                    pResult = Util::VoidPtrInc(pResult, pGpuInfo->header.sizeInBytes);
-
-                    SqttFileChunkApiInfo* pApiInfo = static_cast<SqttFileChunkApiInfo*>(pResult);
-                    pResult = Util::VoidPtrInc(pResult, pApiInfo->header.sizeInBytes);
-
+                    // Optional chunks: The following chunks are expected to be in the RGP file only if thread trace
+                    // is enabled.
                     for (uint32 i = 0; i < m_shaderEngineCount; i++)
                     {
                         SqttFileChunkSqttDesc* pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
@@ -893,6 +917,8 @@ void Queue::OutputSqThreadTraceToFile(
                         File logFile;
                         const uint32 shaderEngine = pDesc->shaderEngineIndex;
                         const uint32 computeUnit = pDesc->v1.computeUnitIndex;
+
+                        // Output thread trace data.
                         OpenSqttFile(shaderEngine, computeUnit, m_curLogSqttIdx, &logFile, logItem);
 
                         // The ThreadTraceView app expects the raw data to be dumped with one 16-bit hex per line.
@@ -909,26 +935,102 @@ void Queue::OutputSqThreadTraceToFile(
                         pResult = Util::VoidPtrInc(pResult, pData->size);
                     }
 
+                    // Skip the shader ISA db chunk if present. Thread trace viewer doesn't need this info.
+                    SqttFileChunkIsaDatabase* pShaderDb = static_cast<SqttFileChunkIsaDatabase*>(pResult);
+                    pResult = Util::VoidPtrInc(pResult, sizeof(SqttFileChunkIsaDatabase));
+
+                    if (pShaderDb->recordCount > 0)
+                    {
+                        pResult = Util::VoidPtrInc(pResult, (pShaderDb->size - sizeof(SqttFileChunkIsaDatabase)));
+                    }
+
                     m_logFile.Printf("%u, ", m_curLogSqttIdx++);
                 }
 
-                PAL_SAFE_FREE(pResultBase, m_pDevice->GetPlatform());
+                // Spm trace chunk: Begin output of Spm trace data as a separate .csv file
+                if (m_pDevice->IsSpmTraceEnabled())
+                {
+                    File spmFile;
+                    OpenSpmFile(&spmFile, logItem);
+
+                    SqttFileChunkSpmDb* pSpmDbChunk = static_cast<SqttFileChunkSpmDb*>(pResult);
+                    spmFile.Printf("Time,");
+
+                    // ThreadTraceViewer output: print the first line consisting of the counter names.
+                    for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
+                    {
+                        const auto& counter = m_pDevice->StreamingPerfCounters()[i];
+                        spmFile.Printf("%s,", &counter.name[0]);
+                    }
+
+                    uint64* pTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pResult, sizeof(SqttFileChunkSpmDb)));
+
+                    const uint64 counterInfoOffset = sizeof(SqttFileChunkSpmDb) +
+                                                     (pSpmDbChunk->numTimestamps * sizeof(gpusize)); // num timestmaps
+
+                    const uint64 counterDataOffset = counterInfoOffset +
+                                    (pSpmDbChunk->numSpmCounterInfo * sizeof(SpmCounterInfo)); // num SpmCounterInfo(s)
+
+                    // Amount of data for one counter.
+                    const gpusize counterDataSize = pSpmDbChunk->numTimestamps * sizeof(uint16);
+
+                    // Points to the first SpmCounterInfo.
+                    SpmCounterInfo* pCounterInfoStart =
+                        static_cast<SpmCounterInfo*>(Util::VoidPtrInc(pResult, static_cast<size_t>(counterInfoOffset)));
+
+                    SpmCounterInfo* pCounterInfo = nullptr; // Used to iterate over SpmCounterInfo[]
+                    const uint16* pCounterData   = nullptr; // Used to iterate over counter data values.
+
+                    // ThreadTraceViewer output: print the frame number
+                    uint32 cbStartTime = 0;
+                    uint32 cbEndTime = 1;
+                    spmFile.Printf("\nframe%u_cb%u,%u,%u\n", m_curLogFrame, m_curLogCmdBufIdx, cbStartTime, cbEndTime);
+
+                    gpusize firstTimestamp = pTimestamp[0];
+
+                    // Note: ThreadTraceViewer crashes (1) On providing the actual timestamps which is a 64 bit number,
+                    // (2) If the first timestamp is 0, hence we are skipping the first timestamp and data!
+                    // (3) potentially if the timestamp interval is too small.
+                    for (uint32 sample = 1; sample < pSpmDbChunk->numTimestamps; ++sample)
+                    {
+                        // ThreadTraceViewer output: print the timestamp.
+                        spmFile.Printf("%u,", (pTimestamp[sample] - firstTimestamp));
+
+                        pCounterInfo = pCounterInfoStart;
+
+                        for (uint32 counter = 0; counter < m_pDevice->NumStreamingPerfCounters(); ++counter)
+                        {
+                            pCounterData =
+                                static_cast<uint16*>(Util::VoidPtrInc(pResult, pCounterInfo[counter].dataOffset));
+
+                            // ThreadTraceViewer output: print the counter value for this sample.
+                            spmFile.Printf("%u,", pCounterData[sample]);
+                        }
+
+                        spmFile.Printf("\n");
+                    }
+
+                    spmFile.Close();
+                }
+
             }
+
+            PAL_SAFE_FREE(pResultBase, m_pDevice->GetPlatform());
         }
-        else if (logItem.errors.perfExpOutOfMemory != 0)
-        {
-            // TODO: this error is set under none case yet.
-            // GpaSession::BeginSample hits an ASSERT if this error happens.
-            m_logFile.Printf("ERROR: OUT OF MEMORY, ");
-        }
-        else if (logItem.errors.perfExpUnsupported != 0)
-        {
-            m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED, ");
-        }
-        else
-        {
-            m_logFile.Printf(", ");
-        }
+    }
+    else if (logItem.errors.perfExpOutOfMemory != 0)
+    {
+        // TODO: this error is set under none case yet.
+        // GpaSession::BeginSample hits an ASSERT if this error happens.
+        m_logFile.Printf("ERROR: OUT OF MEMORY, ");
+    }
+    else if (logItem.errors.perfExpUnsupported != 0)
+    {
+        m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED, ");
+    }
+    else
+    {
+        m_logFile.Printf(", ");
     }
 }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -251,7 +251,6 @@ public:
 
     virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) = 0;
     virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) = 0;
-    virtual bool InstallTrapHandlersInQueue() const = 0;
     virtual const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const = 0;
     virtual const BoundGpuMemory& TrapBuffer(PipelineBindPoint pipelineType) const  = 0;
 
@@ -459,6 +458,10 @@ public:
 
     // Helper function that disables a specific CU mask within the UMD managed range.
     uint16 GetCuEnableMask(uint16 disabledCuMmask, uint32 enabledCuMaskSetting) const;
+
+    // Helper function telling whether an image created with the specified creation image has all of its
+    // potential view formats compatible with DCC.
+    virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const = 0;
 
     // Init and get the cmd buffer that increment memory of frame count and write to register.
     Result InitAndGetFrameCountCmdBuffer(QueueType queueType, EngineType engineType, GfxCmdBuffer** ppBuffer);

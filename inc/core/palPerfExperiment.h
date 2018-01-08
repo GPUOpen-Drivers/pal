@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -78,8 +78,8 @@ enum class GpuBlock : uint32
 /// Distinguishes between global and streaming performance monitor (SPM) counters.
 enum class PerfCounterType : uint32
 {
-    Global = 0x0,
-    Spm    = 0x1,
+    Global = 0x0, ///< Represents the traditional summary perf counters.
+    Spm    = 0x1, ///< Represents streaming performance counters.
     Count
 };
 
@@ -177,6 +177,16 @@ struct PerfCounterInfo
     } optionValues;
 };
 
+/// Specifies properties for setting up a streaming performance counter trace. Input structure to
+/// IPerfExperiment::AddSpmTrace().
+struct SpmTraceCreateInfo
+{
+    uint32                 spmInterval;       ///< Interval between each sample in terms of GPU sclks. Minimum of 32.
+    gpusize                ringSize;          ///< Size of the SPM output ring buffer in bytes.
+    uint32                 numPerfCounters;   ///< Number of performance counters to be collected in this trace.
+    const PerfCounterInfo* pPerfCounterInfos; ///< Array of size numPerfCounters of PerfCounterInfo(s).
+};
+
 /// Reports layout of a single global perf counter sample.
 struct GlobalSampleLayout
 {
@@ -198,8 +208,12 @@ struct GlobalCounterLayout
 };
 
 /// Specifies properties for a perf trace being added to a perf experiment.  Input structure to
-/// IPerfExperiment::AddTrace().
+/// IPerfExperiment::AddThreadTrace().
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
 struct PerfTraceInfo
+#else
+struct ThreadTraceInfo
+#endif
 {
     PerfTraceType              traceType;    ///< Type of trace to add.
     uint32                     instance;     ///< Selected trace instance.
@@ -224,11 +238,12 @@ struct PerfTraceInfo
             uint32 threadTraceShaderTypeMask :  1;
             uint32 threadTraceIssueMask      :  1;
             uint32 threadTraceWrapBuffer     :  1;
-
-            // SPM trace only options
-            uint32 spmTraceSampleInterval    :  1;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
+            uint32 spmTraceSampleInterval    : 1;
             uint32 reserved                  : 18;
+#else
+            uint32 reserved                  : 19;
+#endif
         };
         uint32 u32All;
     } optionFlags;
@@ -251,9 +266,10 @@ struct PerfTraceInfo
         PerfExperimentShaderFlags threadTraceShaderTypeMask;
         uint32                    threadTraceIssueMask;
         bool                      threadTraceWrapBuffer;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
         // SPM trace only options
         uint32                    spmTraceSampleInterval;
+#endif
     } optionValues;
 };
 
@@ -283,25 +299,39 @@ struct ThreadTraceLayout
     ThreadTraceSeLayout traces[1];   ///< ThreadTraceSeLayout repeated (traceCount - 1) times.
 };
 
-/// Layout for a single sample of SPM trace data.
-struct SpmSampleLayout
+/// Represents all the segments in the spm trace sample. Global segment contains all the counter data for the blocks
+/// that are outside the shader engines.
+enum class SpmDataSegmentType : uint32
 {
-    GpuBlock block;     ///< GPU block type that created this data.
-    uint32   instance;  ///< Which instance of that GPU block created the data.
-    uint32   slot;      ///< Varies in meaning from block to block.
-    uint32   eventId;   ///< Sampled event ID.
-    gpusize  offset;    ///< Byte offset from the beginning of the segment.
+    Se0,
+    Se1,
+    Se2,
+    Se3,
+    Global,
+    Count
 };
 
-/// Layout for data written by the GPU for an SPM trace.
+/// Represents all data pertaining to a single spm counter instance.
+struct SpmCounterData
+{
+    SpmDataSegmentType segment;  ///< Segment this counter belongs to (global, Se0, Se1 etc).
+    gpusize            offset;   ///< Offset within the segment where the counter data lies.
+    GpuBlock           gpuBlock; ///< The gpu block this counter instance belongs to.
+    uint32             instance; ///< The global instance number of this counter.
+    uint32             eventId;  ///< The event that was tracked by this counter.
+};
+
+/// Represents all information required for reading contents of SpmTrace results buffer. The caller must provide
+/// enough memory for storing (numCounters-1) * sizeof(SpmCounterData), following this structure.
 struct SpmTraceLayout
 {
-    gpusize         dataOffset;   ///< Offset in bytes to the start of this data from the beginning of the perf
-                                  ///  experiment GPU memory.
-    gpusize         dataSize;     ///< Size in bytes of the data.  Multiple of segmentSize.
-    gpusize         segmentSize;  ///< Size of a single data segment.
-    uint32          sampleCount;  ///< Number of counter samples in a segment.
-    SpmSampleLayout samples[1];   ///< SpmSampleLayout repeated (sampleCount - 1) additional times.
+    gpusize        offset;            ///< Offset into the buffer where the spm trace data begins.
+    gpusize        wptrOffset;        ///< Offset of the dword that has the size of spm data written by the HW.
+    gpusize        sampleOffset;      ///< Offset into the buffer where the first sample data begins.
+    uint32         sampleSizeInBytes; ///< Size of all segments in one sample.
+    uint32         segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Count)]; ///< Individual segment sizes.
+    uint32         numCounters;       ///< Number of counters for which spm trace was requested by the client.
+    SpmCounterData counterData[1];    ///< Contains numCounters - 1 CounterInfo
 };
 
 /// Specifies properties for creation of an @ref IPerfExperiment object.  Input structure to
@@ -360,13 +390,26 @@ public:
     virtual Result GetGlobalCounterLayout(
         GlobalCounterLayout* pLayout) const = 0;
 
-    /// Addes the specified thread or SPM trace to be recorded as part of this perf experiment.
+    /// Addes the specified thread trace to be recorded as part of this perf experiment.
     ///
     /// @param [in] traceInfo Specifies what type of trace to record, which block instance to trace, and options, etc.
     ///
     /// @returns Success if the trace was successfully added to the experiment, otherwise an appropriate error code.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result AddTrace(
         const PerfTraceInfo& traceInfo) = 0;
+#else
+    virtual Result AddThreadTrace(
+        const ThreadTraceInfo& traceInfo) = 0;
+#endif
+
+    /// Adds the specified SpmTrace to be recorded as part of this perf experiment.
+    ///
+    /// @param [in] spmCreateInfo Specifies the parameters of the spm trace and provides the list of perf counters.
+    ///
+    /// @returns Success if the spm trace was successfully added to the experiment, otherwise an appropriate error code.
+    virtual Result AddSpmTrace(
+        const SpmTraceCreateInfo& spmCreateInfo) = 0;
 
     /// Queries the layout of thread trace results in memory for this perf experiment.
     ///
@@ -377,10 +420,10 @@ public:
     virtual Result GetThreadTraceLayout(
         ThreadTraceLayout* pLayout) const = 0;
 
-    /// Queries the layout of streaming performance monitor trace results in memory for this perf experiment.
+    /// Queries the layout of streaming counter trace results in memory for this perf experiment.
     ///
-    /// @param [out] pLayout Layout describing how the results of each SPM trace will be written to GPU memory when
-    ///                      this perf experiment is executed.  Should correspond with counters added via AddTrace().
+    /// @param [out] pLayout Layout describing the layout of the streaming counter trace results in the resulting
+    ///                      GPU memory once this perf experiment is executed.
     ///
     /// @returns Success if the layout was successfully returned in pLayout, otherwise an appropriate error code.
     virtual Result GetSpmTraceLayout(

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -138,8 +138,12 @@ PerfCounter::PerfCounter(
         // NOTE: The MC doesn't follow the normal pattern for counters. The SE index is the MC channel. Also, the
         // perfCountLoAddr and perfCountHiAddr represent the 32bit values for the first and second channels
         // respectively, and not the low and high halves of a 64bit value as with the other blocks' perf counters.
-        m_perfCountLoAddr = (InstanceIdToSe() == 0) ? perfInfo.block[blockIdx].regInfo[m_slot].perfCountLoAddr
-                                                    : perfInfo.block[blockIdx].regInfo[m_slot].perfCountHiAddr;
+        const uint32 seIndex = PerfCounter::InstanceIdToSe(m_device.Parent()->ChipProperties().gfx6.perfCounterInfo,
+                                                           m_info.block,
+                                                           m_info.instance);
+
+        m_perfCountLoAddr =  (seIndex == 0) ? perfInfo.block[blockIdx].regInfo[m_slot].perfCountLoAddr
+                                              : perfInfo.block[blockIdx].regInfo[m_slot].perfCountHiAddr;
         m_perfCountSrcSel = COPY_DATA_SEL_SRC_SYS_PERF_COUNTER;
     }
     else if ((m_info.block == GpuBlock::Dma) && (gfxIpLevel != GfxIpLevel::GfxIp6))
@@ -201,27 +205,30 @@ PerfCounter::PerfCounter(
 
 // =====================================================================================================================
 // Compute the Shader Engine associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToSe() const
+uint32 PerfCounter::InstanceIdToSe(
+    const Gfx6PerfCounterInfo& perfInfo, // [in] Info on block SE, SH, instance configuration of ASIC.
+    const GpuBlock&            block,    // [in] Block this counter belongs to.
+    uint32                     instance) // [in] Instance number of block.
 {
-    const Gfx6PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
-    const uint32               blockNum = static_cast<uint32>(m_info.block);
+    const uint32 blockNum = static_cast<uint32>(block);
 
     const uint32 instancesPerEngine = (perfInfo.block[blockNum].numInstances *
                                        perfInfo.block[blockNum].numShaderArrays);
 
     // SE is the truncated result of dividing our instanceId by the total instances per SE.
-    return (m_info.instance / instancesPerEngine);
+    return (instance / instancesPerEngine);
 }
-
 // =====================================================================================================================
 // Compute the Shader Array associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToSh() const
+uint32 PerfCounter::InstanceIdToSh(
+    const Gfx6PerfCounterInfo& perfInfo, // [in] Info on block SE, SH, instance configuration of ASIC.
+    const GpuBlock&            block,    // [in] Block this counter belongs to.
+    uint32                     instance) // [in] Instance number of block.
 {
-    const Gfx6PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
-    const uint32               blockNum = static_cast<uint32>(m_info.block);
+    const uint32 blockNum = static_cast<uint32>(block);
 
     // Compute the total shader arrays in this instanceId.
-    const uint32 arraysInInstanceId = (m_info.instance / perfInfo.block[blockNum].numInstances);
+    const uint32 arraysInInstanceId = (instance / perfInfo.block[blockNum].numInstances);
 
     // SH is  the modulus of the total arrays in our instanceId and number of arrays per SE.
     return (arraysInInstanceId % perfInfo.block[blockNum].numShaderArrays);
@@ -229,13 +236,15 @@ uint32 PerfCounter::InstanceIdToSh() const
 
 // =====================================================================================================================
 // Compute the Instance Index associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToInstance() const
+uint32 PerfCounter::InstanceIdToInstance(
+    const Gfx6PerfCounterInfo& perfInfo, // [in] Info on block SE, SH, instance configuration of ASIC.
+    const GpuBlock&            block,    // [in] Block this counter belongs to.
+    uint32                     instance) // [in] Instance number of block.
 {
-    const Gfx6PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
-    const uint32               blockNum = static_cast<uint32>(m_info.block);
+    const uint32 blockNum = static_cast<uint32>(block);
 
     // 'Local' instance index is the modulus of the global instance index and the number of instances per shader array.
-    return (m_info.instance % perfInfo.block[blockNum].numInstances);
+    return (instance % perfInfo.block[blockNum].numInstances);
 }
 
 // =====================================================================================================================
@@ -248,7 +257,9 @@ void PerfCounter::SetupMcSeqRegisters(
     PAL_ASSERT(m_info.block == GpuBlock::Mc);
 
     // For the MC block, the "SE" corresponds to the MC channel.
-    const uint32 channelId = InstanceIdToSe();
+    const uint32 channelId = PerfCounter::InstanceIdToSe(m_device.Parent()->ChipProperties().gfx6.perfCounterInfo,
+                                                         m_info.block,
+                                                         m_info.instance);
     PAL_ASSERT(channelId < NumMcChannels);
 
     // NOTE: The event select fields of the MC registers in MC_SEQ_PERF_SEQ_CTL only have four bits per event. However,
@@ -372,10 +383,12 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
 {
     if (IsIndexed())
     {
-        regGRBM_GFX_INDEX grbmGfxIndex = {};
-        grbmGfxIndex.bits.SE_INDEX       = InstanceIdToSe();
-        grbmGfxIndex.bits.SH_INDEX       = InstanceIdToSh();
-        grbmGfxIndex.bits.INSTANCE_INDEX = InstanceIdToInstance();
+        const Gfx6PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
+
+        regGRBM_GFX_INDEX grbmGfxIndex   = {};
+        grbmGfxIndex.bits.SE_INDEX       = GetSeIndex(perfInfo, m_info.block, m_info.instance);
+        grbmGfxIndex.bits.SH_INDEX       = InstanceIdToSh(perfInfo, m_info.block, m_info.instance);
+        grbmGfxIndex.bits.INSTANCE_INDEX = InstanceIdToInstance(perfInfo, m_info.block, m_info.instance);
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                      grbmGfxIndex.u32All,
@@ -396,7 +409,10 @@ uint32* PerfCounter::WriteGrbmGfxBroadcastSe(
     if (IsIndexed())
     {
         regGRBM_GFX_INDEX grbmGfxIndex = {};
-        grbmGfxIndex.bits.SE_INDEX                  = InstanceIdToSe();
+        grbmGfxIndex.bits.SE_INDEX                  = PerfCounter::InstanceIdToSe(
+                                                          m_device.Parent()->ChipProperties().gfx6.perfCounterInfo,
+                                                          m_info.block,
+                                                          m_info.instance);
         grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
         grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
@@ -445,7 +461,8 @@ uint32* PerfCounter::WriteSetupCommands(
     {
         // NOTE: Special handling needed for GRBMSE: the select register addresses for the second instance is stored
         //       in perfSel1RegAddr.
-        const uint32 regAddress = (InstanceIdToInstance() == 0) ? primaryReg : secondaryReg;
+        const uint32 regAddress = (InstanceIdToInstance(perfInfo, m_info.block, m_info.instance) == 0)
+                                   ? primaryReg : secondaryReg;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(regAddress, m_selectReg[0], pCmdSpace);
     }
@@ -506,7 +523,7 @@ uint32* PerfCounter::WriteSampleCommands(
 
     if (m_info.block == GpuBlock::Mc)
     {
-        uint32 mcd = InstanceIdToInstance();
+        uint32 mcd = InstanceIdToInstance(perfInfo, m_info.block, m_info.instance);
 
         if (IsTonga(*m_device.Parent()) &&
             (chipProps.gfx6.numMcdTiles == 4))
@@ -561,6 +578,203 @@ uint32* PerfCounter::WriteSampleCommands(
     }
 
     return pCmdSpace;
+}
+
+// =====================================================================================================================
+StreamingPerfCounter::StreamingPerfCounter(
+    const Device& device,
+    GpuBlock      block,
+    uint32        instance,
+    uint32        slot)
+    :
+    Pal::StreamingPerfCounter(device.Parent(), block, instance, slot),
+    m_device(device)
+{
+    // Initialize parent's performance counter flags.
+    m_flags.u16All = 0;
+    switch (block)
+    {
+    // Each of the following blocks are indexed for reads and writes. Fall-throughs
+    // are all intentional.
+    case GpuBlock::Cb:
+    case GpuBlock::Db:
+    case GpuBlock::Pa:
+    case GpuBlock::Sc:
+    case GpuBlock::Sx:
+    case GpuBlock::Spi:
+    case GpuBlock::Sq:
+    case GpuBlock::Ta:
+    case GpuBlock::Td:
+    case GpuBlock::Tcp:
+    case GpuBlock::Tcc:
+    case GpuBlock::Tca:
+    case GpuBlock::Gds:
+    case GpuBlock::Vgt:
+        m_flags.isIndexed = 1;
+        break;
+    default:
+        break;
+    }
+
+}
+
+// =====================================================================================================================
+// Adds an event to this StreamingPerfCounter. One StreamingPerfCounter can support upto 4x16-bit streaming counters.
+// Fails if the number of sub-slots is maxed out in this HW counter.
+Result StreamingPerfCounter::AddEvent(
+    const GpuBlock& block,
+    uint32          eventId)
+{
+    Result result = Result::ErrorOutOfGpuMemory; // Assume that all sub-slots are used.
+
+    if (block == GpuBlock::Sq)
+    {
+        // For SQ, each of the 16 64-bit summary counters can support only one 16-bit streaming counter.
+        if (m_eventId[0] == InvalidEventId)
+        {
+            m_eventId[0] = eventId;
+            result       = Result::Success;
+        }
+    }
+    else
+    {
+        for (uint32 i = 0; i < MaxNumStreamingCtrPerSummaryCtr; ++i)
+        {
+            // Check for a free streaming counter slot.
+            if (m_eventId[i] == InvalidEventId)
+            {
+                m_eventId[i] = eventId;
+                result       = Result::Success;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Returns true if any of the events governing perfcounter_select0 register is valid.
+bool StreamingPerfCounter::IsSelect0RegisterValid() const
+{
+    // SQ counters have only one event id per StreamingPerfCounter.
+    return ((m_eventId[0] != StreamingPerfCounter::InvalidEventId) ||
+            ((m_eventId[1] != StreamingPerfCounter::InvalidEventId) && (m_block != GpuBlock::Sq)));
+}
+
+// =====================================================================================================================
+// Returns true if any of the events governing perfcounter_select1 field is valid.
+bool StreamingPerfCounter::IsSelect1RegisterValid() const
+{
+    // SQ counters don't have a select1 register.
+    PAL_ASSERT(m_block != GpuBlock::Sq);
+
+    return ((m_eventId[2] != StreamingPerfCounter::InvalidEventId) ||
+            (m_eventId[3] != StreamingPerfCounter::InvalidEventId));
+}
+
+// =====================================================================================================================
+// Writes commands necessary to enable this perf counter. This is specific to the gfx6 HW layer.
+uint32* StreamingPerfCounter::WriteSetupCommands(
+    Pal::CmdStream* pCmdStream,
+    uint32*         pCmdSpace)
+{
+    CmdStream* pHwlCmdStream = static_cast<CmdStream*>(pCmdStream);
+
+    const auto& perfInfo      = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
+    const uint32 blockIdx     = static_cast<uint32>(m_block);
+    const uint32 primaryReg   = perfInfo.block[blockIdx].regInfo[m_slot].perfSel0RegAddr;
+    const uint32 secondaryReg = perfInfo.block[blockIdx].regInfo[m_slot].perfSel1RegAddr;
+    const uint32 seIndex      = PerfCounter::InstanceIdToSe(perfInfo, m_block, m_instance);
+    const uint32 shIndex      = PerfCounter::InstanceIdToSh(perfInfo, m_block, m_instance);
+    const uint32 instance     = PerfCounter::InstanceIdToInstance(perfInfo, m_block, m_instance);
+
+    // If this is an indexed counter, we need to modify the GRBM_GFX_INDEX.
+    if (m_flags.isIndexed)
+    {
+        regGRBM_GFX_INDEX grbmGfxIndex   = {};
+        grbmGfxIndex.bits.SE_INDEX       = seIndex;
+        grbmGfxIndex.bits.SH_INDEX       = shIndex;
+        grbmGfxIndex.bits.INSTANCE_INDEX = instance;
+
+        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                        grbmGfxIndex.u32All,
+                                                        pCmdSpace);
+    }
+
+    // Write the PERFCOUNTERx_SELECT register corresponding to valid eventIds.
+    if (IsSelect0RegisterValid())
+    {
+        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(primaryReg, GetSelect0RegisterData(), pCmdSpace);
+    }
+
+    // Gfx6 SQ blocks have only one SELECT register.
+    if (m_block != GpuBlock::Sq)
+    {
+        if (IsSelect1RegisterValid())
+        {
+            pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(secondaryReg, GetSelect1RegisterData(), pCmdSpace);
+        }
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32 StreamingPerfCounter::GetSelect0RegisterData() const
+{
+    // All blocks with streaming support except SQ are of the following format
+    // PERF_SEL0 - 9:0
+    // PERF_SEL1 - 19:10
+    // CNTR_MODE - 23:20
+
+    uint32 selectReg = 0;
+
+    // PERF_SEL field of perfcounterx_select register.
+    if (m_eventId[0] != InvalidEventId)
+    {
+        selectReg |= m_eventId[0];
+    }
+
+    // PERF_SEL1 field for perfcounterx_select register. SQ perfcounterx_select registers don't have a PERF_SEL1 field.
+    if ((m_eventId[1] != InvalidEventId) && (m_block != GpuBlock::Sq))
+    {
+        selectReg |= (m_eventId[1] << 10);
+    }
+
+    // The CNTR_MODE is set to clamp for now.
+    selectReg |= (1 << 20);
+
+    return selectReg;
+}
+
+// =====================================================================================================================
+uint32 StreamingPerfCounter::GetSelect1RegisterData() const
+{
+    uint32 select1Reg = 0;
+
+    // All blocks with streaming support except SQ are of the following format
+    // PERF_SEL0 - 9:0
+    // PERF_SEL1 - 19:10
+
+    // Some blocks have more options in the higher bits. Support for these may be added later.
+
+    // SQ counters don't have a select1 reg.
+    PAL_ASSERT(m_block != GpuBlock::Sq);
+
+    // PERF_SEL0 field
+    if (m_eventId[2] != InvalidEventId)
+    {
+        select1Reg |= m_eventId[2];
+    }
+
+    // PERF_SEL1 field
+    if (m_eventId[3] != InvalidEventId)
+    {
+        select1Reg |= (m_eventId[3] << 10);
+    }
+
+    return select1Reg;
 }
 
 } // Gfx6

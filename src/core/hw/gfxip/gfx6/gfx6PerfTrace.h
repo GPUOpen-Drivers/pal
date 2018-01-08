@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,11 +39,51 @@ namespace Gfx6
 class CmdStream;
 
 // =====================================================================================================================
+// Provides Gfx6-specific functionality for SPM traces.
+class SpmTrace : public Pal::SpmTrace
+{
+public:
+    explicit SpmTrace(const Device* pDevice);
+    ~SpmTrace();
+
+    virtual uint32* WriteStartCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+    virtual uint32* WriteEndCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+    virtual void CalculateSegmentSize() override;
+    virtual void CalculateMuxRam() override;
+    virtual uint32* WriteSetupCommands(gpusize ringBaseAddress, Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+    virtual Result GetTraceLayout(SpmTraceLayout* pLayout) const override;
+    virtual Result Init(const SpmTraceCreateInfo& createInfo) override;
+
+    gpusize GetRingSize() const { return static_cast<gpusize>(m_ringSize.bits.RING_BASE_SIZE); }
+
+private:
+    uint32 GetMuxselRamDwords(uint32 seIndex) const;
+
+    const Device& m_device;
+
+    regRLC_SPM_PERFMON_RING_BASE_HI__CI__VI m_ringBaseHi;
+    regRLC_SPM_PERFMON_RING_BASE_LO__CI__VI m_ringBaseLo;
+    regRLC_SPM_PERFMON_RING_SIZE__CI__VI    m_ringSize;
+    regRLC_SPM_PERFMON_CNTL__CI__VI         m_spmPerfmonCntl;
+    regRLC_SPM_PERFMON_SEGMENT_SIZE__CI__VI m_segmentSize;    // Describes layout and number of 256-bit chunks of data
+                                                              // per sample.
+
+    MuxselRamData m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Count)];
+
+    PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);
+    PAL_DISALLOW_COPY_AND_ASSIGN(SpmTrace);
+};
+
+// =====================================================================================================================
 // Provides Gfx6-specific functionality for thread traces.
 class ThreadTrace : public Pal::ThreadTrace
 {
 public:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     ThreadTrace(const Device* pDevice, const PerfTraceInfo& info);
+#else
+    ThreadTrace(const Device* pDevice, const ThreadTraceInfo& info);
+#endif
 
     /// Destructor has nothing to do.
     ~ThreadTrace() {}
@@ -72,7 +112,11 @@ public:
         uint32*             pCmdSpace) const;
 
 protected:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     void SetOptions(const PerfTraceInfo& info);
+#else
+    void SetOptions(const ThreadTraceInfo& info);
+#endif
 
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;

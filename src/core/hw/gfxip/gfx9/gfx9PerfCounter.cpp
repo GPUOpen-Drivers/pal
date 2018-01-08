@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -241,18 +241,18 @@ PerfCounter::PerfCounter(
 
 // =====================================================================================================================
 // Compute the Shader Engine associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToSe() const
+uint32 PerfCounter::InstanceIdToSe(
+    const Gfx9PerfCounterInfo& perfInfo,
+    const GpuBlock&            block,
+    uint32                     instance)
 {
-    const auto& gfx9Info      = m_device.Parent()->ChipProperties().gfx9;
-    const auto& perfBlockInfo = gfx9Info.perfCounterInfo.block[static_cast<uint32>(m_info.block)];
+    const uint32 blockNum = static_cast<uint32>(block);
 
     // SE is the truncated result of dividing our instanceId by the total instances per SE.
-    const uint32 instancesPerEngine = (perfBlockInfo.numInstances * perfBlockInfo.numShaderArrays);
-    const uint32 seIdx              = m_info.instance / instancesPerEngine;
+    const uint32 instancesPerEngine = (perfInfo.block[blockNum].numInstances *
+                                       perfInfo.block[blockNum].numShaderArrays);
 
-    PAL_ASSERT(seIdx < gfx9Info.numShaderEngines);
-
-    return seIdx;
+    return instance / instancesPerEngine;
 }
 
 // =====================================================================================================================
@@ -339,8 +339,14 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
     if (IsIndexed())
     {
 
+        const uint32 seIndex = PerfCounter::InstanceIdToSe(
+                                               m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
+                                               m_info.block,
+                                               m_info.instance);
+        PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
+
         regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
-        grbmGfxIndex.bits.SE_INDEX       = InstanceIdToSe();
+        grbmGfxIndex.bits.SE_INDEX       = seIndex;
         grbmGfxIndex.bits.SH_INDEX       = InstanceIdToSh();
         grbmGfxIndex.bits.INSTANCE_INDEX = InstanceIdToInstance();
 
@@ -363,8 +369,13 @@ uint32* PerfCounter::WriteGrbmGfxBroadcastSe(
     if (IsIndexed())
     {
 
+        const uint32 seIndex = PerfCounter::InstanceIdToSe(m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
+                                                           m_info.block,
+                                                           m_info.instance);
+        PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
+
         regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
-        grbmGfxIndex.bits.SE_INDEX                  = InstanceIdToSe();
+        grbmGfxIndex.bits.SE_INDEX                  = seIndex;
         grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
         grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
@@ -499,6 +510,40 @@ uint32* PerfCounter::WriteSampleCommands(
         }
     }
 
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+StreamingPerfCounter::StreamingPerfCounter(
+    const Device& device,
+    GpuBlock      block,
+    uint32        instance,
+    uint32        slot
+    )
+    :
+    Pal::StreamingPerfCounter(device.Parent(), block, instance, slot),
+    m_device(device)
+{
+
+}
+
+// =====================================================================================================================
+Result StreamingPerfCounter::AddEvent(
+    const GpuBlock& block,
+    uint32          eventId)
+{
+    Result result = Result::Success;
+    PAL_NOT_IMPLEMENTED();
+
+    return result;
+}
+
+// =====================================================================================================================
+// Writes commands necessary to enable this perf counter. This is specific to the gfx9 HW layer.
+uint32* StreamingPerfCounter::WriteSetupCommands(
+    Pal::CmdStream* pCmdStream,
+    uint32*         pCmdSpace)
+{
     return pCmdSpace;
 }
 

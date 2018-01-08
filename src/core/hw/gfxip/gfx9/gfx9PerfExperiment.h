@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@
 
 #include "core/perfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
+#include "palHashMap.h"
 
 namespace Pal
 {
@@ -56,7 +57,7 @@ struct PerfCtrBlockUsage
     struct
     {
         // Usage status for each counter belonging to this particular instance.
-        PerfCtrUseStatus  counter[Gfx9MaxCountersPerBlock];
+        PerfCtrUseStatus  counter[MaxCountersPerBlock];
     }  instance[PerfCtrInfo::MaxNumBlockInstances];   // Usage status for each instance of this GPU block
 };
 
@@ -107,7 +108,12 @@ protected:
     virtual ~PerfExperiment() {}
 
     virtual Result CreateCounter(const PerfCounterInfo& info, Pal::PerfCounter** ppCounter) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
     virtual Result CreateThreadTrace(const PerfTraceInfo& info) override;
+#else
+    virtual Result CreateThreadTrace(const ThreadTraceInfo& info) override;
+#endif
+    virtual Result CreateSpmTrace(const SpmTraceCreateInfo& info) override;
 
 private:
     void InitBlockUsage();

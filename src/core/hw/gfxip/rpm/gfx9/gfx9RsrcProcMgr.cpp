@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1203,7 +1203,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
     {
         // Fid the lookup table view for specified mip level
         BufferViewInfo hTileLookupTableBuferView = {};
-        dstImage.BuildMedaDataLookupTableBufferView(&hTileLookupTableBuferView, mipLevel);
+        dstImage.BuildMetadataLookupTableBufferView(&hTileLookupTableBuferView, mipLevel);
         pParentDev->CreateUntypedBufferViewSrds(1, &hTileLookupTableBuferView, &bufferSrds[0]);
 
         const auto&   hTileMipInfo = pBaseHtile->GetAddrMipInfo(mipLevel);
@@ -1291,34 +1291,6 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
 }
 
 // =====================================================================================================================
-const Pal::ComputePipeline* RsrcProcMgr::GetCmdGenerationPipeline(
-    const Pal::IndirectCmdGenerator& generator,
-    const CmdBuffer&                 cmdBuffer
-    ) const
-{
-    RpmComputePipeline pipeline = RpmComputePipeline::Count;
-
-    switch (generator.Type())
-    {
-    case GeneratorType::Draw:
-    case GeneratorType::DrawIndexed:
-        PAL_ASSERT(cmdBuffer.GetEngineType() == EngineTypeUniversal);
-        pipeline = RpmComputePipeline::Gfx9GenerateCmdDraw;
-        break;
-
-    case GeneratorType::Dispatch:
-        pipeline = RpmComputePipeline::Gfx9GenerateCmdDispatch;
-        break;
-
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-
-    return GetPipeline(pipeline);
-}
-
-// =====================================================================================================================
 // Returns the image aspect that corresponds to the supplied base address.
 ImageAspect RsrcProcMgr::DecodeImageViewSrdAspect(
     const Pal::Image&  image,
@@ -1373,7 +1345,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -1477,7 +1449,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     else
     {
         // Do the expand the legacy way.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pSamplePattern, range);
 #else
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
@@ -1761,11 +1733,11 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
             srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[1], &bufferSrds[1]);
 
             // Src htile lookup table
-            pGfxSrcImage->BuildMedaDataLookupTableBufferView(&bufferView[2], 0);
+            pGfxSrcImage->BuildMetadataLookupTableBufferView(&bufferView[2], 0);
             srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[2], &bufferSrds[2]);
 
             // Dst htile lookup table
-            pGfxDstImage->BuildMedaDataLookupTableBufferView(&bufferView[3], dstMipLevel);
+            pGfxDstImage->BuildMetadataLookupTableBufferView(&bufferView[3], dstMipLevel);
             dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[3], &bufferSrds[3]);
 
             static const uint32 HtileTexelAlign = 8;
@@ -2043,22 +2015,23 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-                    metaDataClearFlags |=
+                    const uint32 currentClearFlag =
                         (pRanges[idx].startSubres.aspect == ImageAspect::Depth) ? HtileAspectDepth : HtileAspectStencil;
+                    metaDataClearFlags |= currentClearFlag;
 
                     const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
                         pCmdBuffer->GetGfxCmdBufState().packetPredicate);
 
                     uint32* pCmdSpace = pCmdStream->ReserveCommands();
                     pCmdSpace = gfx9Image.UpdateDepthClearMetaData(pRanges[idx],
-                                                                   metaDataClearFlags,
+                                                                   currentClearFlag,
                                                                    depth,
                                                                    stencil,
                                                                    packetPredicate,
                                                                    pCmdSpace);
 
                     // Update the metadata for the waTcCompatZRange workaround
-                    if (gfx9Image.HasWaTcCompatZRangeMetaData() && ((metaDataClearFlags & HtileAspectDepth) != 0))
+                    if (gfx9Image.HasWaTcCompatZRangeMetaData() && ((currentClearFlag & HtileAspectDepth) != 0))
                     {
                         pCmdSpace = gfx9Image.UpdateWaTcCompatZRangeMetaData(pRanges[idx],
                                                                             depth,
@@ -2923,7 +2896,7 @@ void RsrcProcMgr::DccDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -2984,11 +2957,7 @@ void RsrcProcMgr::DccDecompress(
                              *image.Parent(),
                              range,
                              *pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
                              pSamplePattern,
-#else
-                             pQuadSamplePattern,
-#endif
                              RpmGfxPipeline::DccDecompress,
                              metaDataAddr);
 #endif
@@ -3015,7 +2984,7 @@ void RsrcProcMgr::FastClearEliminate(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -3047,13 +3016,8 @@ void RsrcProcMgr::FastClearEliminate(
     const gpusize metaDataAddr = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pSamplePattern, RpmGfxPipeline::FastClearElim, metaDataAddr);
-#else
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pQuadSamplePattern, RpmGfxPipeline::FastClearElim, metaDataAddr);
-#endif
 #endif
 
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
@@ -3256,7 +3220,7 @@ void RsrcProcMgr::FmaskDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     const SamplePattern*         pSamplePattern,
 #else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -3274,12 +3238,9 @@ void RsrcProcMgr::FmaskDecompress(
 #elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 280
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
 #else
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
+                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
 #endif
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
@@ -4581,6 +4542,34 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
     {
         dstImage.CpuProcessHtileEq(range, htileValue, htileMask);
     }
+}
+
+// =====================================================================================================================
+const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
+    const Pal::IndirectCmdGenerator& generator,
+    const CmdBuffer&                 cmdBuffer
+    ) const
+{
+    RpmComputePipeline pipeline = RpmComputePipeline::Count;
+
+    switch (generator.Type())
+    {
+    case GeneratorType::Draw:
+    case GeneratorType::DrawIndexed:
+        PAL_ASSERT(cmdBuffer.GetEngineType() == EngineTypeUniversal);
+        pipeline = RpmComputePipeline::Gfx9GenerateCmdDraw;
+        break;
+
+    case GeneratorType::Dispatch:
+        pipeline = RpmComputePipeline::Gfx9GenerateCmdDispatch;
+        break;
+
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return GetPipeline(pipeline);
 }
 
 // =====================================================================================================================

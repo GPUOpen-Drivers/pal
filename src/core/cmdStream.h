@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -297,13 +297,6 @@ private:
     // postamble which was pre-reserved using m_cmdSpaceDwordPadding.
     virtual void BeginCurrentChunk() { }
     virtual void EndCurrentChunk(bool atEndOfStream) { }
-
-    // Gives subclasses the ability to apply command optimizations at commit time. If true is returned it means that an
-    // optimized version of pSrcBuffer has been stored in pDstBuffer. If false is returned it means the implementer
-    // declined to do any optimization in which case the caller must do what is necessary to commit the commands.
-    // Note that pSrcBuffer and pDstBuffer may point to the same buffer and that pNumDwords contains the ammount of
-    // space used in pSrcBuffer. If true is returned then pNumDwords returns the ammount of space used in pDstBuffer.
-    virtual bool OptimizedCommit(const uint32* pSrcBuffer, uint32* pDstBuffer, uint32* pNumDwords) { return false; }
 
     void TrackNestedChunks(const ChunkRefList& chunkList);
     void ResetNestedChunks();

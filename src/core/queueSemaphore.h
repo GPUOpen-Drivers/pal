@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -52,11 +52,7 @@ public:
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo);
     virtual Result OpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 290
     virtual OsExternalHandle ExportExternalHandle() const;
-#else
-    virtual OsExternalHandle ExportExternalHandle() const;
-#endif
 
     static Result ValidateInit(const Device* pDevice, const QueueSemaphoreCreateInfo& createInfo);
     static Result ValidateOpen(const Device* pDevice, const QueueSemaphoreOpenInfo& openInfo);

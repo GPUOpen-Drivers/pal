@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -288,41 +288,84 @@ Result Image::Finalize(
     gpusize*           pGpuMemSize,
     gpusize*           pGpuMemAlignment)
 {
-    const Gfx6PalSettings&         settings        = GetGfx6Settings(m_device);
-    const auto*const               pPublicSettings = m_device.GetPublicSettings();
-    const SubResourceInfo*const    pBaseSubResInfo = Parent()->SubresourceInfo(0);
-    const AddrMgr1::TileInfo*const pBaseTileInfo   = AddrMgr1::GetTileInfo(Parent(), 0);
+    const Gfx6PalSettings&         settings          = GetGfx6Settings(m_device);
+    const auto*const               pPublicSettings   = m_device.GetPublicSettings();
+    const SubResourceInfo*const    pBaseSubResInfo   = Parent()->SubresourceInfo(0);
+    const AddrMgr1::TileInfo*const pBaseTileInfo     = AddrMgr1::GetTileInfo(Parent(), 0);
+    const SharedMetadataInfo&      sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
+    const bool                     useSharedMetadata = m_pImageInfo->internalCreateInfo.flags.useSharedMetadata;
 
-    // Determine which Mask RAM objects are required for this Image (if any).
-    const bool useDcc   = ((dccUnsupported == false) &&
-                           Gfx6Dcc::UseDccForImage(m_device,
-                                                   *this,
-                                                   AddrMgr1::AddrTileModeFromHwArrayMode(pBaseTileInfo->tileMode),
-                                                   AddrMgr1::AddrTileTypeFromHwMicroTileMode(pBaseTileInfo->tileType),
-                                                   pBaseSubResInfo->flags.supportMetaDataTexFetch));
-    const bool useHtile = Gfx6Htile::UseHtileForImage(m_device, *this, pBaseSubResInfo->flags.supportMetaDataTexFetch);
-    const bool useCmask = Gfx6Cmask::UseCmaskForImage(m_device, *this, useDcc);
-    const bool useFmask = Gfx6Fmask::UseFmaskForImage(m_device, *this);
+    bool useDcc   = false;
+    bool useHtile = false;
+    bool useCmask = false;
+    bool useFmask = false;
+
+    Result result = Result::Success;
+
+    if (useSharedMetadata)
+    {
+        useDcc   = (sharedMetadata.dccOffset != 0);
+        useHtile = (sharedMetadata.htileOffset != 0);
+        useCmask = (sharedMetadata.cmaskOffset != 0);
+        useFmask = (sharedMetadata.fmaskOffset != 0);
+
+        // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset != 0))
+        {
+            useDcc = false;
+            result = Result::ErrorNotShareable;
+        }
+
+        if (useHtile && (sharedMetadata.fastClearMetaDataOffset != 0))
+        {
+            useHtile = false;
+            result = Result::ErrorNotShareable;
+        }
+    }
+    else
+    {
+        // Determine which Mask RAM objects are required for this Image (if any).
+        useDcc   = ((dccUnsupported == false) &&
+                    Gfx6Dcc::UseDccForImage(m_device,
+                                            *this,
+                                            AddrMgr1::AddrTileModeFromHwArrayMode(pBaseTileInfo->tileMode),
+                                            AddrMgr1::AddrTileTypeFromHwMicroTileMode(pBaseTileInfo->tileType),
+                                            pBaseSubResInfo->flags.supportMetaDataTexFetch));
+        useHtile = Gfx6Htile::UseHtileForImage(m_device, *this, pBaseSubResInfo->flags.supportMetaDataTexFetch);
+        useCmask = Gfx6Cmask::UseCmaskForImage(m_device, *this, useDcc);
+        useFmask = Gfx6Fmask::UseFmaskForImage(m_device, *this);
+    }
 
     // Also determine if we need any metadata for these mask RAM objects.
-    bool needsFastColorClearMetaData = false;
-    bool needsFastDepthClearMetaData = false;
-    bool needsDccStateMetaData       = false;
+    bool needsFastColorClearMetaData   = false;
+    bool needsFastDepthClearMetaData   = false;
+    bool needsDccStateMetaData         = false;
+    bool needsWaTcCompatZRangeMetaData = false;
 
     // Start out by assuming we can decompress any TC-compatible subresource using compute Queues. This may be
     // overridden later.
     bool allowComputeDecompress = (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0);
 
     // Initialize DCC:
-    Result result = Result::Success;
     if (useDcc)
     {
         m_pDcc = PAL_NEW_ARRAY(Gfx6Dcc, m_createInfo.mipLevels, m_device.GetPlatform(), SystemAllocType::AllocObject);
         if (m_pDcc != nullptr)
         {
+            gpusize mipMemOffset   = 0;
+            gpusize totalMemOffset = 0;
+
             // Store current memory offset
-            gpusize mipMemOffset      = *pGpuMemSize;
-            gpusize totalMemOffset    = *pGpuMemSize;
+            if (useSharedMetadata)
+            {
+                mipMemOffset      = sharedMetadata.dccOffset;
+                totalMemOffset    = sharedMetadata.dccOffset;
+            }
+            else
+            {
+                mipMemOffset      = *pGpuMemSize;
+                totalMemOffset    = *pGpuMemSize;
+            }
             gpusize totalDccSizeAvail = 0;
 
             // First calculate the total DCC memory needed by this mip chain.
@@ -391,7 +434,7 @@ Result Image::Finalize(
                 // for the entire image in this case.
                 //
                 // Note that if some mip level is not contiguous then neither are any smaller mip levels so we can just
-                //check the last mip level for contiguous memory.
+                // check the last mip level for contiguous memory.
                 if ((m_createInfo.flags.perSubresInit != 0) &&
                     (m_pDcc[m_createInfo.mipLevels - 1].ContiguousSubresMem() == false))
                 {
@@ -414,10 +457,11 @@ Result Image::Finalize(
                     needsFastColorClearMetaData = true;
 
                     // We also need the DCC state metadata when DCC is enabled.
-                    needsDccStateMetaData = true;
+                    needsDccStateMetaData = useSharedMetadata ?
+                                            (sharedMetadata.dccStateMetaDataOffset != 0) : true;
 
                     // The total DCC memory offset equals the current size of this image's GPU memory.
-                    *pGpuMemSize = totalMemOffset;
+                    *pGpuMemSize = useSharedMetadata ? Max(totalMemOffset, *pGpuMemSize) : totalMemOffset;
 
                     // It's possible for the metadata allocation to require more alignment than the base allocation.
                     // Bump up the required alignment of the app-provided allocation if necessary.
@@ -448,9 +492,10 @@ Result Image::Finalize(
             const bool supportsStencil = m_device.SupportsStencil(m_createInfo.swizzledFormat.format,
                                                                   m_createInfo.tiling);
 
-            uint32 interleavedMipLevel = m_createInfo.mipLevels;
+            gpusize memOffset = useSharedMetadata ? sharedMetadata.htileOffset : *pGpuMemSize;
 
-            bool mipSlicesInterleaved = false;
+            uint32 interleavedMipLevel = m_createInfo.mipLevels;
+            bool mipSlicesInterleaved  = false;
             for (uint32 mip = 0; ((mip < m_createInfo.mipLevels) && (result == Result::Success)); ++mip)
             {
                 if (mip > interleavedMipLevel)
@@ -480,7 +525,7 @@ Result Image::Finalize(
                     }
                 }
 
-                result = m_pHtile[mip].Init(m_device, *this, mip, pGpuMemSize);
+                result = m_pHtile[mip].Init(m_device, *this, mip, &memOffset);
 
                 if (result == Result::Success)
                 {
@@ -509,6 +554,17 @@ Result Image::Finalize(
                     else
                     {
                         allowComputeDecompress = false;
+                    }
+
+                    // Set up the GPU offset for the waTcCompatZRange metadata
+                    needsWaTcCompatZRangeMetaData = (m_device.GetGfxDevice()->WaTcCompatZRange()   &&
+                                                     (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
+
+                    if (useSharedMetadata          &&
+                        needsWaTcCompatZRangeMetaData &&
+                        (sharedMetadata.flags.hasWaTcCompatZRange == false))
+                    {
+                        result = Result::ErrorNotShareable;
                     }
                 }
             }
@@ -565,6 +621,8 @@ Result Image::Finalize(
 
                     needsFastDepthClearMetaData = true;
 
+                    *pGpuMemSize = useSharedMetadata ? Max(memOffset, *pGpuMemSize) : memOffset;
+
                     // It's possible for the metadata allocation to require more alignment than the base allocation.
                     // Bump up the required alignment of the app-provided allocation if necessary.
                     *pGpuMemAlignment = Max(*pGpuMemAlignment, m_pHtile[0].Alignment());
@@ -589,9 +647,11 @@ Result Image::Finalize(
                                  SystemAllocType::AllocObject);
         if (m_pCmask != nullptr)
         {
+            gpusize memOffset = useSharedMetadata ? sharedMetadata.cmaskOffset : *pGpuMemSize;
+
             for (uint32 mip = 0; ((mip < m_createInfo.mipLevels) && (result == Result::Success)); ++mip)
             {
-                result = m_pCmask[mip].Init(m_device, *this, mip, pGpuMemSize);
+                result = m_pCmask[mip].Init(m_device, *this, mip, &memOffset);
 
                 if ((result == Result::Success) && m_pCmask[mip].UseFastClear())
                 {
@@ -605,6 +665,8 @@ Result Image::Finalize(
             {
                 needsFastColorClearMetaData = true;
             }
+
+            *pGpuMemSize = useSharedMetadata ? Max(memOffset, *pGpuMemSize) : memOffset;
 
             // It's possible for the metadata allocation to require more alignment than the base allocation. Bump up the
             // required alignment of the app-provided allocation if necessary.
@@ -628,9 +690,11 @@ Result Image::Finalize(
                                  SystemAllocType::AllocObject);
         if (m_pFmask != nullptr)
         {
+            gpusize memOffset = useSharedMetadata ? sharedMetadata.fmaskOffset : *pGpuMemSize;
+
             for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
             {
-                result = m_pFmask[mip].Init(m_device, *this, mip, pGpuMemSize);
+                result = m_pFmask[mip].Init(m_device, *this, mip, &memOffset);
                 if (result != Result::Success)
                 {
                     break;
@@ -655,6 +719,8 @@ Result Image::Finalize(
             // required alignment of the app-provided allocation if necessary.
             *pGpuMemAlignment = Max(*pGpuMemAlignment, m_pFmask[0].Alignment());
 
+            *pGpuMemSize = useSharedMetadata ? Max(memOffset, *pGpuMemSize) : memOffset;
+
             // Update the layout information against mip 0's Fmask offset and alignment requirements.
             UpdateMetaDataLayout(pGpuMemLayout, m_pFmask[0].MemoryOffset(), m_pFmask[0].Alignment());
         }
@@ -676,17 +742,33 @@ Result Image::Finalize(
         // stencil metadata.
         if (needsFastColorClearMetaData)
         {
-            InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6FastColorClearMetaData), sizeof(uint32));
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx6FastColorClearMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6FastColorClearMetaData), sizeof(uint32));
+            }
         }
         else if (needsFastDepthClearMetaData)
         {
-            InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6FastDepthClearMetaData), sizeof(uint32));
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx6FastDepthClearMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx6FastDepthClearMetaData), sizeof(uint32));
+            }
         }
 
         // Set up the GPU offset for the waTcCompatZRange metadata
-        if (m_device.GetGfxDevice()->WaTcCompatZRange() &&
-            (m_pHtile != nullptr) &&
-            (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
+        if (needsWaTcCompatZRangeMetaData)
         {
             InitWaTcCompatZRangeMetaData(pGpuMemLayout, pGpuMemSize);
         }
@@ -694,7 +776,16 @@ Result Image::Finalize(
         // Set up the GPU offset for the DCC state metadata.
         if (needsDccStateMetaData)
         {
-            InitDccStateMetaData(pGpuMemLayout, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset;
+                InitDccStateMetaData(pGpuMemLayout, &forcedOffset);
+                *pGpuMemSize = Max(*pGpuMemSize, forcedOffset);
+            }
+            else
+            {
+                InitDccStateMetaData(pGpuMemLayout, pGpuMemSize);
+            }
         }
 
         // Texture-compatible color images on VI can only be fast-cleared to certain colors; otherwise the TC won't
@@ -714,7 +805,19 @@ Result Image::Finalize(
             ColorImageSupportsAllFastClears()     &&
             (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
         {
-            InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                if (sharedMetadata.fastClearEliminateMetaDataOffset != 0)
+                {
+                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset;
+                    InitFastClearEliminateMetaData(pGpuMemLayout, &forcedOffset);
+                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                }
+            }
+            else
+            {
+                InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
+            }
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -812,8 +915,8 @@ void Image::InitLayoutStateMasksOneMip(
                     m_layoutToState[mip].color.compressed.usages |= LayoutCopyDst;
                 }
 
-                // We can keep this layout compressed if the client promises to never change view formats.
-                if (m_createInfo.flags.formatChangeSrd == 0)
+                // We can keep this layout compressed if all view formats are DCC compatible.
+                if (Parent()->AllViewFormatsDccCompatible())
                 {
                     m_layoutToState[mip].color.compressed.usages |= LayoutShaderRead;
                 }
@@ -1541,7 +1644,7 @@ bool Image::SupportsMetaDataTextureFetch(
     ) const
 {
     bool  texFetchSupported = false;
-    bool  enableTcCompatibleForResolveDst = false;
+    bool  enableTcCompatResolveDst = false;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
     // TcCompatible could be enabled for resolveDst depth-stencil in order to enhance opportunity to trigger fixed-func
@@ -1550,12 +1653,14 @@ bool Image::SupportsMetaDataTextureFetch(
     const bool isDepth                  = m_pParent->IsAspectValid(ImageAspect::Depth);
     const bool isStencil                = m_pParent->IsAspectValid(ImageAspect::Stencil);
 
-    enableTcCompatibleForResolveDst =
+    enableTcCompatResolveDst =
         (isDepthStencilResolveDst &&
          ((isDepth  && !isStencil && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthOnly))   ||
           (!isDepth && isStencil  && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstStencilOnly)) ||
           (isDepth  && isStencil  && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthAndStencil))));
 #endif
+
+    const bool useSharedMetadata = m_pParent->GetInternalCreateInfo().flags.useSharedMetadata;
 
     // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
     if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
@@ -1564,7 +1669,7 @@ bool Image::SupportsMetaDataTextureFetch(
         // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
         // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
         // be readable by a shader.
-        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc() || enableTcCompatibleForResolveDst) &&
+        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc() || enableTcCompatResolveDst || useSharedMetadata) &&
         // Only 2D/3D tiled resources can use shader compatible compression
         IsMacroTiled(tileMode))
     {
@@ -1606,10 +1711,14 @@ bool Image::ColorImageSupportsMetaDataTextureFetch(
     // Assume texture fetches won't be allowed
     bool  texFetchAllowed = false;
 
+    if (Parent()->GetInternalCreateInfo().flags.useSharedMetadata)
+    {
+        texFetchAllowed = Parent()->GetInternalCreateInfo().sharedMetadata.flags.shaderFetchable;
+    }
     // Does this image have DCC memory?  Note that this function is called from the address library, meaning that DCC
     // memory may not have been allocated yet.
     // true param assumes resource can be made TC compat since this isn't known for sure until after calling addrlib.
-    if (Gfx6Dcc::UseDccForImage(m_device, (*this), tileMode, tileType, true))
+    else if (Gfx6Dcc::UseDccForImage(m_device, (*this), tileMode, tileType, true))
     {
         const uint32 tcCompatibleMetaData = m_device.GetPublicSettings()->tcCompatibleMetaData;
 
@@ -1726,18 +1835,26 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     // Image must have hTile data for a meta-data texture fetch to make sense.  This function is called from gfx6AddrLib
     // before any hTile memory has been allocated, so we can't look to see if hTile memory actually exists, because it
     // won't yet.
-    if (isFmtLegal && Gfx6Htile::UseHtileForImage(m_device, *this, true))
+    // An opened image's hTile should be retrieved from internal creation info.
+    if (isFmtLegal)
     {
-        if ((m_createInfo.samples > 1) &&
-            // MSAA meta-data surfaces are only texture fetchable if allowed in the caps.
-            TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsMsaaDepth))
+        if (Parent()->GetInternalCreateInfo().flags.useSharedMetadata)
         {
-            texFetchAllowed = true;
+            texFetchAllowed = Parent()->GetInternalCreateInfo().sharedMetadata.flags.shaderFetchable;
         }
-        else if ((m_createInfo.samples == 1) &&
-                 TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsNoAaDepth))
+        else if (Gfx6Htile::UseHtileForImage(m_device, *this, true))
         {
-            texFetchAllowed = true;
+            if ((m_createInfo.samples > 1) &&
+                 // MSAA meta-data surfaces are only texture fetchable if allowed in the caps.
+                TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsMsaaDepth))
+            {
+                texFetchAllowed = true;
+            }
+            else if ((m_createInfo.samples == 1) &&
+                     TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsNoAaDepth))
+            {
+                texFetchAllowed = true;
+            }
         }
     }
 
@@ -2760,6 +2877,39 @@ bool Image::SupportsComputeDecompress(
                            : layoutToState.color.compressed.engines);
 
     return TestAnyFlagSet(engines, LayoutComputeEngine);
+}
+
+// =====================================================================================================================
+// Fillout shared metadata information.
+void Image::GetSharedMetadataInfo(
+    SharedMetadataInfo* pMetadataInfo
+    ) const
+{
+    memset(pMetadataInfo, 0, sizeof(SharedMetadataInfo));
+
+    if (m_pDcc != nullptr)
+    {
+        pMetadataInfo->dccOffset = m_pDcc->MemoryOffset();
+    }
+    if (m_pCmask != nullptr)
+    {
+        pMetadataInfo->cmaskOffset = m_pCmask->MemoryOffset();
+    }
+    if (m_pFmask != nullptr)
+    {
+        pMetadataInfo->fmaskOffset                = m_pFmask->MemoryOffset();
+        pMetadataInfo->flags.shaderFetchableFmask = IsComprFmaskShaderReadable(m_pParent->SubresourceInfo(0));
+    }
+    if (m_pHtile != nullptr)
+    {
+        pMetadataInfo->htileOffset               = m_pHtile->MemoryOffset();
+        pMetadataInfo->flags.hasWaTcCompatZRange = HasWaTcCompatZRangeMetaData();
+    }
+    pMetadataInfo->flags.shaderFetchable = Parent()->SubresourceInfo(0)->flags.supportMetaDataTexFetch;
+
+    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
+    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
 }
 
 } // Gfx6

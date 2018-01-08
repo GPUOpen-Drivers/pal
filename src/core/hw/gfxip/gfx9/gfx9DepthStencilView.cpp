@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -549,7 +549,6 @@ void Gfx9DepthStencilView::BuildPm4Headers(
 
     CommonBuildPm4Headers<Gfx9DepthStencilViewPm4Img>(depthState, stencilState, pPm4Img);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 301
     // 1st PM4 set data packet: sets the context registers mmDB_Z_INFO through mmDB_DFSM_CONTROL.
     pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO__GFX09,
                                                            mmDB_DFSM_CONTROL__GFX09,
@@ -559,12 +558,6 @@ void Gfx9DepthStencilView::BuildPm4Headers(
     pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO2__GFX09,
                                                            mmDB_STENCIL_INFO2__GFX09,
                                                            &pPm4Img->hdrDbZInfo2ToStencilInfo2);
-#else
-    // 1st PM4 set data packet: sets the context registers mmDB_Z_INFO through mmDB_STENCIL_INFO_2.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO__GFX09,
-                                                           mmDB_STENCIL_INFO2__GFX09,
-                                                           &pPm4Img->hdrDbZInfoToStencilInfo2);
-#endif
 
     // 3rd PM4 set data packet: sets the context register DB_DEPTH_VIEW.
     pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_VIEW, &pPm4Img->hdrDbDepthView);

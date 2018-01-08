@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1171,11 +1171,6 @@ const char* LogContext::GetQueueName(
         "Compute",     // QueueTypeCompute
         "Dma",         // QueueTypeDma
         "Timer",       // QueueTypeTimer
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
-#else
-        "VideoEncode", // QueueTypeVideoEncode
-        "VideoDecode", // QueueTypeVideoDecode
-#endif
     };
 
     static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == QueueTypeCount,
@@ -1198,15 +1193,10 @@ const char* LogContext::GetEngineName(
         "ExclusiveCompute", // EngineTypeExclusiveCompute
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
     #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
             "HpUniversal",      // EngineTypeHighPriorityUniversal
             "HpGfxOnly",        // EngineTypeHighPriorityGraphics
     #endif
-#else
-        "Vce",              // EngineTypeVce
-        "Uvd",              // EngineTypeUvd
-#endif
     };
 
     static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == EngineTypeCount,

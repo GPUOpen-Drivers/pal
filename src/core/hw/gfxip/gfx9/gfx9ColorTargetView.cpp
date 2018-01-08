@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -90,8 +90,12 @@ ColorTargetView::ColorTargetView(
             m_arraySize              = createInfo.imageInfo.arraySize;
         }
 
-        m_flags.hasDcc        = m_pImage->HasDccData();
-        m_flags.hasCmaskFmask = m_pImage->HasFmaskData();
+        if (m_pImage->CanMipSupportMetaData(m_subresource.mipLevel))
+        {
+            m_flags.hasDcc              = m_pImage->HasDccData();
+            m_flags.hasDccStateMetaData = m_pImage->HasDccStateMetaData();
+            m_flags.hasCmaskFmask       = m_pImage->HasFmaskData();
+        }
 
         // If this view has DCC data and this is a decompress operation we must set "isDccCompress"
         // to zero. If the view has DCC data and this is a normal render operation we should set
@@ -157,7 +161,7 @@ void ColorTargetView::UpdateDccStateMetadata(
     const bool compressed = (m_flags.isBufferView == 0) &&
                             (m_pImage->LayoutToColorCompressionState(imageLayout) == ColorCompressed);
 
-    if (compressed && m_flags.hasDcc)
+    if (compressed && m_flags.hasDccStateMetaData)
     {
         const SubresRange range = {m_subresource, 1, m_arraySize};
         m_pImage->UpdateDccStateMetaData(pCmdStream,

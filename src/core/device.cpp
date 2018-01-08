@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1117,12 +1117,7 @@ void Device::CopyLayerSettings()
     m_gpuProfilerSettings.gpuProfilerCacheFlushOnCounterCollection  = settings.gpuProfilerCacheFlushOnCounterCollection;
     m_gpuProfilerSettings.gpuProfilerGranularity                    = settings.gpuProfilerGranularity;
     m_gpuProfilerSettings.gpuProfilerSqThreadTraceTokenMask         = settings.gpuProfilerSqThreadTraceTokenMask;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= 297
-    m_gpuProfilerSettings.gpuProfilerSqttPipelineHashHi             = settings.gpuProfilerSqttPipelineHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttPipelineHashLo             = settings.gpuProfilerSqttPipelineHashLo;
-#else
     m_gpuProfilerSettings.gpuProfilerSqttPipelineHash               = settings.gpuProfilerSqttPipelineHash;
-#endif
     m_gpuProfilerSettings.gpuProfilerSqttVsHashHi                   = settings.gpuProfilerSqttVsHashHi;
     m_gpuProfilerSettings.gpuProfilerSqttVsHashLo                   = settings.gpuProfilerSqttVsHashLo;
     m_gpuProfilerSettings.gpuProfilerSqttHsHashHi                   = settings.gpuProfilerSqttHsHashHi;
@@ -1143,7 +1138,18 @@ void Device::CopyLayerSettings()
             settings. gpuProfilerGlobalPerfCounterConfigFile,
             MaxFileNameStrLen);
 
+    m_gpuProfilerSettings.gpuProfilerTraceModeMask = settings.gpuProfilerTraceModeMask;
+
+    // GpuProfiler Spm trace config settings.
+    Strncpy(m_gpuProfilerSettings.gpuProfilerSpmPerfCounterConfigFile,
+            settings.gpuProfilerSpmPerfCounterConfigFile,
+            MaxFileNameStrLen);
+
+    m_gpuProfilerSettings.gpuProfilerSpmTraceBufferSize = settings.gpuProfilerSpmBufferSize;
+    m_gpuProfilerSettings.gpuProfilerSpmTraceInterval   = settings.gpuProfilerSpmTraceInterval;
+
     // Interface Logger Layer
+
     m_interfaceLoggerSettings.interfaceLoggerMultithreaded  = settings.interfaceLoggerMultithreaded;
     m_interfaceLoggerSettings.interfaceLoggerBasePreset     = settings.interfaceLoggerBasePreset;
     m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = settings.interfaceLoggerElevatedPreset;
@@ -1647,9 +1653,6 @@ Result Device::GetProperties(
 
             pQueueInfo->supportedDirectPresentModes     = queueInfo.supportedDirectPresentModes;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 300
-        pInfo->gpuMemoryProperties.flags.migrationSupport        = 1;
-#endif
         pInfo->gpuMemoryProperties.flags.virtualRemappingSupport = m_memoryProperties.flags.virtualRemappingSupport;
         pInfo->gpuMemoryProperties.flags.pinningSupport          = m_memoryProperties.flags.pinningSupport;
         pInfo->gpuMemoryProperties.flags.supportPerSubmitMemRefs = m_memoryProperties.flags.supportPerSubmitMemRefs;
@@ -1732,11 +1735,7 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.u32All                         = 0;
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 281
-            pInfo->gfxipProperties.flags.supportMinPrecisionInstruction = gfx6Props.support16BitInstructions;
-#else
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
-#endif
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter  = 0; // GFX6-8 only support single channel
                                                                              // min/max filter
@@ -1786,15 +1785,10 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.u32All                           = 0;
             pInfo->gfxipProperties.flags.support8bitIndices               = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 281
-            pInfo->gfxipProperties.flags.supportMinPrecisionFetch         = gfx9Props.supportFp16Fetch;
-            pInfo->gfxipProperties.flags.supportMinPrecisionInstruction   = gfx9Props.support16BitInstructions;
-#else
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.supportDoubleRate16BitInstructions =
                 gfx9Props.supportDoubleRate16BitInstructions;
-#endif
             pInfo->gfxipProperties.flags.supportConservativeRasterization = gfx9Props.supportConservativeRasterization;
             pInfo->gfxipProperties.flags.supportPrtBlendZeroMode          = gfx9Props.supportPrtBlendZeroMode;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 1; // "new normal" on GFX9, no chicken bit

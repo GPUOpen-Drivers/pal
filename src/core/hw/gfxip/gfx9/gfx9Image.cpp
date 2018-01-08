@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -323,36 +323,92 @@ Result Image::Finalize(
     // For AddrMgr2 style addressing, there's no chance of a single subresource being incapable of supporting DCC.
     PAL_ASSERT(dccUnsupported == false);
 
-    const Gfx9PalSettings&      settings        = GetGfx9Settings(m_device);
-    const auto*                 pPublicSettings = m_device.GetPublicSettings();
-    const SubResourceInfo*const pBaseSubResInfo = pSubResInfoList;
+    const Gfx9PalSettings&      settings          = GetGfx9Settings(m_device);
+    const auto*                 pPublicSettings   = m_device.GetPublicSettings();
+    const SubResourceInfo*const pBaseSubResInfo   = pSubResInfoList;
+    const SharedMetadataInfo&   sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
+    const bool                  useSharedMetadata = m_pImageInfo->internalCreateInfo.flags.useSharedMetadata;
 
-    const bool useHtile = Gfx9Htile::UseHtileForImage(m_device, *this);
-    const bool useDcc   = Gfx9Dcc::UseDccForImage(*this, (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
-    const bool useCmask = Gfx9Cmask::UseCmaskForImage(m_device, *this);
+    bool useDcc   = false;
+    bool useHtile = false;
+    bool useCmask = false;
+
+    Result result = Result::Success;
+
+    if (useSharedMetadata)
+    {
+        useDcc   = (sharedMetadata.dccOffset != 0);
+        useHtile = (sharedMetadata.htileOffset != 0);
+        useCmask = (sharedMetadata.cmaskOffset != 0) && (sharedMetadata.fmaskOffset != 0);
+
+        // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset != 0))
+        {
+            useDcc = false;
+            result = Result::ErrorNotShareable;
+        }
+
+        if (useHtile && (sharedMetadata.fastClearMetaDataOffset != 0))
+        {
+            useHtile = false;
+            result = Result::ErrorNotShareable;
+        }
+    }
+    else
+    {
+        useHtile = Gfx9Htile::UseHtileForImage(m_device, *this);
+        useDcc   = Gfx9Dcc::UseDccForImage(*this, (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
+        useCmask = Gfx9Cmask::UseCmaskForImage(m_device, *this);
+    }
 
     // Also determine if we need any metadata for these mask RAM objects.
     bool needsFastColorClearMetaData = false;
     bool needsFastDepthClearMetaData = false;
     bool needsDccStateMetaData       = false;
     bool needsHtileLookupTable       = false;
+    bool needsWaTcCompatZRangeMetaData = false;
 
     // Initialize Htile:
-    Result result = Result::Success;
     if (useHtile)
     {
         m_pHtile = PAL_NEW(Gfx9Htile, m_device.GetPlatform(), SystemAllocType::AllocObject);
         if (m_pHtile != nullptr)
         {
-            result = m_pHtile->Init(m_device, *this, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.htileOffset;
+                result = m_pHtile->Init(m_device, *this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                result = m_pHtile->Init(m_device, *this, pGpuMemSize, true);
+            }
+
+            if (result == Result::Success)
+            {
+                needsWaTcCompatZRangeMetaData = (m_device.GetGfxDevice()->WaTcCompatZRange() &&
+                                                (m_pHtile->TileStencilDisabled() == false)   &&
+                                                (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0));
+
+                if (useSharedMetadata &&
+                    needsWaTcCompatZRangeMetaData &&
+                    (sharedMetadata.flags.hasWaTcCompatZRange == false))
+                {
+                    result = Result::ErrorNotShareable;
+                }
+            }
 
             if (result == Result::Success)
             {
                 // Depth subresources with hTile memory must be fast-cleared either through the compute or graphics
                 // engine.  Slow clears won't work as the hTile memory wouldn't get updated.
-                const ClearMethod fastClearMethod = pPublicSettings->useGraphicsFastDepthStencilClear
+                const ClearMethod fastClearMethod = (pPublicSettings->useGraphicsFastDepthStencilClear ||
+                                                     (useSharedMetadata &&
+                                                      (sharedMetadata.flags.hasEqGpuAccess == false)))
                                                         ? ClearMethod::DepthFastGraphics
                                                         : ClearMethod::Fast;
+
                 const bool        supportsDepth   =
                     m_device.SupportsDepth(m_createInfo.swizzledFormat.format, m_createInfo.tiling);
                 const bool        supportsStencil =
@@ -360,14 +416,17 @@ Result Image::Finalize(
 
                 for (uint32 mip = 0; ((mip < m_createInfo.mipLevels) && (result == Result::Success)); ++mip)
                 {
-                    if (supportsDepth)
+                    if (CanMipSupportMetaData(mip))
                     {
-                        UpdateClearMethod(pSubResInfoList, ImageAspect::Depth, mip, fastClearMethod);
-                    }
+                        if (supportsDepth)
+                        {
+                            UpdateClearMethod(pSubResInfoList, ImageAspect::Depth, mip, fastClearMethod);
+                        }
 
-                    if (supportsStencil)
-                    {
-                        UpdateClearMethod(pSubResInfoList, ImageAspect::Stencil, mip, fastClearMethod);
+                        if (supportsStencil)
+                        {
+                            UpdateClearMethod(pSubResInfoList, ImageAspect::Stencil, mip, fastClearMethod);
+                        }
                     }
                 }
 
@@ -385,15 +444,22 @@ Result Image::Finalize(
                 // Get the constant data for clears based on Htile meta equation
                 GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataHtile], metaBlkFastClearSize);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
-                if (Parent()->IsResolveSrc() || Parent()->IsResolveDst())
+                if (useSharedMetadata == false)
                 {
-                    needsHtileLookupTable = true;
-                }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
+                    if (Parent()->IsResolveSrc() || Parent()->IsResolveDst())
+                    {
+                        needsHtileLookupTable = true;
+                    }
 #else
-                needsHtileLookupTable = true;
+                    needsHtileLookupTable = true;
 #endif
 
+                }
+                else
+                {
+                    needsHtileLookupTable = sharedMetadata.flags.hasHtileLookupTable;
+                }
             }
         }
         else
@@ -410,32 +476,44 @@ Result Image::Finalize(
         m_pDcc = PAL_NEW(Gfx9Dcc, m_device.GetPlatform(), SystemAllocType::AllocObject);
         if (m_pDcc != nullptr)
         {
-            result = m_pDcc->Init(*this, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.dccOffset;
+                result = m_pDcc->Init(*this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                result = m_pDcc->Init(*this, pGpuMemSize, true);
+            }
+
             if (result == Result::Success)
             {
-                PAL_ASSERT(pBaseSubResInfo->subresId.aspect == ImageAspect::Color);
-                const auto& surfSettings = GetAddrSettings(pBaseSubResInfo);
-
-                if (Gfx9MaskRam::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
+                if ((useSharedMetadata == false) || (sharedMetadata.flags.hasEqGpuAccess == true))
                 {
-                    for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
-                    {
-                        // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips are not
-                        // going to be used as UAV but some can be then we enable dcc fast clear on those who are not
-                        // going to be used as UAV and disable dcc fast clear on other mips.
-                        if ((m_createInfo.usageFlags.shaderWrite == 0) ||
-                            (mip < m_createInfo.usageFlags.firstShaderWritableMip))
-                        {
-                            const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);
+                    PAL_ASSERT(pBaseSubResInfo->subresId.aspect == ImageAspect::Color);
+                    const auto& surfSettings = GetAddrSettings(pBaseSubResInfo);
 
-                            if ((Parent()->GetDevice()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
-                                (mipInfo.sliceSize != 0))
+                    if (Gfx9MaskRam::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
+                    {
+                        for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
+                        {
+                            // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
+                            // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
+                            // going to be used as UAV and disable dcc fast clear on other mips.
+                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
+                                (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
-                                UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
+                                const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);
+
+                                if (CanMipSupportMetaData(mip))
+                                {
+                                    UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
+                                }
                             }
-                        }
-                    } // end loop through all the mip levels
-                } // end check for this image supporting fast clears at all
+                        } // end loop through all the mip levels
+                    } // end check for this image supporting fast clears at all
+                }
 
                 // Set up the size & GPU offset for the fast-clear metadata. Only need to do this once for all mip
                 // levels. The HW will only use this data if fast-clears have been used, but the fast-clear meta data
@@ -443,8 +521,15 @@ Result Image::Finalize(
                 // SEE: Gfx9ColorTargetView::WriteCommands for details.
                 needsFastColorClearMetaData = true;
 
-                // We also need the DCC state metadata when DCC is enabled.
-                needsDccStateMetaData       = true;
+                if (useSharedMetadata)
+                {
+                    needsDccStateMetaData = (sharedMetadata.dccStateMetaDataOffset  != 0);
+                }
+                else
+                {
+                    // We also need the DCC state metadata when DCC is enabled.
+                    needsDccStateMetaData = true;
+                }
 
                 // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
                 // up the required alignment of the app-provided allocation if necessary.
@@ -473,7 +558,16 @@ Result Image::Finalize(
         m_pFmask = PAL_NEW(Gfx9Fmask, m_device.GetPlatform(), SystemAllocType::AllocObject);
         if (m_pFmask != nullptr)
         {
-            result = m_pFmask->Init(*this, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.fmaskOffset;
+                result = m_pFmask->Init(*this, &forcedOffset);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                result = m_pFmask->Init(*this, pGpuMemSize);
+            }
 
             if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
             {
@@ -507,7 +601,16 @@ Result Image::Finalize(
             m_pCmask = PAL_NEW(Gfx9Cmask, m_device.GetPlatform(), SystemAllocType::AllocObject);
             if (m_pCmask != nullptr)
             {
-                result = m_pCmask->Init(*this, pGpuMemSize);
+                if (useSharedMetadata)
+                {
+                    gpusize forcedOffset = sharedMetadata.cmaskOffset;
+                    result = m_pCmask->Init(*this, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                }
+                else
+                {
+                    result = m_pCmask->Init(*this, pGpuMemSize, true);
+                }
 
                 // It's possible for the metadata allocation to require more alignment than the base allocation. Bump
                 // up the required alignment of the app-provided allocation if necessary.
@@ -537,18 +640,34 @@ Result Image::Finalize(
         // stencil metadata.
         if (needsFastColorClearMetaData)
         {
-            InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastColorClearMetaData), sizeof(uint32));
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx9FastColorClearMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastColorClearMetaData), sizeof(uint32));
+            }
         }
         else if (needsFastDepthClearMetaData)
         {
-            InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastDepthClearMetaData), sizeof(uint32));
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.fastClearMetaDataOffset;
+                InitFastClearMetaData(pGpuMemLayout, &forcedOffset, sizeof(Gfx9FastDepthClearMetaData), sizeof(uint32));
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitFastClearMetaData(pGpuMemLayout, pGpuMemSize, sizeof(Gfx9FastDepthClearMetaData), sizeof(uint32));
+            }
         }
 
-        // Set up the GPU offset for the waTcCompatZRange metadata
-        if (m_device.GetGfxDevice()->WaTcCompatZRange()  &&
-           (m_pHtile != nullptr)                         &&
-           (m_pHtile->TileStencilDisabled() == false)    &&
-           (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
+        // For shared metadata, the Z Range workaround metadata offset is not listed but following the
+        // FastClearMetaData.  Set up the GPU offset for the waTcCompatZRange metadata
+        if (needsWaTcCompatZRangeMetaData)
         {
             InitWaTcCompatZRangeMetaData(pGpuMemLayout, pGpuMemSize);
         }
@@ -556,7 +675,16 @@ Result Image::Finalize(
         // Set up the GPU offset for the DCC state metadata.
         if (needsDccStateMetaData)
         {
-            InitDccStateMetaData(pGpuMemLayout, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.dccStateMetaDataOffset;
+                InitDccStateMetaData(pGpuMemLayout, &forcedOffset);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitDccStateMetaData(pGpuMemLayout, pGpuMemSize);
+            }
         }
 
         // Texture-compatible color images on can only be fast-cleared to certain colors; otherwise the TC won't
@@ -576,7 +704,19 @@ Result Image::Finalize(
             ColorImageSupportsAllFastClears()     &&
             (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0))
         {
-            InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
+            if (useSharedMetadata)
+            {
+                if (sharedMetadata.fastClearEliminateMetaDataOffset)
+                {
+                    gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset;
+                    InitFastClearEliminateMetaData(pGpuMemLayout, &forcedOffset);
+                    *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                }
+            }
+            else
+            {
+                InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
+            }
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -589,7 +729,16 @@ Result Image::Finalize(
 
         if (needsHtileLookupTable)
         {
-            InitHtileLookupTable(pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
+            if (useSharedMetadata)
+            {
+                gpusize forcedOffset = sharedMetadata.htileLookupTableOffset;
+                InitHtileLookupTable(pGpuMemLayout, &forcedOffset, pGpuMemAlignment);
+                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+            }
+            else
+            {
+                InitHtileLookupTable(pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
+            }
         }
 
         InitLayoutStateMasks();
@@ -657,8 +806,8 @@ void Image::InitLayoutStateMasks()
                     m_layoutToState.color.compressed.usages |= LayoutCopyDst;
                 }
 
-                // We can keep this layout compressed if the client promises to never change view formats.
-                if (m_createInfo.flags.formatChangeSrd == 0)
+                // We can keep this layout compressed if all view formats are DCC compatible.
+                if (Parent()->AllViewFormatsDccCompatible())
                 {
                     m_layoutToState.color.compressed.usages |= LayoutShaderRead;
                 }
@@ -877,8 +1026,21 @@ Result Image::ComputePipeBankXor(
     {
         if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
         {
-            // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
-            *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
+            if (aspect == ImageAspect::Color)
+            {
+                // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor;
+            }
+            else if (aspect == ImageAspect::Fmask)
+            {
+                // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXorFmask;
+            }
+            else
+            {
+                PAL_NOT_IMPLEMENTED();
+            }
+
         }
         else if (Parent()->IsPeer())
         {
@@ -1534,8 +1696,8 @@ void Image::InitHtileLookupTable(
     gpusize*           pGpuOffset,
     gpusize*           pGpuMemAlignment)
 {
-    // Meda offset will be used as uint in shader
-    static const gpusize HtileLookupTableAlignment = 4u;
+    // Metadata offset will be used as uint in shader
+    static constexpr gpusize HtileLookupTableAlignment = 4u;
 
     *pGpuMemAlignment = Max(*pGpuMemAlignment, HtileLookupTableAlignment);
 
@@ -1948,20 +2110,24 @@ bool Image::IsComprFmaskShaderReadable(
     bool  isComprFmaskShaderReadable        = false;
     const SubResourceInfo*const pSubResInfo = Parent()->SubresourceInfo(subresource);
 
+    if (m_pImageInfo->internalCreateInfo.flags.useSharedMetadata)
+    {
+        isComprFmaskShaderReadable = m_pImageInfo->internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask;
+    }
     // If this device doesn't allow any tex fetches of fmask meta data, then don't bother continuing
-    if (TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, Pal::TexFetchMetaDataCapsFmask) &&
-        // MSAA surfaces on GFX9 must have fMask and must have cMask data as well.
-        (m_createInfo.samples > 1) &&
-        // Either image is tc-compatible or if not it has no dcc and hence we can keep famsk surface
-        // in tccompatible state
-        ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
-        ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false))) &&
-        // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
-        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-        // be readable by a shader.
-        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
-        // Since TC block can't write to compressed images
-        (m_pParent->IsShaderWritable() == false))
+    else if (TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, Pal::TexFetchMetaDataCapsFmask) &&
+             // MSAA surfaces on GFX9 must have fMask and must have cMask data as well.
+             (m_createInfo.samples > 1) &&
+             // Either image is tc-compatible or if not it has no dcc and hence we can keep famsk surface
+             // in tccompatible state
+             ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
+              ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false))) &&
+             // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
+             // it...  Msaa image with resolveSrc usage flag will be more likely going through shader based resolve,
+             // the image will be readable by a shader.
+             (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
+             // Since TC block can't write to compressed images
+             (m_pParent->IsShaderWritable() == false))
     {
         isComprFmaskShaderReadable = true;
     }
@@ -1980,29 +2146,34 @@ bool Image::SupportsMetaDataTextureFetch(
     const auto&  settings          = GetGfx9Settings(m_device);
     bool         texFetchSupported = false;
 
-    // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
-    if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= PAL_CLIENT_INTERFACE_MAJOR_VERSION_SUPPORTS_RESOLVE_SRC
-        // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
-        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-        // be readable by a shader.
-        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
-#else
-        // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
-        m_pParent->IsShaderReadable() &&
-#endif
-        // Linear swizzle modes don't have meta-data to be fetched
-        (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false))
+    if (m_pImageInfo->internalCreateInfo.flags.useSharedMetadata)
     {
-        if(m_pParent->IsDepthStencil())
+        texFetchSupported = m_pImageInfo->internalCreateInfo.sharedMetadata.flags.shaderFetchable;
+    }
+    else
+    {
+        // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
+        if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
+            // If this image is not readable by a shader then no shader is going to be performing texture fetches from
+            // it....
+            // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image
+            // will be readable by a shader.
+            (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
+            // Meta-data isn't fetchable if the meta-data itself isn't addressable
+            CanMipSupportMetaData(subResource.mipLevel) &&
+            // Linear swizzle modes don't have meta-data to be fetched
+            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false))
         {
-            // Check if DB resource can use shader compatible compression
-            texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subResource);
-        }
-        else
-        {
-            // Check if this color resource can use shader compatible compression
-            texFetchSupported = ColorImageSupportsMetaDataTextureFetch();
+            if(m_pParent->IsDepthStencil())
+            {
+                // Check if DB resource can use shader compatible compression
+                texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subResource);
+            }
+            else
+            {
+                // Check if this color resource can use shader compatible compression
+                texFetchSupported = ColorImageSupportsMetaDataTextureFetch();
+            }
         }
     }
 
@@ -2501,8 +2672,8 @@ gpusize Image::GetMipAddr(
 }
 
 // =====================================================================================================================
-// Returns the buffer view of meda data lookup table for specified mip level
-void Image::BuildMedaDataLookupTableBufferView(
+// Returns the buffer view of metadata lookup table for specified mip level
+void Image::BuildMetadataLookupTableBufferView(
     BufferViewInfo* pViewInfo,
     uint32 mipLevel
     ) const
@@ -2532,6 +2703,16 @@ bool Image::IsInMetadataMipTail(
         }
     }
     return inMipTail;
+}
+
+// =====================================================================================================================
+// Returns true if specified mip level can support metadata
+bool Image::CanMipSupportMetaData(
+    uint32 mip
+    ) const
+{
+    return (m_gfxDevice.AllowMetaDataForAllMips() ||
+            (mip <= m_addrSurfOutput[0].firstMipIdInTail));
 }
 
 // =====================================================================================================================
@@ -2596,6 +2777,47 @@ void Image::Addr2InitSubResInfoGfx9(
         }
         pTileInfo->backingStoreOffset += pBaseTileInfo->backingStoreOffset;
     }
+}
+
+// =====================================================================================================================
+// Fillout shared metadata information.
+void Image::GetSharedMetadataInfo(
+    SharedMetadataInfo* pMetadataInfo
+    ) const
+{
+    memset(pMetadataInfo, 0, sizeof(SharedMetadataInfo));
+
+    const SubresId baseSubResId = Parent()->GetBaseSubResource();
+    if (m_pDcc != nullptr)
+    {
+        pMetadataInfo->dccOffset            = m_pDcc->MemoryOffset();
+        pMetadataInfo->flags.hasEqGpuAccess = m_pDcc->HasEqGpuAccess();
+    }
+    if (m_pCmask != nullptr)
+    {
+        pMetadataInfo->cmaskOffset          = m_pCmask->MemoryOffset();
+        pMetadataInfo->flags.hasEqGpuAccess = m_pCmask->HasEqGpuAccess();
+    }
+    if (m_pFmask != nullptr)
+    {
+        pMetadataInfo->fmaskOffset                = m_pFmask->MemoryOffset();
+        pMetadataInfo->flags.shaderFetchableFmask = IsComprFmaskShaderReadable(baseSubResId);
+        pMetadataInfo->fmaskXor                   = m_pFmask->GetPipeBankXor();
+    }
+    if (m_pHtile != nullptr)
+    {
+        pMetadataInfo->htileOffset               = m_pHtile->MemoryOffset();
+        pMetadataInfo->flags.hasWaTcCompatZRange = HasWaTcCompatZRangeMetaData();
+        pMetadataInfo->flags.hasHtileLookupTable = HasHtileLookupTable();
+        pMetadataInfo->flags.hasEqGpuAccess      = m_pHtile->HasEqGpuAccess();
+    }
+    pMetadataInfo->flags.shaderFetchable            =
+        Parent()->SubresourceInfo(baseSubResId)->flags.supportMetaDataTexFetch;
+
+    pMetadataInfo->dccStateMetaDataOffset           = m_dccStateMetaDataOffset;
+    pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
+    pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
+    pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
 }
 
 } // Gfx9

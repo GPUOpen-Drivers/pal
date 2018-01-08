@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -3367,7 +3367,7 @@ size_t CmdUtil::BuildWriteConstRam(
 // Builds a WRITE_DATA PM4 packet. If pData is non-null it will also copy in the data payload. Returns the size of the
 // PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildWriteData(
-    gpusize       gpuVirtAddr,
+    gpusize       gpuVirtAddr,   // [in] Destination address.
     size_t        dwordsToWrite,
     uint32        engineSel,
     uint32        dstSel,
@@ -3377,8 +3377,9 @@ size_t CmdUtil::BuildWriteData(
     void*         pBuffer        // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    // Make sure the address and size are valid.
-    PAL_ASSERT(((gpuVirtAddr & 0x3) == 0) && (dwordsToWrite > 0));
+    // Make sure the address and size are valid. For register writes we don't need the alignment requirement.
+    PAL_ASSERT(((dstSel == WRITE_DATA_DST_SEL_REGISTER) || (dstSel == WRITE_DATA_DST_SEL_GDS)) ||
+               (((gpuVirtAddr & 0x3) == 0) && (dwordsToWrite > 0)));
 
     // Make sure the engine selection is valid.
     PAL_ASSERT((engineSel == WRITE_DATA_ENGINE_ME)  ||

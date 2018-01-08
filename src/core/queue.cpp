@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -122,14 +122,10 @@ Queue::Queue(
 
     m_queuePriority = (engineSubType == EngineSubType::RtCuMedCompute) ? QueuePriority::Medium : m_queuePriority;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 288
     if (createInfo.windowedPriorBlit != false)
     {
         m_flags.windowedPriorBlit = 1;
     }
-#else
-    m_flags.windowedPriorBlit = 0;
-#endif
 
     if (pDevice->EngineProperties().perEngine[m_engineType].flags.physicalAddressingMode != 0)
     {
@@ -511,11 +507,6 @@ void Queue::DumpCmdToFile(
             "# Compute Queue - QueueContext Command length = ",
             "# DMA Queue - QueueContext Command length = ",
             "",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 303
-#else
-            "# Encode Queue - QueueContext Command length = ",
-            "# Decode Queue - QueueContext Command length = ",
-#endif
         };
 
         static_assert(
@@ -1378,14 +1369,20 @@ bool Queue::IsPresentModeSupported(
     ) const
 {
     const uint32 supportedPresentModes = m_pDevice->QueueProperties().perQueue[m_type].supportedDirectPresentModes;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 288
     const uint32 presentModeFlag       = (presentMode == PresentMode::Fullscreen) ? SupportFullscreenPresent :
                                          (m_flags.windowedPriorBlit == 1)         ? SupportWindowedPriorBlitPresent :
                                                                                     SupportWindowedPresent;
-#else
-    const uint32 presentModeFlag       = (presentMode == PresentMode::Fullscreen) ? SupportFullscreenPresent :
-                                                                                    SupportWindowedPresent;
-#endif
     return TestAnyFlagSet(supportedPresentModes, presentModeFlag);
+}
+
+// =====================================================================================================================
+// Perform a dummy submission on this queue.
+Result Queue::DummySubmit()
+{
+    ICmdBuffer*const pCmdBuffer = DummyCmdBuffer();
+    SubmitInfo submitInfo       = {};
+    submitInfo.cmdBufferCount   = 1;
+    submitInfo.ppCmdBuffers     = &pCmdBuffer;
+    return SubmitInternal(submitInfo, false);
 }
 } // Pal

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -286,7 +286,9 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
             }
         }
         const PalSettings& settings = m_device.Parent()->Settings();
-        const bool issueSqttMarkerEvent = ((settings.gpuProfilerMode > GpuProfilerSqttOff) |
+        const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                                 (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+        const bool issueSqttMarkerEvent = (sqttEnabled ||
                                            m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
         if (issueSqttMarkerEvent)
         {

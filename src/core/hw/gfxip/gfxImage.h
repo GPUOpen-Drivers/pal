@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -66,6 +66,40 @@ enum UseComputeExpand : uint32
 
 };
 
+// Internal flags set for opening shared metadata path.
+union SharedMetadataFlags
+{
+    struct
+    {
+        uint32 shaderFetchable      : 1; // Main metadata is shader fetchable.
+        uint32 shaderFetchableFmask : 1; // In case the FMASK shader-fetchable is different from main metadata. - TBD
+        uint32 hasWaTcCompatZRange  : 1; // Extra per-mip uint32 reserved after fast-clear-value.
+        uint32 hasEqGpuAccess       : 1; // Metadata equation for GPU access following main metadata (DCC or HTILE).
+                                         // CS-based fast-clear is disabled w/o this on GFX9.
+        uint32 hasHtileLookupTable  : 1; // Htile look-up table for each mip and slice - DB fixed-func resolve is
+                                         // disabled w/o this.
+        uint32 reserved             : 27;
+    };
+    uint32 value;
+};
+
+// Shared metadata info to be used for opened optimally shared image.
+struct SharedMetadataInfo
+{
+    SharedMetadataFlags flags;
+    gpusize             dccOffset;
+    gpusize             cmaskOffset;
+    gpusize             fmaskOffset;
+    gpusize             fmaskXor;
+    gpusize             htileOffset;
+    gpusize             dccStateMetaDataOffset;
+    gpusize             fastClearMetaDataOffset;
+    gpusize             fastClearEliminateMetaDataOffset;
+    gpusize             htileLookupTableOffset;
+    uint64              resourceId; // This id is a unique name for the cross-process shared memory used to pass extra
+                                    // information. Currently it's composed by the image object pointer and process id.
+};
+
 // =====================================================================================================================
 class GfxImage
 {
@@ -104,6 +138,8 @@ public:
     gpusize FastClearMetaDataAddr(uint32 mipLevel) const;
     gpusize FastClearMetaDataOffset(uint32 mipLevel) const;
     gpusize FastClearMetaDataSize(uint32 numMips) const;
+
+    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
 
     virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const { PAL_NEVER_CALLED(); return 0; }
 
@@ -158,6 +194,9 @@ public:
     void PadYuvPlanarViewActualExtent(
         SubresId  subresource,
         Extent3d* pActualExtent) const;
+
+    // Returns true if the specified mip level supports having a meta-data surface for the given mip level
+    virtual bool CanMipSupportMetaData(uint32  mip) const { return true; }
 
 protected:
     GfxImage(

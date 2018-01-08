@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,10 +30,6 @@
 #include "palHashMap.h"
 #include "palMutex.h"
 #include "protocols/ddURIService.h"
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-#include "palDbgPrint.h"
-#endif
 
 // Forward declarations.
 namespace DevDriver
@@ -73,13 +69,6 @@ void* DevDriverAlloc(
 void DevDriverFree(
     void* pUserdata,
     void* pMemory);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-void PAL_STDCALL DevDriverDbgPrint(
-    void*                  pUserdata,
-    Util::DbgPrintCategory category,
-    const char*            pText);
-#endif
 
 // =====================================================================================================================
 // PAL Pipeline Dump Service

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -126,7 +126,7 @@ struct GraphicsState
     ViewportParams              viewportState;          // (CmdSetViewports)
     ScissorRectParams           scissorRectState;       // (CmdSetScissorRects)
     GlobalScissorParams         globalScissorState;     // (CmdSetGlobalScissor)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339 && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
     struct
     {
         bool                  isLoad;

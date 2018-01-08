@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2017 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -168,7 +168,9 @@ void CmdBuffer::ReplayBegin(
 
             if (m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
             {
-                enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0) || (m_flags.enableSqThreadTrace != 0);
+                enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
+                                   (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                                   (m_flags.enableSqThreadTrace != 0);
                 enablePipeStats  = m_flags.logPipeStats;
             }
 
@@ -654,19 +656,11 @@ void CmdBuffer::ReplayCmdStoreMsaaQuadSamplePattern(
 
 // =====================================================================================================================
 void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     const IGpuMemory* pSrcGpuMemory,
-#else
-    const IGpuMemory& srcGpuMemory,
-#endif
     gpusize           srcMemOffset)
 {
     InsertToken(CmdBufCallId::CmdLoadMsaaQuadSamplePattern);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     InsertToken(&pSrcGpuMemory);
-#else
-    InsertToken(&srcGpuMemory);
-#endif
     InsertToken(srcMemOffset);
 }
 
@@ -675,12 +669,7 @@ void CmdBuffer::ReplayCmdLoadMsaaQuadSamplePattern(
     Queue*            pQueue,
     TargetCmdBuffer*  pTgtCmdBuffer)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 283
     auto pSrcGpuMemory     = ReadTokenVal<IGpuMemory**>();
-#else
-    auto pSrcGpuMemory     = ReadTokenVal<IGpuMemory*>();
-#endif
-
     auto srcMemOffset      = ReadTokenVal<gpusize>();
     pTgtCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSrcGpuMemory, srcMemOffset);
 }
@@ -3236,7 +3225,9 @@ void CmdBuffer::LogPreTimedCall(
 
         if (m_disableDataGathering == false)
         {
-            const bool enablePerfExp   = (m_pDevice->NumGlobalPerfCounters() > 0) || enableSqThreadTrace;
+            const bool enablePerfExp   = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
+                                         (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                                         enableSqThreadTrace;
             const bool enablePipeStats = m_flags.logPipeStats;
 
             pTgtCmdBuffer->BeginSample(pQueue, pLogItem, enablePipeStats, enablePerfExp);
