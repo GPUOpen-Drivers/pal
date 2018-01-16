@@ -24,9 +24,9 @@
  **********************************************************************************************************************/
 
 #include "palAssert.h"
-#include "palThread.h"
 #include <errno.h>
 #include <pthread.h>
+#include "palThread.h"
 
 namespace Util
 {

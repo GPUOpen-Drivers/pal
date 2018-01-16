@@ -157,7 +157,7 @@ Result DmaCmdBuffer::End()
 #if PAL_ENABLE_PRINTS_ASSERTS
         if (IsDumpingEnabled() && DumpFile()->IsOpen())
         {
-            if (m_pDevice->Settings().submitTimeCmdBufDumpMode == CmdBufDumpModeBinaryHeaders)
+            if (m_pDevice->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
             {
                 const CmdBufferDumpFileHeader fileHeader =
                 {
@@ -181,7 +181,7 @@ Result DmaCmdBuffer::End()
                 DumpFile()->Write(&listHeader, sizeof(listHeader));
             }
 
-            DumpCmdStreamsToFile(DumpFile(), m_pDevice->Settings().submitTimeCmdBufDumpMode);
+            DumpCmdStreamsToFile(DumpFile(), m_pDevice->Settings().cmdBufDumpFormat);
             DumpFile()->Close();
         }
 #endif
@@ -1298,7 +1298,7 @@ void DmaCmdBuffer::SetupDmaTypedBufferCopyInfo(
 // Dumps this command buffer's single command stream to the given file with an appropriate header.
 void DmaCmdBuffer::DumpCmdStreamsToFile(
     File*          pFile,
-    CmdBufDumpMode mode
+    CmdBufDumpFormat mode
     ) const
 {
     m_cmdStream.DumpCommands(pFile, "# DMA Queue - Command length = ", mode);

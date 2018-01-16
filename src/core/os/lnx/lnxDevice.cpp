@@ -2564,6 +2564,27 @@ void Device::UpdateImageInfo(
 }
 
 // =====================================================================================================================
+// Sync vulkan buffer/image info for external usage such as Xserver consume Vulkan's render output.
+Result Device::UpdateExternalImageInfo(
+    const PresentableImageCreateInfo&  createInfo,
+    Pal::GpuMemory*                    pGpuMemory,
+    Pal::Image*                        pImage)
+{
+    return Image::UpdateExternalImageInfo(this, createInfo, pGpuMemory, pImage);
+}
+
+// =====================================================================================================================
+// Create Presentable Memory Object. Parameter sharedHandle is only useful for Android, discard it for Linux case.
+Result Device::CreatePresentableMemoryObject(
+    Image*           pImage,
+    void*            pMemObjMem,
+    OsDisplayHandle  sharedHandle,
+    Pal::GpuMemory** ppMemObjOut)
+{
+    return Image::CreatePresentableMemoryObject(this, pImage, pMemObjMem, ppMemObjOut);
+}
+
+// =====================================================================================================================
 const char* Device::GetCacheFilePath() const
 {
     const char* pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
@@ -2673,6 +2694,32 @@ void Device::UpdateMetaData(
     }
 
     m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
+}
+
+// =====================================================================================================================
+Result Device::SyncObjImportSyncFile(
+    int                     syncFileFd,
+    amdgpu_semaphore_handle syncObj
+    ) const
+{
+    int32 ret = 0;
+    ret = m_drmProcs.pfnAmdgpuCsSyncobjImportSyncFile(m_hDevice,
+                                                      reinterpret_cast<uintptr_t>(syncObj),
+                                                      syncFileFd);
+    return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+Result Device::SyncObjExportSyncFile(
+    amdgpu_semaphore_handle syncObj,
+    int*                    pSyncFileFd
+    ) const
+{
+    int32 ret = 0;
+    ret = m_drmProcs.pfnAmdgpuCsSyncobjExportSyncFile(m_hDevice,
+                                                      reinterpret_cast<uintptr_t>(syncObj),
+                                                      pSyncFileFd);
+    return CheckResult(ret, Result::ErrorUnknown);
 }
 
 // =====================================================================================================================

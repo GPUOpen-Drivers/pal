@@ -1055,6 +1055,22 @@ void RsrcProcMgr::InitMaskRam(
     // so assume that by default.
     bool usedCompute = true;
 
+    // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
+    // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
+    if (dstImage.HasDccStateMetaData()         ||
+        dstImage.HasFastClearMetaData()        ||
+        dstImage.HasWaTcCompatZRangeMetaData() ||
+        dstImage.HasFastClearEliminateMetaData())
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // Stalls the PFP until the ME has processed all previous commands. Useful in cases that aliasing the memory
+        // (i.e. ME and PFP can access the same memory). PFP need to stall execution until ME finish its previous
+        // work.
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     if (fullRangeInitMask != 0)
     {
         // There are at least some mask-rams that we're initializing with fill-memory calls.
@@ -1594,240 +1610,6 @@ void RsrcProcMgr::HwlUpdateDstImageMetaData(
             pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
         }
     }
-}
-
-// =====================================================================================================================
-// After a fixed-func depth/stencil copy resolve, src htile will be copied to dst htile and set the zmask or smask to
-// expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
-// necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
-void RsrcProcMgr::HwlHtileCopyAndFixUp(
-    GfxCmdBuffer*             pCmdBuffer,
-    const Pal::Image&         srcImage,
-    const Pal::Image&         dstImage,
-    uint32                    regionCount,
-    const ImageResolveRegion* pRegions
-    ) const
-{
-    PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
-
-    // Merge depth and stencil regions in which htile fix up could be performed together.
-    // Although depth and stencil htile fix-up could theoretically performed respectively, cs partial flush is
-    // required to ensure coherency. So we perform the depth and stencil htile fix-up simultaneously.
-    struct FixUpRegion
-    {
-        const ImageResolveRegion* pResolveRegion;
-        bool resolveDepth;
-        bool resolveStencil;
-
-        void FillAspect(ImageAspect aspect)
-        {
-            if (aspect == ImageAspect::Depth)
-            {
-                PAL_ASSERT(resolveDepth == false);
-                resolveDepth = true;
-            }
-            else if (aspect == ImageAspect::Stencil)
-            {
-                PAL_ASSERT(resolveStencil == false);
-                resolveStencil = true;
-            }
-            else
-            {
-                PAL_ASSERT_ALWAYS();
-            }
-        }
-    };
-
-    AutoBuffer<FixUpRegion, 2 * MaxImageMipLevels, Platform> fixUpRegionList(regionCount, m_pDevice->GetPlatform());
-    uint32 mergedCount = 0u;
-
-    if (fixUpRegionList.Capacity() < regionCount)
-    {
-        pCmdBuffer->NotifyAllocFailure();
-    }
-    else
-    {
-        for (uint32 regionIndex = 0; regionIndex < regionCount; ++regionIndex)
-        {
-            const ImageResolveRegion& curResolveRegion = pRegions[regionIndex];
-            bool inserted = false;
-
-            for (uint32 listIndex = 0; listIndex < mergedCount; ++listIndex)
-            {
-                FixUpRegion& listRegion = fixUpRegionList[listIndex];
-
-                if ((curResolveRegion.dstMipLevel == listRegion.pResolveRegion->dstMipLevel) &&
-                    (curResolveRegion.dstSlice == listRegion.pResolveRegion->dstSlice))
-                {
-                    listRegion.FillAspect(curResolveRegion.dstAspect);
-
-                    PAL_ASSERT(curResolveRegion.dstAspect != listRegion.pResolveRegion->dstAspect);
-
-                    PAL_ASSERT((curResolveRegion.srcOffset.x == listRegion.pResolveRegion->srcOffset.x) &&
-                        (curResolveRegion.srcOffset.y == listRegion.pResolveRegion->srcOffset.y) &&
-                        (curResolveRegion.dstOffset.x == listRegion.pResolveRegion->dstOffset.x) &&
-                        (curResolveRegion.dstOffset.y == listRegion.pResolveRegion->dstOffset.y) &&
-                        (curResolveRegion.extent.width == listRegion.pResolveRegion->extent.width) &&
-                        (curResolveRegion.extent.height == listRegion.pResolveRegion->extent.height) &&
-                        (curResolveRegion.numSlices == listRegion.pResolveRegion->numSlices) &&
-                        (curResolveRegion.srcSlice == listRegion.pResolveRegion->srcSlice));
-
-                    inserted = true;
-                    break;
-                }
-            }
-
-            if (inserted == false)
-            {
-                FixUpRegion fixUpRegion = {};
-                fixUpRegion.pResolveRegion = &curResolveRegion;
-                fixUpRegion.FillAspect(curResolveRegion.dstAspect);
-
-                fixUpRegionList[mergedCount++] = fixUpRegion;
-            } // End of if
-        } // End of for
-    } // End of if
-
-    const Image* pGfxSrcImage = reinterpret_cast<const Image*>(srcImage.GetGfxImage());
-    const Image* pGfxDstImage = reinterpret_cast<const Image*>(dstImage.GetGfxImage());
-
-    if (pGfxSrcImage->HasHtileData() && pGfxDstImage->HasHtileData())
-    {
-        SubresId dstSubresId = {};
-
-        const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
-        const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
-
-        // Save the command buffer's state
-        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-
-        const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
-
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-        // Bind Compute Pipeline used for the clear.
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-
-        for (uint32 i = 0; i < mergedCount; ++i)
-        {
-            BufferViewInfo bufferView[4] = {};
-            BufferSrd      bufferSrds[4] = {};
-
-            const ImageResolveRegion* pCurRegion = fixUpRegionList[i].pResolveRegion;
-            uint32 dstMipLevel = pCurRegion->dstMipLevel;
-
-            dstSubresId.aspect = pCurRegion->dstAspect;
-            dstSubresId.mipLevel = dstMipLevel;
-            dstSubresId.arraySlice = pCurRegion->dstSlice;
-            const SubResourceInfo* pDstSubresInfo = dstImage.SubresourceInfo(dstSubresId);
-
-            // Dst htile surface
-            const Gfx9Htile* pDstHtile = pGfxDstImage->GetHtile();
-            pDstHtile->BuildSurfBufferView(*pGfxDstImage, &bufferView[0]);
-            dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[0], &bufferSrds[0]);
-
-            // Src htile surface
-            const Gfx9Htile* pSrcHtile = pGfxSrcImage->GetHtile();
-            pSrcHtile->BuildSurfBufferView(*pGfxSrcImage, &bufferView[1]);
-            srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[1], &bufferSrds[1]);
-
-            // Src htile lookup table
-            pGfxSrcImage->BuildMetadataLookupTableBufferView(&bufferView[2], 0);
-            srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[2], &bufferSrds[2]);
-
-            // Dst htile lookup table
-            pGfxDstImage->BuildMetadataLookupTableBufferView(&bufferView[3], dstMipLevel);
-            dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[3], &bufferSrds[3]);
-
-            static const uint32 HtileTexelAlign = 8;
-
-            // Htile copy and fixup require offset and extent to be 8 pixel alignment, or the copy region
-            // covers full right-bottom part of dst image.
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->srcOffset.x, HtileTexelAlign));
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->srcOffset.y, HtileTexelAlign));
-
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->dstOffset.x, HtileTexelAlign));
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->dstOffset.y, HtileTexelAlign));
-
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->extent.width, HtileTexelAlign) ||
-                       ((pCurRegion->extent.width + pCurRegion->dstOffset.x) == pDstSubresInfo->extentTexels.width));
-
-            PAL_ASSERT(IsPow2Aligned(pCurRegion->extent.height, HtileTexelAlign) ||
-                       ((pCurRegion->extent.height + pCurRegion->dstOffset.y) == pDstSubresInfo->extentTexels.height));
-            PAL_ASSERT((pCurRegion->dstOffset.x >= 0) && (pCurRegion->dstOffset.y >= 0));
-
-            const uint32  htileExtentX = (Pow2Align(pCurRegion->extent.width, HtileTexelAlign) / HtileTexelAlign);
-            const uint32  htileExtentY = (Pow2Align(pCurRegion->extent.height, HtileTexelAlign) / HtileTexelAlign);
-            const uint32  htileExtentZ = pCurRegion->numSlices;
-
-            uint32 coveredAspects = 0;
-
-            if (fixUpRegionList[i].resolveDepth)
-            {
-                coveredAspects |= HtileAspectMask::HtileAspectDepth;
-            }
-
-            if (fixUpRegionList[i].resolveStencil)
-            {
-                coveredAspects |= HtileAspectMask::HtileAspectStencil;
-            }
-
-            const uint32 htileMask = pDstHtile->GetAspectMask(coveredAspects);
-
-            uint32 htileExpandValue = 0;
-
-            const uint32 constData[] =
-            {
-                // start cb1[0]
-                pCurRegion->srcOffset.x / HtileTexelAlign,                                   //srcHtileOffset.x
-                pCurRegion->srcOffset.y / HtileTexelAlign,                                   //srcHtileOffset.y
-                pCurRegion->srcSlice,                                                        //srcHtileOffset.z
-                htileExtentX,                                                                //resolveExtentX
-                // start cb1[1]
-                pCurRegion->dstOffset.x / HtileTexelAlign,                                   //dstHtileOffset.x
-                pCurRegion->dstOffset.y / HtileTexelAlign,                                   //dstHtileOffset.y
-                pCurRegion->dstSlice,                                                        //dstHtileOffset.z
-                htileExtentY,                                                                //resolveExtentY,
-                // start cb1[2]
-                Pow2Align(srcCreateInfo.extent.width, HtileTexelAlign) / HtileTexelAlign,    //srcMipLevelHtileDim.x
-                Pow2Align(srcCreateInfo.extent.height, HtileTexelAlign) / HtileTexelAlign,   //srcMipLevelHtileDim.y
-                Pow2Align(pDstSubresInfo->extentTexels.width, HtileTexelAlign)
-                    / HtileTexelAlign,                                                       //dstMipLevelHtileDim.x
-                Pow2Align(pDstSubresInfo->extentTexels.height, HtileTexelAlign)
-                    / HtileTexelAlign,                                                       //dstMipLevelHtileDim.y
-                // start cb1[3]
-                pDstHtile->GetInitialValue() & htileMask,                                    //zsDecompressedValue
-                htileMask,                                                                   //htileMask
-                0u,                                                                          //Padding
-                0u,                                                                          //Padding
-            };
-
-            // Create an embedded user-data table and bind it to user data 0.
-            static const uint32 sizeBufferSrdDwords = NumBytesToNumDwords(sizeof(BufferSrd));
-            static const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
-            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                sizeBufferSrdDwords * 4 + sizeConstDataDwords,
-                sizeBufferSrdDwords,
-                PipelineBindPoint::Compute,
-                0);
-
-            // Put the SRDs for the hTile buffer and hTile lookup table into shader-accessible memory
-            memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
-            pSrdTable += sizeBufferSrdDwords * 4;
-
-            // Provide the shader with all kinds of fun dimension info
-            memcpy(pSrdTable, &constData, sizeof(constData));
-
-            // Now that we have the dimensions in terms of compressed pixels, launch as many thread groups as we need to
-            // get to them all.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(htileExtentX, threadsPerGroup[0]),
-                RpmUtil::MinThreadGroups(htileExtentY, threadsPerGroup[1]),
-                RpmUtil::MinThreadGroups(htileExtentZ, threadsPerGroup[2]));
-        } // End of for
-
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
-    } // End of if
 }
 
 // =====================================================================================================================
@@ -4595,6 +4377,240 @@ void Gfx9RsrcProcMgr::HwlExpandHtileHiZRange(
                          range,
                          htileValue,
                          htileMask);
+}
+
+// =====================================================================================================================
+// After a fixed-func depth/stencil copy resolve, src htile will be copied to dst htile and set the zmask or smask to
+// expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
+// necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
+void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Pal::Image&         srcImage,
+    const Pal::Image&         dstImage,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions
+    ) const
+{
+    PAL_ASSERT(srcImage.IsDepthStencil() && dstImage.IsDepthStencil());
+
+    // Merge depth and stencil regions in which htile fix up could be performed together.
+    // Although depth and stencil htile fix-up could theoretically performed respectively, cs partial flush is
+    // required to ensure coherency. So we perform the depth and stencil htile fix-up simultaneously.
+    struct FixUpRegion
+    {
+        const ImageResolveRegion* pResolveRegion;
+        bool resolveDepth;
+        bool resolveStencil;
+
+        void FillAspect(ImageAspect aspect)
+        {
+            if (aspect == ImageAspect::Depth)
+            {
+                PAL_ASSERT(resolveDepth == false);
+                resolveDepth = true;
+            }
+            else if (aspect == ImageAspect::Stencil)
+            {
+                PAL_ASSERT(resolveStencil == false);
+                resolveStencil = true;
+            }
+            else
+            {
+                PAL_ASSERT_ALWAYS();
+            }
+        }
+    };
+
+    AutoBuffer<FixUpRegion, 2 * MaxImageMipLevels, Platform> fixUpRegionList(regionCount, m_pDevice->GetPlatform());
+    uint32 mergedCount = 0u;
+
+    if (fixUpRegionList.Capacity() < regionCount)
+    {
+        pCmdBuffer->NotifyAllocFailure();
+    }
+    else
+    {
+        for (uint32 regionIndex = 0; regionIndex < regionCount; ++regionIndex)
+        {
+            const ImageResolveRegion& curResolveRegion = pRegions[regionIndex];
+            bool inserted = false;
+
+            for (uint32 listIndex = 0; listIndex < mergedCount; ++listIndex)
+            {
+                FixUpRegion& listRegion = fixUpRegionList[listIndex];
+
+                if ((curResolveRegion.dstMipLevel == listRegion.pResolveRegion->dstMipLevel) &&
+                    (curResolveRegion.dstSlice == listRegion.pResolveRegion->dstSlice))
+                {
+                    listRegion.FillAspect(curResolveRegion.dstAspect);
+
+                    PAL_ASSERT(curResolveRegion.dstAspect != listRegion.pResolveRegion->dstAspect);
+
+                    PAL_ASSERT((curResolveRegion.srcOffset.x == listRegion.pResolveRegion->srcOffset.x) &&
+                        (curResolveRegion.srcOffset.y == listRegion.pResolveRegion->srcOffset.y) &&
+                        (curResolveRegion.dstOffset.x == listRegion.pResolveRegion->dstOffset.x) &&
+                        (curResolveRegion.dstOffset.y == listRegion.pResolveRegion->dstOffset.y) &&
+                        (curResolveRegion.extent.width == listRegion.pResolveRegion->extent.width) &&
+                        (curResolveRegion.extent.height == listRegion.pResolveRegion->extent.height) &&
+                        (curResolveRegion.numSlices == listRegion.pResolveRegion->numSlices) &&
+                        (curResolveRegion.srcSlice == listRegion.pResolveRegion->srcSlice));
+
+                    inserted = true;
+                    break;
+                }
+            }
+
+            if (inserted == false)
+            {
+                FixUpRegion fixUpRegion = {};
+                fixUpRegion.pResolveRegion = &curResolveRegion;
+                fixUpRegion.FillAspect(curResolveRegion.dstAspect);
+
+                fixUpRegionList[mergedCount++] = fixUpRegion;
+            } // End of if
+        } // End of for
+    } // End of if
+
+    const Image* pGfxSrcImage = reinterpret_cast<const Image*>(srcImage.GetGfxImage());
+    const Image* pGfxDstImage = reinterpret_cast<const Image*>(dstImage.GetGfxImage());
+
+    if (pGfxSrcImage->HasHtileData() && pGfxDstImage->HasHtileData())
+    {
+        SubresId dstSubresId = {};
+
+        const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+        const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
+
+        // Save the command buffer's state
+        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
+        const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
+
+        uint32 threadsPerGroup[3] = {};
+        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+        // Bind Compute Pipeline used for the clear.
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+
+        for (uint32 i = 0; i < mergedCount; ++i)
+        {
+            BufferViewInfo bufferView[4] = {};
+            BufferSrd      bufferSrds[4] = {};
+
+            const ImageResolveRegion* pCurRegion = fixUpRegionList[i].pResolveRegion;
+            uint32 dstMipLevel = pCurRegion->dstMipLevel;
+
+            dstSubresId.aspect = pCurRegion->dstAspect;
+            dstSubresId.mipLevel = dstMipLevel;
+            dstSubresId.arraySlice = pCurRegion->dstSlice;
+            const SubResourceInfo* pDstSubresInfo = dstImage.SubresourceInfo(dstSubresId);
+
+            // Dst htile surface
+            const Gfx9Htile* pDstHtile = pGfxDstImage->GetHtile();
+            pDstHtile->BuildSurfBufferView(*pGfxDstImage, &bufferView[0]);
+            dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[0], &bufferSrds[0]);
+
+            // Src htile surface
+            const Gfx9Htile* pSrcHtile = pGfxSrcImage->GetHtile();
+            pSrcHtile->BuildSurfBufferView(*pGfxSrcImage, &bufferView[1]);
+            srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[1], &bufferSrds[1]);
+
+            // Src htile lookup table
+            pGfxSrcImage->BuildMetadataLookupTableBufferView(&bufferView[2], 0);
+            srcImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[2], &bufferSrds[2]);
+
+            // Dst htile lookup table
+            pGfxDstImage->BuildMetadataLookupTableBufferView(&bufferView[3], dstMipLevel);
+            dstImage.GetDevice()->CreateUntypedBufferViewSrds(1, &bufferView[3], &bufferSrds[3]);
+
+            static const uint32 HtileTexelAlign = 8;
+
+            // Htile copy and fixup require offset and extent to be 8 pixel alignment, or the copy region
+            // covers full right-bottom part of dst image.
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->srcOffset.x, HtileTexelAlign));
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->srcOffset.y, HtileTexelAlign));
+
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->dstOffset.x, HtileTexelAlign));
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->dstOffset.y, HtileTexelAlign));
+
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->extent.width, HtileTexelAlign) ||
+                       ((pCurRegion->extent.width + pCurRegion->dstOffset.x) == pDstSubresInfo->extentTexels.width));
+
+            PAL_ASSERT(IsPow2Aligned(pCurRegion->extent.height, HtileTexelAlign) ||
+                       ((pCurRegion->extent.height + pCurRegion->dstOffset.y) == pDstSubresInfo->extentTexels.height));
+            PAL_ASSERT((pCurRegion->dstOffset.x >= 0) && (pCurRegion->dstOffset.y >= 0));
+
+            const uint32  htileExtentX = (Pow2Align(pCurRegion->extent.width, HtileTexelAlign) / HtileTexelAlign);
+            const uint32  htileExtentY = (Pow2Align(pCurRegion->extent.height, HtileTexelAlign) / HtileTexelAlign);
+            const uint32  htileExtentZ = pCurRegion->numSlices;
+
+            uint32 coveredAspects = 0;
+
+            if (fixUpRegionList[i].resolveDepth)
+            {
+                coveredAspects |= HtileAspectMask::HtileAspectDepth;
+            }
+
+            if (fixUpRegionList[i].resolveStencil)
+            {
+                coveredAspects |= HtileAspectMask::HtileAspectStencil;
+            }
+
+            const uint32 htileMask = pDstHtile->GetAspectMask(coveredAspects);
+
+            uint32 htileExpandValue = 0;
+
+            const uint32 constData[] =
+            {
+                // start cb1[0]
+                pCurRegion->srcOffset.x / HtileTexelAlign,                                   //srcHtileOffset.x
+                pCurRegion->srcOffset.y / HtileTexelAlign,                                   //srcHtileOffset.y
+                pCurRegion->srcSlice,                                                        //srcHtileOffset.z
+                htileExtentX,                                                                //resolveExtentX
+                // start cb1[1]
+                pCurRegion->dstOffset.x / HtileTexelAlign,                                   //dstHtileOffset.x
+                pCurRegion->dstOffset.y / HtileTexelAlign,                                   //dstHtileOffset.y
+                pCurRegion->dstSlice,                                                        //dstHtileOffset.z
+                htileExtentY,                                                                //resolveExtentY,
+                // start cb1[2]
+                Pow2Align(srcCreateInfo.extent.width, HtileTexelAlign) / HtileTexelAlign,    //srcMipLevelHtileDim.x
+                Pow2Align(srcCreateInfo.extent.height, HtileTexelAlign) / HtileTexelAlign,   //srcMipLevelHtileDim.y
+                Pow2Align(pDstSubresInfo->extentTexels.width, HtileTexelAlign)
+                    / HtileTexelAlign,                                                       //dstMipLevelHtileDim.x
+                Pow2Align(pDstSubresInfo->extentTexels.height, HtileTexelAlign)
+                    / HtileTexelAlign,                                                       //dstMipLevelHtileDim.y
+                // start cb1[3]
+                pDstHtile->GetInitialValue() & htileMask,                                    //zsDecompressedValue
+                htileMask,                                                                   //htileMask
+                0u,                                                                          //Padding
+                0u,                                                                          //Padding
+            };
+
+            // Create an embedded user-data table and bind it to user data 0.
+            static const uint32 sizeBufferSrdDwords = NumBytesToNumDwords(sizeof(BufferSrd));
+            static const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                sizeBufferSrdDwords * 4 + sizeConstDataDwords,
+                sizeBufferSrdDwords,
+                PipelineBindPoint::Compute,
+                0);
+
+            // Put the SRDs for the hTile buffer and hTile lookup table into shader-accessible memory
+            memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
+            pSrdTable += sizeBufferSrdDwords * 4;
+
+            // Provide the shader with all kinds of fun dimension info
+            memcpy(pSrdTable, &constData, sizeof(constData));
+
+            // Now that we have the dimensions in terms of compressed pixels, launch as many thread groups as we need to
+            // get to them all.
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(htileExtentX, threadsPerGroup[0]),
+                RpmUtil::MinThreadGroups(htileExtentY, threadsPerGroup[1]),
+                RpmUtil::MinThreadGroups(htileExtentZ, threadsPerGroup[2]));
+        } // End of for
+
+        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    } // End of if
 }
 
 // =====================================================================================================================

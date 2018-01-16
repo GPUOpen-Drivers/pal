@@ -820,14 +820,14 @@ void CmdBuffer::OpenCmdBufDumpFile(
              "%s/%s%s",
              pLogDir,
              pFilename,
-             pSuffix[settings.submitTimeCmdBufDumpMode]);
+             pSuffix[settings.cmdBufDumpFormat]);
 
-    if (settings.submitTimeCmdBufDumpMode == CmdBufDumpMode::CmdBufDumpModeText)
+    if (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
     {
         m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite);
     }
-    else if ((settings.submitTimeCmdBufDumpMode == CmdBufDumpMode::CmdBufDumpModeBinary) ||
-             (settings.submitTimeCmdBufDumpMode == CmdBufDumpMode::CmdBufDumpModeBinaryHeaders))
+    else if ((settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+             (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
     {
         m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary);
     }

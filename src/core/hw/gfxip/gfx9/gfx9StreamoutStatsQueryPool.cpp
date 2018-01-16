@@ -141,13 +141,16 @@ void StreamoutStatsQueryPool::End(
                                                               pCmdBuffer->GetEngineType(),
                                                               gpuAddr + sizeof(StreamoutStatsData),
                                                               pCmdSpace);
-        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(pCmdBuffer->GetEngineType(),
-                                                        BOTTOM_OF_PIPE_TS,
-                                                        TcCacheOp::Nop,
-                                                        timeStampAddr,
-                                                        data_sel__me_release_mem__send_32_bit_low,
-                                                        QueryTimestampEnd,
-                                                        pCmdSpace);
+
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = pCmdBuffer->GetEngineType();
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = timeStampAddr;
+        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data           = QueryTimestampEnd;
+
+        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(releaseInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }

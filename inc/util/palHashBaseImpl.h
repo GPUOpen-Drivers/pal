@@ -329,7 +329,7 @@ PAL_INLINE void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFu
         }
         // We're in the last entry of a group.
         // Considering that the next chained group could be an empty group already, it is better to check the
-        // next group’s footer->numEntries before jump to the next group. If the numEntry of the next chained
+        // next group's footer->numEntries before jump to the next group. If the numEntry of the next chained
         // group is 0 (invalid), we need to jump to the next bucket directly to avoid returning invalid entry.
         else if ((pNextGroup != nullptr) &&
                  (m_indexInGroup == pFooter->numEntries - 1) &&

@@ -1006,6 +1006,10 @@ public:
         bool* pChangeDetected) override
         { return m_pNextLayer->DidChillSettingsChange(pChangeDetected); }
 
+    virtual Result GetChillGlobalEnable(
+        bool* pGlobalEnable) override
+        { return m_pNextLayer->GetChillGlobalEnable(pGlobalEnable); }
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,

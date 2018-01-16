@@ -1,15 +1,13 @@
-# Build Type Helper ################################################################################
-set(CMAKE_BUILD_TYPE_DEBUG OFF)
-set(CMAKE_BUILD_TYPE_RELEASE OFF)
-set(CMAKE_BUILD_TYPE_RELWITHDEBINFO OFF)
+# Set up global CMake properties ###################################################################
+cmake_minimum_required(VERSION 3.5)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_BUILD_TYPE_DEBUG ON)
-elseif((CMAKE_BUILD_TYPE STREQUAL "Release"))
-    set(CMAKE_BUILD_TYPE_RELEASE ON)
-elseif((CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
-    set(CMAKE_BUILD_TYPE_RELWITHDEBINFO ON)
-endif()
+# Include Frequently Used Modules ##################################################################
+include(CMakeDependentOption)
+
+# Build Type Helper ################################################################################
+set(CMAKE_BUILD_TYPE_DEBUG $<CONFIG:Debug>)
+set(CMAKE_BUILD_TYPE_RELEASE $<CONFIG:Release>)
+set(CMAKE_BUILD_TYPE_RELWITHDEBINFO $<CONFIG:RelWithDebInfo>)
 
 # Options Helpers ##################################################################################
 macro(dropdown_option _option _options)
@@ -99,4 +97,10 @@ endmacro()
 macro(target_install _target _destination)
     install(TARGET ${_target} DESTINATION ${_destination}/${CMAKE_BUILD_TYPE}${TARGET_ARCHITECTURE_BITS})
 endmacro()
+
+# Visual Studio Specific Options ###################################################################
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+endif()
 

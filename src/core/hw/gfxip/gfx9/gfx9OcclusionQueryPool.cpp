@@ -120,13 +120,16 @@ void OcclusionQueryPool::End(
                                                               engineType,
                                                               gpuAddr + offsetof(OcclusionQueryResultPair, end),
                                                               pCmdSpace);
-        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(engineType,
-                                                        BOTTOM_OF_PIPE_TS,
-                                                        TcCacheOp::Nop,
-                                                        timeStampAddr,
-                                                        data_sel__me_release_mem__send_32_bit_low,
-                                                        QueryTimestampEnd,
-                                                        pCmdSpace);
+
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = engineType;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = timeStampAddr;
+        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data           = QueryTimestampEnd;
+
+        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(releaseInfo, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
 

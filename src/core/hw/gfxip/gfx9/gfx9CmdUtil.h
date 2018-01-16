@@ -60,15 +60,19 @@ enum class TcCacheOp : uint32
 // to capture all of this information if we use an input structure for BuildAcquireMem.
 struct AcquireMemInfo
 {
-    struct
+    union
     {
-        uint32 usePfp      :  1; // If true the PFP will process this packet. Only valid on the universal engine.
-        uint32 invSqI$     :  1; // Invalidate the SQ instruction caches.
-        uint32 invSqK$     :  1; // Invalidate the SQ scalar caches.
-        uint32 flushSqK$   :  1; // Flush the SQ scalar caches.
-        uint32 wbInvCbData :  1; // Flush and invalidate the CB data cache. Only valid on the universal engine.
-        uint32 wbInvDb     :  1; // Flush and invalidate the DB data and metadata caches. Only valid on universal.
-        uint32 reserved    : 26;
+        struct
+        {
+            uint32 usePfp      :  1; // If true the PFP will process this packet. Only valid on the universal engine.
+            uint32 invSqI$     :  1; // Invalidate the SQ instruction caches.
+            uint32 invSqK$     :  1; // Invalidate the SQ scalar caches.
+            uint32 flushSqK$   :  1; // Flush the SQ scalar caches.
+            uint32 wbInvCbData :  1; // Flush and invalidate the CB data cache. Only valid on the universal engine.
+            uint32 wbInvDb     :  1; // Flush and invalidate the DB data and metadata caches. Only valid on universal.
+            uint32 reserved    : 26;
+        };
+        uint32 u32All;
     } flags;
 
     EngineType          engineType;
@@ -78,6 +82,17 @@ struct AcquireMemInfo
     // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
     gpusize             baseAddress;
     gpusize             sizeBytes;
+};
+
+// To easily see the the differences between ReleaseMem and AcquireMem, we want to use an input structure for BuildAcquireMem.
+struct ReleaseMemInfo
+{
+    EngineType     engineType;
+    VGT_EVENT_TYPE vgtEvent;
+    TcCacheOp      tcCacheOp;  // The cache operation to issue.
+    gpusize        dstAddr;
+    uint32         dataSel;    // One of the data_sel_*_release_mem enumerations
+    uint64         data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -407,15 +422,10 @@ public:
         size_t  requestedPages,
         void*   pBuffer) const;
     size_t BuildReleaseMem(
-        EngineType      engineType,
-        VGT_EVENT_TYPE  vgtEvent,
-        TcCacheOp       tcCacheOp,
-        gpusize         dstAddr,
-        uint32          dataSel,
-        uint64          data,
-        void*           pBuffer,
-        uint32          gdsAddr = 0,
-        uint32          gdsSize = 0) const;
+        const ReleaseMemInfo& releaseMemInfo,
+        void*                 pBuffer,
+        uint32                gdsAddr = 0,
+        uint32                gdsSize = 0) const;
     size_t BuildRewind(
         bool  offloadEnable,
         bool  valid,
@@ -572,11 +582,7 @@ private:
 
     template <typename ReleaseMemPacketType>
     size_t BuildReleaseMemInternal(
-        EngineType             engineType,
-        VGT_EVENT_TYPE         vgtEvent,
-        gpusize                dstAddr,
-        uint32                 dataSel,
-        uint64                 data,
+        const ReleaseMemInfo&  releaseMemInfo,
         ReleaseMemPacketType*  pPacket,
         uint32                 gdsAddr,
         uint32                 gdsSize) const;

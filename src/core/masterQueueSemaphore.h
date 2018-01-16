@@ -73,6 +73,8 @@ public:
 
     Result InitExternal();
 
+    Result EarlySignal();
+
 private:
     Result AddBlockedQueue(
         Queue*          pQueue,

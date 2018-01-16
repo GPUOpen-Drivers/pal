@@ -74,7 +74,7 @@ public:
         Allocator*const  pAllocator)
         :
         m_capacity(defaultCapacity),
-        m_pBuffer(&m_localBuffer[0]),
+        m_pBuffer(reinterpret_cast<Item*>(m_localBuffer)),
         m_pAllocator(pAllocator)
     {
         if (requiredCapacity > defaultCapacity)
@@ -82,12 +82,21 @@ public:
             PAL_DPWARN("AutoBuffer needs to malloc. Consider increasing the default size. Default: %u, Required: %u",
                        static_cast<uint32>(defaultCapacity), static_cast<uint32>(requiredCapacity));
 
+            // Create dynamically allocated array, by allocating memory and construcing its objects.
             Item*const pBuffer = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
 
             if (pBuffer != nullptr)
             {
                 m_pBuffer  = pBuffer;
                 m_capacity = requiredCapacity;
+            }
+        }
+        else if (!std::is_pod<Item>::value)
+        {
+            // Explicitly construct all objects of non-trivial type in the local buffer.
+            for (uint32 idx = 0; idx < defaultCapacity; ++idx)
+            {
+                PAL_PLACEMENT_NEW(m_pBuffer + idx) Item();
             }
         }
 
@@ -100,9 +109,18 @@ public:
     /// Cleans up the dynamically allocated buffer if we allocated one.
     ~AutoBuffer()
     {
-        if (m_pBuffer != &m_localBuffer[0])
+        if (m_pBuffer != reinterpret_cast<Item*>(m_localBuffer))
         {
+            // Destory dynamically allocated array, by destroying its objects and freeing memory.
             PAL_SAFE_DELETE_ARRAY(m_pBuffer, m_pAllocator);
+        }
+        else if (!std::is_pod<Item>::value)
+        {
+            // Explicitly destroy all objects of non-trivial type from the local buffer.
+            for (uint32 idx = 0; idx < defaultCapacity; ++idx)
+            {
+                m_pBuffer[idx].~Item();
+            }
         }
     }
 
@@ -131,16 +149,34 @@ public:
         return m_pBuffer[n];
     }
 
+    /// Returns pointer to the underlying buffer serving as data storage.
+    /// The returned pointer defines always valid range [Data(), Data() + Capacity()).
+    ///
+    /// @returns Pointer to the underlying data storage for read & write access.
+    ///          The returned pointer contains address of the first element.
+    Item* Data() { return m_pBuffer; }
+
+    /// Returns pointer to the underlying buffer serving as data storage.
+    /// The returned pointer defines always valid range [Data(), Data() + Capacity()),
+    /// even if the container is empty (Data() is not dereferenceable in that case).
+    ///
+    /// @returns Pointer to the underlying data storage for read only access.
+    ///          The returned pointer contains address of the first element.
+    const Item* Data() const { return m_pBuffer; }
+
 private:
+    // This is a POD-type that exactly fits one Item value.
+    using ValueStorage = typename std::aligned_storage<sizeof(Item), alignof(Item)>::type;
+
     // Current capacity of this buffer (in Items).
     size_t m_capacity;
 
     // Buffer pointer this object uses to access the buffer's elements: if the required capacity exceeds the default
-    // capacity, this points to a dynamic array of Items.  Otherwise, this points to m_localBuffer[0].
+    // capacity, this points to a dynamic array of Items. Otherwise, this points to m_localBuffer.
     Item*  m_pBuffer;
 
-    // Static array of Items which we expect most objects of this type to end up using.
-    Item   m_localBuffer[defaultCapacity];
+    // Static array providing storage for Items which we expect most objects of this type to end up using.
+    ValueStorage m_localBuffer[defaultCapacity];
 
     // Allocator for this AutoBuffer.
     Allocator*const m_pAllocator;

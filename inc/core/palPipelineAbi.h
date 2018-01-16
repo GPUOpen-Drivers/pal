@@ -620,7 +620,7 @@ enum class AbiSectionType : uint32
 ///       NOTE: As PAL does not know the base address until runtime this value
 ///             has to be externally provided when applying relocations.
 /// G   - Represents the offset into the global offset table at which the
-///       relocation entry’s symbol will reside during execution.
+///       relocation entry's symbol will reside during execution.
 /// GOT - Represents the address of the global offset table.
 /// P   - The section offset or address of the storage unit being relocated, computed using r_offset.
 /// S   - The value of the symbol whose index resides in the relocation entry.

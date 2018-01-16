@@ -467,15 +467,15 @@ bool CmdStreamChunk::ContainsAddress(
 Result CmdStreamChunk::WriteCommandsToFile(
     File*          pFile,
     uint32         subEngineId,
-    CmdBufDumpMode mode
+    CmdBufDumpFormat mode
     ) const
 {
     Result result = Result::Success;
 
-    if ((mode == CmdBufDumpMode::CmdBufDumpModeBinary) ||
-        (mode == CmdBufDumpMode::CmdBufDumpModeBinaryHeaders))
+    if ((mode == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+        (mode == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
     {
-        if (mode == CmdBufDumpMode::CmdBufDumpModeBinaryHeaders)
+        if (mode == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
         {
             const CmdBufferDumpHeader chunkheader =
             {
@@ -492,7 +492,7 @@ Result CmdStreamChunk::WriteCommandsToFile(
         constexpr uint32 MaxLineSize = 16;
         char line[MaxLineSize];
 
-        PAL_ASSERT(mode == CmdBufDumpMode::CmdBufDumpModeText);
+        PAL_ASSERT(mode == CmdBufDumpFormat::CmdBufDumpFormatText);
 
         for (uint32 idx = 0; (idx < m_usedDataSizeDwords) && (result == Result::Success); ++idx)
         {

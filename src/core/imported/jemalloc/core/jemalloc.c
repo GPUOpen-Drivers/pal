@@ -769,7 +769,7 @@ stats_print_atexit(void)
 
 #ifndef JEMALLOC_HAVE_SECURE_GETENV
 static char *
-secure_getenv(const char *name)
+j_secure_getenv(const char *name)
 {
 
 #  ifdef JEMALLOC_HAVE_ISSETUGID
@@ -981,7 +981,11 @@ malloc_conf_init(void)
 #endif
 			    ;
 
+#ifndef JEMALLOC_HAVE_SECURE_GETENV
+			if ((opts = j_secure_getenv(envname)) != NULL) {
+#else
 			if ((opts = secure_getenv(envname)) != NULL) {
+#endif
 				/*
 				 * Do nothing; opts is already initialized to
 				 * the value of the MALLOC_CONF environment

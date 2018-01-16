@@ -55,6 +55,12 @@ ifeq ($(JEMALLOC_DEBUG), 1)
     LCDEFS += -DJEMALLOC_DEBUG=1
 endif
 
+# Enable secure_getenv for non OCL builds only.
+# Note: OCL requires to support RHEL 6.9 (glibc 2.12), which doesn't have secure_getenv (glibc 2.17)
+ifeq ($(PAL_CLIENT_OCL), 0)
+    LCDEFS += -DJEMALLOC_HAVE_SECURE_GETENV=1
+endif
+
 # Fix for error X "can not be used when making a shared object; recompile with -fPIC"
 # -fPIC signifies Position Independent Code and is specified when building *.so shared objects.
 ifeq ($(PAL_OS_BUILD), lnx64a)

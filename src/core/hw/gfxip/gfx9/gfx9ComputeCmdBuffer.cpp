@@ -554,13 +554,15 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeCompute,
-                                               BOTTOM_OF_PIPE_TS,
-                                               TcCacheOp::Nop,
-                                               address,
-                                               data_sel__mec_release_mem__send_gpu_clock_counter,
-                                               0,
-                                               pCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_gpu_clock_counter;
+        releaseInfo.data           = 0;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);
@@ -594,15 +596,17 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeCompute,
-                                               BOTTOM_OF_PIPE_TS,
-                                               TcCacheOp::Nop,
-                                               address,
-                                               ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                                   data_sel__mec_release_mem__send_32_bit_low :
-                                                   data_sel__mec_release_mem__send_64_bit_data),
-                                               data,
-                                               pCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.dataSel        = ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                         data_sel__mec_release_mem__send_32_bit_low :
+                                         data_sel__mec_release_mem__send_64_bit_data);
+        releaseInfo.data           = data;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);
@@ -1124,13 +1128,15 @@ void ComputeCmdBuffer::WriteEventCmd(
     else if (pipePoint == HwPipePostCs)
     {
         // Implement set/reset with an EOS event waiting for CS waves to complete.
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeCompute,
-                                               CS_DONE,
-                                               TcCacheOp::Nop,
-                                               boundMemObj.GpuVirtAddr(),
-                                               data_sel__mec_release_mem__send_32_bit_low,
-                                               data,
-                                               pCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.vgtEvent       = CS_DONE;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data           = data;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
     }
     else
     {
@@ -1140,13 +1146,15 @@ void ComputeCmdBuffer::WriteEventCmd(
         // Implement set/reset with an EOP event written when all prior GPU work completes.  HwPipeBottom shouldn't be
         // much different than HwPipePostCs on a compute queue, but this command will ensure proper ordering if any
         // other EOP events were used (e.g., CmdWriteTimestamp).
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeCompute,
-                                               BOTTOM_OF_PIPE_TS,
-                                               TcCacheOp::Nop,
-                                               boundMemObj.GpuVirtAddr(),
-                                               data_sel__mec_release_mem__send_32_bit_low,
-                                               data,
-                                               pCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data           = data;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);

@@ -112,6 +112,10 @@ Result CmdBuffer::Begin(
 
     InsertToken(CmdBufCallId::Begin);
     InsertToken(info);
+    if (info.pInheritedState != nullptr)
+    {
+        InsertToken(*info.pInheritedState);
+    }
 
     Pal::Result result = Pal::Result::Success;
 
@@ -138,6 +142,12 @@ void CmdBuffer::ReplayBegin(
 {
     auto info = ReadTokenVal<CmdBufferBuildInfo>();
 
+    InheritedStateParams inheritedState = {};
+    if (info.pInheritedState != nullptr)
+    {
+        inheritedState = ReadTokenVal<InheritedStateParams>();
+        info.pInheritedState = &inheritedState;
+    }
     // We must remove the client's external allocator because PAL can only use it during command building from the
     // client's perspective. By batching and replaying command building later on we're breaking that rule. The good news
     // is that we can replace it with our queue's command buffer replay allocator because replaying is thread-safe with
@@ -176,7 +186,10 @@ void CmdBuffer::ReplayBegin(
 
             pTgtCmdBuffer->BeginSample(pQueue, &m_cmdBufLogItem, enablePipeStats, enablePerfExp);
         }
-
+        else
+        {
+            m_cmdBufLogItem.pGpaSession = pTgtCmdBuffer->GetGpaSession();
+        }
         pQueue->AddLogItem(m_cmdBufLogItem);
     }
 }

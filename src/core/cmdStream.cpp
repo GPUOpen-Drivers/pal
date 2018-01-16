@@ -670,16 +670,14 @@ gpusize CmdStream::GetCurrentGpuVa()
 // It is the callers responsibility to verify that pFile is pointing to an open file. "pHeader" should point to a
 // string of the format "text = ". It will be appended with the number of DWORDs associated with this stream.
 void CmdStream::DumpCommands(
-    File*          pFile,          // [in] pointer to an opened file object
-    const char*    pHeader,        // [in] pointer to a string that contains header info
-    CmdBufDumpMode mode            // [in] true if it's binary dump requested
+    File*            pFile,          // [in] pointer to an opened file object
+    const char*      pHeader,        // [in] pointer to a string that contains header info
+    CmdBufDumpFormat mode            // [in] true if it's binary dump requested
     ) const
 {
     Result result = Result::Success;
 
-    PAL_ASSERT(mode != CmdBufDumpMode::CmdBufDumpModeDisabled);
-
-    if (mode == CmdBufDumpMode::CmdBufDumpModeText)
+    if (mode == CmdBufDumpFormat::CmdBufDumpFormatText)
     {
         // Compute the size of all data associated with this stream.
         uint64 streamSizeInDwords = 0;

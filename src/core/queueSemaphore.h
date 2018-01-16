@@ -54,6 +54,8 @@ public:
 
     virtual OsExternalHandle ExportExternalHandle() const;
 
+    virtual amdgpu_semaphore_handle GetSyncObjHandle() const;
+
     static Result ValidateInit(const Device* pDevice, const QueueSemaphoreCreateInfo& createInfo);
     static Result ValidateOpen(const Device* pDevice, const QueueSemaphoreOpenInfo& openInfo);
 

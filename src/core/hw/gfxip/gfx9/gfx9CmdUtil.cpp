@@ -383,11 +383,12 @@ uint32 CmdUtil::BuildAcquireMemInternal(
     }
 
     constexpr uint32  PacketSize = sizeof(AcquireMemPacketType) / sizeof(uint32);
-    pPacket->header.u32All         = Type3Header(IT_ACQUIRE_MEM, PacketSize);
-    pPacket->ordinal2              = 0;
+    pPacket->header.u32All       = Type3Header(IT_ACQUIRE_MEM, PacketSize);
+    pPacket->ordinal2            = 0;
 
+    // independently.
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        // independently.
         const uint32  tcCacheOp = static_cast<uint32>(acquireMemInfo.tcCacheOp);
 
         regCP_COHER_CNTL cpCoherCntl = {};
@@ -2265,11 +2266,7 @@ size_t CmdUtil::BuildPreambleCntl(
 // Builds the common aspects of a release-mem packet.
 template <typename ReleaseMemPacketType>
 size_t CmdUtil::BuildReleaseMemInternal(
-    EngineType             engineType, // Engine this packet will be executed on
-    VGT_EVENT_TYPE         vgtEvent,
-    gpusize                dstAddr,
-    uint32                 dataSel,    // One of the data_sel_*_release_mem enumerations
-    uint64                 data,       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
+    const ReleaseMemInfo&  releaseMemInfo,
     ReleaseMemPacketType*  pPacket,    // [out] Build the PM4 packet in this buffer.
     uint32                 gdsAddr,    // dword offset, ignored unless dataSel == release_mem__store_gds_data_to_memory
     uint32                 gdsSize     // ignored unless dataSel == release_mem__store_gds_data_to_memory
@@ -2281,12 +2278,12 @@ size_t CmdUtil::BuildReleaseMemInternal(
     pPacket->header.u32All = Type3Header(IT_RELEASE_MEM, PacketSize);
 
     // If the asserts in this switch statement trip, you will almost certainly hang the GPU
-    switch (vgtEvent)
+    switch (releaseMemInfo.vgtEvent)
     {
     case FLUSH_SX_TS:
     case FLUSH_AND_INV_DB_DATA_TS:
     case FLUSH_AND_INV_CB_DATA_TS:
-        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType));
+        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType));
         // break intentionally left out!
 
     case CACHE_FLUSH_TS:
@@ -2296,12 +2293,12 @@ size_t CmdUtil::BuildReleaseMemInternal(
         break;
 
     case PS_DONE:
-        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType));
+        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType));
         pPacket->bitfields2.event_index = event_index__mec_release_mem__shader_done;
         break;
 
     case CS_DONE:
-        PAL_ASSERT(Pal::Device::EngineSupportsCompute(engineType));
+        PAL_ASSERT(Pal::Device::EngineSupportsCompute(releaseMemInfo.engineType));
         pPacket->bitfields2.event_index = event_index__mec_release_mem__shader_done;
         break;
 
@@ -2311,23 +2308,23 @@ size_t CmdUtil::BuildReleaseMemInternal(
         break;
     }
 
-    pPacket->bitfields2.event_type = vgtEvent;
+    pPacket->bitfields2.event_type = releaseMemInfo.vgtEvent;
     pPacket->ordinal3              = 0;
-    pPacket->bitfields3.data_sel   = static_cast<MEC_RELEASE_MEM_data_sel_enum>(dataSel);
+    pPacket->bitfields3.data_sel   = static_cast<MEC_RELEASE_MEM_data_sel_enum>(releaseMemInfo.dataSel);
     pPacket->bitfields3.dst_sel    = dst_sel__mec_release_mem__memory_controller;
-    pPacket->ordinal4              = LowPart(dstAddr);
-    pPacket->address_hi            = HighPart(dstAddr);  // ordinal5
-    pPacket->data_lo               = LowPart(data);      // ordinal6, overwritten below for gds
-    pPacket->data_hi               = HighPart(data);     // ordinal7, overwritten below for gds
+    pPacket->ordinal4              = LowPart(releaseMemInfo.dstAddr);
+    pPacket->address_hi            = HighPart(releaseMemInfo.dstAddr);  // ordinal5
+    pPacket->data_lo               = LowPart(releaseMemInfo.data);      // ordinal6, overwritten below for gds
+    pPacket->data_hi               = HighPart(releaseMemInfo.data);     // ordinal7, overwritten below for gds
     pPacket->int_ctxid             = 0;
 
     // This won't send an interrupt but will wait for write confirm before writing the data to memory.
-    pPacket->bitfields3.int_sel    = (dataSel == data_sel__mec_release_mem__none)
+    pPacket->bitfields3.int_sel    = (releaseMemInfo.dataSel == data_sel__mec_release_mem__none)
                                         ? int_sel__mec_release_mem__none
                                         : int_sel__mec_release_mem__send_data_after_write_confirm;
 
     // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
-    if (dataSel == data_sel__mec_release_mem__store_gds_data_to_memory)
+    if (releaseMemInfo.dataSel == data_sel__mec_release_mem__store_gds_data_to_memory)
     {
         pPacket->bitfields6c.dw_offset  = gdsAddr;
         pPacket->bitfields6c.num_dwords = gdsSize;
@@ -2341,15 +2338,10 @@ size_t CmdUtil::BuildReleaseMemInternal(
 // Generic function for building a RELEASE_MEM packet on either computer or graphics engines.  Return the number of
 // DWORDs taken up by this packet.
 size_t CmdUtil::BuildReleaseMem(
-    EngineType      engineType,  // Engine this packet will be executed on
-    VGT_EVENT_TYPE  vgtEvent,
-    TcCacheOp       tcCacheOp,
-    gpusize         dstAddr,
-    uint32          dataSel,     // One of the data_sel_*_release_mem enumerations
-    uint64          data,        // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
-    void*           pBuffer,     // [out] Build the PM4 packet in this buffer.
-    uint32          gdsAddr,     // dword offset, ignored unless dataSel == release_mem__store_gds_data_to_memory
-    uint32          gdsSize      // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    const ReleaseMemInfo& releaseMemInfo,
+    void*                 pBuffer,     // [out] Build the PM4 packet in this buffer.
+    uint32                gdsAddr,     // dword offset, ignored unless dataSel == release_mem__store_gds_data_to_memory
+    uint32                gdsSize      // ignored unless dataSel == release_mem__store_gds_data_to_memory
     ) const
 {
     static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
@@ -2376,15 +2368,15 @@ size_t CmdUtil::BuildReleaseMem(
     size_t totalSize = 0;
 
     // Add a dummy ZPASS_DONE event before EOP timestamp events to avoid a DB hang.
-    if (VgtEventHasTs[vgtEvent]                         &&
-        Pal::Device::EngineSupportsGraphics(engineType) &&
+    if (VgtEventHasTs[releaseMemInfo.vgtEvent]                         &&
+        Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType) &&
         m_device.Settings().waDummyZpassDoneBeforeTs)
     {
         const BoundGpuMemory& dummyMemory = m_device.DummyZpassDoneMem();
         PAL_ASSERT(dummyMemory.IsBound());
 
         totalSize += BuildSampleEventWrite(ZPASS_DONE,
-                                           engineType,
+                                           releaseMemInfo.engineType,
                                            dummyMemory.GpuVirtAddr(),
                                            VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
     }
@@ -2395,9 +2387,9 @@ size_t CmdUtil::BuildReleaseMem(
         // versions are identical.
         auto*const pPacket = static_cast<PM4MEC_RELEASE_MEM__GFX09*>(VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
 
-        totalSize += BuildReleaseMemInternal(engineType, vgtEvent, dstAddr, dataSel, data, pPacket, gdsAddr, gdsSize);
+        totalSize += BuildReleaseMemInternal(releaseMemInfo, pPacket, gdsAddr, gdsSize);
 
-        switch(tcCacheOp)
+        switch(releaseMemInfo.tcCacheOp)
         {
         case TcCacheOp::WbInvL1L2:
             pPacket->bitfields2.tc_action_ena       = 1;
@@ -2440,7 +2432,7 @@ size_t CmdUtil::BuildReleaseMem(
             break;
 
         default:
-            PAL_ASSERT(tcCacheOp == TcCacheOp::Nop);
+            PAL_ASSERT(releaseMemInfo.tcCacheOp == TcCacheOp::Nop);
             break;
         }
     }
@@ -2937,13 +2929,15 @@ size_t CmdUtil::BuildWaitOnReleaseMemEvent(
                                       pBuffer);
 
     // Issue the specified timestamp event.
-    totalSize += BuildReleaseMem(engineType,
-                                 vgtEvent,
-                                 tcCacheOp,
-                                 gpuAddr,
-                                 data_sel__me_release_mem__send_32_bit_low,
-                                 CompletedTimestamp,
-                                 static_cast<uint32*>(pBuffer) + totalSize);
+    ReleaseMemInfo releaseInfo = {};
+    releaseInfo.engineType     = engineType;
+    releaseInfo.vgtEvent       = vgtEvent;
+    releaseInfo.tcCacheOp      = tcCacheOp;
+    releaseInfo.dstAddr        = gpuAddr;
+    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data           = CompletedTimestamp;
+
+    totalSize += BuildReleaseMem(releaseInfo, static_cast<uint32*>(pBuffer) + totalSize);
 
     // Wait on the timestamp value.
     totalSize += BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,

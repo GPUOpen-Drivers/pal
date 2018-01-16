@@ -3165,13 +3165,15 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeUniversal,
-                                                 BOTTOM_OF_PIPE_TS,
-                                                 TcCacheOp::Nop,
-                                                 address,
-                                                 data_sel__me_release_mem__send_gpu_clock_counter,
-                                                 0,
-                                                 pDeCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeUniversal;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.dataSel        = data_sel__me_release_mem__send_gpu_clock_counter;
+        releaseInfo.data           = 0;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3206,15 +3208,17 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(EngineTypeUniversal,
-                                                 BOTTOM_OF_PIPE_TS,
-                                                 TcCacheOp::Nop,
-                                                 address,
-                                                 ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                                     data_sel__me_release_mem__send_32_bit_low :
-                                                     data_sel__me_release_mem__send_64_bit_data),
-                                                 data,
-                                                 pDeCmdSpace);
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = EngineTypeUniversal;
+        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = address;
+        releaseInfo.dataSel        = ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                         data_sel__me_release_mem__send_32_bit_low :
+                                         data_sel__me_release_mem__send_64_bit_data);
+        releaseInfo.data           = data;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3645,6 +3649,14 @@ void UniversalCmdBuffer::WriteEventCmd(
         pipePoint = OptimizeHwPipePostBlit();
     }
 
+    // Prepare RELEASE_MEM packet build info.
+    ReleaseMemInfo releaseInfo = {};
+    releaseInfo.engineType     = engineType;
+    releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+    releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
+    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data           = data;
+
     switch (pipePoint)
     {
     case HwPipeTop:
@@ -3670,24 +3682,14 @@ void UniversalCmdBuffer::WriteEventCmd(
     case HwPipePostPs:
         // Implement set/reset with an EOS event waiting for VS/PS or CS waves to complete.  Unfortunately, there is
         // no VS_DONE event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE.
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(engineType,
-                                                 (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE,
-                                                 TcCacheOp::Nop,
-                                                 boundMemObj.GpuVirtAddr(),
-                                                 data_sel__me_release_mem__send_32_bit_low,
-                                                 data,
-                                                 pDeCmdSpace);
+        releaseInfo.vgtEvent = (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE;
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
         break;
 
     case HwPipeBottom:
         // Implement set/reset with an EOP event written when all prior GPU work completes.
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(engineType,
-                                                 BOTTOM_OF_PIPE_TS,
-                                                 TcCacheOp::Nop,
-                                                 boundMemObj.GpuVirtAddr(),
-                                                 data_sel__me_release_mem__send_32_bit_low,
-                                                 data,
-                                                 pDeCmdSpace);
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
         break;
 
     default:

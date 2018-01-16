@@ -222,7 +222,7 @@ struct ProgramHeader
 };
 
 /// Sections of type SectionHeaderType::Note and SegmentType::Note can be used.
-/// Additional variable fields are the name field which identifies the entry’s owner or originator.
+/// Additional variable fields are the name field which identifies the entry's owner or originator.
 /// The name field contains a null terminated string, with padding as necessary to ensure 8-byte
 /// alignment for the descriptor field.
 ///
@@ -234,7 +234,7 @@ struct NoteTableEntryHeader
 {
     uint32 n_namesz; ///< Identifies the length, in bytes, of the name field.
     uint32 n_descsz; ///< Identifies the length of the note descriptor field.
-    uint32 n_type;   ///< Determines, along with the originator’s name, the interpretation of the
+    uint32 n_type;   ///< Determines, along with the originator's name, the interpretation of the
                      ///  note contents. Each originator controls its own types.
 };
 
@@ -250,7 +250,7 @@ struct DynamicTableEntry
         uint64 d_val; ///< This union member is used to represent integer values.
         uint64 d_ptr; ///< This union member is used to represent program virtual addresses. These
                       ///  addresses are link-time virtual addresses, and must be relocated to
-                      ///  match the object file’s actual load address. This relocation must be
+                      ///  match the object file's actual load address. This relocation must be
                       ///  done implicitly; there are no dynamic relocations for these entries.
     } d_un;
 };

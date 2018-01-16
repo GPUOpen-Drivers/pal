@@ -390,8 +390,8 @@ void Queue::DumpCmdToFile(
     const InternalSubmitInfo& internalSubmitInfo)
 {
     // To dump the command buffer upon submission for the specified frames
-    const auto&          settings = m_pDevice->Settings();
-    const CmdBufDumpMode dumpMode = settings.submitTimeCmdBufDumpMode;
+    const auto&            settings   = m_pDevice->Settings();
+    const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
 
     static const char* const pSuffix[] =
     {
@@ -406,8 +406,7 @@ void Queue::DumpCmdToFile(
                                     ((frameCnt >= settings.submitTimeCmdBufDumpStartFrame) &&
                                      (frameCnt <= settings.submitTimeCmdBufDumpEndFrame)));
 
-    if ((dumpMode != CmdBufDumpMode::CmdBufDumpModeDisabled) &&
-        (settings.recordTimeCmdBufDumpMode == false)         &&
+    if ((settings.cmdBufDumpMode == CmdBufDumpModeSubmitTime) &&
         (cmdBufDumpEnabled))
     {
         const char* pLogDir = &settings.cmdBufDumpDirectory[0];
@@ -437,20 +436,20 @@ void Queue::DumpCmdToFile(
                  this,
                  frameCnt,
                  m_submitIdPerFrame,
-                 pSuffix[settings.submitTimeCmdBufDumpMode]);
+                 pSuffix[settings.cmdBufDumpFormat]);
 
         m_lastFrameCnt = frameCnt;
 
-        if (dumpMode == CmdBufDumpMode::CmdBufDumpModeText)
+        if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
         {
             logFile.Open(&filename[0], FileAccessMode::FileAccessWrite);
         }
-        else if ((dumpMode == CmdBufDumpMode::CmdBufDumpModeBinary) ||
-                 (dumpMode == CmdBufDumpMode::CmdBufDumpModeBinaryHeaders))
+        else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
+                 (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
         {
             logFile.Open(&filename[0], FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary);
 
-            if (dumpMode == CmdBufDumpMode::CmdBufDumpModeBinaryHeaders)
+            if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
             {
                 const CmdBufferDumpFileHeader fileHeader =
                 {
@@ -518,13 +517,13 @@ void Queue::DumpCmdToFile(
             PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
             internalSubmitInfo.pPreambleCmdStream[idx]->DumpCommands(&logFile,
                                                                      QueueTypeStrings[m_type],
-                                                                     dumpMode);
+                                                                     dumpFormat);
         }
 
         for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
         {
             const auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
-            pCmdBuffer->DumpCmdStreamsToFile(&logFile, settings.submitTimeCmdBufDumpMode);
+            pCmdBuffer->DumpCmdStreamsToFile(&logFile, settings.cmdBufDumpFormat);
         }
 
         for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)
@@ -532,7 +531,7 @@ void Queue::DumpCmdToFile(
             PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
             internalSubmitInfo.pPostambleCmdStream[idx]->DumpCommands(&logFile,
                                                                       QueueTypeStrings[m_type],
-                                                                      dumpMode);
+                                                                      dumpFormat);
         }
     }
 }

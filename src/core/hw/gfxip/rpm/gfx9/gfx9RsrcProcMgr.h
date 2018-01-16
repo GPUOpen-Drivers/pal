@@ -233,13 +233,6 @@ private:
         const ImageCopyRegion* pRegions,
         uint32                 flags) const override;
 
-    virtual void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const override;
-
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    dstImage,
@@ -479,6 +472,13 @@ private:
         const SubresRange& range,
         uint32             htileValue,
         uint32             htileMask) const;
+
+    virtual void HwlHtileCopyAndFixUp(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        const Pal::Image&         dstImage,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const override;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9RsrcProcMgr);

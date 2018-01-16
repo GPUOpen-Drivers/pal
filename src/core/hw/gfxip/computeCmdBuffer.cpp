@@ -132,7 +132,7 @@ Result ComputeCmdBuffer::End()
 #if PAL_ENABLE_PRINTS_ASSERTS
         if (IsDumpingEnabled() && DumpFile()->IsOpen())
         {
-            if (m_device.Parent()->Settings().submitTimeCmdBufDumpMode == CmdBufDumpModeBinaryHeaders)
+            if (m_device.Parent()->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
             {
                 const CmdBufferDumpFileHeader fileHeader =
                 {
@@ -156,7 +156,7 @@ Result ComputeCmdBuffer::End()
                 DumpFile()->Write(&listHeader, sizeof(listHeader));
             }
 
-            DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().submitTimeCmdBufDumpMode);
+            DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().cmdBufDumpFormat);
             DumpFile()->Close();
         }
 #endif
@@ -206,7 +206,7 @@ void ComputeCmdBuffer::CmdBindPipeline(
 // Dumps this command buffer's single command stream to the given file with an appropriate header.
 void ComputeCmdBuffer::DumpCmdStreamsToFile(
     File*          pFile,
-    CmdBufDumpMode mode
+    CmdBufDumpFormat mode
     ) const
 {
     m_pCmdStream->DumpCommands(pFile, "# Compute Queue - Command length = ", mode);

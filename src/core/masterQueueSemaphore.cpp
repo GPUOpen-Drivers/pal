@@ -204,6 +204,18 @@ Result MasterQueueSemaphore::WaitInternal(
 }
 
 // =====================================================================================================================
+// for syncobj based semaphore, the earlysignal will increase m_signalCount to let the cmd submitted to the OS
+// the semaphore be appended to Queue::m_waitSemList, the wait be delayed to gpuScheduler
+Result MasterQueueSemaphore::EarlySignal()
+{
+    Result result = Result::Success;
+    MutexAuto lock(&m_queuesLock);
+    ++m_signalCount;
+
+    return result;
+}
+
+// =====================================================================================================================
 // Adds a new Queue to this Semaphore's list of currently-blocked Queues. Expects the queues lock to be held by the
 // caller!
 Result MasterQueueSemaphore::AddBlockedQueue(

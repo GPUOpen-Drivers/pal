@@ -38,6 +38,62 @@ namespace Util
 {
 
 // =====================================================================================================================
+// If new capacity exceeds maximum capacity, allocates on the heap new storage for data buffer,
+// moves objects from data buffer to heap allocation and takes ownership of that allocation.
+// When maximum capacity is large enough to accommodate new capacity, this method does nothing.
+template<typename T, uint32 defaultCapacity, typename Allocator>
+Result Vector<T, defaultCapacity, Allocator>::Reserve(
+    uint32 newCapacity)
+{
+    Result result = Result::_Success;
+
+    // Not enough storage.
+    if (m_maxCapacity < newCapacity)
+    {
+        // Allocate storage on the heap.
+        void* const pNewMemory = PAL_MALLOC(sizeof(T) * newCapacity, m_pAllocator, AllocInternal);
+
+        if (pNewMemory == nullptr)
+        {
+            // MALLOC has failed.
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            T* const pNewData = static_cast<T*>(pNewMemory);
+
+            if (std::is_pod<T>::value)
+            {
+                // Optimize trivial types by copying local buffer.
+                std::memcpy(pNewData, m_pData, sizeof(T) * m_numElements);
+            }
+            else
+            {
+                // Move objects from data buffer to heap alloation.
+                // Destory corpses of objects in data buffer after moving.
+                for (uint32 idx = 0; idx < m_numElements; ++idx)
+                {
+                    PAL_PLACEMENT_NEW(pNewData + idx) T(Move(m_pData[idx]));
+                    m_pData[idx].~T();
+                }
+            }
+
+            // Free data buffer if it uses storage from heap allocation.
+            if (m_pData != reinterpret_cast<T*>(m_data))
+            {
+                PAL_FREE(m_pData, m_pAllocator);
+            }
+
+            // Take ownership of the heap allocation.
+            m_pData       = pNewData;
+            m_maxCapacity = newCapacity;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Pushes the new element to the end of the vector. If the vector has reached maximum capacity, new space is allocated
 // on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
 // allocated on the heap.
@@ -51,44 +107,7 @@ Result Vector<T, defaultCapacity, Allocator>::PushBack(
     if (m_numElements == m_maxCapacity)
     {
         // Allocate an additional amount of memory that is double the old size.
-        const uint32 oldNumBytes = m_maxCapacity * sizeof(ValueStorage);
-        const uint32 newNumBytes = oldNumBytes << 1;
-
-        const void* pOldMem = m_pData;
-        void*       pNewMem = PAL_MALLOC(newNumBytes, m_pAllocator, AllocInternal);
-
-        if (pNewMem == nullptr)
-        {
-            // MALLOC has failed.
-            result = Result::ErrorOutOfMemory;
-        }
-        else
-        {
-            // Move the old data to the new space, use memcpy to optimize trivial types.
-            if (std::is_pod<T>::value)
-            {
-                memcpy(pNewMem, pOldMem, oldNumBytes);
-            }
-            else
-            {
-                T* pNewData = static_cast<T*>(pNewMem);
-                for (uint32 idx = 0; idx < m_numElements; ++idx)
-                {
-                    PAL_PLACEMENT_NEW(pNewData + idx) T(m_pData[idx]);
-                    m_pData[idx].~T();
-                }
-            }
-
-            m_pData       = static_cast<T*>(pNewMem);
-            m_maxCapacity = m_maxCapacity << 1;
-        }
-
-        // Free old memory if it was allocated on the heap, i.e. if the current pointer to the data buffer is not the
-        // same as the statically allocated buffer.
-        if (m_data != pOldMem)
-        {
-            PAL_FREE(pOldMem, m_pAllocator);
-        }
+        result = Reserve(m_numElements * 2);
     }
 
     if (result == Result::_Success)

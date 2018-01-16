@@ -124,6 +124,26 @@ public:
     /// Destructor.
     ~Vector();
 
+    /// Move constructor.
+    ///
+    /// @param [in] vector Reference to a dying vector, from which resources will be stolen.
+    Vector(Vector&& vector);
+
+    /// Increases maximal capacity to value grater or equal to the newCapacity.
+    /// If newCapacity is greater than the maximal capacity, new storage is allocated,
+    /// otherwise the method does nothing.
+    ///
+    /// @note All existing iterators will not get invalidated, even in case new storage is allocated,
+    ///       because iterators are referencing vector, rather than elements of that vector.
+    ///
+    /// @warning All pointers and references to elements of a vector will be invalidated,
+    ///          in case new storage is allocated.
+    ///
+    /// @param [in] newCapacity The new capacity of a vector, which is lower limit of the maximal capacity.
+    ///
+    /// @returns Result ErrorOutOfMemory if the operation failed.
+    Result Reserve(uint32 newCapacity);
+
     /// Copy an element to end of the vector. If not enough space is available, new space will be allocated and the old
     /// data will be copied to the new space.
     ///
@@ -202,6 +222,28 @@ public:
     /// @returns VectorIterator An iterator to last element of the vector.
     Iter End() const { return Iter((m_numElements - 1), *this); }
 
+    /// Returns pointer to the underlying buffer serving as data storage.
+    /// The returned pointer defines always valid range [Data(), Data() + NumElements()),
+    /// even if the container is empty (Data() is not dereferenceable in that case).
+    ///
+    /// @warning Dereferencing pointer returned by Data() from an empty vector will cause an access violation!
+    ///
+    /// @returns Pointer to the underlying data storage for read & write access.
+    ///          For a non-empty vector, the returned pointer contains address of the first element.
+    ///          For an empty vector, the returned pointer may or may not be a null pointer.
+    T* Data() { return m_pData; }
+
+    /// Returns pointer to the underlying buffer serving as data storage.
+    /// The returned pointer defines always valid range [Data(), Data() + NumElements()),
+    /// even if the container is empty (Data() is not dereferenceable in that case).
+    ///
+    /// @warning Dereferencing pointer returned by Data() from an empty vector will cause an access violation!
+    ///
+    /// @returns Pointer to the underlying data storage for read only access.
+    ///          For a non-empty vector, the returned pointer contains address of the first element.
+    ///          For an empty vector, the returned pointer may or may not be a null pointer.
+    const T* Data() const { return m_pData; }
+
     /// Returns the size of the vector.
     ///
     /// @returns An unsigned integer equal to the number of elements currently present in the vector.
@@ -271,6 +313,50 @@ Vector<T, defaultCapacity, Allocator>::~Vector()
     {
         // Free the memory that was allocated dynamically.
         PAL_FREE(m_pData, m_pAllocator);
+    }
+}
+
+// =====================================================================================================================
+// Steals allocation from a dying vector, if data buffer uses storage from heap allocation.
+// Moves objects between local buffers of new and dying vectors (for non-trivial types) or
+// copies local buffer from a dying vector to a new vector (for trivial types),
+// if data buffer uses storage from local buffer.
+template<typename T, uint32 defaultCapacity, typename Allocator>
+Vector<T, defaultCapacity, Allocator>::Vector(
+    Vector&& vector)
+    :
+    m_numElements(vector.m_numElements),
+    m_maxCapacity(vector.m_maxCapacity),
+    m_pAllocator(vector.m_pAllocator)
+{
+    if (vector.m_pData == reinterpret_cast<T*>(vector.m_data)) // Local buffer
+    {
+        // Data buffer will be using storage from local buffer.
+        m_pData = reinterpret_cast<T*>(m_data);
+
+        if (std::is_pod<T>::value)
+        {
+            // Optimize trivial types by copying local buffer.
+            std::memcpy(m_pData, vector.m_pData, sizeof(T) * m_numElements);
+        }
+        else
+        {
+            // Move objects from local buffer of a dying vector to local buffer of a new vector.
+            for (uint32 idx = 0; idx < m_numElements; ++idx)
+            {
+                PAL_PLACEMENT_NEW(m_pData + idx) T(Move(vector.m_pData[idx]));
+            }
+        }
+    }
+    else // Heap allocation
+    {
+        // Steal heap allocation from dying vector.
+        m_pData = vector.m_pData;
+
+        // After the allocation has been stolen, dying vector is just an empty shell.
+        vector.m_pData = nullptr;
+        vector.m_numElements = 0;
+        vector.m_maxCapacity = 0;
     }
 }
 

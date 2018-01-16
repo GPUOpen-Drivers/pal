@@ -147,12 +147,15 @@ void BuildStoreGds(
         const EngineType engineType     = forComputeEngine ? EngineTypeCompute : EngineTypeUniversal;
 
         // Use RELEASE_MEM to copy from GDS to memory.
-        pCmdSpace += pCmdUtil->BuildReleaseMem(engineType,
-                                               eventType,
-                                               TcCacheOp::Nop,
-                                               dstGpuMemory.Desc().gpuVirtAddr + dstMemOffset,
-                                               data_sel__mec_release_mem__store_gds_data_to_memory,
-                                               0,
+        ReleaseMemInfo releaseInfo = {};
+        releaseInfo.engineType     = engineType;
+        releaseInfo.vgtEvent       = eventType;
+        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
+        releaseInfo.dstAddr        = dstGpuMemory.Desc().gpuVirtAddr + dstMemOffset;
+        releaseInfo.dataSel        = data_sel__mec_release_mem__store_gds_data_to_memory;
+        releaseInfo.data           = 0;
+
+        pCmdSpace += pCmdUtil->BuildReleaseMem(releaseInfo,
                                                pCmdSpace,
                                                gdsDwordOffset,
                                                gdsDwordSize);

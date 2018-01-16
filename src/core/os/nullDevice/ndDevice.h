@@ -248,6 +248,17 @@ public:
         }
         return Result::Success;
     }
+
+    virtual Result GetChillGlobalEnable(
+        bool* pGlobalEnable) override
+    {
+        if (pGlobalEnable != nullptr)
+        {
+            *pGlobalEnable = false;
+        }
+        return Result::Success;
+    }
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,

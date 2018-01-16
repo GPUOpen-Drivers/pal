@@ -45,7 +45,7 @@ public:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
-    virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpMode mode) const override;
+    virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
 #endif
 
     // Returns the number of command streams associated with this command buffer.

@@ -81,6 +81,18 @@ public:
 
     uint32 GetPresentPixmapHandle() const { return m_presentImageHandle; }
 
+    static Result UpdateExternalImageInfo(
+        Device*                             pDevice,
+        const PresentableImageCreateInfo&   createInfo,
+        Pal::GpuMemory*                     pGpuMemory,
+        Pal::Image*                         pImage);
+
+    static Result CreatePresentableMemoryObject(
+        Device*          pDevice,
+        Image*           pImage,
+        void*            pMemObjMem,
+        Pal::GpuMemory** ppMemObjOut);
+
     SubResourceInfo* GetSubresourceInfo(uint32 subresId) const
     {
         return m_pSubResInfoList + subresId;
@@ -98,11 +110,6 @@ protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 
 private:
-    static Result CreatePresentableMemoryObject(
-        Device*     pDevice,
-        Image*      pImage,
-        void*       pMemObjMem,
-        GpuMemory** ppMemObjOut);
 
     uint32        m_presentImageHandle; // Pixmap handle of the shared buffer used for presentation.
     WindowSystem* m_pWindowSystem;      // The window system that created the above handle.

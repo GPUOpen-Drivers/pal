@@ -41,135 +41,139 @@ namespace PerfCtrInfo
 
 struct  BlockPerfCounterInfo
 {
-    uint32  numRegs;
-    uint32  regOffsets[MaxCountersPerBlock];
+    uint32  numRegs;                             // Number of counter registers in this block instance.
+    uint32  numTotalStreamingCounterRegs;        // Number of streaming counter registers in this block.
+    uint32  numStreamingCounters;                // Num streaming counters this SELECT(0/1) configures.
+    uint32  regOffsets[MaxCountersPerBlock]; // Address offsets for all counters in this block.
 };
 
 // Table of all the primary perf-counter select registers.  We list all the register offsets since the delta's
 // between registers are not consistent.
 static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
 {
-    { Gfx9NumCpfCounters,    { mmCPF_PERFCOUNTER0_SELECT,
-                               mmCPF_PERFCOUNTER1_SELECT            }, },   // cpf
-    { Gfx9NumIaCounters,     { mmIA_PERFCOUNTER0_SELECT__GFX09,
-                               mmIA_PERFCOUNTER1_SELECT__GFX09,
-                               mmIA_PERFCOUNTER2_SELECT__GFX09,
-                               mmIA_PERFCOUNTER3_SELECT__GFX09      }, },   // ia
-    { Gfx9NumVgtCounters,    { mmVGT_PERFCOUNTER0_SELECT__GFX09,
-                               mmVGT_PERFCOUNTER1_SELECT__GFX09,
-                               mmVGT_PERFCOUNTER2_SELECT__GFX09,
-                               mmVGT_PERFCOUNTER3_SELECT__GFX09     }, },  // vgt
-    { Gfx9NumPaCounters,     { mmPA_SU_PERFCOUNTER0_SELECT,
-                               mmPA_SU_PERFCOUNTER1_SELECT,
-                               mmPA_SU_PERFCOUNTER2_SELECT,
-                               mmPA_SU_PERFCOUNTER3_SELECT__GFX09   }, },  // pa
-    { Gfx9NumScCounters,     { mmPA_SC_PERFCOUNTER0_SELECT,
-                               mmPA_SC_PERFCOUNTER1_SELECT,
-                               mmPA_SC_PERFCOUNTER2_SELECT,
-                               mmPA_SC_PERFCOUNTER3_SELECT,
-                               mmPA_SC_PERFCOUNTER4_SELECT,
-                               mmPA_SC_PERFCOUNTER5_SELECT,
-                               mmPA_SC_PERFCOUNTER6_SELECT,
-                               mmPA_SC_PERFCOUNTER7_SELECT,         }, },  // sc
-    { Gfx9NumSpiCounters,    { mmSPI_PERFCOUNTER0_SELECT,
-                               mmSPI_PERFCOUNTER1_SELECT,
-                               mmSPI_PERFCOUNTER2_SELECT,
-                               mmSPI_PERFCOUNTER3_SELECT,
-                               mmSPI_PERFCOUNTER4_SELECT,
-                               mmSPI_PERFCOUNTER5_SELECT,           }, },  // spi
-    { Gfx9NumSqCounters,     { mmSQ_PERFCOUNTER0_SELECT,
-                               mmSQ_PERFCOUNTER1_SELECT,
-                               mmSQ_PERFCOUNTER2_SELECT,
-                               mmSQ_PERFCOUNTER3_SELECT,
-                               mmSQ_PERFCOUNTER4_SELECT,
-                               mmSQ_PERFCOUNTER5_SELECT,
-                               mmSQ_PERFCOUNTER6_SELECT,
-                               mmSQ_PERFCOUNTER7_SELECT,
-                               mmSQ_PERFCOUNTER8_SELECT,
-                               mmSQ_PERFCOUNTER9_SELECT,
-                               mmSQ_PERFCOUNTER10_SELECT,
-                               mmSQ_PERFCOUNTER11_SELECT,
-                               mmSQ_PERFCOUNTER12_SELECT,
-                               mmSQ_PERFCOUNTER13_SELECT,
-                               mmSQ_PERFCOUNTER14_SELECT,
-                               mmSQ_PERFCOUNTER15_SELECT,           }, }, // sq
-    { Gfx9NumSxCounters,     { mmSX_PERFCOUNTER0_SELECT,
-                               mmSX_PERFCOUNTER1_SELECT,
-                               mmSX_PERFCOUNTER2_SELECT,
-                               mmSX_PERFCOUNTER3_SELECT             }, }, // sx
-    { Gfx9NumTaCounters,     { mmTA_PERFCOUNTER0_SELECT,
-                               mmTA_PERFCOUNTER1_SELECT,            }, }, // ta
-    { Gfx9NumTdCounters,     { mmTD_PERFCOUNTER0_SELECT,
-                               mmTD_PERFCOUNTER1_SELECT,            }, }, // td
-    { Gfx9NumTcpCounters,    { mmTCP_PERFCOUNTER0_SELECT,
-                               mmTCP_PERFCOUNTER1_SELECT,
-                               mmTCP_PERFCOUNTER2_SELECT,
-                               mmTCP_PERFCOUNTER3_SELECT,           }, }, // tcp
-    { Gfx9NumTccCounters,    { mmTCC_PERFCOUNTER0_SELECT__GFX09,
-                               mmTCC_PERFCOUNTER1_SELECT__GFX09,
-                               mmTCC_PERFCOUNTER2_SELECT__GFX09,
-                               mmTCC_PERFCOUNTER3_SELECT__GFX09,    }, }, // tcc
-    { Gfx9NumTcaCounters,    { mmTCA_PERFCOUNTER0_SELECT__GFX09,
-                               mmTCA_PERFCOUNTER1_SELECT__GFX09,
-                               mmTCA_PERFCOUNTER2_SELECT__GFX09,
-                               mmTCA_PERFCOUNTER3_SELECT__GFX09,    }, }, // tca
-    { Gfx9NumDbCounters,     { mmDB_PERFCOUNTER0_SELECT,
-                               mmDB_PERFCOUNTER1_SELECT,
-                               mmDB_PERFCOUNTER2_SELECT,
-                               mmDB_PERFCOUNTER3_SELECT,            }, },  // db
-    { Gfx9NumCbCounters,     { mmCB_PERFCOUNTER0_SELECT,
-                               mmCB_PERFCOUNTER1_SELECT,
-                               mmCB_PERFCOUNTER2_SELECT,
-                               mmCB_PERFCOUNTER3_SELECT,            }, },  // cb
-    { Gfx9NumGdsCounters,    { mmGDS_PERFCOUNTER0_SELECT,
-                               mmGDS_PERFCOUNTER1_SELECT,
-                               mmGDS_PERFCOUNTER2_SELECT,
-                               mmGDS_PERFCOUNTER3_SELECT,           }, },  // gds
-    { 0,                     { 0,                                   }, },  // srbm, doesn't exist
-    { Gfx9NumGrbmCounters,   { mmGRBM_PERFCOUNTER0_SELECT,
-                               mmGRBM_PERFCOUNTER1_SELECT,          }, },  // grbm
-    { Gfx9NumGrbmseCounters, { mmGRBM_SE0_PERFCOUNTER_SELECT,
-                               mmGRBM_SE1_PERFCOUNTER_SELECT,
-                               mmGRBM_SE2_PERFCOUNTER_SELECT,
-                               mmGRBM_SE3_PERFCOUNTER_SELECT        }, },  // grbm=se
-    { Gfx9NumRlcCounters,    { mmRLC_PERFCOUNTER0_SELECT,
-                               mmRLC_PERFCOUNTER1_SELECT,           }, },  // rlc
-    { Gfx9NumSdmaCounters,   { mmSDMA0_PERFMON_CNTL,
-                               mmSDMA1_PERFMON_CNTL__GFX09,         }, },  // sdma
-    { 0,                     { 0,                                   }, },  // mc
-    { Gfx9NumCpgCounters,    { mmCPG_PERFCOUNTER0_SELECT,
-                               mmCPG_PERFCOUNTER1_SELECT,           }, },  // cpg
-    { Gfx9NumCpcCounters,    { mmCPC_PERFCOUNTER0_SELECT,
-                               mmCPC_PERFCOUNTER1_SELECT,           }, },  // cpc
-    { Gfx9NumWdCounters,     { mmWD_PERFCOUNTER0_SELECT__GFX09,
-                               mmWD_PERFCOUNTER1_SELECT__GFX09,
-                               mmWD_PERFCOUNTER2_SELECT__GFX09,
-                               mmWD_PERFCOUNTER3_SELECT__GFX09,     }, },  // wd
-    { 0,                     { 0,                                   }, },  // tcs
-    { Gfx9NumAtcCounters,    { mmATC_PERFCOUNTER0_CFG__GFX09,
-                               mmATC_PERFCOUNTER1_CFG__GFX09,
-                               mmATC_PERFCOUNTER2_CFG__GFX09,
-                               mmATC_PERFCOUNTER3_CFG__GFX09,       }, },  // atc
-    { Gfx9NumAtcL2Counters,  { mmATC_L2_PERFCOUNTER0_CFG__GFX09,
-                               mmATC_L2_PERFCOUNTER1_CFG__GFX09,    }, },  // atc l2
-    { Gfx9NumMcVmL2Counters, { mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER1_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER2_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER3_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER4_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER5_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER6_CFG__GFX09,
-                               mmMC_VM_L2_PERFCOUNTER7_CFG__GFX09,  }, },  // mc vm l2
-    { Gfx9NumEaCounters,     { mmGCEA_PERFCOUNTER0_CFG__GFX09,
-                               mmGCEA_PERFCOUNTER1_CFG__GFX09       }, },  // ea
-    { Gfx9NumRpbCounters,    { mmRPB_PERFCOUNTER0_CFG__GFX09,
-                               mmRPB_PERFCOUNTER1_CFG__GFX09,
-                               mmRPB_PERFCOUNTER2_CFG__GFX09,
-                               mmRPB_PERFCOUNTER3_CFG__GFX09,       }, },  // rpb
-    { Gfx9NumRmiCounters,    { mmRMI_PERFCOUNTER0_SELECT,
-                               mmRMI_PERFCOUNTER1_SELECT,
-                               mmRMI_PERFCOUNTER2_SELECT,
-                               mmRMI_PERFCOUNTER3_SELECT,           }, },  // rmi
+    { Gfx9NumCpfCounters, 1, 2,    { mmCPF_PERFCOUNTER0_SELECT,
+                                     mmCPF_PERFCOUNTER1_SELECT            }, },   // cpf
+    { Gfx9NumIaCounters, 1, 2,     { mmIA_PERFCOUNTER0_SELECT__GFX09,
+                                     mmIA_PERFCOUNTER1_SELECT__GFX09,
+                                     mmIA_PERFCOUNTER2_SELECT__GFX09,
+                                     mmIA_PERFCOUNTER3_SELECT__GFX09      }, },   // ia
+   // NOTE: The perfmon doc claims DB/PA/TCP/VGT each have six streaming counters, though the regspec
+   //       indicates there is room for eight.
+    { Gfx9NumVgtCounters, 2, 3,    { mmVGT_PERFCOUNTER0_SELECT__GFX09,
+                                     mmVGT_PERFCOUNTER1_SELECT__GFX09,
+                                     mmVGT_PERFCOUNTER2_SELECT__GFX09,
+                                     mmVGT_PERFCOUNTER3_SELECT__GFX09     }, },  // vgt
+    { Gfx9NumPaCounters, 2, 3,     { mmPA_SU_PERFCOUNTER0_SELECT,
+                                     mmPA_SU_PERFCOUNTER1_SELECT,
+                                     mmPA_SU_PERFCOUNTER2_SELECT,
+                                     mmPA_SU_PERFCOUNTER3_SELECT__GFX09   }, },  // pa
+    { Gfx9NumScCounters, 1, 2,     { mmPA_SC_PERFCOUNTER0_SELECT,
+                                     mmPA_SC_PERFCOUNTER1_SELECT,
+                                     mmPA_SC_PERFCOUNTER2_SELECT,
+                                     mmPA_SC_PERFCOUNTER3_SELECT,
+                                     mmPA_SC_PERFCOUNTER4_SELECT,
+                                     mmPA_SC_PERFCOUNTER5_SELECT,
+                                     mmPA_SC_PERFCOUNTER6_SELECT,
+                                     mmPA_SC_PERFCOUNTER7_SELECT,         }, },  // sc
+    { Gfx9NumSpiCounters, 4, 8,    { mmSPI_PERFCOUNTER0_SELECT,
+                                     mmSPI_PERFCOUNTER1_SELECT,
+                                     mmSPI_PERFCOUNTER2_SELECT,
+                                     mmSPI_PERFCOUNTER3_SELECT,
+                                     mmSPI_PERFCOUNTER4_SELECT,
+                                     mmSPI_PERFCOUNTER5_SELECT,           }, },  // spi
+    { Gfx9NumSqCounters, 16, 16,   { mmSQ_PERFCOUNTER0_SELECT,
+                                     mmSQ_PERFCOUNTER1_SELECT,
+                                     mmSQ_PERFCOUNTER2_SELECT,
+                                     mmSQ_PERFCOUNTER3_SELECT,
+                                     mmSQ_PERFCOUNTER4_SELECT,
+                                     mmSQ_PERFCOUNTER5_SELECT,
+                                     mmSQ_PERFCOUNTER6_SELECT,
+                                     mmSQ_PERFCOUNTER7_SELECT,
+                                     mmSQ_PERFCOUNTER8_SELECT,
+                                     mmSQ_PERFCOUNTER9_SELECT,
+                                     mmSQ_PERFCOUNTER10_SELECT,
+                                     mmSQ_PERFCOUNTER11_SELECT,
+                                     mmSQ_PERFCOUNTER12_SELECT,
+                                     mmSQ_PERFCOUNTER13_SELECT,
+                                     mmSQ_PERFCOUNTER14_SELECT,
+                                     mmSQ_PERFCOUNTER15_SELECT,           }, }, // sq
+    { Gfx9NumSxCounters, 2, 4,     { mmSX_PERFCOUNTER0_SELECT,
+                                     mmSX_PERFCOUNTER1_SELECT,
+                                     mmSX_PERFCOUNTER2_SELECT,
+                                     mmSX_PERFCOUNTER3_SELECT             }, }, // sx
+    { Gfx9NumTaCounters, 1, 2,     { mmTA_PERFCOUNTER0_SELECT,
+                                     mmTA_PERFCOUNTER1_SELECT,            }, }, // ta
+    { Gfx9NumTdCounters, 1, 2,     { mmTD_PERFCOUNTER0_SELECT,
+                                     mmTD_PERFCOUNTER1_SELECT,            }, }, // td
+    { Gfx9NumTcpCounters, 2, 3,    { mmTCP_PERFCOUNTER0_SELECT,
+                                     mmTCP_PERFCOUNTER1_SELECT,
+                                     mmTCP_PERFCOUNTER2_SELECT,
+                                     mmTCP_PERFCOUNTER3_SELECT,           }, }, // tcp
+    { Gfx9NumTccCounters, 2, 4,    { mmTCC_PERFCOUNTER0_SELECT__GFX09,
+                                     mmTCC_PERFCOUNTER1_SELECT__GFX09,
+                                     mmTCC_PERFCOUNTER2_SELECT__GFX09,
+                                     mmTCC_PERFCOUNTER3_SELECT__GFX09,    }, }, // tcc
+    { Gfx9NumTcaCounters, 2, 4,    { mmTCA_PERFCOUNTER0_SELECT__GFX09,
+                                     mmTCA_PERFCOUNTER1_SELECT__GFX09,
+                                     mmTCA_PERFCOUNTER2_SELECT__GFX09,
+                                     mmTCA_PERFCOUNTER3_SELECT__GFX09,    }, }, // tca
+    { Gfx9NumDbCounters, 2, 3,     { mmDB_PERFCOUNTER0_SELECT,
+                                     mmDB_PERFCOUNTER1_SELECT,
+                                     mmDB_PERFCOUNTER2_SELECT,
+                                     mmDB_PERFCOUNTER3_SELECT,            }, },  // db
+    { Gfx9NumCbCounters, 1, 2,     { mmCB_PERFCOUNTER0_SELECT,
+                                     mmCB_PERFCOUNTER1_SELECT,
+                                     mmCB_PERFCOUNTER2_SELECT,
+                                     mmCB_PERFCOUNTER3_SELECT,            }, },  // cb
+    { Gfx9NumGdsCounters, 1, 2,    { mmGDS_PERFCOUNTER0_SELECT,
+                                     mmGDS_PERFCOUNTER1_SELECT,
+                                     mmGDS_PERFCOUNTER2_SELECT,
+                                     mmGDS_PERFCOUNTER3_SELECT,           }, },  // gds
+    { 0, 0, 0,                     { 0,                                   }, },  // srbm, doesn't exist
+    { Gfx9NumGrbmCounters, 0, 0,   { mmGRBM_PERFCOUNTER0_SELECT,
+                                     mmGRBM_PERFCOUNTER1_SELECT,          }, },  // grbm
+    { Gfx9NumGrbmseCounters, 0, 0, { mmGRBM_SE0_PERFCOUNTER_SELECT,
+                                     mmGRBM_SE1_PERFCOUNTER_SELECT,
+                                     mmGRBM_SE2_PERFCOUNTER_SELECT,
+                                     mmGRBM_SE3_PERFCOUNTER_SELECT        }, },  // grbm=se
+    { Gfx9NumRlcCounters, 0, 0,    { mmRLC_PERFCOUNTER0_SELECT,
+                                     mmRLC_PERFCOUNTER1_SELECT,           }, },  // rlc
+    { Gfx9NumSdmaCounters, 0, 0,   { mmSDMA0_PERFMON_CNTL,
+                                     mmSDMA1_PERFMON_CNTL__GFX09,         }, },  // sdma
+    { 0, 0, 0,                     { 0,                                   }, },  // mc
+    { Gfx9NumCpgCounters, 1, 2,    { mmCPG_PERFCOUNTER0_SELECT,
+                                     mmCPG_PERFCOUNTER1_SELECT,           }, },  // cpg
+    { Gfx9NumCpcCounters, 1, 2,    { mmCPC_PERFCOUNTER0_SELECT,
+                                     mmCPC_PERFCOUNTER1_SELECT,           }, },  // cpc
+    { Gfx9NumWdCounters, 0, 0,     { mmWD_PERFCOUNTER0_SELECT__GFX09,
+                                     mmWD_PERFCOUNTER1_SELECT__GFX09,
+                                     mmWD_PERFCOUNTER2_SELECT__GFX09,
+                                     mmWD_PERFCOUNTER3_SELECT__GFX09,     }, },  // wd
+    { 0, 0, 0,                     { 0,                                   }, },  // tcs
+    { Gfx9NumAtcCounters, 0, 0,    { mmATC_PERFCOUNTER0_CFG__GFX09,
+                                     mmATC_PERFCOUNTER1_CFG__GFX09,
+                                     mmATC_PERFCOUNTER2_CFG__GFX09,
+                                     mmATC_PERFCOUNTER3_CFG__GFX09,       }, },  // atc
+    { Gfx9NumAtcL2Counters, 0, 0,  { mmATC_L2_PERFCOUNTER0_CFG__GFX09,
+                                     mmATC_L2_PERFCOUNTER1_CFG__GFX09,    }, },  // atc l2
+    { Gfx9NumMcVmL2Counters, 0, 0, { mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER1_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER2_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER3_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER4_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER5_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER6_CFG__GFX09,
+                                     mmMC_VM_L2_PERFCOUNTER7_CFG__GFX09,  }, },  // mc vm l2
+    { Gfx9NumEaCounters, 0, 0,     { mmGCEA_PERFCOUNTER0_CFG__GFX09,
+                                     mmGCEA_PERFCOUNTER1_CFG__GFX09       }, },  // ea
+    { Gfx9NumRpbCounters, 0, 0,    { mmRPB_PERFCOUNTER0_CFG__GFX09,
+                                     mmRPB_PERFCOUNTER1_CFG__GFX09,
+                                     mmRPB_PERFCOUNTER2_CFG__GFX09,
+                                     mmRPB_PERFCOUNTER3_CFG__GFX09,       }, },  // rpb
+    { Gfx9NumRmiCounters, 1, 2,    { mmRMI_PERFCOUNTER0_SELECT,
+                                     mmRMI_PERFCOUNTER1_SELECT,
+                                     mmRMI_PERFCOUNTER2_SELECT,
+                                     mmRMI_PERFCOUNTER3_SELECT,           }, },  // rmi
 };
 
 static_assert(sizeof(Gfx9PerfCountSelect0)/sizeof(Gfx9PerfCountSelect0[0])   == static_cast<uint32>(GpuBlock::Count),
@@ -179,50 +183,50 @@ static_assert(sizeof(Gfx9PerfCountSelect0)/sizeof(Gfx9PerfCountSelect0[0])   == 
 // between registers are not consistent.
 static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
 {
-    { 1,                     { mmCPF_PERFCOUNTER0_SELECT1,          }, },  // cpf
-    { 1,                     { mmIA_PERFCOUNTER0_SELECT1__GFX09,    }, },  // ia
-    { 2,                     { mmVGT_PERFCOUNTER0_SELECT1__GFX09,
+    { 1, 1, 2,               { mmCPF_PERFCOUNTER0_SELECT1,          }, },  // cpf
+    { 1, 1, 2,               { mmIA_PERFCOUNTER0_SELECT1__GFX09,    }, },  // ia
+    { 2, 1, 2,               { mmVGT_PERFCOUNTER0_SELECT1__GFX09,
                                mmVGT_PERFCOUNTER1_SELECT1__GFX09,   }, },  // vgt
-    { 2,                     { mmPA_SU_PERFCOUNTER0_SELECT1,
+    { 2, 2, 3,               { mmPA_SU_PERFCOUNTER0_SELECT1,
                                mmPA_SU_PERFCOUNTER1_SELECT1,        }, },  // pa
-    { 1,                     { mmPA_SC_PERFCOUNTER0_SELECT1,        }, },  // sc
-    { 4,                     { mmSPI_PERFCOUNTER0_SELECT1,
+    { 1, 1, 2,               { mmPA_SC_PERFCOUNTER0_SELECT1,        }, },  // sc
+    { 4, 4, 8,               { mmSPI_PERFCOUNTER0_SELECT1,
                                mmSPI_PERFCOUNTER1_SELECT1,
                                mmSPI_PERFCOUNTER2_SELECT1,
                                mmSPI_PERFCOUNTER3_SELECT1,          }, },  // spi
-    { 0,                     { 0,                                   }, },  // sq
-    { 2,                     { mmSX_PERFCOUNTER0_SELECT1,
+    { 0, 16, 0,              { 0,                                   }, },  // sq
+    { 2, 2, 4,               { mmSX_PERFCOUNTER0_SELECT1,
                                mmSX_PERFCOUNTER1_SELECT1,           }, },  // sx
-    { 1,                     { mmTA_PERFCOUNTER0_SELECT1,           }, },  // ta
-    { 1,                     { mmTD_PERFCOUNTER0_SELECT1,           }, },  // td
-    { 2,                     { mmTCP_PERFCOUNTER0_SELECT1,
+    { 1, 1, 2,               { mmTA_PERFCOUNTER0_SELECT1,           }, },  // ta
+    { 1, 1, 2,               { mmTD_PERFCOUNTER0_SELECT1,           }, },  // td
+    { 2, 2, 3,               { mmTCP_PERFCOUNTER0_SELECT1,
                                mmTCP_PERFCOUNTER1_SELECT1,          }, },  // tcp
-    { 2,                     { mmTCC_PERFCOUNTER0_SELECT1__GFX09,
+    { 2, 2, 4,               { mmTCC_PERFCOUNTER0_SELECT1__GFX09,
                                mmTCC_PERFCOUNTER1_SELECT1__GFX09,   }, },  // tcc
-    { 2,                     { mmTCA_PERFCOUNTER0_SELECT1__GFX09,
+    { 2, 2, 4,               { mmTCA_PERFCOUNTER0_SELECT1__GFX09,
                                mmTCA_PERFCOUNTER1_SELECT1__GFX09,   }, },  // tca
-    { 2,                     { mmDB_PERFCOUNTER0_SELECT1,
+    { 2, 2, 3,               { mmDB_PERFCOUNTER0_SELECT1,
                                mmDB_PERFCOUNTER1_SELECT1,           }, },  // db
-    { 1,                     { mmCB_PERFCOUNTER0_SELECT1,           }, },  // cb
-    { 1,                     { mmGDS_PERFCOUNTER0_SELECT1,          }, },  // gds
-    { 0,                     { 0,                                   }, },  // srbm, doesn't exist
-    { 0,                     { 0,                                   }, },  // grbm
-    { 0,                     { 0                                    }, },  // grbm-se
-    { 0,                     { 0                                    }, },  // rlc
-    { 0,                     { 0                                    }, },  // sdma
-    { 0,                     { 0,                                   }, },  // mc,
-    { 1,                     { mmCPG_PERFCOUNTER0_SELECT1,          }, },  // cpg
-    { 1,                     { mmCPC_PERFCOUNTER0_SELECT1,          }, },  // cpc
-    { 0,                     { 0                                    }, },  // wd
-    { 0,                     { 0,                                   }, },  // tcs
-    { 0,                     { 0,                                   }, },  // atc
-    { 0,                     { 0,                                   }, },  // atcL2
-    { 0,                     { 0,                                   }, },  // mcVmL2
-    { 0,                     { 0,                                   }, },  // ea
-    { 0,                     { 0,                                   }, },  // rpb
-    { 4,                     { mmRMI_PERFCOUNTER0_SELECT1,
+    { 1, 1, 2,               { mmCB_PERFCOUNTER0_SELECT1,           }, },  // cb
+    { 1, 1, 2,               { mmGDS_PERFCOUNTER0_SELECT1,          }, },  // gds
+    { 0, 0, 0,               { 0,                                   }, },  // srbm, doesn't exist
+    { 0, 0, 0,               { 0,                                   }, },  // grbm
+    { 0, 0, 0,               { 0                                    }, },  // grbm-se
+    { 0, 0, 0,               { 0                                    }, },  // rlc
+    { 0, 0, 0,               { 0                                    }, },  // sdma
+    { 0, 0, 0,               { 0,                                   }, },  // mc,
+    { 1, 1, 2,               { mmCPG_PERFCOUNTER0_SELECT1,          }, },  // cpg
+    { 1, 1, 2,               { mmCPC_PERFCOUNTER0_SELECT1,          }, },  // cpc
+    { 0, 0, 0,               { 0                                    }, },  // wd
+    { 0, 0, 0,               { 0,                                   }, },  // tcs
+    { 0, 0, 0,               { 0,                                   }, },  // atc
+    { 0, 0, 0,               { 0,                                   }, },  // atcL2
+    { 0, 0, 0,               { 0,                                   }, },  // mcVmL2
+    { 0, 0, 0,               { 0,                                   }, },  // ea
+    { 0, 0, 0,               { 0,                                   }, },  // rpb
+    { 4, 1, 2,               { mmRMI_PERFCOUNTER0_SELECT1,
                                0,
-                               mmSPI_PERFCOUNTER2_SELECT1,
+                               mmRMI_PERFCOUNTER2_SELECT1,
                                0,                                   }, },  // rmi
 };
 
@@ -334,66 +338,14 @@ void SetupBlockInfo(
 
     PAL_ASSERT(pSelReg0->numRegs <= MaxCountersPerBlock);
 
-    pInfo->block[blockIdx].available        = true;
-    pInfo->block[blockIdx].numShaderEngines = numShaderEngines;
-    pInfo->block[blockIdx].numShaderArrays  = numShaderArrays;
-    pInfo->block[blockIdx].numInstances     = numInstances;
-    pInfo->block[blockIdx].numCounters      = pSelReg0->numRegs;
-    pInfo->block[blockIdx].maxEventId       = GetMaxEventId(pProps, block);
-
-    if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        // Initialize the streaming performance counter numbers for each block.
-        switch (block)
-        {
-        case GpuBlock::Cpg:
-        case GpuBlock::Cpf:
-        case GpuBlock::Cpc:
-        case GpuBlock::Cb:
-        case GpuBlock::Gds:
-        case GpuBlock::Ia:
-        case GpuBlock::Rmi:
-        case GpuBlock::Sc:
-        case GpuBlock::Ta:
-        case GpuBlock::Tcs:
-        case GpuBlock::Td:
-            pInfo->block[blockIdx].numStreamingCounters    = 4;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 1;
-            break;
-        case GpuBlock::Db:
-        case GpuBlock::Pa:
-        case GpuBlock::Tcp:
-        case GpuBlock::Vgt:
-            // NOTE: The perfmon doc claims DB/PA/TCP/VGT each have six streaming counters, though the regspec
-            //       indicates there is room for eight.
-            pInfo->block[blockIdx].numStreamingCounters    = 6;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 2;
-            break;
-        case GpuBlock::Sx:
-        case GpuBlock::Tca:
-        case GpuBlock::Tcc:
-            pInfo->block[blockIdx].numStreamingCounters    = 8;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 2;
-            break;
-        case GpuBlock::Spi:
-            pInfo->block[blockIdx].numStreamingCounters    = 16;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 4;
-            break;
-        case GpuBlock::Sq:
-            // NOTE: SQ streaming counters are not packed.
-            pInfo->block[blockIdx].numStreamingCounters    = 16;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 16;
-            break;
-        default:
-            pInfo->block[blockIdx].numStreamingCounters    = 0;
-            pInfo->block[blockIdx].numStreamingCounterRegs = 0;
-            break;
-        }
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
+    pInfo->block[blockIdx].available               = true;
+    pInfo->block[blockIdx].numShaderEngines        = numShaderEngines;
+    pInfo->block[blockIdx].numShaderArrays         = numShaderArrays;
+    pInfo->block[blockIdx].numInstances            = numInstances;
+    pInfo->block[blockIdx].numCounters             = pSelReg0->numRegs;
+    pInfo->block[blockIdx].numStreamingCounters    = pSelReg0->numStreamingCounters + pSelReg1->numStreamingCounters;
+    pInfo->block[blockIdx].numStreamingCounterRegs = pSelReg0->numTotalStreamingCounterRegs;
+    pInfo->block[blockIdx].maxEventId              = GetMaxEventId(pProps, block);
 
     // Setup the register addresses for each counter for this block.
     for (uint32  idx = 0; idx < pSelReg0->numRegs; idx++)

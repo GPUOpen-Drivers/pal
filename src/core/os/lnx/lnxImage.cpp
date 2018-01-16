@@ -116,6 +116,7 @@ Result Image::CreatePresentableImage(
      Result result = Result::ErrorInvalidPointer;
 
     // Currently, all Linux presentable images require swap chains.
+    // For Android, SwapChain is managed by Loader. Loader will deliver the present buffer handle to Let ICD import
     if (createInfo.pSwapChain != nullptr)
     {
         Pal::Image*     pImage        = nullptr;
@@ -149,10 +150,13 @@ Result Image::CreatePresentableImage(
 
         if (result == Result::Success)
         {
-            GpuMemory* pGpuMemory = nullptr;
-            auto*const pLnxImage  = static_cast<Image*>(pImage);
+            Pal::GpuMemory* pGpuMemory = nullptr;
+            auto*const pLnxImage = static_cast<Image*>(pImage);
 
-            result = CreatePresentableMemoryObject(pDevice, pLnxImage, pGpuMemoryPlacementAddr, &pGpuMemory);
+            result = pDevice->CreatePresentableMemoryObject(pLnxImage,
+                                                            pGpuMemoryPlacementAddr,
+                                                            createInfo.hDisplay,
+                                                            &pGpuMemory);
 
             if (result == Result::Success)
             {
@@ -161,22 +165,8 @@ Result Image::CreatePresentableImage(
 
             if (result == Result::Success)
             {
-                auto*const  pWindowSystem  = static_cast<SwapChain*>(createInfo.pSwapChain)->GetWindowSystem();
-                const int32 sharedBufferFd = static_cast<int32>(pGpuMemory->GetSharedExternalHandle());
-
-                // Update the image information to metadata.
-                pDevice->UpdateMetaData(pGpuMemory->SurfaceHandle(), *pLnxImage);
-
-                if (sharedBufferFd >= 0)
-                {
-                    // All presentable images must save a pointer to their swap chain's windowing system so that they
-                    // can destroy this image handle later on.
-                    pLnxImage->m_pWindowSystem = pWindowSystem;
-
-                    result = pWindowSystem->CreatePresentableImage(*pLnxImage,
-                                                                   sharedBufferFd,
-                                                                   &pLnxImage->m_presentImageHandle);
-                }
+                // Update the image information to external user such as Xserver.
+                 result = pDevice->UpdateExternalImageInfo(createInfo, pGpuMemory, pLnxImage);
             }
 
             if (result == Result::Success)
@@ -214,12 +204,43 @@ void Image::UpdateMetaDataInfo(
 }
 
 // =====================================================================================================================
+// Update the memory and image info for external usage.
+Result Image::UpdateExternalImageInfo(
+    Device*                              pDevice,
+    const PresentableImageCreateInfo&    createInfo,
+    Pal::GpuMemory*                      pGpuMemory,
+    Pal::Image*                          pImage)
+{
+    Result result = Result::Success;
+    auto*const pLnxImage  = static_cast<Image*>(pImage);
+    auto*const pLnxGpuMemory = static_cast<GpuMemory*>(pGpuMemory);
+    auto*const  pWindowSystem  = static_cast<SwapChain*>(createInfo.pSwapChain)->GetWindowSystem();
+    const int32 sharedBufferFd = static_cast<int32>(pLnxGpuMemory->GetSharedExternalHandle());
+
+    // Update the image information to metadata.
+    pDevice->UpdateMetaData(pLnxGpuMemory->SurfaceHandle(), *pLnxImage);
+
+    if (sharedBufferFd >= 0)
+    {
+        // All presentable images must save a pointer to their swap chain's windowing system so that they
+        // can destroy this image handle later on.
+        pLnxImage->m_pWindowSystem = pWindowSystem;
+
+        result = pWindowSystem->CreatePresentableImage(*pLnxImage,
+                                                       sharedBufferFd,
+                                                       &pLnxImage->m_presentImageHandle);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Creates an internal GPU memory object and binds it to the presentable Image associated with this object.
 Result Image::CreatePresentableMemoryObject(
-    Device*     pDevice,
-    Image*      pImage,        // [in] Image the memory object should be based on
-    void*       pMemObjMem,    // [in,out] Preallocated memory for the GpuMemory object
-    GpuMemory** ppMemObjOut)   // [out] Newly created GPU memory object
+    Device*          pDevice,
+    Image*           pImage,        // [in] Image the memory object should be based on
+    void*            pMemObjMem,    // [in,out] Preallocated memory for the GpuMemory object
+    Pal::GpuMemory** ppMemObjOut)   // [out] Newly created GPU memory object
 {
     GpuMemoryRequirements memReqs = {};
     pImage->GetGpuMemoryRequirements(&memReqs);

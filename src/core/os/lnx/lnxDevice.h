@@ -320,6 +320,17 @@ public:
        return Result::ErrorUnavailable;
     }
 
+    virtual Result GetChillGlobalEnable(
+        bool* pGlobalEnable) override
+    {
+       PAL_NOT_IMPLEMENTED();
+       if (pGlobalEnable != nullptr)
+       {
+           *pGlobalEnable = false;
+       }
+       return Result::ErrorUnavailable;
+    }
+
     virtual Result CreateVirtualDisplay(
         const VirtualDisplayInfo& virtualDisplayInfo,
         uint32*                   pScreenTargetId) override
@@ -549,6 +560,17 @@ public:
         amdgpu_bo_handle    hBuffer,
         Image*              image);
 
+    virtual Result UpdateExternalImageInfo(
+        const PresentableImageCreateInfo&  createInfo,
+        Pal::GpuMemory*                    pGpuMemory,
+        Pal::Image*                        pImage);
+
+    virtual Result CreatePresentableMemoryObject(
+        Image*           pImage,
+        void*            pMemObjMem,
+        OsDisplayHandle  sharedHandle,
+        Pal::GpuMemory** ppMemObjOut);
+
     virtual const char* GetCacheFilePath() const;
 
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
@@ -565,6 +587,14 @@ public:
     }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
+
+    Result SyncObjImportSyncFile(
+        int                     syncFileFd,
+        amdgpu_semaphore_handle syncObj) const;
+
+    Result  SyncObjExportSyncFile(
+        amdgpu_semaphore_handle syncObj,
+        int*                    pSyncFileFd) const;
 
     Result ConveySyncObjectState(
         amdgpu_semaphore_handle importSyncObj,

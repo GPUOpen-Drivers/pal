@@ -4405,6 +4405,15 @@ public:
     virtual Result DidChillSettingsChange(
         bool* pChangeDetected) = 0;
 
+    /// Gets the value of a KMD-managed flag for globally enabling Chill. This function will typically be called
+    /// at the same time as the DidChillSettingsChange(), and is also very lightweight.
+    ///
+    /// @param [out]    pGlobalEnable    Pointer to the location where PAL should write the flag value
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result GetChillGlobalEnable(
+        bool* pGlobalEnable) = 0;
+
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by
     /// calling @ref IGpuMemory::Desc() on the appropriate object.

@@ -741,7 +741,7 @@ public:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
-    virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpMode mode) const = 0;
+    virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const = 0;
 
     // This function gets the directory from device settings and dump the file to the right directory.
     void OpenCmdBufDumpFile(const char* pFilename);
@@ -871,7 +871,7 @@ protected:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Utility function for determing if command buffer dumping has been enabled.
-    bool IsDumpingEnabled() const { return m_device.Settings().recordTimeCmdBufDumpMode; }
+    bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode != CmdBufDumpModeDisabled; }
 
     Util::File* DumpFile() { return &m_file; }
     uint32      UniqueId() const { return m_uniqueId; }

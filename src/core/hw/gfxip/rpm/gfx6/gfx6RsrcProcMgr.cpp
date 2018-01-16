@@ -2371,6 +2371,22 @@ void RsrcProcMgr::InitMaskRam(
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
+    // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
+    // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
+    if (dstImage.HasDccStateMetaData()         ||
+        dstImage.HasFastClearMetaData()        ||
+        dstImage.HasWaTcCompatZRangeMetaData() ||
+        dstImage.HasFastClearEliminateMetaData())
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        // Stalls the PFP until the ME has processed all previous commands. Useful in cases that aliasing the memory
+        // (i.e. ME and PFP can access the same memory). PFP need to stall execution until ME finish its previous
+        // work.
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     if (dstImage.HasHtileData())
     {
         const auto& hTile = *dstImage.GetHtile(range.startSubres);

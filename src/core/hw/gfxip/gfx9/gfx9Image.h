@@ -194,6 +194,8 @@ public:
 
     bool HasDccStateMetaData() const { return m_dccStateMetaDataOffset != 0; }
 
+    bool HasFastClearEliminateMetaData() const { return m_fastClearEliminateMetaDataOffset != 0; }
+
     gpusize GetDccStateMetaDataAddr(uint32 mipLevel, uint32 slice) const;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel, uint32 slice) const;

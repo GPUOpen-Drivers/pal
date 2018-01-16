@@ -158,7 +158,7 @@ Result UniversalCmdBuffer::End()
 #if PAL_ENABLE_PRINTS_ASSERTS
         if (IsDumpingEnabled() && DumpFile()->IsOpen())
         {
-            if (m_device.Parent()->Settings().submitTimeCmdBufDumpMode == CmdBufDumpModeBinaryHeaders)
+            if (m_device.Parent()->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
             {
                 const CmdBufferDumpFileHeader fileHeader =
                 {
@@ -182,7 +182,7 @@ Result UniversalCmdBuffer::End()
                 DumpFile()->Write(&listHeader, sizeof(listHeader));
             }
 
-            DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().submitTimeCmdBufDumpMode);
+            DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().cmdBufDumpFormat);
             DumpFile()->Close();
         }
 #endif
@@ -443,7 +443,7 @@ void UniversalCmdBuffer::CmdSetViewInstanceMask(
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
 void UniversalCmdBuffer::DumpCmdStreamsToFile(
     File*          pFile,
-    CmdBufDumpMode mode
+    CmdBufDumpFormat mode
     ) const
 {
     m_pDeCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);

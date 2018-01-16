@@ -116,4 +116,11 @@ Result QueueSemaphore::OsWait(
     return result;
 }
 
+// =====================================================================================================================
+// Get the QueueSemaphore's syncObj handle for Android external fence conversion
+amdgpu_semaphore_handle QueueSemaphore::GetSyncObjHandle() const
+{
+    return m_hSemaphore;
+}
+
 } // Pal

@@ -130,6 +130,13 @@ Platform::~Platform()
     DestroyDevDriver();
 #endif
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Unhook the debug print callback to keep assert/alert function (majorly for client driver) after platform get
+    // destroyed. Otherwise random crash can be triggered when calling g_dbgPrintCallback with a dangling pointer.
+    Util::DbgPrintCallback dbgPrintCallback = {};
+    Util::SetDbgPrintCallback(dbgPrintCallback);
+#endif
+
     if (m_flags.usesDefaultAllocCb)
     {
 #if PAL_JEMALLOC_ALLOC_CALLBACKS

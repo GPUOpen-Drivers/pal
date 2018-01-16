@@ -76,7 +76,8 @@
 /*
  * Defined if secure_getenv(3) is available.
  */
-#define JEMALLOC_HAVE_SECURE_GETENV
+// Note: controlled in the makeflile for specific builds.
+/* #define JEMALLOC_HAVE_SECURE_GETENV */
 
 /*
  * Defined if issetugid(2) is available.
@@ -112,6 +113,12 @@
 #define JEMALLOC_TLS_MODEL
 #endif
 
+#ifdef __ANDROID__
+/*
+ * undefine as secure_getenv(3) is unavailable for Android libc.
+ */
+#undef JEMALLOC_HAVE_SECURE_GETENV
+#endif
 
 /* JEMALLOC_CC_SILENCE enables code that silences unuseful compiler warnings. */
 #define JEMALLOC_CC_SILENCE

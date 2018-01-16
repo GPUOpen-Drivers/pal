@@ -34,6 +34,7 @@ namespace Util
 // =====================================================================================================================
 // Default pfnAlloc implementation used if the client doesn't specify allocation callbacks.  Memory will be allocated
 // from the standard C runtime.  Returns nullptr if the allocation fails.
+// Due to Android libc do not support aligned_alloc, use posix_memalign instead
 static void* PAL_STDCALL DefaultAllocCb(
     void*           pClientData,  // Ignored in default implementation.
     size_t          size,         // Size of the requested allocation in bytes.
@@ -43,8 +44,9 @@ static void* PAL_STDCALL DefaultAllocCb(
     PAL_ASSERT(IsPowerOfTwo(alignment));
 
     alignment = Pow2Align(alignment, sizeof(void*));
-
-    return aligned_alloc(alignment, Pow2Align(size, alignment));
+    void* pMem = nullptr;
+    pMem = aligned_alloc(alignment, Pow2Align(size, alignment));
+    return pMem;
 }
 
 // =====================================================================================================================
