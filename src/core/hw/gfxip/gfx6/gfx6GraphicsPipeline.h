@@ -144,8 +144,6 @@ class GraphicsPipeline : public Pal::GraphicsPipeline
 public:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 
-    virtual Result LoadInit(const Util::ElfReadContext<Platform>& context) override;
-
     virtual Result GetShaderStats(
         ShaderType   shaderType,
         ShaderStats* pShaderStats,
@@ -204,7 +202,6 @@ public:
 protected:
     virtual ~GraphicsPipeline() { }
 
-    virtual Result Serialize(Util::ElfWriteContext<Platform>* pContext) override;
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
         const AbiProcessor&               abiProcessor) override;
@@ -283,6 +280,11 @@ private:
     PipelineChunkVsPs  m_chunkVsPs;
 
     GraphicsPipelineSignature  m_signature;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    // Stores information about the depth clamp state
+    regDB_RENDER_OVERRIDE m_dbRenderOverride;
+#endif
 
     // Private structure used to store/load a graphics pipeline object. Does not include the data from the shader.
     // Should correspond to the data members in Pal::Gfx6::GraphicsPipeline.

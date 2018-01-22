@@ -403,52 +403,6 @@ Result Device::CreateTargetCmdBuffer(
 }
 
 // =====================================================================================================================
-size_t Device::GetShaderSize(
-    const ShaderCreateInfo& createInfo,
-    Result*                 pResult
-    ) const
-{
-    return m_pNextLayer->GetShaderSize(createInfo, pResult) + sizeof(Shader);
-}
-
-// =====================================================================================================================
-Result Device::CreateShader(
-    const ShaderCreateInfo& createInfo,
-    void*                   pPlacementAddr,
-    IShader**               ppShader
-    ) const
-{
-
-    IShader* pNextShader = nullptr;
-    Shader*  pShader     = nullptr;
-
-    Result result = m_pNextLayer->CreateShader(createInfo,
-                                               NextObjectAddr<Shader>(pPlacementAddr),
-                                               &pNextShader);
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextShader != nullptr);
-        pNextShader->SetClientData(pPlacementAddr);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 357
-        const bool hasPerformanceData = (createInfo.optStrategy.flags.enabledPerformanceData != 0);
-#else
-        const bool hasPerformanceData = false;
-#endif
-
-        pShader = PAL_PLACEMENT_NEW(pPlacementAddr) Shader(pNextShader, this, hasPerformanceData);
-    }
-
-    if (result == Result::Success)
-    {
-        (*ppShader) = pShader;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
     const GraphicsPipelineCreateInfo& createInfo,
     Result*                           pResult
@@ -466,15 +420,7 @@ Result Device::CreateGraphicsPipeline(
     IPipeline* pNextPipeline = nullptr;
     Pipeline* pPipeline = nullptr;
 
-    GraphicsPipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.vs.pShader   = NextShader(createInfo.vs.pShader);
-    nextCreateInfo.hs.pShader   = NextShader(createInfo.hs.pShader);
-    nextCreateInfo.ds.pShader   = NextShader(createInfo.ds.pShader);
-    nextCreateInfo.gs.pShader   = NextShader(createInfo.gs.pShader);
-    nextCreateInfo.ps.pShader   = NextShader(createInfo.ps.pShader);
-    nextCreateInfo.pShaderCache = NextShaderCache(createInfo.pShaderCache);
-
-    Result result = m_pNextLayer->CreateGraphicsPipeline(nextCreateInfo,
+    Result result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
                                                          NextObjectAddr<Pipeline>(pPlacementAddr),
                                                          &pNextPipeline);
 
@@ -513,11 +459,7 @@ Result Device::CreateComputePipeline(
     IPipeline* pNextPipeline = nullptr;
     Pipeline* pPipeline = nullptr;
 
-    ComputePipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.cs.pShader   = NextShader(createInfo.cs.pShader);
-    nextCreateInfo.pShaderCache = NextShaderCache(createInfo.pShaderCache);
-
-    Result result = m_pNextLayer->CreateComputePipeline(nextCreateInfo,
+    Result result = m_pNextLayer->CreateComputePipeline(createInfo,
                                                         NextObjectAddr<Pipeline>(pPlacementAddr),
                                                         &pNextPipeline);
 

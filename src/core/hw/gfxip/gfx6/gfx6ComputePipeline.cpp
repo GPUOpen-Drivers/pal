@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx6/gfx6ComputePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
-#include "palElfPackagerImpl.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 

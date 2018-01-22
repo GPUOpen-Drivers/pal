@@ -55,7 +55,6 @@
 #include "palAssert.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
-#include "palElfPackagerImpl.h"
 #include "palFormatInfo.h"
 
 #include "core/hw/amdgpu_asic.h"
@@ -849,121 +848,6 @@ bool Device::DetermineHwStereoRenderingSupported(
     }
 
     return hwStereoRenderingSupported;
-}
-
-// =====================================================================================================================
-size_t Device::GetLoadedPipelineSize(
-    const void* pData,
-    size_t      dataSize,
-    Result*     pResult
-    ) const
-{
-    ElfReadContext<Platform> context(GetPlatform());
-    size_t size = 0;
-
-    const PipelineType* pPipelineType = nullptr;
-    const bool*         isNgg         = nullptr;
-
-    size_t readSize = 0;
-    Result result   = context.ReadFromBuffer(pData, &readSize);
-    PAL_ASSERT(readSize == dataSize);
-
-    if (pResult != nullptr)
-    {
-        if (result != Result::Success)
-        {
-            *pResult = result;
-        }
-        else if (readSize != dataSize)
-        {
-            *pResult = Result::ErrorInvalidMemorySize;
-        }
-        else if (Pipeline::DetermineLoadedPipelineType(*Parent(), context) == PipelineTypeUnknown)
-        {
-            *pResult = Result::ErrorBadPipelineData;
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        switch (Pipeline::DetermineLoadedPipelineType(*Parent(), context))
-        {
-        case PipelineTypeCompute:
-            size = sizeof(ComputePipeline);
-            break;
-        case PipelineTypeGraphics:
-            size = sizeof(GraphicsPipeline);
-            break;
-        case PipelineTypeUnknown:
-            PAL_ASSERT_ALWAYS();
-            break;
-        }
-    }
-
-    return size;
-}
-
-// =====================================================================================================================
-Result Device::LoadPipeline(
-    const void* pData,
-    size_t      dataSize,
-    void*       pPlacementAddr,
-    IPipeline** ppPipeline)
-{
-    ElfReadContext<Platform> context(GetPlatform());
-    size_t readSize = 0;
-
-    const PipelineType* pPipelineType = nullptr;
-    const bool*         isNgg         = nullptr;
-
-    Result result = Parent()->GetPublicSettings()->forceLoadObjectFailure ? Result::ErrorIncompatibleLibrary :
-                                                                            Result::Success;
-
-    if (result == Result::Success)
-    {
-        result = context.ReadFromBuffer(pData, &readSize);
-        PAL_ASSERT(readSize == dataSize);
-    }
-
-    if (result == Result::Success)
-    {
-        result = Pipeline::ValidateLoad(Parent(), context);
-    }
-
-    Pipeline* pPipeline = nullptr;
-
-    if (result == Result::Success)
-    {
-        switch (Pipeline::DetermineLoadedPipelineType(*Parent(), context))
-        {
-        case PipelineTypeCompute:
-            pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) ComputePipeline(this, false);
-            break;
-        case PipelineTypeGraphics:
-            pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, false);
-            break;
-        case PipelineTypeUnknown:
-        default:
-            PAL_ASSERT_ALWAYS();
-            break;
-        }
-    }
-
-    if ((result == Result::Success) && (pPipeline != nullptr))
-    {
-        result = pPipeline->LoadInit(context);
-    }
-
-    if ((result != Result::Success) && (pPipeline != nullptr))
-    {
-        pPipeline->Destroy();
-    }
-    else
-    {
-        *ppPipeline = pPipeline;
-    }
-
-    return result;
 }
 
 // =====================================================================================================================

@@ -27,9 +27,7 @@
 #include "core/g_palSettings.h"
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
-#include "core/hw/gfxip/palToScpcWrapper.h"
 #include "core/hw/gfxip/pipeline.h"
-#include "palElfPackagerImpl.h"
 #include "palFile.h"
 #include "palPipelineAbiProcessorImpl.h"
 
@@ -72,19 +70,6 @@ struct SerializedData
     PipelineInfo    info;
     ShaderMetadata  shaderMetadata;
 };
-
-// =====================================================================================================================
-// Helper function which returns the time & date that pipeline.cpp was compiled.
-static void PAL_STDCALL GetBuildTime(
-    BuildUniqueId* pBuildId)
-{
-    const char DateString[] = __DATE__;
-    const char TimeString[] = __TIME__;
-
-    memset(pBuildId, 0, sizeof(pBuildId[0]));
-    memcpy(&pBuildId->buildDate, &DateString[0], Min(sizeof(DateString), sizeof(pBuildId->buildDate)));
-    memcpy(&pBuildId->buildTime, &TimeString[0], Min(sizeof(TimeString), sizeof(pBuildId->buildTime)));
-}
 
 // =====================================================================================================================
 Pipeline::Pipeline(
@@ -131,194 +116,6 @@ void Pipeline::DestroyInternal()
     Platform*const pPlatform = m_pDevice->GetPlatform();
     Destroy();
     PAL_FREE(this, pPlatform);
-}
-
-// =====================================================================================================================
-// Serializes a pipeline into data fit for storing to disk by a client to reduce load-time versus re-compiling all
-// pipelines on application startup.  See IPipeline::Store for full details.
-Result Pipeline::Store(
-    size_t* pDataSize,
-    void*   pData)
-{
-    ElfWriteContext<Platform> context(m_pDevice->GetPlatform());
-
-    Result result = Store(&context);
-
-    if (result == Result::Success)
-    {
-        const size_t bufSize = context.GetRequiredBufferSizeBytes();
-
-        if (pData != nullptr)
-        {
-            if (bufSize <= *pDataSize)
-            {
-                context.WriteToBuffer(static_cast<char*>(pData), bufSize);
-            }
-            else
-            {
-                result = Result::ErrorInvalidMemorySize;
-            }
-        }
-
-        *pDataSize = bufSize;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Helper function to perform the store function on the specified write context.
-// Can be called by ICompoundState::Store to store the pipeline data in the same context used for the rest of the
-// states.
-Result Pipeline::Store(
-    ElfWriteContext<Platform>* pContext)
-{
-    SerializedPipelineHeader header = { };
-
-    header.deviceId = m_pDevice->ChipProperties().deviceId;
-
-    GetBuildTime(&header.buildId);
-
-    header.settingsHash = m_pDevice->GetSettingsHash();
-
-    for (uint32 i = 0; i < static_cast<uint32>(VaRange::Count); ++i)
-    {
-        header.vaRangeBaseAddr[i] = m_pDevice->MemoryProperties().vaRange[i].baseVirtAddr;
-    }
-
-    header.generator = SerializedPipelineGenerator::Pal;
-
-    Result result = pContext->AddBinarySection(".pipelineHeader", &header, sizeof(SerializedPipelineHeader));
-
-    if (result == Result::Success)
-    {
-        SerializedData data = { };
-
-        data.info = m_info;
-        data.shaderMetadata = m_shaderMetaData;
-
-        result = pContext->AddBinarySection(".pipelineData", &data, sizeof(SerializedData));
-    }
-
-    if (result == Result::Success)
-    {
-        result = Serialize(pContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Validates the read context to ensure this is a valid stored pipeline to load.
-Result Pipeline::ValidateLoad(
-    const Device*                   pDevice,
-    const ElfReadContext<Platform>& context)
-{
-    size_t readSize = 0;
-    const SerializedPipelineHeader* pHeader = nullptr;
-
-    Result result = GetLoadedSectionData(context,
-                                         ".pipelineHeader",
-                                         reinterpret_cast<const void**>(&pHeader),
-                                         &readSize);
-
-    if (result == Result::Success)
-    {
-        const MetroHash::Hash settingsHash = pDevice->GetSettingsHash();
-
-        if (pHeader->deviceId != pDevice->ChipProperties().deviceId)
-        {
-            result = Result::ErrorIncompatibleDevice;
-        }
-        else if (pHeader->generator == SerializedPipelineGenerator::Pal)
-        {
-            Util::BuildUniqueId buildId;
-            GetBuildTime(&buildId);
-
-            if ((memcmp(pHeader->buildId.buildDate, buildId.buildDate, sizeof(buildId.buildDate)) != 0) ||
-                (memcmp(pHeader->buildId.buildTime, buildId.buildTime, sizeof(buildId.buildTime)) != 0))
-            {
-                result = Result::ErrorIncompatibleLibrary;
-            }
-            else if (memcmp(&pHeader->settingsHash, &settingsHash, sizeof(MetroHash::Hash)))
-            {
-                result = Result::ErrorIncompatibleLibrary;
-            }
-        }
-
-        if (result == Result::Success)
-        {
-            for (uint32 i = 0; i < static_cast<uint32>(VaRange::Count); ++i)
-            {
-                if (pHeader->vaRangeBaseAddr[i] != pDevice->MemoryProperties().vaRange[i].baseVirtAddr)
-                {
-                    result = Result::ErrorIncompatibleDevice;
-                    break;
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Initializes this pipeline based on the contents of an ELF contents created with a previous call to Pipeline::Store.
-Result Pipeline::LoadInit(
-    const ElfReadContext<Platform>& context)
-{
-    size_t readSize = 0;
-    const SerializedData* pData = nullptr;
-
-    Result result = GetLoadedSectionData(context, ".pipelineData", reinterpret_cast<const void**>(&pData), &readSize);
-
-    if (result == Result::Success)
-    {
-        m_info = pData->info;
-        m_shaderMetaData = pData->shaderMetadata;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Examines the serialized pipeline data to determine if this is a compute or graphics pipeline object.
-PipelineType Pipeline::DetermineLoadedPipelineType(
-    const Device&                   device,
-    const ElfReadContext<Platform>& context)
-{
-    size_t       readSize     = 0;
-    PipelineType pipelineType = PipelineTypeUnknown;
-
-    const PipelineType* pPipelineType = NULL;
-
-    Result result = context.GetSectionData(".pipelineType", reinterpret_cast<const void**>(&pPipelineType), &readSize);
-
-    if ((result == Result::Success) && (readSize == sizeof(PipelineType)))
-    {
-        pipelineType = *pPipelineType;
-    }
-
-    return pipelineType;
-}
-
-// =====================================================================================================================
-// Helper method for loading serialized pipeline data from an ELF, and in particular, translating failures to the
-// appropriate error code.
-Result Pipeline::GetLoadedSectionData(
-    const ElfReadContext<Platform>& context,
-    const char*                     pName,
-    const void**                    ppData,
-    size_t*                         pDataLength)
-{
-    Result result = context.GetSectionData(pName, ppData, pDataLength);
-
-    if (result != Result::Success)
-    {
-        result = Result::ErrorBadPipelineData;
-    }
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -490,10 +287,6 @@ Result Pipeline::GetShaderCode(
     void*      pBuffer
     ) const
 {
-    // NOTE: Once SCPC is pulled out of PAL entirely, clients will be responsible for parsing their Pipeline binary
-    // blobs to obtain this data.  Until then, we'll extract it from the Pipeline binary we're storing along with
-    // this object.
-
     Result result = Result::ErrorUnavailable;
 
     const ShaderStageInfo*const pInfo = GetShaderStageInfo(shaderType);
@@ -542,19 +335,6 @@ Result Pipeline::GetShaderCode(
 }
 
 // =====================================================================================================================
-// Produces a human-readable shader disassembly string for a specific API shader stage.
-Result Pipeline::GetShaderDisassembly(
-    ShaderType shaderType,
-    void*      pBuffer,
-    size_t*    pSize
-    ) const
-{
-    Result result = Result::ErrorUnavailable;
-
-    return result;
-}
-
-// =====================================================================================================================
 // Extracts the performance data from GPU memory and copies it to the specified buffer.
 Result Pipeline::GetPerformanceData(
     Util::Abi::HardwareStage hardwareStage,
@@ -588,19 +368,6 @@ Result Pipeline::GetPerformanceData(
             }
         }
     }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Adds the shaders associated with this pipeline to the provided shader cache.
-Result Pipeline::AddShadersToCache(
-    IShaderCache* pShaderCache)
-{
-    PAL_ASSERT(pShaderCache != nullptr);
-    Result result = Result::ErrorUnavailable;
-
-    // NOTE: There's currently no way to extract entries for a shader cache from a precompiled pipeline binary.
 
     return result;
 }

@@ -465,8 +465,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("flags", value.flags);
-    KeyAndObject("shaderCache", value.pShaderCache);
-    KeyAndStruct("cs", value.cs);
     EndMap();
 }
 
@@ -1249,12 +1247,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("flags", value.flags);
-    KeyAndObject("shaderCache", value.pShaderCache);
-    KeyAndStruct("vs", value.vs);
-    KeyAndStruct("hs", value.hs);
-    KeyAndStruct("ds", value.ds);
-    KeyAndStruct("gs", value.gs);
-    KeyAndStruct("ps", value.ps);
     KeyAndValue("useLateAllocVsLimit", value.useLateAllocVsLimit);
     KeyAndValue("lateAllocVsLimit", value.lateAllocVsLimit);
     KeyAndBeginMap("iaState", false);
@@ -1266,59 +1258,19 @@ void LogContext::Struct(
             KeyAndValue("adjacency", value.iaState.topologyInfo.adjacency);
         }
         EndMap();
-        KeyAndValue("disableVertexReuse", value.iaState.disableVertexReuse);
-    }
-    EndMap();
-    KeyAndBeginMap("tessState", false);
-    {
-        KeyAndValue("fixedTessFactor", value.tessState.fixedTessFactor);
-    }
-    EndMap();
-    KeyAndBeginMap("vpState", false);
-    {
-        KeyAndValue("depthClipEnable", value.vpState.depthClipEnable);
-        KeyAndEnum("depthRange", value.vpState.depthRange);
     }
     EndMap();
     KeyAndBeginMap("rsState", false);
     {
         KeyAndEnum("pointCoordOrigin", value.rsState.pointCoordOrigin);
-        KeyAndValue("rasterizerDiscardEnable", value.rsState.rasterizerDiscardEnable);
         KeyAndValue("expandLineWidth", value.rsState.expandLineWidth);
-        KeyAndValue("numSamples", value.rsState.numSamples);
-        KeyAndValue("samplePatternIdx", value.rsState.samplePatternIdx);
         KeyAndEnum("shadeMode", value.rsState.shadeMode);
-        KeyAndValue("dx9PixCenter", value.rsState.dx9PixCenter);
-        KeyAndValue("usrClipPlaneMask", value.rsState.usrClipPlaneMask);
         KeyAndValue("rasterizeLastLinePixel", value.rsState.rasterizeLastLinePixel);
         KeyAndValue("outOfOrderPrimsEnable", value.rsState.outOfOrderPrimsEnable);
         KeyAndValue("perpLineEndCapsEnable", value.rsState.perpLineEndCapsEnable);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
 #endif
-    }
-    EndMap();
-    KeyAndBeginMap("soState", false);
-    {
-        KeyAndBeginList("soEntries", false);
-        for (uint32 idx = 0; idx < value.soState.numStreamOutEntries; ++idx)
-        {
-            BeginMap(false);
-            KeyAndValue("stream", value.soState.pSoEntries[idx].stream);
-            KeyAndValue("buffer", value.soState.pSoEntries[idx].buffer);
-            KeyAndValue("registerIndex", value.soState.pSoEntries[idx].registerIndex);
-            KeyAndValue("registerMask", value.soState.pSoEntries[idx].registerMask);
-            KeyAndValue("memOffset", value.soState.pSoEntries[idx].memOffset);
-            EndMap();
-        }
-        EndList();
-        KeyAndValue("rasterizedStreams", value.soState.rasterizedStreams);
-        KeyAndBeginList("bufferStrides", true);
-        for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
-        {
-            Value(value.soState.bufferStrides[idx]);
-        }
-        EndList();
     }
     EndMap();
     KeyAndBeginMap("cbState", false);
@@ -1330,8 +1282,6 @@ void LogContext::Struct(
         for (uint32 idx = 0; idx < MaxColorTargets; ++idx)
         {
             BeginMap(false);
-            KeyAndValue("blendEnable", value.cbState.target[idx].blendEnable);
-            KeyAndValue("blendSrcAlphaToColor", value.cbState.target[idx].blendSrcAlphaToColor);
             KeyAndStruct("swizzledFormat", value.cbState.target[idx].swizzledFormat);
             KeyAndValue("channelWriteMask", value.cbState.target[idx].channelWriteMask);
             EndMap();
@@ -1339,66 +1289,6 @@ void LogContext::Struct(
         EndList();
     }
     EndMap();
-    KeyAndBeginMap("dbState", false);
-    {
-        KeyAndStruct("swizzledFormat", value.dbState.swizzledFormat);
-    }
-    EndMap();
-    KeyAndBeginList("implicitPrimitiveShaderControl", false);
-
-    if (value.implicitPrimitiveShaderControl.enableImplicitPrimShader)
-    {
-        Value("enableImplicitPrimShader");
-    }
-
-    if (value.implicitPrimitiveShaderControl.disableBackfaceCulling)
-    {
-        Value("disableBackfaceCulling");
-    }
-
-    if (value.implicitPrimitiveShaderControl.enableFrustumCulling)
-    {
-        Value("enableFrustumCulling");
-    }
-
-    if (value.implicitPrimitiveShaderControl.enableSmallPrimFilter)
-    {
-        Value("enableSmallPrimFilter");
-    }
-
-    if (value.implicitPrimitiveShaderControl.enableFasterLaunchRate)
-    {
-        Value("enableFasterLaunchRate");
-    }
-
-    if (value.implicitPrimitiveShaderControl.enableVertexReuse)
-    {
-        Value("enableVertexReuse");
-    }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 332
-    if (value.implicitPrimitiveShaderControl.enableBoxFilterCulling)
-    {
-        Value("enableBoxFilterCulling");
-    }
-
-    if (value.implicitPrimitiveShaderControl.enableSphereCulling)
-    {
-        Value("enableSphereCulling");
-    }
-
-    if (value.implicitPrimitiveShaderControl.knownPrimitiveTopology)
-    {
-        Value("knownPrimitiveTopology");
-    }
-
-    if (value.implicitPrimitiveShaderControl.positionBufferWritesIgnoreL2)
-    {
-        Value("positionBufferWritesIgnoreL2");
-    }
-
-#endif
-    EndList();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 338
     KeyAndBeginMap("viewInstancingDesc", false);
@@ -1430,10 +1320,6 @@ void LogContext::Struct(
     EndMap();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 332
-    if (value.implicitPrimitiveShaderControl.knownPrimitiveTopology)
-    {
-        KeyAndEnum("primTopology", value.implicitPrimitiveShaderControl.primTopology);
-    }
 #endif
 }
 
@@ -1939,137 +1825,6 @@ void LogContext::Struct(
 void LogContext::Struct(
     PipelineCreateFlags value)
 {
-    BeginList(false);
-
-    if (value.disableOptimization)
-    {
-        Value("disableOptimization");
-    }
-
-    if (value.disableUserDataRemap)
-    {
-        Value("disableUserDataRemap");
-    }
-
-    if (value.sm5_1ResourceBinding)
-    {
-        Value("sm5_1ResourceBinding");
-    }
-
-    if (value.disableOptimizationC0)
-    {
-        Value("disableOptimizationC0");
-    }
-    if (value.disableOptimizationC1)
-    {
-        Value("disableOptimizationC1");
-    }
-    if (value.disableOptimizationC2)
-    {
-        Value("disableOptimizationC2");
-    }
-    if (value.disableOptimizationC3)
-    {
-        Value("disableOptimizationC3");
-    }
-    if (value.disableOptimizationC4)
-    {
-        Value("disableOptimizationC4");
-    }
-
-    EndList();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
-    const PipelineShaderInfo& value)
-{
-    BeginMap(false);
-    KeyAndObject("shader", value.pShader);
-    KeyAndBeginList("linkConstBufferInfo", false);
-
-    for (uint32 idx = 0; idx < value.linkConstBufferCount; ++idx)
-    {
-        BeginMap(false);
-        KeyAndValue("bufferId", value.pLinkConstBufferInfo[idx].bufferId);
-        KeyAndValue("bufferSize", value.pLinkConstBufferInfo[idx].bufferSize);
-        EndMap();
-    }
-
-    EndList();
-    KeyAndBeginList("descriptorRangeValues", false);
-
-    for (uint32 idx = 0; idx < value.numDescriptorRangeValues; ++idx)
-    {
-        BeginMap(false);
-        KeyAndEnum("type", value.pDescriptorRangeValues[idx].type);
-        KeyAndValue("srdRangeId", value.pDescriptorRangeValues[idx].srdRangeId);
-        KeyAndBeginList("value", false);
-
-        for (uint32 valueIdx = 0; valueIdx < value.pDescriptorRangeValues[idx].arraySize; ++valueIdx)
-        {
-            Value(value.pDescriptorRangeValues[idx].pValue[valueIdx]);
-        }
-
-        EndList();
-        EndMap();
-    }
-
-    EndList();
-    KeyAndBeginList("userDataNodes", false);
-
-    for (uint32 idx = 0; idx < value.numUserDataNodes; ++idx)
-    {
-        Struct(value.pUserDataNodes[idx]);
-    }
-
-    EndList();
-    KeyAndBeginList("flags", false);
-
-    if (value.flags.trapPresent)
-    {
-        Value("trapPresent");
-    }
-
-    if (value.flags.debugMode)
-    {
-        Value("debugMode");
-    }
-
-    if (value.flags.innerCoverage)
-    {
-        Value("innerCoverage");
-    }
-
-    if (value.flags.vFaceIsFloat)
-    {
-        Value("vFaceIsFloat");
-    }
-
-    if (value.flags.shadowFmask)
-    {
-        Value("shadowFmask");
-    }
-
-    if (value.flags.initUndefZero)
-    {
-        Value("initUndefZero");
-    }
-
-    EndList();
-    KeyAndValue("psOnlyPointCoordEnable", value.psOnlyPointCoordEnable);
-    KeyAndBeginList("psTexWrapping", false);
-
-    for (uint32 idx = 0; idx < value.numPsTexWrappingEntries; ++idx)
-    {
-        Value(value.pPsTexWrapping[idx]);
-    }
-
-    EndList();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
-#endif
-    EndMap();
 }
 
 // =====================================================================================================================
@@ -2496,64 +2251,6 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
-    const ResourceMappingNode& value)
-{
-    BeginMap(false);
-    KeyAndEnum("type", value.type);
-    KeyAndValue("sizeInDwords", value.sizeInDwords);
-    KeyAndValue("offsetInDwords", value.offsetInDwords);
-
-    switch (value.type)
-    {
-    case ResourceMappingNodeType::Resource:
-    case ResourceMappingNodeType::Uav:
-    case ResourceMappingNodeType::ConstBuffer:
-    case ResourceMappingNodeType::Sampler:
-        KeyAndBeginMap("srdRange", false);
-        KeyAndValue("id", value.srdRange.id);
-        KeyAndValue("startIndex", value.srdRange.startIndex);
-        KeyAndValue("stride", value.srdRange.stride);
-        EndMap();
-        break;
-
-    case ResourceMappingNodeType::DefaultVaPtr:
-    case ResourceMappingNodeType::DescriptorTableVaPtr:
-    case ResourceMappingNodeType::IndirectUserDataVaPtr:
-        KeyAndBeginMap("tablePtr", false);
-        KeyAndBeginList("next", false);
-
-        for (uint32 idx = 0; idx < value.tablePtr.nodeCount; ++idx)
-        {
-            Struct(value.tablePtr.pNext[idx]);
-        }
-
-        EndList();
-        KeyAndValue("indirectId", value.tablePtr.indirectId);
-        EndMap();
-        break;
-
-    case ResourceMappingNodeType::StreamOutTableVaPtr:
-        // This type has no special values.
-        break;
-
-    case ResourceMappingNodeType::InlineConst:
-    case ResourceMappingNodeType::InlineSrvConst:
-        KeyAndBeginMap("inlineConst", false);
-        KeyAndValue("id", value.inlineConst.id);
-        KeyAndValue("slot", value.inlineConst.slot);
-        EndMap();
-        break;
-
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-
-    EndMap();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
     RgbFloat value)
 {
     BeginMap(true);
@@ -2767,189 +2464,6 @@ void LogContext::Struct(
     KeyAndValue("vidPnSrcId", value.vidPnSrcId);
     KeyAndEnum("mgpuMode", value.mgpuMode);
     KeyAndValue("isFramePacingEnabled", value.isFramePacingEnabled);
-    EndMap();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
-    const ShaderCacheCreateInfo& value)
-{
-    BeginMap(false);
-    KeyAndValue("initialDataSize", value.initialDataSize);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 316
-    KeyAndValue("expectedEntries", value.expectedEntries);
-#endif
-    EndMap();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
-    const ShaderCreateInfo& value)
-{
-    BeginMap(false);
-    KeyAndBeginList("flags", true);
-
-    if (value.flags.allowReZ)
-    {
-        Value("allowReZ");
-    }
-
-    if (value.flags.outputWinCoord)
-    {
-        Value("outputWinCoord");
-    }
-
-    EndList();
-    KeyAndValue("clientHashUpper", value.clientHash.upper);
-    KeyAndValue("clientHashLower", value.clientHash.lower);
-    KeyAndStruct("optStrategy", value.optStrategy);
-    EndMap();
-}
-
-// =====================================================================================================================
-void LogContext::Struct(
-    const ShaderOptimizationStrategy& value)
-{
-    BeginMap(false);
-    KeyAndBeginList("flags", true);
-
-    if (value.flags.minimizeVgprs)
-    {
-        Value("minimizeVgprs");
-    }
-
-    if (value.flags.clientVgprLimit)
-    {
-        Value("clientVgprLimit");
-    }
-
-    if (value.flags.userDataSpill)
-    {
-        Value("userDataSpill");
-    }
-
-    if (value.flags.useScGroup)
-    {
-        Value("useScGroup");
-    }
-
-    if (value.flags.useScLiveness)
-    {
-        Value("useScLiveness");
-    }
-
-    if (value.flags.useScRemat)
-    {
-        Value("useScRemat");
-    }
-
-    if (value.flags.useScUseMoreD16)
-    {
-        Value("useScUseMoreD16");
-    }
-
-    if (value.flags.useScUseUnsafeMadMix)
-    {
-        Value("useScUseUnsafeMadMix");
-    }
-
-    if (value.flags.useScUnsafeConvertToF16)
-    {
-        Value("useScUnsafeConvertToF16");
-    }
-
-    if (value.flags.removeNullParameterExports)
-    {
-        Value("removeNullParameterExports");
-    }
-
-    if (value.flags.useScAggressiveHoist)
-    {
-        Value("useScAggressiveHoist");
-    }
-
-    if (value.flags.useScXnackEnable)
-    {
-        Value("useScXnackEnable");
-    }
-
-    if (value.flags.useNonIeeeFpInstructions)
-    {
-        Value("useNonIeeeFpInstructions");
-    }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 357
-    if (value.flags.enabledPerformanceData)
-    {
-        Value("enabledPerformanceData");
-    }
-#endif
-
-    EndList();
-
-    if (value.flags.clientVgprLimit)
-    {
-        KeyAndValue("vgprLimit", value.vgprLimit);
-    }
-
-    KeyAndValue("maxLdsSpillDwords", value.maxLdsSpillDwords);
-
-    if (value.flags.minimizeVgprs)
-    {
-        KeyAndBeginList("minVgprStrategyFlags", false);
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageGcmseq)
-        {
-            Value("minimizeVgprsUsageGcmseq");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageSched)
-        {
-            Value("minimizeVgprsUsageSched");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageRegAlloc)
-        {
-            Value("minimizeVgprsUsageRegAlloc");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageMergeChain)
-        {
-            Value("minimizeVgprsUsageMergeChain");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsagePeepHole)
-        {
-            Value("minimizeVgprsUsagePeepHole");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageCubeCoord)
-        {
-            Value("minimizeVgprsUsageCubeCoord");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageFactorMad)
-        {
-            Value("minimizeVgprsUsageFactorMad");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageVN)
-        {
-            Value("minimizeVgprsUsageVN");
-        }
-
-        if (value.minVgprStrategyFlags.minimizeVgprsUsageBCM)
-        {
-            Value("minimizeVgprsUsageBCM");
-        }
-
-        EndList();
-    }
-
-    KeyAndValue("userDataSpillThreshold", value.userDataSpillThreshold);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    KeyAndValue("csTgPerCu", value.csTgPerCu);
-#endif
     EndMap();
 }
 

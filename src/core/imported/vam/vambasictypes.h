@@ -44,17 +44,9 @@
 #endif
 
 // Different compiler has different definitions for int8, int16, int32, etc.
-#if defined(LINUX)
 #include <stdint.h>
 #include <stddef.h>
 #define DEFINE_MSWIN_DATATYPES        1 // For Linux we need to define datatypes
-#elif (defined (BUILDING_CMMQSLIB) || defined(BUILDING_CMM))
-#if defined(_WIN32) || defined(_WIN64)
-#if !defined(_BASETSD_H_)               // It looks that standard types are not defined
-#define DEFINE_MSWIN_DATATYPES        1
-#endif                                  // #if !defined(_BASETSD_H_)
-#endif                                  // #if defined(_WIN32) || defined(_WIN64)
-#endif                                  // #if defined(LINUX)
 
 //
 // -----------------  Define standard API calling convention ------------------

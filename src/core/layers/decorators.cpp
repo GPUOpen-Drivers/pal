@@ -239,24 +239,6 @@ IScreen* NextScreen(
 }
 
 // =====================================================================================================================
-IShader* NextShader(
-    const IShader* pShader)
-{
-    return (pShader != nullptr) ?
-            static_cast<const ShaderDecorator*>(pShader)->GetNextLayer() :
-            nullptr;
-}
-
-// =====================================================================================================================
-IShaderCache* NextShaderCache(
-    const IShaderCache* pShaderCache)
-{
-    return (pShaderCache != nullptr) ?
-        static_cast<const ShaderCacheDecorator*>(pShaderCache)->GetNextLayer() :
-        nullptr;
-}
-
-// =====================================================================================================================
 ISwapChain* NextSwapChain(
     const ISwapChain* pSwapChain)
 {
@@ -1088,69 +1070,6 @@ Result DeviceDecorator::CreateBorderColorPalette(
 }
 
 // =====================================================================================================================
-size_t DeviceDecorator::GetShaderSize(
-    const ShaderCreateInfo& createInfo,
-    Result*                 pResult
-    ) const
-{
-    return m_pNextLayer->GetShaderSize(createInfo, pResult) + sizeof(ShaderDecorator);
-}
-
-// =====================================================================================================================
-Result DeviceDecorator::CreateShader(
-    const ShaderCreateInfo& createInfo,
-    void*                   pPlacementAddr,
-    IShader**               ppShader
-    ) const
-{
-    IShader* pShader = nullptr;
-
-    Result result = m_pNextLayer->CreateShader(createInfo,
-                                               NextObjectAddr<ShaderDecorator>(pPlacementAddr),
-                                               &pShader);
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pShader != nullptr);
-        pShader->SetClientData(pPlacementAddr);
-
-        (*ppShader) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderDecorator(pShader, this);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t DeviceDecorator::GetShaderCacheSize() const
-{
-    return m_pNextLayer->GetShaderCacheSize() + sizeof(ShaderCacheDecorator);
-}
-
-// =====================================================================================================================
-Result DeviceDecorator::CreateShaderCache(
-    const ShaderCacheCreateInfo& createInfo,
-    void*                        pPlacementAddr,
-    IShaderCache**               ppShaderCache
-    ) const
-{
-    IShaderCache* pShaderCache = nullptr;
-
-    Result result = m_pNextLayer->CreateShaderCache(createInfo,
-                                                    NextObjectAddr<ShaderCacheDecorator>(pPlacementAddr),
-                                                    &pShaderCache);
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pShaderCache != nullptr);
-        pShaderCache->SetClientData(pPlacementAddr);
-
-        (*ppShaderCache) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderCacheDecorator(pShaderCache, this);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 size_t DeviceDecorator::GetComputePipelineSize(
     const ComputePipelineCreateInfo& createInfo,
     Result*                          pResult
@@ -1167,11 +1086,7 @@ Result DeviceDecorator::CreateComputePipeline(
 {
     IPipeline* pPipeline = nullptr;
 
-    ComputePipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.cs.pShader                = NextShader(createInfo.cs.pShader);
-    nextCreateInfo.pShaderCache              = NextShaderCache(createInfo.pShaderCache);
-
-    Result result = m_pNextLayer->CreateComputePipeline(nextCreateInfo,
+    Result result = m_pNextLayer->CreateComputePipeline(createInfo,
                                                         NextObjectAddr<PipelineDecorator>(pPlacementAddr),
                                                         &pPipeline);
 
@@ -1203,52 +1118,9 @@ Result DeviceDecorator::CreateGraphicsPipeline(
 {
     IPipeline* pPipeline = nullptr;
 
-    GraphicsPipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.vs.pShader                 = NextShader(createInfo.vs.pShader);
-    nextCreateInfo.hs.pShader                 = NextShader(createInfo.hs.pShader);
-    nextCreateInfo.ds.pShader                 = NextShader(createInfo.ds.pShader);
-    nextCreateInfo.gs.pShader                 = NextShader(createInfo.gs.pShader);
-    nextCreateInfo.ps.pShader                 = NextShader(createInfo.ps.pShader);
-
-    nextCreateInfo.pShaderCache = NextShaderCache(createInfo.pShaderCache);
-
-    Result result = m_pNextLayer->CreateGraphicsPipeline(nextCreateInfo,
+    Result result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
                                                          NextObjectAddr<PipelineDecorator>(pPlacementAddr),
                                                          &pPipeline);
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pPipeline != nullptr);
-        pPipeline->SetClientData(pPlacementAddr);
-
-        (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) PipelineDecorator(pPipeline, this);
-    }
-
-    return result;
-}
-// =====================================================================================================================
-size_t DeviceDecorator::GetLoadedPipelineSize(
-    const void* pData,
-    size_t      dataSize,
-    Result*     pResult
-    ) const
-{
-    return m_pNextLayer->GetLoadedPipelineSize(pData, dataSize, pResult) + sizeof(PipelineDecorator);
-}
-
-// =====================================================================================================================
-Result DeviceDecorator::LoadPipeline(
-    const void* pData,
-    size_t      dataSize,
-    void*       pPlacementAddr,
-    IPipeline** ppPipeline)
-{
-    IPipeline* pPipeline = nullptr;
-
-    Result result = m_pNextLayer->LoadPipeline(pData,
-                                               dataSize,
-                                               NextObjectAddr<PipelineDecorator>(pPlacementAddr),
-                                               &pPipeline);
 
     if (result == Result::Success)
     {
@@ -2522,19 +2394,6 @@ Result SwapChainDecorator::AcquireNextImage(
     nextAcquireInfo.pFence     = NextFence(acquireInfo.pFence);
 
     return m_pNextLayer->AcquireNextImage(nextAcquireInfo, pImageIndex);
-}
-
-// =====================================================================================================================
-Result ShaderCacheDecorator::Merge(
-    uint32               numSrcCaches,
-    const IShaderCache** ppSrcCaches)
-{
-    AutoBuffer<const IShaderCache*, 8, PlatformDecorator> srcCaches(numSrcCaches, m_pDevice->GetPlatform());
-    for (uint32 i = 0; i < numSrcCaches; i++)
-    {
-        srcCaches[i] = NextShaderCache(ppSrcCaches[i]);
-    }
-    return m_pNextLayer->Merge(numSrcCaches, &srcCaches[0]);
 }
 
 } // Pal

@@ -173,15 +173,30 @@ extern void SetDbgPrintCallback(
 
 /// Logs a text string via client callback when provided.
 ///
+/// @param [in] pClientData  Pointer to client-defined data.  The pClientData value specified in the pLogCbInfo
+///                          parameter to CreatePlatform() will be passed back to the client on every log callback.
 /// @param [in] level        Log priority level associated with the message.
 /// @param [in] categoryMask Log category mask that represents what category fields the message relates to.
 /// @param [in] pFormat      Format string for the log message.
 /// @param [in] args         Variable arguments that correspond to the format string.
 typedef void (PAL_STDCALL *LogCallbackFunc)(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
+    void*       pClientData,
+#endif
     uint32      level,
     uint64      categoryMask,
     const char* pFormat,
     va_list     args);
+
+/// Specifies client-provided logging callbacks.  Used as a parameter to Pal::CreatePlatform().
+///
+/// @ingroup LibInit
+struct LogCallbackInfo
+{
+    void*           pClientData;  ///< Opaque pointer to data of client's choosing.  This pointer will be passed back to
+                                  ///  every @ref LogCallbackFunc call made by PAL.
+    LogCallbackFunc pfnLogCb;     ///< Debug print logging callback.  @see LogCallbackFunc.
+};
 
 /// Compiler-specific wrapper of the standard snprintf implementation.
 ///

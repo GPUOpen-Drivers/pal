@@ -44,8 +44,6 @@
 #include "core/layers/interfaceLogger/interfaceLoggerQueue.h"
 #include "core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
-#include "core/layers/interfaceLogger/interfaceLoggerShader.h"
-#include "core/layers/interfaceLogger/interfaceLoggerShaderCache.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
 #include "palSysUtil.h"
 
@@ -1523,115 +1521,6 @@ Result Device::CreateBorderColorPalette(
 }
 
 // =====================================================================================================================
-size_t Device::GetShaderSize(
-    const ShaderCreateInfo& createInfo,
-    Result*                 pResult
-    ) const
-{
-    return m_pNextLayer->GetShaderSize(createInfo, pResult) + sizeof(Shader);
-}
-
-// =====================================================================================================================
-Result Device::CreateShader(
-    const ShaderCreateInfo& createInfo,
-    void*                   pPlacementAddr,
-    IShader**               ppShader
-    ) const
-{
-    auto*const pPlatform   = static_cast<Platform*>(m_pPlatform);
-    IShader*   pNextShader = nullptr;
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateShader;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateShader(createInfo,
-                                                       NextObjectAddr<Shader>(pPlacementAddr),
-                                                       &pNextShader);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextShader != nullptr);
-        pNextShader->SetClientData(pPlacementAddr);
-
-        const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::Shader);
-
-        (*ppShader) = PAL_PLACEMENT_NEW(pPlacementAddr) Shader(pNextShader, this, objectId);
-    }
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndStruct("createInfo", createInfo);
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->KeyAndObject("createdObj", *ppShader);
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetShaderCacheSize() const
-{
-    return m_pNextLayer->GetShaderCacheSize() + sizeof(ShaderCache);
-}
-
-// =====================================================================================================================
-Result Device::CreateShaderCache(
-    const ShaderCacheCreateInfo& createInfo,
-    void*                        pPlacementAddr,
-    IShaderCache**               ppShaderCache
-    ) const
-{
-    auto*const    pPlatform        = static_cast<Platform*>(m_pPlatform);
-    IShaderCache* pNextShaderCache = nullptr;
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateShaderCache;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateShaderCache(createInfo,
-                                                            NextObjectAddr<ShaderCache>(pPlacementAddr),
-                                                            &pNextShaderCache);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextShaderCache != nullptr);
-        pNextShaderCache->SetClientData(pPlacementAddr);
-
-        const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::ShaderCache);
-
-        (*ppShaderCache) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderCache(pNextShaderCache, this, objectId);
-    }
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndStruct("createInfo", createInfo);
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->KeyAndObject("createdObj", *ppShaderCache);
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 size_t Device::GetComputePipelineSize(
     const ComputePipelineCreateInfo& createInfo,
     Result*                          pResult
@@ -1650,8 +1539,6 @@ Result Device::CreateComputePipeline(
     IPipeline* pNextPipeline = nullptr;
 
     ComputePipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.cs.pShader   = NextShader(createInfo.cs.pShader);
-    nextCreateInfo.pShaderCache = NextShaderCache(createInfo.pShaderCache);
 
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::DeviceCreateComputePipeline;
@@ -1709,12 +1596,6 @@ Result Device::CreateGraphicsPipeline(
     IPipeline* pNextPipeline = nullptr;
 
     GraphicsPipelineCreateInfo nextCreateInfo = createInfo;
-    nextCreateInfo.vs.pShader   = NextShader(createInfo.vs.pShader);
-    nextCreateInfo.hs.pShader   = NextShader(createInfo.hs.pShader);
-    nextCreateInfo.ds.pShader   = NextShader(createInfo.ds.pShader);
-    nextCreateInfo.gs.pShader   = NextShader(createInfo.gs.pShader);
-    nextCreateInfo.ps.pShader   = NextShader(createInfo.ps.pShader);
-    nextCreateInfo.pShaderCache = NextShaderCache(createInfo.pShaderCache);
 
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::DeviceCreateGraphicsPipeline;
@@ -1742,60 +1623,6 @@ Result Device::CreateGraphicsPipeline(
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
 
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->KeyAndObject("createdObj", *ppPipeline);
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetLoadedPipelineSize(
-    const void* pData,
-    size_t      dataSize,
-    Result*     pResult
-    ) const
-{
-    return m_pNextLayer->GetLoadedPipelineSize(pData, dataSize, pResult) + sizeof(Pipeline);
-}
-
-// =====================================================================================================================
-Result Device::LoadPipeline(
-    const void* pData,
-    size_t      dataSize,
-    void*       pPlacementAddr,
-    IPipeline** ppPipeline)
-{
-    auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
-    IPipeline* pNextPipeline = nullptr;
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceLoadPipeline;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->LoadPipeline(pData,
-                                                       dataSize,
-                                                       NextObjectAddr<Pipeline>(pPlacementAddr),
-                                                       &pNextPipeline);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(pNextPipeline != nullptr);
-        pNextPipeline->SetClientData(pPlacementAddr);
-
-        const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::Pipeline);
-
-        (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) Pipeline(pNextPipeline, this, objectId);
-    }
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppPipeline);

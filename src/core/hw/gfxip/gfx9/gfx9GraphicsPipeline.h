@@ -159,8 +159,6 @@ class GraphicsPipeline : public Pal::GraphicsPipeline
 public:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 
-    virtual Result LoadInit(const Util::ElfReadContext<Platform>& context) override;
-
     virtual Result GetShaderStats(
         ShaderType   shaderType,
         ShaderStats* pShaderStats,
@@ -231,7 +229,6 @@ public:
 protected:
     virtual ~GraphicsPipeline() { }
 
-    virtual Result Serialize(Util::ElfWriteContext<Platform>* pContext) override;
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
         const AbiProcessor&               abiProcessor) override;

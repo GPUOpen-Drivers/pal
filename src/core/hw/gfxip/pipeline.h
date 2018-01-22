@@ -109,43 +109,21 @@ public:
 
     virtual const PipelineInfo& GetInfo() const override { return m_info; }
 
-    virtual Result Store(size_t* pDataSize, void* pData) override;
-    Result Store(Util::ElfWriteContext<Platform>* pContext);
-
-    static Result  ValidateLoad(const Device* pDevice, const Util::ElfReadContext<Platform>& context);
-    virtual Result LoadInit(const Util::ElfReadContext<Platform>& context);
-
     virtual uint32* RequestPrefetch(const Pal::PrefetchMgr& prefetchMgr, uint32* pCmdSpace) const = 0;
-
-    static PipelineType DetermineLoadedPipelineType(
-        const Device&                         device,
-        const Util::ElfReadContext<Platform>& context);
-
-    static Result GetLoadedSectionData(
-        const Util::ElfReadContext<Platform>& context,
-        const char*                           pName,
-        const void**                          ppData,
-        size_t*                               pDataLength);
 
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
         GpuMemSubAllocInfo* const  pAllocInfoList) override;
 
-    virtual Result GetShaderDisassembly(
-        ShaderType shaderType,
-        void*      pBuffer,
-        size_t*    pSize) const override;
     virtual Result GetShaderCode(
         ShaderType shaderType,
         size_t*    pSize,
         void*      pBuffer) const override;
+
     virtual Result GetPerformanceData(
         Util::Abi::HardwareStage hardwareStage,
         size_t*                  pSize,
         void*                    pBuffer) override;
-
-    virtual Result AddShadersToCache(
-        IShaderCache* pShaderCache) override;
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
@@ -164,10 +142,6 @@ protected:
         const AbiProcessor& abiProcessor,
         ShaderType          firstShader,
         ShaderType          lastShader);
-
-    // The base class implements Store() which sets up an ELF write context and adds some basic header info.  Each
-    // derived class should store all of its internal class data in an implmentation of this method.
-    virtual Result Serialize(Util::ElfWriteContext<Platform>* pContext) = 0;
 
     // Obtains a structure describing the traits of the hardware shader stage associated with a particular API shader
     // type.  Returns nullptr if the shader type is not present for the current pipeline.

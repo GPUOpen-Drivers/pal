@@ -30,8 +30,6 @@
 namespace Pal
 {
 
-class ShaderCacheClientData;
-
 // =====================================================================================================================
 // Hardware independent graphics pipeline class.  Implements all details of a graphics pipeline that are common across
 // all hardware types (and combination of shader stages) but distinct from a compute pipeline.
@@ -43,7 +41,6 @@ public:
     virtual Result Init(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo);
-    virtual Result LoadInit(const Util::ElfReadContext<Platform>& context) override;
 
     bool IsGsEnabled() const { return m_flags.gsEnabled; }
     bool IsGsOnChip() const { return m_flags.isGsOnchip; }
@@ -68,7 +65,6 @@ public:
 protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 
-    virtual Result Serialize(Util::ElfWriteContext<Platform>* pContext) override;
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
         const AbiProcessor&               abiProcessor) = 0;

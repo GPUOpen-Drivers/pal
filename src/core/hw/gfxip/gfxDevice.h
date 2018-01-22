@@ -71,8 +71,6 @@ class      QueueContext;
 class      RasterState;
 class      RsrcProcMgr;
 class      ScissorState;
-class      Shader;
-class      ShaderCache;
 class      ViewportState;
 
 struct     BorderColorPaletteCreateInfo;
@@ -279,18 +277,6 @@ public:
         void*          pPlacementAddr,
         QueueContext** ppQueueContext) = 0;
 
-    size_t GetShaderSize(const ShaderCreateInfo& createInfo, Result* pResult) const;
-    Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader);
-
-    size_t GetShaderCacheSize() const;
-    Result CreateShaderCache(
-        const ShaderCacheCreateInfo& createInfo,
-        void*                        pPlacementAddr,
-        IShaderCache**               ppShaderCache);
-
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
         Result*                          pResult) const = 0;
@@ -319,13 +305,6 @@ public:
         const GraphicsPipelineInternalCreateInfo& internalInfo,
         GraphicsPipeline**                        ppPipeline,
         Util::SystemAllocType                     allocType);
-
-    virtual size_t GetLoadedPipelineSize(const void* pData, size_t dataSize, Result* pResult) const = 0;
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) = 0;
 
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const
@@ -454,8 +433,6 @@ public:
         const ImageAspect aspect,
         const ImageTiling tiling) const = 0;
 
-    ShaderCache* GetShaderCache() const { return m_pShaderCache; }
-
     // Helper function that disables a specific CU mask within the UMD managed range.
     uint16 GetCuEnableMask(uint16 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
@@ -569,8 +546,6 @@ protected:
     Device*const            m_pParent;
     Pal::RsrcProcMgr*       m_pRsrcProcMgr;
     FlglRegSeq              m_flglRegSeq[FlglRegSeqMax]; // Holder for FLGL sync register sequences
-
-    ShaderCache* m_pShaderCache;
 
 #if DEBUG
     // Sometimes it is useful to temporarily hang the GPU during debugging to dump command buffers, etc.  This piece of

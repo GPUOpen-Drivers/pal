@@ -206,18 +206,6 @@ public:
         const BorderColorPaletteCreateInfo& createInfo,
         void*                               pPlacementAddr,
         IBorderColorPalette**               ppPalette) const override;
-    virtual size_t GetShaderSize(
-        const ShaderCreateInfo& createInfo,
-        Result*                 pResult) const override;
-    virtual Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader) const override;
-    virtual size_t GetShaderCacheSize() const override;
-    virtual Result CreateShaderCache(
-        const ShaderCacheCreateInfo& createInfo,
-        void*                        pPlacementAddr,
-        IShaderCache**               ppShaderCache) const override;
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
         Result*                          pResult) const override;
@@ -232,15 +220,6 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) override;
-    virtual size_t GetLoadedPipelineSize(
-        const void* pData,
-        size_t      dataSize,
-        Result*     pResult) const override;
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) override;
     virtual size_t GetMsaaStateSize(
         const MsaaStateCreateInfo& createInfo,
         Result*                    pResult) const override;

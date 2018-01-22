@@ -49,8 +49,6 @@
 #include "palQueue.h"
 #include "palQueueSemaphore.h"
 #include "palScreen.h"
-#include "palShader.h"
-#include "palShaderCache.h"
 #include "palSwapChain.h"
 #include "palSysMemory.h"
 
@@ -105,8 +103,6 @@ class QueueDecorator;
 class QueueSemaphoreDecorator;
 class ScreenDecorator;
 class ScissorStateDecorator;
-class ShaderDecorator;
-class ShaderCacheDecorator;
 class ViewportStateDecorator;
 
 extern IBorderColorPalette*   NextBorderColorPalette(const IBorderColorPalette* pBorderColorPalette);
@@ -133,8 +129,6 @@ extern IQueue*                NextQueue(const IQueue* pQueue);
 extern IQueueSemaphore*       NextQueueSemaphore(const IQueueSemaphore* pQueueSemaphore);
 extern IScreen*               NextScreen(const IScreen* pScreen);
 extern IScissorState*         NextScissorState(const IScissorState* pScissorState);
-extern IShader*               NextShader(const IShader* pShader);
-extern IShaderCache*          NextShaderCache(const IShaderCache* pShaderCache);
 extern ISwapChain*            NextSwapChain(const ISwapChain* pSwapChain);
 extern IViewportState*        NextViewportState(const IViewportState* pViewportState);
 
@@ -705,22 +699,6 @@ public:
         void*                               pPlacementAddr,
         IBorderColorPalette**               ppPalette) const override;
 
-    virtual size_t GetShaderSize(
-        const ShaderCreateInfo& createInfo,
-        Result*                 pResult) const override;
-
-    virtual Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader) const override;
-
-    virtual size_t GetShaderCacheSize() const override;
-
-    virtual Result CreateShaderCache(
-        const ShaderCacheCreateInfo& createInfo,
-        void*                        pPlacementAddr,
-        IShaderCache**               ppShaderCache) const override;
-
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
         Result*                          pResult) const override;
@@ -738,16 +716,6 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) override;
-    virtual size_t GetLoadedPipelineSize(
-        const void* pData,
-        size_t      dataSize,
-        Result*     pResult) const override;
-
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) override;
 
     virtual size_t GetMsaaStateSize(
         const MsaaStateCreateInfo& createInfo,
@@ -2475,32 +2443,22 @@ public:
         m_pNextLayer(pNextPipeline), m_pDevice(pNextDevice)
     {}
 
-    virtual Result Store(
-        size_t* pDataSize,
-        void*   pData) override
-        { return m_pNextLayer->Store(pDataSize, pData); }
-
-    virtual Result GetShaderDisassembly(
-        ShaderType shaderType,
-        void*      pBuffer,
-        size_t*    pCount) const override
-        { return m_pNextLayer->GetShaderDisassembly(shaderType, pBuffer, pCount); }
     virtual Result GetShaderStats(
         ShaderType   shaderType,
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const override
         { return m_pNextLayer->GetShaderStats(shaderType, pShaderStats, getDisassemblySize); }
+
     virtual Result GetShaderCode(ShaderType shaderType, size_t* pSize, void* pBuffer) const override
         { return m_pNextLayer->GetShaderCode(shaderType, pSize, pBuffer); }
+
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
+
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
 
     virtual const PipelineInfo& GetInfo() const override { return m_pNextLayer->GetInfo(); }
-
-    virtual Result AddShadersToCache(IShaderCache* pShaderCache) override
-        { return m_pNextLayer->AddShadersToCache(NextShaderCache(pShaderCache)); }
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_pNextLayer->ApiHwShaderMapping(); }
@@ -2727,84 +2685,6 @@ protected:
 private:
     PAL_DISALLOW_DEFAULT_CTOR(QueueSemaphoreDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(QueueSemaphoreDecorator);
-};
-
-// =====================================================================================================================
-class ShaderDecorator : public IShader
-{
-public:
-    ShaderDecorator(IShader* pNextShader, const DeviceDecorator* pNextDevice)
-        :
-        m_pNextLayer(pNextShader), m_pDevice(pNextDevice)
-    {}
-
-    virtual ShaderType GetType() const override
-        { return m_pNextLayer->GetType(); }
-
-    virtual bool UsesPushConstants() const override { return m_pNextLayer->UsesPushConstants(); }
-
-    // Part of the IDestroyable public interface.
-    virtual void Destroy() override
-    {
-        IShader* pNextLayer = m_pNextLayer;
-        this->~ShaderDecorator();
-        pNextLayer->Destroy();
-    }
-
-    const IDevice* GetDevice() const { return m_pDevice; }
-    IShader*       GetNextLayer() const { return m_pNextLayer; }
-
-protected:
-    virtual ~ShaderDecorator() {}
-
-    IShader*const               m_pNextLayer;
-    const DeviceDecorator*const m_pDevice;
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(ShaderDecorator);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ShaderDecorator);
-};
-
-// =====================================================================================================================
-class ShaderCacheDecorator : public IShaderCache
-{
-public:
-    ShaderCacheDecorator(IShaderCache* pNextShaderCache, const DeviceDecorator* pNextDevice)
-        :
-        m_pNextLayer(pNextShaderCache), m_pDevice(pNextDevice)
-    {}
-
-    // Part of the IDestroyable public interface.
-    virtual void Destroy() override
-    {
-        IShaderCache* pNextLayer = m_pNextLayer;
-        this->~ShaderCacheDecorator();
-        pNextLayer->Destroy();
-    }
-
-    virtual Result Serialize(void* pBlob, size_t* pSize) override
-    {
-        return m_pNextLayer->Serialize(pBlob, pSize);
-    }
-
-    virtual void Reset() override
-    {
-        m_pNextLayer->Reset();
-    }
-
-    virtual Result Merge(uint32 numSrcCaches, const IShaderCache** ppSrcCaches) override;
-
-    IShaderCache* GetNextLayer() const { return m_pNextLayer; }
-
-protected:
-    virtual ~ShaderCacheDecorator() {}
-
-    IShaderCache*const          m_pNextLayer;
-    const DeviceDecorator*const m_pDevice;
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(ShaderCacheDecorator);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ShaderCacheDecorator);
 };
 
 // =====================================================================================================================

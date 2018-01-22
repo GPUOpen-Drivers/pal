@@ -29,9 +29,6 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
-#include "core/hw/gfxip/palToScpcWrapper.h"
-#include "palShader.h"
-#include "palShaderCache.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palHashMapImpl.h"
 
@@ -48,7 +45,6 @@ GfxDevice::GfxDevice(
     :
     m_pParent(pDevice),
     m_pRsrcProcMgr(pRsrcProcMgr),
-    m_pShaderCache(nullptr),
     m_frameCountGpuMem(),
     m_frameCntReg(frameCountRegOffset),
     m_useFixedLateAllocVsLimit(false),
@@ -70,8 +66,6 @@ GfxDevice::~GfxDevice()
 {
     // Note that GfxDevice does not own the m_pRsrcProcMgr instance so it is not deleted here.
 
-    // This object must be destroyed in Cleanup().
-    PAL_ASSERT(m_pShaderCache == nullptr);
 }
 
 // =====================================================================================================================
@@ -90,12 +84,6 @@ Result GfxDevice::Cleanup()
     }
 #endif
 
-    if (m_pShaderCache != nullptr)
-    {
-        m_pShaderCache->Destroy();
-        PAL_SAFE_FREE(m_pShaderCache, GetPlatform());
-    }
-
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
         if (m_pFrameCountCmdBuffer[i] != nullptr)
@@ -113,44 +101,6 @@ Result GfxDevice::Cleanup()
 Result GfxDevice::LateInit()
 {
     Result result = Result::Success;
-    auto shaderCacheMode = Parent()->GetPublicSettings()->shaderCacheMode;
-
-    if (shaderCacheMode != ShaderCacheDisabled)
-    {
-        const size_t shaderCacheSize = GetShaderCacheSize();
-
-        if (shaderCacheSize > 0)
-        {
-            void* pPlacementMem = PAL_MALLOC(shaderCacheSize, GetPlatform(), AllocInternal);
-            if (pPlacementMem != nullptr)
-            {
-                const bool enableDiskCache = (shaderCacheMode == ShaderCacheOnDisk);
-
-                m_pShaderCache = PAL_PLACEMENT_NEW(pPlacementMem) ShaderCache(*Parent());
-
-                const ShaderCacheCreateInfo createInfo = { };
-                result = m_pShaderCache->Init(createInfo, enableDiskCache);
-
-                if (result != Result::Success)
-                {
-                    // NOTE: If for some reason the global shader cache failed to initialize, we should clean it up and
-                    // proceed as though the cache were disabled.
-                    PAL_ALERT_ALWAYS();
-
-                    m_pShaderCache->Destroy();
-                    PAL_SAFE_FREE(m_pShaderCache, GetPlatform());
-
-                    result = Result::Success;
-                }
-            }
-            else
-            {
-                // NOTE: If for some reason the global shader cache failed to initialize, we should clean it up and
-                // proceeed as though the cache were disabled.
-                PAL_ALERT_ALWAYS();
-            }
-        }
-    }
 
     return result;
 }
@@ -264,86 +214,6 @@ Result GfxDevice::AllocateCeRingBufferGpuMem(
                 m_ceRingBufferGpuMem[i].Update(pGpuMemory, offset);
             }
         }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t GfxDevice::GetShaderSize(
-    const ShaderCreateInfo& createInfo,
-    Result*                 pResult
-    ) const
-{
-    if (pResult != nullptr)
-    {
-        if (createInfo.pCode == nullptr)
-        {
-            *pResult = Result::ErrorInvalidPointer;
-        }
-        else if (createInfo.codeSize == 0)
-        {
-            *pResult = Result::ErrorInvalidValue;
-        }
-        else
-        {
-            *pResult = Result::Success;
-        }
-    }
-
-    // NOTE: the shader object and its IL code are packed into the same memory allocation.
-    return Shader::GetSize(*Parent(), createInfo, pResult);
-}
-
-// =====================================================================================================================
-// Creates & initializes a new shader object.  Handles storage of the IL code buffer in the same allocation as the
-// shader object itself on behalf of the caller.
-Result GfxDevice::CreateShader(
-    const ShaderCreateInfo& createInfo,
-    void*                   pPlacementAddr,
-    IShader**               ppShader)
-{
-    Shader* pShader = PAL_PLACEMENT_NEW(pPlacementAddr) Shader(*Parent());
-
-    Result result = pShader->Init(createInfo);
-
-    if (result != Result::Success)
-    {
-        pShader->Destroy();
-    }
-    else
-    {
-        *ppShader = pShader;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t GfxDevice::GetShaderCacheSize() const
-{
-    constexpr ShaderCacheCreateInfo DummyCreateInfo = { };
-    return ShaderCache::GetSize(*Parent(), DummyCreateInfo, nullptr);
-}
-
-// =====================================================================================================================
-// Creates & initializes a new shader cache object.
-Result GfxDevice::CreateShaderCache(
-    const ShaderCacheCreateInfo& createInfo,
-    void*                        pPlacementAddr,
-    IShaderCache**               ppShaderCache)
-{
-    ShaderCache* pShaderCache = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderCache(*Parent());
-
-    Result result = pShaderCache->Init(createInfo, false);
-
-    if (result != Result::Success)
-    {
-        pShaderCache->Destroy();
-    }
-    else
-    {
-        *ppShaderCache = static_cast<IShaderCache*>(pShaderCache);
     }
 
     return result;

@@ -24,8 +24,6 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/computePipeline.h"
-#include "core/hw/gfxip/palToScpcWrapper.h"
-#include "palElfPackagerImpl.h"
 #include "palMetroHash.h"
 #include "palPipelineAbiProcessorImpl.h"
 
@@ -105,73 +103,6 @@ Result ComputePipeline::InitFromPipelineBinary()
         }
 
         result = HwlInit(abiProcessor);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Initializes this pipeline based on the contents of an ELF contents created with a previous call to Pipeline::Store.
-Result ComputePipeline::LoadInit(
-    const ElfReadContext<Platform>& context)
-{
-    Result result = Pipeline::LoadInit(context);
-    if (result == Result::Success)
-    {
-        // Verify the correct pipeline type.
-        const PipelineType* pType = nullptr;
-        size_t              size  = 0;
-        result = GetLoadedSectionData(context, ".pipelineType", reinterpret_cast<const void**>(&pType), &size);
-        if (*pType != PipelineTypeCompute)
-        {
-            result = Result::ErrorInvalidPipelineElf;
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        // NOTE: We cannot break the legacy pipeline serialization path yet because some clients still rely on it.
-        // Instead, Serialize() just puts the pipeline binary blob into the ELF.
-
-        const void* pPipelineBinary   = nullptr;
-        size_t      pipelineBinaryLen = 0;
-        result = GetLoadedSectionData(context, ".pipelineBinary", &pPipelineBinary, &pipelineBinaryLen);
-        if (result == Result::Success)
-        {
-            m_pipelineBinaryLen = pipelineBinaryLen;
-            m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
-            if (m_pPipelineBinary == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-            else
-            {
-                memcpy(m_pPipelineBinary, pPipelineBinary, m_pipelineBinaryLen);
-            }
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        result = InitFromPipelineBinary();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Write a section to the provided ELF context that can be later used to restore this pipeline from disk.
-Result ComputePipeline::Serialize(
-    ElfWriteContext<Platform>* pContext)
-{
-    // NOTE: We cannot break the legacy pipeline serialization path yet because graphics pipelines still rely on it.
-    // Instead, Serialize() just puts the pipeline binary blob into the ELF.
-
-    constexpr PipelineType Type = PipelineTypeCompute;
-    Result result = pContext->AddBinarySection(".pipelineType", &Type, sizeof(Type));
-    if (result == Result::Success)
-    {
-        result = pContext->AddBinarySection(".pipelineBinary", m_pPipelineBinary, m_pipelineBinaryLen);
     }
 
     return result;

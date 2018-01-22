@@ -63,8 +63,6 @@ class  IPrivateScreen;
 class  IQueryPool;
 class  IQueue;
 class  IQueueSemaphore;
-class  IShader;
-class  IShaderCache;
 class  ISwapChain;
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
@@ -98,8 +96,6 @@ struct QueryPoolCreateInfo;
 struct QueueCreateInfo;
 struct QueueSemaphoreCreateInfo;
 struct QueueSemaphoreOpenInfo;
-struct ShaderCreateInfo;
-struct ShaderCacheCreateInfo;
 struct SwapChainCreateInfo;
 struct SwapChainProperties;
 struct SvmGpuMemoryCreateInfo;
@@ -3545,64 +3541,6 @@ public:
         void*                               pPlacementAddr,
         IBorderColorPalette**               ppPalette) const = 0;
 
-    /// Determines the amount of system memory required for a shader object.  An allocation of this amount of memory
-    /// must be provided in the pPlacementAddr parameter of CreateShader().
-    ///
-    /// @param [in]  createInfo Shader creation properties.
-    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
-    ///                         additional validation.
-    ///
-    /// @returns Size, in bytes, of system memory required for an IShader object with the specified properties.  A
-    ///          return value of 0 indicates the createInfo was invalid.
-    virtual size_t GetShaderSize(
-        const ShaderCreateInfo& createInfo,
-        Result*                 pResult) const = 0;
-
-    /// Creates an @ref IShader object with the requested properties.
-    ///
-    /// @param [in]  createInfo     AMD IL code of the shader to create.
-    /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
-    ///                             much size available here as reported by calling GetShaderSize() with the same
-    ///                             createInfo param.
-    /// @param [out] ppShader       Constructed shader object.  When successful, the returned address will be the same
-    ///                             as specified in pPlacementAddr.
-    ///
-    /// @returns Success if the shader was successfully created.  Otherwise, one of the following errors may be
-    ///          returned:
-    ///          + ErrorInvalidPointer if pPlacementAddr, ppShader, or the code pointer is null.
-    ///          + ErrorInvalidValue if the specified code size is 0.
-    ///          + ErrorUnsupportedShaderIlVersion if the shader IL version is not supported.
-    ///          + ErrorBadShaderCode if an unknown shader type or inconsistent shader code is detected.
-    ///          + ErrorThreadGroupTooBig if the number of threads per group in a CS exceeds the limit reported in
-    ///            DeviceProperties.
-    ///          + ErrorInvalidFlags if allowReZ is set for a non pixel shader.
-    virtual Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader) const = 0;
-
-    /// Determines the amount of system memory required for a shader cache object.  An allocation of this amount of memory
-    /// must be provided in the pPlacementAddr parameter of CreateShaderCache().
-    ///
-    /// @returns Size, in bytes, of system memory required for an IShaderCache object.
-    virtual size_t GetShaderCacheSize() const = 0;
-
-    /// Creates an @ref IShaderCache object with the requested properties.
-    ///
-    /// @param [in]  createInfo     Create info of the shader cache.
-    /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
-    ///                             much size available here as reported by calling GetShaderCacheSize().
-    /// @param [out] ppShaderCache  Constructed shader cache object.  When successful, the returned address will be the same
-    ///                             as specified in pPlacementAddr.
-    ///
-    /// @returns Success if the shader cache was successfully created.  Otherwise, one of the following errors may be
-    ///          returned:
-    ///          + ErrorOutOfMemory if system memory allocation fails for the shader cache storage.
-    virtual Result CreateShaderCache(
-        const ShaderCacheCreateInfo& createInfo,
-        void*                        pPlacementAddr,
-        IShaderCache**               ppShaderCache) const = 0;
-
     /// Determines the amount of system memory required for a compute pipeline object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateComputePipeline().
     ///
@@ -3682,46 +3620,6 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) = 0;
-
-    /// Determines the amount of system memory required for a pipeline object when loaded from serialized data.  An
-    /// allocation of this amount of memory must be provided in the pPlacementAddr parameter of LoadPipeline().
-    ///
-    /// @param [in]  pData    Serialized pipeline data created with a previous call to IPipeline::Store().
-    /// @param [in]  dataSize Size of the serialized pipeline data in bytes.
-    /// @param [out] pResult  The validation result if pResult is non-null. This argument can be null to avoid the
-    ///                       additional validation.
-    ///
-    /// @returns Size, in bytes, of system memory required for an IPipeline object opened from the specified data.
-    virtual size_t GetLoadedPipelineSize(
-        const void* pData,
-        size_t      dataSize,
-        Result*     pResult) const = 0;
-
-    /// Creates a (compute or graphics) @ref IPipeline object by opening serialized data from a previous call to
-    /// IPipeline::Store().
-    ///
-    /// @param [in] pData           Serialized pipeline data created with a previous call to IPipeline::Store().
-    /// @param [in] dataSize        Size of the serialized pipeline data in bytes.
-    /// @param [in] pPlacementAddr  Pointer to the location where PAL should construct this object.  There must be as
-    ///                             much size available here as reported by calling GetLoadedPipelineSize() with the
-    ///                             same createInfo param.
-    /// @param [out] ppPipeline     Constructed pipeline object.  When successful, the returned address will be the same
-    ///                             as specified in pPlacementAddr.
-    ///
-    /// @returns Success if the pipeline was successfully created.  Otherwise, one of the following errors may be
-    ///          returned:
-    ///          + ErrorInvalidPointer if pData, pPlacementAddr, or ppPipeline is null.
-    ///          + ErrorInvalidMemorySize if dataSize does not match the expected pipeline data size.
-    ///          + ErrorIncompatibleDevice if the device is incompatible with the device the serialized data was
-    ///            created on.
-    ///          + ErrorIncompatibleLibrary if the PAL version is incompatible with the one used to serialize the
-    ///            pipeline.
-    ///          + ErrorBadPipelineData if the serialized data is otherwise invalid or corrupt.
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) = 0;
 
     /// Determines the amount of system memory required for a MSAA state object.  An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateMsaaState().
@@ -4473,6 +4371,7 @@ public:
     /// @returns True if hardware accelerated stereo rendering can be enabled, False otherwise.
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
+
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

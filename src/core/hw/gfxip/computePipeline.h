@@ -30,8 +30,6 @@
 namespace Pal
 {
 
-class ShaderCacheClientData;
-
 // =====================================================================================================================
 // Hardware independent compute pipeline class.  Implements all details of a compute pipeline that are common across
 // all hardware types but distinct from a graphics pipeline.
@@ -41,7 +39,6 @@ public:
     virtual ~ComputePipeline() { }
 
     virtual Result Init(const ComputePipelineCreateInfo& createInfo);
-    virtual Result LoadInit(const Util::ElfReadContext<Platform>& context) override;
 
     uint32 ThreadsPerGroup() const { return m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ; }
 
@@ -58,7 +55,6 @@ protected:
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override
         { return (shaderType == ShaderType::Compute) ? &m_stageInfo : nullptr; }
 
-    virtual Result Serialize(Util::ElfWriteContext<Platform>* pContext) override;
     virtual Result HwlInit(const AbiProcessor& abiProcessor) = 0;
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.

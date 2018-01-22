@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 373
+#define PAL_INTERFACE_MAJOR_VERSION 377
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -147,15 +147,18 @@ struct NullGpuInfo
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().
 struct PlatformCreateInfo
 {
-    const Util::AllocCallbacks* pAllocCb;       ///< Optional client-provided callbacks. If non-null, PAL will call the
+    const Util::AllocCallbacks*  pAllocCb;      ///< Optional client-provided callbacks. If non-null, PAL will call the
                                                 ///  specified callbacks to allocate and free all internal system
                                                 ///  memory. If null, PAL will manage memory on its own through the C
                                                 ///  runtime library.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
-    Util::LogCallbackFunc       pfnLogCb;       ///< Optional client-provided callback.  If non-null, Pal will call the
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
+    const Util::LogCallbackInfo* pLogInfo;      ///< Optional client-provided callback info.  If non-null, Pal will
+                                                ///  call the callback to pass debug prints to the client.
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
+    Util::LogCallbackFunc        pfnLogCb;      ///< Optional client-provided callback.  If non-null, Pal will call the
                                                 ///  specified callback to pass debug prints to the client.
 #endif
-    const char*                 pSettingsPath;  ///< A null-terminated string describing the path to where settings are
+    const char*                  pSettingsPath; ///< A null-terminated string describing the path to where settings are
                                                 ///  located on the system. For example, on Windows, this will refer to
                                                 ///  which UMD subkey to look in under a device's key. For Linux, this
                                                 ///  is the path to the settings file.
@@ -187,13 +190,13 @@ struct PlatformCreateInfo
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< Platform-wide creation flags.
 
-    NullGpuId                   nullGpuId;              ///< ID for the null device.  Ignored unless the above
+    NullGpuId                    nullGpuId;             ///< ID for the null device.  Ignored unless the above
                                                         ///  flags.createNullDevice bit is set.
-    uint16                      apiMajorVer;            ///< Major API version number to be used by RGP.  Should be
+    uint16                       apiMajorVer;           ///< Major API version number to be used by RGP.  Should be
                                                         ///  set by client based on their contract with RGP.
-    uint16                      apiMinorVer;            ///< Minor API version number to be used by RGP.  Should be
+    uint16                       apiMinorVer;           ///< Minor API version number to be used by RGP.  Should be
                                                         ///  set by client based on their contract with RGP.
-    gpusize                     maxSvmSize;             ///  Maximum amount of virtual address space that will be
+    gpusize                      maxSvmSize;            ///  Maximum amount of virtual address space that will be
                                                         ///  reserved for SVM
 };
 
@@ -343,6 +346,20 @@ Result PAL_STDCALL EnumerateNullDevices(
  *     include $(PAL_DEPTH)/src/make/Makefile.pal
  *
  *     include $(ICD_DEPTH)/make/icdrules
+ *
+ * ### Internal Pipeline Compiler Component
+ *
+ *  PAL is delivered alongside a module which can compile pipeline binaries in ELF format.  This module, named SCPC, is
+ *  based on the AMD proprietary shader compiler (SC).  The following build options in PAL are used to control how SCPC
+ *  is included in the PAL build.
+ *
+ *      __PAL_BUILD_SCPC__: Defaults to 1.  Controls whether or not the SCPC component is built as part of the PAL
+ *      build.  Clients should only change this to zero if they are using something besides SCPC for compiling their
+ *      pipeline binaries.
+ *
+ *      __PAL_ENABLE_INTERNAL_SCPC__: Defaults to 1.  Controls whether or not a PAL IDevice object will manage an
+ *      internal instance of an SCPC ICompiler object for compiling pipelines.  If this is 1, then @ref PAL_BUILD_SCPC
+ *      is overridden to be 1 as well.
  *
  * ### External Shader Compiler
  * PAL must be linked with an SC library built by the client.  The client must specify the location of the SC interface

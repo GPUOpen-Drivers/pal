@@ -25,32 +25,4 @@
 
 #pragma once
 
-#include "core/layers/decorators.h"
-
-namespace Pal
-{
-namespace GpuProfiler
-{
-
-class Device;
-class Platform;
-
-// =====================================================================================================================
-class Shader : public ShaderDecorator
-{
-public:
-    Shader(IShader* pNextShader, const Device* pDevice, bool hasPerformanceData);
-
-    bool HasPerformanceData() const { return m_hasPerformanceData; }
-
-private:
-    virtual ~Shader() { }
-
-    bool m_hasPerformanceData;
-
-    PAL_DISALLOW_DEFAULT_CTOR(Shader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(Shader);
-};
-
-} // GpuProfiler
-} // Pal
+// NOTE: If PAL is not using an internal instance of SCPC, the contents of this file are unnecessary.

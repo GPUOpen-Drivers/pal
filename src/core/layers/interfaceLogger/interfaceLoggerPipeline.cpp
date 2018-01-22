@@ -45,34 +45,6 @@ Pipeline::Pipeline(
 }
 
 // =====================================================================================================================
-Result Pipeline::AddShadersToCache(
-    IShaderCache* pShaderCache)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PipelineAddShadersToCache;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PipelineDecorator::AddShadersToCache(pShaderCache);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("shaderCache", pShaderCache);
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->EndOutput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 void Pipeline::Destroy()
 {
     // Note that we can't time a Destroy call.

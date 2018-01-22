@@ -1043,34 +1043,6 @@ public:
     }
 
     // NOTE: Part of the public IDevice interface.
-    virtual size_t GetShaderSize(const ShaderCreateInfo& createInfo, Result* pResult) const override
-        { return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetShaderSize(createInfo, pResult); }
-
-    // NOTE: Part of the public IDevice interface.
-    virtual Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader) const override
-    {
-        return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
-                m_pGfxDevice->CreateShader(createInfo, pPlacementAddr, ppShader);
-    }
-
-    // NOTE: Part of the public IDevice interface.
-    virtual size_t GetShaderCacheSize() const override
-        { return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetShaderCacheSize(); }
-
-    // NOTE: Part of the public IDevice interface.
-    virtual Result CreateShaderCache(
-        const ShaderCacheCreateInfo& createInfo,
-        void*                        pPlacementAddr,
-        IShaderCache**               ppShaderCache) const override
-    {
-        return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
-            m_pGfxDevice->CreateShaderCache(createInfo, pPlacementAddr, ppShaderCache);
-    }
-
-    // NOTE: Part of the public IDevice interface.
     virtual size_t GetComputePipelineSize(
         const ComputePipelineCreateInfo& createInfo,
         Result*                          pResult) const override
@@ -1102,21 +1074,6 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) override;
-
-    // NOTE: Part of the public IDevice interface.
-    virtual size_t GetLoadedPipelineSize(const void* pData, size_t dataSize, Result* pResult) const override
-        { return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetLoadedPipelineSize(pData, dataSize, pResult); }
-
-    // NOTE: Part of the public IDevice interface.
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) override
-    {
-        return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
-                m_pGfxDevice->LoadPipeline(pData, dataSize, pPlacementAddr, ppPipeline);
-    }
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetMsaaStateSize(

@@ -249,8 +249,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::DeviceCreateSamplerSrds,                                   InterfaceObject::Device,               "CreateSamplerSrds"                       },
     { InterfaceFunc::DeviceSetSamplePatternPalette,                             InterfaceObject::Device,               "SetSamplePatternPalette"                 },
     { InterfaceFunc::DeviceCreateBorderColorPalette,                            InterfaceObject::Device,               "CreateBorderColorPalette"                },
-    { InterfaceFunc::DeviceCreateShader,                                        InterfaceObject::Device,               "CreateShader"                            },
-    { InterfaceFunc::DeviceCreateShaderCache,                                   InterfaceObject::Device,               "CreateShaderCache"                       },
     { InterfaceFunc::DeviceCreateComputePipeline,                               InterfaceObject::Device,               "CreateComputePipeline"                   },
     { InterfaceFunc::DeviceCreateGraphicsPipeline,                              InterfaceObject::Device,               "CreateGraphicsPipeline"                  },
     { InterfaceFunc::DeviceLoadPipeline,                                        InterfaceObject::Device,               "LoadPipeline"                            },
@@ -334,11 +332,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::ScreenSetGammaRamp,                                        InterfaceObject::Screen,               "SetGammaRamp"                            },
     { InterfaceFunc::ScreenWaitForVerticalBlank,                                InterfaceObject::Screen,               "WaitForVerticalBlank"                    },
     { InterfaceFunc::ScreenDestroy,                                             InterfaceObject::Screen,               "Destroy"                                 },
-    { InterfaceFunc::ShaderDestroy,                                             InterfaceObject::Shader,               "Destroy"                                 },
-    { InterfaceFunc::ShaderCacheDestroy,                                        InterfaceObject::ShaderCache,          "Destroy"                                 },
-    { InterfaceFunc::ShaderCacheSerialize,                                      InterfaceObject::ShaderCache,          "Serialize"                               },
-    { InterfaceFunc::ShaderCacheReset,                                          InterfaceObject::ShaderCache,          "Reset"                                   },
-    { InterfaceFunc::ShaderCacheMerge,                                          InterfaceObject::ShaderCache,          "Merge"                                   },
     { InterfaceFunc::SwapChainAcquireNextImage,                                 InterfaceObject::SwapChain,            "AcquireNextImage"                        },
     { InterfaceFunc::SwapChainWaitIdle,                                         InterfaceObject::SwapChain,            "WaitIdle"                                },
     { InterfaceFunc::SwapChainDestroy,                                          InterfaceObject::SwapChain,            "Destroy"                                 },
@@ -776,34 +769,6 @@ void LogContext::Object(
     if (pDecorator != nullptr)
     {
         Object(InterfaceObject::Screen, static_cast<const Screen*>(pDecorator)->ObjectId());
-    }
-    else
-    {
-        NullValue();
-    }
-}
-
-// =====================================================================================================================
-void LogContext::Object(
-    const IShader* pDecorator)
-{
-    if (pDecorator != nullptr)
-    {
-        Object(InterfaceObject::Shader, static_cast<const Shader*>(pDecorator)->ObjectId());
-    }
-    else
-    {
-        NullValue();
-    }
-}
-
-// =====================================================================================================================
-void LogContext::Object(
-    const IShaderCache* pDecorator)
-{
-    if (pDecorator != nullptr)
-    {
-        Object(InterfaceObject::ShaderCache, static_cast<const ShaderCache*>(pDecorator)->ObjectId());
     }
     else
     {

@@ -103,13 +103,6 @@ public:
         const CmdBufferCreateInfo& createInfo,
         void*                      pPlacementAddr,
         TargetCmdBuffer**          ppCmdBuffer);
-    virtual size_t GetShaderSize(
-        const ShaderCreateInfo& createInfo,
-        Result*                 pResult) const override;
-    virtual Result CreateShader(
-        const ShaderCreateInfo& createInfo,
-        void*                   pPlacementAddr,
-        IShader**               ppShader) const override;
     virtual size_t GetGraphicsPipelineSize(
         const GraphicsPipelineCreateInfo& createInfo,
         Result*                           pResult) const override;

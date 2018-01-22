@@ -25,37 +25,3 @@
 
 #pragma once
 
-#include "core/layers/decorators.h"
-
-namespace Pal
-{
-namespace InterfaceLogger
-{
-
-class Device;
-class Platform;
-
-// =====================================================================================================================
-class Shader : public ShaderDecorator
-{
-public:
-    Shader(IShader* pNextShader, const Device* pDevice, uint32 objectId);
-
-    // Returns this object's unique ID.
-    uint32 ObjectId() const { return m_objectId; }
-
-    // Public IDestroyable interface methods:
-    virtual void Destroy() override;
-
-private:
-    virtual ~Shader() { }
-
-    Platform*const m_pPlatform;
-    const uint32   m_objectId;
-
-    PAL_DISALLOW_DEFAULT_CTOR(Shader);
-    PAL_DISALLOW_COPY_AND_ASSIGN(Shader);
-};
-
-} // InterfaceLogger
-} // Pal

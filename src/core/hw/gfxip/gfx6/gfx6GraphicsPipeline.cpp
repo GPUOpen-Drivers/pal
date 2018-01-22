@@ -32,7 +32,6 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
-#include "palElfPackagerImpl.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "palPipelineAbiProcessorImpl.h"
@@ -57,9 +56,6 @@ const GraphicsPipelineSignature NullGfxSignature =
     { UserDataNotMapped, },     // Compacted view ID register addresses
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
-
-// Dummy stream out information for shaders which don't need it.
-constexpr PipelineStreamOutInfo DummyStreamOutInfo = { };
 
 static uint8 Rop3(LogicOp logicOp);
 static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format);
@@ -96,7 +92,11 @@ uint32* GraphicsPipeline::WriteDbShaderControl(
     }
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    regDB_RENDER_OVERRIDE dbRenderOverride = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    regDB_RENDER_OVERRIDE dbRenderOverride = m_dbRenderOverride;
+#else
+    regDB_RENDER_OVERRIDE dbRenderOverride = {};
+#endif
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (dbShaderControl.bits.Z_ORDER == RE_Z);
 
     if (m_pDevice->WaDbReZStencilCorruption())
@@ -114,12 +114,20 @@ uint32* GraphicsPipeline::WriteDbShaderControl(
             dbRenderOverride.bits.FORCE_STENCIL_READ = 0;
         }
     }
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    // Write the PM4 packet to set DB_SHADER_CONTROL and DB_RENDER_OVERRIDE.  NOTE: both the bitfields
+    // FORCE_SHADER_Z_ORDER or FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update
+    // these three bitfields.
+    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
+                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
+                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
+#else
     // Write the PM4 packet to set DB_SHADER_CONTROL and DB_RENDER_OVERRIDE.  NOTE: both the bitfields
     // FORCE_SHADER_Z_ORDER or FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update
     // these two bitfields.
     constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK);
+#endif
 
     static_assert((DbRenderOverrideRmwMask & DepthStencilView::DbRenderOverrideRmwMask) == 0,
                   "GraphicsPipeline and DepthStencilView DB_RENDER_OVERRIDE fields intersect.  This would require"
@@ -336,138 +344,6 @@ Result GraphicsPipeline::HwlInit(
         hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextPm4ImgHash));
 
         UpdateRingSizes(abiProcessor);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs GFX6 hardware-specific serialization for a graphics pipeline object, including:
-//     - Storing the HW vertex shader memory image.
-//     - Storing the HW pixel shader memory image.
-//     - Storing the various pipeline "chunks".
-//     - Storing the image of PM4 commands used to write the pipeline to HW.
-Result GraphicsPipeline::Serialize(
-    ElfWriteContext<Platform>* pContext)
-{
-    Result result = Pal::GraphicsPipeline::Serialize(pContext);
-
-    if (result == Result::Success)
-    {
-        SerializedData data = { };
-        data.renderStateCommonPm4Img  = m_stateCommonPm4Cmds;
-        data.renderStateContextPm4Img = m_stateContextPm4Cmds;
-        data.rbPlusPm4Img             = m_rbPlusPm4Cmds;
-        data.signature                = m_signature;
-        data.vgtLsHsConfig            = m_vgtLsHsConfig;
-        data.paScModeCntl1            = m_paScModeCntl1;
-        data.contextPm4ImgHash        = m_contextPm4ImgHash;
-        if (IsGsEnabled() && IsGsOnChip())
-        {
-            data.esGsLdsSizeRegGs      = m_chunkEsGs.EsGsLdsSizeRegAddrGs();
-            data.esGsLdsSizeRegVs      = m_chunkEsGs.EsGsLdsSizeRegAddrVs();
-        }
-
-        for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
-        {
-            data.iaMultiVgtParam[idx] = m_iaMultiVgtParam[idx];
-        }
-
-        result = pContext->AddBinarySection(".gfx6GraphicsPipelineData", &data, sizeof(data));
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs GFX6 hardware-specific initialization for a graphics pipeline object, including:
-//     - Loading the HW vertex shader memory image instead of compiling it.
-//     - Loading the HW pixel shader memory image instead of compiling it.
-//     - Loading the various pipeline "chunks" instead of constructing them.
-//     - Loading the image of PM4 commands used to write the pipeline to HW.
-Result GraphicsPipeline::LoadInit(
-    const ElfReadContext<Platform>& context)
-{
-    Result result = Pal::GraphicsPipeline::LoadInit(context);
-
-    if (result == Result::Success)
-    {
-        const SerializedData* pData = nullptr;
-        size_t dataSize = 0;
-
-        result = GetLoadedSectionData(context,
-                                      ".gfx6GraphicsPipelineData",
-                                      reinterpret_cast<const void**>(&pData),
-                                      &dataSize);
-
-        if (result == Result::Success)
-        {
-            m_stateCommonPm4Cmds  = pData->renderStateCommonPm4Img;
-            m_stateContextPm4Cmds = pData->renderStateContextPm4Img;
-            m_rbPlusPm4Cmds       = pData->rbPlusPm4Img;
-            m_signature           = pData->signature;
-            m_vgtLsHsConfig       = pData->vgtLsHsConfig;
-            m_paScModeCntl1       = pData->paScModeCntl1;
-            m_contextPm4ImgHash   = pData->contextPm4ImgHash;
-
-            for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
-            {
-                m_iaMultiVgtParam[idx] = pData->iaMultiVgtParam[idx];
-            }
-        }
-
-        if (result == Result::Success)
-        {
-            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
-
-            if (result == Result::Success)
-            {
-                gpusize codeGpuVirtAddr = 0;
-                gpusize dataGpuVirtAddr = 0;
-                result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, &codeGpuVirtAddr, &dataGpuVirtAddr);
-                if (result ==  Result::Success)
-                {
-                    UpdateRingSizes(abiProcessor);
-
-                    MetroHash64 hasher;
-
-                    if (IsTessEnabled())
-                    {
-                        LsHsParams params = {};
-                        params.codeGpuVirtAddr = codeGpuVirtAddr;
-                        params.dataGpuVirtAddr = dataGpuVirtAddr;
-                        params.pLsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ls)];
-                        params.pHsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)];
-                        params.pHasher         = &hasher;
-
-                        m_chunkLsHs.Init(abiProcessor, params);
-                    }
-                    if (IsGsEnabled())
-                    {
-                        EsGsParams params = {};
-                        params.codeGpuVirtAddr  = codeGpuVirtAddr;
-                        params.dataGpuVirtAddr  = dataGpuVirtAddr;
-                        params.usesOnChipGs     = IsGsOnChip();
-                        params.esGsLdsSizeRegGs = pData->esGsLdsSizeRegGs;
-                        params.esGsLdsSizeRegVs = pData->esGsLdsSizeRegVs;
-                        params.pEsPerfDataInfo  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Es)];
-                        params.pGsPerfDataInfo  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)];
-                        params.pHasher          = &hasher;
-                        m_chunkEsGs.Init(abiProcessor, params);
-                    }
-
-                    VsPsParams params = {};
-                    params.codeGpuVirtAddr = codeGpuVirtAddr;
-                    params.dataGpuVirtAddr = dataGpuVirtAddr;
-                    params.pVsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
-                    params.pPsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)];
-                    params.pHasher         = &hasher;
-
-                    m_chunkVsPs.Init(abiProcessor, params);
-                }
-            }
-        }
     }
 
     return result;
@@ -995,6 +871,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
                                DB_ALPHA_TO_MASK__ALPHA_TO_MASK_ENABLE_MASK,
                                regValue.u32All,
                                &m_stateContextPm4Cmds.dbAlphaToMaskRmw);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
+#endif
 
     // Handling Rb+ registers as long as Rb+ funcation is supported regardless of enabled/disabled.
     if (m_pDevice->Parent()->ChipProperties().gfx6.rbPlus)

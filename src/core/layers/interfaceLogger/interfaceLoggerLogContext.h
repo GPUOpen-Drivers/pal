@@ -222,8 +222,6 @@ enum class InterfaceFunc : uint32
     DeviceCreateSamplerSrds,
     DeviceSetSamplePatternPalette,
     DeviceCreateBorderColorPalette,
-    DeviceCreateShader,
-    DeviceCreateShaderCache,
     DeviceCreateComputePipeline,
     DeviceCreateGraphicsPipeline,
     DeviceLoadPipeline,
@@ -307,11 +305,6 @@ enum class InterfaceFunc : uint32
     ScreenSetGammaRamp,
     ScreenWaitForVerticalBlank,
     ScreenDestroy,
-    ShaderDestroy,
-    ShaderCacheDestroy,
-    ShaderCacheSerialize,
-    ShaderCacheReset,
-    ShaderCacheMerge,
     SwapChainAcquireNextImage,
     SwapChainWaitIdle,
     SwapChainDestroy,
@@ -438,8 +431,6 @@ public:
     void Object(const IQueue* pDecorator);
     void Object(const IQueueSemaphore* pDecorator);
     void Object(const IScreen* pDecorator);
-    void Object(const IShader* pDecorator);
-    void Object(const IShaderCache* pDecorator);
     void Object(const ISwapChain* pDecorator);
 
     // These functions create a list or map that represents a PAL interface structure.
@@ -518,7 +509,6 @@ public:
     void Struct(const PinnedGpuMemoryCreateInfo& value);
     void Struct(const PipelineBindParams& value);
     void Struct(PipelineCreateFlags value);
-    void Struct(const PipelineShaderInfo& value);
     void Struct(const PlatformCreateInfo& value);
     void Struct(const PointLineRasterStateParams& value);
     void Struct(const PowerSwitchInfo& value);
@@ -541,7 +531,6 @@ public:
     void Struct(Range value);
     void Struct(Rational value);
     void Struct(Rect value);
-    void Struct(const ResourceMappingNode& value);
     void Struct(RgbFloat value);
     void Struct(const SamplePatternPalette& value);
     void Struct(const SamplerInfo& value);
@@ -552,9 +541,6 @@ public:
     void Struct(const SetClockModeInput& value);
     void Struct(const SetClockModeOutput& value);
     void Struct(const SetMgpuModeInput& value);
-    void Struct(const ShaderCacheCreateInfo& value);
-    void Struct(const ShaderCreateInfo& value);
-    void Struct(const ShaderOptimizationStrategy& value);
     void Struct(SignedExtent2d value);
     void Struct(SignedExtent3d value);
     void Struct(const StencilRefMaskParams& value);
@@ -629,7 +615,6 @@ public:
     void Enum(QueuePriority value);
     void Enum(QueueType value);
     void Enum(ResolveMode value);
-    void Enum(ResourceMappingNodeType value);
     void Enum(Result value);
     void Enum(ShadeMode value);
     void Enum(StencilOp value);
@@ -680,8 +665,6 @@ public:
     void KeyAndObject(const char* pKey, const IQueue* pDecorator)                { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const IQueueSemaphore* pDecorator)       { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const IScreen* pDecorator)               { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IShader* pDecorator)               { Key(pKey); Object(pDecorator); }
-    void KeyAndObject(const char* pKey, const IShaderCache* pDecorator)          { Key(pKey); Object(pDecorator); }
     void KeyAndObject(const char* pKey, const ISwapChain* pDecorator)            { Key(pKey); Object(pDecorator); }
 
     void KeyAndStruct(const char* pKey, const AcquireNextImageInfo& value)                { Key(pKey); Struct(value); }
@@ -759,7 +742,6 @@ public:
     void KeyAndStruct(const char* pKey, const PinnedGpuMemoryCreateInfo& value)           { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PipelineBindParams& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, PipelineCreateFlags value)                        { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const PipelineShaderInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PlatformCreateInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PointLineRasterStateParams& value)          { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const PowerSwitchInfo& value)                     { Key(pKey); Struct(value); }
@@ -782,7 +764,6 @@ public:
     void KeyAndStruct(const char* pKey, Range value)                                      { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, Rational value)                                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, Rect value)                                       { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ResourceMappingNode& value)                 { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, RgbFloat value)                                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SamplePatternPalette& value)                { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SamplerInfo& value)                         { Key(pKey); Struct(value); }
@@ -793,9 +774,6 @@ public:
     void KeyAndStruct(const char* pKey, const SetClockModeInput& value)                   { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SetClockModeOutput& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const SetMgpuModeInput& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ShaderCacheCreateInfo& value)               { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ShaderCreateInfo& value)                    { Key(pKey); Struct(value); }
-    void KeyAndStruct(const char* pKey, const ShaderOptimizationStrategy& value)          { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, SignedExtent2d value)                             { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, SignedExtent3d value)                             { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const StencilRefMaskParams& value)                { Key(pKey); Struct(value); }
@@ -870,7 +848,6 @@ public:
     void KeyAndEnum(const char* pKey, QueryType value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, QueueType value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, ResolveMode value)                  { Key(pKey); Enum(value); }
-    void KeyAndEnum(const char* pKey, ResourceMappingNodeType value)      { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, Result value)                       { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, ShadeMode value)                    { Key(pKey); Enum(value); }
     void KeyAndEnum(const char* pKey, StencilOp value)                    { Key(pKey); Enum(value); }

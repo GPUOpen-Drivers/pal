@@ -33,7 +33,6 @@
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
-#include "palElfPackagerImpl.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "palPipelineAbiProcessorImpl.h"
@@ -275,144 +274,6 @@ Result GraphicsPipeline::HwlInit(
         hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextPm4ImgHash));
 
         UpdateRingSizes(abiProcessor);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs GFX9 hardware-specific serialization for a graphics pipeline object, including:
-//     - Storing the HW vertex shader memory image.
-//     - Storing the HW pixel shader memory image.
-//     - Storing the various pipeline "chunks".
-//     - Storing the image of PM4 commands used to write the pipeline to HW.
-Result GraphicsPipeline::Serialize(
-    ElfWriteContext<Platform>* pContext)
-{
-    Result result = Pal::GraphicsPipeline::Serialize(pContext);
-
-    if (result == Result::Success)
-    {
-        SerializedData data = { };
-        data.renderStatePm4ImgSh      = m_statePm4CmdsSh;
-        data.renderStatePm4ImgContext = m_statePm4CmdsContext;
-        data.streamoutPm4Img          = m_streamoutPm4Cmds;
-        data.signature                = m_signature;
-        data.vgtLsHsConfig            = m_vgtLsHsConfig;
-        data.spiPsInControl           = m_spiPsInControl;
-        data.spiVsOutConfig           = m_spiVsOutConfig;
-        data.paScModeCntl1            = m_paScModeCntl1;
-        data.contextPm4ImgHash        = m_contextPm4ImgHash;
-
-        for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
-        {
-            data.iaMultiVgtParam[idx] = m_iaMultiVgtParam[idx];
-        }
-
-        result = pContext->AddBinarySection(".gfx9GraphicsPipelineData", &data, sizeof(data));
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs GFX9 hardware-specific initialization for a graphics pipeline object, including:
-//     - Loading the HW pixel shader memory image instead of compiling it.
-//     - Loading the various pipeline "chunks" instead of constructing them.
-//     - Loading the image of PM4 commands used to write the pipeline to HW.
-Result GraphicsPipeline::LoadInit(
-    const ElfReadContext<Platform>& context)
-{
-    Result result = Pal::GraphicsPipeline::LoadInit(context);
-
-    if (result == Result::Success)
-    {
-        const SerializedData* pData    = nullptr;
-        size_t                dataSize = 0;
-
-        result = GetLoadedSectionData(context,
-                                      ".gfx9GraphicsPipelineData",
-                                      reinterpret_cast<const void**>(&pData),
-                                      &dataSize);
-
-        if (result == Result::Success)
-        {
-            m_statePm4CmdsSh      = pData->renderStatePm4ImgSh;
-            m_statePm4CmdsContext = pData->renderStatePm4ImgContext;
-            m_streamoutPm4Cmds    = pData->streamoutPm4Img;
-            m_signature           = pData->signature;
-            m_vgtLsHsConfig       = pData->vgtLsHsConfig;
-            m_spiPsInControl      = pData->spiPsInControl;
-            m_spiVsOutConfig      = pData->spiVsOutConfig;
-            m_paScModeCntl1       = pData->paScModeCntl1;
-            m_contextPm4ImgHash   = pData->contextPm4ImgHash;
-
-            for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
-            {
-                m_iaMultiVgtParam[idx] = pData->iaMultiVgtParam[idx];
-            }
-
-            AbiProcessor abiProcessor(m_pDevice->GetPlatform());
-            result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
-
-            if (result == Result::Success)
-            {
-                gpusize codeGpuVirtAddr = 0;
-                gpusize dataGpuVirtAddr = 0;
-                result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, &codeGpuVirtAddr, &dataGpuVirtAddr);
-                if (result ==  Result::Success)
-                {
-                    MetroHash64 hasher;
-
-                    if (IsTessEnabled())
-                    {
-                        HsParams params = {};
-                        params.codeGpuVirtAddr = codeGpuVirtAddr;
-                        params.dataGpuVirtAddr = dataGpuVirtAddr;
-                        params.pHsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)];
-                        params.pHasher         = &hasher;
-
-                        m_chunkHs.Init(abiProcessor, params);
-                    }
-                    if (IsGsEnabled() || IsNgg())
-                    {
-                        GsParams params = {};
-                        params.codeGpuVirtAddr   = codeGpuVirtAddr;
-                        params.dataGpuVirtAddr   = dataGpuVirtAddr;
-                        params.esGsLdsSizeRegGs  = m_signature.esGsLdsSizeRegAddrGs;
-                        params.esGsLdsSizeRegVs  = m_signature.esGsLdsSizeRegAddrVs;
-                        params.isNgg             = IsNgg();
-                        params.usesOnChipGs      = IsGsOnChip();
-                        params.pGsPerfDataInfo   = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)];
-                        params.pCopyPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
-                        params.pHasher           = &hasher;
-
-                        m_chunkGs.Init(abiProcessor, params);
-                    }
-                    else
-                    {
-                        VsParams params = {};
-                        params.codeGpuVirtAddr = codeGpuVirtAddr;
-                        params.dataGpuVirtAddr = dataGpuVirtAddr;
-                        params.pVsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
-                        params.pHasher         = &hasher;
-
-                        m_chunkVs.Init(abiProcessor, params);
-                    }
-
-                    PsParams params = {};
-                    params.codeGpuVirtAddr = codeGpuVirtAddr;
-                    params.dataGpuVirtAddr = dataGpuVirtAddr;
-                    params.isNgg           = IsNgg();
-                    params.pPsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)];
-                    params.pHasher         = &hasher;
-
-                    m_chunkPs.Init(abiProcessor, params);
-
-                    UpdateRingSizes(abiProcessor);
-                }
-            }
-        }
     }
 
     return result;
@@ -1332,10 +1193,21 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkPs.DbShaderControl().bits.Z_ORDER == RE_Z);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    // Configure depth clamping
+    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
+
+    // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or
+    // FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update these three bitfields.
+    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
+                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
+                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
+#else
     // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or
     // FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update these two bitfields.
     constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK);
+#endif
 
     cmdUtil.BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
                                DbRenderOverrideRmwMask,

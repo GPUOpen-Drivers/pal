@@ -23,24 +23,3 @@
  *
  **********************************************************************************************************************/
 
-#include "core/layers/gpuProfiler/gpuProfilerDevice.h"
-#include "core/layers/gpuProfiler/gpuProfilerShader.h"
-
-namespace Pal
-{
-namespace GpuProfiler
-{
-
-// =====================================================================================================================
-Shader::Shader(
-    IShader*      pNextShader,
-    const Device* pDevice,
-    bool          hasPerformanceData)
-    :
-    ShaderDecorator(pNextShader, pDevice),
-    m_hasPerformanceData(hasPerformanceData)
-{
-}
-
-} // InterfaceLogger
-} // Pal

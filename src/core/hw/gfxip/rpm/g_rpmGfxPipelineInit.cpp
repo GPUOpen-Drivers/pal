@@ -113,12 +113,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::X32_Float;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 2;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -138,12 +133,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::D32_Float_S8_Uint;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 2;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -163,14 +153,12 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 2;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -190,12 +178,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::X32_Float;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 4;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -215,12 +198,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::D32_Float_S8_Uint;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 4;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -240,14 +218,12 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 4;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -267,12 +243,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::X32_Float;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 8;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -292,12 +263,7 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::D32_Float_S8_Uint;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 8;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -317,14 +283,12 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.numSamples      = 8;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 #endif
@@ -2288,10 +2252,6 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::D32_Float_S8_Uint;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
@@ -2312,7 +2272,6 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Float;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -2338,7 +2297,6 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -2367,10 +2325,6 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.dbState.swizzledFormat.format  = ChNumFormat::D32_Float_S8_Uint;
-        pipeInfo.dbState.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
@@ -2391,7 +2345,6 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
-        pipeInfo.cbState.target[0].blendEnable            = false;
         pipeInfo.cbState.target[0].channelWriteMask       = 0x2;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =

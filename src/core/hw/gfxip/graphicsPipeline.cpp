@@ -27,8 +27,6 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
-#include "core/hw/gfxip/palToScpcWrapper.h"
-#include "palElfPackagerImpl.h"
 #include "palFormatInfo.h"
 #include "palMetroHash.h"
 #include "palPipelineAbiProcessorImpl.h"
@@ -73,15 +71,7 @@ Result GraphicsPipeline::Init(
 {
     Result result = Result::Success;
 
-    if (createInfo.soState.numStreamOutEntries > MaxStreamOutEntries)
-    {
-        result = Result::ErrorInvalidOrdinal;
-    }
-    else if ((createInfo.soState.numStreamOutEntries != 0) && (createInfo.soState.pSoEntries == nullptr))
-    {
-        result = Result::ErrorInvalidPointer;
-    }
-    else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
+    if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         m_pipelineBinaryLen = createInfo.pipelineBinarySize;
         m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
@@ -116,7 +106,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo)
 {
-    m_flags.streamOut             = (createInfo.soState.numStreamOutEntries != 0);
     m_flags.adjacencyPrim         = createInfo.iaState.topologyInfo.adjacency;
     m_flags.perpLineEndCapsEnable = createInfo.rsState.perpLineEndCapsEnable;
 
@@ -160,21 +149,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     hasher.Update(createInfo.flags);
     hasher.Update(createInfo.iaState);
-    hasher.Update(createInfo.tessState);
-    hasher.Update(createInfo.vpState);
     hasher.Update(createInfo.rsState);
     hasher.Update(createInfo.cbState);
-    hasher.Update(createInfo.dbState);
     hasher.Update(internalInfo.flags);
-
-    if (m_flags.streamOut != 0)
-    {
-        hasher.Update(
-            reinterpret_cast<const uint8*>(createInfo.soState.pSoEntries),
-            static_cast<uint64>(createInfo.soState.numStreamOutEntries * sizeof(StreamOutEntry)));
-        hasher.Update(createInfo.soState.rasterizedStreams);
-        hasher.Update(createInfo.soState.bufferStrides);
-    }
 
     for (uint32 i = 0; i < MaxColorTargets; ++i)
     {
@@ -216,6 +193,11 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         }
 
         uint32 metadataValue = 0;
+        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::StreamOutTableEntry, &metadataValue))
+        {
+            m_flags.streamOut = (metadataValue != 0);
+        }
+
         if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UsesSampleInfo, &metadataValue))
         {
             m_flags.sampleInfoEnabled = metadataValue;
@@ -236,137 +218,11 @@ Result GraphicsPipeline::InitFromPipelineBinary(
             m_flags.vportArrayIdx = metadataValue;
         }
 
-        // Override creation options for non-internal objects based on the requested toss point mode.
-        // NOTE: This is done after computing the pipeline hash because we don't want toss points to alter what hash
-        // values this object is associated with!
-        GraphicsPipelineCreateInfo localInfo = createInfo;
-
-        if (IsInternal() == false)
-        {
-            switch (m_pDevice->Settings().tossPointMode)
-            {
-            case TossPointAfterRaster:
-                // This toss point is used to disable rasterization.
-                localInfo.rsState.rasterizerDiscardEnable = true;
-                break;
-            case TossPointDepthClipDisable:
-                localInfo.vpState.depthClipEnable = false;
-                break;
-            case TossPointSimplePs:
-                PAL_NOT_IMPLEMENTED();
-                break;
-            default:
-                break;
-            }
-        }
-
-        result = HwlInit(localInfo, abiProcessor);
+        result = HwlInit(createInfo, abiProcessor);
     }
 
     // Finalize the hash.
     hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.pipelineHash));
-
-    return result;
-}
-
-// =====================================================================================================================
-// Load data from the specified ELF object to restore a previously serialized graphics pipeline object.
-Result GraphicsPipeline::LoadInit(
-    const ElfReadContext<Platform>& context)
-{
-    Result result = Pipeline::LoadInit(context);
-    if (result == Result::Success)
-    {
-        // Verify the correct pipeline type.
-        const PipelineType* pType = nullptr;
-        size_t              size  = 0;
-        result = GetLoadedSectionData(context, ".pipelineType", reinterpret_cast<const void**>(&pType), &size);
-        if (*pType != PipelineTypeGraphics)
-        {
-            result = Result::ErrorInvalidPipelineElf;
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        // NOTE: We cannot break the legacy pipeline serialization path yet because some clients still rely on it.
-        // Instead, Serialize() just puts the pipeline binary blob into the ELF.
-
-        const void* pPipelineBinary   = nullptr;
-        size_t      pipelineBinaryLen = 0;
-        result = GetLoadedSectionData(context, ".pipelineBinary", &pPipelineBinary, &pipelineBinaryLen);
-        if (result == Result::Success)
-        {
-            m_pipelineBinaryLen = pipelineBinaryLen;
-            m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
-            if (m_pPipelineBinary == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-            else
-            {
-                memcpy(m_pPipelineBinary, pPipelineBinary, m_pipelineBinaryLen);
-            }
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        const SerializedData* pData    = nullptr;
-        size_t                dataSize = 0;
-        result = GetLoadedSectionData(context,
-                                      ".graphicsPipelineData",
-                                      reinterpret_cast<const void**>(&pData),
-                                      &dataSize);
-        if (result == Result::Success)
-        {
-            m_flags.u32All = pData->flags;
-            m_vertsPerPrim = pData->vertsPerPrim;
-
-            for (uint32 i = 0; i < MaxColorTargets; i++)
-            {
-                m_targetSwizzledFormats[i] = pData->targetFormats[i];
-                m_targetWriteMasks[i]      = pData->targetWriteMasks[i];
-            }
-
-            m_viewInstancingDesc = pData->viewInstancingDesc;
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Adds a binary section to the specified ELF context describing this graphics pipeline.
-Result GraphicsPipeline::Serialize(
-    ElfWriteContext<Platform>* pContext)
-{
-    // NOTE: We cannot break the legacy pipeline serialization path yet because graphics pipelines still rely on it.
-    // Instead, Serialize() just puts the pipeline binary blob into the ELF.
-
-    constexpr PipelineType Type = PipelineTypeGraphics;
-    Result result = pContext->AddBinarySection(".pipelineType", &Type, sizeof(Type));
-    if (result == Result::Success)
-    {
-        result = pContext->AddBinarySection(".pipelineBinary", m_pPipelineBinary, m_pipelineBinaryLen);
-    }
-
-    if (result == Result::Success)
-    {
-        SerializedData data = { };
-        data.flags        = m_flags.u32All;
-        data.vertsPerPrim = m_vertsPerPrim;
-
-        for (uint32 i = 0; i < MaxColorTargets; i++)
-        {
-            data.targetFormats[i]    = m_targetSwizzledFormats[i];
-            data.targetWriteMasks[i] = m_targetWriteMasks[i];
-        }
-
-        data.viewInstancingDesc = m_viewInstancingDesc;
-
-        result = pContext->AddBinarySection(".graphicsPipelineData", &data, sizeof(SerializedData));
-    }
 
     return result;
 }

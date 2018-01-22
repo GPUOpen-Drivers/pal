@@ -75,3 +75,6 @@ VAM_SRC_DIRS = $(VAM_SRC)
 ifndef VAM_LIB_NAME
 VAM_LIB_NAME = vam
 endif
+
+include $(DEPTH)/make/swdefs
+

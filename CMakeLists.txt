@@ -71,8 +71,6 @@ cmake_dependent_option(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ON "PAL_BUILD_O
 cmake_dependent_option(PAL_BUILD_OSS2_4 "Build PAL with OSS2_4?" ON "PAL_BUILD_OSS" OFF)
 cmake_dependent_option(PAL_BUILD_OSS4   "Build PAL with OSS4?"   ON "PAL_BUILD_OSS" OFF)
 
-option(PAL_BUILD_DTIF "Build PAL with Driver-to-TCore2 InterFace support?" OFF)
-
 # PAL Client Options ###############################################################################
 # Use Vulkan as the default client.
 set(PAL_CLIENT "VULKAN" CACHE STRING "Client interfacing with PAL.")

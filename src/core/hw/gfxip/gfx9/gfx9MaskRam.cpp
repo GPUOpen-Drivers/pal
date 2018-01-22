@@ -426,16 +426,24 @@ uint32 Gfx9MaskRam::GetRbAppendedBit(
     uint32  bitPos
     ) const
 {
-    return (m_rbAppendedWithPipeBits & (1u << bitPos));
+    return ((m_rbAppendedWithPipeBits & (1u << bitPos)) >> bitPos);
 }
 
 // =====================================================================================================================
 void Gfx9MaskRam::SetRbAppendedBit(
-    uint32  bitPos,
-    uint32  bitVal)
+    const Pal::Device*  pDevice,
+    uint32              bitPos,
+    uint32              bitVal)
 {
-    m_rbAppendedWithPipeBits &= ~(1u << bitPos);
-    m_rbAppendedWithPipeBits |= (bitVal << bitPos);
+    const Gfx9PalSettings&  settings = GetGfx9Settings(*pDevice);
+
+    // There's no need for this setting unless this workaround is enabled.  Other code depends on the
+    // "m_rbAppendedWithPipeBits" setting remaining zero if this workaround is disabled.
+    if (settings.waMetaAliasingFixEnabled)
+    {
+        m_rbAppendedWithPipeBits &= ~(1u << bitPos);
+        m_rbAppendedWithPipeBits |= (bitVal << bitPos);
+    }
 }
 
 // =====================================================================================================================
@@ -655,7 +663,7 @@ void Gfx9MaskRam::CalcMetaEquation(
 
                     m_pipe.Copy(&filteredPipeEq, j, 1);
                     filteredPipeEq.Filter(compPair, MetaDataAddrCompareGt, 0, MetaDataAddrCompZ);
-                    rbEqualsPipe = m_pipe.IsEqual(filteredPipeEq, j, 0);
+                    rbEqualsPipe = m_rb.IsEqual(filteredPipeEq, i, 0);
                 }
 
                 for (uint32  compType = 0; rbEqualsPipe && (compType < MetaDataAddrCompNumTypes); compType++)
@@ -715,9 +723,7 @@ void Gfx9MaskRam::CalcMetaEquation(
         for (uint32 i = 0, j = 0; j < rbBitsLeft; i = (i + 1) % numTotalRbsLog2)
         {
             const uint32  numComponents  = m_rb.GetNumComponents(i);
-            const bool    isRbEqAppended = ((settings.waMetaAliasingFixEnabled == false)
-                                            ? (numComponents > 0)
-                                            : (numComponents > ((GetRbAppendedBit(i) != 0) ? 1 : 0)));
+            const bool    isRbEqAppended = (numComponents > GetRbAppendedBit(i));
 
             if (isRbEqAppended)
             {
@@ -996,7 +1002,7 @@ void Gfx9MaskRam::MergePipeAndRbEq(
                                                                       MetaDataAddrCompareEq) == false)
                             {
                                 m_rb.SetBit(rbAddrBit, localPipePair.compType, localPipePair.compPos);
-                                SetRbAppendedBit(rbAddrBit, 1);
+                                SetRbAppendedBit(pDevice, rbAddrBit, 1);
                             }
 
                             eqData &= ~(1 << lowPipeBit);
@@ -1025,9 +1031,7 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits(
 
     for (uint32  rbAddrBit = 0; rbAddrBit < m_rb.GetNumValidBits(); rbAddrBit++)
     {
-        const uint32  neededNumComponents = ((settings.waMetaAliasingFixEnabled == false)
-                                             ? 0
-                                             : ((GetRbAppendedBit(rbAddrBit) != 0) ? 1 : 0));
+        const uint32  neededNumComponents = (GetRbAppendedBit(rbAddrBit) != 0);
 
         // Find the lowest coordinate within this pipeAddrBit that is contributing.
         CompPair  lowRb;
@@ -1063,7 +1067,7 @@ uint32 Gfx9MaskRam::RemoveSmallRbBits(
                         if (rbData != 0)
                         {
                             m_rb.SetMask(scanHiRbAddrBit, localRbAddrType, rbData);
-                            SetRbAppendedBit(scanHiRbAddrBit, GetRbAppendedBit(rbAddrBit));
+                            SetRbAppendedBit(pDevice, scanHiRbAddrBit, GetRbAppendedBit(rbAddrBit));
                         }
                     }
                 } // end check for the higher RB bit containing a reference to the just-found "low bit"

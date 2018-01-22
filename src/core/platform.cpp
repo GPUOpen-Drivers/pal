@@ -101,11 +101,7 @@ Platform::Platform(
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
     m_maxSvmSize(createInfo.maxSvmSize),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
-    m_pfnLogCb(createInfo.pfnLogCb)
-#else
-    m_pfnLogCb(nullptr)
-#endif
+    m_logCb()
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -118,6 +114,18 @@ Platform::Platform(
     m_flags.enableSvmMode              = createInfo.flags.enableSvmMode;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
     m_flags.requestShadowDescVaRange   = createInfo.flags.requestShadowDescriptorVaRange;
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
+    if (createInfo.pLogInfo != nullptr)
+    {
+        m_logCb = *createInfo.pLogInfo;
+    }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
+    if (createInfo.pfnLogCb != nullptr)
+    {
+        m_logCb.pfnLogCb = createInfo.pfnLogCb;
+    }
 #endif
 
     Util::Strncpy(&m_settingsPath[0], createInfo.pSettingsPath, MaxSettingsPathLength);
@@ -645,15 +653,18 @@ void Platform::LogMessage(
                               args);
     }
 #endif
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if (m_pfnLogCb != nullptr)
+
+    if (m_logCb.pfnLogCb != nullptr)
     {
-        m_pfnLogCb(static_cast<uint32>(level),
-                   categoryMask,
-                   pFormat,
-                   args);
-    }
+        m_logCb.pfnLogCb(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
+                         m_logCb.pClientData,
 #endif
+                         static_cast<uint32>(level),
+                         categoryMask,
+                         pFormat,
+                         args);
+    }
 }
 
 } // Pal

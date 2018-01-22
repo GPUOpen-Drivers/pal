@@ -4889,16 +4889,11 @@ void UniversalCmdBuffer::UpdatePrimGroupOpt(
     {
         // Compute the optimal primgroup size. The calculation is simple, compute the average primgroup size over the
         // window, divide by the number of prims per clock, round to a multiple of the step, and clamp to the min/max.
-        const uint32 primRate     = m_device.Parent()->ChipProperties().primsPerClock;
-        const uint64 primTotal    = m_primGroupOpt.vtxIdxTotal / pipeline.VertsPerPrimitive();
-        const uint32 rawGroupSize = static_cast<uint32>(primTotal / (windowSize * primRate));
-        const uint32 roundedSize  = static_cast<uint32>(Pow2AlignDown(rawGroupSize, m_primGroupOpt.step));
-        const uint32 clampedSize  = Min(m_primGroupOpt.maxSize, Max(m_primGroupOpt.minSize, roundedSize));
-
-        if (m_primGroupOpt.optimalSize != clampedSize)
-        {
-            m_primGroupOpt.optimalSize = clampedSize;
-        }
+        const uint32 primRate      = m_device.Parent()->ChipProperties().primsPerClock;
+        const uint64 primTotal     = m_primGroupOpt.vtxIdxTotal / pipeline.VertsPerPrimitive();
+        const uint32 rawGroupSize  = static_cast<uint32>(primTotal / (windowSize * primRate));
+        const uint32 roundedSize   = static_cast<uint32>(Pow2AlignDown(rawGroupSize, m_primGroupOpt.step));
+        m_primGroupOpt.optimalSize = Min(m_primGroupOpt.maxSize, Max(m_primGroupOpt.minSize, roundedSize));
 
         // Reset the draw counters.
         m_primGroupOpt.vtxIdxTotal = 0;

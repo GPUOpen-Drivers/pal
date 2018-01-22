@@ -1479,33 +1479,6 @@ void LogContext::Enum(
 
 // =====================================================================================================================
 void LogContext::Enum(
-    ResourceMappingNodeType value)
-{
-    const char*const StringTable[] =
-    {
-        "Resource",              // 0x0
-        "Uav",                   // 0x1
-        "ConstBuffer",           // 0x2
-        "Sampler",               // 0x3
-        "DefaultVaPtr",          // 0x4
-        "DescriptorTableVaPtr",  // 0x5
-        "IndirectUserDataVaPtr", // 0x6
-        "StreamOutTableVaPtr",   // 0x7
-        "InlineConst",           // 0x8
-        "InlineSrvConst",        // 0x9
-    };
-
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ResourceMappingNodeType::Count),
-                  "The ResourceMappingNodeType string table needs to be updated.");
-
-    const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < static_cast<uint32>(ResourceMappingNodeType::Count));
-
-    Value(StringTable[idx]);
-}
-
-// =====================================================================================================================
-void LogContext::Enum(
     Result value)
 {
     if (Util::IsErrorResult(value))

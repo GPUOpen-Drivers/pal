@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
-#include "palElfPackagerImpl.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 

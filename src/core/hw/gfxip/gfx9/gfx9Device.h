@@ -190,12 +190,6 @@ public:
 
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override;
-    virtual size_t GetLoadedPipelineSize(const void* pData, size_t dataSize, Result* pResult) const override;
-    virtual Result LoadPipeline(
-        const void* pData,
-        size_t      dataSize,
-        void*       pPlacementAddr,
-        IPipeline** ppPipeline) override;
 
     virtual size_t GetColorBlendStateSize(const ColorBlendStateCreateInfo& createInfo, Result* pResult) const override;
     virtual Result CreateColorBlendState(

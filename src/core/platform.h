@@ -250,7 +250,7 @@ private:
     void*                  m_pClientPrivateData;
     gpusize                m_svmRangeStart;
     gpusize                m_maxSvmSize;
-    Util::LogCallbackFunc  m_pfnLogCb;
+    Util::LogCallbackInfo  m_logCb;
 
     union
     {

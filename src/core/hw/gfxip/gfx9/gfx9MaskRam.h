@@ -169,7 +169,7 @@ private:
     uint32 RemoveSmallRbBits(const Pal::Device*  pDevice);
 
     uint32 GetRbAppendedBit(uint32  bitPos) const;
-    void   SetRbAppendedBit(uint32  bitPos, uint32  bitVal);
+    void   SetRbAppendedBit(const Pal::Device*  pDevice, uint32  bitPos, uint32  bitVal);
 
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const = 0;

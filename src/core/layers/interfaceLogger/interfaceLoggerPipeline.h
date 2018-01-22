@@ -44,9 +44,6 @@ public:
     // Returns this object's unique ID.
     uint32 ObjectId() const { return m_objectId; }
 
-    // Public IPipeline interface methods:
-    virtual Result AddShadersToCache(IShaderCache* pShaderCache) override;
-
     // Public IDestroyable interface methods:
     virtual void Destroy() override;
 

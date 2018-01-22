@@ -26,7 +26,6 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPipeline.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
-#include "core/layers/gpuProfiler/gpuProfilerShader.h"
 #include "core/layers/gpuProfiler/shaderPerfDataInfo.h"
 #include "palAutoBuffer.h"
 #include "palFile.h"
@@ -348,42 +347,6 @@ Result Pipeline::InitGfx(
     }
     else
     {
-        if ((createInfo.vs.pShader != nullptr) &&
-            (static_cast<const Shader*>(createInfo.vs.pShader)->HasPerformanceData()))
-        {
-            m_hasPerformanceData = true;
-        }
-
-        if ((m_hasPerformanceData == false)    &&
-            (createInfo.hs.pShader != nullptr) &&
-            (static_cast<const Shader*>(createInfo.hs.pShader)->HasPerformanceData()))
-        {
-            m_hasPerformanceData = true;
-        }
-
-        if ((m_hasPerformanceData == false) &&
-            (createInfo.ds.pShader != nullptr) &&
-            (static_cast<const Shader*>(createInfo.ds.pShader)->HasPerformanceData()))
-        {
-            m_hasPerformanceData = true;
-        }
-
-        if ((m_hasPerformanceData == false) &&
-            (createInfo.gs.pShader != nullptr) &&
-            (static_cast<const Shader*>(createInfo.gs.pShader)->HasPerformanceData()))
-        {
-            m_hasPerformanceData = true;
-        }
-
-        if ((m_hasPerformanceData == false) &&
-            (createInfo.ps.pShader != nullptr) &&
-            (static_cast<const Shader*>(createInfo.ps.pShader)->HasPerformanceData()))
-        {
-            m_hasPerformanceData = true;
-        }
-
-        m_apiHwMapping = m_pNextLayer->ApiHwShaderMapping();
-        result         = Result::Success;
     }
 
     return result;
@@ -421,9 +384,6 @@ Result Pipeline::InitCompute(
     }
     else
     {
-        m_hasPerformanceData = static_cast<const Shader*>(createInfo.cs.pShader)->HasPerformanceData();
-        m_apiHwMapping       = m_pNextLayer->ApiHwShaderMapping();
-        result               = Result::Success;
     }
 
     return result;
