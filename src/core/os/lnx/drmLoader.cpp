@@ -786,6 +786,35 @@ int DrmLoaderFuncsProxy::pfnAmdgpuCreateBoFromUserMem(
 }
 
 // =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuCreateBoFromPhysMem(
+    amdgpu_device_handle  hDevice,
+    uint64_t              physAddress,
+    uint64_t              size,
+    amdgpu_bo_handle*     pBufferHandle
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuCreateBoFromPhysMem(hDevice,
+                                                     physAddress,
+                                                     size,
+                                                     pBufferHandle);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCreateBoFromPhysMem,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCreateBoFromPhysMem(%p, %p, %lx, %p)\n",
+        hDevice,
+        physAddress,
+        size,
+        pBufferHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnAmdgpuFindBoByCpuMapping(
     amdgpu_device_handle  hDevice,
     void*                 pCpuAddress,
@@ -1306,6 +1335,29 @@ int DrmLoaderFuncsProxy::pfnAmdgpuQuerySharedAperture(
         hDevice,
         pStartVa,
         pEndVa);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuBoGetPhysAddress(
+    amdgpu_bo_handle    hBuffer,
+    uint64_t*           pPhysAddress
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuBoGetPhysAddress(hBuffer,
+                                                  pPhysAddress);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuBoGetPhysAddress,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuBoGetPhysAddress(%p, %p)\n",
+        hBuffer,
+        pPhysAddress);
     m_paramLogger.Flush();
 
     return ret;
@@ -1980,6 +2032,9 @@ Result DrmLoader::Init(
             m_funcs.pfnAmdgpuCreateBoFromUserMem = reinterpret_cast<AmdgpuCreateBoFromUserMem>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_create_bo_from_user_mem"));
+            m_funcs.pfnAmdgpuCreateBoFromPhysMem = reinterpret_cast<AmdgpuCreateBoFromPhysMem>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_create_bo_from_phys_mem"));
             m_funcs.pfnAmdgpuFindBoByCpuMapping = reinterpret_cast<AmdgpuFindBoByCpuMapping>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_find_bo_by_cpu_mapping"));
@@ -2040,6 +2095,9 @@ Result DrmLoader::Init(
             m_funcs.pfnAmdgpuQuerySharedAperture = reinterpret_cast<AmdgpuQuerySharedAperture>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_query_shared_aperture"));
+            m_funcs.pfnAmdgpuBoGetPhysAddress = reinterpret_cast<AmdgpuBoGetPhysAddress>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_bo_get_phys_address"));
             m_funcs.pfnAmdgpuCsReservedVmid = reinterpret_cast<AmdgpuCsReservedVmid>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_cs_reserved_vmid"));

@@ -127,7 +127,7 @@ public:
         size_t*                      pGpuMemorySize,
         ImageCreateInfo*             pImgCreateInfo) const override;
 
-    virtual const char* GetCacheFilePath() const { return getenv("APPDATA"); }
+    virtual const char* GetCacheFilePath() const override { return getenv("APPDATA"); }
 
     virtual Result GetFlipStatus(
         uint32           vidPnSrcId,
@@ -176,7 +176,7 @@ public:
 
     virtual bool IsMasterGpu() const override { return true; } // only one gpu, it's going to be the master
 
-    virtual bool IsNull() const { return true; }
+    virtual bool IsNull() const override { return true; }
 
     virtual Result OpenExternalSharedGpuMemory(
         const ExternalGpuMemoryOpenInfo& openInfo,
@@ -213,7 +213,7 @@ public:
 
     virtual Result SetClockMode(
         const SetClockModeInput& setClockModeInput,
-        SetClockModeOutput*      pSetClockModeOutput) { return Result::Success; }
+        SetClockModeOutput*      pSetClockModeOutput) override { return Result::Success; }
 
     virtual Result SetMaxQueuedFrames(
         uint32 maxFrames) override;

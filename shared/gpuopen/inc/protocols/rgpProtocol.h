@@ -35,7 +35,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_MAJOR_VERSION 5
+#define RGP_PROTOCOL_MAJOR_VERSION 6
 #define RGP_PROTOCOL_MINOR_VERSION 0
 
 #define RGP_INTERFACE_VERSION ((RGP_INTERFACE_MAJOR_VERSION << 16) | RGP_INTERFACE_MINOR_VERSION)
@@ -46,6 +46,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  6.0    | Added support for trace trigger markers.                                                                 |
 *|  5.0    | Added support for allow compute presents trace parameter and removed unused clock mode parameter.        |
 *|  4.0    | Added support for reporting trace transfer progress.                                                     |
 *|  3.0    | Updated TraceParameters struct to allow for specifying profiling clock mode.                             |
@@ -54,6 +55,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_TRIGGER_MARKERS_VERSION 6
 #define RGP_COMPUTE_PRESENTS_VERSION 5
 #define RGP_TRACE_PROGRESS_VERSION 4
 #define RGP_PROFILING_CLOCK_MODES_VERSION 3
@@ -88,8 +90,12 @@ namespace DevDriver
         DD_STATIC_CONST Size kMaxTraceDataChunkSize = (kMaxPayloadSizeInBytes - sizeof(uint32) - sizeof(uint32));
 
         ///////////////////////
+        // RGP Constants
+        const uint32 kMarkerStringLength = 256;
+
+        ///////////////////////
         // RGP Types
-        DD_ALIGNED_STRUCT(4) TraceDataChunk
+        DD_NETWORK_STRUCT(TraceDataChunk, 4)
         {
             uint32 dataSize;
             uint8  data[kMaxTraceDataChunkSize];
@@ -97,7 +103,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceDataChunk, kMaxTraceDataChunkSize + sizeof(int32));
 
-        DD_ALIGNED_STRUCT(4) TraceParameters
+        DD_NETWORK_STRUCT(TraceParameters, 4)
         {
             uint32 gpuMemoryLimitInMb;
             uint32 numPreparationFrames;
@@ -122,7 +128,7 @@ namespace DevDriver
             Count
         };
 
-        DD_ALIGNED_STRUCT(4) TraceParametersV2
+        DD_NETWORK_STRUCT(TraceParametersV2, 4)
         {
             uint32 gpuMemoryLimitInMb;
             uint32 numPreparationFrames;
@@ -140,7 +146,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceParametersV2, 16);
 
-        DD_ALIGNED_STRUCT(4) TraceParametersV3
+        DD_NETWORK_STRUCT(TraceParametersV3, 4)
         {
             uint32 gpuMemoryLimitInMb;
             uint32 numPreparationFrames;
@@ -158,6 +164,36 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceParametersV3, 12);
 
+        DD_NETWORK_STRUCT(TraceParametersV4, 4)
+        {
+            uint32 gpuMemoryLimitInMb;
+            uint32 numPreparationFrames;
+            union
+            {
+                struct
+                {
+                    uint32 enableInstructionTokens : 1;
+                    uint32 allowComputePresents    : 1;
+                    uint32 reserved : 30;
+                };
+                uint32 u32All;
+            } flags;
+
+            // Begin Tag
+            uint32 beginTagHigh;
+            uint32 beginTagLow;
+
+            // End Tag
+            uint32 endTagHigh;
+            uint32 endTagLow;
+
+            // Begin/End Marker Strings
+            char beginMarker[kMarkerStringLength];
+            char endMarker[kMarkerStringLength];
+        };
+
+        DD_CHECK_SIZE(TraceParametersV4, 540);
+
         enum struct ProfilingStatus : uint32
         {
             NotAvailable = 0,
@@ -169,49 +205,56 @@ namespace DevDriver
         ///////////////////////
         // RGP Payloads
 
-        DD_ALIGNED_STRUCT(4) ExecuteTraceRequestPayload
+        DD_NETWORK_STRUCT(ExecuteTraceRequestPayload, 4)
         {
             TraceParameters parameters;
         };
 
         DD_CHECK_SIZE(ExecuteTraceRequestPayload, 12);
 
-        DD_ALIGNED_STRUCT(4) ExecuteTraceRequestPayloadV2
+        DD_NETWORK_STRUCT(ExecuteTraceRequestPayloadV2, 4)
         {
             TraceParametersV2 parameters;
         };
 
         DD_CHECK_SIZE(ExecuteTraceRequestPayloadV2, 16);
 
-        DD_ALIGNED_STRUCT(4) ExecuteTraceRequestPayloadV3
+        DD_NETWORK_STRUCT(ExecuteTraceRequestPayloadV3, 4)
         {
             TraceParametersV3 parameters;
         };
 
         DD_CHECK_SIZE(ExecuteTraceRequestPayloadV3, 12);
 
-        DD_ALIGNED_STRUCT(4) ExecuteTraceResponsePayload
+        DD_NETWORK_STRUCT(ExecuteTraceRequestPayloadV4, 4)
+        {
+            TraceParametersV4 parameters;
+        };
+
+        DD_CHECK_SIZE(ExecuteTraceRequestPayloadV4, 540);
+
+        DD_NETWORK_STRUCT(ExecuteTraceResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(ExecuteTraceResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) TraceDataChunkPayload
+        DD_NETWORK_STRUCT(TraceDataChunkPayload, 4)
         {
             TraceDataChunk chunk;
         };
 
         DD_CHECK_SIZE(TraceDataChunkPayload, kMaxTraceDataChunkSize + sizeof(int32));
 
-        DD_ALIGNED_STRUCT(4) TraceDataSentinelPayload
+        DD_NETWORK_STRUCT(TraceDataSentinelPayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(TraceDataSentinelPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) TraceDataHeaderPayload
+        DD_NETWORK_STRUCT(TraceDataHeaderPayload, 4)
         {
             Result result;
             uint32 numChunks;
@@ -220,21 +263,21 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceDataHeaderPayload, 12);
 
-        DD_ALIGNED_STRUCT(4) QueryProfilingStatusResponsePayload
+        DD_NETWORK_STRUCT(QueryProfilingStatusResponsePayload, 4)
         {
             ProfilingStatus status;
         };
 
         DD_CHECK_SIZE(QueryProfilingStatusResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) EnableProfilingResponsePayload
+        DD_NETWORK_STRUCT(EnableProfilingResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(EnableProfilingResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) RGPPayload
+        DD_NETWORK_STRUCT(RGPPayload, 4)
         {
             RGPMessage  command;
             // pad out to 4 bytes for alignment requirements
@@ -244,6 +287,7 @@ namespace DevDriver
                 ExecuteTraceRequestPayload          executeTraceRequest;
                 ExecuteTraceRequestPayloadV2        executeTraceRequestV2;
                 ExecuteTraceRequestPayloadV3        executeTraceRequestV3;
+                ExecuteTraceRequestPayloadV4        executeTraceRequestV4;
                 ExecuteTraceResponsePayload         executeTraceResponse;
                 TraceDataChunkPayload               traceDataChunk;
                 TraceDataSentinelPayload            traceDataSentinel;

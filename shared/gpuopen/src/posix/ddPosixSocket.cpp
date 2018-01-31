@@ -593,7 +593,7 @@ namespace DevDriver
         return result;
     }
 
-    Result Socket::InitAsClient(DD_SOCKET socket, const char* pAddress, uint32 port, bool isNonBlocking)
+    Result Socket::InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking)
     {
 
         DD_ASSERT(m_socketType == SocketType::Tcp);

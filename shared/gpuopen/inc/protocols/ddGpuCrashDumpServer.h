@@ -38,11 +38,6 @@
 
 namespace DevDriver
 {
-    namespace TransferProtocol
-    {
-        class RemoteBlock;
-    }
-
     namespace GpuCrashDumpProtocol
     {
         // Abstract interface for handling crash notifications

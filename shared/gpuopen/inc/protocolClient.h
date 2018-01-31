@@ -48,8 +48,9 @@ namespace DevDriver
         virtual Result Connect(ClientId clientId) = 0;
         virtual void Disconnect() = 0;
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION)
         virtual void Orphan() = 0;
-
+#endif
         virtual bool IsConnected() const = 0;
         virtual ClientId GetRemoteClientId() const = 0;
     protected:

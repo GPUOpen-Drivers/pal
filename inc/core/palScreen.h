@@ -57,84 +57,88 @@ enum class ScreenRotation : uint32
     Count
 };
 
-/// Specifies fullscreen display colorspace formats (dynamic range standards)
-enum class ScreenColorSpace : uint32
+/// Specifies color gamut as reported by the display panel EDID interface.
+struct ColorGamut
 {
-    Undefined        = 0x00,  ///< Undefined or Unknown standard
-    // SDR formats
-    SDR_unknown      = 0x01,  ///< SDR standard: unknown format
-    SDR_sRGB         = 0x02,  ///< SDR standard: sRGB non-linear format (IEC 61966-2-1:1999)
-    SDR_scRGB        = 0x03,  ///< SDR standard: scRGB non-linear format (MS Ref)
-    SDR_BT709        = 0x04,  ///< SDR standard: BT.709 standard (HDTV)
-    // HDR formats
-    HDR_unknown      = 0x10,  ///< HDR standard: unknown format
-    HDR_DolbyVision  = 0x11,  ///< HDR standard: Dolby Vision
-    HDR_FreeSync2    = 0x12,  ///< HDR standard: AMD FreeSync 2(passthru)
-    HDR10_ST2084     = 0x13,  ///< HDR standard: HDR10 Media Profile, SMPTE ST 2084 (CEA-861.3)
-    HDR10_scRGB      = 0x14,  ///< HDR standard: scRGB 10-bit non-linear format (MS Ref)
-    Count
+    uint32   chromaticityRedX;           ///< Chromaticity Red X coordinate; in units of 0.00001
+    uint32   chromaticityRedY;           ///< Chromaticity Red Y coordinate; in units of 0.00001
+    uint32   chromaticityGreenX;         ///< Chromaticity Green X coordinate; in units of 0.00001
+    uint32   chromaticityGreenY;         ///< Chromaticity Green Y coordinate; in units of 0.00001
+    uint32   chromaticityBlueX;          ///< Chromaticity Blue X coordinate; in units of 0.00001
+    uint32   chromaticityBlueY;          ///< Chromaticity Blue X coordinate; in units of 0.00001
+    uint32   chromaticityWhitePointX;    ///< Chromaticity White point X coordinate; in units of 0.00001
+    uint32   chromaticityWhitePointY;    ///< Chromaticity White point Y coordinate; in units of 0.00001
+    uint32   minLuminance;               ///< Minimum luminance; in units of 0.0001 (1/10,000) Cd/m2.
+    uint32   maxLuminance;               ///< Maximum luminance; in units of 0.0001 (1/10,000) Cd/m2.
+    uint32   avgLuminance;               ///< Average luminance; in units of 0.0001 (1/10,000) Cd/m2.
 };
 
-/// Specifies display format properties for use with IScreen::GetFormats()
-struct ScreenFormat
+/// Specifies color space and transfer functions as reported by the display panel EDID interface.
+enum ScreenColorSpace : uint32
 {
-    ChNumFormat        format;       ///< Screen surface color(pixel) format
-    ScreenColorSpace   colorSpace;   ///< Screen colorspace format/standard
+    TfUndefined      = 0x0000,
+
+    /// Transfer function flags - defines how the input signal has been encoded.
+    TfSrgb           = 0x00001, ///< sRGB non-linear format (IEC 61966-2-1:1999)
+    TfBt709          = 0x00002, ///< BT.709 standard (HDTV)
+    TfPq2084         = 0x00004, ///< HDR10 Media Profile, SMPTE ST 2084 (CEA - 861.3)
+    TfLinear0_1      = 0x00008, ///< Linear 0.0 -> 1.0
+    TfLinear0_125    = 0x00010, ///< Linear 0.0 -> 125
+    TfDolbyVision    = 0x00020, ///< Propriety Dolby Vision transform
+    TfGamma22        = 0x00040, ///< Gamma 2.2 (almost the same as sRGB transform)
+    TfHlg            = 0x00080, ///< Hybrid Log Gamma (BBC \ NHK Ref)
+
+    /// Color space flags - defines the domain of the input signal.
+    CsSrgb           = 0x01000, ///< SDR standard: sRGB non-linear format (IEC 61966-2-1:1999)
+    CsBt709          = 0x02000, ///< SDR standard: BT.709 standard (HDTV)
+    CsBt2020         = 0x04000, ///< HDR standard: BT.2020 standard (UHDTV)
+    CsDolbyVision    = 0x08000, ///< HDR standard: Propriety Dolby Vision
+    CsAdobe          = 0x10000, ///< HDR standard: Adobe
+    CsDciP3          = 0x20000, ///< HDR standard: DCI-P3 film industry standard
+    CsScrgb          = 0x40000, ///< HDR standard: scRGB non-linear format (Microsoft)
+    CsUserDefined    = 0x80000, ///< HDR standard: AMD FreeSync 2(passthru)
+};
+
+/// Specifies properties for use with IScreen::GetColorCapabilties()
+struct ScreenColorCapabilities
+{
     union
     {
         struct
         {
-            uint32 hdr        :  1;  ///< Format is associated with HDR(high dynamic range).
-            uint32 reserved   : 31;  ///< Reserved for future use.
-        };
-        uint32 u32All;               ///< Flags packed as 32-bit uint.
-    } flags;                         ///< Screen format flags.
-};
+            /// support flags
+            uint32 dolbyVisionSupported     :  1; ///< True if DolbyVision is supported
+            uint32 hdr10Supported           :  1; ///< True if HDR10 is supported
+            uint32 freeSyncHdrSupported     :  1; ///< True if FreeSync2 is supported
 
-/// Specifies properties for use with IScreen::Get/SetColorSpaceProperties()
-struct ScreenColorSpaceProperties
-{
-    union
-    {
-        struct
-        {
-            /// general flags
-            uint32 colorSpaceValid          :  1; ///< Colorspace field contains valid properties.
-            uint32 chromaticityValid        :  1; ///< Chromaticity fields contain valid properties.
-            uint32 luminanceValid           :  1; ///< Luminance fields contain valid properties.
-            uint32 lightLevelValid          :  1; ///< Light level fields contain valid properties.
-            uint32 reserved1                :  4; ///< Reserved for future use.
             /// feature flags
-            uint32 localDimmingDisable      :  1; ///< Local dimming disable.
-            uint32 freesyncBacklightSupport :  1; ///< Freesync backlight control supported
-            uint32 reserved2                : 22; ///< Reserved for future use.
+            uint32 freeSyncBacklightSupport :  1; ///< True if FreeSync2 backlight control is supported
+
+            uint32 reserved                 : 28; ///< Reserved for future use.
         };
         uint32 u32All;                            ///< Flags packed as 32-bit uint.
-    } flags;                                      ///< Color Space property flags.
+    };                                            ///< ScreenColorCapabilities property flags.
 
-    ScreenColorSpace  colorSpace;                 ///< Colorspace format/standard
-
-    uint32            chromaticityRedX;           ///< Chromaticity Red X coordinate; in units of 0.00001
-    uint32            chromaticityRedY;           ///< Chromaticity Red Y coordinate; in units of 0.00001
-    uint32            chromaticityGreenX;         ///< Chromaticity Green X coordinate; in units of 0.00001
-    uint32            chromaticityGreenY;         ///< Chromaticity Green Y coordinate; in units of 0.00001
-    uint32            chromaticityBlueX;          ///< Chromaticity Blue X coordinate; in units of 0.00001
-    uint32            chromaticityBlueY;          ///< Chromaticity Blue X coordinate; in units of 0.00001
-    uint32            chromaticityWhitePointX;    ///< Chromaticity White point X coordinate; in units of 0.00001
-    uint32            chromaticityWhitePointY;    ///< Chromaticity White point Y coordinate; in units of 0.00001
-
-    uint32            minLuminance;               ///< Minimum luminance; in units of 0.0001 (1/10,000) Cd/m2.
-    uint32            maxLuminance;               ///< Maximum luminance; in units of 0.0001 (1/10,000) Cd/m2.
-    uint32            avgLuminance;               ///< Average luminance; in units of 0.0001 (1/10,000) Cd/m2.
-    uint32            maxContentLightLevel;       ///< Maximum content light level; in units of 1 Cd/m2.
-    uint32            maxFrameAverageLightLevel;  ///< Maximum frame average light level; in units of 1 Cd/m2.
+    ScreenColorSpace    supportedColorSpaces;     ///< Flags that specify the supported color spaces
+    ColorGamut          nativeColorGamut;         ///< Native color gamut as reported by EDID
 };
 
-/// Specifies flags supplied to IScreen::Get/SetColorSpaceProperties()
-enum ColorSpaceFlags : uint32
+/// Specifies Client specified properties for use with IScreen::SetColorConfiguration()
+struct ScreenColorConfig
 {
-    ColorSpaceFlagNone     = 0x00000000, ///< No flags
-    ColorSpaceFlagNative   = 0x00000001  ///< Display native properties
+    union
+    {
+        struct
+        {
+            uint32 localDimmingDisable :  1;    ///< Local dimming disable. See freeSyncBacklightSupport.
+            uint32 reserved            : 31;    ///< Reserved for future use.
+        };
+        uint32 u32All;                          ///< Flags packed as 32-bit uint.
+    };
+
+    ChNumFormat         format;                 ///< Color format to Present
+    ScreenColorSpace    colorSpace;             ///< Color space encoding to Present
+    ColorGamut          userDefinedColorGamut;  ///< Color gamut to Present used with ScreenColorSpace::CS_userDefined
 };
 
 /// Reports properties of a screen (typically corresponds to one monitor attached to the desktop).  Output structure of
@@ -325,43 +329,38 @@ public:
     ///          + ErrorUnavailable if the screen is not in fullscreen exclusive mode.
     ///          + ErrorIncompleteResults if not all available formats were returned in pFormatList
     virtual Result GetFormats(
-        uint32*           pFormatCount,
-        ScreenFormat*     pFormatList) = 0;
+        uint32*          pFormatCount,
+        SwizzledFormat*  pFormatList) = 0;
 
     /// Returns the colorspace and other related properties for this screen.
     /// This will return the current properties for the screen which may be modified using IScreen::SetColorSpace.
-    /// The flag ColorSpaceFlagNative can be passed to retrieve the screen native properties which can help
-    /// to determine the supported property limits.
     /// Note that not all properties may be reported for a given screen since support can be dependent on:
     ///   display features, port, and drivers.
-    /// The caller can check the "Valid" flags in ScreenColorSpaceProperties to verify actual returned properties.
     ///
-    /// @param [out] pColorSpaceProp    Specifies the properties to change for the given screen.
-    /// @param [in]  getFlags           Flags to modify the query of the screen's properties.
+    /// @param [out] pCapabilities    Specifies the color capabilities of the given screen.
     ///
-    /// @returns Success if the display's properties were successfully read into pColorSpaceProp.
+    /// @returns Success if the display's properties were successfully read into pCapabilities.
     ///          Otherwise, one of the following errors may be returned:
     ///          + ErrorInvalidValue if color space is not valid.
     ///          + ErrorUnknown if color space query is unsupported by the screen.
-    virtual Result GetColorSpace(
-        ScreenColorSpaceProperties* pColorSpaceProp,
-        ColorSpaceFlags             getFlags) = 0;
+    virtual Result GetColorCapabilities(
+        ScreenColorCapabilities* pCapabilities) = 0;
 
     /// Modifies the colorspace and/or other related properties for this screen.
     /// The caller should set the appropriate "Valid" flags in ScreenColorSpaceProperties for all properties
     /// that are to be modified.
     /// Note that not all properties may be modified for a given screen since support can be dependent on:
     ///   display features, port, and drivers.
-    /// A call to IScreen::GetColorSpace can help to determine supported properties.
+    /// A call to IScreen::GetColorCapabilities can help to determine supported properties.
     ///
-    /// @param [in] pColorSpaceProp    Specifies the properties to change for the given screen.
+    /// @param [in] pColorConfig    Specifies the color configuration to set for the given screen.
     ///
     /// @returns Success if the display's properties were successfully updated to the requested values.
     ///          Otherwise, one of the following errors may be returned:
     ///          + ErrorInvalidValue if some property is not valid.
     ///          + ErrorUnsupported if changing properties unsupported by the screen.
-    virtual Result SetColorSpace(
-        ScreenColorSpaceProperties* pColorSpaceProp) = 0;
+    virtual Result SetColorConfiguration(
+        const ScreenColorConfig* pColorConfig) = 0;
 
     /// Blocks until the start of this screen's next vertical blank period.
     ///

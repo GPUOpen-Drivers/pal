@@ -26,7 +26,7 @@
 #include "ddURIServer.h"
 #include "msgChannel.h"
 #include "ddTransferManager.h"
-#include "protocols/ddURIService.h"
+#include "protocols/ddURIProtocol.h"
 
 #define URI_SERVER_MIN_MAJOR_VERSION URI_INITIAL_VERSION
 #define URI_SERVER_MAX_MAJOR_VERSION URI_RESPONSE_FORMATS_VERSION
@@ -35,10 +35,23 @@ namespace DevDriver
 {
     namespace URIProtocol
     {
+        static constexpr ResponseDataFormat UriFormatToResponseFormat(URIDataFormat format)
+        {
+            static_assert(static_cast<uint32>(ResponseDataFormat::Unknown) == static_cast<uint32>(URIDataFormat::Unknown),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Text) == static_cast<uint32>(URIDataFormat::Text),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Binary) == static_cast<uint32>(URIDataFormat::Binary),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Count) == static_cast<uint32>(URIDataFormat::Count),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            return static_cast<ResponseDataFormat>(format);
+        }
+
         struct URISession
         {
             Version version;
-            SharedPointer<TransferProtocol::LocalBlock> pBlock;
+            SharedPointer<TransferProtocol::ServerBlock> pBlock;
             URIPayload payload;
             bool hasQueuedPayload;
 
@@ -120,8 +133,8 @@ namespace DevDriver
             // Allocate session data for the newly established session
             URISession* pSessionData = DD_NEW(URISession, m_pMsgChannel->GetAllocCb())();
 
-            // Allocate a local block for use by the session.
-            pSessionData->pBlock = m_pMsgChannel->GetTransferManager().AcquireLocalBlock();
+            // Allocate a server block for use by the session.
+            pSessionData->pBlock = m_pMsgChannel->GetTransferManager().OpenServerBlock();
 
             pSession->SetUserData(pSessionData);
         }
@@ -172,7 +185,7 @@ namespace DevDriver
                         // Lock the mutex and look up the requested service if it's available.
                         m_mutex.Lock();
 
-                        URIService* pService = FindService(pServiceName);
+                        IService* pService = FindService(pServiceName);
 
                         m_mutex.Unlock();
 
@@ -183,7 +196,7 @@ namespace DevDriver
                             URIRequestContext context = {};
                             context.pRequestArguments = pServiceArguments;
                             context.pResponseBlock = pSessionData->pBlock;
-                            context.responseDataFormat = ResponseDataFormat::Unknown;
+                            context.responseDataFormat = URIDataFormat::Unknown;
 
                             result = pService->HandleRequest(&context);
 
@@ -192,22 +205,13 @@ namespace DevDriver
 
                             // Assemble the response payload.
                             pSessionData->payload.command = URIMessage::URIResponse;
-
-                            if (pSession->GetVersion() < URI_RESPONSE_FORMATS_VERSION)
-                            {
-                                // Return the block id and associate the block with the session if we successfully handled the request.
-                                pSessionData->payload.uriResponse.result  = result;
-                                pSessionData->payload.uriResponse.blockId = ((result == Result::Success) ? pSessionData->pBlock->GetBlockId()
-                                                                                                         : TransferProtocol::kInvalidBlockId);
-                            }
-                            else
-                            {
-                                // Return the block id and associate the block with the session if we successfully handled the request.
-                                pSessionData->payload.uriResponseV2.result  = result;
-                                pSessionData->payload.uriResponseV2.blockId = ((result == Result::Success) ? pSessionData->pBlock->GetBlockId()
-                                                                                                           : TransferProtocol::kInvalidBlockId);
-                                pSessionData->payload.uriResponseV2.format  = context.responseDataFormat;
-                            }
+                            // Return the block id and associate the block with the session if we successfully handled the request.
+                            pSessionData->payload.uriResponse.result = result;
+                            pSessionData->payload.uriResponse.blockId = ((result == Result::Success) ? pSessionData->pBlock->GetBlockId()
+                                                                         : TransferProtocol::kInvalidBlockId);
+                            // We send this data back regardless of protocol version, but it will only be read
+                            // in a v2 session.
+                            pSessionData->payload.uriResponse.format = UriFormatToResponseFormat(context.responseDataFormat);
 
                             // Mark the session as having a queued payload if we fail to send the response.
                             if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
@@ -221,18 +225,9 @@ namespace DevDriver
 
                             // Assemble the response payload.
                             pSessionData->payload.command = URIMessage::URIResponse;
-
-                            if (pSession->GetVersion() < URI_RESPONSE_FORMATS_VERSION)
-                            {
-                                pSessionData->payload.uriResponse.result  = Result::Unavailable;
-                                pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
-                            }
-                            else
-                            {
-                                pSessionData->payload.uriResponseV2.result  = Result::Unavailable;
-                                pSessionData->payload.uriResponseV2.blockId = TransferProtocol::kInvalidBlockId;
-                                pSessionData->payload.uriResponseV2.format  = ResponseDataFormat::Unknown;
-                            }
+                            pSessionData->payload.uriResponse.result = Result::Unavailable;
+                            pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
+                            pSessionData->payload.uriResponse.format = ResponseDataFormat::Unknown;
 
                             // Mark the session as having a queued payload if we fail to send the response.
                             if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
@@ -247,18 +242,9 @@ namespace DevDriver
 
                         // Assemble the response payload.
                         pSessionData->payload.command = URIMessage::URIResponse;
-
-                        if (pSession->GetVersion() < URI_RESPONSE_FORMATS_VERSION)
-                        {
-                            pSessionData->payload.uriResponse.result  = Result::Error;
-                            pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
-                        }
-                        else
-                        {
-                            pSessionData->payload.uriResponseV2.result  = Result::Error;
-                            pSessionData->payload.uriResponseV2.blockId = TransferProtocol::kInvalidBlockId;
-                            pSessionData->payload.uriResponseV2.format  = ResponseDataFormat::Unknown;
-                        }
+                        pSessionData->payload.uriResponse.result = Result::Error;
+                        pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
+                        pSessionData->payload.uriResponse.format = ResponseDataFormat::Unknown;
 
                         // Mark the session as having a queued payload if we fail to send the response.
                         if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
@@ -279,10 +265,10 @@ namespace DevDriver
             // Free the session data
             if (pURISession != nullptr)
             {
-                // Release the session's local block before destroying it.
+                // Release the session's server block before destroying it.
                 if (!pURISession->pBlock.IsNull())
                 {
-                    m_pMsgChannel->GetTransferManager().ReleaseLocalBlock(pURISession->pBlock);
+                    m_pMsgChannel->GetTransferManager().CloseServerBlock(pURISession->pBlock);
                 }
 
                 DD_DELETE(pURISession, m_pMsgChannel->GetAllocCb());
@@ -290,7 +276,7 @@ namespace DevDriver
         }
 
         // =====================================================================================================================
-        Result URIServer::RegisterService(URIService* pService)
+        Result URIServer::RegisterService(IService* pService)
         {
             Platform::LockGuard<Platform::Mutex> lock(m_mutex);
 
@@ -300,7 +286,7 @@ namespace DevDriver
         }
 
         // =====================================================================================================================
-        Result URIServer::UnregisterService(URIService* pService)
+        Result URIServer::UnregisterService(IService* pService)
         {
             Platform::LockGuard<Platform::Mutex> lock(m_mutex);
 
@@ -310,9 +296,9 @@ namespace DevDriver
         }
 
         // =====================================================================================================================
-        URIService* URIServer::FindService(const char* pServiceName)
+        IService* URIServer::FindService(const char* pServiceName)
         {
-            URIService* pService = nullptr;
+            IService* pService = nullptr;
 
             for (size_t serviceIndex = 0; serviceIndex < m_registeredServices.Size(); ++serviceIndex)
             {

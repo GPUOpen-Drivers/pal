@@ -279,7 +279,7 @@ public:
         gpusize*           pGpuMemAlignment) override;
 
     // Fills metadata info to be used in memory export
-    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const;
+    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
 
 private:
     PAL_INLINE bool IsFastClearColorMetaFetchable(const uint32* pColor) const;

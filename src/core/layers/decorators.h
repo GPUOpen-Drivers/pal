@@ -288,7 +288,7 @@ protected:
 
     virtual void InstallDeveloperCb(
         Developer::Callback pfnDeveloperCb,
-        void*               pPrivateData);
+        void*               pPrivateData) override;
 
     IPlatform*const        m_pNextLayer;
     DeviceDecorator*       m_pDevices[MaxDevices];
@@ -348,17 +348,16 @@ public:
 
     virtual Result GetFormats(
         uint32*           pFormatCount,
-        ScreenFormat*     pFormatList) override
+        SwizzledFormat*   pFormatList) override
     { return m_pNextLayer->GetFormats(pFormatCount, pFormatList); }
 
-    virtual Result GetColorSpace(
-        ScreenColorSpaceProperties* pColorSpaceProp,
-        ColorSpaceFlags             getFlags) override
-    { return m_pNextLayer->GetColorSpace(pColorSpaceProp, getFlags); }
+    virtual Result GetColorCapabilities(
+        ScreenColorCapabilities* pCapabilities) override
+    { return m_pNextLayer->GetColorCapabilities(pCapabilities); }
 
-    virtual Result SetColorSpace(
-        ScreenColorSpaceProperties* pColorSpaceProp) override
-    { return m_pNextLayer->SetColorSpace(pColorSpaceProp); }
+    virtual Result SetColorConfiguration(
+        const ScreenColorConfig* pColorConfig) override
+    { return m_pNextLayer->SetColorConfiguration(pColorConfig); }
 
     virtual Result WaitForVerticalBlank() const override
         { return m_pNextLayer->WaitForVerticalBlank(); }
@@ -948,20 +947,20 @@ public:
         { return m_pNextLayer->GetValidFormatFeatureFlags(format, aspect, tiling); }
 
     virtual Result FlglQueryState(
-       Pal::FlglState* pState)
+       Pal::FlglState* pState) override
        { return m_pNextLayer->FlglQueryState(pState); }
 
     virtual Result FlglSetFrameLock(
-       bool enable)
+       bool enable) override
        { return m_pNextLayer->FlglSetFrameLock(enable); }
 
-    virtual Result FlglResetFrameCounter() const
+    virtual Result FlglResetFrameCounter() const override
        { return m_pNextLayer->FlglResetFrameCounter(); }
 
-    virtual Result FlglGetFrameCounter(uint64* pValue) const
+    virtual Result FlglGetFrameCounter(uint64* pValue) const override
        { return m_pNextLayer->FlglGetFrameCounter(pValue); }
 
-    virtual Result FlglGetFrameCounterResetStatus(bool* pReset) const
+    virtual Result FlglGetFrameCounterResetStatus(bool* pReset) const override
        { return m_pNextLayer->FlglGetFrameCounterResetStatus(pReset); }
 
     virtual Result GetFlipStatus(

@@ -51,11 +51,12 @@ namespace DevDriver
             timespec timeValue = {};
             if (clock_gettime(CLOCK_REALTIME, &timeValue) == 0)
             {
-                uint64 timeInMs = static_cast<uint64>(timeValue.tv_sec * 1000 + timeValue.tv_nsec / 1000000) + offsetInMs;
-                time_t sec = static_cast<time_t>(timeInMs / 1000);
-                long nsec = (timeInMs - (sec * 1000)) * 1000000;
-                pOutput->tv_sec = sec;
-                pOutput->tv_nsec = nsec;
+                const uint64 timeInMs = (static_cast<uint64>(timeValue.tv_sec) * 1000) +
+                                        (static_cast<uint64>(timeValue.tv_nsec) / 1000000) + offsetInMs;
+                const uint64 sec = timeInMs / 1000;
+                const uint64 nsec = (timeInMs - (sec * 1000)) * 1000000;
+                pOutput->tv_sec = static_cast<time_t>(sec);
+                pOutput->tv_nsec = static_cast<long>(nsec);
                 result = Result::Success;
             }
             return result;

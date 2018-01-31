@@ -32,8 +32,7 @@
 #pragma once
 
 #include "baseProtocolClient.h"
-
-#include "protocols/systemProtocols.h"
+#include "ddUriInterface.h"
 
 namespace DevDriver
 {
@@ -41,21 +40,15 @@ namespace DevDriver
 
     namespace TransferProtocol
     {
-        class RemoteBlock;
+        class PullBlock;
     }
 
     namespace URIProtocol
     {
-        struct ResponseHeader
-        {
-            // The size of the response data in bytes
-            size_t responseDataSizeInBytes;
+        // We alias these types for backwards compatibility
+        using ResponseHeader = DevDriver::URIResponseHeader;
 
-            // The format of the response data
-            ResponseDataFormat responseDataFormat;
-        };
-
-        class URIClient : public BaseProtocolClient
+        class URIClient final : public BaseProtocolClient
         {
         public:
             explicit URIClient(IMsgChannel* pMsgChannel);
@@ -88,8 +81,8 @@ namespace DevDriver
             // Context structure for tracking all state specific to a request.
             struct Context
             {
-                State                          state;
-                TransferProtocol::RemoteBlock* pBlock;
+                State                        state;
+                TransferProtocol::PullBlock* pBlock;
             };
 
             Context m_context;

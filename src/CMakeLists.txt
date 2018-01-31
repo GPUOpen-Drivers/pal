@@ -194,7 +194,6 @@ target_link_libraries(pal PUBLIC addrlib)
 ### VAM ########################################################################
 add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
 target_link_libraries(pal PUBLIC vam)
-target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/imported/vam)
 
 ### JEMALLOC ###################################################################
 if(PAL_BUILD_JEMALLOC)

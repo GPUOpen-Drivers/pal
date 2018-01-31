@@ -80,6 +80,12 @@ GpuMemory::~GpuMemory()
         result = pDevice->FreeBuffer(m_hSurface);
         PAL_ASSERT(result == Result::Success);
     }
+
+    if (m_desc.flags.isExternPhys)
+    {
+        result = pDevice->FreeSdiSurface(this);
+        PAL_ASSERT(result == Result::Success);
+    }
 }
 
 // =====================================================================================================================
@@ -221,8 +227,7 @@ Result GpuMemory::AllocateOrPinMemory(
                     allocRequest.flags |= AMDGPU_GEM_CREATE_VRAM_CLEARED;
                 }
 
-                if (pDevice->IsDrmVersionOrGreater(3, 20)   && // VM always valid is supported from drm version 3.20
-                    pDevice->Settings().enableVmAlwaysValid && // Disable it by default
+                if (pDevice->IsVmAlwaysValidSupported()     &&
                     (m_flags.isFlippable == 0)              && // Memory shared by multiple processes are not allowed
                     (m_desc.flags.isExternal == 0))            // Memory shared by multiple processes are not allowed
                 {
@@ -252,6 +257,27 @@ Result GpuMemory::AllocateOrPinMemory(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Result GpuMemory::Init(
+	const GpuMemoryCreateInfo&         createInfo,
+	const GpuMemoryInternalCreateInfo& internalInfo)
+{
+    // External shared memory objects need to use the other Init path.
+    PAL_ASSERT(internalInfo.flags.isExternal == 0);
+
+    Result result = Pal::GpuMemory::Init(createInfo, internalInfo);
+
+    if (createInfo.flags.sdiExternal)
+    {
+        Device* pDevice = static_cast<Device*>(m_pDevice);
+        m_desc.surfaceBusAddr = createInfo.surfaceBusAddr;
+        m_desc.markerBusAddr = createInfo.markerBusAddr;
+        result = pDevice->SetSdiSurface(this, &(m_desc.gpuVirtAddr));
+    }
+
+	return result;
 }
 
 // =====================================================================================================================
@@ -465,5 +491,29 @@ void GpuMemory::GetHeapsInfo(
     memcpy(*ppHeaps, m_heaps, m_heapCount*sizeof(GpuHeap));
 }
 
+// =====================================================================================================================
+// Query bus addresses of surface and marker for BusAddressable memory
+Result GpuMemory::QuerySdiBusAddress()
+{
+    Result result = Result::ErrorOutOfGpuMemory;
+    if (IsBusAddressable())
+    {
+        uint64 busAddress;
+        Device* pDevice = static_cast<Device*>(m_pDevice);
+
+        result = pDevice->QuerySdiSurface(m_hSurface, &busAddress);
+        if (result == Result::Success)
+        {
+            m_desc.surfaceBusAddr = busAddress;
+            const gpusize pageSize = m_pDevice->MemoryProperties().virtualMemPageSize;
+            m_desc.markerBusAddr = busAddress + m_desc.size - pageSize;
+
+            gpusize markerVa = m_desc.gpuVirtAddr + m_desc.markerBusAddr - m_desc.surfaceBusAddr;
+            SetBusAddrMarkerVa(markerVa);
+        }
+    }
+
+    return result;
+}
 } // Linux
 } // Pal

@@ -379,6 +379,16 @@ void Platform::EarlyInitDevDriver()
     DevDriver::TransportType transportType = DevDriver::TransportType::Local;
     bool isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(transportType);
 
+#if (PAL_CLIENT_DX12 || PAL_CLIENT_DX11)
+    // Attempt to fall back to a message bus transport (kernel mode) if a local transport is not available.
+    // This allows us to support developer driver connections from inside DX12 UWP apps.
+    if (isConnectionAvailable == false)
+    {
+        transportType = DevDriver::TransportType::MessageBus;
+        isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(transportType);
+    }
+#endif
+
     if (isConnectionAvailable)
     {
         static const char* pClientStr = "AMD Vulkan Driver";

@@ -33,68 +33,26 @@
 
 #include "gpuopen.h"
 #include "ddPlatform.h"
-#include "protocols/systemProtocols.h"
+#include "ddUriInterface.h"
 #include "util/sharedptr.h"
+#include "ddTransferManager.h"
 
 namespace DevDriver
 {
-    namespace TransferProtocol
-    {
-        class LocalBlock;
-    }
-
     namespace URIProtocol
     {
-        // A struct that represents a unique URI request
-        struct URIRequestContext
-        {
-            // Mutable arguments passed to the request
-            char* pRequestArguments;
-
-            // A local block to write the response data into.
-            SharedPointer<TransferProtocol::LocalBlock> pResponseBlock;
-
-            // The format of the data written into the response block.
-            ResponseDataFormat responseDataFormat;
-        };
+        // We alias these types for backwards compatibility
+        using URIRequestContext = DevDriver::URIRequestContext;
+        using ResponseDataFormat = DevDriver::URIDataFormat;
 
         // Base class for URI services
-        class URIService
+        class URIService : public IService
         {
         public:
             virtual ~URIService() {}
 
             // Returns the name of the service
-            const char* GetName() const { return m_name; }
-
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
-            // Attempts to handle a request from a client
-            // Deprecated
-            virtual Result HandleRequest(char*                                       pArguments,
-                                         SharedPointer<TransferProtocol::LocalBlock> pBlock)
-            {
-                DD_NOT_IMPLEMENTED();
-                return Result::Error;
-            }
-
-            // Attempts to handle a request from a client
-            virtual Result HandleRequest(URIRequestContext* pContext)
-            {
-                DD_ASSERT(pContext != nullptr);
-
-                const Result result = HandleRequest(pContext->pRequestArguments,
-                                                    pContext->pResponseBlock);
-                if (result == Result::Success)
-                {
-                    pContext->responseDataFormat = ResponseDataFormat::Text;
-                }
-
-                return result;
-            }
-#else
-            // Attempts to handle a request from a client
-            virtual Result HandleRequest(URIRequestContext* pContext) = 0;
-#endif
+            const char* GetName() const override final { return m_name; }
 
         protected:
             URIService(const char* pName)
@@ -103,8 +61,10 @@ namespace DevDriver
                 Platform::Strncpy(m_name, pName, sizeof(m_name));
             }
 
+            DD_STATIC_CONST uint32 kServiceNameSize = 64;
+
             // The name of the service
-            char m_name[kURIStringSize];
+            char m_name[kServiceNameSize];
         };
     }
 } // DevDriver

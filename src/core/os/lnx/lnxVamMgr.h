@@ -76,8 +76,8 @@ public:
     bool IsAllocated() const { return m_allocated; }
 
 protected:
-    void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr);
-    void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc);
+    void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr) override;
+    void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc) override;
 
     // VAM callbacks.
     static void*             VAM_STDCALL AllocSysMemCb(VAM_CLIENT_HANDLE hPal, uint32 sizeInBytes);

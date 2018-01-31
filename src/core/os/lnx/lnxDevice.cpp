@@ -357,7 +357,9 @@ Device::Device(
     m_settingsMgr(SettingsFileName, pPlatform),
     m_globalRefMap(MemoryRefMapElements, pPlatform),
     m_semType(SemaphoreType::Legacy),
+    m_fenceType(FenceType::Legacy),
     m_supportQueuePriority(false),
+    m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
     m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
@@ -376,11 +378,6 @@ Device::Device(
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
     VamMgrSingleton::Init();
 
-    // DrmVersion should be equal or greater than 3.22 in case to support queue priority
-    if (pPlatform->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
-    {
-        m_supportQueuePriority = true;
-    }
 }
 
 // =====================================================================================================================
@@ -460,13 +457,13 @@ Result Device::OsLateInit()
         }
     }
 
-    if (static_cast<Platform*>(m_pPlatform)->GetSupportedSemaphoreTypes() & static_cast<uint32>(SemaphoreType::ProOnly))
+    if (static_cast<Platform*>(m_pPlatform)->IsProSemaphoreSupported())
     {
         m_semType = SemaphoreType::ProOnly;
     }
 
-    // enable semaphore support
-    if (static_cast<Platform*>(m_pPlatform)->GetSupportedSemaphoreTypes() & static_cast<uint32>(SemaphoreType::SyncObj))
+    // enable sync object support
+    if (static_cast<Platform*>(m_pPlatform)->IsSyncObjectSupported())
     {
         uint64_t supported = 0;
         if ((Settings().disableSyncObject == false) &&
@@ -475,8 +472,23 @@ Result Device::OsLateInit()
             if (supported == 1)
             {
                 m_semType = SemaphoreType::SyncObj;
+                if (IsDrmVersionOrGreater(3,20))
+                {
+                    m_fenceType =  FenceType::SyncObj;
+                }
             }
         }
+    }
+
+    // DrmVersion should be equal or greater than 3.22 in case to support queue priority
+    if (static_cast<Platform*>(m_pPlatform)->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
+    {
+        m_supportQueuePriority = true;
+    }
+
+    if (IsDrmVersionOrGreater(3,22))
+    {
+        m_supportVmAlwaysValid = true;
     }
 
     return result;
@@ -597,7 +609,15 @@ Result Device::GetProperties(
 
     if (result == Result::Success)
     {
-        pInfo->osProperties.supportProSemaphore = (m_semType == SemaphoreType::ProOnly);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 378
+        pInfo->osProperties.supportOpaqueFdSemaphore = ((m_semType == SemaphoreType::ProOnly) ||
+                                                        (m_semType == SemaphoreType::SyncObj));
+        // Todo: Implement the sync file import/export upon sync object.
+        pInfo->osProperties.supportSyncFileSemaphore = false;
+#else
+        pInfo->osProperties.supportProSemaphore = ((m_semType == SemaphoreType::ProOnly) ||
+                                                   (m_semType == SemaphoreType::SyncObj));
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
         pInfo->osProperties.supportQueuePriority = m_supportQueuePriority;
@@ -2748,6 +2768,59 @@ Result Device::ConveySyncObjectState(
 }
 
 // =====================================================================================================================
+Result Device::CreateSyncObject(
+    uint32*     pSyncObject
+    ) const
+{
+    uint32 syncObject;
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj(m_hDevice, &syncObject), Result::ErrorUnknown);
+    if (result == Result::Success)
+    {
+        *pSyncObject = syncObject;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::DestroySyncObject(
+    uint32      syncObject
+    ) const
+{
+    return CheckResult(m_drmProcs.pfnAmdgpuCsDestroySyncobj(m_hDevice, syncObject), Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+OsExternalHandle Device::ExportSyncObject(
+    uint32     syncObject
+    ) const
+{
+    OsExternalHandle handle;
+    if (m_drmProcs.pfnAmdgpuCsExportSyncobj(m_hDevice, syncObject, reinterpret_cast<int32*>(&handle)) != 0)
+    {
+        handle = -1;
+    }
+
+    return handle;
+}
+
+// =====================================================================================================================
+Result Device::ImportSyncObject(
+    OsExternalHandle         fd,
+    uint32*                  pSyncObject
+    ) const
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuCsImportSyncobj(m_hDevice, fd, pSyncObject), Result::ErrorUnknown);
+    if (result == Result::Success)
+    {
+        // it is up to driver to close the imported fd.
+        close(fd);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Device::CreateSemaphore(
     amdgpu_semaphore_handle* pSemaphoreHandle
     ) const
@@ -2766,7 +2839,7 @@ Result Device::CreateSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj(m_hDevice, &hSem), Result::ErrorUnknown);
+        result = CreateSyncObject(&hSem);
         if (result == Result::Success)
         {
             *pSemaphoreHandle = reinterpret_cast<amdgpu_semaphore_handle>(hSem);
@@ -2797,8 +2870,7 @@ Result Device::DestroySemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsDestroySyncobj(m_hDevice, reinterpret_cast<uintptr_t>(hSemaphore)),
-                             Result::ErrorUnknown);
+        result = DestroySyncObject(reinterpret_cast<uintptr_t>(hSemaphore));
     }
     else
     {
@@ -2901,12 +2973,7 @@ OsExternalHandle  Device::ExportSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        if (m_drmProcs.pfnAmdgpuCsExportSyncobj(m_hDevice,
-                                                reinterpret_cast<uintptr_t>(hSemaphore),
-                                                reinterpret_cast<int32*>(&handle)) != 0)
-        {
-            handle = -1;
-        }
+        handle = ExportSyncObject(reinterpret_cast<uintptr_t>(hSemaphore));
     }
     else
     {
@@ -2938,10 +3005,9 @@ Result Device::ImportSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsImportSyncobj(m_hDevice, fd, &hSem), Result::ErrorUnknown);
+        result = ImportSyncObject(fd, &hSem);
         if (result == Result::Success)
         {
-            close(fd);
             *pSemaphoreHandle = reinterpret_cast<amdgpu_semaphore_handle>(hSem);
         }
     }
@@ -3772,6 +3838,165 @@ Result Device::CreateGpuMemoryFromExternalShare(
     }
 
     (*ppGpuMemory) = pGpuMemory;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Query bus addresses
+Result Device::InitBusAddressableGpuMemory(
+    IQueue*           pQueue,
+    uint32            gpuMemCount,
+    IGpuMemory*const* ppGpuMemList)
+{
+    Result result = Result::Success;
+
+    for (uint32 i = 0; (i < gpuMemCount) && (result == Result::Success); i++)
+    {
+        GpuMemory* pGpuMem = static_cast<GpuMemory*>(ppGpuMemList[i]);
+        result = pGpuMem->QuerySdiBusAddress();
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Query local SDI surface attributes
+Result Device::QuerySdiSurface(
+    amdgpu_bo_handle    hSurface,
+    uint64*             pPhysAddress)
+{
+    PAL_ASSERT(pPhysAddress != nullptr);
+
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoGetPhysAddress(hSurface,
+                                                                     pPhysAddress),
+                                Result::ErrorOutOfGpuMemory);
+
+    return result;
+}
+
+// =====================================================================================================================
+// allocate External Physical Memory
+Result Device::SetSdiSurface(
+	GpuMemory*  pGpuMem,
+	gpusize*    pCardAddr)
+{
+    amdgpu_va_handle hVaRange;
+    amdgpu_bo_handle hBuffer;
+    uint64 vaAllocated;
+
+    Result result = MapSdiMemory(m_hDevice,
+                                 pGpuMem->Desc().surfaceBusAddr,
+                                 pGpuMem->Desc().size,
+                                 hBuffer,
+                                 hVaRange,
+                                 vaAllocated);
+
+    if (result == Result::Success)
+    {
+        pGpuMem->SetSurfaceHandle(hBuffer);
+        pGpuMem->SetVaRangeHandle(hVaRange);
+        *pCardAddr = vaAllocated;
+        result = MapSdiMemory(m_hDevice,
+                              pGpuMem->Desc().markerBusAddr,
+                              pGpuMem->Desc().size,
+                              hBuffer,
+                              hVaRange,
+                              vaAllocated);
+    }
+
+    if (result == Result::Success)
+    {
+        pGpuMem->SetMarkerHandle(hBuffer);
+        pGpuMem->SetMarkerVaRangeHandle(hVaRange);
+        pGpuMem->SetBusAddrMarkerVa(vaAllocated);
+    }
+
+	return Result::Success;
+}
+
+// =====================================================================================================================
+// Free External Physical Memory
+Result Device::FreeSdiSurface(
+    GpuMemory*  pGpuMem)
+{
+    Result result = Result::Success;
+
+    if (pGpuMem->GetBusAddrMarkerVa() != 0)
+    {
+        result = UnmapSdiMemory(pGpuMem->GetBusAddrMarkerVa(),
+                                pGpuMem->Desc().size,
+                                pGpuMem->MarkerHandle(),
+                                pGpuMem->MarkerVaRangeHandle());
+        pGpuMem->SetBusAddrMarkerVa(0);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// allocate buffer and VA for Surface/Marker of External Physical Memory
+Result Device::MapSdiMemory(
+    amdgpu_device_handle    hDevice,
+    uint64                  busAddress,
+    gpusize                 size,
+    amdgpu_bo_handle&       hBuffer,
+    amdgpu_va_handle&       hVaRange,
+    uint64&                 vaAllocated)
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuCreateBoFromPhysMem(hDevice,
+                                                                        busAddress,
+                                                                        size,
+                                                                        &hBuffer),
+                                Result::ErrorOutOfGpuMemory);
+
+    if (result == Result::Success)
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(hDevice,
+                                                              amdgpu_gpu_va_range_general,
+                                                              size,
+                                                              m_memoryProperties.fragmentSize,
+                                                              0,
+                                                              &vaAllocated,
+                                                              &hVaRange,
+                                                              0),
+                             Result::ErrorInvalidValue);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuBoVaOp(hBuffer,
+                                                        0,
+                                                        size,
+                                                        vaAllocated,
+                                                        0,
+                                                        AMDGPU_VA_OP_MAP),
+                             Result::ErrorInvalidValue);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Free buffer and VA for External Physical Memory
+Result Device::UnmapSdiMemory(
+    uint64                  virtAddress,
+    gpusize                 size,
+    amdgpu_bo_handle        hBuffer,
+    amdgpu_va_handle        hVaRange)
+{
+    Result result = CheckResult(m_drmProcs.pfnAmdgpuBoVaOp(hBuffer,
+                                                           0,
+                                                           size,
+                                                           virtAddress,
+                                                           0,
+                                                           AMDGPU_VA_OP_UNMAP),
+                                Result::ErrorInvalidValue);
+
+    if (result == Result::Success)
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(hVaRange),
+                             Result::ErrorInvalidValue);
+    }
 
     return result;
 }

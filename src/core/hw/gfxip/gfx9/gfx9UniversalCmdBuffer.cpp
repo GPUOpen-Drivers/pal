@@ -7176,23 +7176,32 @@ uint32* UniversalCmdBuffer::UploadStreamOutBufferStridesToCeRam(
     // the NUM_RECORDS field), and to fix the STRIDE field at draw-time using CP memory atomics. This will preserve
     // all of the fields in word1 except STRIDE, which is what we need.
 
-    PAL_ASSERT(m_gfxIpLevel == GfxIpLevel::GfxIp9);
-
     for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
     {
-        auto*const   pBufferSrd    = &m_streamOut.srd[idx].gfx9;
         const uint32 strideInBytes = (sizeof(uint32) * pipeline.VgtStrmoutVtxStride(idx).u32All);
         const uint32 numRecords    = StreamOutNumRecords(m_device.Parent()->ChipProperties(), strideInBytes);
 
-        if ((pBufferSrd->word2.bits.NUM_RECORDS != numRecords) ||
-            (pBufferSrd->word1.bits.STRIDE      != strideInBytes))
+        auto*const pBufferSrd    = &m_streamOut.srd[idx];
+        uint32     srdNumRecords = 0;
+        uint32     srdStride     = 0;
+
+        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
-            pBufferSrd->word2.bits.NUM_RECORDS = numRecords;
-            pBufferSrd->word1.bits.STRIDE      = strideInBytes;
+            srdNumRecords = pBufferSrd->gfx9.word2.bits.NUM_RECORDS;
+            srdStride     = pBufferSrd->gfx9.word1.bits.STRIDE;
+        }
+
+        if ((srdNumRecords != numRecords) || (srdStride != strideInBytes))
+        {
+            if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+            {
+                pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
+                pBufferSrd->gfx9.word1.bits.STRIDE      = strideInBytes;
+            }
 
                 // Root command buffers and nested command buffers which have changed the stream-output bindings
                 // fully know the complete stream-out SRD so we can use the "normal" path.
-                pCeCmdSpace += m_cmdUtil.BuildWriteConstRam(&pBufferSrd->word1,
+                pCeCmdSpace += m_cmdUtil.BuildWriteConstRam(VoidPtrInc(pBufferSrd, sizeof(uint32)),
                                                             ceRamOffset,
                                                             2,
                                                             pCeCmdSpace);

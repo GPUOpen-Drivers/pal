@@ -52,7 +52,7 @@ public:
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo);
     virtual Result OpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 
-    virtual OsExternalHandle ExportExternalHandle() const;
+    virtual OsExternalHandle ExportExternalHandle() const override;
 
     virtual amdgpu_semaphore_handle GetSyncObjHandle() const;
 

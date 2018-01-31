@@ -113,7 +113,7 @@ public:
     StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
 
     virtual Result AddEvent(const GpuBlock& block, uint32 eventId) override;
-    uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace);
+    uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
 
 protected:
     bool IsSelect0RegisterValid() const;

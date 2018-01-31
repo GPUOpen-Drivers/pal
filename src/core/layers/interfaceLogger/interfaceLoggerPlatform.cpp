@@ -443,7 +443,11 @@ Result Platform::Init()
             m_pMainLog->BeginMap(false);
             m_pMainLog->KeyAndValue("_type", "Platform");
 
+#if   PAL_CLIENT_DX11
+            m_pMainLog->KeyAndValue("api", "Direct3D 10/11");
+#else
             m_pMainLog->KeyAndValue("api", "Vulkan");
+#endif
 
             m_pMainLog->KeyAndValue("os", "Linux");
 

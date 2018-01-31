@@ -277,23 +277,6 @@ bool Platform::CheckDtifStatus()
 }
 
 // =====================================================================================================================
-int32 Platform::GetSupportedSemaphoreTypes() const
-{
-    int32 semTypes = static_cast<int32>(SemaphoreType::Legacy);
-
-    if (m_features.supportSyncObj == 1)
-    {
-        semTypes |= static_cast<int32>(SemaphoreType::SyncObj);
-    }
-    if (m_features.supportProSemaphore == 1)
-    {
-        semTypes |= static_cast<int32>(SemaphoreType::ProOnly);
-    }
-
-    return semTypes;
-}
-
-// =====================================================================================================================
 // Helper function to translate a AMDGPU_PIXEL_FORMAT enumeration into a PAL format.
 SwizzledFormat AmdgpuFormatToPalFormat(
     AMDGPU_PIXEL_FORMAT format,

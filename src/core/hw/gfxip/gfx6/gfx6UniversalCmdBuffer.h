@@ -632,7 +632,7 @@ public:
 
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
-        uint32         targetIndex);
+        uint32         targetIndex) override;
 
 protected:
     virtual ~UniversalCmdBuffer() {}

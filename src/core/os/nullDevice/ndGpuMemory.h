@@ -45,7 +45,7 @@ public:
     virtual Result AllocateOrPinMemory(
         gpusize                 baseVirtAddr,
         uint64*                 pPagingFence,
-        VirtualGpuMemAccessMode virtualAccessMode);
+        VirtualGpuMemAccessMode virtualAccessMode) override;
 
     virtual OsExternalHandle GetSharedExternalHandle() const override;
 
@@ -64,8 +64,8 @@ public:
         gpusize baseVirtAddr,
         gpusize size,
         gpusize align,
-        bool    commitCpuVa) { return Result::ErrorUnavailable; }
-    virtual Result FreeSvmVirtualAddress() { return Result::ErrorUnavailable; }
+        bool    commitCpuVa) override { return Result::ErrorUnavailable; }
+    virtual Result FreeSvmVirtualAddress() override { return Result::ErrorUnavailable; }
 
 protected:
 

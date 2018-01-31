@@ -1078,11 +1078,7 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     {
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            static constexpr regSQ_PERFCOUNTER_CTRL SqPerfCounterCtrl = {};
-
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl,
-                                                         SqPerfCounterCtrl.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl, 0, pCmdSpace);
         }
 
         // Setup the reset for the memory blocks.

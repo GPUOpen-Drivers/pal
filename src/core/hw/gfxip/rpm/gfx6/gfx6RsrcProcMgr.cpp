@@ -2373,10 +2373,11 @@ void RsrcProcMgr::InitMaskRam(
 
     // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
     // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
-    if (dstImage.HasDccStateMetaData()         ||
-        dstImage.HasFastClearMetaData()        ||
-        dstImage.HasWaTcCompatZRangeMetaData() ||
-        dstImage.HasFastClearEliminateMetaData())
+    if (pCmdBuffer->IsGraphicsSupported() &&
+        (dstImage.HasDccStateMetaData()         ||
+         dstImage.HasFastClearMetaData()        ||
+         dstImage.HasWaTcCompatZRangeMetaData() ||
+         dstImage.HasFastClearEliminateMetaData()))
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 

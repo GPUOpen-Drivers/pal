@@ -43,6 +43,10 @@ public:
     explicit GpuMemory(Device* pDevice);
     virtual ~GpuMemory();
 
+    virtual Result Init(
+        const GpuMemoryCreateInfo&         createInfo,
+        const GpuMemoryInternalCreateInfo& internalInfo) override;
+
     Result Init(
         const GpuMemoryCreateInfo&         createInfo,
         const GpuMemoryInternalCreateInfo& internalInfo,
@@ -57,12 +61,20 @@ public:
     amdgpu_bo_handle SurfaceHandle() const { return m_hSurface; }
     void             SetVaRangeHandle(amdgpu_va_handle hVaRange) { m_hVaRange = hVaRange; }
     amdgpu_va_handle VaRangeHandle() const { return m_hVaRange; }
+
+    void             SetMarkerHandle(amdgpu_bo_handle hBuffer) { m_hMarker = hBuffer; }
+    amdgpu_bo_handle MarkerHandle() const { return m_hMarker; }
+    void             SetMarkerVaRangeHandle(amdgpu_va_handle hVaRange) { m_hMarkerVa = hVaRange; }
+    amdgpu_va_handle MarkerVaRangeHandle() const { return m_hMarkerVa; }
+
     void             SetOffset(uint64 offset) { m_offset = offset; }
     uint64           Offset() const { return m_offset; }
 
     void GetHeapsInfo(uint32* pHeapCount, GpuHeap** ppHeaps) const;
 
     bool IsVmAlwaysValid() const { return m_isVmAlwaysValid; }
+
+    Result QuerySdiBusAddress();
 
 protected:
     virtual Result AllocateOrPinMemory(
@@ -81,12 +93,15 @@ protected:
         gpusize baseVirtAddr,
         gpusize size,
         gpusize align,
-        bool commitCpuVa) { return Result::ErrorUnavailable; }
-    virtual Result FreeSvmVirtualAddress() { return Result::ErrorUnavailable; }
+        bool commitCpuVa) override { return Result::ErrorUnavailable; }
+    virtual Result FreeSvmVirtualAddress() override { return Result::ErrorUnavailable; }
 
 private:
     amdgpu_bo_handle m_hSurface; // Handle of allocated memory.
     amdgpu_va_handle m_hVaRange; // Handle of allocated va range.
+
+    amdgpu_bo_handle m_hMarker; // Handle of marker.
+    amdgpu_va_handle m_hMarkerVa; // Handle of marker va range.
 
     uint64           m_offset;   // Offset in buffer object bound. It's only meaningful when it's a virtual gpu memroy.
 

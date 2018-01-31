@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "protocols/ddURIClient.h"
+#include "protocols/ddURIProtocol.h"
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 
@@ -34,6 +35,19 @@ namespace DevDriver
 {
     namespace URIProtocol
     {
+        static constexpr URIDataFormat ResponseFormatToUriFormat(ResponseDataFormat format)
+        {
+            static_assert(static_cast<uint32>(ResponseDataFormat::Unknown) == static_cast<uint32>(URIDataFormat::Unknown),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Text) == static_cast<uint32>(URIDataFormat::Text),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Binary) == static_cast<uint32>(URIDataFormat::Binary),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            static_assert(static_cast<uint32>(ResponseDataFormat::Count) == static_cast<uint32>(URIDataFormat::Count),
+                          "ResponseDataFormat and URIDataFormat no longer match");
+            return static_cast<URIDataFormat>(format);
+        }
+
         // =====================================================================================================================
         URIClient::URIClient(IMsgChannel* pMsgChannel)
             : BaseProtocolClient(pMsgChannel, Protocol::URI, URI_CLIENT_MIN_MAJOR_VERSION, URI_CLIENT_MAX_MAJOR_VERSION)
@@ -68,46 +82,37 @@ namespace DevDriver
                 if ((result == Result::Success) && (payload.command == URIMessage::URIResponse))
                 {
                     // Set up some defaults for the response fields.
-                    TransferProtocol::BlockId remoteBlockId = TransferProtocol::kInvalidBlockId;
-                    ResponseDataFormat responseDataFormat = ResponseDataFormat::Unknown;
+                    URIDataFormat responseDataFormat = URIDataFormat::Text;
 
                     // We've successfully received the response. Extract the relevant fields from the response.
-                    if (m_pSession->GetVersion() < URI_RESPONSE_FORMATS_VERSION)
-                    {
-                        const URIResponsePayload& responsePayload = payload.uriResponse;
-                        result                                    = responsePayload.result;
-                        remoteBlockId                             = responsePayload.blockId;
+                    const URIResponsePayload& responsePayload = payload.uriResponse;
+                    const TransferProtocol::BlockId remoteBlockId = responsePayload.blockId;
+                    result = responsePayload.result;
 
-                        // Default to text responses for the older version of the protocol.
-                        responseDataFormat = ResponseDataFormat::Text;
-                    }
-                    else
+                    if (m_pSession->GetVersion() >= URI_RESPONSE_FORMATS_VERSION)
                     {
-                        const URIResponsePayloadV2& responsePayload = payload.uriResponseV2;
-                        result                                      = responsePayload.result;
-                        remoteBlockId                               = responsePayload.blockId;
-                        responseDataFormat                          = responsePayload.format;
+                        responseDataFormat = ResponseFormatToUriFormat(responsePayload.format);
                     }
 
                     if (result == Result::Success)
                     {
-                        // Attempt to open the remote block containing the response data.
-                        TransferProtocol::RemoteBlock* pRemoteBlock =
-                            m_pMsgChannel->GetTransferManager().OpenRemoteBlock(GetRemoteClientId(), remoteBlockId);
+                        // Attempt to open the pull block containing the response data.
+                        TransferProtocol::PullBlock* pPullBlock =
+                            m_pMsgChannel->GetTransferManager().OpenPullBlock(GetRemoteClientId(), remoteBlockId);
 
-                        if (pRemoteBlock != nullptr)
+                        if (pPullBlock != nullptr)
                         {
                             // We successfully opened the block. Return the block data size and format via the header.
                             // The header is optional so check for nullptr first.
                             if (pResponseHeader != nullptr)
                             {
-                                pResponseHeader->responseDataSizeInBytes = pRemoteBlock->GetBlockDataSize();
+                                pResponseHeader->responseDataSizeInBytes = pPullBlock->GetBlockDataSize();
                                 pResponseHeader->responseDataFormat      = responseDataFormat;
                             }
 
                             // Set up internal state.
                             m_context.state = State::ReadResponse;
-                            m_context.pBlock = pRemoteBlock;
+                            m_context.pBlock = pPullBlock;
                         }
                         else
                         {
@@ -175,7 +180,7 @@ namespace DevDriver
                     (result == Result::Error))
                 {
                     m_context.state = State::Idle;
-                    m_pMsgChannel->GetTransferManager().CloseRemoteBlock(&m_context.pBlock);
+                    m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
                 }
             }
 
@@ -190,7 +195,7 @@ namespace DevDriver
             if (m_context.state == State::ReadResponse)
             {
                 m_context.state = State::Idle;
-                m_pMsgChannel->GetTransferManager().CloseRemoteBlock(&m_context.pBlock);
+                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
 
                 result = Result::Success;
             }
@@ -201,10 +206,10 @@ namespace DevDriver
         // =====================================================================================================================
         void URIClient::ResetState()
         {
-            // Close the remote block if it's still valid.
+            // Close the pull block if it's still valid.
             if (m_context.pBlock != nullptr)
             {
-                m_pMsgChannel->GetTransferManager().CloseRemoteBlock(&m_context.pBlock);
+                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
             }
 
             memset(&m_context, 0, sizeof(m_context));

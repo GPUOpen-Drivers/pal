@@ -32,14 +32,13 @@
 #pragma once
 
 #include "baseProtocolServer.h"
-#include "protocols/systemProtocols.h"
 #include "util/vector.h"
+#include "ddUriInterface.h"
 
 namespace DevDriver
 {
     namespace URIProtocol
     {
-        class URIService;
 
         // The protocol server implementation for the uri protocol.
         class URIServer : public BaseProtocolServer
@@ -56,22 +55,22 @@ namespace DevDriver
             void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
 
             // Adds a service to the list of registered server.
-            Result RegisterService(URIService* pService);
+            Result RegisterService(IService* pService);
 
             // Removes a service from the list of registered server.
-            Result UnregisterService(URIService* pService);
+            Result UnregisterService(IService* pService);
 
         private:
             // Returns a pointer to a service that was registered with a name that matches pServiceName.
             // Returns nullptr if there is no service registered with a matching name.
-            URIService* FindService(const char* pServiceName);
+            IService* FindService(const char* pServiceName);
 
             // Mutex used for synchronizing the registered services list.
             Platform::Mutex m_mutex;
 
             // A list of all the registered services.
             // @todo: Replace this vector with a map.
-            Vector<URIService*, 8> m_registeredServices;
+            Vector<IService*, 8> m_registeredServices;
         };
     }
 } // DevDriver

@@ -141,7 +141,7 @@ public:
         { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
 
 #if PAL_BUILD_GPUOPEN
-    DevDriver::DevDriverServer* GetDevDriverServer() { return m_pDevDriverServer; }
+    virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;

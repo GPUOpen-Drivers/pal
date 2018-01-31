@@ -110,7 +110,7 @@ namespace DevDriver
             {
                 case SessionState::ReceivePayload:
                 {
-                    const Result result = pSessionData->ReceivePayload(&pSessionData->scratchPayload, kNoWait);
+                    const Result result = pSession->ReceivePayload(&pSessionData->scratchPayload, kNoWait);
 
                     if (result == Result::Success)
                     {
@@ -149,8 +149,8 @@ namespace DevDriver
 
                 case SessionState::ProcessPayload:
                 {
-                    LoggingHeader* pHeader = reinterpret_cast<LoggingHeader*>(pSessionData->scratchPayload.payload);
-                    switch (pHeader->command)
+                    SizedPayloadContainer& container = pSessionData->scratchPayload;
+                    switch (container.GetPayload<LoggingHeader>().command)
                     {
                         case LoggingMessage::QueryCategoriesRequest:
                         {
@@ -158,12 +158,7 @@ namespace DevDriver
                             const uint32 numCategories = (m_numCategories <= kMaxCategoryCount) ? m_numCategories : 0;
                             UnlockData();
 
-                            QueryCategoriesNumResponsePayload* pResponse = static_cast<QueryCategoriesNumResponsePayload*>(pHeader);
-                            pResponse->command                           = LoggingMessage::QueryCategoriesNumResponse;
-                            pResponse->numCategories                     = numCategories;
-
-                            pSessionData->scratchPayload.payloadSize = static_cast<uint32>(sizeof(QueryCategoriesNumResponsePayload));
-
+                            container.CreatePayload<QueryCategoriesNumResponsePayload>(numCategories);
                             pSessionData->state = SessionState::SendCategoriesNumResponse;
 
                             break;
@@ -171,20 +166,13 @@ namespace DevDriver
 
                         case LoggingMessage::EnableLoggingRequest:
                         {
-                            EnableLoggingRequestPayload* pRequest = static_cast<EnableLoggingRequestPayload*>(pHeader);
-
                             DD_PRINT(LogLevel::Debug, "Starting Logging!");
                             LockData();
-                            pSessionData->filter         = pRequest->filter;
+                            pSessionData->filter         = container.GetPayload<EnableLoggingRequestPayload>().filter;
                             pSessionData->loggingEnabled = true;
                             UnlockData();
 
-                            EnableLoggingResponsePayload* pResponse = static_cast<EnableLoggingResponsePayload*>(pHeader);
-                            pResponse->command                      = LoggingMessage::EnableLoggingResponse;
-                            pResponse->result                       = Result::Success;
-
-                            pSessionData->scratchPayload.payloadSize = static_cast<uint32>(sizeof(EnableLoggingResponsePayload));
-
+                            container.CreatePayload<EnableLoggingResponsePayload>(Result::Success);
                             pSessionData->state = SessionState::SendPayload;
                             break;
                         }
@@ -201,10 +189,7 @@ namespace DevDriver
                             SizedPayloadContainer* pPayload = pSessionData->messages.AllocateBack();
                             if (pPayload != nullptr)
                             {
-                                LoggingHeader* pResponse = reinterpret_cast<LoggingHeader*>(pPayload->payload);
-                                pResponse->command       = LoggingMessage::LogMessageSentinel;
-
-                                pPayload->payloadSize = static_cast<uint32>(sizeof(LoggingHeader));
+                                pPayload->CreatePayload<LoggingHeader>(LoggingMessage::LogMessageSentinel);
                             }
                             DD_PRINT(LogLevel::Debug, "Inserted logging sentinel");
 
@@ -296,28 +281,15 @@ namespace DevDriver
                                     pSessionData->itemIndex++;
                                 }
 
-                                QueryCategoriesDataResponsePayload* pResponse =
-                                    reinterpret_cast<QueryCategoriesDataResponsePayload*>(pSessionData->scratchPayload.payload);
-                                pResponse->command = LoggingMessage::QueryCategoriesDataResponse;
-
-                                LockData();
-                                const NamedLoggingCategory* pCategory = &m_categories[pSessionData->itemIndex];
-                                const size_t categoryNameSize = strlen(pCategory->name) + 1;
-                                const uint32 payloadSize =
-                                    static_cast<uint32>(kQueryCategoriesDataPayloadNameOffset + categoryNameSize);
-                                memcpy(&pResponse->category,
-                                       pCategory,
-                                       payloadSize);
-                                UnlockData();
-
-                                // Clamp the max string size if this is a back-compat session.
                                 const Version sessionVersion = pSession->GetVersion();
-                                if (sessionVersion < LOGGING_LARGE_MESSAGES_VERSION)
-                                {
-                                    pResponse->category.name[kMaxStringLength - 1] = '\0';
-                                }
-
-                                pSessionData->scratchPayload.payloadSize = payloadSize;
+                                LockData();
+                                const NamedLoggingCategory& category = m_categories[pSessionData->itemIndex];
+                                const size_t categoryNameSize = strlen(category.name) + 1;
+                                QueryCategoriesDataResponsePayload::WritePayload(m_categories[pSessionData->itemIndex],
+                                                                                 sessionVersion,
+                                                                                 categoryNameSize,
+                                                                                 &pSessionData->scratchPayload);
+                                UnlockData();
                             }
                         }
                         else
@@ -347,28 +319,15 @@ namespace DevDriver
                                 {
                                 }
 
-                                QueryCategoriesDataResponsePayload* pResponse =
-                                    reinterpret_cast<QueryCategoriesDataResponsePayload*>(pSessionData->scratchPayload.payload);
-                                pResponse->command = LoggingMessage::QueryCategoriesDataResponse;
-
-                                LockData();
-                                const NamedLoggingCategory* pCategory = &m_categories[pSessionData->itemIndex];
-                                const size_t categoryNameSize = strlen(pCategory->name) + 1;
-                                const uint32 payloadSize =
-                                    static_cast<uint32>(kQueryCategoriesDataPayloadNameOffset + categoryNameSize);
-                                memcpy(&pResponse->category,
-                                       pCategory,
-                                       payloadSize);
-                                UnlockData();
-
-                                // Clamp the max string size if this is a back-compat session.
                                 const Version sessionVersion = pSession->GetVersion();
-                                if (sessionVersion < LOGGING_LARGE_MESSAGES_VERSION)
-                                {
-                                    pResponse->category.name[kMaxStringLength - 1] = '\0';
-                                }
-
-                                pSessionData->scratchPayload.payloadSize = payloadSize;
+                                LockData();
+                                const NamedLoggingCategory& category = m_categories[pSessionData->itemIndex];
+                                const size_t categoryNameSize = strlen(category.name) + 1;
+                                QueryCategoriesDataResponsePayload::WritePayload(m_categories[pSessionData->itemIndex],
+                                                                                 sessionVersion,
+                                                                                 categoryNameSize,
+                                                                                 &pSessionData->scratchPayload);
+                                UnlockData();
                             }
                             else
                             {
@@ -489,49 +448,35 @@ namespace DevDriver
             if (m_activeSessions.Size() > 0)
             {
                 // define the filter out here so we just copy it into destination messages
-                LoggingFilter filter = {};
-                filter.priority = priority;
-                filter.category = category;
+                LogMessage message = {};
+                message.filter.priority = priority;
+                message.filter.category = category;
+                Platform::Vsnprintf(message.message,
+                                    sizeof(LogMessage::message),
+                                    pFormat,
+                                    args);
+                // Calculate the message size (including the null terminator).
+                const size_t messageSize = strlen(message.message) + 1;
 
-                for (auto &session : m_activeSessions)
+                for (auto& pSessionData : m_activeSessions)
                 {
-                    const LoggingFilter &currentFilter = session->filter;
+                    const LoggingFilter& currentFilter = pSessionData->filter;
                     const bool sendMessage = (currentFilter.priority <= priority) &
-                        ((currentFilter.category & category) != 0);
+                                             ((currentFilter.category & category) != 0);
 
                     // if the session has logging enabled and the message satisfies the filter of the session
-                    if ((session->loggingEnabled) & sendMessage)
+                    if ((pSessionData->loggingEnabled) & sendMessage)
                     {
-                        // allocate a message and Snprintf it into the buffer
-                        // todo: figure out a way to reuse the message so we don't have to call
-                        // sprintf for every message. this might not be an issue in practice -
-                        // as it stands, if the message is filtered out by all sessions it never calls
-                        // Snprintf
-                        SizedPayloadContainer* pPayloadContainer = session->messages.AllocateBack();
+                        const Version sessionVersion = pSessionData->pSession->GetVersion();
+
+                        // Allocate a message and copy the message into the buffer of all sessions
+                        SizedPayloadContainer* pPayloadContainer = pSessionData->messages.AllocateBack();
                         if (pPayloadContainer != nullptr)
                         {
-                            LogMessagePayload* pPayload = reinterpret_cast<LogMessagePayload*>(pPayloadContainer->payload);
-                            pPayload->command           = LoggingMessage::LogMessage;
-                            pPayload->message.filter    = filter;
-
-                            // Clamp the max string size based on the session version for back-compat.
-                            const Version sessionVersion = session->pSession->GetVersion();
-                            const size_t maxStringSize =
-                                (sessionVersion >= LOGGING_LARGE_MESSAGES_VERSION) ? sizeof(LogMessage::message)
-                                                                                   : kMaxStringLength;
-
-                            Platform::Vsnprintf(pPayload->message.message,
-                                                maxStringSize,
-                                                pFormat,
-                                                args);
-
-                            // Calculate the message size (including the null terminator).
-                            const size_t messageSize = strlen(pPayload->message.message) + 1;
-
-                            // Calculate the total size of the log message payload.
-                            const uint32 payloadSize =
-                                static_cast<uint32>(kLogMessagePayloadMessageOffset + messageSize);
-                            pPayloadContainer->payloadSize = payloadSize;
+                            LogMessagePayload::WritePayload(message,
+                                                            sessionVersion,
+                                                            messageSize,
+                                                            pPayloadContainer);
                         }
                     }
                 }
@@ -558,10 +503,5 @@ namespace DevDriver
 
             return pSession->Send(payloadSize, pPayload->payload, timeoutInMs);
         }
-
-        Result LoggingSession::ReceivePayload(SizedPayloadContainer* pPayload, uint32 timeoutInMs)
-        {
-            return pSession->Receive(sizeof(pPayload->payload), pPayload->payload, &pPayload->payloadSize, timeoutInMs);
-        }
-}
+    }
 } // DevDriver

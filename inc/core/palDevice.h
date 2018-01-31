@@ -1117,7 +1117,13 @@ struct DeviceProperties
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
 
-        bool   supportProSemaphore; ///< Support export/import semaphore in linux KMD.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 378
+        bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
+        bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
+#else
+        bool   supportProSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
         bool   supportQueuePriority;        ///< Support create queue with priority
         bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority

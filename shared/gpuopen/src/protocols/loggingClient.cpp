@@ -93,20 +93,20 @@ namespace DevDriver
 
             if (IsConnected() && IsIdle())
             {
+                LoggingFilter filter = {};
+                filter.priority = priority;
+                filter.category = categoryMask;
+
                 SizedPayloadContainer container = {};
-                EnableLoggingRequestPayload* pRequestPayload = reinterpret_cast<EnableLoggingRequestPayload*>(container.payload);
-                pRequestPayload->command = LoggingMessage::EnableLoggingRequest;
-                pRequestPayload->filter.priority = priority;
-                pRequestPayload->filter.category = categoryMask;
-                container.payloadSize = sizeof(EnableLoggingRequestPayload);
+                container.CreatePayload<EnableLoggingRequestPayload>(filter);
 
                 result = TransactLoggingPayload(&container);
                 if (result == Result::Success)
                 {
-                    const EnableLoggingResponsePayload* pResponsePayload = reinterpret_cast<const EnableLoggingResponsePayload*>(container.payload);
-                    if (pResponsePayload->command == LoggingProtocol::LoggingMessage::EnableLoggingResponse)
+                    const EnableLoggingResponsePayload& response = container.GetPayload<EnableLoggingResponsePayload>();
+                    if (response.header.command == LoggingProtocol::LoggingMessage::EnableLoggingResponse)
                     {
-                        result = pResponsePayload->result;
+                        result = response.result;
 
                         if (result == Result::Success)
                         {

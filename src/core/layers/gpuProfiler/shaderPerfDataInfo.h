@@ -42,11 +42,11 @@ struct ShaderHash
     uint64_t upper;   ///< Upper 64-bits of hash
 };
 
+static constexpr Version HeaderVersion = { 1, 0 };
+
 // Header for the performance data file for offline parsing and analysis.
 struct PerformanceDataHeader
 {
-    static constexpr Version HeaderVersion = { 1, 0 };
-
     Version     version;          // Current version of this header structure.
     char        apiShaderType[3]; // Two character string representing the API shader type, plus null terminator.
     ShaderHash  shaderHash;       // 128-bit hash for this shader.

@@ -233,7 +233,7 @@ Device::Device(
     m_maxSemaphoreCount(maxSemaphoreCount),
     m_frameCnt(0),
     m_texOptLevel(ImageTexOptLevel::Default),
-    m_hdrColorspaceFormat(ScreenColorSpace::Undefined)
+    m_hdrColorspaceFormat(ScreenColorSpace::TfUndefined)
 {
     // Note that this is just to depress buffer overrun warning/error caught by static code analysis, i.e., Buffer
     // overrun while writing to 'm_gdsInfo[0]':  the writable size is '16' bytes, but '64' bytes might be written.
@@ -4065,10 +4065,17 @@ void Device::ApplyDevOverlay(
     // If the setting is enabled, display a visual confirmation of HDR Mode
     if (Settings().overlayReportHDR)
     {
+        static const uint32 HdrMask = ScreenColorSpace::TfPq2084      |
+                                      ScreenColorSpace::CsBt2020      |
+                                      ScreenColorSpace::CsDolbyVision |
+                                      ScreenColorSpace::CsAdobe       |
+                                      ScreenColorSpace::CsDciP3       |
+                                      ScreenColorSpace::CsScrgb;
+
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
                        "HDR %s - Colorspace Format: %u",
-                       (m_hdrColorspaceFormat >= ScreenColorSpace::HDR_unknown) ? "Enabled" : "Disabled",
+                       ((m_hdrColorspaceFormat & HdrMask) != 0) ? "Enabled" : "Disabled",
                        m_hdrColorspaceFormat);
 
         m_pTextWriter->DrawDebugText(dstImage,

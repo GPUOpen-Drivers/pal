@@ -62,29 +62,34 @@ namespace DevDriver
 
         struct LoggingSession
         {
-            SharedPointer<ISession> pSession;
-            SessionState state;
-            bool loggingEnabled;
-            Queue<SizedPayloadContainer, 32> messages;
             SizedPayloadContainer scratchPayload;
+            SharedPointer<ISession> pSession;
+            Queue<SizedPayloadContainer, 32> messages;
             uint32 itemIndex;
             uint32 numItems;
             LoggingFilter filter;
+            SessionState state;
+            bool loggingEnabled;
 
             explicit LoggingSession(const AllocCb& allocCb, const SharedPointer<ISession>& pSession)
-                : pSession(pSession)
-                , state()
-                , loggingEnabled(false)
+                : scratchPayload()
+                , pSession(pSession)
                 , messages(allocCb)
-                , scratchPayload()
-                , itemIndex()
-                , numItems()
+                , itemIndex(0)
+                , numItems(0)
                 , filter()
-                {}
+                , state(SessionState::ReceivePayload)
+                , loggingEnabled(false)
+            {
+                memset(&scratchPayload, 0, sizeof(scratchPayload));
+                // Default to all messages enabled.
+
+                filter.priority = LogLevel::Error;
+                filter.category = kAllLoggingCategories;
+            }
 
             // Helper functions for working with SizedPayloadContainers and managing back-compat.
             Result SendPayload(const SizedPayloadContainer* pPayload, uint32 timeoutInMs);
-            Result ReceivePayload(SizedPayloadContainer* pPayload, uint32 timeoutInMs);
         };
 
         class LoggingServer : public BaseProtocolServer

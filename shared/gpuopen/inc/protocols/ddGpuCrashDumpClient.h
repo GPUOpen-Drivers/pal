@@ -40,7 +40,7 @@ namespace DevDriver
 
     namespace TransferProtocol
     {
-        class LocalBlock;
+        class ServerBlock;
     }
 
     namespace GpuCrashDumpProtocol

@@ -58,7 +58,7 @@ namespace DevDriver
         Result Destroy();
 
         // Creates a session with the specified remote client, using the provided protocol client.
-        Result EstablishSession(ClientId dstClientId, IProtocolClient* pClient);
+        Result EstablishSessionForClient(IProtocolClient& protocolClient, ClientId dstClientId);
 
         // Process a session message.
         void HandleReceivedSessionMessage(const MessageBuffer& messageBuffer);

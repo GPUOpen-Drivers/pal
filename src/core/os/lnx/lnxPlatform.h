@@ -36,13 +36,6 @@ struct PlatformCreateInfo;
 namespace Linux
 {
 
-enum class SemaphoreType : uint32
-{
-    Legacy   = 1 << 0,
-    ProOnly  = 1 << 1,
-    SyncObj  = 1 << 2,
-};
-
 // =====================================================================================================================
 // Linux flavor of the Platform singleton. The responsibilities of the OS-specific Platform classes are interacting
 // with the OS and kernel-mode drivers. On Linux, this includes managing access to the X server powered by the GPU's
@@ -76,8 +69,8 @@ public:
     bool              CheckDtifStatus();
 
     bool  IsQueuePrioritySupported() const { return m_features.supportQueuePriority == 1; }
-
-    int32 GetSupportedSemaphoreTypes() const;
+    bool  IsProSemaphoreSupported()  const { return m_features.supportProSemaphore  == 1; }
+    bool  IsSyncObjectSupported()    const { return m_features.supportSyncObj       == 1; }
 protected:
     virtual Result InitProperties() override;
     virtual Result ConnectToOsInterface() override;

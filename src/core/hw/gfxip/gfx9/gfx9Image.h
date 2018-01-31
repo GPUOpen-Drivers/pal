@@ -275,9 +275,9 @@ public:
 
     virtual ImageType GetOverrideImageType() const override;
 
-    virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const;
+    virtual gpusize GetAspectBaseAddr(ImageAspect  aspect) const override;
 
-    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const;
+    virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
 
     gpusize GetMipAddr(SubresId subresId) const;
 

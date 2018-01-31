@@ -29,7 +29,7 @@
 #include <string.h>
 
 #define RGP_CLIENT_MIN_MAJOR_VERSION 2
-#define RGP_CLIENT_MAX_MAJOR_VERSION 5
+#define RGP_CLIENT_MAX_MAJOR_VERSION 6
 
 namespace DevDriver
 {
@@ -74,6 +74,30 @@ namespace DevDriver
                     payload.executeTraceRequestV3.parameters.gpuMemoryLimitInMb = traceInfo.parameters.gpuMemoryLimitInMb;
                     payload.executeTraceRequestV3.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;
                     payload.executeTraceRequestV3.parameters.flags.u32All = traceInfo.parameters.flags.u32All;
+                }
+                else if (GetSessionVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                {
+                    payload.executeTraceRequestV4.parameters.gpuMemoryLimitInMb = traceInfo.parameters.gpuMemoryLimitInMb;
+                    payload.executeTraceRequestV4.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;
+                    payload.executeTraceRequestV4.parameters.flags.u32All = traceInfo.parameters.flags.u32All;
+
+                    payload.executeTraceRequestV4.parameters.beginTagLow =
+                        static_cast<uint32>(traceInfo.parameters.beginTag & 0xFFFFFFFF);
+                    payload.executeTraceRequestV4.parameters.beginTagHigh =
+                        static_cast<uint32>((traceInfo.parameters.beginTag >> 32) & 0xFFFFFFFF);
+
+                    payload.executeTraceRequestV4.parameters.endTagLow =
+                        static_cast<uint32>(traceInfo.parameters.endTag & 0xFFFFFFFF);
+                    payload.executeTraceRequestV4.parameters.endTagHigh =
+                        static_cast<uint32>((traceInfo.parameters.endTag >> 32) & 0xFFFFFFFF);
+
+                    Platform::Strncpy(payload.executeTraceRequestV4.parameters.beginMarker,
+                                      traceInfo.parameters.beginMarker,
+                                      sizeof(payload.executeTraceRequestV4.parameters.beginMarker));
+
+                    Platform::Strncpy(payload.executeTraceRequestV4.parameters.endMarker,
+                                      traceInfo.parameters.endMarker,
+                                      sizeof(payload.executeTraceRequestV4.parameters.endMarker));
                 }
                 else
                 {

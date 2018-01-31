@@ -76,7 +76,7 @@ namespace DevDriver
      */
     template<typename Key,
         typename Value,
-        size_t NumBuckets,
+        size_t NumBuckets = (sizeof(Key) * 8),
         template<typename> class HashFunc = DefaultHashFunc,
         template<typename> class EqualFunc = DefaultEqualFunc>
         class HashMap : public HashBase<Key, HashMapEntry<Key, Value>, HashFunc<Key>, EqualFunc<Key>, NumBuckets>
@@ -168,8 +168,9 @@ namespace DevDriver
         ///                       that a new entry was allocated as a result of this call.
         /// @returns @ref Readable/writeable value in the hash map corresponding to the specified key, or null if
         ///                       the value didn't exist and an allocation could not be created.
-        Value* FindAllocate(const Key& key,
-                            bool*      pExisted)  // [out] True if a matching key was found.
+        template<typename U = Value, typename = typename Platform::EnableIf<Platform::IsPod<U>::Value>::Type>
+        U* FindAllocate(const Key& key,
+                        bool*      pExisted)  // [out] True if a matching key was found.
         {
             Entry* pEntry = Base::FindOrAllocate(key, pExisted);
             return (pEntry != nullptr) ? &(pEntry->value) : nullptr;
@@ -185,12 +186,16 @@ namespace DevDriver
         template <class... Args>
         Result Insert(const Key& key, Args&&... args)
         {
-            Entry* pEntry = Base::FindOrAllocate(key);
-
+            bool   existed = true;
+            Entry* pEntry = Base::FindOrAllocate(key, &existed);
             // Ensure that that it found or allocated memory, and update the value.
             if (pEntry != nullptr)
             {
-                pEntry->value = Value(Platform::Forward<Args>(args)...);
+                if (existed)
+                {
+                    pEntry->value.~Value();
+                }
+                new(&pEntry->value) Value(Platform::Forward<Args>(args)...);
             }
             return (pEntry != nullptr) ? Result::Success : Result::InsufficientMemory;
         }
@@ -218,7 +223,7 @@ namespace DevDriver
             {
                 if (existed == false)
                 {
-                    pEntry->value = Value(Platform::Forward<Args>(args)...);
+                    new(&pEntry->value) Value(Platform::Forward<Args>(args)...);
                     result = Result::Success;
                 }
                 else
@@ -239,7 +244,7 @@ namespace DevDriver
         /// @returns Reference to the value field associated with the key.
         Value& operator[](const Key& key)
         {
-            Entry* pEntry = Base::FindOrAllocate(key);
+            Entry* pEntry = FindOrCreate(key);
             DD_ASSERT(pEntry != nullptr);
             return pEntry->value;
         }
@@ -280,10 +285,31 @@ namespace DevDriver
         {
             return Iterator(this, static_cast<uint32>(Base::kPaddedNumBuckets));
         }
-    private:
+
+    protected:
         // Typedef for the specialized 'HashBase' object we're inheriting from so we can use properly qualified names when
         // accessing members of HashBase.
         using Base = HashBase<Key, Entry, HashFunc<Key>, EqualFunc<Key>, NumBuckets>;
+
+        /// Finds an existing element, or allocates and constructs one to take it's place
+        ///
+        /// @param [in] key Key that you want to retrieve or create.
+        ///
+        /// @returns A pointer to the value that matches the specified key or null if an entry for the key does not
+        ///          exist.
+        template<typename... Args,
+                 typename = typename Platform::EnableIf<Platform::IsConstructible<Value, Args...>::Value>::Type>
+        Entry* FindOrCreate(const Key& key, Args&&... args)
+        {
+            bool   existed = true;
+            Entry* pEntry = Base::FindOrAllocate(key, &existed);
+            // Ensure that that it found or allocated memory, and update the value.
+            if ((pEntry != nullptr) && !existed)
+            {
+                new(&pEntry->value) Value(Platform::Forward<Args>(args)...);
+            }
+            return pEntry;
+        }
     };
 
     // Class declaration for HashMap::Iterator

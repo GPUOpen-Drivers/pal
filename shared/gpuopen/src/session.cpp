@@ -41,26 +41,26 @@ using namespace DevDriver::Platform;
 namespace DevDriver
 {
 #if defined(DEVDRIVER_SHOW_SYMBOLS)
-    static_assert(static_cast<uint32>(SessionState::Unknown) == 0, "Unexpected SessionState::Listening value.");
-    static_assert(static_cast<uint32>(SessionState::SynSent) == 1, "Unexpected SessionState::SynSent value.");
-    static_assert(static_cast<uint32>(SessionState::SynReceived) == 2, "Unexpected SessionState::SynReceived value.");
-    static_assert(static_cast<uint32>(SessionState::Established) == 3, "Unexpected SessionState::Established value.");
-    static_assert(static_cast<uint32>(SessionState::FinWait1) == 4, "Unexpected SessionState::FinWait1 value.");
-    static_assert(static_cast<uint32>(SessionState::Closing) == 5, "Unexpected SessionState::Closing value.");
-    static_assert(static_cast<uint32>(SessionState::FinWait2) == 6, "Unexpected SessionState::FinWait2 value.");
-    static_assert(static_cast<uint32>(SessionState::Closed) == 7, "Unexpected SessionState::Closed value.");
+    static_assert(static_cast<uint32>(SessionState::Closed) == 0, "Unexpected SessionState::Closed value.");
+    static_assert(static_cast<uint32>(SessionState::Listening) == 1, "Unexpected SessionState::Listening value.");
+    static_assert(static_cast<uint32>(SessionState::SynSent) == 2, "Unexpected SessionState::SynSent value.");
+    static_assert(static_cast<uint32>(SessionState::SynReceived) == 3, "Unexpected SessionState::SynReceived value.");
+    static_assert(static_cast<uint32>(SessionState::Established) == 4, "Unexpected SessionState::Established value.");
+    static_assert(static_cast<uint32>(SessionState::FinWait1) == 5, "Unexpected SessionState::FinWait1 value.");
+    static_assert(static_cast<uint32>(SessionState::Closing) == 6, "Unexpected SessionState::Closing value.");
+    static_assert(static_cast<uint32>(SessionState::FinWait2) == 7, "Unexpected SessionState::FinWait2 value.");
     static_assert(static_cast<uint32>(SessionState::Count) == 8, "Unexpected SessionState::Count value.");
 
     DD_STATIC_CONST const char* kStateName[static_cast<uint32>(SessionState::Count)] =
     {
-        "Unknown",          // Unknown
+        "Closed",           // Closed
+        "Listening",        // Listening
         "SynSent",          // SynSent
         "SynReceived",      // SynReceived
         "Established",      // Established
         "FinWait1",         // FinWait1
         "Closing",          // Closing
         "FinWait2",         // FinWait2
-        "Closed",           // Closed
     };
 #endif
 
@@ -72,22 +72,17 @@ namespace DevDriver
     DD_STATIC_CONST float kMaxRetransmitDelay = 2000.0f;
     DD_STATIC_CONST uint32 kMaxUnacknowledgedThreshold = 5;
 
-    Session::Session(IMsgChannel* pMsgChannel,
-                     IProtocolSession* pSessionOwner,
-                     SessionVersion sessionVersion,
-                     Version protocolVersion,
-                     SessionId sessionId,
-                     ClientId remoteClientId) :
+    Session::Session(IMsgChannel* pMsgChannel) :
         m_pMsgChannel(pMsgChannel),
-        m_pProtocolOwner(pSessionOwner),
+        m_pProtocolOwner(nullptr),
         m_pSessionUserdata(nullptr),
         m_clientId(pMsgChannel->GetClientId()),
-        m_remoteClientId(remoteClientId),
-        m_sessionId(sessionId),
-        m_sessionState(SessionState::Unknown),
+        m_remoteClientId(kBroadcastClientId),
+        m_sessionId(kInvalidSessionId),
+        m_sessionState(SessionState::Closed),
         m_sessionTerminationReason(Result::Success),
-        m_protocolVersion(protocolVersion),
-        m_sessionVersion(Platform::Min(sessionVersion, kSessionProtocolVersion))
+        m_protocolVersion(0),
+        m_sessionVersion(kSessionProtocolVersion)
     {
     }
 
@@ -104,7 +99,7 @@ namespace DevDriver
 
         if (sendResult != Result::Success)
         {
-            CloseSession(Result::Error);
+            Shutdown(Result::Error);
             result = false;
         }
         return result;
@@ -368,184 +363,69 @@ namespace DevDriver
         return result;
     }
 
-    Result Session::Connect()
+    Result Session::Connect(IProtocolClient& owner,
+                            ClientId remoteClientId,
+                            SessionId sessionId)
     {
-        DD_ASSERT(m_pProtocolOwner->GetType() == SessionType::Client);
+        Result result = Result::Error;
 
-        // Write the payload data for a session request packet.
-        SynPayload payload = {};
-        payload.protocol       = m_pProtocolOwner->GetProtocol();
-        payload.minVersion     = m_pProtocolOwner->GetMinVersion();
-        payload.maxVersion     = m_pProtocolOwner->GetMaxVersion();
-        payload.sessionVersion = m_sessionVersion;
-        const Result result = WriteMessageIntoSendWindow(SessionMessage::Syn, sizeof(SynPayload), &payload, kInfiniteTimeout);
-
-        if (result == Result::Success)
+        // A session can only connect to a remote session if:
+        // 1) The provided object is indeed a Client object
+        // 2) The remote client ID provided is not a broadcast client ID
+        // 3) The session ID provided is not invalid
+        // 4) The session is in the closed state
+        if ((owner.GetType() == SessionType::Client) &&
+            (remoteClientId != kBroadcastClientId) &&
+            (sessionId != kInvalidSessionId) &&
+            (m_sessionState == SessionState::Closed))
         {
-            m_sessionState = SessionState::SynSent;
-            //printf("Transitioned session to state %s", STATE_NAMES[pSession->sessionStatus]);
+            m_pProtocolOwner = &owner;
+            m_remoteClientId = remoteClientId;
+            m_sessionId = sessionId;
+
+            // Write the payload data for a session request packet.
+            SynPayload payload = {};
+            payload.protocol = m_pProtocolOwner->GetProtocol();
+            payload.minVersion = m_pProtocolOwner->GetMinVersion();
+            payload.maxVersion = m_pProtocolOwner->GetMaxVersion();
+            payload.sessionVersion = m_sessionVersion;
+            result = WriteMessageIntoSendWindow(SessionMessage::Syn, sizeof(SynPayload), &payload, kInfiniteTimeout);
+
+            if (result == Result::Success)
+            {
+                SetState(SessionState::SynSent);
+            }
         }
         return result;
     }
 
-    void Session::HandleSynMessage(const MessageBuffer& messageBuffer)
+    Result Session::BindToServer(IProtocolServer& owner,
+                                ClientId remoteClientId,
+                                SessionVersion sessionVersion,
+                                Version protocolVersion,
+                                SessionId sessionId)
     {
-        DD_ASSERT(m_pProtocolOwner->GetType() == SessionType::Server);
+        Result result = Result::Error;
 
-        const SessionId& remoteSessionId = messageBuffer.header.sessionId;
-        const Sequence& receiveSequence = messageBuffer.header.sequence;
-
-        // Write the payload data for a session request packet.
-        SynAckPayload payload = {};
-        payload.initialSessionId = remoteSessionId;
-        payload.sequence         = receiveSequence;
-        payload.version          = m_protocolVersion;
-        payload.sessionVersion   = m_sessionVersion;
-        const Result result = WriteMessageIntoSendWindow(SessionMessage::SynAck,
-                                                         sizeof(SynAckPayload),
-                                                         &payload,
-                                                         kInfiniteTimeout);
-        if (result == Result::Success)
+        // We can only bind to a protocol server if:
+        // 1) The provided object is indeed a Server object
+        // 2) The remote client ID provided is not a broadcast client ID
+        // 3) The session ID provided is not invalid
+        // 4) The session is in the closed state
+        if ((owner.GetType() == SessionType::Server) &&
+            (remoteClientId != kBroadcastClientId) &&
+            (sessionId != kInvalidSessionId) &&
+            (m_sessionState == SessionState::Closed))
         {
-            m_sessionState = SessionState::SynReceived;
-            m_receiveWindow.nextUnreadSequence         = receiveSequence + 1;
-            m_receiveWindow.nextExpectedSequence       = receiveSequence + 1;
-            m_receiveWindow.lastUnacknowledgedSequence = receiveSequence + 1;
-            m_receiveWindow.currentAvailableSize       = m_receiveWindow.MaxAdvertizedSize();
+            m_pProtocolOwner = &owner;
+            m_remoteClientId = remoteClientId;
+            m_sessionVersion = Platform::Min(sessionVersion, kSessionProtocolVersion);
+            m_protocolVersion = protocolVersion;
+            m_sessionId = sessionId;
+            SetState(SessionState::Listening);
+            result = Result::Success;
         }
-        else
-        {
-            CloseSession(Result::Error);
-        }
-    }
-
-    void Session::HandleSynAckMessage(const MessageBuffer& messageBuffer)
-    {
-        switch (m_sessionState)
-        {
-            // These should not happen during normal operation, but in if they do we need to handle it
-            case SessionState::FinWait1:
-            case SessionState::FinWait2:
-            case SessionState::Closing:
-            // Established is the expected case here
-            case SessionState::Established:
-                MarkMessagesAsAcknowledged(messageBuffer.header.sequence);
-                break;
-            case SessionState::SynSent:
-            {
-                // A client has sent a response back from an earlier session request.
-                // Find the local session data.
-                DD_PRINT(LogLevel::Debug, "Received SYNACK");
-                // The local session data's remote client id should always match the sender's id.
-                const SynAckPayload* DD_RESTRICT pPayload = reinterpret_cast<const SynAckPayload*>(&messageBuffer.payload[0]);
-
-                MarkMessagesAsAcknowledged(pPayload->sequence);
-
-                m_sessionVersion = pPayload->sessionVersion;
-                DD_PRINT(LogLevel::Debug, "Established session with session version %u\n", m_sessionVersion);
-                DD_PRINT(LogLevel::Debug, "Acknowledging SYNACK packet %u", messageBuffer.header.sequence);
-
-                m_sessionState = SessionState::Established;
-
-                // Update our remote session id in the local session data.
-                m_sessionId = messageBuffer.header.sessionId;
-                if (pPayload->version != 0)
-                {
-                    m_protocolVersion = pPayload->version;
-                } else if (m_pProtocolOwner != nullptr)
-                {
-                    m_protocolVersion = m_pProtocolOwner->GetMinVersion();
-                }
-
-                m_receiveWindow.nextUnreadSequence         = messageBuffer.header.sequence + 1;
-                m_receiveWindow.nextExpectedSequence       = messageBuffer.header.sequence + 1;
-                m_receiveWindow.lastUnacknowledgedSequence = messageBuffer.header.sequence + 1;
-                m_receiveWindow.currentAvailableSize       = m_receiveWindow.MaxAdvertizedSize();
-                SendAckMessage();
-                break;
-            }
-            default:
-                break;
-        }
-
-        // Update the send window size
-        UpdateSendWindowSize(messageBuffer);
-    }
-
-    void Session::HandleFinMessage(const MessageBuffer& messageBuffer)
-    {
-        if (m_sessionState < SessionState::Closing)
-        {
-            WriteMessageIntoReceiveWindow(messageBuffer);
-            // Mark the session as terminated;
-            m_sessionState = SessionState::Closing;
-            m_sessionTerminationReason = Result::Success;
-        }
-        else if (m_sessionState == SessionState::FinWait2)
-        {
-            // if we've hit this point we received a Fin message while waiting on an ack for a Fin message.
-            // Best thing we can do is send an acknowledgement and close the session immediately
-            WriteMessageIntoReceiveWindow(messageBuffer);
-            SendAckMessage();
-            m_sessionState = SessionState::Closed;
-            m_sessionTerminationReason = Result::Success;
-        }
-        // Update the send window size
-        UpdateSendWindowSize(messageBuffer);
-    }
-
-    void Session::HandleDataMessage(const MessageBuffer& messageBuffer)
-    {
-        switch (m_sessionState)
-        {
-            case SessionState::FinWait1: // we are closing, but received data
-            case SessionState::FinWait2: // we are waiting for an ack but received data
-            case SessionState::Established:
-            {
-                WriteMessageIntoReceiveWindow(messageBuffer);
-                break;
-            }
-            default:
-                break;
-        }
-
-        // Update the send window size
-        UpdateSendWindowSize(messageBuffer);
-    }
-
-    void Session::HandleAckMessage(const MessageBuffer& messageBuffer)
-    {
-        switch (m_sessionState)
-        {
-            case SessionState::SynReceived: // SynAck was transmitted, waiting on ack
-                DD_PRINT(LogLevel::Debug, "Received ACK while in SYN_RECEIVED");
-                m_sessionState = SessionState::Established;
-            case SessionState::Established: // Session has been established
-            case SessionState::FinWait1: // Session has requested a disconnect
-            case SessionState::FinWait2: // Session sent Fin and is waiting on ack
-            case SessionState::Closing: // Session has received a Fin packet and sending data
-                MarkMessagesAsAcknowledged(messageBuffer.header.sequence);
-                break;
-            default:
-                break;
-        }
-
-        // Update the send window size
-        UpdateSendWindowSize(messageBuffer);
-    }
-
-    void Session::HandleRstMessage(const MessageBuffer& messageBuffer)
-    {
-        const Result reason = static_cast<Result>(messageBuffer.header.sequence);
-        CloseSession(reason);
-
-        // TODO: figure out how to propagate this back
-        //if (reason == Result::VersionMismatch)
-        //{
-        //    m_protocolVersion = static_cast<Version>(messageBuffer.header.windowSize);
-        //}
-
-        UpdateSendWindowSize(messageBuffer);
+        return result;
     }
 
     void Session::HandleMessage(SharedPointer<Session>& pSession, const MessageBuffer& messageBuffer)
@@ -580,11 +460,6 @@ namespace DevDriver
         // issuing the session established callback.
         if (initialState != m_sessionState)
         {
-#if defined(DEVDRIVER_SHOW_SYMBOLS)
-            DD_PRINT(LogLevel::Debug, "[SessionManager] Session %u transitioned states: %s -> %s",
-                     GetSessionId(), kStateName[static_cast<uint32>(initialState)],
-                     kStateName[static_cast<uint32>(m_sessionState)]);
-#endif
             switch (m_sessionState)
             {
                 case SessionState::Established:
@@ -595,7 +470,7 @@ namespace DevDriver
                     }
                     else
                     {
-                        CloseSession(Result::Error);
+                        Shutdown(Result::Error);
                     }
                 }
                 break;
@@ -603,6 +478,169 @@ namespace DevDriver
                     break;
             }
         }
+    }
+
+    void Session::HandleSynMessage(const MessageBuffer& messageBuffer)
+    {
+        DD_ASSERT(m_pProtocolOwner->GetType() == SessionType::Server);
+
+        const SessionId& remoteSessionId = messageBuffer.header.sessionId;
+        const Sequence& receiveSequence = messageBuffer.header.sequence;
+
+        // Write the payload data for a session request packet.
+        SynAckPayload payload = {};
+        payload.initialSessionId = remoteSessionId;
+        payload.sequence = receiveSequence;
+        payload.version = m_protocolVersion;
+        payload.sessionVersion = m_sessionVersion;
+        const Result result = WriteMessageIntoSendWindow(SessionMessage::SynAck,
+                                                         sizeof(SynAckPayload),
+                                                         &payload,
+                                                         kInfiniteTimeout);
+        if (result == Result::Success)
+        {
+            SetState(SessionState::SynReceived);
+            m_receiveWindow.nextUnreadSequence = receiveSequence + 1;
+            m_receiveWindow.nextExpectedSequence = receiveSequence + 1;
+            m_receiveWindow.lastUnacknowledgedSequence = receiveSequence + 1;
+            m_receiveWindow.currentAvailableSize = m_receiveWindow.MaxAdvertizedSize();
+        }
+        else
+        {
+            Shutdown(Result::Error);
+        }
+    }
+
+    void Session::HandleSynAckMessage(const MessageBuffer& messageBuffer)
+    {
+        switch (m_sessionState)
+        {
+            // These should not happen during normal operation, but in if they do we need to handle it
+        case SessionState::FinWait1:
+        case SessionState::FinWait2:
+        case SessionState::Closing:
+            // Established is the expected case here
+        case SessionState::Established:
+            MarkMessagesAsAcknowledged(messageBuffer.header.sequence);
+            break;
+        case SessionState::SynSent:
+        {
+            // A client has sent a response back from an earlier session request.
+            // Find the local session data.
+            DD_PRINT(LogLevel::Debug, "Received SYNACK");
+            // The local session data's remote client id should always match the sender's id.
+            const SynAckPayload* DD_RESTRICT pPayload = reinterpret_cast<const SynAckPayload*>(&messageBuffer.payload[0]);
+
+            MarkMessagesAsAcknowledged(pPayload->sequence);
+
+            m_sessionVersion = pPayload->sessionVersion;
+            DD_PRINT(LogLevel::Debug, "Established session with session version %u\n", m_sessionVersion);
+            DD_PRINT(LogLevel::Debug, "Acknowledging SYNACK packet %u", messageBuffer.header.sequence);
+
+            SetState(SessionState::Established);
+
+            // Update our remote session id in the local session data.
+            m_sessionId = messageBuffer.header.sessionId;
+            if (pPayload->version != 0)
+            {
+                m_protocolVersion = pPayload->version;
+            }
+            else if (m_pProtocolOwner != nullptr)
+            {
+                m_protocolVersion = m_pProtocolOwner->GetMinVersion();
+            }
+
+            m_receiveWindow.nextUnreadSequence = messageBuffer.header.sequence + 1;
+            m_receiveWindow.nextExpectedSequence = messageBuffer.header.sequence + 1;
+            m_receiveWindow.lastUnacknowledgedSequence = messageBuffer.header.sequence + 1;
+            m_receiveWindow.currentAvailableSize = m_receiveWindow.MaxAdvertizedSize();
+            SendAckMessage();
+            break;
+        }
+        default:
+            break;
+        }
+
+        // Update the send window size
+        UpdateSendWindowSize(messageBuffer);
+    }
+
+    void Session::HandleFinMessage(const MessageBuffer& messageBuffer)
+    {
+        if (m_sessionState < SessionState::Closing)
+        {
+            WriteMessageIntoReceiveWindow(messageBuffer);
+            // Mark the session as terminated;
+            SetState(SessionState::Closing);
+            m_sessionTerminationReason = Result::Success;
+        }
+        else if (m_sessionState == SessionState::FinWait2)
+        {
+            // if we've hit this point we received a Fin message while waiting on an ack for a Fin message.
+            // Best thing we can do is send an acknowledgement and close the session immediately
+            WriteMessageIntoReceiveWindow(messageBuffer);
+            SendAckMessage();
+            SetState(SessionState::Closed);
+            m_sessionTerminationReason = Result::Success;
+        }
+        // Update the send window size
+        UpdateSendWindowSize(messageBuffer);
+    }
+
+    void Session::HandleDataMessage(const MessageBuffer& messageBuffer)
+    {
+        switch (m_sessionState)
+        {
+        case SessionState::FinWait1: // we are closing, but received data
+        case SessionState::FinWait2: // we are waiting for an ack but received data
+        case SessionState::Established:
+        {
+            WriteMessageIntoReceiveWindow(messageBuffer);
+            break;
+        }
+        default:
+            break;
+        }
+
+        // Update the send window size
+        UpdateSendWindowSize(messageBuffer);
+    }
+
+    void Session::HandleAckMessage(const MessageBuffer& messageBuffer)
+    {
+        switch (m_sessionState)
+        {
+        case SessionState::SynReceived: // SynAck was transmitted, waiting on ack
+            DD_PRINT(LogLevel::Debug, "Received ACK while in SYN_RECEIVED");
+            SetState(SessionState::Established);
+            MarkMessagesAsAcknowledged(messageBuffer.header.sequence);
+            break;
+        case SessionState::Established: // Session has been established
+        case SessionState::FinWait1: // Session has requested a disconnect
+        case SessionState::FinWait2: // Session sent Fin and is waiting on ack
+        case SessionState::Closing: // Session has received a Fin packet and sending data
+            MarkMessagesAsAcknowledged(messageBuffer.header.sequence);
+            break;
+        default:
+            break;
+        }
+
+        // Update the send window size
+        UpdateSendWindowSize(messageBuffer);
+    }
+
+    void Session::HandleRstMessage(const MessageBuffer& messageBuffer)
+    {
+        const Result reason = static_cast<Result>(messageBuffer.header.sequence);
+        Shutdown(reason);
+
+        // TODO: figure out how to propagate this back
+        //if (reason == Result::VersionMismatch)
+        //{
+        //    m_protocolVersion = static_cast<Version>(messageBuffer.header.windowSize);
+        //}
+
+        UpdateSendWindowSize(messageBuffer);
     }
 
     WindowSize Session::CalculateCurrentWindowSize()
@@ -718,7 +756,7 @@ namespace DevDriver
             }
             else
             {
-                CloseSession(Result::NotReady);
+                Shutdown(Result::NotReady);
             }
         }
 
@@ -746,7 +784,7 @@ namespace DevDriver
                 {
                     if (sendResult != Result::NotReady)
                     {
-                        CloseSession(Result::Error);
+                        Shutdown(Result::Error);
                     }
                     // packet dropped, abort transmitting
                     break;
@@ -766,13 +804,13 @@ namespace DevDriver
         {
             if (WriteMessageIntoSendWindow(SessionMessage::Fin, 0, nullptr, kInfiniteTimeout) == Result::Success)
             {
-                m_sessionState = SessionState::FinWait2;
+                SetState(SessionState::FinWait2);
             }
         }
 
         if (m_sessionState == SessionState::FinWait2 && IsSendWindowEmpty())
         {
-            m_sessionState = SessionState::Closed;
+            SetState(SessionState::Closed);
         }
 
         if (m_sessionState == SessionState::Closing)
@@ -786,7 +824,7 @@ namespace DevDriver
                 MessageBuffer& message = m_receiveWindow.messages[index];
                 if (static_cast<SessionMessage>(message.header.messageId) == SessionMessage::Fin)
                 {
-                    m_sessionState = SessionState::Closed;
+                    SetState(SessionState::Closed);
                 }
             }
         }
@@ -801,7 +839,7 @@ namespace DevDriver
     {
         Result result = Result::Error;
 
-        if ((m_sessionState >= SessionState::Established) & (m_sessionState < SessionState::Closed))
+        if (m_sessionState >= SessionState::Established)
         {
             // Messages cannot be received after a session has entered the closing state.
             result = m_receiveWindow.semaphore.Wait(timeoutInMs);
@@ -829,7 +867,7 @@ namespace DevDriver
                     {
                         DD_ASSERT(static_cast<SessionMessage>(message.header.messageId) == SessionMessage::Fin);
                         DD_ASSERT(m_sessionState == SessionState::Closing);
-                        m_sessionState = SessionState::Closed;
+                        SetState(SessionState::Closed);
                         result = Result::EndOfStream;
                     }
                     m_receiveWindow.valid[index] = false;
@@ -847,7 +885,7 @@ namespace DevDriver
         return result;
     }
 
-    void Session::CloseSession(Result reason)
+    void Session::Shutdown(Result reason)
     {
 	    m_sessionTerminationReason = reason;
 
@@ -859,30 +897,49 @@ namespace DevDriver
         case SessionState::Closing:
             if (reason != Result::Success)
             {
-                m_sessionState = SessionState::Closed;
+                SetState(SessionState::Closed);
             }
             break;
         case SessionState::Established:
             if (reason == Result::Success)
             {
                 // Send the request.
-                m_sessionState = SessionState::FinWait1;
+                SetState(SessionState::FinWait1);
             } else
             {
-                m_sessionState = SessionState::Closed;
+                SetState(SessionState::Closed);
             }
             break;
         default:
-            m_sessionState = SessionState::Closed;
+            SetState(SessionState::Closed);
             break;
         }
     }
 
-    void Session::OrphanSession()
+    void Session::Close(Result reason)
+    {
+        Orphan();
+        Shutdown(reason);
+    }
+
+    void Session::Orphan()
     {
         // WARNING - this can leak memory as this will lead to SessionTerminate not being called
         DD_ASSERT(m_pSessionUserdata == nullptr);
         m_pProtocolOwner = nullptr;
         m_pSessionUserdata = nullptr;
+    }
+
+    inline void DevDriver::Session::SetState(SessionState newState)
+    {
+        if (m_sessionState != newState)
+        {
+#if defined(DEVDRIVER_SHOW_SYMBOLS)
+            DD_PRINT(LogLevel::Debug, "[Session] Session %u transitioned states: %s -> %s",
+                     GetSessionId(), kStateName[static_cast<uint32>(m_sessionState)],
+                     kStateName[static_cast<uint32>(newState)]);
+#endif
+            m_sessionState = newState;
+        }
     }
 } // DevDriver

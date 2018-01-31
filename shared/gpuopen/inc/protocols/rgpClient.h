@@ -64,6 +64,12 @@ namespace DevDriver
                 };
                 uint32 u32All;
             } flags;
+
+            uint64 beginTag;
+            uint64 endTag;
+
+            char beginMarker[kMarkerStringLength];
+            char endMarker[kMarkerStringLength];
         };
 
         struct BeginTraceInfo

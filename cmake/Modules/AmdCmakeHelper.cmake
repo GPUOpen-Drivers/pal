@@ -69,7 +69,7 @@ macro(target_vs_filters _target)
 
         if(${_target}_INCLUDES_DIRS)
             foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
-                file(GLOB _include_files
+                file(GLOB_RECURSE _include_files
                     LIST_DIRECTORIES false
                     "${_include_dir}/*.h*"
                 )
@@ -91,11 +91,6 @@ macro(target_vs_filters _target)
             source_group("${_group_path}" FILES "${_source}")
         endforeach()
     endif()
-endmacro()
-
-# Install Helper ###################################################################################
-macro(target_install _target _destination)
-    install(TARGET ${_target} DESTINATION ${_destination}/${CMAKE_BUILD_TYPE}${TARGET_ARCHITECTURE_BITS})
 endmacro()
 
 # Visual Studio Specific Options ###################################################################

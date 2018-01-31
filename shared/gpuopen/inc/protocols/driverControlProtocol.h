@@ -101,21 +101,21 @@ namespace DevDriver
 
         ///////////////////////
         // DriverControl Payloads
-        DD_ALIGNED_STRUCT(4) PauseDriverResponsePayload
+        DD_NETWORK_STRUCT(PauseDriverResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(PauseDriverResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) ResumeDriverResponsePayload
+        DD_NETWORK_STRUCT(ResumeDriverResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(ResumeDriverResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryNumGpusResponsePayload
+        DD_NETWORK_STRUCT(QueryNumGpusResponsePayload, 4)
         {
             Result result;
             uint32 numGpus;
@@ -123,14 +123,14 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QueryNumGpusResponsePayload, 8);
 
-        DD_ALIGNED_STRUCT(4) QueryDeviceClockModeRequestPayload
+        DD_NETWORK_STRUCT(QueryDeviceClockModeRequestPayload, 4)
         {
             uint32 gpuIndex;
         };
 
         DD_CHECK_SIZE(QueryDeviceClockModeRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryDeviceClockModeResponsePayload
+        DD_NETWORK_STRUCT(QueryDeviceClockModeResponsePayload, 4)
         {
             Result result;
             DeviceClockMode mode;
@@ -138,7 +138,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QueryDeviceClockModeResponsePayload, 8);
 
-        DD_ALIGNED_STRUCT(4) SetDeviceClockModeRequestPayload
+        DD_NETWORK_STRUCT(SetDeviceClockModeRequestPayload, 4)
         {
             uint32 gpuIndex;
             DeviceClockMode mode;
@@ -146,21 +146,21 @@ namespace DevDriver
 
         DD_CHECK_SIZE(SetDeviceClockModeRequestPayload, 8);
 
-        DD_ALIGNED_STRUCT(4) SetDeviceClockModeResponsePayload
+        DD_NETWORK_STRUCT(SetDeviceClockModeResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(SetDeviceClockModeResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryDeviceClockRequestPayload
+        DD_NETWORK_STRUCT(QueryDeviceClockRequestPayload, 4)
         {
             uint32 gpuIndex;
         };
 
         DD_CHECK_SIZE(QueryDeviceClockRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryDeviceClockResponsePayload
+        DD_NETWORK_STRUCT(QueryDeviceClockResponsePayload, 4)
         {
             Result result;
             float gpuClock;
@@ -169,14 +169,14 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QueryDeviceClockResponsePayload, 12);
 
-        DD_ALIGNED_STRUCT(4) QueryMaxDeviceClockRequestPayload
+        DD_NETWORK_STRUCT(QueryMaxDeviceClockRequestPayload, 4)
         {
             uint32 gpuIndex;
         };
 
         DD_CHECK_SIZE(QueryMaxDeviceClockRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryMaxDeviceClockResponsePayload
+        DD_NETWORK_STRUCT(QueryMaxDeviceClockResponsePayload, 4)
         {
             Result result;
             float maxGpuClock;
@@ -185,28 +185,28 @@ namespace DevDriver
 
         DD_CHECK_SIZE(QueryMaxDeviceClockResponsePayload, 12);
 
-        DD_ALIGNED_STRUCT(4) QueryDriverStatusResponsePayload
+        DD_NETWORK_STRUCT(QueryDriverStatusResponsePayload, 4)
         {
             DriverStatus status;
         };
 
         DD_CHECK_SIZE(QueryDriverStatusResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) StepDriverRequestPayload
+        DD_NETWORK_STRUCT(StepDriverRequestPayload, 4)
         {
             uint32 count;
         };
 
         DD_CHECK_SIZE(StepDriverRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) StepDriverResponsePayload
+        DD_NETWORK_STRUCT(StepDriverResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(StepDriverResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) DriverControlPayload
+        DD_NETWORK_STRUCT(DriverControlPayload, 4)
         {
             DriverControlMessage command;
             // pad out to 4 bytes for alignment requirements

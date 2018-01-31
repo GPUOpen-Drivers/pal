@@ -31,6 +31,7 @@
 #include "palHashMap.h"
 #include "core/os/lnx/drmLoader.h"
 #include "core/os/lnx/lnxPlatform.h"
+#include "core/os/lnx/lnxGpuMemory.h"
 namespace Pal
 {
 namespace Linux
@@ -44,6 +45,18 @@ static constexpr size_t MaxNodeNameLen            = 32;
 static constexpr size_t MaxClockInfoCount         = 16;
 static constexpr size_t MaxClockSysFsEntryNameLen = 100;
 static constexpr size_t ClockInfoReadBufLen       = 4096;
+
+enum class SemaphoreType : uint32
+{
+    Legacy   = 1 << 0,
+    ProOnly  = 1 << 1,
+    SyncObj  = 1 << 2,
+};
+enum class FenceType : uint32
+{
+    Legacy   = 1 << 0,
+    SyncObj  = 1 << 2,
+};
 
 // All information necessary to create PAL image/memory object from an external shared resource. It is used to return
 // information from OpenExternalResource().
@@ -356,6 +369,8 @@ public:
 
     virtual Result CheckExecutionState() const override;
 
+    bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid && Settings().enableVmAlwaysValid; }
+
     // Access KMD interfaces
     Result AllocBuffer(
         struct amdgpu_bo_alloc_request* pAllocRequest,
@@ -476,6 +491,23 @@ public:
         int32 presentDeviceFd,
         bool* pIsSame) const;
 
+    Result CreateSyncObject(
+        uint32*     pSyncObject) const;
+
+    Result DestroySyncObject(
+        uint32      syncObject) const;
+
+    OsExternalHandle ExportSyncObject(
+         uint32     syncObject) const;
+
+    Result ImportSyncObject(
+        OsExternalHandle         fd,
+        uint32*                  pSyncObject) const;
+
+    Result ConveySyncObjectState(
+        amdgpu_semaphore_handle importSyncObj,
+        amdgpu_semaphore_handle exportSyncObj) const;
+
     Result CreateSemaphore(
         amdgpu_semaphore_handle* pSemaphoreHandle) const;
 
@@ -571,7 +603,7 @@ public:
         OsDisplayHandle  sharedHandle,
         Pal::GpuMemory** ppMemObjOut);
 
-    virtual const char* GetCacheFilePath() const;
+    virtual const char* GetCacheFilePath() const override;
 
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
 
@@ -587,6 +619,7 @@ public:
     }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
+    FenceType     GetFenceType()     const { return m_fenceType; }
 
     Result SyncObjImportSyncFile(
         int                     syncFileFd,
@@ -596,23 +629,22 @@ public:
         amdgpu_semaphore_handle syncObj,
         int*                    pSyncFileFd) const;
 
-    Result ConveySyncObjectState(
-        amdgpu_semaphore_handle importSyncObj,
-        amdgpu_semaphore_handle exportSyncObj) const;
-
-    bool IsDrmVersionOrGreater(uint32 drmMajorVer, uint32 drmMinorVer) const
-    {
-        bool isDrmVersionOrGreater = false;
-
-        if ((m_drmMajorVer > drmMajorVer) || ((m_drmMajorVer == drmMajorVer) && (m_drmMinorVer >= drmMinorVer)))
-        {
-            isDrmVersionOrGreater = true;
-        }
-
-        return isDrmVersionOrGreater;
-    }
-
     Result InitReservedVaRanges();
+
+    virtual Result InitBusAddressableGpuMemory(
+        IQueue*           pQueue,
+        uint32            gpuMemCount,
+        IGpuMemory*const* ppGpuMemList) override;
+
+    Result QuerySdiSurface(
+        amdgpu_bo_handle    hSurface,
+        uint64*             pPhysAddress);
+
+    Result SetSdiSurface(
+        GpuMemory*  pGpuMem,
+        gpusize*    pCardAddr);
+
+    Result FreeSdiSurface(GpuMemory* pGpuMem);
 
 protected:
     virtual void FinalizeQueueProperties() override;
@@ -638,6 +670,18 @@ private:
 
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;
 
+    bool IsDrmVersionOrGreater(uint32 drmMajorVer, uint32 drmMinorVer) const
+    {
+        bool isDrmVersionOrGreater = false;
+
+        if ((m_drmMajorVer > drmMajorVer) || ((m_drmMajorVer == drmMajorVer) && (m_drmMinorVer >= drmMinorVer)))
+        {
+            isDrmVersionOrGreater = true;
+        }
+
+        return isDrmVersionOrGreater;
+    }
+
     Result OpenExternalResource(
         const ExternalResourceOpenInfo& openInfo,
         ExternalSharedInfo*             pSharedInfo
@@ -657,6 +701,20 @@ private:
 #endif
 
     const uint32 GetDeviceNodeIndex() { return m_deviceNodeIndex; }
+
+    Result MapSdiMemory(
+        amdgpu_device_handle    hDevice,
+        uint64                  busAddress,
+        gpusize                 size,
+        amdgpu_bo_handle&       hBuffer,
+        amdgpu_va_handle&       hVaRange,
+        uint64&                 vaAllocated);
+
+    Result UnmapSdiMemory(
+        uint64                  virtAddress,
+        gpusize                 size,
+        amdgpu_bo_handle        hBuffer,
+        amdgpu_va_handle        hVaRange);
 
     int32                 m_fileDescriptor;         // File descriptor used for communicating with the kernel driver
     amdgpu_device_handle  m_hDevice;                // Device handle of the amdgpu
@@ -706,13 +764,16 @@ private:
     Util::Mutex  m_globalRefLock;
     static constexpr uint32 MemoryRefMapElements = 2048;
 
-    // we have three type of semaphore to support in order to be able to:
+    // we have three types of semaphore to support in order to be able to:
     // 1: backward compatible.
     // 2: work on both upstream and pro kernel
     SemaphoreType m_semType;
+    FenceType     m_fenceType;
 
     // Support creating submission queue with priority.
     bool m_supportQueuePriority;
+    // Support creating bo that is always resident in current VM.
+    bool m_supportVmAlwaysValid;
 #if defined(PAL_DEBUG_PRINTS)
     const DrmLoaderFuncsProxy& m_drmProcs;
 #else

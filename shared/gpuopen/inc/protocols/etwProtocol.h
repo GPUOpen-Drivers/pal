@@ -43,7 +43,7 @@ namespace DevDriver
         Count
     };
 
-    DD_ALIGNED_STRUCT(8) GpuEvent
+    DD_NETWORK_STRUCT(GpuEvent, 8)
     {
         uint64       submissionTime;
         uint64       completionTime;
@@ -90,21 +90,21 @@ namespace DevDriver
 
         ///////////////////////
         // ETW Types
-        DD_ALIGNED_STRUCT(4) StartTraceRequestPayload
+        DD_NETWORK_STRUCT(StartTraceRequestPayload, 4)
         {
             ProcessId processId;
         };
 
         DD_CHECK_SIZE(StartTraceRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) StartTraceResponsePayload
+        DD_NETWORK_STRUCT(StartTraceResponsePayload, 4)
         {
             Result result;
         };
 
         DD_CHECK_SIZE(StartTraceResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) StopTraceRequestPayload
+        DD_NETWORK_STRUCT(StopTraceRequestPayload, 4)
         {
             uint8 discard;
             uint8 reserved[3];
@@ -112,7 +112,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(StopTraceRequestPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) StopTraceResponsePayload
+        DD_NETWORK_STRUCT(StopTraceResponsePayload, 4)
         {
             Result result;
             uint32 numEventsCaptured;
@@ -120,7 +120,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(StopTraceResponsePayload, 8);
 
-        DD_ALIGNED_STRUCT(4) TraceDataChunk
+        DD_NETWORK_STRUCT(TraceDataChunk, 4)
         {
             uint32 dataSize;
             uint8 data[kMaxTraceDataChunkSize];
@@ -129,7 +129,7 @@ namespace DevDriver
         DD_STATIC_CONST uint32 kTraceChunkAlignmentSize = 8;
         DD_STATIC_CONST uint32 kMaxEventsPerChunk = (kMaxPayloadSizeInBytes - kTraceChunkAlignmentSize * 2)/sizeof(GpuEvent);
 
-        DD_ALIGNED_STRUCT(kTraceChunkAlignmentSize) TraceDataChunkPayload
+        DD_NETWORK_STRUCT(TraceDataChunkPayload, kTraceChunkAlignmentSize)
         {
             uint16 numEvents;
             uint8  reserved[kTraceChunkAlignmentSize - sizeof(uint16)];
@@ -138,7 +138,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceDataChunkPayload, (sizeof(GpuEvent) * kMaxEventsPerChunk) + offsetof(TraceDataChunkPayload, events));
 
-        DD_ALIGNED_STRUCT(4) TraceDataSentinelPayload
+        DD_NETWORK_STRUCT(TraceDataSentinelPayload, 4)
         {
             Result result;
         };
@@ -155,7 +155,7 @@ namespace DevDriver
 
         ///////////////////////
         // ETW Payloads
-        DD_ALIGNED_STRUCT(8) ETWPayload
+        DD_NETWORK_STRUCT(ETWPayload, 8)
         {
             ETWMessage command;
             // pad out to 4 bytes for alignment requirements

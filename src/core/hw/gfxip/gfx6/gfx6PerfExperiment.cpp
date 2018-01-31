@@ -745,11 +745,8 @@ void PerfExperiment::IssueEnd(
 
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            static constexpr regSQ_PERFCOUNTER_CTRL SqPerfCounterCtrl = {};
-
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                         SqPerfCounterCtrl.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(
+                m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl, 0, pCmdSpace);
         }
 
         pCmdSpace = m_pSpmTrace->WriteEndCommands(pCmdStream, pCmdSpace);
@@ -763,8 +760,7 @@ void PerfExperiment::IssueEnd(
         }
 
         // Reset the default value of SPI_CONFIG_CNTL if we overrode it in HwlIssueBegin().
-        static constexpr regSPI_CONFIG_CNTL SpiConfigCntl = {};
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSPI_CONFIG_CNTL, SpiConfigCntl.u32All, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSPI_CONFIG_CNTL, 0, pCmdSpace);
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1091,11 +1087,7 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     {
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            static constexpr regSQ_PERFCOUNTER_CTRL SqPerfCounterCtrl = {};
-
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl,
-                                                         SqPerfCounterCtrl.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl, 0, pCmdSpace);
         }
 
         if (HasMcCounters())

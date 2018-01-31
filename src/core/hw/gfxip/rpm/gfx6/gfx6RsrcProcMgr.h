@@ -149,7 +149,7 @@ protected:
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pal::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const;
+        const CmdBuffer&                 cmdBuffer) const override;
 
 private:
     virtual void HwlFastColorClear(
@@ -216,7 +216,7 @@ private:
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const;
+        const ImageResolveRegion* pRegions) const override;
 
     void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,

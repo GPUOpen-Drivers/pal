@@ -174,7 +174,7 @@ bool Pipeline::OpenUniqueDumpFile(
             // Write the header out now. This will be overwritten later with more accurate data, but we want to
             // account for it now.
             ShaderPerfData::PerformanceDataHeader header = {};
-            header.version               = ShaderPerfData::PerformanceDataHeader::HeaderVersion;
+            header.version               = ShaderPerfData::HeaderVersion;
             Util::Strncpy(&header.apiShaderType[0],
                             ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
                             sizeof(header.apiShaderType));
@@ -278,7 +278,7 @@ void Pipeline::Destroy()
 
             // Before we close the file, we should update the file header.
             ShaderPerfData::PerformanceDataHeader header = {};
-            header.version               = ShaderPerfData::PerformanceDataHeader::HeaderVersion;
+            header.version               = ShaderPerfData::HeaderVersion;
             Util::Strncpy(&header.apiShaderType[0],
                             ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
                             sizeof(header.apiShaderType));

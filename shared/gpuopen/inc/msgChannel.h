@@ -32,20 +32,16 @@
 #pragma once
 
 #include "gpuopen.h"
+#include "protocolClient.h"
+#include "protocolServer.h"
 
 namespace DevDriver
 {
-    class IProtocolClient;
-    class IProtocolServer;
+    class IService;
 
     namespace TransferProtocol
     {
         class TransferManager;
-    }
-
-    namespace URIProtocol
-    {
-        class URIService;
     }
 
     DD_STATIC_CONST uint32 kDefaultUpdateTimeoutInMs = 10;
@@ -56,12 +52,12 @@ namespace DevDriver
     public:
         virtual ~IMsgChannel() {}
 
+        // Register, unregister, or check connected status.
         virtual Result Register(uint32 timeoutInMs = ~(0u)) = 0;
         virtual Result Unregister() = 0;
         virtual bool IsConnected() = 0;
 
-        virtual void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) = 0;
-
+        // Send, receive, and forward messages
         virtual Result Send(ClientId dstClientId,
                             Protocol protocol,
                             MessageCode message,
@@ -71,31 +67,38 @@ namespace DevDriver
         virtual Result Receive(MessageBuffer& message, uint32 timeoutInMs) = 0;
         virtual Result Forward(const MessageBuffer& messageBuffer) = 0;
 
-        virtual Result EstablishSession(ClientId dstClientId, IProtocolClient* pClient) = 0;
-
+        // Register, unregister, and retrieve IProtocolServer objects
         virtual Result RegisterProtocolServer(IProtocolServer* pServer) = 0;
         virtual Result UnregisterProtocolServer(IProtocolServer* pServer) = 0;
         virtual IProtocolServer* GetProtocolServer(Protocol protocol) = 0;
 
+        // Initiates a connection using the provided protocol client to the specified destionation client id
+        virtual Result ConnectProtocolClient(IProtocolClient* pProtocolClient, ClientId dstClientId) = 0;
+
+        // Register or Unregister an IService object
+        virtual Result RegisterService(IService* pService) = 0;
+        virtual Result UnregisterService(IService* pService) = 0;
+
+        // Get the allocator used to create this message channel
+        virtual const AllocCb& GetAllocCb() const = 0;
+
+        // Returns client information for the first client to respond that matches the specified filter
+        virtual Result FindFirstClient(const ClientMetadata& filter,
+                                       ClientId*             pClientId,
+                                       uint32                timeoutInMs = kFindClientTimeout,
+                                       ClientMetadata*       pClientMetadata = nullptr) = 0;
+
+        // Get the client ID, or returns kBroadcastClientId if disconnected.
+        virtual ClientId GetClientId() const = 0;
+
+        // Get the client information struct for the message channel.
+        virtual const ClientInfoStruct& GetClientInfo() const = 0;
+
+        // Set and get all client status flags.
         virtual Result SetStatusFlags(StatusFlags flags) = 0;
         virtual StatusFlags GetStatusFlags() const = 0;
 
-        virtual ClientId GetClientId() const = 0;
-
-        virtual const ClientInfoStruct& GetClientInfo() const = 0;
-
-        virtual Result FindFirstClient(const ClientMetadata& filter,
-                                       ClientId*             pClientId,
-                                       uint32                timeoutInMs     = kFindClientTimeout,
-                                       ClientMetadata*       pClientMetadata = nullptr) = 0;
-
-        virtual const AllocCb& GetAllocCb() const = 0;
-
-        virtual TransferProtocol::TransferManager& GetTransferManager() = 0;
-
-        virtual Result RegisterService(URIProtocol::URIService* pService) = 0;
-        virtual Result UnregisterService(URIProtocol::URIService* pService) = 0;
-
+        // Set the specified client status flag.
         template <ClientStatusFlags flag>
         Result SetStatusFlag(bool enable)
         {
@@ -107,7 +110,8 @@ namespace DevDriver
             {
                 // Toggle developer mode
                 newFlags = oldFlags | static_cast<DevDriver::StatusFlags>(flag);
-            } else
+            }
+            else
             {
                 // Toggle developer mode
                 newFlags = oldFlags & ~static_cast<DevDriver::StatusFlags>(flag);
@@ -120,14 +124,25 @@ namespace DevDriver
             return toggleResult;
         }
 
+        // Get the specified client status flag.
         template <ClientStatusFlags flag>
         bool GetStatusFlag() const
         {
             return ((GetStatusFlags() & static_cast<StatusFlags>(flag)) != 0);
         }
 
+        // Utility functions that should probably not be publicly exposed.
+        // TODO: Refactor surrounding code to eliminate these.
+        virtual TransferProtocol::TransferManager& GetTransferManager() = 0;
+        virtual void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) = 0;
+
+        // Backwards compatibility
+        Result EstablishSession(ClientId dstClientId, IProtocolClient* pProtocolClient)
+        {
+            return ConnectProtocolClient(pProtocolClient, dstClientId);
+        }
     protected:
-        IMsgChannel() {}
+        IMsgChannel() {};
     };
 
 } // DevDriver

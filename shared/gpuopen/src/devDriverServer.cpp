@@ -314,8 +314,9 @@ namespace DevDriver
         IProtocolServer *pProtocolServer = m_pMsgChannel->GetProtocolServer(protocol);
         if (pProtocolServer != nullptr)
         {
-            Result result = m_pMsgChannel->UnregisterProtocolServer(pProtocolServer);
+            const Result result = m_pMsgChannel->UnregisterProtocolServer(pProtocolServer);
             DD_ASSERT(result == Result::Success);
+            DD_UNUSED(result);
             DD_DELETE(pProtocolServer, m_createInfo.transportCreateInfo.allocCb);
         }
     }

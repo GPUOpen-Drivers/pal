@@ -704,7 +704,7 @@ public:
 
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
-        uint32         targetIndex);
+        uint32         targetIndex) override;
 
     void SetPrimShaderWorkload() { m_nggState.flags.state.hasPrimShaderWorkload = 1; }
     virtual bool HasPrimShaderWorkload() const override { return m_nggState.flags.state.hasPrimShaderWorkload; }

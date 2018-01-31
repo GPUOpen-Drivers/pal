@@ -40,7 +40,7 @@
 ***************************************************************************************************
 */
 #ifndef VAM_STDCALL
-        #if defined(__AMD64__)
+        #if defined(__amd64__) || defined(__x86_64__)
             #define VAM_STDCALL
         #else
             #define VAM_STDCALL __attribute__((stdcall))

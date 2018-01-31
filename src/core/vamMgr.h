@@ -27,7 +27,7 @@
 
 #include "palMutex.h"
 #include "core/device.h"
-#include "core/imported/vam/vaminterface.h"
+#include "vaminterface.h"
 
 namespace Pal
 {

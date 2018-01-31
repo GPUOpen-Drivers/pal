@@ -32,17 +32,15 @@
 #pragma once
 
 #include "gpuopen.h"
+#include "ddPlatform.h"
 
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
-#define DD_SOCKET int
-
 namespace DevDriver
 {
-
     enum class SocketType : uint32
     {
         Unknown = 0,
@@ -95,9 +93,11 @@ namespace DevDriver
         Result LookupAddressInfo(const char* pAddress, uint32 port, size_t addressInfoSize, char* pAddressInfo, size_t *pAddressSize);
 
     private:
-        DD_SOCKET m_osSocket;
+        using OsSocketType = int;
 
-        Result InitAsClient(DD_SOCKET socket, const char* pAddress, uint32 port, bool isNonBlocking);
+        OsSocketType m_osSocket;
+
+        Result InitAsClient(OsSocketType socket, const char* pAddress, uint32 port, bool isNonBlocking);
 
         bool m_isNonBlocking;
         SocketType m_socketType;

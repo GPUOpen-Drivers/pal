@@ -33,34 +33,8 @@
 
 #include "gpuopen.h"
 
-/*
-***********************************************************************************************************************
-* URI Protocol
-***********************************************************************************************************************
-*/
-
-#define URI_PROTOCOL_MAJOR_VERSION 2
-#define URI_PROTOCOL_MINOR_VERSION 0
-
-#define URI_INTERFACE_VERSION ((URI_INTERFACE_MAJOR_VERSION << 16) | URI_INTERFACE_MINOR_VERSION)
-
-#define URI_PROTOCOL_MINIMUM_MAJOR_VERSION 1
-
-/*
-***********************************************************************************************************************
-*| Version | Change Description                                                                                       |
-*| ------- | ---------------------------------------------------------------------------------------------------------|
-*|  2.0    | Added support for response data formats.                                                                 |
-*|  1.0    | Initial version                                                                                          |
-***********************************************************************************************************************
-*/
-
-#define URI_RESPONSE_FORMATS_VERSION 2
-#define URI_INITIAL_VERSION 1
-
 namespace DevDriver
 {
-
     namespace SystemProtocol
     {
         ///////////////////////
@@ -109,7 +83,7 @@ namespace DevDriver
         // to re-baseline this as version 0 and update the SynPayload struct at the same time
         static_assert(kMessageVersion == 1011, "Session packets need to be cleaned up as part of the next protocol version");
 
-        DD_ALIGNED_STRUCT(4) SynPayload
+        DD_NETWORK_STRUCT(SynPayload, 4)
         {
             Version         minVersion;
             Protocol        protocol;
@@ -124,7 +98,10 @@ namespace DevDriver
 
         DD_CHECK_SIZE(SynPayload, 8);
 
-        //DD_ALIGNED_STRUCT(4) SynPayloadV2
+        //
+        // SynPayloadV2 is here so that we can use it with the next breaking message bus change.
+        //
+        //DD_NETWORK_STRUCT(SynPayloadV2, 4)
         //{
         //    Protocol        protocol;
         //    SessionVersion  sessionVersion;
@@ -136,7 +113,7 @@ namespace DevDriver
 
         //DD_CHECK_SIZE(SynPayloadV2, 8);
 
-        DD_ALIGNED_STRUCT(8) SynAckPayload
+        DD_NETWORK_STRUCT(SynAckPayload, 8)
         {
             Sequence            sequence;
             SessionId           initialSessionId;
@@ -199,7 +176,7 @@ namespace DevDriver
                     (message.header.protocolId == Protocol::ClientManagement));
         }
 
-        DD_ALIGNED_STRUCT(4) ConnectRequestPayload
+        DD_NETWORK_STRUCT(ConnectRequestPayload, 4)
         {
             StatusFlags initialClientFlags;
             uint8       padding[2];
@@ -209,7 +186,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(ConnectRequestPayload, 8);
 
-        DD_ALIGNED_STRUCT(4) ConnectResponsePayload
+        DD_NETWORK_STRUCT(ConnectResponsePayload, 4)
         {
             Result      result;
             ClientId    clientId;
@@ -219,7 +196,7 @@ namespace DevDriver
 
         DD_CHECK_SIZE(ConnectResponsePayload, 8);
 
-        DD_ALIGNED_STRUCT(4) SetClientFlagsPayload
+        DD_NETWORK_STRUCT(SetClientFlagsPayload, 4)
         {
             StatusFlags flags;
             uint8       padding[2];
@@ -227,14 +204,14 @@ namespace DevDriver
 
         DD_CHECK_SIZE(SetClientFlagsPayload, 4);
 
-        DD_ALIGNED_STRUCT(4) SetClientFlagsResponsePayload
+        DD_NETWORK_STRUCT(SetClientFlagsResponsePayload, 4)
         {
             Result      result;
         };
 
         DD_CHECK_SIZE(SetClientFlagsResponsePayload, 4);
 
-        DD_ALIGNED_STRUCT(4) QueryStatusResponsePayload
+        DD_NETWORK_STRUCT(QueryStatusResponsePayload, 4)
         {
             Result      result;
             StatusFlags flags;
@@ -242,147 +219,5 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(QueryStatusResponsePayload, 8);
-    }
-
-    namespace TransferProtocol
-    {
-        ///////////////////////
-        // GPU Open Transfer Protocol
-        enum struct TransferMessage : MessageCode
-        {
-            Unknown = 0,
-            TransferRequest,
-            TransferDataHeader,
-            TransferDataChunk,
-            TransferDataSentinel,
-            TransferAbort,
-            Count,
-        };
-
-        // @note: We currently subtract sizeof(uint32) instead of sizeof(TransferMessage) to work around struct packing issues.
-        //        The compiler pads out TransferMessage to 4 bytes when it's included in the payload struct.
-        DD_STATIC_CONST Size kMaxTransferDataChunkSize = (kMaxPayloadSizeInBytes - sizeof(uint32));
-
-        ///////////////////////
-        // Transfer Types
-        typedef uint32_t BlockId;
-        DD_STATIC_CONST BlockId kInvalidBlockId = 0;
-
-        ///////////////////////
-        // Transfer Payloads
-
-        DD_ALIGNED_STRUCT(4) TransferRequestPayload
-        {
-            BlockId blockId;
-        };
-
-        DD_CHECK_SIZE(TransferRequestPayload, 4);
-
-        DD_ALIGNED_STRUCT(4) TransferDataHeaderPayload
-        {
-            Result result;
-            uint32 sizeInBytes;
-        };
-
-        DD_CHECK_SIZE(TransferDataHeaderPayload, 8);
-
-        DD_ALIGNED_STRUCT(4) TransferDataChunkPayload
-        {
-            uint8 data[kMaxTransferDataChunkSize];
-        };
-
-        DD_CHECK_SIZE(TransferDataChunkPayload, kMaxTransferDataChunkSize);
-
-        DD_ALIGNED_STRUCT(4) TransferDataSentinelPayload
-        {
-            Result result;
-        };
-
-        DD_CHECK_SIZE(TransferDataSentinelPayload, 4);
-
-        DD_ALIGNED_STRUCT(4) TransferPayload
-        {
-            TransferMessage  command;
-            // pad out to 4 bytes for alignment requirements
-            char        padding[3];
-            union
-            {
-                TransferRequestPayload      transferRequest;
-                TransferDataHeaderPayload   transferDataHeader;
-                TransferDataChunkPayload    transferDataChunk;
-                TransferDataSentinelPayload transferDataSentinel;
-            };
-        };
-
-        DD_CHECK_SIZE(TransferPayload, kMaxPayloadSizeInBytes);
-    }
-
-    namespace URIProtocol
-    {
-        ///////////////////////
-        // GPU Open URI Protocol
-        enum struct URIMessage : MessageCode
-        {
-            Unknown = 0,
-            URIRequest,
-            URIResponse,
-            Count,
-        };
-
-        ///////////////////////
-        // URI Types
-        enum struct ResponseDataFormat : uint32
-        {
-            Unknown = 0,
-            Text,
-            Binary,
-            Count
-        };
-
-        ///////////////////////
-        // URI Constants
-        DD_STATIC_CONST uint32 kURIStringSize = 256;
-
-        ///////////////////////
-        // URI Payloads
-
-        DD_ALIGNED_STRUCT(4) URIRequestPayload
-        {
-            char uriString[kURIStringSize];
-        };
-
-        DD_CHECK_SIZE(URIRequestPayload, kURIStringSize);
-
-        DD_ALIGNED_STRUCT(4) URIResponsePayload
-        {
-            Result result;
-            TransferProtocol::BlockId blockId;
-        };
-
-        DD_CHECK_SIZE(URIResponsePayload, 8);
-
-        DD_ALIGNED_STRUCT(4) URIResponsePayloadV2
-        {
-            Result result;
-            TransferProtocol::BlockId blockId;
-            ResponseDataFormat format;
-        };
-
-        DD_CHECK_SIZE(URIResponsePayloadV2, 12);
-
-        DD_ALIGNED_STRUCT(4) URIPayload
-        {
-            URIMessage  command;
-            // pad out to 4 bytes for alignment requirements
-            char        padding[3];
-            union
-            {
-                URIRequestPayload    uriRequest;
-                URIResponsePayload   uriResponse;
-                URIResponsePayloadV2 uriResponseV2;
-            };
-        };
-
-        DD_CHECK_SIZE(URIPayload, 260);
     }
 }

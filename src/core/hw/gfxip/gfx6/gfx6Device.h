@@ -124,7 +124,7 @@ public:
         const GraphicsPipelineInternalCreateInfo& internalInfo,
         void*                                     pPlacementAddr,
         bool                                      isInternal,
-        IPipeline**                               ppPipeline);
+        IPipeline**                               ppPipeline) override;
 
     virtual size_t GetColorBlendStateSize(const ColorBlendStateCreateInfo& createInfo, Result* pResult) const override;
     virtual Result CreateColorBlendState(
@@ -255,7 +255,7 @@ public:
     virtual bool IsImageFormatOverrideNeeded(
         const ImageCreateInfo& imageCreateInfo,
         ChNumFormat*           pFormat,
-        uint32*                pPixelsPerBlock) const { return false; }
+        uint32*                pPixelsPerBlock) const override { return false; }
 
     virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const override;
 

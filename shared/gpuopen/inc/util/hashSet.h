@@ -74,7 +74,7 @@ namespace DevDriver
      ***********************************************************************************************************************
      */
     template<typename Key,
-        size_t NumBuckets,
+        size_t NumBuckets = (sizeof(Key) * 8),
         template<typename> class HashFunc = DefaultHashFunc,
         template<typename> class EqualFunc = DefaultEqualFunc>
         class HashSet : public HashBase<Key,

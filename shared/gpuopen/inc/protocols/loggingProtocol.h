@@ -26,6 +26,7 @@
 #pragma once
 
 #include "gpuopen.h"
+#include <cstring>
 
 #define LOGGING_PROTOCOL_MAJOR_VERSION 3
 #define LOGGING_PROTOCOL_MINOR_VERSION 0
@@ -124,7 +125,7 @@ namespace DevDriver
         static_assert((kDefinableCategoryMask & kSystemCategoryMask) == 0, "Invalid category masks defined");
 
         // A logging category is defined as both a bitmask + a name
-        DD_ALIGNED_STRUCT(8) NamedLoggingCategory
+        DD_NETWORK_STRUCT(NamedLoggingCategory, 8)
         {
             LoggingCategory category;
             char            name[kMaxLoggingPayloadSize - sizeof(LoggingCategory)];
@@ -137,7 +138,7 @@ namespace DevDriver
 
         // logging filter definition
         // TODO: consider replacing this with manual bitshifting
-        DD_ALIGNED_STRUCT(8) LoggingFilter
+        DD_NETWORK_STRUCT(LoggingFilter, 8)
         {
             LoggingCategory        category;
             uint8                  reserved[7];
@@ -147,7 +148,7 @@ namespace DevDriver
         DD_CHECK_SIZE(LoggingFilter, 16);
 
         // logging message definition. Filter is included so the client can identify the message.
-        DD_ALIGNED_STRUCT(8) LogMessage
+        DD_NETWORK_STRUCT(LogMessage, 8)
         {
             LoggingFilter filter;
             char message[kMaxLoggingPayloadSize - sizeof(LoggingFilter)];
@@ -157,57 +158,147 @@ namespace DevDriver
 
         ///////////////////////
         // Logging Payloads
-        DD_ALIGNED_STRUCT(8) LoggingHeader
+        DD_NETWORK_STRUCT(LoggingHeader, 4)
         {
             LoggingMessage command;
+            // Padding for backwards compatibility. Initial protocol defined struct as 8 byte aligned, so first 8 bytes
+            // were always used for the header. We mark this as char to prevent the compiler from initializing this.
+            char _padding[4];
+
+            constexpr LoggingHeader(LoggingMessage message)
+                : command(message)
+                , _padding()
+            {
+            }
         };
 
         DD_CHECK_SIZE(LoggingHeader, 8);
 
         static_assert(sizeof(LoggingHeader) == kLoggingHeaderSize, "Logging header size mismatch!");
 
-        DD_ALIGNED_STRUCT(8) EnableLoggingRequestPayload : public LoggingHeader
+        DD_NETWORK_STRUCT(EnableLoggingRequestPayload, 8)
         {
+            LoggingHeader header;
             LoggingFilter filter;
+
+            constexpr EnableLoggingRequestPayload(const LoggingFilter& initialFilter)
+                : header(LoggingMessage::EnableLoggingRequest)
+                , filter(initialFilter)
+            {
+            }
         };
 
-        DD_CHECK_SIZE(EnableLoggingRequestPayload, sizeof(LoggingHeader) + 16);
+        DD_CHECK_SIZE(EnableLoggingRequestPayload, sizeof(LoggingHeader) + sizeof(LoggingFilter));
 
-        DD_ALIGNED_STRUCT(8) EnableLoggingResponsePayload : public LoggingHeader
+        DD_NETWORK_STRUCT(EnableLoggingResponsePayload, 4)
         {
-            uint32 _padding;
+            LoggingHeader header;
             Result result;
+            // Padding for backwards compatibility. Should remove on version bump.
+            char _padding[4];
+
+            constexpr EnableLoggingResponsePayload(Result response)
+                : header(LoggingMessage::EnableLoggingResponse)
+                , result(response)
+                , _padding()
+            {
+            }
         };
 
         DD_CHECK_SIZE(EnableLoggingResponsePayload, sizeof(LoggingHeader) + 8);
 
-        DD_ALIGNED_STRUCT(8) QueryCategoriesNumResponsePayload : public LoggingHeader
+        DD_NETWORK_STRUCT(QueryCategoriesNumResponsePayload, 4)
         {
-            uint32 _padding;
+            LoggingHeader header;
             uint32 numCategories;
+            // Padding for backwards compatibility. Should remove on version bump.
+            char _padding[4];
+
+            constexpr QueryCategoriesNumResponsePayload(uint32 categories)
+                : header(LoggingMessage::QueryCategoriesNumResponse)
+                , numCategories(categories)
+                , _padding()
+            {
+            }
         };
 
         DD_CHECK_SIZE(QueryCategoriesNumResponsePayload, sizeof(LoggingHeader) + 8);
 
-        DD_ALIGNED_STRUCT(8) QueryCategoriesDataResponsePayload : public LoggingHeader
+        DD_NETWORK_STRUCT(QueryCategoriesDataResponsePayload, 8)
         {
+            LoggingHeader header;
             NamedLoggingCategory category;
+
+            static void WritePayload(
+                const NamedLoggingCategory& category,
+                Version sessionVersion,
+                size_t categoryNameSize,
+                SizedPayloadContainer* pContainer)
+            {
+                DD_ASSERT(pContainer != nullptr);
+                const size_t maxNameSize =
+                    (sessionVersion >= LOGGING_LARGE_MESSAGES_VERSION) ? sizeof(category.name) : kMaxStringLength;
+                const size_t finalNameSize = Platform::Min(categoryNameSize, maxNameSize);
+                const uint32 payloadSize =
+                    static_cast<uint32>(offsetof(QueryCategoriesDataResponsePayload, category.name) + finalNameSize);
+
+                pContainer->payloadSize = payloadSize;
+
+                QueryCategoriesDataResponsePayload& payload =
+                    pContainer->GetPayload<QueryCategoriesDataResponsePayload>();
+                payload.header = LoggingHeader(LoggingMessage::QueryCategoriesDataResponse);
+
+                memcpy(&payload.category,
+                    &category,
+                    payloadSize);
+
+                // If we had to truncate the string to fit in the payload, we want to overwrite the final character
+                // with null.
+                if (categoryNameSize > finalNameSize)
+                {
+                    payload.category.name[finalNameSize - 1] = '\0';
+                }
+            }
         };
 
         DD_CHECK_SIZE(QueryCategoriesDataResponsePayload, sizeof(LoggingHeader) + sizeof(NamedLoggingCategory));
 
-        DD_STATIC_CONST size_t kQueryCategoriesDataPayloadNameOffset =
-            sizeof(LoggingHeader) + offsetof(NamedLoggingCategory, name);
-
-        DD_ALIGNED_STRUCT(8) LogMessagePayload : public LoggingHeader
+        DD_NETWORK_STRUCT(LogMessagePayload, 8)
         {
+            LoggingHeader header;
             LogMessage message;
+
+            static void WritePayload(
+                const LogMessage& message,
+                Version sessionVersion,
+                size_t messageSize,
+                SizedPayloadContainer* pContainer)
+            {
+                DD_ASSERT(pContainer != nullptr);
+                const size_t maxStringSize =
+                    (sessionVersion >= LOGGING_LARGE_MESSAGES_VERSION) ? sizeof(message.message) : kMaxStringLength;
+                const size_t finalMessageSize = Platform::Min(messageSize, maxStringSize);
+                const uint32 payloadSize =
+                    static_cast<uint32>(offsetof(LogMessagePayload, message.message) + finalMessageSize);
+
+                pContainer->payloadSize = payloadSize;
+
+                LogMessagePayload& payload = pContainer->GetPayload<LogMessagePayload>();
+                payload.header = LoggingHeader(LoggingMessage::LogMessage);
+
+                memcpy(&payload.message,
+                       &message,
+                       payloadSize);
+
+                // If we had to truncate the string to fit in the payload, we want to overwrite the final character
+                // with null.
+                if (messageSize > finalMessageSize)
+                {
+                    payload.message.message[finalMessageSize - 1] = '\0';
+                }
+            }
         };
 
         DD_CHECK_SIZE(LogMessagePayload, sizeof(LoggingHeader) + sizeof(LogMessage));
-
-        DD_STATIC_CONST size_t kLogMessagePayloadMessageOffset =
-            sizeof(LoggingHeader) + offsetof(LogMessage, message);
-
     }
 }

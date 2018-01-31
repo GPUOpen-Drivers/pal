@@ -70,7 +70,7 @@ public:
         const GpuMemory& dstGpuMemory,
         gpusize          dstOffset,
         gpusize          fillSize,
-        uint32           data) const;
+        uint32           data) const override;
 
     void CmdUpdateMemory(
         GfxCmdBuffer*    pCmdBuffer,
@@ -403,7 +403,7 @@ protected:
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pal::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const;
+        const CmdBuffer&                 cmdBuffer) const override;
 
     void HwlDecodeBufferViewSrd(
         const void*     pBufferViewSrd,

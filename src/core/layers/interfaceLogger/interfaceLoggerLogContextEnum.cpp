@@ -1569,6 +1569,13 @@ void LogContext::Enum(
             "ErrorPrivateScreenInvalidTiming",        // -(0x00000051),
             "ErrorPrivateScreenInvalidResolution",    // -(0x00000052),
             "ErrorPrivateScreenInvalidScaling",       // -(0x00000053),
+            "ErrorInvalidYuvImageType",               // -(0x00000054),
+            "ErrorShaderCacheHashCollision",          // -(0x00000055),
+            "ErrorShaderCacheFull",                   // -(0x00000056),
+            "ErrorGpuPageFaultDetected",              // -(0x00000057),
+            "ErrorUnsupportedPipelineElfAbiVersion",  // -(0x00000058),
+            "ErrorInvalidPipelineElf",                // -(0x00000059),
+            "ErrorIncompleteResults",                 // -(0x00000060),
         };
 
         const uint32 idx = static_cast<uint32>(-(1 + static_cast<int32>(value)));
@@ -1591,6 +1598,8 @@ void LogContext::Enum(
             "PresentOccluded",             // 0x00000007,
             "AlreadyExists",               // 0x00000008,
             "OutOfSpec",                   // 0x00000009,
+            "NotFound",                    // 0x0000000A,
+            "Eof",                         // 0x0000000B,
         };
 
         const uint32 idx = static_cast<uint32>(value);

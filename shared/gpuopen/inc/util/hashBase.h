@@ -82,30 +82,34 @@ namespace DevDriver
                 // Reset the bucket head pointers
                 memset(&m_buckets[0], 0, sizeof(m_buckets));
 
-                // Overwrite all buckets with a default constructed object
+                // We need to destroy all object instances inside the hash map, so we iterate over all blocks
                 for (int32 i = 0; i <= m_curBlock; ++i)
                 {
                     MemBlock& block = m_blocks[i];
 
                     DD_ASSERT(block.pMemory != nullptr);
 
-                    // If it is not a POD we want to invoke the Bucket constructor to implicitly destroy
-                    // existing objects and replace them with default constructed versions
-                    if (!Platform::IsPod<Bucket>::Value)
+                    // The number of buckets depends on which block it is
+                    for (int32 j = 0; j < Platform::Pow2(i); j++)
                     {
-                        for (int32 j = 0; j < Platform::Pow2(i); j++)
+                        // For every bucket in the block we need to destroy all object instances
+                        Bucket& currentBucket = block.pMemory[j];
+                        if (!Platform::IsPod<Bucket>::Value)
                         {
-                            block.pMemory[j] = Bucket();
+                            for (uint32 k = 0; k < currentBucket.footer.numEntries; k++)
+                            {
+                                currentBucket.entries[k].~Entry();
+                            }
                         }
+
+                        // We then overwrite the footer
+                        currentBucket.footer = Footer();
+
+                        // Ensure that the footer was correctly zero initialized
+                        DD_ASSERT(currentBucket.footer.pNextBucket == nullptr);
+                        DD_ASSERT(currentBucket.footer.numEntries == 0);
                     }
-                    // Otherwise, we just overwrite the footer in the block with a zero initialized version
-                    else
-                    {
-                        for (int32 j = 0; j < Platform::Pow2(i); j++)
-                        {
-                            block.pMemory[j].footer = Footer();
-                        }
-                    }
+
                     block.curBucket = 0;
                 }
 
@@ -134,7 +138,11 @@ namespace DevDriver
                         {
                             for (int32 j = 0; j < Platform::Pow2(i); j++)
                             {
-                                block.pMemory[j].~Bucket();
+                                Bucket& currentBucket = block.pMemory[j];
+                                for (uint32 k = 0; k < currentBucket.footer.numEntries; k++)
+                                {
+                                    currentBucket.entries[k].~Entry();
+                                }
                             }
                         }
 
@@ -248,10 +256,11 @@ namespace DevDriver
                 {
                     *pFoundEntry = Platform::Move(*pLastEntry);
                 }
-                // Otherwise, if the type is not a POD we create a default constructed version to replace it
-                else if (!Platform::IsPod<Entry>::Value)
+
+                // If it wasn't a POD type we need to explicitly invoke the destructor on the last entry
+                if (!Platform::IsPod<Entry>::Value)
                 {
-                    *pFoundEntry = Platform::Move(Entry());
+                    pLastEntry->~Entry();
                 }
 
                 DD_ASSERT(this->m_numEntries > 0);
@@ -421,7 +430,7 @@ namespace DevDriver
                 {
                     // We've reached the end of the bucket and the entry was not found.  Allocate this entry for the key.
                     Entry& entry = currentBucket.entries[currentBucket.footer.numEntries];
-                    entry.key = key;
+                    new(&entry.key) Key(key);
                     pMatchingEntry = &entry;
                     currentBucket.footer.numEntries++;
                     this->m_numEntries++;
@@ -512,7 +521,7 @@ namespace DevDriver
                 DD_ASSERT(pFoundEntry != nullptr);
 
                 // We need to look for the last entry in the current chain. We will then either swap this entry with
-                // last entry or overwrite it with a default constructed entry to destroy it.
+                // last entry and destroy the object
                 Entry* pLastEntry = nullptr;
                 Bucket* pLastBucket = nullptr;
 
@@ -540,14 +549,16 @@ namespace DevDriver
                 }
                 else
                 {
-                    // If the type is not a POD, we construct a default object to destroy the existing one.
-                    if (!Platform::IsPod<Entry>::Value)
-                    {
-                        *pFoundEntry = Platform::Move(Entry());
-                    }
                     // This was the last entry in the current bucket, so we need to advance the iterator
                     iterator.Next();
                 }
+
+                // If the element we removed wasn't a POD type we need to explicitly invoke the destructor
+                if (!Platform::IsPod<Entry>::Value)
+                {
+                    pLastEntry->~Entry();
+                }
+
             }
             return (pFoundEntry != nullptr);
         }
@@ -649,25 +660,7 @@ namespace DevDriver
                 {
                     const size_t numBuckets = static_cast<size_t>(Platform::Pow2(nextBlock));
                     const size_t allocSize = sizeof(Bucket) * numBuckets;
-
-                    // If the type provided is an object, then we allocate memory and explicitly create Bucket objects
-                    // inside it.
-                    if (!Platform::IsPod<Bucket>::Value)
-                    {
-                        pBlock->pMemory = reinterpret_cast<Bucket*>(DD_MALLOC(allocSize, alignof(Bucket), m_allocCb));
-
-                        Bucket* pCurrentElement = pBlock->pMemory;
-                        for (size_t elementIndex = 0; elementIndex < numBuckets; ++elementIndex)
-                        {
-                            new(pCurrentElement) Bucket();
-                            ++pCurrentElement;
-                        }
-                    }
-                    // Otherwise, we simply allocate zeroed memory.
-                    else
-                    {
-                        pBlock->pMemory = reinterpret_cast<Bucket*>(DD_CALLOC(allocSize, alignof(Bucket), m_allocCb));
-                    }
+                    pBlock->pMemory = reinterpret_cast<Bucket*>(DD_CALLOC(allocSize, alignof(Bucket), m_allocCb));
                 }
 
                 // If we successfully allocated memory (or the block already had some), make it current

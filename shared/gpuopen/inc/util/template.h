@@ -305,5 +305,19 @@ namespace DevDriver
         {
 
         };
+
+        // Struct whose ::Value member is equal to true if T is has a standard layout, and false otherwise.
+        template<typename T>
+        struct IsStandardLayout : BoolType<std::is_standard_layout<T>::value>
+        {
+
+        };
+
+        // Struct whose ::Value member is equal to true if T is trivially destructable, and false otherwise.
+        template<typename T>
+        struct IsTriviallyDestructible : BoolType<std::is_trivially_destructible<T>::value>
+        {
+
+        };
     }
 } // DevDriver

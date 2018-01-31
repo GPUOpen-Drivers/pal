@@ -149,9 +149,9 @@ namespace DevDriver
     }
 
     template <class T>
-    Result MessageChannel<T>::EstablishSession(ClientId dstClientId, IProtocolClient* pClient)
+    Result MessageChannel<T>::ConnectProtocolClient(IProtocolClient* pClient, ClientId dstClientId)
     {
-        return m_sessionManager.EstablishSession(dstClientId, pClient);
+        return (pClient != nullptr) ? m_sessionManager.EstablishSessionForClient(*pClient, dstClientId) : Result::Error;
     }
 
     template <class T>

@@ -33,15 +33,19 @@
 
 namespace DevDriver
 {
+    class IProtocolServer;
+    class IProtocolClient;
 
     template <Protocol protocol>
     struct ProtocolServerMap
     {
+        typedef IProtocolServer type;
     };
 
     template <Protocol protocol>
     struct ProtocolClientMap
     {
+        typedef IProtocolClient type;
     };
 
     template <Protocol protocol>
@@ -138,6 +142,41 @@ namespace DevDriver
     struct ProtocolClientMap<Protocol::ETW>
     {
         typedef ETWProtocol::ETWClient type;
+    };
+
+    namespace GpuCrashDumpProtocol
+    {
+        class GpuCrashDumpClient;
+        class GpuCrashDumpServer;
+    }
+
+    template <>
+    struct ProtocolServerMap<Protocol::GpuCrashDump>
+    {
+        typedef GpuCrashDumpProtocol::GpuCrashDumpServer type;
+    };
+
+    template <>
+    struct ProtocolClientMap<Protocol::GpuCrashDump>
+    {
+        typedef GpuCrashDumpProtocol::GpuCrashDumpClient type;
+    };
+    namespace TransferProtocol
+    {
+        class TransferServer;
+        class TransferClient;
+    }
+
+    template <>
+    struct ProtocolServerMap<Protocol::Transfer>
+    {
+        typedef TransferProtocol::TransferServer type;
+    };
+
+    template <>
+    struct ProtocolClientMap<Protocol::Transfer>
+    {
+        typedef TransferProtocol::TransferClient type;
     };
 
     namespace URIProtocol

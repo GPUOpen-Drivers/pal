@@ -52,7 +52,7 @@
 // -----------------  Define standard API calling convention ------------------
 //
 
-#if defined(__AMD64__)
+#if defined(__amd64__) || defined(__x86_64__)
 // @note 'stdcall' attribute (and cdecl) is not used for AMD64
 #define ATIAPI_STDCALL
 #else

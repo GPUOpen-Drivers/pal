@@ -189,6 +189,12 @@ typedef int (*AmdgpuCreateBoFromUserMem)(
             uint64_t              size,
             amdgpu_bo_handle*     pBufferHandle);
 
+typedef int (*AmdgpuCreateBoFromPhysMem)(
+            amdgpu_device_handle  hDevice,
+            uint64_t              physAddress,
+            uint64_t              size,
+            amdgpu_bo_handle*     pBufferHandle);
+
 typedef int (*AmdgpuFindBoByCpuMapping)(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
@@ -290,6 +296,10 @@ typedef int (*AmdgpuQuerySharedAperture)(
             amdgpu_device_handle  hDevice,
             uint64_t*             pStartVa,
             uint64_t*             pEndVa);
+
+typedef int (*AmdgpuBoGetPhysAddress)(
+            amdgpu_bo_handle    hBuffer,
+            uint64_t*           pPhysAddress);
 
 typedef int (*AmdgpuCsReservedVmid)(
             amdgpu_device_handle  hDevice);
@@ -555,6 +565,12 @@ struct DrmLoaderFuncs
         return (pfnAmdgpuCreateBoFromUserMem != nullptr);
     }
 
+    AmdgpuCreateBoFromPhysMem         pfnAmdgpuCreateBoFromPhysMem;
+    bool pfnAmdgpuCreateBoFromPhysMemisValid() const
+    {
+        return (pfnAmdgpuCreateBoFromPhysMem != nullptr);
+    }
+
     AmdgpuFindBoByCpuMapping          pfnAmdgpuFindBoByCpuMapping;
     bool pfnAmdgpuFindBoByCpuMappingisValid() const
     {
@@ -673,6 +689,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuQuerySharedApertureisValid() const
     {
         return (pfnAmdgpuQuerySharedAperture != nullptr);
+    }
+
+    AmdgpuBoGetPhysAddress            pfnAmdgpuBoGetPhysAddress;
+    bool pfnAmdgpuBoGetPhysAddressisValid() const
+    {
+        return (pfnAmdgpuBoGetPhysAddress != nullptr);
     }
 
     AmdgpuCsReservedVmid              pfnAmdgpuCsReservedVmid;
@@ -1110,6 +1132,17 @@ public:
         return (m_pFuncs->pfnAmdgpuCreateBoFromUserMem != nullptr);
     }
 
+    int pfnAmdgpuCreateBoFromPhysMem(
+            amdgpu_device_handle  hDevice,
+            uint64_t              physAddress,
+            uint64_t              size,
+            amdgpu_bo_handle*     pBufferHandle) const;
+
+    bool pfnAmdgpuCreateBoFromPhysMemisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCreateBoFromPhysMem != nullptr);
+    }
+
     int pfnAmdgpuFindBoByCpuMapping(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
@@ -1310,6 +1343,15 @@ public:
     bool pfnAmdgpuQuerySharedApertureisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQuerySharedAperture != nullptr);
+    }
+
+    int pfnAmdgpuBoGetPhysAddress(
+            amdgpu_bo_handle    hBuffer,
+            uint64_t*           pPhysAddress) const;
+
+    bool pfnAmdgpuBoGetPhysAddressisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuBoGetPhysAddress != nullptr);
     }
 
     int pfnAmdgpuCsReservedVmid(

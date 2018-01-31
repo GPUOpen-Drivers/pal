@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,101 +24,100 @@
  **********************************************************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  ddGpuCrashDumpProtocol.h
-* @brief Header file for the gpu crash dump protocol
+* @file  ddURIProtocol.h
+* @brief Protocol header for the URI protocol.
 ***********************************************************************************************************************
 */
 
 #pragma once
 
 #include "gpuopen.h"
-#include "systemProtocols.h"
+#include "ddTransferProtocol.h"
 
-#define GPUCRASHDUMP_PROTOCOL_MAJOR_VERSION 1
-#define GPUCRASHDUMP_PROTOCOL_MINOR_VERSION 0
+/*
+***********************************************************************************************************************
+* URI Protocol
+***********************************************************************************************************************
+*/
 
-#define GPUCRASHDUMP_INTERFACE_VERSION ((GPUCRASHDUMP_INTERFACE_MAJOR_VERSION << 16) | GPUCRASHDUMP_INTERFACE_MINOR_VERSION)
+#define URI_PROTOCOL_MAJOR_VERSION 2
+#define URI_PROTOCOL_MINOR_VERSION 0
 
-#define GPUCRASHDUMP_PROTOCOL_MINIMUM_MAJOR_VERSION 1
+#define URI_INTERFACE_VERSION ((URI_INTERFACE_MAJOR_VERSION << 16) | URI_INTERFACE_MINOR_VERSION)
+
+#define URI_PROTOCOL_MINIMUM_MAJOR_VERSION 1
 
 /*
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  2.0    | Added support for response data formats.                                                                 |
 *|  1.0    | Initial version                                                                                          |
 ***********************************************************************************************************************
 */
 
-#define GPUCRASHDUMP_INITIAL_VERSION 1
+#define URI_RESPONSE_FORMATS_VERSION 2
+#define URI_INITIAL_VERSION 1
 
 namespace DevDriver
 {
-    namespace GpuCrashDumpProtocol
+    namespace URIProtocol
     {
         ///////////////////////
-        // GpuCrashDump Protocol
-        enum struct GpuCrashDumpMessage : MessageCode
+        // GPU Open URI Protocol
+        enum struct URIMessage : MessageCode
         {
             Unknown = 0,
-            GpuCrashNotify,
-            GpuCrashAcknowledge,
-            GpuCrashDataChunk,
-            GpuCrashDataSentinel,
+            URIRequest,
+            URIResponse,
+            Count,
+        };
+
+        ///////////////////////
+        // URI Types
+        enum struct ResponseDataFormat : uint32
+        {
+            Unknown = 0,
+            Text,
+            Binary,
             Count
         };
 
         ///////////////////////
-        // GpuCrashDump Constants
-        // @note: We currently subtract sizeof(uint32) instead of sizeof(GpuCrashDumpMessage) to work around struct packing issues.
-        //        The compiler pads out GpuCrashDumpMessage to 4 bytes when it's included in the payload struct.
-        DD_STATIC_CONST Size kMaxGpuCrashDumpDataChunkSize = (kMaxPayloadSizeInBytes - sizeof(uint32));
+        // URI Constants
+        DD_STATIC_CONST uint32 kURIStringSize = 256;
 
         ///////////////////////
-        // GpuCrashDump Payloads
-        DD_NETWORK_STRUCT(GpuCrashNotifyPayload, 4)
+        // URI Payloads
+
+        DD_NETWORK_STRUCT(URIRequestPayload, 4)
         {
-            uint32 sizeInBytes;
+            char uriString[kURIStringSize];
         };
 
-        DD_CHECK_SIZE(GpuCrashNotifyPayload, 4);
+        DD_CHECK_SIZE(URIRequestPayload, kURIStringSize);
 
-        DD_NETWORK_STRUCT(GpuCrashAcknowledgePayload, 4)
-        {
-            bool acceptedCrashDump;
-            char padding[3];
-        };
-
-        DD_CHECK_SIZE(GpuCrashAcknowledgePayload, 4);
-
-        DD_NETWORK_STRUCT(GpuCrashDataChunkPayload, 4)
-        {
-            uint8 data[kMaxGpuCrashDumpDataChunkSize];
-        };
-
-        DD_CHECK_SIZE(GpuCrashDataChunkPayload, kMaxGpuCrashDumpDataChunkSize);
-
-        DD_NETWORK_STRUCT(GpuCrashDataSentinelPayload, 4)
+        DD_NETWORK_STRUCT(URIResponsePayload, 4)
         {
             Result result;
+            TransferProtocol::BlockId blockId;
+            ResponseDataFormat format; // format is only valid in v2 sessions or higher.
         };
 
-        DD_CHECK_SIZE(GpuCrashDataSentinelPayload, 4);
+        DD_CHECK_SIZE(URIResponsePayload, 12);
 
-        DD_NETWORK_STRUCT(GpuCrashDumpPayload, 4)
+        DD_NETWORK_STRUCT(URIPayload, 4)
         {
-            GpuCrashDumpMessage command;
+            URIMessage  command;
             // pad out to 4 bytes for alignment requirements
-            char                 padding[3];
-
+            char        padding[3];
             union
             {
-                GpuCrashNotifyPayload       notify;
-                GpuCrashAcknowledgePayload  acknowledge;
-                GpuCrashDataChunkPayload    dataChunk;
-                GpuCrashDataSentinelPayload sentinel;
+                URIRequestPayload  uriRequest;
+                URIResponsePayload uriResponse;
             };
         };
 
-        DD_CHECK_SIZE(GpuCrashDumpPayload, kMaxPayloadSizeInBytes);
+        DD_CHECK_SIZE(URIPayload, 260);
     }
 }

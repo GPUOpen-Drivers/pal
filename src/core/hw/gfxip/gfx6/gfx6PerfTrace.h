@@ -54,7 +54,7 @@ public:
     virtual Result GetTraceLayout(SpmTraceLayout* pLayout) const override;
     virtual Result Init(const SpmTraceCreateInfo& createInfo) override;
 
-    gpusize GetRingSize() const { return static_cast<gpusize>(m_ringSize.bits.RING_BASE_SIZE); }
+    virtual gpusize GetRingSize() const override { return static_cast<gpusize>(m_ringSize.bits.RING_BASE_SIZE); }
 
 private:
     uint32 GetMuxselRamDwords(uint32 seIndex) const;
@@ -89,13 +89,13 @@ public:
     ~ThreadTrace() {}
 
     // Returns the CU that was selected for this thread trace.
-    uint32 GetComputeUnit() const override { return m_sqThreadTraceMask.bits.CU_SEL; }
+    virtual uint32 GetComputeUnit() const override { return m_sqThreadTraceMask.bits.CU_SEL; }
 
     /// Returns the alignment requirement for a thread trace's data segment.
-    size_t GetDataAlignment() const { return PerfCtrInfo::BufferAlignment; }
+    virtual size_t GetDataAlignment() const override { return PerfCtrInfo::BufferAlignment; }
 
     /// Returns the alignment requirement for a thread trace's info segment (DWORD aligned).
-    size_t GetInfoAlignment() const { return sizeof(uint32); }
+    virtual size_t GetInfoAlignment() const override { return sizeof(uint32); }
 
     uint32* WriteSetupCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteUpdateSqttTokenMaskCommands(

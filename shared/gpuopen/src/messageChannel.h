@@ -55,42 +55,51 @@ namespace DevDriver
 
         ~MessageChannel();
 
-        void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override;
+        void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override final;
 
-        Result Register(uint32 timeoutInMs = kInfiniteTimeout) override;
-        Result Unregister() override;
-        bool IsConnected() override;
+        Result Register(uint32 timeoutInMs = kInfiniteTimeout) override final;
+        Result Unregister() override final;
+        bool IsConnected() override final;
 
-        Result SetStatusFlags(StatusFlags flags) override;
-        StatusFlags GetStatusFlags() const override;
+        Result SetStatusFlags(StatusFlags flags) override final;
+        StatusFlags GetStatusFlags() const override final;
 
         Result Send(ClientId dstClientId, Protocol protocol, MessageCode message,
                     const ClientMetadata& metadata,
                     uint32 payloadSizeInBytes,
-                    const void* pPayload) override;
+                    const void* pPayload) override final;
 
-        Result Receive(MessageBuffer& message, uint32 timeoutInMs) override;
-        Result Forward(const MessageBuffer& messageBuffer) override;
+        Result Receive(MessageBuffer& message, uint32 timeoutInMs) override final;
+        Result Forward(const MessageBuffer& messageBuffer) override final;
 
-        Result EstablishSession(ClientId dstClientId, IProtocolClient* pClient) override;
-        Result RegisterProtocolServer(IProtocolServer* pServer) override;
-        Result UnregisterProtocolServer(IProtocolServer* pServer) override;
-        IProtocolServer* GetProtocolServer(Protocol protocol) override;
+        Result ConnectProtocolClient(IProtocolClient* pProtocolClient, ClientId dstClientId) override final;
+        Result RegisterProtocolServer(IProtocolServer* pServer) override final;
+        Result UnregisterProtocolServer(IProtocolServer* pServer) override final;
+        IProtocolServer* GetProtocolServer(Protocol protocol) override final;
 
-        ClientId GetClientId() const override;
+        ClientId GetClientId() const override final;
 
-        const ClientInfoStruct& GetClientInfo() const override { return m_clientInfoResponse; }
+        const ClientInfoStruct& GetClientInfo() const override final
+        {
+            return m_clientInfoResponse;
+        }
 
         Result FindFirstClient(const ClientMetadata& filter,
                                ClientId*             pClientId,
                                uint32                timeoutInMs,
-                               ClientMetadata*       pClientMetadata) override;
+                               ClientMetadata*       pClientMetadata) override final;
 
-        const AllocCb& GetAllocCb() const override { return m_createInfo.allocCb; }
+        const AllocCb& GetAllocCb() const override final
+        {
+            return m_createInfo.allocCb;
+        }
 
-        TransferProtocol::TransferManager& GetTransferManager() override { return m_transferManager; }
+        TransferProtocol::TransferManager& GetTransferManager() override final
+        {
+            return m_transferManager;
+        }
 
-        Result RegisterService(URIProtocol::URIService* pService) override
+        Result RegisterService(IService* pService) override final
         {
             DD_ASSERT(pService != nullptr);
             DD_ASSERT(m_pURIServer != nullptr);
@@ -98,7 +107,7 @@ namespace DevDriver
             return m_pURIServer->RegisterService(pService);
         }
 
-        Result UnregisterService(URIProtocol::URIService* pService) override
+        Result UnregisterService(IService* pService) override final
         {
             DD_ASSERT(pService != nullptr);
             DD_ASSERT(m_pURIServer != nullptr);

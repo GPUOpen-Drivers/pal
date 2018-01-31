@@ -27,6 +27,7 @@ cmake_minimum_required(VERSION 3.5)
 project(PAL LANGUAGES C CXX)
 
 ### CMake Includes #####################################################################################################
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/Modules)
 include(CMakeDependentOption)
 include(AmdCmakeHelper)
 
@@ -127,6 +128,8 @@ set(PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam CACHE PATH "Specify
 # GPUOPEN
 if(PAL_BUILD_GPUOPEN)
     set(PAL_GPUOPEN_PATH ${PROJECT_SOURCE_DIR}/shared/gpuopen CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
+    set(GPUOPEN_BUILD_SERVER_HELPERS ON CACHE BOOL "PAL override to build GPUOpen with server helper classes." FORCE)
+    set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON CACHE BOOL "PAL override to build GPUOpen with support for the standard driver protocols." FORCE)
 endif()
 
 ### Generator Dependencies #############################################################################################

@@ -125,7 +125,7 @@ namespace DevDriver
             T* pData = _AllocateFront();
             if (pData != nullptr)
             {
-                *pData = T(Platform::Forward<Args>(args)...);
+                new(pData) T(Platform::Forward<Args>(args)...);
             }
             return (pData != nullptr);
         }
@@ -138,19 +138,27 @@ namespace DevDriver
             T* pData = _AllocateBack();
             if (pData != nullptr)
             {
-                *pData = T(Platform::Forward<Args>(args)...);
+                new(pData) T(Platform::Forward<Args>(args)...);
             }
             return (pData != nullptr);
         }
 
-        // Retrieves pointer to next element at front
-        T* AllocateFront()
+        // Allocates memory for a new element at the front of the queue and returns a pointer.
+        // This method is intended to be the fastest way possible to allocate memory, under the assumption that
+        // the user will do either a memcpy or in place construction on it. Given that there is no way to ensure
+        // that the user actually constructs an object in place we limit this method to POD types only.
+        template<typename U = T, typename = typename Platform::EnableIf<Platform::IsPod<U>::Value>::Type>
+        U* AllocateFront()
         {
             return _AllocateFront();
         }
 
-        // Retrieves pointer to next element at end
-        T* AllocateBack()
+        // Allocates memory for a new element at the back of the queue and returns a pointer.
+        // This method is intended to be the fastest way possible to allocate memory, under the assumption that
+        // the user will do either a memcpy or in place construction on it. Given that there is no way to ensure
+        // that the user actually constructs an object in place we limit this method to POD types only.
+        template<typename U = T, typename = typename Platform::EnableIf<Platform::IsPod<U>::Value>::Type>
+        U* AllocateBack()
         {
             return _AllocateBack();
         }
@@ -165,10 +173,10 @@ namespace DevDriver
             bool result = !IsEmpty();
             if (result)
             {
-                // If the object is not a POD, overwrite the existing element with a default-constructed instance.
+                // If the object is not a POD, destroy the instance before we deallocate it.
                 if (!Platform::IsPod<T>::Value)
                 {
-                    _Front() = T();
+                    _Front().~T();
                 }
                 // Update state so that it is not part of the queue anymore.
                 _PopFront();
@@ -184,6 +192,11 @@ namespace DevDriver
                 // Move object out of the queue into object provided.
                 output = Platform::Move(_Front());
                 // Update state so that it is not part of the queue anymore.
+                // If the object is not a POD, destroy the instance before we deallocate it.
+                if (!Platform::IsPod<T>::Value)
+                {
+                    _Front().~T();
+                }
                 _PopFront();
             }
             return result;
@@ -195,10 +208,10 @@ namespace DevDriver
             bool result = !IsEmpty();
             if (result)
             {
-                // If the object is not a POD, overwrite the existing element with a default-constructed instance.
+                // If the object is not a POD, destroy the instance before we deallocate it.
                 if (!Platform::IsPod<T>::Value)
                 {
-                    _Back() = T();
+                    _Back().~T();
                 }
                 // Update state so that it is not part of the queue anymore.
                 _PopBack();
@@ -213,6 +226,13 @@ namespace DevDriver
             {
                 // Move object out of the queue into object provided.
                 output = Platform::Move(_Back());
+
+                // If the object is not a POD, destroy the instance before we deallocate it.
+                if (!Platform::IsPod<T>::Value)
+                {
+                    _Back().~T();
+                }
+
                 // Update state so that it is not part of the queue anymore.
                 _PopBack();
             }
@@ -258,30 +278,15 @@ namespace DevDriver
         {
             if (m_pBlockIndexCache != nullptr)
             {
-                // If the object is not a POD, we delete all the blocks using DD_DELETE
-                if (!Platform::IsPod<QueueBlock>::Value)
+                Reset();
+
+                for (size_t i = 0; i < m_numBlocks; i++)
                 {
-                    for (size_t i = 0; i < m_numBlocks; i++)
+                    const QueueBlockPtr& pBlock = m_pBlockIndexCache[i];
+                    if (pBlock != nullptr)
                     {
-                        const QueueBlockPtr& pBlock = m_pBlockIndexCache[i];
-                        if (pBlock != nullptr)
-                        {
-                            DD_PRINT(LogLevel::Never, "[Queue::Clear] Freeing block at 0x%X", pBlock);
-                            DD_DELETE(pBlock, m_allocCb);
-                        }
-                    }
-                }
-                // Otherwise, we simply delete the memory using DD_FREE
-                else
-                {
-                    for (size_t i = 0; i < m_numBlocks; i++)
-                    {
-                        const QueueBlockPtr& pBlock = m_pBlockIndexCache[i];
-                        if (pBlock != nullptr)
-                        {
-                            DD_PRINT(LogLevel::Never, "[Queue::Clear] Freeing block at 0x%X", pBlock);
-                            DD_FREE(pBlock, m_allocCb);
-                        }
+                        DD_PRINT(LogLevel::Never, "[Queue::Clear] Freeing block at 0x%X", pBlock);
+                        DD_FREE(pBlock, m_allocCb);
                     }
                 }
 
@@ -289,26 +294,22 @@ namespace DevDriver
                 m_pBlockIndexCache = nullptr;
             }
 
-            m_size = 0;
             m_numBlocks = 0;
         }
 
         // Clears all objects stored, but doesn't free memory.
         void Reset()
         {
-            m_size = 0;
 
-            // If the object type isn't a POD, we need to destroy all instances by creating new ones.
-            if (!Platform::IsPod<QueueBlock>::Value)
+            while (!IsEmpty())
             {
-                for (size_t i = 0; i < m_numBlocks; i++)
+                // If the object is not a POD, destroy the instance before we deallocate it.
+                if (!Platform::IsPod<T>::Value)
                 {
-                    QueueBlockPtr& pBlock = m_pBlockIndexCache[i];
-                    if (pBlock != nullptr)
-                    {
-                        *pBlock = QueueBlock();
-                    }
+                    _Front().~T();
                 }
+                // Update state so that it is not part of the queue anymore.
+                _PopFront();
             }
         }
 
@@ -361,11 +362,6 @@ namespace DevDriver
         struct QueueBlock
         {
             T data[kPaddedBlockSize];
-
-            T& operator[] (size_t index)
-            {
-                return data[index];
-            }
         };
 
         using QueueBlockPtr = QueueBlock*;
@@ -383,7 +379,7 @@ namespace DevDriver
             GrowBlocks(rhs.m_numBlocks);
             for (int i = 0; i < rhs.m_size; i++)
             {
-                _AllocateBack() = rhs[i];
+                *_AllocateBack() = rhs[i];
             }
         }
 
@@ -467,9 +463,10 @@ namespace DevDriver
         {
             T* pResult = nullptr;
             const size_t newOffset = m_offset + m_size;
+            const size_t indexOffset = IndexForOffset(newOffset);
 
             // Check to see if the tail is at a pBlockIndex edge + grow as necessary
-            if ((IndexForOffset(newOffset) == 0)
+            if ((indexOffset == 0)
                 & ((m_size + kPaddedBlockSize) >= Capacity()))
             {
                 GrowBlocks(1);
@@ -486,24 +483,16 @@ namespace DevDriver
                 // If the pBlockIndex hasn't been allocated yet, allocate it
                 if (pBlockIndex == nullptr)
                 {
-                    if (!Platform::IsPod<QueueBlock>::Value)
-                    {
-                        pBlockIndex = DD_NEW(QueueBlock, m_allocCb);
-                    }
-                    else
-                    {
-                        pBlockIndex =
-                            static_cast<QueueBlock*>(DD_MALLOC(sizeof(QueueBlock), alignof(QueueBlock), m_allocCb));
-                    }
+                    pBlockIndex =
+                        static_cast<QueueBlock*>(DD_MALLOC(sizeof(QueueBlock), alignof(QueueBlock), m_allocCb));
                     DD_PRINT(LogLevel::Never, "[Queue::AllocateBack] Allocated block at 0x%X", pBlockIndex);
                 }
 
                 // If the pBlockIndex has been allocated then get it's address + increment the size
                 if (pBlockIndex != nullptr)
                 {
-                    const size_t indexOffset = IndexForOffset(newOffset);
                     DD_ASSERT(indexOffset < kPaddedBlockSize);
-                    pResult = &(*pBlockIndex)[indexOffset];
+                    pResult = &pBlockIndex->data[indexOffset];
                     m_size++;
                 }
             }
@@ -522,11 +511,12 @@ namespace DevDriver
                 GrowBlocks(1);
             }
 
+            const size_t capacity = Capacity();
             // Only allocate if we have enough space
-            if ((m_size + 1) <= Capacity())
+            if ((m_size + 1) <= capacity)
             {
                 // We need to wrap the index around if necessary
-                const size_t newOffset = (m_offset != 0 ? m_offset : Capacity()) - 1;
+                const size_t newOffset = (m_offset != 0 ? m_offset : capacity) - 1;
 
                 // Calculate the pBlockIndex index
                 const size_t blockOffset = BlockForOffset(newOffset);
@@ -536,15 +526,8 @@ namespace DevDriver
                 // If the pBlockIndex hasn't been allocated yet, allocate it
                 if (pBlockIndex == nullptr)
                 {
-                    if (!Platform::IsPod<QueueBlock>::Value)
-                    {
-                        pBlockIndex = DD_NEW(QueueBlock, m_allocCb);
-                    }
-                    else
-                    {
-                        pBlockIndex =
-                            static_cast<QueueBlock*>(DD_MALLOC(sizeof(QueueBlock), alignof(QueueBlock), m_allocCb));
-                    }
+                    pBlockIndex =
+                        static_cast<QueueBlock*>(DD_MALLOC(sizeof(QueueBlock), alignof(QueueBlock), m_allocCb));
                     DD_PRINT(LogLevel::Never, "[Queue::AllocateFront] Allocated block at 0x%X", pBlockIndex);
                 }
 
@@ -555,7 +538,7 @@ namespace DevDriver
                     m_offset = newOffset;
                     const size_t indexOffset = IndexForOffset(newOffset);
                     DD_ASSERT(indexOffset < kPaddedBlockSize);
-                    pResult = &(*pBlockIndex)[indexOffset];
+                    pResult = &pBlockIndex->data[indexOffset];
                 }
             }
             return pResult;
@@ -577,7 +560,7 @@ namespace DevDriver
             const size_t indexOffset = IndexForOffset(index);
             DD_ASSERT(indexOffset < kPaddedBlockSize);
 
-            return (*m_pBlockIndexCache[blockOffset])[indexOffset];
+            return m_pBlockIndexCache[blockOffset]->data[indexOffset];
         }
 
         // Returns a reference to the object at the back of the queue.
