@@ -1031,7 +1031,7 @@ Result CmdBuffer::Init()
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    Result result = GetNextLayer()->Begin(info);
+    Result result = GetNextLayer()->Begin(NextCmdBufferBuildInfo(info));
 
     if (m_flags.logMiscellaneous)
     {

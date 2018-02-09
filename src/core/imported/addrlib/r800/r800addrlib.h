@@ -133,18 +133,13 @@ protected:
         BOOL_32 isLinear, UINT_32 numSlices, UINT_64* pSliceBytes, UINT_32 baseAlign) const;
 
     /// Gets maximum alignments
-    virtual ADDR_E_RETURNCODE HwlGetMaxAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const
+    virtual UINT_32 HwlComputeMaxBaseAlignments() const
     {
-        if (pOut != NULL)
-        {
-            // Max tile size is 8-sample and 16 byte-per-pixel
-            const UINT_64 tileSize = Min(m_rowSize, MicroTilePixels * 8 * 16);
+        // Max tile size is 8-sample and 16 byte-per-pixel
+        const UINT_64 tileSize = Min(m_rowSize, MicroTilePixels * 8 * 16);
 
-            // With the largest tile size, the bank_width and bank_height can be treated as 1.
-            pOut->baseAlign = tileSize * m_banks * m_pipes;
-        }
-
-        return ADDR_OK;
+        // With the largest tile size, the bank_width and bank_height can be treated as 1.
+        return tileSize * m_banks * m_pipes;
     }
 
 private:

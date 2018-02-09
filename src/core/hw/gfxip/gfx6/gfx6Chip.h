@@ -269,10 +269,11 @@ constexpr PrtFeatureFlags Gfx6PrtFeatures = static_cast<PrtFeatureFlags>(
 
 // GFX7 supports the following PRT features:
 constexpr PrtFeatureFlags Gfx7PrtFeatures = static_cast<PrtFeatureFlags>(
-    Gfx6PrtFeatures             | // - all features supported by GFX6
-    PrtFeatureUnalignedMipSize  | // - unaligned levels outside of the miptail
-    PrtFeatureTileAliasing      | // - tile aliasing (without metadata)
-    PrtFeatureStrictNull);        // - returning zeros for unmapped tiles
+    Gfx6PrtFeatures                | // - all features supported by GFX6
+    PrtFeatureUnalignedMipSize     | // - unaligned levels outside of the miptail
+    PrtFeatureTileAliasing         | // - tile aliasing (without metadata)
+    PrtFeatureStrictNull           | // - returning zeros for unmapped tiles
+    PrtFeatureNonStandardImage3D);   // - limited support for sparse 3D images
 
 // GFX8 supports the same PRT features as GFX7.
 constexpr PrtFeatureFlags Gfx8PrtFeatures = Gfx7PrtFeatures;

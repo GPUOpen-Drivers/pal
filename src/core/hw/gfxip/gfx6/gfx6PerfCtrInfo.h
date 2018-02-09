@@ -52,7 +52,6 @@ extern Result ValidateThreadTraceOptions(const Pal::Device& device,
  #else
  const ThreadTraceInfo& info);
  #endif
-extern Result ValidateSpmTraceOptions(const Pal::Device& device, const SpmTraceCreateInfo& info);
 
 // These registers do exist on *some* Gfx8 variations. The Gfx8 headers used to create the merged headers don't include
 // them though so they got the __SI__CI tag, but we know better, so we redefine them here without their tags for
@@ -263,6 +262,12 @@ constexpr uint32 Gfx8NumTcpCounters    = 4;   //< TCP
 constexpr uint32 Gfx8NumTdCounters     = 2;   //< TD
 constexpr uint32 Gfx8NumVgtCounters    = 4;   //< VGT
 constexpr uint32 Gfx8NumWdCounters     = 4;   //< WD
+
+// Shift values required for programming PERF_SEL fields for streaming perf counters. While the bit-widths of the
+// PERF_SEL fields may vary, these shift values are the same for all perf counters.
+constexpr uint32 Gfx6PerfCounterPerfSel0Shift = CPG_PERFCOUNTER0_SELECT__PERF_SEL__SHIFT__CI__VI;
+constexpr uint32 Gfx6PerfCounterPerfSel1Shift = CPG_PERFCOUNTER0_SELECT__PERF_SEL1__SHIFT__CI__VI;
+constexpr uint32 Gfx6PerfCounterCntrModeShift = CPG_PERFCOUNTER0_SELECT__CNTR_MODE__SHIFT__CI__VI;
 
 // Performance monitoring state for disabling and resetting counters.
 constexpr uint32 PerfmonDisableAndReset = 0;

@@ -297,175 +297,140 @@ Result PerfExperiment::CreateThreadTrace(
 }
 
 // =====================================================================================================================
-// Creates gfx9 version of SpmTrace and initializes trace properties specific to gfx9.
-Result PerfExperiment::CreateSpmTrace(
-    const SpmTraceCreateInfo& info)
+// Validates SPM trace create info and constructs a hardware layer specific Spm trace object.
+Result PerfExperiment::ConstructSpmTraceObj(
+    const SpmTraceCreateInfo& info,
+    Pal::SpmTrace**           ppSpmTrace)
 {
     Result result = Result::Success;
+    PAL_ASSERT(ppSpmTrace != nullptr);
 
-    // TODO: Validate spm trace create info.
+    auto perfCounterInfo  = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+
+    // Validate the SPM trace create info.
+    for (uint32 i = 0; i < info.numPerfCounters; i++)
+    {
+        auto blockIdx = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+
+        // Check if block, eventid and instance number are within bounds.
+        if (((info.pPerfCounterInfos[i].block < GpuBlock::Count) &&
+            (info.pPerfCounterInfos[i].eventId < perfCounterInfo.block[blockIdx].maxEventId) &&
+            (info.pPerfCounterInfos[i].instance < (perfCounterInfo.block[blockIdx].numInstances *
+             perfCounterInfo.block[blockIdx].numShaderEngines))) == false)
+        {
+            result = Result::ErrorInvalidValue;
+            break;
+        }
+    }
 
     if (result == Result::Success)
     {
-        // Create a new Gfx9::SpmTrace object.
-        m_pSpmTrace = PAL_NEW(SpmTrace,
-                               m_device.GetPlatform(),
-                               Util::SystemAllocType::AllocInternal) (&m_device);
+        SpmTrace* pSpmTrace = nullptr;
 
-        if (m_pSpmTrace != nullptr)
+        if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
         {
-            result = m_pSpmTrace->Init(info);
+            pSpmTrace = static_cast<Pal::SpmTrace*>(PAL_NEW (Gfx9SpmTrace,
+                                                             m_device.GetPlatform(),
+                                                             Util::SystemAllocType::AllocInternal)(&m_device));
+        }
+        if (pSpmTrace != nullptr)
+        {
+            (*ppSpmTrace) = pSpmTrace;
         }
         else
         {
+            // Allocation of Spm trace object failed.
             result = Result::ErrorOutOfMemory;
         }
     }
 
-    // A single StreamingPerfCounter represents a single 64-bit hw counter that can track 4 16-bit streaming perf
-    // counter events. Each PerfCounter described in the spm trace create info represents a 16-bit counter that is
-    // added to the StreamingPerfCounter for tracking and register programming. StreamingPerfCounter(s) that
-    // represent SQ counters can only track/program one 16-bit counter due to the hw design.
-    if(result == Result ::Success)
-    {
-        Gfx9PerfCounterInfo perfInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
-
-        Util::HashMap<BlockUsageKey, StreamingPerfCounter*, Platform> spmCounterUsageMap(32, m_device.GetPlatform());
-        result = spmCounterUsageMap.Init();
-
-        // Iterate through the list of perf counters provided for this SpmTrace.
-        for (uint32 i = 0; (i < info.numPerfCounters) && (result == Result::Success); ++i)
-        {
-            uint32 numCounters =
-                perfInfo.block[static_cast<uint32>(info.pPerfCounterInfos[i].block)].numStreamingCounterRegs;
-
-            // Iterate over the number of registers(counters) that can be used as streaming counters in this block.
-            // The result can be in Error state until this loop is done.
-            for (uint32 counterIdx = 0; counterIdx < numCounters; counterIdx++)
-            {
-                BlockUsageKey key = { info.pPerfCounterInfos[i].block, info.pPerfCounterInfos[i].instance, counterIdx };
-
-                StreamingPerfCounter** ppStreamingCounter = nullptr;
-                bool                   existed            = false;
-
-                result = spmCounterUsageMap.FindAllocate(key, &existed, &ppStreamingCounter);
-
-                if (existed)
-                {
-                    // Attempt to add this perf counter if the streaming perf counter already exists in the hash map.
-                    // If all the slots in this HW counter are full, then we move on to the next HW counter in this
-                    // instance.
-                    result = (*ppStreamingCounter)->AddEvent(info.pPerfCounterInfos[i].block,
-                                                             info.pPerfCounterInfos[i].eventId);
-                }
-                else
-                {
-                    // Create a new StreamingPerfConter and add it to the hashmap. The SpmTrace object is responsible
-                    // for freeing this memory allocated for each StreamingPerfCounter.
-                    StreamingPerfCounter* pNewCounter = PAL_NEW (StreamingPerfCounter,
-                                                                 m_device.GetPlatform(),
-                                                                 Util::SystemAllocType::AllocObject)
-                                                                 (m_device,
-                                                                  info.pPerfCounterInfos[i].block,
-                                                                  info.pPerfCounterInfos[i].instance,
-                                                                  counterIdx);
-
-                    // Allocation succeeded, so create a StreamingPerfCounter object and add it to the hash map.
-                    if (pNewCounter != nullptr)
-                    {
-                        result = pNewCounter->AddEvent(info.pPerfCounterInfos[i].block,
-                                                       info.pPerfCounterInfos[i].eventId);
-
-                        if (result == Result::Success)
-                        {
-                            const auto& block = info.pPerfCounterInfos[i].block;
-
-                            // Update the counter flags
-                            m_counterFlags.indexedBlocks |= pNewCounter->IsIndexed();
-                            //m_counterFlags.mcCounters    |= (block == GpuBlock::Mc);
-                            m_counterFlags.rlcCounters   |= (block == GpuBlock::Rlc);
-                            m_counterFlags.sqCounters    |= (block == GpuBlock::Sq);
-                            //m_counterFlags.srbmCounters  |= (block == GpuBlock::Srbm);
-                            m_counterFlags.taCounters    |= (block == GpuBlock::Ta);
-                            m_counterFlags.tdCounters    |= (block == GpuBlock::Td);
-                            m_counterFlags.tcpCounters   |= (block == GpuBlock::Tcp);
-                            m_counterFlags.tccCounters   |= (block == GpuBlock::Tcc);
-                            m_counterFlags.tcaCounters   |= (block == GpuBlock::Tca);
-
-                            const auto& chipProps = m_device.Parent()->ChipProperties();
-                            if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
-                                ((block == GpuBlock::Ta)  ||
-                                 (block == GpuBlock::Td)  ||
-                                 (block == GpuBlock::Tcp) ||
-                                 (block == GpuBlock::Tcc) ||
-                                 (block == GpuBlock::Tca)))
-                            {
-                                constexpr uint32 SqDefaultCounterRate = 0;
-
-                                m_sqPerfCounterCtrl.bits.PS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.VS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.GS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.ES_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.HS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.LS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-                                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
-
-                                // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-                                PAL_ALERT(HasSqCounters());
-                            }
-                            else if (block == GpuBlock::Sq)
-                            {
-                                static constexpr uint32 SqDefaultCounterRate = 0;
-
-                                m_sqPerfCounterCtrl.bits.PS_EN |= ((ShaderMask() & PerfShaderMaskPs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.VS_EN |= ((ShaderMask() & PerfShaderMaskVs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.GS_EN |= ((ShaderMask() & PerfShaderMaskGs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.ES_EN |= ((ShaderMask() & PerfShaderMaskEs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-                                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
-
-                                // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-                                PAL_ALERT((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
-                                          (HasTaCounters()  ||
-                                           HasTdCounters()  ||
-                                           HasTcpCounters() ||
-                                           HasTccCounters() ||
-                                           HasTcaCounters()));
-                            }
-                            (*ppStreamingCounter) = pNewCounter;
-                        }
-                    }
-                    else
-                    {
-                        // Allocation of StreamingPerfCounter failed.
-                        result = Result::ErrorOutOfMemory;
-                        break;
-                    }
-
-                    if (result == Result::Success)
-                    {
-                        // We have either added a perf counter to an existing StreamingPerfCounter or we have
-                        // succesfully created a new StreamingPerfCounter and added our perf counter to it. We can skip
-                        // to the outer loop for the next perf counter.
-                        break;
-                    }
-
-                } // New StreamingPerfCounter allocation.
-            } // End iterate over HW streaming counter registers.
-        } // End iterate over requested perf counters.
-
-        PAL_ASSERT(result == Result::Success);
-
-        // Add all the StreamingPerfCounters from the hashmap to the SpmTrace.
-        for (auto iter = spmCounterUsageMap.Begin(); (iter.Get() && (result == Result::Success)); iter.Next())
-        {
-            result = m_pSpmTrace->AddStreamingCounter(static_cast<Pal::StreamingPerfCounter*>(iter.Get()->value));
-        }
-    }
     return result;
+}
+
+// =====================================================================================================================
+// Creates a StreamingPerfCounter object and returns a pointer.
+Pal::StreamingPerfCounter* PerfExperiment::CreateStreamingPerfCounter(
+    GpuBlock block,
+    uint32   instance,
+    uint32   slot)
+{
+    Pal::StreamingPerfCounter* pStreamingCounter = nullptr;
+
+    if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        pStreamingCounter = static_cast<Pal::StreamingPerfCounter*>(PAL_NEW (Gfx9StreamingPerfCounter,
+                                                                             m_device.GetPlatform(),
+                                                                             Util::SystemAllocType::AllocObject)
+                                                                             (m_device, block, instance, slot));
+    }
+
+    if (pStreamingCounter == nullptr)
+    {
+        // Allocation of StreamingPerfCounter object failed.
+        PAL_ASSERT_ALWAYS();
+    }
+
+    return pStreamingCounter;
+}
+
+// =====================================================================================================================
+// Updates internal flags.
+void PerfExperiment::UpdateCounterFlags(
+    GpuBlock block,
+    bool     isIndexed)
+{
+    m_counterFlags.indexedBlocks |= isIndexed;
+    m_counterFlags.rlcCounters   |= (block == GpuBlock::Rlc);
+    m_counterFlags.sqCounters    |= (block == GpuBlock::Sq);
+    m_counterFlags.taCounters    |= (block == GpuBlock::Ta);
+    m_counterFlags.tdCounters    |= (block == GpuBlock::Td);
+    m_counterFlags.tcpCounters   |= (block == GpuBlock::Tcp);
+    m_counterFlags.tccCounters   |= (block == GpuBlock::Tcc);
+    m_counterFlags.tcaCounters   |= (block == GpuBlock::Tca);
+
+    const auto& chipProps = m_device.Parent()->ChipProperties();
+    if ((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
+        ((block == GpuBlock::Ta)  ||
+         (block == GpuBlock::Td)  ||
+         (block == GpuBlock::Tcp) ||
+         (block == GpuBlock::Tcc) ||
+         (block == GpuBlock::Tca)))
+    {
+        constexpr uint32 SqDefaultCounterRate = 0;
+
+        m_sqPerfCounterCtrl.bits.PS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.VS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.GS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.ES_EN |= 1;
+        m_sqPerfCounterCtrl.bits.HS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.LS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.CS_EN |= 1;
+        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+        // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
+        PAL_ALERT(HasSqCounters());
+    }
+    else if (block == GpuBlock::Sq)
+    {
+        static constexpr uint32 SqDefaultCounterRate = 0;
+
+        m_sqPerfCounterCtrl.bits.PS_EN |= ((ShaderMask() & PerfShaderMaskPs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.VS_EN |= ((ShaderMask() & PerfShaderMaskVs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.GS_EN |= ((ShaderMask() & PerfShaderMaskGs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.ES_EN |= ((ShaderMask() & PerfShaderMaskEs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
+        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+        // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
+        PAL_ALERT((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
+                  (HasTaCounters()  ||
+                   HasTdCounters()  ||
+                   HasTcpCounters() ||
+                   HasTccCounters() ||
+                   HasTcaCounters()));
+    }
 }
 
 // =====================================================================================================================
@@ -671,6 +636,47 @@ void PerfExperiment::IssueEnd(
         }
 
         pCmdSpace = WriteResetGrbmGfxIndex(pCmdStream, pCmdSpace);
+    }
+
+    if (HasSpmTrace())
+    {
+        CmdStream* pHwlCmdStream = static_cast<CmdStream*>(pCmdStream);
+
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
+
+        // Enable sampling. This writes samples the counter values and writes in *_PERFCOUNTER*_LO/HI registers.
+        cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
+        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL,
+                                                        cpPerfmonCntl.u32All,
+                                                        pCmdSpace);
+
+        pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
+
+        // Stop all performance counters.
+        cpPerfmonCntl.u32All                 = 0;
+        cpPerfmonCntl.bits.PERFMON_STATE     = PerfmonStopCounting;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = PerfmonStopCounting;
+
+        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL,
+                                                        cpPerfmonCntl.u32All,
+                                                        pCmdSpace);
+
+        pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_STOP, engineType, pCmdSpace);
+
+        // Need a WaitIdle here before zeroing the RLC SPM controls, else we get a page fault indicating that the data
+        // is still being written at the moment.
+        pCmdSpace = WriteWaitIdleClean(pCmdStream, false, engineType, pCmdSpace);
+
+        if (m_sqPerfCounterCtrl.u32All != 0)
+        {
+            static constexpr regSQ_PERFCOUNTER_CTRL SqPerfCounterCtrl = {};
+
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
+                                                         SqPerfCounterCtrl.u32All,
+                                                         pCmdSpace);
+        }
+
+        pCmdSpace = m_pSpmTrace->WriteEndCommands(pCmdStream, pCmdSpace);
     }
 
     if (m_device.Parent()->ChipProperties().gfx9.sqgEventsEnabled == false)
@@ -1269,7 +1275,7 @@ uint32* PerfExperiment::WriteResetGrbmGfxIndex(
     uint32*     pCmdSpace
     ) const
 {
-    PAL_ASSERT(HasIndexedCounters() || HasThreadTraces());
+    PAL_ASSERT(HasIndexedCounters() || HasThreadTraces() || HasSpmTrace());
 
     regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
     grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;

@@ -1018,10 +1018,8 @@ uint32 MetaDataAddrEquation::GetNumComponents(
     for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
     {
         const uint32  data = Get(bitPos, compType);
-        if (data != 0)
-        {
-            numComponents++;
-        }
+
+        numComponents += CountSetBits(data);
     }
 
     return numComponents;

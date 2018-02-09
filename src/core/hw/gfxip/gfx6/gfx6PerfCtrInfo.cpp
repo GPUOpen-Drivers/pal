@@ -1240,40 +1240,6 @@ Result ValidateThreadTraceOptions(
     return result;
 }
 
-// =====================================================================================================================
-// Validates the spm trace configuration.
-Result ValidateSpmTraceOptions(
-    const Device&             device,
-    const SpmTraceCreateInfo& info)
-{
-    Result result = Result::ErrorInvalidValue;
-
-    auto pChipProps = &device.ChipProperties();
-    auto pPerfCounterInfo  = &pChipProps->gfx6.perfCounterInfo;
-
-    for (uint32 i = 0; i < info.numPerfCounters; i++)
-    {
-        auto blockIdx = static_cast<uint32>(info.pPerfCounterInfos[i].block);
-
-        // Check if block, eventid and instance number are within bounds.
-        if ((info.pPerfCounterInfos[i].block < GpuBlock::Count) &&
-            (info.pPerfCounterInfos[i].eventId < pPerfCounterInfo->block[blockIdx].maxEventId) &&
-            (info.pPerfCounterInfos[i].instance < (pPerfCounterInfo->block[blockIdx].numInstances *
-             pPerfCounterInfo->block[blockIdx].numShaderEngines)))
-        {
-            result = Result::Success;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    PAL_ALERT(result == Result::Success);
-
-    return result;
-}
-
 } // PerfExperiment
 } // Gfx6
 } // Pal

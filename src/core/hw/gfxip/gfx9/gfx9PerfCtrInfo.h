@@ -110,6 +110,12 @@ constexpr uint32 Gfx9MaxStreamingCounters = 16;
 // The number of streaming perf counters packed into one summary counter (Gfx7+)
 constexpr uint32 Gfx9StreamingCtrsPerSummaryCtr = 4;
 
+// Shift values required for programming PERF_SEL fields for streaming perf counters. While the bit-widths of the
+// PERF_SEL fields may vary, these shift values are the same for all perf counters.
+constexpr uint32 Gfx9PerfCounterPerfSel0Shift = CB_PERFCOUNTER0_SELECT__PERF_SEL__SHIFT;
+constexpr uint32 Gfx9PerfCounterPerfSel1Shift = CB_PERFCOUNTER0_SELECT__PERF_SEL1__SHIFT;
+constexpr uint32 Gfx9PerfCounterCntrModeShift = CB_PERFCOUNTER0_SELECT__CNTR_MODE__SHIFT;
+
 // Constants defining the number of counters per block:
 // CB/DB/PA/SC/SX/SQ/TA/TCP/TCC/TCA/GDS/VGT/IA/CPG/CPC/CPF/SPI/TD support variable bit widths
 // via the CNTR_MODE field. This is only for streaming counters.
@@ -153,6 +159,13 @@ constexpr size_t DefaultBufferSize = (1024 * 1024);
 constexpr uint32 BufferAlignShift = 12;
 /// Thread trace buffer size and base address alignment
 constexpr size_t BufferAlignment = (0x1 << BufferAlignShift);
+
+// Performance monitoring state for disabling and resetting counters.
+constexpr uint32 PerfmonDisableAndReset = 0;
+// Performance monitoring state for starting counters.
+constexpr uint32 PerfmonStartCounting   = 1;
+// Performance monitoring state for stopping ("freezing") counters.
+constexpr uint32 PerfmonStopCounting    = 2;
 
 } // PerfExperiment
 } // Gfx9

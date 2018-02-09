@@ -817,7 +817,7 @@ Result AddrMgr1::ComputeSubResourceInfo(
         {
             pGpuMemLayout->prtTileWidth  = surfInfoOut.pitchAlign;
             pGpuMemLayout->prtTileHeight = surfInfoOut.heightAlign;
-            pGpuMemLayout->prtTileDepth  = 1; // 3D PRT's are not supported by AddrMgr1.
+            pGpuMemLayout->prtTileDepth  = surfInfoOut.depthAlign;
         }
 
         if ((result == Result::Success) && isYuvPlanar && (pSubResInfo->subresId.aspect != ImageAspect::Y))

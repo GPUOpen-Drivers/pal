@@ -40,10 +40,10 @@ class CmdStream;
 
 // =====================================================================================================================
 // Implements Gfx9-specific functionality for SPM traces.
-class SpmTrace : public Pal::SpmTrace
+class Gfx9SpmTrace : public Pal::SpmTrace
 {
 public:
-    explicit SpmTrace(const Device* pDevice);
+    explicit Gfx9SpmTrace(const Device* pDevice);
 
     virtual uint32* WriteSetupCommands(gpusize ringBaseAddr, Pal::CmdStream* pCmdStream, uint32*  pCmdSpace) override;
     virtual uint32* WriteStartCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
@@ -69,10 +69,8 @@ private:
     regRLC_SPM_PERFMON_RING_BASE_LO m_ringBaseLo;
     regRLC_SPM_PERFMON_CNTL         m_spmPerfmonCntl;
 
-    MuxselRamData m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Count)];
-
-    PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);
-    PAL_DISALLOW_COPY_AND_ASSIGN(SpmTrace);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx9SpmTrace);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9SpmTrace);
 };
 
 // =====================================================================================================================

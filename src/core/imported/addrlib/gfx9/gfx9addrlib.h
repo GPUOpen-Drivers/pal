@@ -59,7 +59,8 @@ struct Gfx9ChipSettings
         UINT_32                     : 1;
 #endif
         UINT_32                     : 1;
-        UINT_32 reserved0           : 28;
+        UINT_32                     : 1;
+        UINT_32 reserved0           : 27;
 
         // Display engine IP version name
         UINT_32 isDce12             : 1;
@@ -225,7 +226,7 @@ protected:
         AddrSwizzleMode swMode,
         UINT_32 elementBytesLog2) const;
 
-    virtual UINT_32 HwlComputeSurfaceBaseAlign(AddrSwizzleMode swizzleMode) const
+    UINT_32 ComputeSurfaceBaseAlignTiled(AddrSwizzleMode swizzleMode) const
     {
         UINT_32 baseAlign;
 
@@ -400,11 +401,11 @@ protected:
     static const UINT_32    MaxCachedMetaEq = 2;
 
 private:
-    virtual ADDR_E_RETURNCODE HwlGetMaxAlignments(
-        ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
+    virtual UINT_32 HwlComputeMaxBaseAlignments() const;
 
-    virtual BOOL_32 HwlInitGlobalParams(
-        const ADDR_CREATE_INPUT* pCreateIn);
+    virtual UINT_32 HwlComputeMaxMetaBaseAlignments() const;
+
+    virtual BOOL_32 HwlInitGlobalParams(const ADDR_CREATE_INPUT* pCreateIn);
 
     VOID GetRbEquation(CoordEq* pRbEq, UINT_32 rbPerSeLog2, UINT_32 seLog2) const;
 

@@ -129,7 +129,7 @@ Result CmdBuffer::Begin(
     // profiler layer instead internally replaces and submits a different command buffer which leaves this one
     // permanently in Building state the next time Begin() is called on it.
     {
-        result = NextLayer()->Begin(info);
+        result = NextLayer()->Begin(NextCmdBufferBuildInfo(info));
     }
 
     return result;
@@ -154,7 +154,7 @@ void CmdBuffer::ReplayBegin(
     // respect to each queue.
     info.pMemAllocator = pQueue->ReplayAllocator();
 
-    pTgtCmdBuffer->Begin(info);
+    pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
 
     // Reset any per command buffer state we're tracking.
     memset(&m_computePipelineInfo,  0, sizeof(m_computePipelineInfo));

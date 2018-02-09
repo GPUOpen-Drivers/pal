@@ -69,7 +69,7 @@ Result CmdBuffer::Begin(
     funcInfo.funcId       = InterfaceFunc::CmdBufferBegin;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = m_pNextLayer->Begin(info);
+    const Result result   = m_pNextLayer->Begin(NextCmdBufferBuildInfo(info));
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;

@@ -60,6 +60,18 @@ ICmdBuffer* NextCmdBuffer(
 }
 
 // =====================================================================================================================
+CmdBufferBuildInfo NextCmdBufferBuildInfo(
+    const CmdBufferBuildInfo& buildInfo)
+{
+    CmdBufferBuildInfo nextBuildInfo = buildInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
+    nextBuildInfo.pStateInheritCmdBuffer = NextCmdBuffer(buildInfo.pStateInheritCmdBuffer);
+#endif
+
+    return nextBuildInfo;
+}
+
+// =====================================================================================================================
 IColorBlendState* NextColorBlendState(
     const IColorBlendState* pColorBlendState)
 {

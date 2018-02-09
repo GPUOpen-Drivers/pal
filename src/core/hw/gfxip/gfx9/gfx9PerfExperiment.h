@@ -113,7 +113,14 @@ protected:
 #else
     virtual Result CreateThreadTrace(const ThreadTraceInfo& info) override;
 #endif
-    virtual Result CreateSpmTrace(const SpmTraceCreateInfo& info) override;
+
+    Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, Pal::SpmTrace** ppSpmTrace) override;
+    Pal::StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) override;
+    void UpdateCounterFlags(GpuBlock block, bool isIndexed) override;
+    PAL_INLINE uint32 GetNumStreamingCounters(uint32 block) override
+    {
+        return m_device.Parent()->ChipProperties().gfx9.perfCounterInfo.block[block].numStreamingCounterRegs;
+    }
 
 private:
     void InitBlockUsage();

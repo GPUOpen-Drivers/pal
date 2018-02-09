@@ -251,6 +251,42 @@ typedef struct _amdgpu_tile_cfg
    AMDGPU_PIPE_CFG pipe_config;
 } amdgpu_tile_cfg;
 
+//
+/// Internal flags set for opening shared metadata path.
+//
+typedef union _amdgpu_shared_metadata_flags
+{
+    struct
+    {
+        uint32_t shader_fetchable:              1; ///< Main metadata is shader fetchable
+        uint32_t shader_fetchable_fmask:        1; ///< In case the FMASK shader-fetchable is different from main metadata
+        uint32_t has_wa_tc_compat_z_range:      1; ///< Extra per-mip uint32 reserved after fast-clear-value
+        uint32_t has_eq_gpu_access:             1; ///< Metadata equation for GPU access following main metadata (DCC or HTILE)
+        uint32_t has_htile_lookup_table:        1; ///< Htile look-up table for each mip and slice
+        uint32_t htile_as_fmask_xor:            1; ///< Indicate htileOffset is used as Fmask Xor Setting.
+        uint32_t reserved:                     26;
+    };
+    uint32_t all32;
+} amdgpu_shared_metadata_flags;
+
+//
+/// Shared metadata info to be used for opened optimally shared image.
+//
+typedef struct _amdgpu_shared_metadata_info
+{
+    amdgpu_shared_metadata_flags flags;
+    uint32_t            dcc_offset;
+    uint32_t            cmask_offset;
+    uint32_t            fmask_offset;
+    uint32_t            htile_offset;
+    uint32_t            dcc_state_offset;
+    uint32_t            fast_clear_value_offset;
+    uint32_t            fce_state_offset;
+    uint32_t            htile_lookup_table_offset;
+    uint32_t            resource_id;  ///< This id is a unique name for the cross-process shared memory used to pass extra
+                                      ///< information. Currently it's composed by the image object pointer and process id.
+} amdgpu_shared_metadata_info;
+
 typedef struct _amdgpu_bo_umd_metadata
 {
    uint32_t width_in_pixels;
@@ -287,10 +323,12 @@ typedef struct _amdgpu_bo_umd_metadata
             uint32_t                  render_target:    1;
             uint32_t                  depth_stencil:    1;
             uint32_t                  cubemap:          1;
-            uint32_t                  reserved:        16;
+            uint32_t                  optimal_shareable:1;
+            uint32_t                  reserved:        15;
         };
         uint32_t    all32;
     } flags;
+    amdgpu_shared_metadata_info shared_metadata_info;
 } amdgpu_bo_umd_metadata;
 
 #define PRO_UMD_METADATA_OFFSET_DWORD 32

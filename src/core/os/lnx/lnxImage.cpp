@@ -363,6 +363,9 @@ void Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
     pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
+    pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
+#endif
     // This image must be shareable (as it has already been shared); request view format change as well to be safe.
     pCreateInfo->flags.shareable       = 1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
@@ -422,6 +425,66 @@ Result Image::CreateExternalSharedImage(
 
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);
     internalCreateInfo.flags.useSharedTilingOverrides = 1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
+    if (createInfo.flags.optimalShareable)
+    {
+        if (pMetadata->flags.optimal_shareable)
+        {
+            auto*const pUmdSharedMetadata =
+                reinterpret_cast<const amdgpu_shared_metadata_info*>
+                    (&pMetadata->shared_metadata_info);
+            internalCreateInfo.flags.useSharedMetadata = 1;
+
+            internalCreateInfo.sharedMetadata.dccOffset   = pUmdSharedMetadata->dcc_offset;
+            internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
+            internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
+            internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
+
+            internalCreateInfo.sharedMetadata.flags.shaderFetchable =
+                pUmdSharedMetadata->flags.shader_fetchable;
+            internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
+                pUmdSharedMetadata->flags.shader_fetchable_fmask;
+            internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
+                pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
+            internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
+                pUmdSharedMetadata->flags.has_eq_gpu_access;
+            internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
+                pUmdSharedMetadata->flags.has_htile_lookup_table;
+
+            internalCreateInfo.sharedMetadata.fastClearMetaDataOffset =
+                pUmdSharedMetadata->fast_clear_value_offset;
+            internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset =
+                pUmdSharedMetadata->fce_state_offset;
+
+            if (pUmdSharedMetadata->dcc_offset != 0)
+            {
+                internalCreateInfo.sharedMetadata.dccStateMetaDataOffset =
+                    pUmdSharedMetadata->dcc_state_offset;
+            }
+            else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
+            {
+                internalCreateInfo.sharedMetadata.htileLookupTableOffset =
+                    pUmdSharedMetadata->htile_lookup_table_offset;
+            }
+
+            if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
+            {
+                PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
+                internalCreateInfo.gfx9.sharedPipeBankXorFmask =
+                    LowPart(internalCreateInfo.sharedMetadata.htileOffset);
+                internalCreateInfo.sharedMetadata.htileOffset  = 0;
+            }
+
+            internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
+        }
+        else
+        {
+            createInfo.flags.optimalShareable = 0;
+            createInfo.flags.noMetadata       = 1;
+        }
+    }
+#endif
 
     Pal::Image* pImage = nullptr;
     Result result = pDevice->CreateInternalImage(createInfo,

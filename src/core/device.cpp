@@ -2095,6 +2095,17 @@ gpusize Device::GetMaxGpuMemoryAlignment() const
         PAL_ASSERT_ALWAYS();
     }
 
+    ADDR_GET_MAX_ALINGMENTS_OUTPUT addrLibMetaOutput = {};
+
+    if (AddrGetMaxMetaAlignments(addrHandle, &addrLibMetaOutput) == ADDR_OK)
+    {
+        maxAlignment = Max<gpusize>(maxAlignment, addrLibMetaOutput.baseAlign);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
     PAL_ASSERT(IsPowerOfTwo(maxAlignment));
     return maxAlignment;
 }

@@ -68,8 +68,6 @@ private:
     regRLC_SPM_PERFMON_SEGMENT_SIZE__CI__VI m_segmentSize;    // Describes layout and number of 256-bit chunks of data
                                                               // per sample.
 
-    MuxselRamData m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Count)];
-
     PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);
     PAL_DISALLOW_COPY_AND_ASSIGN(SpmTrace);
 };

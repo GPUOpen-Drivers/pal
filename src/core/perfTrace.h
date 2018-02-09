@@ -147,7 +147,7 @@ protected:
     uint32                                       m_numPerfCounters; // Number of perf counters in this trace.
     PerfCounterInfo*                             m_pPerfCounterCreateInfos; // Local copy of create infos.
     SpmTraceFlags                                m_flags;
-
+    MuxselRamData                                m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Count)];
 private:
 
     PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);

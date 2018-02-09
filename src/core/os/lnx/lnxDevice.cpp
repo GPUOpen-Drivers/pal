@@ -2203,38 +2203,17 @@ Result Device::IsSameGpu(
 
     *pIsSame = false;
 
-    int32 nodeType = m_drmProcs.pfnDrmGetNodeTypeFromFd(presentDeviceFd);
-    if (nodeType == DRM_NODE_PRIMARY)
+    // both the render node and master node can use this interface to get the device name.
+    const char* pDeviceName = m_drmProcs.pfnDrmGetRenderDeviceNameFromFd(presentDeviceFd);
+
+    if (pDeviceName == nullptr)
     {
-        const char* pPresentDeviceBusId = m_drmProcs.pfnDrmGetBusid(presentDeviceFd);
-        if (pPresentDeviceBusId == nullptr)
-        {
-            result = Result::ErrorUnknown;
-        }
-
-        if (result == Result::Success)
-        {
-            *pIsSame = (strcasecmp(&m_busId[0], pPresentDeviceBusId) == 0);
-        }
-
-        if (pPresentDeviceBusId != nullptr)
-        {
-            m_drmProcs.pfnDrmFreeBusid(pPresentDeviceBusId);
-        }
+        result = Result::ErrorUnknown;
     }
-    else if (nodeType == DRM_NODE_RENDER)
+
+    if (result == Result::Success)
     {
-        const char* pDeviceName = m_drmProcs.pfnDrmGetRenderDeviceNameFromFd(presentDeviceFd);
-
-        if (pDeviceName == nullptr)
-        {
-            result = Result::ErrorUnknown;
-        }
-
-        if (result == Result::Success)
-        {
-            *pIsSame = (strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
-        }
+        *pIsSame = (strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
     }
 
     return result;
@@ -2626,6 +2605,10 @@ void Device::UpdateMetaData(
     amdgpu_bo_metadata metadata = {};
     const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
 
+    // First 32 dwords are reserved for open source components.
+    auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                              (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+
     if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
     {
         metadata.tiling_info   = AMDGPU_TILE_MODE__2D_TILED_THIN1;
@@ -2634,9 +2617,6 @@ void Device::UpdateMetaData(
         const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
         const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(&image, 0);
 
-        // First 32 dwords are reserved for open source components.
-        auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                  (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
         pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
         pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
@@ -2693,9 +2673,6 @@ void Device::UpdateMetaData(
         metadata.swizzle_info   = curSwizzleMode;
         metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
 
-        // First 32 dwords are reserved for open source components.
-        auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                  (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
         memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
         pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
         pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
@@ -2712,6 +2689,59 @@ void Device::UpdateMetaData(
     {
         PAL_NOT_IMPLEMENTED();
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
+    pUmdMetaData->flags.optimal_shareable = image.GetImageCreateInfo().flags.optimalShareable;
+
+    if (pUmdMetaData->flags.optimal_shareable)
+    {
+        //analysis the shared metadata if surface is optimal shareable
+        SharedMetadataInfo sharedMetadataInfo = {};
+        image.GetGfxImage()->GetSharedMetadataInfo(&sharedMetadataInfo);
+
+        auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
+                                            (&pUmdMetaData->shared_metadata_info);
+        pUmdSharedMetadata->dcc_offset   = sharedMetadataInfo.dccOffset;
+        pUmdSharedMetadata->cmask_offset = sharedMetadataInfo.cmaskOffset;
+        pUmdSharedMetadata->fmask_offset = sharedMetadataInfo.fmaskOffset;
+        pUmdSharedMetadata->htile_offset = sharedMetadataInfo.htileOffset;
+
+        pUmdSharedMetadata->flags.shader_fetchable =
+            sharedMetadataInfo.flags.shaderFetchable;
+        pUmdSharedMetadata->flags.shader_fetchable_fmask =
+            sharedMetadataInfo.flags.shaderFetchableFmask;
+        pUmdSharedMetadata->flags.has_wa_tc_compat_z_range =
+            sharedMetadataInfo.flags.hasWaTcCompatZRange;
+        pUmdSharedMetadata->flags.has_eq_gpu_access =
+            sharedMetadataInfo.flags.hasEqGpuAccess;
+        pUmdSharedMetadata->flags.has_htile_lookup_table =
+            sharedMetadataInfo.flags.hasHtileLookupTable;
+
+        pUmdSharedMetadata->dcc_state_offset =
+            sharedMetadataInfo.dccStateMetaDataOffset;
+        pUmdSharedMetadata->fast_clear_value_offset =
+            sharedMetadataInfo.fastClearMetaDataOffset;
+        pUmdSharedMetadata->fce_state_offset =
+            sharedMetadataInfo.fastClearEliminateMetaDataOffset;
+
+        if (sharedMetadataInfo.fmaskOffset != 0)
+        {
+            //if the shared surface is a color surface, reuse the htileOffset as fmaskXor.
+            PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
+            pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
+            pUmdSharedMetadata->htile_offset = sharedMetadataInfo.fmaskXor;
+        }
+
+        if (sharedMetadataInfo.flags.hasHtileLookupTable)
+        {
+            PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset == 0);
+            pUmdSharedMetadata->htile_lookup_table_offset =
+                sharedMetadataInfo.htileLookupTableOffset;
+        }
+        //linux don't need use this value to pass extra information for now
+        pUmdSharedMetadata->resource_id = 0;
+    }
+#endif
 
     m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
 }

@@ -463,4 +463,102 @@ void PerfExperiment::Destroy()
     this->~PerfExperiment();
 }
 
+// =====================================================================================================================
+// Creates and configures an SpmTrace object.
+Result PerfExperiment::CreateSpmTrace(
+    const SpmTraceCreateInfo& info)
+{
+    // Call into the hardware layer to create an spm trace object.
+    Result result = ConstructSpmTraceObj(info, &m_pSpmTrace);
+
+    if (result == Result::Success)
+    {
+        result = m_pSpmTrace->Init(info);
+    }
+
+    if(result == Result ::Success)
+    {
+        Util::HashMap<BlockUsageKey, StreamingPerfCounter*, Platform> spmCounterUsageMap(32, m_device.GetPlatform());
+        result = spmCounterUsageMap.Init();
+
+        // Iterate through the list of perf counters provided for this SpmTrace.
+        for (uint32 i = 0; (i < info.numPerfCounters) && (result == Result::Success); ++i)
+        {
+            // Call into the hw layer to get the number of streaming counters supported for this block.
+            const uint32 numCounters = GetNumStreamingCounters(static_cast<uint32>(info.pPerfCounterInfos[i].block));
+
+            // Iterate over the number of registers(counters) that can be used as streaming counters in this block.
+            // The result can be in Error state until this loop is done.
+            for (uint32 counterIdx = 0; counterIdx < numCounters; counterIdx++)
+            {
+                BlockUsageKey key = { info.pPerfCounterInfos[i].block, info.pPerfCounterInfos[i].instance, counterIdx };
+
+                StreamingPerfCounter** ppStreamingCounter = nullptr;
+                bool                   existed            = false;
+
+                result = spmCounterUsageMap.FindAllocate(key, &existed, &ppStreamingCounter);
+
+                if (result == Result::Success)
+                {
+                    if (existed)
+                    {
+                        // Attempt to add this perf counter if the streaming perf counter already exists in the hash map
+                        // If all the slots in this HW counter are full, then we move on to the next HW counter in this
+                        // instance.
+                        result = (*ppStreamingCounter)->AddEvent(info.pPerfCounterInfos[i].block,
+                                                                 info.pPerfCounterInfos[i].eventId);
+                    }
+                    else
+                    {
+                        // Create a new StreamingPerfCounter and add it to the hashmap. The SpmTrace object is
+                        // responsible for freeing this memory allocated for each StreamingPerfCounter.
+                        StreamingPerfCounter* pNewCounter =
+                            CreateStreamingPerfCounter(info.pPerfCounterInfos[i].block,
+                                                       info.pPerfCounterInfos[i].instance,
+                                                       counterIdx);
+
+                        // Allocation succeeded, so create a StreamingPerfCounter object and add it to the hash map.
+                        if (pNewCounter != nullptr)
+                        {
+                            result = pNewCounter->AddEvent(info.pPerfCounterInfos[i].block,
+                                                           info.pPerfCounterInfos[i].eventId);
+
+                            if (result == Result::Success)
+                            {
+                                // Update the counter flags
+                                UpdateCounterFlags(info.pPerfCounterInfos[i].block, pNewCounter->IsIndexed());
+
+                                (*ppStreamingCounter) = pNewCounter;
+                            }
+                        }
+                        else
+                        {
+                            // Allocation of StreamingPerfCounter failed.
+                            result = Result::ErrorOutOfMemory;
+                            break;
+                        }
+                    }
+                }
+
+                if (result == Result::Success)
+                {
+                    // We have either added a perf counter to an existing StreamingPerfCounter or we have
+                    // succesfully created a new StreamingPerfCounter and added our perf counter to it. We can skip
+                    // to the outer loop for the next perf counter.
+                    break;
+                }
+            } // End iterate over HW streaming counter registers.
+        } // End iterate over requested perf counters.
+
+        PAL_ASSERT(result == Result::Success);
+
+        // Add all the StreamingPerfCounters from the hashmap to the SpmTrace.
+        for (auto iter = spmCounterUsageMap.Begin(); (iter.Get() && (result == Result::Success)); iter.Next())
+        {
+            result = m_pSpmTrace->AddStreamingCounter(static_cast<Pal::StreamingPerfCounter*>(iter.Get()->value));
+        }
+    }
+    return result;
+}
+
 } // Pal

@@ -460,6 +460,7 @@ typedef union COMPUTE_RESOURCE_LIMITS                  regCOMPUTE_RESOURCE_LIMIT
 typedef union COMPUTE_RESTART_X                        regCOMPUTE_RESTART_X;
 typedef union COMPUTE_RESTART_Y                        regCOMPUTE_RESTART_Y;
 typedef union COMPUTE_RESTART_Z                        regCOMPUTE_RESTART_Z;
+typedef union COMPUTE_SHADER_CHKSUM                    regCOMPUTE_SHADER_CHKSUM;
 typedef union COMPUTE_START_X                          regCOMPUTE_START_X;
 typedef union COMPUTE_START_Y                          regCOMPUTE_START_Y;
 typedef union COMPUTE_START_Z                          regCOMPUTE_START_Z;
@@ -4027,6 +4028,10 @@ typedef union SPI_RESOURCE_RESERVE_EN_CU_8             regSPI_RESOURCE_RESERVE_E
 typedef union SPI_RESOURCE_RESERVE_EN_CU_9             regSPI_RESOURCE_RESERVE_EN_CU_9;
 typedef union SPI_SHADER_COL_FORMAT                    regSPI_SHADER_COL_FORMAT;
 typedef union SPI_SHADER_LATE_ALLOC_VS                 regSPI_SHADER_LATE_ALLOC_VS;
+typedef union SPI_SHADER_PGM_CHKSUM_GS                 regSPI_SHADER_PGM_CHKSUM_GS;
+typedef union SPI_SHADER_PGM_CHKSUM_HS                 regSPI_SHADER_PGM_CHKSUM_HS;
+typedef union SPI_SHADER_PGM_CHKSUM_PS                 regSPI_SHADER_PGM_CHKSUM_PS;
+typedef union SPI_SHADER_PGM_CHKSUM_VS                 regSPI_SHADER_PGM_CHKSUM_VS;
 typedef union SPI_SHADER_PGM_HI_ES                     regSPI_SHADER_PGM_HI_ES;
 typedef union SPI_SHADER_PGM_HI_GS                     regSPI_SHADER_PGM_HI_GS;
 typedef union SPI_SHADER_PGM_HI_HS                     regSPI_SHADER_PGM_HI_HS;

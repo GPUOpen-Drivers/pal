@@ -692,9 +692,9 @@ bool Gfx6Cmask::UseCmaskForImage(
 
             // Avoid using CMasks for small surfaces, where the CMask would be too large relative
             // to the plain resource.
-            const bool skipSmallSurface =
-                (createInfo.extent.width  <= pPalSettings->hintDisableSmallSurfColorCompressionSize) &&
-                (createInfo.extent.height <= pPalSettings->hintDisableSmallSurfColorCompressionSize);
+            const bool skipSmallSurface = ((createInfo.extent.width * createInfo.extent.height) <=
+                                          (pPalSettings->hintDisableSmallSurfColorCompressionSize *
+                                           pPalSettings->hintDisableSmallSurfColorCompressionSize));
 
             // Single-sampled Images require CMask if fast color clears are enabled and no
             // DCC surface is present.
@@ -1205,8 +1205,9 @@ bool Gfx6Dcc::UseDccForImage(
             // get much more complicated...  allow DCC for whatever levels of the surface can support it.
             useDcc = false;
         }
-        else if ((createInfo.extent.width  <= pPalSettings->hintDisableSmallSurfColorCompressionSize) &&
-                 (createInfo.extent.height <= pPalSettings->hintDisableSmallSurfColorCompressionSize))
+        else if ((createInfo.extent.width * createInfo.extent.height) <=
+                (pPalSettings->hintDisableSmallSurfColorCompressionSize *
+                 pPalSettings->hintDisableSmallSurfColorCompressionSize))
         {
             // DCC should be disabled if the client has indicated that they want to disable color compression on small
             // surfaces and this surface qualifies.

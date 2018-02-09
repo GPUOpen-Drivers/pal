@@ -139,6 +139,13 @@ Result GfxCmdBuffer::Begin(
 
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
+        if (info.pStateInheritCmdBuffer != nullptr)
+        {
+            InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
+        }
+#endif
+
         m_pPrefetchMgr->EnableShaderPrefetch(m_buildFlags.prefetchShaders != 0);
     }
 
@@ -757,39 +764,47 @@ void GfxCmdBuffer::CmdRestoreComputeState(
     m_computeStateFlags   = 0;
 #endif
 
-    // Restore the previously bound pipeline and all non-indirect user-data state.
-    if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
-    {
-        if (m_computeRestoreState.pipelineState.pPipeline != m_computeState.pipelineState.pPipeline)
-        {
-            PipelineBindParams bindParams = {};
-            bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
-            bindParams.pPipeline          = m_computeRestoreState.pipelineState.pPipeline;
-            bindParams.cs                 = m_computeRestoreState.dynamicCsInfo;
+    // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
+    // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
+    // root command buffer. (If Vulkan decides to support user-data inheritance in a later API version, we'll need
+    // to revisit this!)
 
-            CmdBindPipeline(bindParams);
-        }
-
-        // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values
-        // from the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it
-        // is in a root command buffer. (If Vulkan decides to support user-data inheritance in a later API version,
-        // we'll need to revisit this!)
-        CmdSetUserData(PipelineBindPoint::Compute,
-                       0,
-                       m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries,
-                       &m_computeRestoreState.csUserDataEntries.entries[0]);
-    }
-
-    // Restore the previously bound border color palette.
-    if (TestAnyFlagSet(stateFlags, ComputeStateBorderColorPalette) &&
-        (m_computeRestoreState.pipelineState.pBorderColorPalette != m_computeState.pipelineState.pBorderColorPalette))
-    {
-        CmdBindBorderColorPalette(PipelineBindPoint::Compute, m_computeRestoreState.pipelineState.pBorderColorPalette);
-    }
+    SetComputeState(m_computeRestoreState, stateFlags);
 
     // The caller has just executed one or more CS blts.
     SetGfxCmdBufCsBltState(true);
     SetGfxCmdBufCsBltWriteCacheState(true);
+}
+
+// =====================================================================================================================
+// Set all specified state on this command buffer.
+void GfxCmdBuffer::SetComputeState(
+    const ComputeState& newComputeState,
+    uint32              stateFlags)
+{
+    if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
+    {
+        if (newComputeState.pipelineState.pPipeline != m_computeState.pipelineState.pPipeline)
+        {
+            PipelineBindParams bindParams = {};
+            bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
+            bindParams.pPipeline          = newComputeState.pipelineState.pPipeline;
+            bindParams.cs                 = newComputeState.dynamicCsInfo;
+
+            CmdBindPipeline(bindParams);
+        }
+
+        CmdSetUserData(PipelineBindPoint::Compute,
+                       0,
+                       m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries,
+                       &newComputeState.csUserDataEntries.entries[0]);
+    }
+
+    if (TestAnyFlagSet(stateFlags, ComputeStateBorderColorPalette) &&
+        (newComputeState.pipelineState.pBorderColorPalette != m_computeState.pipelineState.pBorderColorPalette))
+    {
+        CmdBindBorderColorPalette(PipelineBindPoint::Compute, newComputeState.pipelineState.pBorderColorPalette);
+    }
 }
 
 // =====================================================================================================================

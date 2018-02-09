@@ -5,9 +5,26 @@ cmake_minimum_required(VERSION 3.5)
 include(CMakeDependentOption)
 
 # Build Type Helper ################################################################################
-set(CMAKE_BUILD_TYPE_DEBUG $<CONFIG:Debug>)
-set(CMAKE_BUILD_TYPE_RELEASE $<CONFIG:Release>)
-set(CMAKE_BUILD_TYPE_RELWITHDEBINFO $<CONFIG:RelWithDebInfo>)
+if (CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE_DEBUG $<CONFIG:Debug>)
+    set(CMAKE_BUILD_TYPE_RELEASE $<CONFIG:Release>)
+    set(CMAKE_BUILD_TYPE_RELWITHDEBINFO $<CONFIG:RelWithDebInfo>)
+else()
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" capital_CMAKE_BUILD_TYPE)
+
+    if (CMAKE_BUILD_TYPE AND
+        NOT capital_CMAKE_BUILD_TYPE MATCHES "^(DEBUG|RELEASE|RELWITHDEBINFO|MINSIZEREL)$")
+        message(FATAL_ERROR "Invalid value for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+    endif()
+
+    if(capital_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+        set(CMAKE_BUILD_TYPE_DEBUG ON)
+        set(CMAKE_BUILD_TYPE_RELEASE OFF)
+    else()
+        set(CMAKE_BUILD_TYPE_DEBUG OFF)
+        set(CMAKE_BUILD_TYPE_RELEASE ON)
+    endif()
+endif()
 
 # Options Helpers ##################################################################################
 macro(dropdown_option _option _options)
@@ -61,35 +78,46 @@ if(NOT DEFINED TARGET_ARCHITECTURE_BITS)
     dropdown_option(TARGET_ARCHITECTURE_BITS TARGET_ARCHITECTURE_BITS_OPTIONS)
 endif()
 
-# Visual Studio Filter Helper ######################################################################
-macro(target_vs_filters _target)
-    if(MSVC)
-        get_target_property(${_target}_SOURCES ${_target} SOURCES)
-        get_target_property(${_target}_INCLUDES_DIRS ${_target} INTERFACE_INCLUDE_DIRECTORIES)
+# Find Headers Helper ##############################################################################
+macro(target_find_headers _target)
+    get_target_property(${_target}_SOURCES ${_target} SOURCES)
+    get_target_property(${_target}_INCLUDES_DIRS ${_target} INTERFACE_INCLUDE_DIRECTORIES)
 
-        if(${_target}_INCLUDES_DIRS)
-            foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
-                file(GLOB_RECURSE _include_files
-                    LIST_DIRECTORIES false
-                    "${_include_dir}/*.h*"
-                )
+    if(${_target}_INCLUDES_DIRS)
+        foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
+            file(GLOB_RECURSE _include_files
+                LIST_DIRECTORIES false
+                "${_include_dir}/*.h*"
+            )
 
-                list(APPEND ${_target}_INCLUDES ${_include_files})
-            endforeach()
-
-            target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
-        endif()
-
-        set(${_target}_FILES ${${_target}_SOURCES} ${${_target}_INCLUDES})
-
-        foreach(_source IN ITEMS ${${_target}_FILES})
-            set(_source ${_source})
-            get_filename_component(_source_path "${_source}" ABSOLUTE)
-            file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
-            get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
-            string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
-            source_group("${_group_path}" FILES "${_source}")
+            list(APPEND ${_target}_INCLUDES ${_include_files})
         endforeach()
+
+        target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
+    endif()
+endmacro()
+
+# Source Groups Helper #############################################################################
+macro(target_source_groups _target)
+    # This helper creates source groups for generators that support them. This is primarily MSVC and
+    # XCode, but there are other generators that support IDE project files.
+    set(${_target}_FILES ${${_target}_SOURCES} ${${_target}_INCLUDES})
+    foreach(_source IN ITEMS ${${_target}_FILES})
+        set(_source ${_source})
+        get_filename_component(_source_path "${_source}" ABSOLUTE)
+        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
+        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
+        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+        source_group("${_group_path}" FILES "${_source}")
+    endforeach()
+endmacro()
+
+# Deprecated Visual Studio Filter Helper ###########################################################
+macro(target_vs_filters _target)
+    message(DEPRECATION "target_vs_filters is deprecated. use 'target_find_headers' and 'target_source_groups' instead.")
+    target_find_headers(${_target})
+    if(MSVC)
+        target_source_groups(${_target})
     endif()
 endmacro()
 

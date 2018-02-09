@@ -1638,5 +1638,24 @@ void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
     }
 }
 
+// =====================================================================================================================
+// Bind the last state set on the specified command buffer
+void ComputeCmdBuffer::InheritStateFromCmdBuf(
+    const GfxCmdBuffer* pCmdBuffer)
+{
+    const ComputeCmdBuffer* pComputeCmdBuffer = static_cast<const ComputeCmdBuffer*>(pCmdBuffer);
+    SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
+
+    for (uint16 i = 0; i < MaxIndirectUserDataTables; i++)
+    {
+        const uint32  numEntries = pComputeCmdBuffer->m_indirectUserDataInfo[i].watermark;
+        const uint32* pData      = pComputeCmdBuffer->m_indirectUserDataInfo[i].pData;
+        if (numEntries > 0)
+        {
+            CmdSetIndirectUserData(i, 0, numEntries, pData);
+        }
+    }
+}
+
 } // Gfx6
 } // Pal

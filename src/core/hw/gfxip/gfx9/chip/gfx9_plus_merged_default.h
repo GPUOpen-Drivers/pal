@@ -861,6 +861,7 @@
 #define mmCOMPUTE_RESTART_X_DEFAULT                     0x0000
 #define mmCOMPUTE_RESTART_Y_DEFAULT                     0x0000
 #define mmCOMPUTE_RESTART_Z_DEFAULT                     0x0000
+#define mmCOMPUTE_SHADER_CHKSUM_DEFAULT                 0xCDCDCDCD
 #define mmCOMPUTE_START_X_DEFAULT                       0xCDCDCDCD
 #define mmCOMPUTE_START_Y_DEFAULT                       0xCDCDCDCD
 #define mmCOMPUTE_START_Z_DEFAULT                       0xCDCDCDCD
@@ -3535,6 +3536,10 @@
 #define mmSPI_RESOURCE_RESERVE_EN_CU_9_DEFAULT          0x0000
 #define mmSPI_SHADER_COL_FORMAT_DEFAULT                 0xCDCDCDCD
 #define mmSPI_SHADER_LATE_ALLOC_VS_DEFAULT              0x000D
+#define mmSPI_SHADER_PGM_CHKSUM_GS_DEFAULT              0x0000
+#define mmSPI_SHADER_PGM_CHKSUM_HS_DEFAULT              0x0000
+#define mmSPI_SHADER_PGM_CHKSUM_PS_DEFAULT              0x0000
+#define mmSPI_SHADER_PGM_CHKSUM_VS_DEFAULT              0x0000
 #define mmSPI_SHADER_PGM_HI_ES_DEFAULT                  0x00CD
 #define mmSPI_SHADER_PGM_HI_GS_DEFAULT                  0x00CD
 #define mmSPI_SHADER_PGM_HI_HS_DEFAULT                  0x00CD

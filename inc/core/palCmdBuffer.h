@@ -328,7 +328,7 @@ struct CmdBufferCreateInfo
             /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
             uint32  realtimeComputeUnits :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 380
             /// Placeholder.
             uint32  placeholder0         :  1;
             /// Reserved for future use.
@@ -440,6 +440,12 @@ struct CmdBufferBuildInfo
     /// command buffer should not modify the software states. Any software params that may be needed within nested
     /// command buffer needs to be provided here.
     const InheritedStateParams* pInheritedState;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
+    /// If non-null, the command buffer will begin with all states set as they are in this previously built command
+    /// buffer. Any state specified in pInheritedState is excluded if it is also provided.
+    const ICmdBuffer* pStateInheritCmdBuffer;
+#endif
 
     /// Optional allocator for PAL to use when allocating temporary memory during command buffer building.  PAL will
     /// stop using this allocator once command building ends.  If no allocator is provided PAL will use an internally
@@ -1313,6 +1319,7 @@ enum ComputeStateFlags : uint32
     ComputeStatePipelineAndUserData = 0x1, ///< Selects the bound compute pipeline and all non-indirect user data. Note
                                            ///  that the current user data will be invalidated on CmdSaveComputeState.
     ComputeStateBorderColorPalette  = 0x2, ///< Selects the bound border color pallete that affects compute pipelines.
+    ComputeStateAll                 = 0x3, ///< Selects all state
 };
 
 /// Provides dynamic command buffer flags during submission

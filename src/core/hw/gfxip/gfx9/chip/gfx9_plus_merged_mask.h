@@ -2404,6 +2404,7 @@
 #define COMPUTE_RESTART_X__RESTART_MASK                 0xffffffffL
 #define COMPUTE_RESTART_Y__RESTART_MASK                 0xffffffffL
 #define COMPUTE_RESTART_Z__RESTART_MASK                 0xffffffffL
+#define COMPUTE_SHADER_CHKSUM__CHECKSUM_MASK            0xffffffffL
 #define COMPUTE_START_X__START_MASK                     0xffffffffL
 #define COMPUTE_START_Y__START_MASK                     0xffffffffL
 #define COMPUTE_START_Z__START_MASK                     0xffffffffL
@@ -11968,6 +11969,10 @@
 #define SPI_SHADER_COL_FORMAT__COL6_EXPORT_FORMAT_MASK  0x0f000000L
 #define SPI_SHADER_COL_FORMAT__COL7_EXPORT_FORMAT_MASK  0xf0000000L
 #define SPI_SHADER_LATE_ALLOC_VS__LIMIT_MASK            0x0000003fL
+#define SPI_SHADER_PGM_CHKSUM_GS__CHECKSUM_MASK         0xffffffffL
+#define SPI_SHADER_PGM_CHKSUM_HS__CHECKSUM_MASK         0xffffffffL
+#define SPI_SHADER_PGM_CHKSUM_PS__CHECKSUM_MASK         0xffffffffL
+#define SPI_SHADER_PGM_CHKSUM_VS__CHECKSUM_MASK         0xffffffffL
 #define SPI_SHADER_PGM_HI_ES__MEM_BASE_MASK             0x000000ffL
 #define SPI_SHADER_PGM_HI_GS__MEM_BASE_MASK             0x000000ffL
 #define SPI_SHADER_PGM_HI_HS__MEM_BASE_MASK             0x000000ffL

@@ -34,6 +34,7 @@
 #include "pal.h"
 #include "palGpuMemoryBindable.h"
 #include "palImage.h"
+#include "palShader.h"
 
 namespace Util
 {
@@ -213,9 +214,11 @@ struct GraphicsPipelineCreateInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 #endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
 #endif
+
     } rsState;             ///< Rasterizer state.
 
     struct

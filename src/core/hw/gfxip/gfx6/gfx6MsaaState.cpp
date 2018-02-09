@@ -295,61 +295,55 @@ void MsaaState::SetCentroidPriorities(
     uint32 centroidPriorities[NumSampleLocations];
 
     // loop through each sample to calculate pythagorean distance from center
-    for (uint32 i = 0; i < NumSampleLocations; i++)
+    for (uint32 i = 0; i < numSamples; i++)
     {
-        if (i < numSamples)
-        {
-            distances[i] = (pSampleLocations[i].x * pSampleLocations[i].x) +
-                           (pSampleLocations[i].y * pSampleLocations[i].y);
-        }
-        else
-        {
-            distances[i] = 0xFFFFFFFF;
-        }
+        distances[i] = (pSampleLocations[i].x * pSampleLocations[i].x) +
+                       (pSampleLocations[i].y * pSampleLocations[i].y);
     }
 
     // Construct the sorted sample order
-    for (uint32 i = 0; i < NumSampleLocations; i++)
+    for (uint32 i = 0; i < numSamples; i++)
     {
-        if (i < numSamples)
+        // Loop through the distance array and find the smallest remaining distance
+        uint32 minIdx = 0;
+        for(uint32 j = 1; j < numSamples; j++)
         {
-            // Loop through the distance array and find the smallest remaining distance
-            uint32 minIdx = 0;
-            for(uint32 j = 1; j < numSamples; j++)
+            if (distances[j] < distances[minIdx])
             {
-                if (distances[j] < distances[minIdx])
-                {
-                    minIdx = j;
-                }
+                minIdx = j;
             }
-            // Add the sample index to our priority list
-            centroidPriorities[i] = minIdx;
-            // Then change the distance for that sample to max to mark it as sorted
-            distances[minIdx] = 0xFFFFFFFF;
         }
-        else
-        {
-            centroidPriorities[i] = 0;
-        }
+        // Add the sample index to our priority list
+        centroidPriorities[i] = minIdx;
+
+        // Then change the distance for that sample to max to mark it as sorted
+        distances[minIdx] = 0xFFFFFFFF;
     }
 
-    constexpr size_t NumSamplesPerReg = 8;
-    constexpr size_t NumBitsPerSample = 4;
-    constexpr size_t DistanceBitMask  = 0xF;
+    PAL_ASSERT((numSamples == 1) || (numSamples == 2) || (numSamples == 4) || (numSamples == 8) || (numSamples == 16));
+    const uint32 sampleMask = numSamples - 1;
 
-    uint32 reg0SampleIdx = 0;
-    uint32 reg1SampleIdx = (NumSamplesPerReg % numSamples);
+    // If using fewer than 16 samples, we must fill the extra distance fields by re-cycling through the samples in
+    // order as many times as necessary to fill all fields.
+    pPaScCentroid->priority0.u32All =
+        (centroidPriorities[0]              << PA_SC_CENTROID_PRIORITY_0__DISTANCE_0__SHIFT) |
+        (centroidPriorities[1 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_1__SHIFT) |
+        (centroidPriorities[2 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_2__SHIFT) |
+        (centroidPriorities[3 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_3__SHIFT) |
+        (centroidPriorities[4 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_4__SHIFT) |
+        (centroidPriorities[5 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_5__SHIFT) |
+        (centroidPriorities[6 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_6__SHIFT) |
+        (centroidPriorities[7 & sampleMask] << PA_SC_CENTROID_PRIORITY_0__DISTANCE_7__SHIFT);
 
-    for (size_t regSampleIdx = 0; regSampleIdx < NumSamplesPerReg; ++regSampleIdx)
-    {
-        const size_t shift = (NumBitsPerSample * regSampleIdx);
-
-        pPaScCentroid->priority0.u32All |= ((centroidPriorities[reg0SampleIdx] & DistanceBitMask) << shift);
-        pPaScCentroid->priority1.u32All |= ((centroidPriorities[reg1SampleIdx] & DistanceBitMask) << shift);
-
-        reg0SampleIdx = (reg0SampleIdx + 1) % numSamples;
-        reg1SampleIdx = (reg1SampleIdx + 1) % numSamples;
-    }
+    pPaScCentroid->priority1.u32All =
+        (centroidPriorities[ 8 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_8__SHIFT)  |
+        (centroidPriorities[ 9 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_9__SHIFT)  |
+        (centroidPriorities[10 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_10__SHIFT) |
+        (centroidPriorities[11 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_11__SHIFT) |
+        (centroidPriorities[12 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_12__SHIFT) |
+        (centroidPriorities[13 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_13__SHIFT) |
+        (centroidPriorities[14 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_14__SHIFT) |
+        (centroidPriorities[15 & sampleMask] << PA_SC_CENTROID_PRIORITY_1__DISTANCE_15__SHIFT);
 }
 
 // =====================================================================================================================

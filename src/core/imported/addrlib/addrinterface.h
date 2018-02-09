@@ -522,7 +522,8 @@ typedef union _ADDR_SURFACE_FLAGS
         UINT_32 preferEquation       : 1; ///< Return equation index without adjusting tile mode
         UINT_32 matchStencilTileCfg  : 1; ///< Select tile index of stencil as well as depth surface
                                           ///  to make sure they share same tile config parameters
-        UINT_32 reserved             : 2; ///< Reserved bits
+        UINT_32 disallowLargeThickDegrade   : 1;    ///< Disallow large thick tile degrade
+        UINT_32 reserved             : 1; ///< Reserved bits
     };
 
     UINT_32 value;
@@ -2230,7 +2231,7 @@ typedef struct _ADDR_COMPUTE_DCCINFO_INPUT
 typedef struct _ADDR_COMPUTE_DCCINFO_OUTPUT
 {
     UINT_32 size;                 ///< Size of this structure in bytes
-    UINT_64 dccRamBaseAlign;      ///< Base alignment of dcc key
+    UINT_32 dccRamBaseAlign;      ///< Base alignment of dcc key
     UINT_64 dccRamSize;           ///< Size of dcc key
     UINT_64 dccFastClearSize;     ///< Size of dcc key portion that can be fast cleared
     BOOL_32 subLvlCompressible;   ///< Whether sub resource is compressiable
@@ -2262,7 +2263,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeDccInfo(
 typedef struct _ADDR_GET_MAX_ALINGMENTS_OUTPUT
 {
     UINT_32 size;                   ///< Size of this structure in bytes
-    UINT_64 baseAlign;              ///< Maximum base alignment in bytes
+    UINT_32 baseAlign;              ///< Maximum base alignment in bytes
 } ADDR_GET_MAX_ALINGMENTS_OUTPUT;
 
 /**
@@ -2274,6 +2275,18 @@ typedef struct _ADDR_GET_MAX_ALINGMENTS_OUTPUT
 ****************************************************************************************************
 */
 ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
+    ADDR_HANDLE                     hLib,
+    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut);
+
+/**
+****************************************************************************************************
+*   AddrGetMaxMetaAlignments
+*
+*   @brief
+*       Gets maximnum alignments for metadata
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API AddrGetMaxMetaAlignments(
     ADDR_HANDLE                     hLib,
     ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut);
 

@@ -646,6 +646,10 @@ protected:
 
     virtual void CmdXdmaWaitFlipPending() override;
 
+    virtual void SetGraphicsState(const GraphicsState& graphicsState) override;
+
+    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+
     uint32* ValidateDispatch(
         gpusize gpuVirtAddrNumTgs,
         uint32* pDeCmdSpace);

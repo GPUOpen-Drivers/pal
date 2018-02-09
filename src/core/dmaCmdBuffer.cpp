@@ -388,13 +388,15 @@ void DmaCmdBuffer::CmdCopyMemory(
         gpusize bytesJustCopied = 0;
         gpusize bytesLeftToCopy = pRegion->copySize;
 
+        const DmaCopyFlags flags = DmaCopyFlags::None;
+
         while (bytesLeftToCopy > 0)
         {
             pCmdSpace = m_cmdStream.ReserveCommands();
             pCmdSpace = WriteCopyGpuMemoryCmd(srcGpuAddr,
                                               dstGpuAddr,
                                               bytesLeftToCopy,
-                                              DmaCopyFlags::None,
+                                              flags,
                                               pCmdSpace,
                                               &bytesJustCopied);
             m_cmdStream.CommitCommands(pCmdSpace);

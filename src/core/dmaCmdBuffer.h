@@ -85,7 +85,7 @@ struct DmaTypedBufferCopyInfo
     Extent3d             copyExtent; // Extent in-terms of elements (based on per-pixel or block size of format).
     DmaTypedBufferRegion src;
     DmaTypedBufferRegion dst;
-
+    DmaCopyFlags         flags;
 };
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to OSSIP DMA command buffers.

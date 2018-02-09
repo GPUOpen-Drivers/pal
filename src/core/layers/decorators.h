@@ -108,6 +108,7 @@ class ViewportStateDecorator;
 extern IBorderColorPalette*   NextBorderColorPalette(const IBorderColorPalette* pBorderColorPalette);
 extern ICmdAllocator*         NextCmdAllocator(const ICmdAllocator* pCmdAllocator);
 extern ICmdBuffer*            NextCmdBuffer(const ICmdBuffer* pCmdBuffer);
+extern CmdBufferBuildInfo     NextCmdBufferBuildInfo(const CmdBufferBuildInfo& info);
 extern IColorBlendState*      NextColorBlendState(const IColorBlendState* pColorBlendState);
 extern IColorTargetView*      NextColorTargetView(const IColorTargetView* pView);
 extern IDepthStencilState*    NextDepthStencilState(const IDepthStencilState* pDepthStencilState);
@@ -1140,7 +1141,7 @@ public:
     }
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override
-        { return m_pNextLayer->Begin(info); }
+        { return m_pNextLayer->Begin(NextCmdBufferBuildInfo(info)); }
 
     virtual Result End() override
         { return m_pNextLayer->End(); }

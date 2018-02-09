@@ -570,6 +570,17 @@ void LogContext::Struct(
         KeyAndNullValue("inheritedState");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
+    if (value.pStateInheritCmdBuffer != nullptr)
+    {
+        KeyAndObject("stateInheritCmdBuffer", value.pStateInheritCmdBuffer);
+    }
+    else
+    {
+        KeyAndNullValue("stateInheritCmdBuffer");
+    }
+#endif
+
     EndMap();
 }
 

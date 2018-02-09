@@ -247,6 +247,8 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
 
+    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+
     void ValidateDispatch(gpusize gpuVirtAddrNumTgs);
 
 private:

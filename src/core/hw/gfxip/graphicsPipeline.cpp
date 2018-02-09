@@ -198,11 +198,6 @@ Result GraphicsPipeline::InitFromPipelineBinary(
             m_flags.streamOut = (metadataValue != 0);
         }
 
-        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UsesSampleInfo, &metadataValue))
-        {
-            m_flags.sampleInfoEnabled = metadataValue;
-        }
-
         if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::PsUsesUavs, &metadataValue))
         {
             m_flags.psUsesUavs = metadataValue;

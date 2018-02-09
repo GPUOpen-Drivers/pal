@@ -730,6 +730,10 @@ protected:
 
     virtual void CmdXdmaWaitFlipPending() override;
 
+    virtual void SetGraphicsState(const GraphicsState& newGraphicsState) override;
+
+    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+
     template <bool pm4OptImmediate>
     uint32* ValidateBinSizes(
         const GraphicsPipeline&  pipeline,

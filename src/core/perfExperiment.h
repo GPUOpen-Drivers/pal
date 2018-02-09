@@ -120,7 +120,14 @@ protected:
 #else
     virtual Result CreateThreadTrace(const ThreadTraceInfo& info) = 0;
 #endif
-    virtual Result CreateSpmTrace(const SpmTraceCreateInfo& info) = 0;
+
+    virtual Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, SpmTrace** ppSpmTrace) = 0;
+    virtual StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) = 0;
+    virtual void UpdateCounterFlags(GpuBlock block, bool isIndexed) = 0;
+    virtual uint32 GetNumStreamingCounters(uint32 block) = 0;
+
+    // Creates an Spm trace object that will be managed by this perf experiment.
+    Result CreateSpmTrace(const SpmTraceCreateInfo& info);
 
     // Returns true if the Experiment issues a cache-flush when sampling perf counters.
     bool CacheFlushOnPerfCounter() const { return m_flags.cacheFlushOnPerfCounter; }

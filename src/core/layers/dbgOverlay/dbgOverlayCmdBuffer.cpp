@@ -55,7 +55,7 @@ Result CmdBuffer::Begin(
 {
     m_containsPresent = false;
 
-    return m_pNextLayer->Begin(info);
+    return m_pNextLayer->Begin(NextCmdBufferBuildInfo(info));
 }
 
 } // DbgOverlay

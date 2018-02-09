@@ -283,12 +283,36 @@ public:
 
     ADDR_E_RETURNCODE GetMaxAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
 
+    ADDR_E_RETURNCODE GetMaxMetaAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
+
 protected:
     Lib();  // Constructor is protected
     Lib(const Client* pClient);
 
-    /// Pure virtual function to get max alignments
-    virtual ADDR_E_RETURNCODE HwlGetMaxAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const = 0;
+    /// Pure virtual function to get max base alignments
+    virtual UINT_32 HwlComputeMaxBaseAlignments() const = 0;
+
+    /// Gets maximum alignements for metadata
+    virtual UINT_32 HwlComputeMaxMetaBaseAlignments() const
+    {
+        ADDR_NOT_IMPLEMENTED();
+
+        return 0;
+    }
+
+    VOID ValidBaseAlignments(UINT_32 alignment) const
+    {
+#if DEBUG
+        ADDR_ASSERT(alignment <= m_maxBaseAlign);
+#endif
+    }
+
+    VOID ValidMetaBaseAlignments(UINT_32 metaAlignment) const
+    {
+#if DEBUG
+        ADDR_ASSERT(metaAlignment <= m_maxMetaBaseAlign);
+#endif
+    }
 
     //
     // Initialization
@@ -340,6 +364,8 @@ private:
 
     VOID SetMinPitchAlignPixels(UINT_32 minPitchAlignPixels);
 
+    VOID SetMaxAlignments();
+
 protected:
     LibClass    m_class;        ///< Store class type (HWL type)
 
@@ -369,6 +395,10 @@ protected:
 
     UINT_32     m_minPitchAlignPixels;  ///< Minimum pitch alignment in pixels
     UINT_32     m_maxSamples;           ///< Max numSamples
+
+    UINT_32     m_maxBaseAlign;         ///< Max base alignment for data surface
+    UINT_32     m_maxMetaBaseAlign;     ///< Max base alignment for metadata
+
 private:
     ElemLib*    m_pElemLib;             ///< Element Lib pointer
 };

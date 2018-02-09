@@ -2139,7 +2139,6 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         // The last two steps will populate the DB metadata caches and shader caches with conflicting HTile data.
         // We can't think of any efficient methods to handle cases like these and the inefficient methods are still
         // of questionable correctness.
-        PAL_ALERT_ALWAYS();
 
         regCP_COHER_CNTL cpCoherCntl;
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;

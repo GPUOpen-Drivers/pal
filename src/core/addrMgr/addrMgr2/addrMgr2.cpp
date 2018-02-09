@@ -463,7 +463,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     // packed and/or YUV planar formats.
     flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format);
 
-    flags.display = createInfo.flags.flippable | image.IsPrivateScreenPresent();
+    flags.display = createInfo.flags.flippable | image.IsPrivateScreenPresent() | image.IsTurboSyncSurface();
     flags.prt     = createInfo.flags.prt;
 
     // Note: AddrLib does not compute the byte offset to nonzero mipmap levels for us. We need to do this manually,
@@ -475,6 +475,62 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
                            (createInfo.tiling != ImageTiling::Linear))) ? 1 : 0;
 
     return flags;
+}
+
+// =====================================================================================================================
+// Determine if preferred swizzle mode caculated by address library is valid to be overridden by the primaryTilingCaps
+// that is returned by KMD
+bool AddrMgr2::IsValidToOverride(
+    AddrSwizzleMode  primarySwMode,
+    ADDR2_SWTYPE_SET validSwSet)
+{
+    ADDR2_SWTYPE_SET primarySwSet = {};
+
+    // Set up primary swizzle set based on swizzle mode
+    switch (primarySwMode)
+    {
+        case ADDR_SW_4KB_Z:
+        case ADDR_SW_64KB_Z:
+        case ADDR_SW_VAR_Z:
+        case ADDR_SW_64KB_Z_T:
+        case ADDR_SW_4KB_Z_X:
+        case ADDR_SW_64KB_Z_X:
+        case ADDR_SW_VAR_Z_X:
+            primarySwSet.value = 1 << ADDR_SW_Z;
+            break;
+        case ADDR_SW_256B_S:
+        case ADDR_SW_64KB_S:
+        case ADDR_SW_64KB_S_T:
+        case ADDR_SW_4KB_S_X:
+        case ADDR_SW_64KB_S_X:
+        case ADDR_SW_VAR_S_X:
+            primarySwSet.value = 1 << ADDR_SW_S;
+            break;
+        case ADDR_SW_256B_D:
+        case ADDR_SW_4KB_D:
+        case ADDR_SW_64KB_D:
+        case ADDR_SW_VAR_D:
+        case ADDR_SW_64KB_D_T:
+        case ADDR_SW_4KB_D_X:
+        case ADDR_SW_64KB_D_X:
+        case ADDR_SW_VAR_D_X:
+            primarySwSet.value = 1 << ADDR_SW_D;
+            break;
+        case ADDR_SW_256B_R:
+        case ADDR_SW_4KB_R:
+        case ADDR_SW_64KB_R:
+        case ADDR_SW_VAR_R:
+        case ADDR_SW_4KB_R_X:
+        case ADDR_SW_64KB_R_X:
+        case ADDR_SW_VAR_R_X:
+            primarySwSet.value = 1 << ADDR_SW_R;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+    }
+
+    return TestAnyFlagSet(validSwSet.value, primarySwSet.value);
 }
 
 // =====================================================================================================================

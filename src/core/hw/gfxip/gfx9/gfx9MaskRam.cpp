@@ -1916,8 +1916,9 @@ bool Gfx9Dcc::UseDccForImage(
         // DCC is never available for shared, presentable, or flippable images.
         useDcc = false;
     }
-    else if ((createInfo.extent.width  <= pPalSettings->hintDisableSmallSurfColorCompressionSize) &&
-             (createInfo.extent.height <= pPalSettings->hintDisableSmallSurfColorCompressionSize))
+    else if ((createInfo.extent.width * createInfo.extent.height) <=
+            (pPalSettings->hintDisableSmallSurfColorCompressionSize *
+             pPalSettings->hintDisableSmallSurfColorCompressionSize))
     {
         // DCC should be disabled if the client has indicated that they want to disable color compression on small
         // surfaces and this surface qualifies.

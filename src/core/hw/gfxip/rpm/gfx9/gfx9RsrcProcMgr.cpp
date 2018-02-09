@@ -954,7 +954,6 @@ void RsrcProcMgr::FastDepthStencilClearComputeCommon(
         // The last two steps will populate the DB metadata caches and shader caches with conflicting HTile data.
         // We can't think of any efficient methods to handle cases like these and the inefficient methods are still
         // of questionable correctness.
-        PAL_ALERT_ALWAYS();
 
         const EngineType engineType = pCmdBuffer->GetEngineType();
         auto*const       pCmdStream =

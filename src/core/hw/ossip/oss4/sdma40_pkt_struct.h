@@ -82,11 +82,9 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
         {
             unsigned int op:8;
             unsigned int sub_op:8;
-            unsigned int reserved_0:2;
-            unsigned int tmz:1;
-            unsigned int reserved_1:8;
+            unsigned int reserved_0:11;
             unsigned int broadcast:1;
-            unsigned int reserved_2:4;
+            unsigned int reserved_1:4;
         };
         unsigned int DW_0_DATA;
     } HEADER_UNION;

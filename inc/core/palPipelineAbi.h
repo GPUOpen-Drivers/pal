@@ -123,14 +123,15 @@ static const char* PipelineMetadataNameStrings[] =
 
     "USER_DATA_LIMIT",
 
-    "USES_SAMPLE_INFO",
+    "USES_SAMPLE_INFO_DEPRECATED",
 
     "HS_MAX_TESS_FACTOR",
 
     "PS_USES_UAVS",
     "PS_USES_ROVS",
 
-    "PS_RUNS_AT_SAMPLE_RATE",
+    "PS_RUNS_AT_SAMPLE_RATE_DEPRECATED",
+
     "SPILL_THRESHOLD",
 
     "LS_NUM_USED_VGPRS",
@@ -381,14 +382,24 @@ enum class PipelineMetadataType : uint32
 
     UserDataLimit,         ///< Number of user data entries accessed by this pipeline.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 382
     UsesSampleInfo,        ///< Sample info constant buffer is used.
+#else
+    Placeholder0,          ///< This can only be removed when clients have bumped past 382 and offline ELFs
+                           ///  are regenerated.  This won't be requred after moving to MessagePack.
+#endif
 
     HsMaxTessFactor,       ///< Maximum tessellation factor declared in the pipeline's HS. 32-bit float.
 
     PsUsesUavs,            ///< 1 if the pipeline's pixel shader uses any UAVs, otherwise 0.
     PsUsesRovs,            ///< 1 if the pipeline's pixel shader uses any ROVs, otherwise 0.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 382
     PsRunsAtSampleRate,    ///< 1 if the shader runs at sample rate vs. pixel rate.
+#else
+    Placeholder1,          ///< Placeholder for offline compiled ELFs.
+#endif
+
     SpillThreshold,        ///< The spill threshold.
 
     LsNumUsedVgprs,        ///< Number of VGPRs used by this shader

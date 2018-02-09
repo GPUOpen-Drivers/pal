@@ -2217,8 +2217,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
 
     // Build YUV to RGB color-space-conversion table constant buffer.
     RpmUtil::YuvRgbConversionInfo copyInfo = { };
-    memcpy(&copyInfo.cscTable[0], &cscTable, sizeof(cscTable));
-
+    memcpy(copyInfo.cscTable, &cscTable, sizeof(cscTable));
     const RpmUtil::ColorSpaceConversionInfo& cscInfo =
         RpmUtil::CscInfoTable[static_cast<uint32>(srcImageInfo.swizzledFormat.format) -
         static_cast<uint32>(ChNumFormat::AYUV)];

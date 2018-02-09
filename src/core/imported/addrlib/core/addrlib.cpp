@@ -250,10 +250,12 @@ ADDR_E_RETURNCODE Lib::Create(
     {
         pCreateOut->numEquations =
             pLib->HwlGetEquationTableInfo(&pCreateOut->pEquationTable);
-    }
 
-    if ((pLib == NULL) &&
-        (returnCode == ADDR_OK))
+        pLib->SetMaxAlignments();
+
+    }
+    else if ((pLib == NULL) &&
+             (returnCode == ADDR_OK))
     {
         // Unknown failures, we return the general error code
         returnCode = ADDR_ERROR;
@@ -303,6 +305,23 @@ VOID Lib::SetMinPitchAlignPixels(
 
 /**
 ****************************************************************************************************
+*   Lib::SetMaxAlignments
+*
+*   @brief
+*       Set max alignments
+*
+*   @return
+*      N/A
+****************************************************************************************************
+*/
+VOID Lib::SetMaxAlignments()
+{
+    m_maxBaseAlign     = HwlComputeMaxBaseAlignments();
+    m_maxMetaBaseAlign = HwlComputeMaxMetaBaseAlignments();
+}
+
+/**
+****************************************************************************************************
 *   Lib::GetLib
 *
 *   @brief
@@ -323,7 +342,7 @@ Lib* Lib::GetLib(
 *   Lib::GetMaxAlignments
 *
 *   @brief
-*       Gets maximum alignments
+*       Gets maximum alignments for data surface (include FMask)
 *
 *   @return
 *       ADDR_E_RETURNCODE
@@ -345,7 +364,54 @@ ADDR_E_RETURNCODE Lib::GetMaxAlignments(
 
     if (returnCode == ADDR_OK)
     {
-        returnCode = HwlGetMaxAlignments(pOut);
+        if (m_maxBaseAlign != 0)
+        {
+            pOut->baseAlign = m_maxBaseAlign;
+        }
+        else
+        {
+            returnCode = ADDR_NOTIMPLEMENTED;
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Lib::GetMaxMetaAlignments
+*
+*   @brief
+*       Gets maximum alignments for metadata (CMask, DCC and HTile)
+*
+*   @return
+*       ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::GetMaxMetaAlignments(
+    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (GetFillSizeFieldsFlags() == TRUE)
+    {
+        if (pOut->size != sizeof(ADDR_GET_MAX_ALINGMENTS_OUTPUT))
+        {
+            returnCode = ADDR_PARAMSIZEMISMATCH;
+        }
+    }
+
+    if (returnCode == ADDR_OK)
+    {
+        if (m_maxMetaBaseAlign != 0)
+        {
+            pOut->baseAlign = m_maxMetaBaseAlign;
+        }
+        else
+        {
+            returnCode = ADDR_NOTIMPLEMENTED;
+        }
     }
 
     return returnCode;

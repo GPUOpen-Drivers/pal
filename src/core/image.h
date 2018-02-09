@@ -388,6 +388,12 @@ public:
     bool IsPrivateScreenPresent() const
         { return m_imageInfo.internalCreateInfo.flags.privateScreenPresent; }
 
+    // Returns true if TurboSync surface
+    bool IsTurboSyncSurface() const
+    {
+        return m_imageInfo.internalCreateInfo.flags.turbosync;
+    }
+
     // Returns true if this is an EQAA image (i.e., fragment and sample counts differ).
     bool IsEqaa() const
         { return (m_createInfo.samples != m_createInfo.fragments); }

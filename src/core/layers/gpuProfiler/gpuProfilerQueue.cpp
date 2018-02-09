@@ -318,7 +318,7 @@ void Queue::BeginNextFrame(
             TargetCmdBuffer*const pStartFrameTgtCmdBuf = AcquireCmdBuf();
 
             CmdBufferBuildInfo buildInfo = {};
-            pStartFrameTgtCmdBuf->Begin(buildInfo);
+            pStartFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
 
             // Clear the per frame LogItem
             memset(&m_perFrameLogItem, 0, sizeof(m_perFrameLogItem));
@@ -427,7 +427,7 @@ Result Queue::Submit(
                     TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf();
 
                     CmdBufferBuildInfo buildInfo = { };
-                    pEndFrameTgtCmdBuf->Begin(buildInfo);
+                    pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
                     pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
                     pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
                     pEndFrameTgtCmdBuf->End();
@@ -567,7 +567,7 @@ Result Queue::PresentDirect(
         TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf();
 
         CmdBufferBuildInfo buildInfo = { };
-        pEndFrameTgtCmdBuf->Begin(buildInfo);
+        pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
         pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
         pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
         pEndFrameTgtCmdBuf->End();
@@ -608,7 +608,7 @@ Result Queue::PresentSwapChain(
         TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf();
 
         CmdBufferBuildInfo buildInfo = { };
-        pEndFrameTgtCmdBuf->Begin(buildInfo);
+        pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
         pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
         pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
         pEndFrameTgtCmdBuf->End();

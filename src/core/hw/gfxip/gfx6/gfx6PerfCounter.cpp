@@ -733,17 +733,17 @@ uint32 StreamingPerfCounter::GetSelect0RegisterData() const
     // PERF_SEL field of perfcounterx_select register.
     if (m_eventId[0] != InvalidEventId)
     {
-        selectReg |= m_eventId[0];
+        selectReg |= (m_eventId[0] << Gfx6PerfCounterPerfSel0Shift);
     }
 
     // PERF_SEL1 field for perfcounterx_select register. SQ perfcounterx_select registers don't have a PERF_SEL1 field.
     if ((m_eventId[1] != InvalidEventId) && (m_block != GpuBlock::Sq))
     {
-        selectReg |= (m_eventId[1] << 10);
+        selectReg |= (m_eventId[1] << Gfx6PerfCounterPerfSel1Shift);
     }
 
     // The CNTR_MODE is set to clamp for now.
-    selectReg |= (1 << 20);
+    selectReg |= (1 << Gfx6PerfCounterCntrModeShift);
 
     return selectReg;
 }
@@ -765,13 +765,13 @@ uint32 StreamingPerfCounter::GetSelect1RegisterData() const
     // PERF_SEL0 field
     if (m_eventId[2] != InvalidEventId)
     {
-        select1Reg |= m_eventId[2];
+        select1Reg |= (m_eventId[2] << Gfx6PerfCounterPerfSel0Shift);
     }
 
     // PERF_SEL1 field
     if (m_eventId[3] != InvalidEventId)
     {
-        select1Reg |= (m_eventId[3] << 10);
+        select1Reg |= (m_eventId[3] << Gfx6PerfCounterPerfSel1Shift);
     }
 
     return select1Reg;

@@ -263,6 +263,8 @@ protected:
 
     bool FilterSetUserDataGfx(UserDataArgs* pUserDataArgs);
 
+    virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
+
     GraphicsState         m_graphicsState;        // Currently bound graphics command buffer state.
     GraphicsState         m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
 

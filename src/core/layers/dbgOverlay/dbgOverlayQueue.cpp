@@ -355,7 +355,7 @@ Result Queue::SubmitOverlayCmdBuffer(
         CmdBufferBuildInfo buildInfo = {};
         buildInfo.flags.optimizeOneTimeSubmit = 1;
 
-        result = pTrackedCmdBuffer->pCmdBuffer->Begin(buildInfo);
+        result = pTrackedCmdBuffer->pCmdBuffer->Begin(NextCmdBufferBuildInfo(buildInfo));
     }
 
     if (result == Result::Success)
@@ -577,7 +577,7 @@ Result Queue::CreateGpuTimestampPair(
         CmdBufferBuildInfo cmdBufferBuildInfo = {};
         cmdBufferBuildInfo.flags.optimizeExclusiveSubmit = 1;
 
-        result = pTimestamp->pBeginCmdBuffer->Begin(cmdBufferBuildInfo);
+        result = pTimestamp->pBeginCmdBuffer->Begin(NextCmdBufferBuildInfo(cmdBufferBuildInfo));
     }
 
     if (result == Result::Success)
@@ -595,7 +595,7 @@ Result Queue::CreateGpuTimestampPair(
         CmdBufferBuildInfo cmdBufferBuildInfo = {};
         cmdBufferBuildInfo.flags.optimizeExclusiveSubmit = 1;
 
-        result = pTimestamp->pEndCmdBuffer->Begin(cmdBufferBuildInfo);
+        result = pTimestamp->pEndCmdBuffer->Begin(NextCmdBufferBuildInfo(cmdBufferBuildInfo));
     }
 
     if (result == Result::Success)

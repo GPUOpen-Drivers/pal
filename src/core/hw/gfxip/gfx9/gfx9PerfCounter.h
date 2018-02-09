@@ -68,17 +68,13 @@ public:
         return InstanceIdToSe(perfCounterInfo, block, instance);
     }
 
-    static uint32 InstanceIdToSe(
-    const Gfx9PerfCounterInfo& perfCounterInfo,
-    const GpuBlock&            block,
-    uint32                     instance);
+    static uint32 InstanceIdToSe(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
+    static uint32 InstanceIdToSh(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
+    static uint32 InstanceIdToInstance(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
 
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-
-    uint32 InstanceIdToSh() const;
-    uint32 InstanceIdToInstance() const;
 
     union Flags
     {
@@ -107,10 +103,10 @@ private:
 
 // =====================================================================================================================
 // Provides Gfx9-specific functionality for streaming performance counters.
-class StreamingPerfCounter : public Pal::StreamingPerfCounter
+class Gfx9StreamingPerfCounter : public Pal::StreamingPerfCounter
 {
 public:
-    StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
+    Gfx9StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
 
     virtual Result AddEvent(const GpuBlock& block, uint32 eventId) override;
     uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
@@ -124,8 +120,8 @@ protected:
 private:
     const Device& m_device;
 
-    PAL_DISALLOW_DEFAULT_CTOR(StreamingPerfCounter);
-    PAL_DISALLOW_COPY_AND_ASSIGN(StreamingPerfCounter);
+    PAL_DISALLOW_DEFAULT_CTOR(Gfx9StreamingPerfCounter);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9StreamingPerfCounter);
 };
 
 } // Gfx9

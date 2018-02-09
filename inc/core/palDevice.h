@@ -607,6 +607,8 @@ enum PrtFeatureFlags : uint32
 
     PrtFeatureTileAliasing          = 0x00000200,   ///< Indicates support for aliasing tiles (without metadata)
     PrtFeatureStrictNull            = 0x00000400,   ///< Indicates whether reads of unmapped tiles always return zero
+    PrtFeatureNonStandardImage3D    = 0x00000800,   ///< Indicates support for sparse 3D images restricted to
+                                                    ///  non-standard tile shapes that match the tile mode block depth
 };
 
 /// Describe the settings' scope accessible by clients.

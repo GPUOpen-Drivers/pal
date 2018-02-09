@@ -61,7 +61,7 @@ typedef int            INT;
 #endif
 
 #ifndef ADDR_STDCALL
-        #if defined(__AMD64__)
+        #if defined(__amd64__) || defined(__x86_64__)
             #define ADDR_STDCALL
         #else
             #define ADDR_STDCALL __attribute__((stdcall))

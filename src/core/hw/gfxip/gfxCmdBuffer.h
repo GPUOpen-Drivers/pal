@@ -307,6 +307,8 @@ public:
     virtual void PushGraphicsState() = 0;
     virtual void PopGraphicsState()  = 0;
 
+    const ComputeState& GetComputeState() const { return m_computeState; }
+
     // Returns a pointer to the command stream associated with the specified engine type
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) = 0;
 
@@ -432,6 +434,10 @@ protected:
         UserDataEntries*          pDestUserDataEntries);
 
     CmdStreamChunk* GetNextGeneratedChunk();
+
+    void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
+
+    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
 
     PrefetchMgr*const m_pPrefetchMgr;        // Manager for prefetching data into L2.
     uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.

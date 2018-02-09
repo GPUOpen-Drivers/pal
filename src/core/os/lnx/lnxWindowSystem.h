@@ -52,9 +52,8 @@ union WindowSystemProperties
 {
     struct
     {
-        uint64 useGbTileEnumInMetaData  : 1;   // It is required to use GbTile's definition which start from 0 but not 1
         uint64 supportFreeSyncExtension : 1;   // the window system support extension call to enable free sync.
-        uint64 reserved                 : 62;
+        uint64 reserved                 : 63;
     };
     uint64 u64All;
 };

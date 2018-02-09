@@ -6392,6 +6392,15 @@ union COMPUTE_RESTART_Z {
 	float        f32All;
 };
 
+union COMPUTE_SHADER_CHKSUM {
+	struct {
+		unsigned int                        CHECKSUM : 32;
+	} bitfields, bits;
+	unsigned int u32All;
+	signed int   i32All;
+	float        f32All;
+};
+
 union COMPUTE_START_X {
 	struct {
 		unsigned int                           START : 32;
@@ -47372,6 +47381,42 @@ union SPI_SHADER_LATE_ALLOC_VS {
 	struct {
 		unsigned int                           LIMIT : 6;
 		unsigned int                                 : 26;
+	} bitfields, bits;
+	unsigned int u32All;
+	signed int   i32All;
+	float        f32All;
+};
+
+union SPI_SHADER_PGM_CHKSUM_GS {
+	struct {
+		unsigned int                        CHECKSUM : 32;
+	} bitfields, bits;
+	unsigned int u32All;
+	signed int   i32All;
+	float        f32All;
+};
+
+union SPI_SHADER_PGM_CHKSUM_HS {
+	struct {
+		unsigned int                        CHECKSUM : 32;
+	} bitfields, bits;
+	unsigned int u32All;
+	signed int   i32All;
+	float        f32All;
+};
+
+union SPI_SHADER_PGM_CHKSUM_PS {
+	struct {
+		unsigned int                        CHECKSUM : 32;
+	} bitfields, bits;
+	unsigned int u32All;
+	signed int   i32All;
+	float        f32All;
+};
+
+union SPI_SHADER_PGM_CHKSUM_VS {
+	struct {
+		unsigned int                        CHECKSUM : 32;
 	} bitfields, bits;
 	unsigned int u32All;
 	signed int   i32All;

@@ -426,13 +426,16 @@ bool Dri3WindowSystem::IsExtensionSupported()
 }
 
 // =====================================================================================================================
-// Send DRI3-Open reqeust to Xserver to get the related GPU file descriptor.
+// Send DRI3-Open request to Xserver to get the related GPU file descriptor.
 int32 Dri3WindowSystem::OpenDri3()
 {
     int32                        fd       = InvalidFd;
     const xcb_randr_provider_t   provider = 0;
     const xcb_dri3_open_cookie_t cookie   = m_dri3Procs.pfnXcbDri3Open(m_pConnection, m_hWindow, provider);
     xcb_dri3_open_reply_t*const  pReply   = m_dri3Procs.pfnXcbDri3OpenReply(m_pConnection, cookie, NULL);
+    int32                        driverNameLength;
+
+    m_windowSystemProperties.supportFreeSyncExtension = 0;
 
     if (pReply != nullptr)
     {
@@ -440,23 +443,18 @@ int32 Dri3WindowSystem::OpenDri3()
         free(pReply);
     }
 
-    // check whether we are running with radeonsi but not amdgpu
     constexpr char ProDdxVendorString[] = "amdgpu";
 
     const xcb_dri2_connect_cookie_t dri2Cookie = m_dri3Procs.pfnXcbDri2Connect(m_pConnection, m_hWindow, DRI2DriverDRI);
     xcb_dri2_connect_reply_t*const  pDri2Reply = m_dri3Procs.pfnXcbDri2ConnectReply(m_pConnection, dri2Cookie, NULL);
-    const int32                     nameLength = m_dri3Procs.pfnXcbDri2ConnectDriverNameLength(pDri2Reply);
-    const char*const                pName      = m_dri3Procs.pfnXcbDri2ConnectDriverName(pDri2Reply);
 
-    if ((pName != nullptr) && (strncmp(pName, ProDdxVendorString, nameLength) != 0))
+    if ((pDri2Reply != nullptr) && (m_dri3Procs.pfnXcbDri2ConnectDriverNameLength(pDri2Reply) > 0))
     {
-        m_windowSystemProperties.useGbTileEnumInMetaData  = 1;
-        m_windowSystemProperties.supportFreeSyncExtension = 0;
-    }
-    else
-    {
-        m_windowSystemProperties.useGbTileEnumInMetaData  = 0;
-        m_windowSystemProperties.supportFreeSyncExtension = 1;
+        const char*const pName = m_dri3Procs.pfnXcbDri2ConnectDriverName(pDri2Reply);
+        if (strncmp(pName, ProDdxVendorString, strlen(ProDdxVendorString)) == 0)
+        {
+            m_windowSystemProperties.supportFreeSyncExtension = 1;
+        }
     }
 
     if (pDri2Reply != nullptr)

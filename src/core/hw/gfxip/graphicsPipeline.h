@@ -74,7 +74,6 @@ protected:
     bool IsResolveFixedFunc() const { return m_flags.resolveFixedFunc; }
     bool IsFastClearEliminate() const { return m_flags.fastClearElim; }
     bool IsFmaskDecompress() const { return m_flags.fmaskDecompress; }
-    bool UsesSampleInfo() const { return m_flags.sampleInfoEnabled; }
     bool IsLateAllocVsLimit() const { return m_flags.lateAllocVsLimit; }
     bool WritesDepth() const { return m_flags.psWritesDepth; }
 

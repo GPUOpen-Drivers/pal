@@ -331,6 +331,8 @@ public:
         const Image& image,
         ImageAspect  aspect) const;
 
+    static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWTYPE_SET validSwSet);
+
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,

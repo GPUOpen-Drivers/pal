@@ -671,21 +671,78 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeDccInfo(
 
 /**
 ************************************************************************************************************************
-*   Gfx9Lib::HwlGetMaxAlignments
+*   Gfx9Lib::HwlComputeMaxBaseAlignments
 *
 *   @brief
 *       Gets maximum alignments
 *   @return
-*       ADDR_E_RETURNCODE
+*       maximum alignments
 ************************************************************************************************************************
 */
-ADDR_E_RETURNCODE Gfx9Lib::HwlGetMaxAlignments(
-    ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut    ///< [out] output structure
-    ) const
+UINT_32 Gfx9Lib::HwlComputeMaxBaseAlignments() const
 {
-    pOut->baseAlign = HwlComputeSurfaceBaseAlign(ADDR_SW_64KB);
+    return ComputeSurfaceBaseAlignTiled(ADDR_SW_64KB);
+}
 
-    return ADDR_OK;
+/**
+************************************************************************************************************************
+*   Gfx9Lib::HwlComputeMaxMetaBaseAlignments
+*
+*   @brief
+*       Gets maximum alignments for metadata
+*   @return
+*       maximum alignments for metadata
+************************************************************************************************************************
+*/
+UINT_32 Gfx9Lib::HwlComputeMaxMetaBaseAlignments() const
+{
+    // Max base alignment for Htile
+    const UINT_32 maxNumPipeTotal = GetPipeNumForMetaAddressing(TRUE, ADDR_SW_64KB_Z);
+    const UINT_32 maxNumRbTotal   = m_se * m_rbPerSe;
+
+    // If applyAliasFix was set, the extra bits should be MAX(10u, m_pipeInterleaveLog2),
+    // but we never saw any ASIC whose m_pipeInterleaveLog2 != 8, so just put an assertion and simply the logic.
+    ADDR_ASSERT((m_settings.applyAliasFix == FALSE) || (m_pipeInterleaveLog2 <= 10u));
+    const UINT_32 maxNumCompressBlkPerMetaBlk = 1u << (m_seLog2 + m_rbPerSeLog2 + 10u);
+
+    UINT_32 maxBaseAlignHtile = maxNumPipeTotal * maxNumRbTotal * m_pipeInterleaveBytes;
+
+    if (maxNumPipeTotal > 2)
+    {
+        maxBaseAlignHtile *= (maxNumPipeTotal >> 1);
+    }
+
+    maxBaseAlignHtile = Max(maxNumCompressBlkPerMetaBlk << 2, maxBaseAlignHtile);
+
+    if (m_settings.metaBaseAlignFix)
+    {
+        maxBaseAlignHtile = Max(maxBaseAlignHtile, GetBlockSize(ADDR_SW_64KB));
+    }
+
+    if (m_settings.htileAlignFix)
+    {
+        maxBaseAlignHtile *= maxNumPipeTotal;
+    }
+
+    // Max base alignment for Cmask will not be larger than that for Htile, no need to calculate
+
+    // Max base alignment for 2D Dcc will not be larger than that for 3D, no need to calculate
+    UINT_32 maxBaseAlignDcc3D = 65536;
+
+    if ((maxNumPipeTotal > 1) || (maxNumRbTotal > 1))
+    {
+        maxBaseAlignDcc3D = Min(m_se * m_rbPerSe * 262144, 65536 * 128u);
+    }
+
+    // Max base alignment for Msaa Dcc
+    UINT_32 maxBaseAlignDccMsaa = maxNumPipeTotal * maxNumRbTotal * m_pipeInterleaveBytes * (8 / m_maxCompFrag);
+
+    if (m_settings.metaBaseAlignFix)
+    {
+        maxBaseAlignDccMsaa = Max(maxBaseAlignDccMsaa, GetBlockSize(ADDR_SW_64KB));
+    }
+
+    return Max(maxBaseAlignHtile, Max(maxBaseAlignDccMsaa, maxBaseAlignDcc3D));
 }
 
 /**
@@ -1195,7 +1252,6 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
         case FAMILY_AI:
             m_settings.isArcticIsland = 1;
             m_settings.isVega10    = ASICREV_IS_VEGA10_P(uChipRevision);
-
             m_settings.isDce12 = 1;
 
             if (m_settings.isVega10 == 0)
@@ -3288,16 +3344,21 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
             addrPreferredSwSet.value = AddrSwSetZ;
             addrValidSwSet.value     = AddrSwSetZ;
 
-            if (pIn->flags.depth && pIn->flags.texture)
+            if (pIn->flags.depth)
             {
-                if (((bpp == 16) && (numFrags >= 4)) ||
-                    ((bpp == 32) && (numFrags >= 2)))
+                if (pIn->flags.texture &&
+                    (((bpp == 16) && (numFrags >= 4)) || ((bpp == 32) && (numFrags >= 2))))
                 {
                     // When _X/_T swizzle mode was used for MSAA depth texture, TC will get zplane
                     // equation from wrong address within memory range a tile covered and use the
                     // garbage data for compressed Z reading which finally leads to corruption.
                     pOut->canXor = FALSE;
                     prtXor       = FALSE;
+                }
+                else if ((slice > 1) && (bpp == 32) && (numFrags == 1))
+                {
+                    // Z_X non-MSAA D32 2D array with Rb/Pipe aligned HTile won't have metadata cache coherency
+                    pOut->canXor = FALSE;
                 }
             }
         }
@@ -4046,7 +4107,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoTiled(
             pOut->sliceSize = static_cast<UINT_64>(pOut->mipChainPitch) * pOut->mipChainHeight *
                               (pIn->bpp >> 3) * pIn->numFrags;
             pOut->surfSize  = pOut->sliceSize * pOut->mipChainSlice;
-            pOut->baseAlign = HwlComputeSurfaceBaseAlign(pIn->swizzleMode);
+            pOut->baseAlign = ComputeSurfaceBaseAlignTiled(pIn->swizzleMode);
 
             if (pIn->flags.prt)
             {
@@ -4771,15 +4832,12 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
             UINT_32 pitchInMacroBlock = localOut.mipChainPitch / localOut.blockWidth;
             UINT_32 paddedHeightInMacroBlock = localOut.mipChainHeight / localOut.blockHeight;
             UINT_32 sliceSizeInMacroBlock = pitchInMacroBlock * paddedHeightInMacroBlock;
-            UINT_32 macroBlockIndex =
+            UINT_64 macroBlockIndex =
                 (pIn->slice + mipStartPos.d) * sliceSizeInMacroBlock +
                 ((pIn->y / localOut.blockHeight) + mipStartPos.h) * pitchInMacroBlock +
                 ((pIn->x / localOut.blockWidth) + mipStartPos.w);
 
-            UINT_64 macroBlockOffset = (static_cast<UINT_64>(macroBlockIndex) <<
-                                       GetBlockSizeLog2(pIn->swizzleMode));
-
-            pOut->addr = blockOffset | macroBlockOffset;
+            pOut->addr = blockOffset | (macroBlockIndex << log2blkSize);
         }
         else
         {
@@ -4844,7 +4902,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceAddrFromCoordTiled(
             UINT_32 pitchInBlock = localOut.mipChainPitch / localOut.blockWidth;
             UINT_32 sliceSizeInBlock =
                 (localOut.mipChainHeight / localOut.blockHeight) * pitchInBlock;
-            UINT_32 blockIndex = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
+            UINT_64 blockIndex = zb * sliceSizeInBlock + yb * pitchInBlock + xb;
 
             pOut->addr = blockOffset | (blockIndex << log2blkSize);
         }

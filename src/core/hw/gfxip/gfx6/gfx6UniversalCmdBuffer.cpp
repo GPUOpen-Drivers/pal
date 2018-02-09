@@ -573,12 +573,18 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
             for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
             {
-                if ((signature.indirectTableAddr[id] != UserDataNotMapped) &&
-                    (signature.indirectTableAddr[id] != m_pSignatureCs->indirectTableAddr[id]))
+                const uint16 entryPlusOne = signature.indirectTableAddr[id];
+                if ((entryPlusOne != UserDataNotMapped) && (entryPlusOne != m_pSignatureCs->indirectTableAddr[id]))
                 {
-                    // If this indirect user-data table's GPU address is mapped to a different user-data entry than
-                    // it was with the previous pipeline, we need to rewrite the user-data entries at Dispatch time.
+                    // If this indirect user-data table's GPU address is mapped to a different user-data entry than it was
+                    // with the previous pipeline, we need to rewrite the user-data entries at Dispatch time.
                     m_indirectUserDataInfo[id].state.gpuAddrDirty = 1;
+                    // Furthermore, if the user-data entry mapped to the indirect table is spilled, then we also need to
+                    // mark the spill table as dirty.
+                    if ((entryPlusOne - 1) >= signature.spillThreshold)
+                    {
+                        m_spillTable.stateCs.contentsDirty = 1;
+                    }
                 }
             }
 
@@ -777,22 +783,35 @@ void UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
     }
 
-    if ((signature.streamOutTableAddr != UserDataNotMapped) &&
-        (signature.streamOutTableAddr != m_pSignatureGfx->streamOutTableAddr))
+    const uint16 streamOutEntryPlusOne = signature.streamOutTableAddr;
+    if ((streamOutEntryPlusOne != UserDataNotMapped) &&
+        (streamOutEntryPlusOne != m_pSignatureGfx->streamOutTableAddr))
     {
         // If this stream-out SRD table's GPU address is mapped to a different user-data entry than it was with the
         // previous pipeline, we need to rewrite the user-data entries at Dispatch time.
         m_streamOut.state.gpuAddrDirty = 1;
+        // Furthermore, if the user-data entry mapped to the stream-out table is spilled, then we also need to
+        // mark the spill table as dirty.
+        if ((streamOutEntryPlusOne - 1) >= signature.spillThreshold)
+        {
+            m_spillTable.stateGfx.contentsDirty = 1;
+        }
     }
 
     for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
     {
-        if ((signature.indirectTableAddr[id] != UserDataNotMapped) &&
-            (signature.indirectTableAddr[id] != m_pSignatureGfx->indirectTableAddr[id]))
+        const uint16 entryPlusOne = signature.indirectTableAddr[id];
+        if ((entryPlusOne != UserDataNotMapped) && (entryPlusOne != m_pSignatureGfx->indirectTableAddr[id]))
         {
             // If this indirect user-data table's GPU address is mapped to a different user-data entry than it was
             // with the previous pipeline, we need to rewrite the user-data entries at Dispatch time.
             m_indirectUserDataInfo[id].state.gpuAddrDirty = 1;
+            // Furthermore, if the user-data entry mapped to the indirect table is spilled, then we also need to
+            // mark the spill table as dirty.
+            if ((entryPlusOne - 1) >= signature.spillThreshold)
+            {
+                m_spillTable.stateGfx.contentsDirty = 1;
+            }
         }
     }
 
@@ -3660,6 +3679,20 @@ uint32* PAL_STDCALL UniversalCmdBuffer::ValidateComputeUserDataTables(
 
         pSelf->m_ceCmdStream.CommitCommands(pCeCmdSpace);
     }
+    else
+    {
+        for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
+        {
+            if ((pSelf->m_pSignatureCs->indirectTableAddr[id] != UserDataNotMapped) &&
+                (pSelf->m_indirectUserDataInfo[id].state.gpuAddrDirty != 0))
+            {
+                pSelf->UpdateCeRingAddressCs(&pSelf->m_indirectUserDataInfo[id].state,
+                                             (pSelf->m_pSignatureCs->indirectTableAddr[id] - 1),
+                                             nullptr,
+                                             &pDeCmdSpace);
+            }
+        }
+    }
 
     // Step (5):
     // <> If the spill table's GPU address was updated earlier in this function, we need to re-write the SPI user-data
@@ -3865,6 +3898,32 @@ uint32* PAL_STDCALL UniversalCmdBuffer::ValidateGraphicsUserDataTables(
         }
 
         pSelf->m_ceCmdStream.CommitCommands(pCeCmdSpace);
+    }
+    else
+    {
+        if ((pSelf->m_pSignatureGfx->streamOutTableAddr != UserDataNotMapped) &&
+            (pSelf->m_streamOut.state.gpuAddrDirty != 0))
+        {
+            pSelf->UpdateCeRingAddressGfx(&pSelf->m_streamOut.state,
+                                          (pSelf->m_pSignatureGfx->streamOutTableAddr - 1),
+                                          static_cast<uint32>(HwShaderStage::Vs),
+                                          static_cast<uint32>(HwShaderStage::Vs),
+                                          nullptr,
+                                          &pDeCmdSpace);
+        }
+        for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
+        {
+            if ((pSelf->m_pSignatureGfx->indirectTableAddr[id] != UserDataNotMapped) &&
+                (pSelf->m_indirectUserDataInfo[id].state.gpuAddrDirty != 0))
+            {
+                pSelf->UpdateCeRingAddressGfx(&pSelf->m_indirectUserDataInfo[id].state,
+                                              (pSelf->m_pSignatureGfx->indirectTableAddr[id] - 1),
+                                              static_cast<uint32>(HwShaderStage::Ls),
+                                              static_cast<uint32>(HwShaderStage::Ps),
+                                              nullptr,
+                                              &pDeCmdSpace);
+            }
+        }
     }
 
     // Step (5):
@@ -5016,127 +5075,141 @@ void UniversalCmdBuffer::PopGraphicsState()
 {
     Pal::UniversalCmdBuffer::PopGraphicsState();
 
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we've finished some internal operations.
+        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->EndInternalOps(&m_deCmdStream);
+    }
+}
+// =====================================================================================================================
+// Set all specified state on this command buffer.
+void UniversalCmdBuffer::SetGraphicsState(
+    const GraphicsState& newGraphicsState)
+{
+    Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
+
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
-    // view state.  The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
+    // view state. The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
     // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
     if (m_graphicsState.inheritedState.stateFlags.targetViewState == 0)
     {
-        CmdBindTargets(m_graphicsRestoreState.bindTargets);
+        CmdBindTargets(newGraphicsState.bindTargets);
     }
 
-    if ((m_graphicsRestoreState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
-        (m_graphicsRestoreState.iaState.indexCount != m_graphicsState.iaState.indexCount) ||
-        (m_graphicsRestoreState.iaState.indexType  != m_graphicsState.iaState.indexType))
+    if ((newGraphicsState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
+        (newGraphicsState.iaState.indexCount != m_graphicsState.iaState.indexCount) ||
+        (newGraphicsState.iaState.indexType  != m_graphicsState.iaState.indexType))
     {
-        CmdBindIndexData(m_graphicsRestoreState.iaState.indexAddr,
-                         m_graphicsRestoreState.iaState.indexCount,
-                         m_graphicsRestoreState.iaState.indexType);
+        CmdBindIndexData(newGraphicsState.iaState.indexAddr,
+                         newGraphicsState.iaState.indexCount,
+                         newGraphicsState.iaState.indexType);
     }
 
-    if (memcmp(&m_graphicsRestoreState.inputAssemblyState,
+    if (memcmp(&newGraphicsState.inputAssemblyState,
                &m_graphicsState.inputAssemblyState,
                sizeof(m_graphicsState.inputAssemblyState)) != 0)
     {
-        CmdSetInputAssemblyState(m_graphicsRestoreState.inputAssemblyState);
+        CmdSetInputAssemblyState(newGraphicsState.inputAssemblyState);
     }
 
-    if (m_graphicsRestoreState.pColorBlendState != m_graphicsState.pColorBlendState)
+    if (newGraphicsState.pColorBlendState != m_graphicsState.pColorBlendState)
     {
-        CmdBindColorBlendState(m_graphicsRestoreState.pColorBlendState);
+        CmdBindColorBlendState(newGraphicsState.pColorBlendState);
     }
 
-    if (memcmp(m_graphicsRestoreState.blendConstState.blendConst,
+    if (memcmp(newGraphicsState.blendConstState.blendConst,
                m_graphicsState.blendConstState.blendConst,
                sizeof(m_graphicsState.blendConstState.blendConst)) != 0)
     {
-        CmdSetBlendConst(m_graphicsRestoreState.blendConstState);
+        CmdSetBlendConst(newGraphicsState.blendConstState);
     }
 
-    if (memcmp(&m_graphicsRestoreState.stencilRefMaskState,
+    if (memcmp(&newGraphicsState.stencilRefMaskState,
                &m_graphicsState.stencilRefMaskState,
                sizeof(m_graphicsState.stencilRefMaskState)) != 0)
     {
         // Setting StencilRefMaskState flags to 0xFF so that the faster command is used instead of read-modify-write
-        m_graphicsRestoreState.stencilRefMaskState.flags.u8All = 0xFF;
+        StencilRefMaskParams stencilRefMaskState = newGraphicsState.stencilRefMaskState;
+        stencilRefMaskState.flags.u8All = 0xFF;
 
-        CmdSetStencilRefMasks(m_graphicsRestoreState.stencilRefMaskState);
+        CmdSetStencilRefMasks(stencilRefMaskState);
     }
 
-    if (m_graphicsRestoreState.pDepthStencilState != m_graphicsState.pDepthStencilState)
+    if (newGraphicsState.pDepthStencilState != m_graphicsState.pDepthStencilState)
     {
-        CmdBindDepthStencilState(m_graphicsRestoreState.pDepthStencilState);
+        CmdBindDepthStencilState(newGraphicsState.pDepthStencilState);
     }
 
-    if ((m_graphicsRestoreState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
-        (m_graphicsRestoreState.depthBoundsState.max != m_graphicsState.depthBoundsState.max))
+    if ((newGraphicsState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
+        (newGraphicsState.depthBoundsState.max != m_graphicsState.depthBoundsState.max))
     {
-        CmdSetDepthBounds(m_graphicsRestoreState.depthBoundsState);
+        CmdSetDepthBounds(newGraphicsState.depthBoundsState);
     }
 
-    if (m_graphicsRestoreState.pMsaaState != m_graphicsState.pMsaaState)
+    if (newGraphicsState.pMsaaState != m_graphicsState.pMsaaState)
     {
-        CmdBindMsaaState(m_graphicsRestoreState.pMsaaState);
+        CmdBindMsaaState(newGraphicsState.pMsaaState);
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    if (memcmp(&m_graphicsRestoreState.samplePatternState,
+    if (memcmp(&newGraphicsState.samplePatternState,
         &m_graphicsState.samplePatternState,
         sizeof(SamplePattern)) != 0)
     {
         // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
-        if (m_graphicsRestoreState.numSamplesPerPixel != 0)
+        if (newGraphicsState.numSamplesPerPixel != 0)
         {
-            if (m_graphicsRestoreState.samplePatternState.isLoad)
+            if (newGraphicsState.samplePatternState.isLoad)
             {
-                PAL_ASSERT(m_graphicsRestoreState.samplePatternState.pGpuMemory != nullptr);
-                CmdLoadMsaaQuadSamplePattern(m_graphicsRestoreState.samplePatternState.pGpuMemory,
-                    m_graphicsRestoreState.samplePatternState.memOffset);
+                PAL_ASSERT(newGraphicsState.samplePatternState.pGpuMemory != nullptr);
+                CmdLoadMsaaQuadSamplePattern(newGraphicsState.samplePatternState.pGpuMemory,
+                    newGraphicsState.samplePatternState.memOffset);
             }
             else
             {
-                CmdSetMsaaQuadSamplePattern(m_graphicsRestoreState.numSamplesPerPixel,
-                    m_graphicsRestoreState.samplePatternState.immediate);
+                CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
+                    newGraphicsState.samplePatternState.immediate);
             }
         }
     }
 #else
-    if (memcmp(&m_graphicsRestoreState.quadSamplePatternState,
+    if (memcmp(&newGraphicsState.quadSamplePatternState,
                &m_graphicsState.quadSamplePatternState,
                sizeof(MsaaQuadSamplePattern)) != 0)
     {
         // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
-        if (m_graphicsRestoreState.numSamplesPerPixel != 0)
+        if (newGraphicsState.numSamplesPerPixel != 0)
         {
-            CmdSetMsaaQuadSamplePattern(m_graphicsRestoreState.numSamplesPerPixel,
-                m_graphicsRestoreState.quadSamplePatternState);
+            CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
+                newGraphicsState.quadSamplePatternState);
         }
     }
 #endif
 
-    if (memcmp(&m_graphicsRestoreState.triangleRasterState,
+    if (memcmp(&newGraphicsState.triangleRasterState,
                &m_graphicsState.triangleRasterState,
                sizeof(m_graphicsState.triangleRasterState)) != 0)
     {
-        CmdSetTriangleRasterState(m_graphicsRestoreState.triangleRasterState);
+        CmdSetTriangleRasterState(newGraphicsState.triangleRasterState);
     }
 
-    if (memcmp(&m_graphicsRestoreState.pointLineRasterState,
+    if (memcmp(&newGraphicsState.pointLineRasterState,
                &m_graphicsState.pointLineRasterState,
                sizeof(m_graphicsState.pointLineRasterState)) != 0)
     {
-        CmdSetPointLineRasterState(m_graphicsRestoreState.pointLineRasterState);
+        CmdSetPointLineRasterState(newGraphicsState.pointLineRasterState);
     }
 
-    const auto& restoreDepthBiasState = m_graphicsRestoreState.depthBiasState;
+    const auto& restoreDepthBiasState = newGraphicsState.depthBiasState;
 
     if ((restoreDepthBiasState.depthBias            != m_graphicsState.depthBiasState.depthBias)      ||
         (restoreDepthBiasState.depthBiasClamp       != m_graphicsState.depthBiasState.depthBiasClamp) ||
         (restoreDepthBiasState.slopeScaledDepthBias != m_graphicsState.depthBiasState.slopeScaledDepthBias))
     {
-        CmdSetDepthBiasState(m_graphicsRestoreState.depthBiasState);
+        CmdSetDepthBiasState(newGraphicsState.depthBiasState);
     }
 
-    const auto& restoreViewports = m_graphicsRestoreState.viewportState;
+    const auto& restoreViewports = newGraphicsState.viewportState;
     const auto& currentViewports = m_graphicsState.viewportState;
 
     if ((restoreViewports.count != currentViewports.count) ||
@@ -5147,7 +5220,7 @@ void UniversalCmdBuffer::PopGraphicsState()
         CmdSetViewports(restoreViewports);
     }
 
-    const auto& restoreScissorRects = m_graphicsRestoreState.scissorRectState;
+    const auto& restoreScissorRects = newGraphicsState.scissorRectState;
     const auto& currentScissorRects = m_graphicsState.scissorRectState;
 
     if ((restoreScissorRects.count != currentScissorRects.count) ||
@@ -5158,7 +5231,7 @@ void UniversalCmdBuffer::PopGraphicsState()
         CmdSetScissorRects(restoreScissorRects);
     }
 
-    const auto& restoreGlobalScissor = m_graphicsRestoreState.globalScissorState.scissorRegion;
+    const auto& restoreGlobalScissor = newGraphicsState.globalScissorState.scissorRegion;
     const auto& currentGlobalScissor = m_graphicsState.globalScissorState.scissorRegion;
 
     if ((restoreGlobalScissor.offset.x      != currentGlobalScissor.offset.x)     ||
@@ -5166,13 +5239,27 @@ void UniversalCmdBuffer::PopGraphicsState()
         (restoreGlobalScissor.extent.width  != currentGlobalScissor.extent.width) ||
         (restoreGlobalScissor.extent.height != currentGlobalScissor.extent.height))
     {
-        CmdSetGlobalScissor(m_graphicsRestoreState.globalScissorState);
+        CmdSetGlobalScissor(newGraphicsState.globalScissorState);
     }
+}
 
-    if (m_pCurrentExperiment != nullptr)
+// =====================================================================================================================
+// Bind the last state set on the specified command buffer
+void UniversalCmdBuffer::InheritStateFromCmdBuf(
+    const GfxCmdBuffer* pCmdBuffer)
+{
+    const UniversalCmdBuffer* pUniversalCmdBuffer = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
+    SetGraphicsState(pUniversalCmdBuffer->GetGraphicsState());
+    SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
+
+    for (uint16 i = 0; i < MaxIndirectUserDataTables; i++)
     {
-        // Inform the performance experiment that we've finished some internal operations.
-        static_cast<const PerfExperiment*>(m_pCurrentExperiment)->EndInternalOps(&m_deCmdStream);
+        const uint32  numEntries = pUniversalCmdBuffer->m_indirectUserDataInfo[i].watermark;
+        const uint32* pData      = pUniversalCmdBuffer->m_indirectUserDataInfo[i].pData;
+        if (numEntries > 0)
+        {
+            CmdSetIndirectUserData(i, 0, numEntries, pData);
+        }
     }
 }
 

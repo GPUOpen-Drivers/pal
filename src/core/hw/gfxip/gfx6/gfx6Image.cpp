@@ -65,9 +65,6 @@ Image::Image(
     m_waTcCompatZRangeMetaDataSizePerMip(0)
 {
     memset(&m_layoutToState, 0, sizeof(m_layoutToState));
-
-    // On Gfx6/7/8, only 2D PRT's are supported.
-    PAL_ASSERT((m_createInfo.flags.prt == 0) || (m_createInfo.imageType == ImageType::Tex2d));
 }
 
 // =====================================================================================================================
@@ -2227,6 +2224,7 @@ Result Image::ComputeAddrTileMode(
         if ((pSubResInfo->bitsPerTexel     <= 64)                              &&
             (m_createInfo.extent.depth     >= 8)                               &&
             (pTileCaps->tile2DXThick       == 1)                               &&
+            (m_createInfo.flags.prt        == 0)                               &&
             (Parent()->IsRenderTarget()   == false)                            &&
             (Parent()->IsShaderWritable() == false)                            &&
             (Formats::IsMacroPixelPacked(pSubResInfo->format.format) == false) &&
@@ -2257,6 +2255,34 @@ Result Image::ComputeAddrTileMode(
         else if (pTileCaps->tile1DThin1 == 1)
         {
             *pTileMode = ADDR_TM_1D_TILED_THIN1;
+        }
+
+        if (m_createInfo.flags.prt == 1)
+        {
+            switch(*pTileMode)
+            {
+            case ADDR_TM_1D_TILED_THIN1:
+                *pTileMode = ADDR_TM_PRT_TILED_THIN1;
+                break;
+            case ADDR_TM_1D_TILED_THICK:
+                *pTileMode = ADDR_TM_PRT_TILED_THICK;
+                break;
+            case ADDR_TM_2D_TILED_THIN1:
+                *pTileMode = ADDR_TM_PRT_2D_TILED_THIN1;
+                break;
+            case ADDR_TM_2D_TILED_THICK:
+                *pTileMode = ADDR_TM_PRT_2D_TILED_THICK;
+                break;
+            case ADDR_TM_3D_TILED_THIN1:
+                *pTileMode = ADDR_TM_PRT_3D_TILED_THIN1;
+                break;
+            case ADDR_TM_3D_TILED_THICK:
+                *pTileMode = ADDR_TM_PRT_3D_TILED_THICK;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
         }
     }
 

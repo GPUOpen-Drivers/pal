@@ -474,14 +474,32 @@ void UniversalCmdBuffer::PopGraphicsState()
     m_graphicsStateIsPushed = false;
 #endif
 
-    const auto& pipelineState = m_graphicsRestoreState.pipelineState;
+    // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
+    // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
+    // root command buffer. (If Vulkan decides to support user-data inheritance in a later API version, we'll need
+    // to revisit this!)
+
+    SetGraphicsState(m_graphicsRestoreState);
+
+    // All RMP GFX Blts should push/pop command buffer's graphics state,
+    // so this is a safe opprotunity to mark that a GFX Blt is active
+    SetGfxCmdBufGfxBltState(true);
+    SetGfxCmdBufGfxBltWriteCacheState(true);
+}
+
+// =====================================================================================================================
+// Set all specified state on this command buffer.
+void UniversalCmdBuffer::SetGraphicsState(
+    const GraphicsState& newGraphicsState)
+{
+    const auto& pipelineState = newGraphicsState.pipelineState;
 
     if (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline)
     {
         PipelineBindParams bindParams = {};
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
         bindParams.pPipeline          = pipelineState.pPipeline;
-        bindParams.graphics           = m_graphicsRestoreState.dynamicGraphicsInfo;
+        bindParams.graphics           = newGraphicsState.dynamicGraphicsInfo;
 
         CmdBindPipeline(bindParams);
     }
@@ -491,19 +509,10 @@ void UniversalCmdBuffer::PopGraphicsState()
         CmdBindBorderColorPalette(PipelineBindPoint::Graphics, pipelineState.pBorderColorPalette);
     }
 
-    // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
-    // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
-    // root command buffer. (If Vulkan decides to support user-data inheritance in a later API version, we'll need
-    // to revisit this!)
     CmdSetUserData(PipelineBindPoint::Graphics,
                    0,
                    m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries,
-                   &m_graphicsRestoreState.gfxUserDataEntries.entries[0]);
-
-    // All RMP GFX Blts should push/pop command buffer's graphics state,
-    // so this is a safe opprotunity to mark that a GFX Blt is active
-    SetGfxCmdBufGfxBltState(true);
-    SetGfxCmdBufGfxBltWriteCacheState(true);
+                   &newGraphicsState.gfxUserDataEntries.entries[0]);
 }
 
 // =====================================================================================================================
