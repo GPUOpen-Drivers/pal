@@ -125,6 +125,8 @@ Result Platform::ConnectToOsInterface()
         drmProcs.pfnAmdgpuCsImportSyncobjisValid()  &&
         drmProcs.pfnAmdgpuCsSyncobjExportSyncFileisValid() &&
         drmProcs.pfnAmdgpuCsSyncobjImportSyncFileisValid() &&
+        drmProcs.pfnAmdgpuCsSyncobjWaitisValid() &&
+        drmProcs.pfnAmdgpuCsSyncobjResetisValid() &&
         drmProcs.pfnAmdgpuCsSubmitRawisValid())
     {
         m_features.supportSyncObj = 1;

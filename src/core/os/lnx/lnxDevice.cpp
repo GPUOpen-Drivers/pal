@@ -27,6 +27,7 @@
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxQueue.h"
+#include "core/os/lnx/lnxSyncobjFence.h"
 #include "core/os/lnx/lnxGpuMemory.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxPlatform.h"
@@ -55,6 +56,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/utsname.h>
 
 using namespace Util;
 using namespace Pal::AddrMgr1;
@@ -84,6 +86,7 @@ static PAL_INLINE Result CheckResult(
         retValue = Result::OutOfSpec;
         break;
     case -ETIMEDOUT:
+    case -ETIME:
         retValue = Result::Timeout;
         break;
     case -ECANCELED:
@@ -472,13 +475,20 @@ Result Device::OsLateInit()
             if (supported == 1)
             {
                 m_semType = SemaphoreType::SyncObj;
-                if (IsDrmVersionOrGreater(3,20))
+                if ((Settings().disableSyncobjFence == false) &&
+                    (IsDrmVersionOrGreater(3,20)) &&
+                    (IsKernelVersionEqualOrGreater(4,15)))
                 {
-                    m_fenceType =  FenceType::SyncObj;
+                    m_fenceType = FenceType::SyncObj;
                 }
             }
         }
     }
+
+    // Current valid FenceType/SemaphoreType combination:
+    // - Timestamp Fence + any Semaphore type.
+    // - Syncobj Fence + Syncobj Semaphore.
+    PAL_ASSERT((m_fenceType != FenceType::SyncObj) || (m_semType == SemaphoreType::SyncObj));
 
     // DrmVersion should be equal or greater than 3.22 in case to support queue priority
     if (static_cast<Platform*>(m_pPlatform)->IsQueuePrioritySupported() && IsDrmVersionOrGreater(3,22))
@@ -2059,6 +2069,98 @@ Result Device::Submit(
 }
 
 // =====================================================================================================================
+// Determines the size in bytes of a Fence object.
+size_t Device::GetFenceSize(
+    Result*    pResult
+    ) const
+{
+    size_t fenceSize = 0;
+
+    if (pResult != nullptr)
+    {
+        (*pResult) = Result::Success;
+    }
+
+    if (GetFenceType() == FenceType::SyncObj)
+    {
+        fenceSize = sizeof(SyncobjFence);
+    }
+    else
+    {
+        fenceSize = sizeof(Fence);
+    }
+
+    return fenceSize;
+}
+
+// =====================================================================================================================
+// Creates a new Fence object in preallocated memory provided by the caller.
+Result Device::CreateFence(
+    const FenceCreateInfo& createInfo,
+    void*                  pPlacementAddr,
+    IFence**               ppFence
+    ) const
+{
+    Fence* pFence = nullptr;
+    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
+
+    if (GetFenceType() == FenceType::SyncObj)
+    {
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) SyncobjFence(*this);
+    }
+    else
+    {
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+    }
+
+    // Set needsEvent argument to true - all client-created fences require event objects to support the
+    // IDevice::WaitForFences interface.
+    Result result = pFence->Init(createInfo, true);
+
+    if (result != Result::Success)
+    {
+        pFence->Destroy();
+        pFence = nullptr;
+    }
+
+    (*ppFence) = pFence;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Open/Reconstruct the pFence from a handle or a name.
+Result Device::OpenFence(
+    const FenceOpenInfo& openInfo,
+    void*                pPlacementAddr,
+    IFence**             ppFence
+    ) const
+{
+    Fence* pFence = nullptr;
+    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
+
+    if (GetFenceType() == FenceType::SyncObj)
+    {
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) SyncobjFence(*this);
+    }
+    else
+    {
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+    }
+    Result result = pFence->OpenHandle(openInfo);
+
+    if (result != Result::Success)
+    {
+        pFence->Destroy();
+        pFence = nullptr;
+    }
+
+    (*ppFence) = pFence;
+
+    return result;
+}
+
+// =====================================================================================================================
 // Call amdgpu to get the fence status.
 Result Device::QueryFenceStatus(
     struct amdgpu_cs_fence* pFence,
@@ -2124,6 +2226,52 @@ Result Device::WaitForFences(
              }
         }
     }
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to wait for multiple fences (fence based on Sync Object)
+Result Device::WaitForSyncobjFences(
+    uint32_t*            pFences,
+    uint32               fenceCount,
+    uint64               timeout,
+    uint32               flags,
+    uint32*              pFirstSignaled
+    ) const
+{
+    Result result = Result::Success;
+
+    if (m_drmProcs.pfnAmdgpuCsSyncobjWaitisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsSyncobjWait(m_hDevice,
+                                                               pFences,
+                                                               fenceCount,
+                                                               timeout,
+                                                               flags,
+                                                               pFirstSignaled),
+                             Result::ErrorInvalidValue);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to reset syncobj fences
+Result Device::ResetSyncObject(
+    uint32_t*            pFences,
+    uint32_t             fenceCount
+    ) const
+{
+    Result result = Result::Success;
+
+    if (m_drmProcs.pfnAmdgpuCsSyncobjResetisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsSyncobjReset(m_hDevice,
+                                                                pFences,
+                                                                fenceCount),
+                             Result::ErrorInvalidValue);
+    }
+
     return result;
 }
 
@@ -2749,33 +2897,33 @@ void Device::UpdateMetaData(
 // =====================================================================================================================
 Result Device::SyncObjImportSyncFile(
     int                     syncFileFd,
-    amdgpu_semaphore_handle syncObj
+    amdgpu_syncobj_handle   syncObj
     ) const
 {
     int32 ret = 0;
     ret = m_drmProcs.pfnAmdgpuCsSyncobjImportSyncFile(m_hDevice,
-                                                      reinterpret_cast<uintptr_t>(syncObj),
+                                                      syncObj,
                                                       syncFileFd);
     return CheckResult(ret, Result::ErrorUnknown);
 }
 
 // =====================================================================================================================
 Result Device::SyncObjExportSyncFile(
-    amdgpu_semaphore_handle syncObj,
+    amdgpu_syncobj_handle   syncObj,
     int*                    pSyncFileFd
     ) const
 {
     int32 ret = 0;
     ret = m_drmProcs.pfnAmdgpuCsSyncobjExportSyncFile(m_hDevice,
-                                                      reinterpret_cast<uintptr_t>(syncObj),
+                                                      syncObj,
                                                       pSyncFileFd);
     return CheckResult(ret, Result::ErrorUnknown);
 }
 
 // =====================================================================================================================
 Result Device::ConveySyncObjectState(
-    amdgpu_semaphore_handle importSyncObj,
-    amdgpu_semaphore_handle exportSyncObj
+    amdgpu_syncobj_handle importSyncObj,
+    amdgpu_syncobj_handle exportSyncObj
     ) const
 {
     // In current kernel driver, the ioctl to transfer fence state is not implemented.
@@ -2784,12 +2932,12 @@ Result Device::ConveySyncObjectState(
     // the fence would be null-ed if signaled.
     int32 syncFileFd = 0;
     int32 ret = m_drmProcs.pfnAmdgpuCsSyncobjExportSyncFile(m_hDevice,
-                                                            reinterpret_cast<uintptr_t>(exportSyncObj),
+                                                            exportSyncObj,
                                                             &syncFileFd);
     if (ret == 0)
     {
         ret = m_drmProcs.pfnAmdgpuCsSyncobjImportSyncFile(m_hDevice,
-                                                          reinterpret_cast<uintptr_t>(importSyncObj),
+                                                          importSyncObj,
                                                           syncFileFd);
         close(syncFileFd);
     }
@@ -2799,10 +2947,10 @@ Result Device::ConveySyncObjectState(
 
 // =====================================================================================================================
 Result Device::CreateSyncObject(
-    uint32*     pSyncObject
+    amdgpu_syncobj_handle*    pSyncObject
     ) const
 {
-    uint32 syncObject;
+    amdgpu_syncobj_handle syncObject;
     Result result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj(m_hDevice, &syncObject), Result::ErrorUnknown);
     if (result == Result::Success)
     {
@@ -2814,7 +2962,7 @@ Result Device::CreateSyncObject(
 
 // =====================================================================================================================
 Result Device::DestroySyncObject(
-    uint32      syncObject
+    amdgpu_syncobj_handle    syncObject
     ) const
 {
     return CheckResult(m_drmProcs.pfnAmdgpuCsDestroySyncobj(m_hDevice, syncObject), Result::ErrorUnknown);
@@ -2822,7 +2970,7 @@ Result Device::DestroySyncObject(
 
 // =====================================================================================================================
 OsExternalHandle Device::ExportSyncObject(
-    uint32     syncObject
+    amdgpu_syncobj_handle    syncObject
     ) const
 {
     OsExternalHandle handle;
@@ -2836,8 +2984,8 @@ OsExternalHandle Device::ExportSyncObject(
 
 // =====================================================================================================================
 Result Device::ImportSyncObject(
-    OsExternalHandle         fd,
-    uint32*                  pSyncObject
+    OsExternalHandle          fd,
+    amdgpu_syncobj_handle*    pSyncObject
     ) const
 {
     Result result = CheckResult(m_drmProcs.pfnAmdgpuCsImportSyncobj(m_hDevice, fd, pSyncObject), Result::ErrorUnknown);
@@ -3672,6 +3820,33 @@ Result Device::CheckExecutionState() const
 }
 
 // =====================================================================================================================
+// Helper function to check kernel version.
+bool Device::IsKernelVersionEqualOrGreater(
+    uint32    kernelMajorVer,
+    uint32    kernelMinorVer
+    ) const
+{
+    struct utsname buffer = {};
+    uint32 majorVersion = 0;
+    uint32 minorVersion = 0;
+    bool result = false;
+
+    if (uname(&buffer) == 0)
+    {
+        if (sscanf(buffer.release, "%d.%d", &majorVersion, &minorVersion) == 2)
+        {
+            if ((majorVersion > kernelMajorVer) ||
+                ((majorVersion == kernelMajorVer) && (minorVersion >= kernelMinorVer)))
+            {
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Helper function to get all information needed to create an external shared image or GPU memory. On some clients this
 // may require an OpenResource thunk and may result in a dynamic allocation. If a dynamic allocation occured, the
 // address will be stored in pPrivData and must be freed by the caller once they are done with the allocation info.
@@ -3859,7 +4034,7 @@ Result Device::CreateGpuMemoryFromExternalShare(
     }
 
     GpuMemory* pGpuMemory = static_cast<GpuMemory*>(ConstructGpuMemoryObject(pPlacementAddr));
-    Result     result     = pGpuMemory->Init(*pCreateInfo, internalInfo, sharedInfo.importResult, sharedInfo.info);
+    Result     result     = pGpuMemory->Init(*pCreateInfo, internalInfo);
 
     if (result != Result::Success)
     {
@@ -3907,8 +4082,8 @@ Result Device::QuerySdiSurface(
 // =====================================================================================================================
 // allocate External Physical Memory
 Result Device::SetSdiSurface(
-	GpuMemory*  pGpuMem,
-	gpusize*    pCardAddr)
+    GpuMemory*  pGpuMem,
+    gpusize*    pCardAddr)
 {
     amdgpu_va_handle hVaRange;
     amdgpu_bo_handle hBuffer;
@@ -3941,7 +4116,7 @@ Result Device::SetSdiSurface(
         pGpuMem->SetBusAddrMarkerVa(vaAllocated);
     }
 
-	return Result::Success;
+    return Result::Success;
 }
 
 // =====================================================================================================================

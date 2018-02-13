@@ -218,6 +218,22 @@ Result Device::Create(
 }
 
 // =====================================================================================================================
+// Queries whether a given NullGpuId corresponds to a valid device.
+bool Device::IsValid(
+    NullGpuId nullGpuId)
+{
+    const auto&  nullIdLookup = NullIdLookupTable[static_cast<uint32>(nullGpuId)];
+    const char*  pName        = pNullGpuNames[static_cast<uint32>(nullGpuId)];
+
+    return ((nullGpuId                <  NullGpuId::Max)            &&
+            (pName                    != nullptr)                   &&
+            (nullIdLookup.familyId    != FAMILY_UNKNOWN)            &&
+            (nullIdLookup.gfxEngineId != CIASICIDGFXENGINE_UNKNOWN) &&
+            (nullIdLookup.deviceId    != 0)                         &&
+            (nullIdLookup.eRevId      != 0));
+}
+
+// =====================================================================================================================
 Result Device::AddEmulatedPrivateScreen(
     const PrivateScreenCreateInfo& createInfo,
     uint32*                        pTargetId)
@@ -329,6 +345,72 @@ Result Device::CreatePresentableImage(
     PAL_NEVER_CALLED();
 
     return Result::Unsupported;
+}
+
+// =====================================================================================================================
+// Determines the size in bytes of a Fence object.
+size_t Device::GetFenceSize(
+    Result* pResult
+    ) const
+{
+    if (pResult != nullptr)
+    {
+        (*pResult) = Result::Success;
+    }
+
+    return sizeof(Fence);
+}
+
+// =====================================================================================================================
+// Creates a new Fence object in preallocated memory provided by the caller.
+Result Device::CreateFence(
+    const FenceCreateInfo& createInfo,
+    void*                  pPlacementAddr,
+    IFence**               ppFence
+    ) const
+{
+    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
+
+    Fence* pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+
+    // Set needsEvent argument to true - all client-created fences require event objects to support the
+    // IDevice::WaitForFences interface.
+    Result result = pFence->Init(createInfo, true);
+
+    if (result != Result::Success)
+    {
+        pFence->Destroy();
+        pFence = nullptr;
+    }
+
+    (*ppFence) = pFence;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Open/Reconstruct the pFence from a handle or a name.
+Result Device::OpenFence(
+    const FenceOpenInfo& openInfo,
+    void*                pPlacementAddr,
+    IFence**             ppFence
+    ) const
+{
+    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
+
+    Fence* pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+
+    Result result = pFence->OpenHandle(openInfo);
+
+    if (result != Result::Success)
+    {
+        pFence->Destroy();
+        pFence = nullptr;
+    }
+
+    (*ppFence) = pFence;
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -1105,7 +1187,7 @@ Result Device::QueryApplicationProfile(
     ApplicationProfile* pOut
     ) const
 {
-    return Result::Success;
+    return Result::Unsupported;
 }
 // =====================================================================================================================
 // Application profiles?  Null devices?  I don't think so.
@@ -1116,7 +1198,7 @@ Result Device::QueryRawApplicationProfile(
     const char**             pOut
     )
 {
-    return Result::Success;
+    return Result::Unsupported;
 }
 // =====================================================================================================================
 Result Device::QueryDisplayConnectors(

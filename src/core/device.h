@@ -438,7 +438,7 @@ struct GpuChipProperties
         {
             struct
             {
-                /// Images creaetd on this device support single sampled texture quilting
+                /// Images created on this device support single sampled texture quilting
                 uint32 supportsSingleSampleQuilting :  1;
 
                 /// Images created on this device supports AQBS stereo mode, this AQBS stereo mode doesn't apply to the
@@ -624,8 +624,8 @@ struct GpuChipProperties
 
             struct
             {
-                // Indicates the chip supports double the amount of offchip LDS buffers per SE
-                uint32 doubleOffchipLdsBuffers                  :  1;
+
+                uint32 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers per SE
                 uint32 supportFp16Fetch                         :  1;
                 uint32 support16BitInstructions                 :  1;
                 uint32 supportDoubleRate16BitInstructions       :  1;
@@ -641,6 +641,7 @@ struct GpuChipProperties
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportImplicitPrimitiveShader           :  1;
+                uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
                 uint32 supportDepthStencilSamplePatternMetadata :  1; // HW supports sample pattern in the
                                                                       // depth/stencil metadata
@@ -1162,21 +1163,6 @@ public:
         const ExternalQueueSemaphoreOpenInfo& openInfo,
         void*                                 pPlacementAddr,
         IQueueSemaphore**                     ppQueueSemaphore) override;
-
-    virtual size_t GetFenceSize(
-        Result* pResult) const override;
-
-    // NOTE: Part of the public IDevice interface.
-    virtual Result CreateFence(
-        const FenceCreateInfo& createInfo,
-        void*                  pPlacementAddr,
-        IFence**               ppFence) const override;
-
-    // NOTE: Part of the public IDevice interface.
-    virtual Result OpenFence(
-        const FenceOpenInfo& openInfo,
-        void*                pPlacementAddr,
-        IFence**             ppFence) const override;
 
     Result CreateInternalFence(
         const FenceCreateInfo& createInfo,

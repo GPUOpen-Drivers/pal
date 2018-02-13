@@ -57,6 +57,8 @@ public:
                          Device**   ppDeviceOut,
                          NullGpuId  nullGpuId);
 
+    static bool IsValid(NullGpuId nullGpuId);
+
     virtual Result AddEmulatedPrivateScreen(
         const PrivateScreenCreateInfo& createInfo,
         uint32*                        pTargetId) override;
@@ -100,6 +102,21 @@ public:
         void*                             pGpuMemoryPlacementAddr,
         IImage**                          ppImage,
         IGpuMemory**                      ppGpuMemory) override;
+
+    virtual size_t GetFenceSize(
+        Result* pResult) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result CreateFence(
+        const FenceCreateInfo& createInfo,
+        void*                  pPlacementAddr,
+        IFence**               ppFence) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result OpenFence(
+        const FenceOpenInfo& openInfo,
+        void*                pPlacementAddr,
+        IFence**             ppFence) const override;
 
     virtual Result CreateSwapChain(
         const SwapChainCreateInfo& createInfo,

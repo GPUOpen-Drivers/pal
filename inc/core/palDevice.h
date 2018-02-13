@@ -1016,10 +1016,14 @@ struct DeviceProperties
 
                 uint32 placeholder1                             : 1; ///< Reserved for future hardware.
 
+                uint32 placeholder2                             : 1; ///< Reserved for future hardware.
+
+                uint32 supportSpp                               : 1; ///< Hardware supports Shader Profiling for Power.
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
-                uint32 reserved                                 : 15; ///< Reserved for future use.
-#else
                 uint32 reserved                                 : 14; ///< Reserved for future use.
+#else
+                uint32 reserved                                 : 13; ///< Reserved for future use.
 #endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.

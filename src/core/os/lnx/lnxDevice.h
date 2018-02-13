@@ -461,6 +461,21 @@ public:
         uint32                    numberOfRequests,
         uint64*                   pFences) const;
 
+    virtual size_t GetFenceSize(
+        Result* pResult) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result CreateFence(
+        const FenceCreateInfo& createInfo,
+        void*                  pPlacementAddr,
+        IFence**               ppFence) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result OpenFence(
+        const FenceOpenInfo& openInfo,
+        void*                pPlacementAddr,
+        IFence**             ppFence) const override;
+
     Result QueryFenceStatus(
         struct amdgpu_cs_fence* pFence,
         uint64                  timeoutNs) const;
@@ -470,6 +485,17 @@ public:
         uint32           fenceCount,
         bool             waitAll,
         uint64           timeout) const;
+
+    Result WaitForSyncobjFences(
+        uint32_t*            pFences,
+        uint32               fenceCount,
+        uint64               timeout,
+        uint32               flags,
+        uint32*              pFirstSignaled) const;
+
+    Result ResetSyncObject(
+        uint32_t*            pFences,
+        uint32_t             fenceCount) const;
 
     Result ReadRegisters(
         uint32  dwordOffset,
@@ -492,21 +518,21 @@ public:
         bool* pIsSame) const;
 
     Result CreateSyncObject(
-        uint32*     pSyncObject) const;
+        amdgpu_syncobj_handle*    pSyncObject) const;
 
     Result DestroySyncObject(
-        uint32      syncObject) const;
+        amdgpu_syncobj_handle    syncObject) const;
 
     OsExternalHandle ExportSyncObject(
-         uint32     syncObject) const;
+        amdgpu_syncobj_handle    syncObject) const;
 
     Result ImportSyncObject(
-        OsExternalHandle         fd,
-        uint32*                  pSyncObject) const;
+        OsExternalHandle          fd,
+        amdgpu_syncobj_handle*    pSyncObject) const;
 
     Result ConveySyncObjectState(
-        amdgpu_semaphore_handle importSyncObj,
-        amdgpu_semaphore_handle exportSyncObj) const;
+        amdgpu_syncobj_handle    importSyncObj,
+        amdgpu_syncobj_handle    exportSyncObj) const;
 
     Result CreateSemaphore(
         amdgpu_semaphore_handle* pSemaphoreHandle) const;
@@ -623,10 +649,10 @@ public:
 
     Result SyncObjImportSyncFile(
         int                     syncFileFd,
-        amdgpu_semaphore_handle syncObj) const;
+        amdgpu_syncobj_handle   syncObj) const;
 
     Result  SyncObjExportSyncFile(
-        amdgpu_semaphore_handle syncObj,
+        amdgpu_syncobj_handle   syncObj,
         int*                    pSyncFileFd) const;
 
     Result InitReservedVaRanges();
@@ -681,6 +707,11 @@ private:
 
         return isDrmVersionOrGreater;
     }
+
+    bool IsKernelVersionEqualOrGreater(
+        uint32    kernelMajorVer,
+        uint32    kernelMinorVer
+        ) const;
 
     Result OpenExternalResource(
         const ExternalResourceOpenInfo& openInfo,

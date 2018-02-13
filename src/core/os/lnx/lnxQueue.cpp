@@ -36,6 +36,7 @@
 #include "core/os/lnx/lnxQueue.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxWindowSystem.h"
+#include "core/os/lnx/lnxSyncobjFence.h"
 #include "core/platform.h"
 #include "core/queueSemaphore.h"
 #include "palAutoBuffer.h"
@@ -120,6 +121,7 @@ SubmissionContext::SubmissionContext(
     m_ipType(GetIpType(engineType)),
     m_engineId(engineId),
     m_queuePriority(priority),
+    m_lastSignaledSyncObject(0),
     m_hContext(nullptr)
 {
 }
@@ -181,7 +183,7 @@ Queue::Queue(
     m_pCmdUploadRing(nullptr),
     m_memList(pDevice->GetPlatform()),
     m_numIbs(0),
-    m_lastSignaledSyncObject(nullptr),
+    m_lastSignaledSyncObject(0),
     m_waitSemList(pDevice->GetPlatform())
 {
     memset(m_ibs, 0, sizeof(m_ibs));
@@ -211,9 +213,9 @@ Queue::~Queue()
         m_pDummyGpuMemory = nullptr;
     }
 
-    if (m_lastSignaledSyncObject != nullptr)
+    if (m_lastSignaledSyncObject > 0)
     {
-        static_cast<Device*>(m_pDevice)->DestroySemaphore(m_lastSignaledSyncObject);
+        static_cast<Device*>(m_pDevice)->DestroySyncObject(m_lastSignaledSyncObject);
     }
 
     auto memListIterator = m_memList.Begin();
@@ -318,7 +320,7 @@ Result Queue::Init(
     if ((result == Result::Success) &&
         (static_cast<Device*>(m_pDevice)->GetSemaphoreType() == SemaphoreType::SyncObj))
     {
-        result =  static_cast<Device*>(m_pDevice)->CreateSemaphore(&m_lastSignaledSyncObject);
+        result =  static_cast<Device*>(m_pDevice)->CreateSyncObject(&m_lastSignaledSyncObject);
     }
 
     return result;
@@ -539,7 +541,9 @@ Result Queue::SignalSemaphore(
     {
         if (device.GetSemaphoreType() == SemaphoreType::SyncObj)
         {
-            result = device.ConveySyncObjectState(hSemaphore, m_lastSignaledSyncObject);
+            result = device.ConveySyncObjectState(
+                         reinterpret_cast<uintptr_t>(hSemaphore),
+                         m_lastSignaledSyncObject);
         }
         else
         {
@@ -627,7 +631,7 @@ Result Queue::OsSubmit(
     // Update the fence
     if ((result == Result::Success) && (submitInfo.pFence != nullptr))
     {
-        static_cast<Fence*>(submitInfo.pFence)->AssociateWithLastTimestamp();
+        result = static_cast<Fence*>(submitInfo.pFence)->AssociateWithLastTimestampOrSyncobj();
     }
 
     return result;
@@ -1295,13 +1299,16 @@ Result Queue::SubmitIbsRaw(
         chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
         chunkArray[currentChunk].length_dw = sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
         chunkArray[currentChunk].chunk_data = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&semToSignal));
-        semToSignal.handle = reinterpret_cast<uintptr_t>(m_lastSignaledSyncObject);
+        semToSignal.handle = m_lastSignaledSyncObject;
 
         result = pDevice->SubmitRaw(pContext->Handle(),
                 isDummySubmission ? m_hDummyResourceList : m_hResourceList,
                 totalChunk,
                 &chunkArray[0],
                 pContext->LastTimestampPtr());
+
+        pContext->SetLastSignaledSyncObj(m_lastSignaledSyncObject);
+
         // all pending waited semaphore has been poped already.
         PAL_ASSERT(m_waitSemList.IsEmpty());
     }

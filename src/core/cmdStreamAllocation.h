@@ -265,7 +265,7 @@ public:
 
     ChunkVector(Allocator*const pAllocator) : Vector(pAllocator), m_back(nullptr) {}
 
-    ~ChunkVector() {}
+    virtual ~ChunkVector() {}
 
     Result PushBack(const T& data)
     {

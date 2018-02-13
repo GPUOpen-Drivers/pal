@@ -122,7 +122,7 @@ public:
     Vector(Allocator*const pAllocator);
 
     /// Destructor.
-    ~Vector();
+    virtual ~Vector();
 
     /// Move constructor.
     ///

@@ -250,30 +250,32 @@ Result PAL_STDCALL EnumerateNullDevices(
 
     if (pNullGpuCount != nullptr)
     {
-        if (pNullGpuInfoArray != nullptr)
-        {
-            uint32  nullGpuIdIdx = 0;
+        uint32        nullGpuCount    = 0;
+        const uint32  maxNullGpuCount = (pNullGpuInfoArray != nullptr) ? *pNullGpuCount :
+                                                                         static_cast<uint32>(NullGpuId::Max);
 
-            for ( ;
-                 ((nullGpuIdIdx < static_cast<uint32>(NullGpuId::Max)) && (nullGpuIdIdx < (*pNullGpuCount)));
-                 nullGpuIdIdx++)
+        for (uint32 idx = 0;
+             ((idx < static_cast<uint32>(NullGpuId::Max)) && (nullGpuCount < maxNullGpuCount));
+             ++idx)
+        {
+            const NullGpuId  nullGpuId = static_cast<NullGpuId>(idx);
+
+            if (NullDevice::Device::IsValid(nullGpuId))
             {
-                const NullGpuId  nullGpuId    = static_cast<NullGpuId>(nullGpuIdIdx);
-                NullGpuInfo*     pNullGpuInfo = &pNullGpuInfoArray[nullGpuIdIdx];
+                if (pNullGpuInfoArray != nullptr)
+                {
+                    NullGpuInfo*  pNullGpuInfo = &pNullGpuInfoArray[nullGpuCount];
 
-                pNullGpuInfo->nullGpuId = nullGpuId;
-                pNullGpuInfo->pGpuName  = NullDevice::pNullGpuNames[static_cast<uint32>(nullGpuId)];
+                    pNullGpuInfo->nullGpuId = nullGpuId;
+                    pNullGpuInfo->pGpuName  = NullDevice::pNullGpuNames[idx];
+                }
+
+                ++nullGpuCount;
             }
+        }
 
-            // On output, this reflects the number of valid entries in the pNullGpuInfoArray
-            *pNullGpuCount = nullGpuIdIdx;
-        }
-        else
-        {
-            // Client didn't provide storage for the NullGpuInfo struct, just report back the total number
-            // of entries possible.
-            *pNullGpuCount = static_cast<uint32>(NullGpuId::Max);
-        }
+        // On output, this reflects the number of valid entries in the pNullGpuInfoArray
+        *pNullGpuCount = nullGpuCount;
     }
     else
     {

@@ -1631,6 +1631,67 @@ int DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjExportSyncFile(
 }
 
 // =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjWait(
+    amdgpu_device_handle  hDevice,
+    uint32_t*             pHandles,
+    unsigned              numHandles,
+    int64_t               timeoutInNs,
+    unsigned              flags,
+    uint32_t*             pFirstSignaled
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuCsSyncobjWait(hDevice,
+                                               pHandles,
+                                               numHandles,
+                                               timeoutInNs,
+                                               flags,
+                                               pFirstSignaled);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsSyncobjWait,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsSyncobjWait(%p, %p, %x, %x, %x, %p)\n",
+        hDevice,
+        pHandles,
+        numHandles,
+        timeoutInNs,
+        flags,
+        pFirstSignaled);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjReset(
+    amdgpu_device_handle  hDevice,
+    const uint32_t*       pHandles,
+    uint32_t              numHandles
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuCsSyncobjReset(hDevice,
+                                                pHandles,
+                                                numHandles);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsSyncobjReset,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsSyncobjReset(%p, %p, %x)\n",
+        hDevice,
+        pHandles,
+        numHandles);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate2(
     amdgpu_device_handle    hDevice,
     uint32_t                priority,
@@ -2131,6 +2192,12 @@ Result DrmLoader::Init(
             m_funcs.pfnAmdgpuCsSyncobjExportSyncFile = reinterpret_cast<AmdgpuCsSyncobjExportSyncFile>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_cs_syncobj_export_sync_file"));
+            m_funcs.pfnAmdgpuCsSyncobjWait = reinterpret_cast<AmdgpuCsSyncobjWait>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_cs_syncobj_wait"));
+            m_funcs.pfnAmdgpuCsSyncobjReset = reinterpret_cast<AmdgpuCsSyncobjReset>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_cs_syncobj_reset"));
             m_funcs.pfnAmdgpuCsCtxCreate2 = reinterpret_cast<AmdgpuCsCtxCreate2>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_cs_ctx_create2"));

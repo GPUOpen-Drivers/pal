@@ -96,7 +96,7 @@ public:
     void ResetGpuWork();
 
 protected:
-    ~Platform();
+    virtual ~Platform();
 
 private:
     PlatformProperties m_properties;

@@ -958,8 +958,7 @@ Result Queue::DoAssociateFenceWithLastSubmit(
     // On all platforms, a zero timestamp means that nothing has been submitted on the queue yet.
     if (m_pSubmissionContext->LastTimestamp() > 0)
     {
-        result = Result::Success;
-        pFence->AssociateWithLastTimestamp();
+        result = pFence->AssociateWithLastTimestampOrSyncobj();
     }
 
     return result;

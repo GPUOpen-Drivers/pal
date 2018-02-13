@@ -845,6 +845,9 @@ void LogContext::Struct(
     BeginMap(false);
     KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
     KeyAndValue("maxThreadGroupsPerCu", value.maxThreadGroupsPerCu);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
+    KeyAndValue("ldsBytesPerTg", value.ldsBytesPerTg);
+#endif
     EndMap();
 }
 

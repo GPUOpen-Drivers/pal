@@ -76,7 +76,7 @@ public:
         DevDriver::TransferProtocol::LocalBlock* pBlock)
         :
         m_pBlock(pBlock) {}
-    ~BlockJsonStream() {}
+    virtual ~BlockJsonStream() {}
 
     virtual void WriteString(
         const char* pString,

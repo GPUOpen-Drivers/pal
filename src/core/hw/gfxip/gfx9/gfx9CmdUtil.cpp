@@ -2519,10 +2519,12 @@ size_t CmdUtil::BuildSetOneConfigReg(
     PFP_SET_UCONFIG_REG_index_enum index
     ) const
 {
-    PAL_ASSERT(((regAddr != mmVGT_PRIMITIVE_TYPE)        || (index == index__pfp_set_uconfig_reg__prim_type))     &&
-               ((regAddr != mmVGT_INDEX_TYPE)            || (index == index__pfp_set_uconfig_reg__index_type))    &&
-               ((regAddr != mmVGT_NUM_INSTANCES)         || (index == index__pfp_set_uconfig_reg__num_instances)) &&
-               ((regAddr != mmIA_MULTI_VGT_PARAM__GFX09) || (index == index__pfp_set_uconfig_reg__multi_vgt_param)));
+    PAL_ASSERT(((regAddr != mmVGT_INDEX_TYPE)    || (index == index__pfp_set_uconfig_reg__index_type))    &&
+               ((regAddr != mmVGT_NUM_INSTANCES) || (index == index__pfp_set_uconfig_reg__num_instances)));
+
+    PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) ||
+                (((regAddr != mmVGT_PRIMITIVE_TYPE)        || (index == index__pfp_set_uconfig_reg__prim_type))     &&
+                 ((regAddr != mmIA_MULTI_VGT_PARAM__GFX09) || (index == index__pfp_set_uconfig_reg__multi_vgt_param))));
 
     return BuildSetSeqConfigRegs(regAddr, regAddr, pBuffer, index);
 }
@@ -2544,7 +2546,9 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     const uint32 packetSize = ConfigRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const   pPacket    = static_cast<PM4_PFP_SET_UCONFIG_REG*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_SET_UCONFIG_REG, packetSize);
+    IT_OpCodeType opCode = IT_SET_UCONFIG_REG;
+
+    pPacket->header.u32All         = Type3Header(opCode, packetSize);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.reg_offset = startRegAddr - UCONFIG_SPACE_START;
     pPacket->bitfields2.index      = index;

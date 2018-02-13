@@ -64,6 +64,8 @@ libdrm_amdgpu.so.1 @proc  void amdgpu_cs_chunk_fence_to_dep (struct amdgpu_cs_fe
 libdrm_amdgpu.so.1 @proc  void amdgpu_cs_chunk_fence_info_to_data (struct amdgpu_cs_fence_info fenceInfo, struct drm_amdgpu_cs_chunk_data* pData)
 libdrm_amdgpu.so.1 @proc  int amdgpu_cs_syncobj_import_sync_file (amdgpu_device_handle hDevice, uint32_t syncObj, int syncFileFd)
 libdrm_amdgpu.so.1 @proc  int amdgpu_cs_syncobj_export_sync_file (amdgpu_device_handle hDevice, uint32_t syncObj, int* pSyncFileFd)
+libdrm_amdgpu.so.1 @proc  int amdgpu_cs_syncobj_wait (amdgpu_device_handle hDevice, uint32_t* pHandles, unsigned numHandles, int64_t timeoutInNs, unsigned flags, uint32_t* pFirstSignaled)
+libdrm_amdgpu.so.1 @proc  int amdgpu_cs_syncobj_reset (amdgpu_device_handle hDevice, const uint32_t* pHandles, uint32_t numHandles)
 libdrm_amdgpu.so.1 @proc  int amdgpu_cs_ctx_create2 (amdgpu_device_handle hDevice, uint32_t priority, amdgpu_context_handle* pContextHandle);
 libdrm.so.2        @proc  int drmGetNodeTypeFromFd (int fd)
 libdrm.so.2        @proc  char* drmGetRenderDeviceNameFromFd (int fd)

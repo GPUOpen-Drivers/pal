@@ -49,6 +49,8 @@ extern "C"
 #define CIASICIDGFXENGINE_ARCTICISLAND   0x0000000D
 #define MAX_MULTIVPU_ADAPTERS            4
 
+#include "core/os/lnx/include/lnxTypePrivate.h"
+
 using namespace Util;
 
 constexpr int32 InvalidFd = -1; // value representing a invalid file descriptor for Linux

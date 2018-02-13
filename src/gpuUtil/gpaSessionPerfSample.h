@@ -128,7 +128,7 @@ public:
         m_pGlobalCounterLayout(nullptr)
     {}
 
-    ~CounterSample();
+    virtual ~CounterSample();
 
     // Initializes this CounterSample by setting the counter layout.
     Pal::Result Init(Pal::uint32 numGlobalCounters) { return SetCounterLayout(numGlobalCounters, nullptr); }
@@ -165,7 +165,7 @@ public:
         m_flags.u32All = 0;
     }
 
-    ~TraceSample();
+    virtual ~TraceSample();
 
     // Initializes this TraceSample by setting thread trace layout.
     Pal::Result InitThreadTrace(Pal::uint32 numShaderEngines);
@@ -238,7 +238,7 @@ public:
         m_endTsGpuMemOffset(0)
     {}
 
-    ~TimingSample() {}
+    virtual ~TimingSample() {}
 
     void Init(Pal::HwPipePoint preSample, Pal::HwPipePoint postSample)
     {
@@ -280,7 +280,7 @@ public:
         m_pPipeStatsQuery(nullptr)
     {}
 
-    ~QuerySample();
+    virtual ~QuerySample();
 
     Pal::IQueryPool* GetPipeStatsQuery() { return m_pPipeStatsQuery; }
     void SetPipeStatsQuery(Pal::IQueryPool* pQuery) { m_pPipeStatsQuery = pQuery; }

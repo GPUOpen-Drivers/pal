@@ -507,10 +507,11 @@ gpusize OffchipLdsBuffer::ComputeAllocationSize() const
     case Gfx7OffchipLdsBufferSize4096:
         offchipLdsBufferSizeDwords = 4096;
         break;
-    default:
-        PAL_NEVER_CALLED();
     case Gfx7OffchipLdsBufferSize8192:
         offchipLdsBufferSizeDwords = 8192;
+        break;
+    default:
+        PAL_NEVER_CALLED();
         break;
     }
 

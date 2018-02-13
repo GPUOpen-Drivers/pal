@@ -3472,12 +3472,12 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                         if (pIn->bpp == 64)
                         {
                             addrPreferredSwSet.value = AddrSwSetD;
-                            addrValidSwSet.value     = AddrSwSetD;
+                            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD;
                         }
                         else
                         {
                             addrPreferredSwSet.value = AddrSwSetS;
-                            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD;
+                            addrValidSwSet.value     = AddrSwSetS;
                         }
 
                         blockSet.micro = FALSE;

@@ -175,7 +175,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
     if ((gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimSafe) ||
         (gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimAggressive))
     {
-        if (PsUsesUavs())
+        if (PsUsesUavs() || pDepthStencilState == nullptr)
         {
             enableOutOfOrderPrims = false;
         }

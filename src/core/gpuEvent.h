@@ -40,7 +40,7 @@ class GpuEvent : public IGpuEvent
 {
 public:
     GpuEvent(const GpuEventCreateInfo& createInfo, Device* pDevice);
-    ~GpuEvent();
+    virtual ~GpuEvent();
 
     Result Init();
 

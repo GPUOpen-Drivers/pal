@@ -5568,7 +5568,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     if (pQueryPool != nullptr)
     {
-        static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        PAL_ASSERT(result == Result::Success);
     }
 
     // Clear/disable predicate

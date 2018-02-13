@@ -470,6 +470,11 @@ struct DynamicComputeShaderInfo
 
     uint32 maxThreadGroupsPerCu; ///< Override the maximum number of threadgroups that a particular CS can run on,
                                  ///  throttling it, to enable more graphics work to complete.  0 disables the limit.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
+    uint32 ldsBytesPerTg; ///< Override the amount of LDS space used per thread-group for this pipeline, in bytes.
+                          ///  Zero indicates that the LDS size determined at pipeline-compilation time will be used.
+#endif
 };
 
 /// Specifies info on how a graphics shader should use resources.

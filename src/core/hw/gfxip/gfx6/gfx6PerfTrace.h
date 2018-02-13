@@ -44,7 +44,7 @@ class SpmTrace : public Pal::SpmTrace
 {
 public:
     explicit SpmTrace(const Device* pDevice);
-    ~SpmTrace();
+    virtual ~SpmTrace();
 
     virtual uint32* WriteStartCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
     virtual uint32* WriteEndCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
@@ -84,7 +84,7 @@ public:
 #endif
 
     /// Destructor has nothing to do.
-    ~ThreadTrace() {}
+    virtual ~ThreadTrace() {}
 
     // Returns the CU that was selected for this thread trace.
     virtual uint32 GetComputeUnit() const override { return m_sqThreadTraceMask.bits.CU_SEL; }

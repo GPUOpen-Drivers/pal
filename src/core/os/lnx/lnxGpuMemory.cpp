@@ -261,12 +261,9 @@ Result GpuMemory::AllocateOrPinMemory(
 
 // =====================================================================================================================
 Result GpuMemory::Init(
-	const GpuMemoryCreateInfo&         createInfo,
-	const GpuMemoryInternalCreateInfo& internalInfo)
+    const GpuMemoryCreateInfo&         createInfo,
+    const GpuMemoryInternalCreateInfo& internalInfo)
 {
-    // External shared memory objects need to use the other Init path.
-    PAL_ASSERT(internalInfo.flags.isExternal == 0);
-
     Result result = Pal::GpuMemory::Init(createInfo, internalInfo);
 
     if (createInfo.flags.sdiExternal)
@@ -277,22 +274,7 @@ Result GpuMemory::Init(
         result = pDevice->SetSdiSurface(this, &(m_desc.gpuVirtAddr));
     }
 
-	return result;
-}
-
-// =====================================================================================================================
-// Performs OS-specific initialization for allocating externally shared memory objects.
-Result GpuMemory::Init(
-    const GpuMemoryCreateInfo&         createInfo,
-    const GpuMemoryInternalCreateInfo& internalInfo,
-    const amdgpu_bo_import_result&     importResult,
-    const amdgpu_bo_info&              bufferInfo)
-{
-    PAL_ASSERT(internalInfo.flags.isExternal == 1);
-
-    m_hSurface  = importResult.buf_handle;
-
-    return Pal::GpuMemory::Init(createInfo, internalInfo);
+    return result;
 }
 
 // =====================================================================================================================

@@ -49,9 +49,9 @@ class Fence : public IFence
 {
 public:
     Fence();
-    ~Fence();
+    virtual ~Fence();
 
-    Result Init(
+    virtual Result Init(
         const FenceCreateInfo& createInfo,
         bool                   needsEvent);
 
@@ -74,9 +74,9 @@ public:
     // - Associate with a submission context, which must be done as soon as the queue is known.
     // - Associate with the submission context's last timestamp, which can only be done post-queue-batching.
     void AssociateWithContext(SubmissionContext* pContext);
-    void AssociateWithLastTimestamp();
+    virtual Result AssociateWithLastTimestampOrSyncobj();
 
-    void ResetAssociatedSubmission();
+    virtual Result ResetAssociatedSubmission();
 
     // Associates the Fence object with private screen present, i.e. The WaitForFences() only needs to check the event.
     void AssociateWithPrivateScreen() { m_fenceState.privateScreenPresentUsed = 1; }
@@ -93,15 +93,14 @@ public:
     // command buffer submission.
     bool IsReset() const { return (WasPrivateScreenPresentUsed() == false) && (m_pContext == nullptr); }
 
-    static Result WaitForFences(
+    virtual Result WaitForFences(
         const Device&      device,
         uint32             fenceCount,
         const Fence*const* ppFenceList,
         bool               waitAll,
-        uint64             timeout);
+        uint64             timeout) const;
 
-private:
-
+protected:
     //state flag for an fence object.
     union
     {
@@ -116,6 +115,9 @@ private:
         uint32 flags;
     } m_fenceState;
 
+    SubmissionContext* m_pContext;
+
+private:
     // A Fence can be associated with a submission either at submission time or afterwards; the submission may be
     // batched or already submitted to the OS. A fence can only be associated with a single Queue submission at a time.
     // These members track the Queue and OS-specific timestamp for the current associated submission.
@@ -124,7 +126,6 @@ private:
     // the timestamp may be modified asynchronously to normal fence operation when a batched submission is unrolled.
     static constexpr uint64 BatchedTimestamp = UINT64_MAX;
 
-    SubmissionContext* m_pContext;
     volatile uint64    m_timestamp;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Fence);

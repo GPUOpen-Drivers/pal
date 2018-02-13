@@ -1796,6 +1796,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
+            pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
@@ -2118,12 +2119,18 @@ Result Device::ResetFences(
     IFence*const*       ppFenceList
     ) const
 {
+    Result result = Result::Success;
+
     for (uint32 i = 0; i < fenceCount; ++i)
     {
-        reinterpret_cast<Fence*>(ppFenceList[i])->ResetAssociatedSubmission();
+        result = reinterpret_cast<Fence*>(ppFenceList[i])->ResetAssociatedSubmission();
+        if (result != Result::Success)
+        {
+            break;
+        }
     }
 
-    return Result::Success;
+    return result;
 }
 
 // =====================================================================================================================
@@ -2165,7 +2172,8 @@ Result Device::WaitForFences(
     {
         const uint64  timeoutInNs = GetTimeoutValueInNs(timeout);
 
-        result = Fence::WaitForFences(*this,
+        result = static_cast<const Fence *>(ppFenceList[0])->WaitForFences(
+                                      *this,
                                       fenceCount,
                                       reinterpret_cast<const Fence*const*>(ppFenceList),
                                       waitAll,
@@ -2562,72 +2570,6 @@ Result Device::OpenExternalSharedQueueSemaphore(
     }
 
     (*ppQueueSemaphore) = pSemaphore;
-
-    return result;
-}
-
-// =====================================================================================================================
-// Determines the size in bytes of a Fence object.
-size_t Device::GetFenceSize(
-    Result* pResult
-    ) const
-{
-    if (pResult != nullptr)
-    {
-        (*pResult) = Result::Success;
-    }
-
-    return sizeof(Fence);
-}
-
-// =====================================================================================================================
-// Creates a new Fence object in preallocated memory provided by the caller.
-Result Device::CreateFence(
-    const FenceCreateInfo& createInfo,
-    void*                  pPlacementAddr,
-    IFence**               ppFence
-    ) const
-{
-    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
-
-    Fence* pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
-
-    // Set needsEvent argument to true - all client-created fences require event objects to support the
-    // IDevice::WaitForFences interface.
-    Result result = pFence->Init(createInfo, true);
-
-    if (result != Result::Success)
-    {
-        pFence->Destroy();
-        pFence = nullptr;
-    }
-
-    (*ppFence) = pFence;
-
-    return result;
-}
-
-// =====================================================================================================================
-// Open/Reconstruct the pFence from a handle or a name.
-Result Device::OpenFence(
-    const FenceOpenInfo& openInfo,
-    void*                pPlacementAddr,
-    IFence**             ppFence
-    ) const
-{
-    PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
-
-    Fence* pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
-
-    Result result = pFence->OpenHandle(openInfo);
-
-    if (result != Result::Success)
-    {
-        pFence->Destroy();
-        pFence = nullptr;
-    }
-
-    (*ppFence) = pFence;
 
     return result;
 }

@@ -1608,11 +1608,13 @@ uint32* UniversalCmdBuffer::BuildSetInputAssemblyState(
         DI_PT_TRIFAN,           // TriangleFan
     };
 
-    size_t totalDwords = 0;
-    InputAssemblyStatePm4Img* pImage = reinterpret_cast<InputAssemblyStatePm4Img*>(pCmdSpace);
+    size_t                          totalDwords   = 0;
+    InputAssemblyStatePm4Img*       pImage        = reinterpret_cast<InputAssemblyStatePm4Img*>(pCmdSpace);
+    PFP_SET_UCONFIG_REG_index_enum  primTypeIndex = index__pfp_set_uconfig_reg__prim_type;
+
     totalDwords += device.CmdUtil().BuildSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
                                                          &pImage->hdrPrimType,
-                                                         index__pfp_set_uconfig_reg__prim_type);
+                                                         primTypeIndex);
     totalDwords += device.CmdUtil().BuildSetOneContextReg(mmVGT_MULTI_PRIM_IB_RESET_INDX,
                                                           &pImage->hdrVgtMultiPrimIbResetIndex);
 
@@ -3893,6 +3895,8 @@ uint32* PAL_STDCALL UniversalCmdBuffer::ValidateComputeUserDataTables(
             (pSelf->m_indirectUserDataInfo[id].state.contentsDirty != 0) &&
             (pSelf->m_indirectUserDataInfo[id].watermark > 0))
         {
+            pSelf->m_state.flags.ceStreamDirty = 1; // We will be dumping CE RAM later-on, so mark this dirty up front.
+
             if (useRingBufferForCe)
             {
                 RelocateUserDataTable<true>(pSelf,
@@ -3913,8 +3917,6 @@ uint32* PAL_STDCALL UniversalCmdBuffer::ValidateComputeUserDataTables(
                                              0,
                                              pSelf->m_indirectUserDataInfo[id].watermark);
             }
-
-            pSelf->m_state.flags.ceStreamDirty = 1; // We will be dumping CE RAM later-on, so mark this dirty up front.
         }
     }
 
@@ -4077,7 +4079,6 @@ uint32* PAL_STDCALL UniversalCmdBuffer::ValidateGraphicsUserDataTables(
 
         pSelf->m_state.flags.ceStreamDirty = 1; // We will be dumping CE RAM later-on, so mark this dirty up front.
     }
-
     for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
     {
         if ((pSelf->m_pSignatureGfx->indirectTableAddr[id] != UserDataNotMapped) &&
@@ -6810,7 +6811,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     if (pQueryPool != nullptr)
     {
-        static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        PAL_ASSERT(result == Result::Success);
     }
 
     // Clear/disable predicate

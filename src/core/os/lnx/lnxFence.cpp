@@ -62,7 +62,8 @@ Result Fence::WaitForFences(
     uint32             fenceCount,
     const Fence*const* ppFenceList,
     bool               waitAll,
-    uint64             timeout)
+    uint64             timeout
+    ) const
 {
     PAL_ASSERT((fenceCount > 0) && (ppFenceList != nullptr));
 

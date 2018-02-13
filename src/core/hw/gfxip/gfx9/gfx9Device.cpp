@@ -2805,6 +2805,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.maxGsWavesPerVgt    = 16;
         pInfo->gfx9.parameterCacheLines = 1024;
         pInfo->gfx9.rbPlus              = 1;
+        pInfo->gfx9.supportSpp          = 1;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {

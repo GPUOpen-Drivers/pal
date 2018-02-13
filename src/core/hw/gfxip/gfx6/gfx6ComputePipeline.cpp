@@ -341,6 +341,31 @@ uint32* ComputePipeline::WriteCommands(
             pGfx6CmdStream->WriteSetOneShReg<ShaderCompute>(perfData.regOffset, perfData.gpuVirtAddr, pCmdSpace);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
+    if (csInfo.ldsBytesPerTg > 0)
+    {
+        const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+        const uint32 ldsSizeDwords = csInfo.ldsBytesPerTg / sizeof(uint32);
+        uint32 ldsSpace = 0;
+
+        // Round to nearest multiple of the LDS granularity, then convert to the register value.
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
+        {
+            // NOTE: On GFX6, granularity for the LDS_SIZE field is 64, range is 0->128 which allocates 0 to 8K DWORDs.
+            ldsSpace = Pow2Align(ldsSizeDwords, Gfx6LdsDwGranularity) >> Gfx6LdsDwGranularityShift;
+        }
+        else
+        {
+            // NOTE: On GFX7+, granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
+            ldsSpace = Pow2Align(ldsSizeDwords, Gfx7LdsDwGranularity) >> Gfx7LdsDwGranularityShift;
+        }
+        regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = m_pm4Commands.computePgmRsrc2;
+        computePgmRsrc2.bits.LDS_SIZE = ldsSpace;
+        pCmdSpace =
+            pGfx6CmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2, computePgmRsrc2.u32All, pCmdSpace);
+    }
+#endif
+
     return pCmdSpace;
 }
 

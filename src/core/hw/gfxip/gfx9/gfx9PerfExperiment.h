@@ -81,6 +81,7 @@ union CounterFlags
         uint32 tcpCounters    :  1; // If set, TCP counters are present
         uint32 tccCounters    :  1; // If set, TCC counters are present
         uint32 tcaCounters    :  1; // If set, TCA counters are present
+
         uint32 reserved       : 18; // Reserved bits
     };
     uint32 u32All; // Value of the flags bitfield
@@ -117,6 +118,8 @@ protected:
     Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, Pal::SpmTrace** ppSpmTrace) override;
     Pal::StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) override;
     void UpdateCounterFlags(GpuBlock block, bool isIndexed) override;
+
+    // Returns the number of HW registers that support streaming perf counters.
     PAL_INLINE uint32 GetNumStreamingCounters(uint32 block) override
     {
         return m_device.Parent()->ChipProperties().gfx9.perfCounterInfo.block[block].numStreamingCounterRegs;

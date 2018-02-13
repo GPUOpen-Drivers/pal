@@ -356,6 +356,19 @@ typedef int (*AmdgpuCsSyncobjExportSyncFile)(
             uint32_t              syncObj,
             int*                  pSyncFileFd);
 
+typedef int (*AmdgpuCsSyncobjWait)(
+            amdgpu_device_handle  hDevice,
+            uint32_t*             pHandles,
+            unsigned              numHandles,
+            int64_t               timeoutInNs,
+            unsigned              flags,
+            uint32_t*             pFirstSignaled);
+
+typedef int (*AmdgpuCsSyncobjReset)(
+            amdgpu_device_handle  hDevice,
+            const uint32_t*       pHandles,
+            uint32_t              numHandles);
+
 // symbols from libdrm.so.2
 typedef int (*DrmGetNodeTypeFromFd)(
             int   fd);
@@ -761,6 +774,18 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsSyncobjExportSyncFileisValid() const
     {
         return (pfnAmdgpuCsSyncobjExportSyncFile != nullptr);
+    }
+
+    AmdgpuCsSyncobjWait               pfnAmdgpuCsSyncobjWait;
+    bool pfnAmdgpuCsSyncobjWaitisValid() const
+    {
+        return (pfnAmdgpuCsSyncobjWait != nullptr);
+    }
+
+    AmdgpuCsSyncobjReset              pfnAmdgpuCsSyncobjReset;
+    bool pfnAmdgpuCsSyncobjResetisValid() const
+    {
+        return (pfnAmdgpuCsSyncobjReset != nullptr);
     }
 
     AmdgpuCsCtxCreate2                pfnAmdgpuCsCtxCreate2;
@@ -1457,6 +1482,29 @@ public:
     bool pfnAmdgpuCsSyncobjExportSyncFileisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjExportSyncFile != nullptr);
+    }
+
+    int pfnAmdgpuCsSyncobjWait(
+            amdgpu_device_handle  hDevice,
+            uint32_t*             pHandles,
+            unsigned              numHandles,
+            int64_t               timeoutInNs,
+            unsigned              flags,
+            uint32_t*             pFirstSignaled) const;
+
+    bool pfnAmdgpuCsSyncobjWaitisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsSyncobjWait != nullptr);
+    }
+
+    int pfnAmdgpuCsSyncobjReset(
+            amdgpu_device_handle  hDevice,
+            const uint32_t*       pHandles,
+            uint32_t              numHandles) const;
+
+    bool pfnAmdgpuCsSyncobjResetisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsSyncobjReset != nullptr);
     }
 
     int pfnAmdgpuCsCtxCreate2(

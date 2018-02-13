@@ -145,10 +145,10 @@ union PerfExperimentDeviceFeatureFlags
 /// IPerfExperiment::AddCounter().
 struct PerfCounterInfo
 {
-    PerfCounterType              counterType;  ///< Type of counter to add.
-    GpuBlock                     block;        ///< Which block to reference.
-    uint32                       instance;     ///< Which instance of that block type to reference.
-    uint32                       eventId;      ///< Which event ID to track.
+    PerfCounterType              counterType; ///< Type of counter to add.
+    GpuBlock                     block;       ///< Which block to reference.
+    uint32                       instance;    ///< Instance of that block in the device.
+    uint32                       eventId;     ///< Which event ID to track.
 
     union
     {

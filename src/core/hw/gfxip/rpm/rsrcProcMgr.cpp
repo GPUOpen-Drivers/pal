@@ -981,6 +981,7 @@ void RsrcProcMgr::CopyImageCompute(
         // TODO:- Make it work for gfxip8 and below.
         if (((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) ==
              (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize)) &&
+             (srcCreateInfo.arraySize == dstCreateInfo.arraySize) &&
              (m_pDevice->Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9))
         {
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImageOptimized);

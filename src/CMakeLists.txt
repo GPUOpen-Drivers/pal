@@ -290,6 +290,7 @@ if(PAL_BUILD_CORE)
         target_sources(pal PRIVATE
             core/os/lnx/lnxDevice.cpp
             core/os/lnx/lnxFence.cpp
+            core/os/lnx/lnxSyncobjFence.cpp
             core/os/lnx/lnxGpuMemory.cpp
             core/os/lnx/lnxImage.cpp
             core/os/lnx/lnxPlatform.cpp

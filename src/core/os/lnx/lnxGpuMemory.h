@@ -47,12 +47,6 @@ public:
         const GpuMemoryCreateInfo&         createInfo,
         const GpuMemoryInternalCreateInfo& internalInfo) override;
 
-    Result Init(
-        const GpuMemoryCreateInfo&         createInfo,
-        const GpuMemoryInternalCreateInfo& internalInfo,
-        const amdgpu_bo_import_result&     importResult,
-        const amdgpu_bo_info&              bufferInfo);
-
     virtual void Destroy() override;
 
     virtual OsExternalHandle GetSharedExternalHandle() const override;

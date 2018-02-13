@@ -127,20 +127,24 @@ void Fence::AssociateWithContext(
 
 // =====================================================================================================================
 // Associate with the submission context's last timestamp.
-void Fence::AssociateWithLastTimestamp()
+Result Fence::AssociateWithLastTimestampOrSyncobj()
 {
     PAL_ASSERT(m_pContext != nullptr);
 
     // Atomically modify the timestamp because another thread could be polling GetStatus() in the background while
     // we're unrolling a batched submission or timestamp association.
     AtomicExchange64(&m_timestamp, m_pContext->LastTimestamp());
+
+    return Result::Success;
 }
 
 // =====================================================================================================================
 // Resets this Fence to a state where it is no longer associated with a Queue submission. GetStatus() calls on this
 // Fence will fail eith 'ErrorUnavailable' until the object is associated with a new submission.
-void Fence::ResetAssociatedSubmission()
+Result Fence::ResetAssociatedSubmission()
 {
+    Result result = Result::Success;
+
     if (m_pContext != nullptr)
     {
         m_pContext->ReleaseReference();
@@ -156,6 +160,7 @@ void Fence::ResetAssociatedSubmission()
     // the initial signal state should be reset to false even though it is created as signaled at the first place.
     m_fenceState.initialSignalState = 0;
 
+    return result;
 }
 
 } // Pal

@@ -77,7 +77,7 @@ class PipelineDumpService : public DevDriver::URIProtocol::URIService
 {
 public:
     explicit PipelineDumpService(Platform* pPlatform);
-    ~PipelineDumpService();
+    virtual ~PipelineDumpService();
 
     Result Init();
 

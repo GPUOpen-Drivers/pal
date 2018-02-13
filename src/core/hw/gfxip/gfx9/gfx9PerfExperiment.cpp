@@ -307,19 +307,23 @@ Result PerfExperiment::ConstructSpmTraceObj(
 
     auto perfCounterInfo  = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
 
+    PerfExperimentProperties perfExpProperties = { };
+    result = m_device.Parent()->GetPerfExperimentProperties(&perfExpProperties);
+
     // Validate the SPM trace create info.
-    for (uint32 i = 0; i < info.numPerfCounters; i++)
+    for (uint32 i = 0; i < info.numPerfCounters && (result == Result::Success); i++)
     {
-        auto blockIdx = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+        const uint32 blockIdx     = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+        const auto& block         = perfCounterInfo.block[blockIdx];
+        const uint32 maxInstances = perfExpProperties.blocks[blockIdx].instanceCount;
 
         // Check if block, eventid and instance number are within bounds.
-        if (((info.pPerfCounterInfos[i].block < GpuBlock::Count) &&
-            (info.pPerfCounterInfos[i].eventId < perfCounterInfo.block[blockIdx].maxEventId) &&
-            (info.pPerfCounterInfos[i].instance < (perfCounterInfo.block[blockIdx].numInstances *
-             perfCounterInfo.block[blockIdx].numShaderEngines))) == false)
+        if (((info.pPerfCounterInfos[i].block    < GpuBlock::Count)  && // valid block
+             (info.pPerfCounterInfos[i].eventId  < block.maxEventId) && // valid event
+             (info.pPerfCounterInfos[i].instance < maxInstances)     && // valid instance
+             (block.numStreamingCounters         > 0)) == false)        // supports spm
         {
             result = Result::ErrorInvalidValue;
-            break;
         }
     }
 

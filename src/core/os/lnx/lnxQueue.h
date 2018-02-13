@@ -80,6 +80,9 @@ public:
     uint32                EngineId() const { return m_engineId; }
     amdgpu_context_handle Handle()   const { return m_hContext; }
 
+    amdgpu_syncobj_handle GetLastSignaledSyncObj() const        { return m_lastSignaledSyncObject; }
+    void SetLastSignaledSyncObj(amdgpu_syncobj_handle hSyncObj) { m_lastSignaledSyncObject = hSyncObj; }
+
 private:
     SubmissionContext(const Device& device, EngineType engineType, uint32 engineId, Pal::QueuePriority priority);
     virtual ~SubmissionContext();
@@ -90,6 +93,7 @@ private:
     const uint32                m_ipType;    // This context's HW IP type as defined by amdgpu.
     const uint32                m_engineId;
     QueuePriority               m_queuePriority;
+    amdgpu_syncobj_handle       m_lastSignaledSyncObject;
     amdgpu_context_handle       m_hContext;  // Command submission context handle.
 
     PAL_DISALLOW_DEFAULT_CTOR(SubmissionContext);
@@ -220,7 +224,7 @@ private:
     amdgpu_cs_ib_info     m_ibs[AMDGPU_CS_MAX_IBS_PER_SUBMIT];
 
     // The sync object refers to the fence of last submission.
-    amdgpu_semaphore_handle m_lastSignaledSyncObject;
+    amdgpu_syncobj_handle m_lastSignaledSyncObject;
 
     // The vector to store the pending wait semaphore when sync object is in using.
     Util::Vector<amdgpu_semaphore_handle, 16, Platform> m_waitSemList;
