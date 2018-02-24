@@ -430,8 +430,8 @@ struct GpuChipProperties
     VceIpLevel   vceLevel;
     UvdIpLevel   uvdLevel;
     VcnIpLevel   vcnLevel;
-    uint32       gfxStepping; // Stepping level of this GPU's GFX block. See
-                              // http://confluence.amd.com/display/ASLC/AMDGPU+Target+Names for detail
+    uint32       gfxStepping; // Stepping level of this GPU's GFX block.
+
     struct
     {
         union
