@@ -4237,7 +4237,7 @@ static constexpr Util::uint8 MlaaFindSepEdgeCsVega10[] =
 };
 #endif // PAL_BUILD_GFX9
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Mlaa Calc Sep Edge Length compute shader binary
 static constexpr Util::uint8 MlaaCalcSepEdgeLengthCsRaven[] =
 {
@@ -5083,7 +5083,7 @@ static constexpr Util::uint8 MlaaFindSepEdgeCsRaven[] =
     0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-#endif // PAL_BUILD_RAVEN1
+#endif // PAL_BUILD_GFX9
 
 // Table of compute pipeline binaries for Tahiti
 static constexpr PipelineBinary mlaaComputeBinaryTableTahiti[] =
@@ -5137,7 +5137,7 @@ static constexpr PipelineBinary mlaaComputeBinaryTableVega10[] =
 };
 #endif
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Table of compute pipeline binaries for Raven
 static constexpr PipelineBinary mlaaComputeBinaryTableRaven[] =
 {

@@ -49,8 +49,9 @@ target_sources(metrohash PRIVATE
 #     target_link_libraries(metrohash INTERFACE pthread)
 # endif()
 
-### Visual Studio Filters ##############################################################################################
-target_vs_filters(metrohash)
+### Find headers and build source groups ###############################################################################
+target_find_headers(metrohash)
+target_source_groups(metrohash)
 
 ### Mark all options as advanced #######################################################################################
 if(METROHASH_OPTIONS_MARK_ADVANCED)

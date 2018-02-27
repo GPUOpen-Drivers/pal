@@ -1111,12 +1111,7 @@ uint32 DmaCmdBuffer::GetLinearRowPitch(
     //    Multiple of 4 for 8bpp
     //    Multiple of 2 for 16bpp
     //    Multiple of 1 for 32bpp
-#if   PAL_BUILD_RAVEN1
-    PAL_ASSERT(IsRaven(*m_pDevice) ||
-               ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
-#else
-    PAL_ASSERT(((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
-#endif
+    PAL_ASSERT(IsRaven(*m_pDevice) || ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
 
     // The unit of linear pitch ... is pixel number minus 1
     return rowPitchInPixels - 1;

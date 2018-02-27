@@ -114,7 +114,7 @@ Result CreateRpmComputePipelines(
         break;
 #endif
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
     case AsicRevision::Raven:
         pTable = rpmComputeBinaryTableRaven;
         break;

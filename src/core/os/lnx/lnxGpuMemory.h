@@ -74,7 +74,9 @@ protected:
     virtual Result AllocateOrPinMemory(
         gpusize                 baseVirtAddr,
         uint64*                 pPagingFence,
-        VirtualGpuMemAccessMode virtualAccessMode) override;
+        VirtualGpuMemAccessMode virtualAccessMode,
+        uint32                  multiDeviceGpuMemoryCount,
+        IDevice*const*          ppDevice) override;
     virtual Result OpenSharedMemory() override;
     virtual Result OpenPeerMemory() override;
 

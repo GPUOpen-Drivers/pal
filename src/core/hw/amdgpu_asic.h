@@ -43,9 +43,7 @@
 #if PAL_BUILD_GFX9
 #define FAMILY_AI      0x8D
 #endif
-#if PAL_BUILD_RAVEN1
 #define FAMILY_RV      0x8E
-#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -59,9 +57,7 @@
 #if PAL_BUILD_GFX9
 #define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
 #endif
-#if PAL_BUILD_RAVEN1
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
-#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -95,9 +91,7 @@
 #define AMDGPU_VEGA10_RANGE     0x01, 0x14
 #endif
 
-#if PAL_BUILD_RAVEN1
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
-#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -136,9 +130,7 @@
 #define ASICREV_IS_VEGA10_P(r)         ASICREV_IS(r, VEGA10)
 #endif
 
-#if PAL_BUILD_RAVEN1
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
-#endif
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -172,9 +164,7 @@
 #define AMDGPU_IS_VEGA10(f, r)     AMDGPU_IS(f, r, AI, VEGA10)
 #endif
 
-#if PAL_BUILD_RAVEN1
 #define AMDGPU_IS_RAVEN(f, r)      AMDGPU_IS(f, r, RV, RAVEN)
-#endif
 
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780  0x6780
@@ -191,9 +181,7 @@
 #if PAL_BUILD_GFX9
 #define DEVICE_ID_AI_VEGA10_P_6860  0x6860
 #endif
-#if PAL_BUILD_RAVEN1
 #define DEVICE_ID_RV_15DD           0x15DD
-#endif
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
@@ -210,9 +198,7 @@
 #if PAL_BUILD_GFX9
 #define AI_VEGA10_P_A0               1
 #endif
-#if PAL_BUILD_RAVEN1
 #define RAVEN_A0                     1
-#endif
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
@@ -229,8 +215,6 @@
 #if PAL_BUILD_GFX9
 #define PRID_AI_VEGA10_C3           0xC3
 #endif
-#if PAL_BUILD_RAVEN1
 #define PRID_RV_81                  0x81
-#endif
 
 #endif // _AMDGPU_ASIC_H

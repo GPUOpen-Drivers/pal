@@ -144,9 +144,7 @@ bool Device::DetermineGpuIpLevels(
 #endif // PAL_BUILD_GFX6
 #if PAL_BUILD_GFX9
     case FAMILY_AI:
-#if PAL_BUILD_RAVEN1
     case FAMILY_RV:
-#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 #endif // PAL_BUILD_GFX9
@@ -176,9 +174,7 @@ bool Device::DetermineGpuIpLevels(
 #endif
 #if PAL_BUILD_OSS4
     case FAMILY_AI:
-#if PAL_BUILD_RAVEN1
     case FAMILY_RV:
-#endif
         pIpLevels->oss = Oss4::DetermineIpLevel(familyId, eRevId);
         break;
 #endif

@@ -54,7 +54,9 @@ NdGpuMemory::~NdGpuMemory()
 Result NdGpuMemory::AllocateOrPinMemory(
     gpusize                 baseVirtAddr,
     uint64*                 pPagingFence,
-    VirtualGpuMemAccessMode virtualAccessMode)
+    VirtualGpuMemAccessMode virtualAccessMode,
+    uint32                  multiDeviceGpuMemoryCount,
+    IDevice*const*          ppDevice)
 {
     const GpuMemoryDesc&  desc      = Desc();
     auto*                 pNdDevice = static_cast<Device*>(m_pDevice);

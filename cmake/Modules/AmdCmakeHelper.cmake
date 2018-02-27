@@ -80,8 +80,7 @@ endif()
 
 # Find Headers Helper ##############################################################################
 macro(target_find_headers _target)
-    get_target_property(${_target}_SOURCES ${_target} SOURCES)
-    get_target_property(${_target}_INCLUDES_DIRS ${_target} INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
 
     if(${_target}_INCLUDES_DIRS)
         foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
@@ -98,11 +97,14 @@ macro(target_find_headers _target)
 endmacro()
 
 # Source Groups Helper #############################################################################
+# This helper creates source groups for generators that support them. This is primarily MSVC and
+# XCode, but there are other generators that support IDE project files.
+#
+# Note: this only adds files that have been added to the target's SOURCES property. To add headers
+# to this list, be sure that you call target_find_headers before you call target_source_groups.
 macro(target_source_groups _target)
-    # This helper creates source groups for generators that support them. This is primarily MSVC and
-    # XCode, but there are other generators that support IDE project files.
-    set(${_target}_FILES ${${_target}_SOURCES} ${${_target}_INCLUDES})
-    foreach(_source IN ITEMS ${${_target}_FILES})
+    get_target_property(${_target}_SOURCES ${_target} SOURCES)
+    foreach(_source IN ITEMS ${${_target}_SOURCES})
         set(_source ${_source})
         get_filename_component(_source_path "${_source}" ABSOLUTE)
         file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")

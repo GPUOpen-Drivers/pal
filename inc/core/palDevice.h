@@ -177,10 +177,7 @@ enum class AsicRevision : uint32
 
 #if PAL_BUILD_GFX9
     Vega10     = 0x18,
-
-#if PAL_BUILD_RAVEN1
     Raven      = 0x1B,
-#endif
 #endif // PAL_BUILD_GFX9
 
 };

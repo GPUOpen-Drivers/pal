@@ -739,8 +739,9 @@ if(UNIX)
     target_link_libraries(pal INTERFACE pthread)
 endif()
 
-### Visual Studio Filters ##############################################################################################
-target_vs_filters(pal)
+### Find headers and build source groups ###############################################################################
+target_find_headers(pal)
+target_source_groups(pal)
 
 ### Other ##############################################################################################################
 # CMAKE-TODO: The AMD Make builds have sub projects inherit compiler options / definitions.

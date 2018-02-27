@@ -1826,34 +1826,39 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
 
+    BufferSrd* pOutSrd = static_cast<BufferSrd*>(pOut);
+
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        const auto& view = pBufferViewInfo[idx];
+        const BufferViewInfo& view = pBufferViewInfo[idx];
+        PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
 
-        PAL_ASSERT(view.gpuAddr != 0 || (view.range == 0 && view.stride == 0));
+        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(view.gpuAddr);
 
-        BufferSrd srd = { };
-        srd.word0.bits.BASE_ADDRESS    = LowPart(view.gpuAddr);
-        srd.word1.bits.BASE_ADDRESS_HI = HighPart(view.gpuAddr);
-        srd.word1.bits.STRIDE          = view.stride;
-        srd.word2.bits.NUM_RECORDS     = pGfxDevice->CalcNumRecords(view.range, view.stride);
-        srd.word3.bits.TYPE            = SQ_RSRC_BUF;
-        if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
-        {
-            srd.word3.bits.ATC__CI__VI = ((HighPart(view.gpuAddr) >> 0x10) != 0)
-                ? 0 : ((LowPart(view.gpuAddr) != 0) || ((HighPart(view.gpuAddr) & 0xFFFF) != 0));
-        }
+        pOutSrd->word1.u32All = ((HighPart(view.gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
+                                 (static_cast<uint32>(view.stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
+
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(view.range, view.stride);
+
         PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
 
-        srd.word3.bits.DST_SEL_X   = SQ_SEL_X;
-        srd.word3.bits.DST_SEL_Y   = SQ_SEL_Y;
-        srd.word3.bits.DST_SEL_Z   = SQ_SEL_Z;
-        srd.word3.bits.DST_SEL_W   = SQ_SEL_W;
-        srd.word3.bits.DATA_FORMAT = BUF_DATA_FORMAT_32;
-        srd.word3.bits.NUM_FORMAT  = BUF_NUM_FORMAT_UINT;
+        uint32 word3Atc = 0;
+        if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
+        {
+            word3Atc = ((HighPart(view.gpuAddr) >> 0x10) != 0)
+                ? 0 : ((LowPart(view.gpuAddr) != 0) || ((HighPart(view.gpuAddr) & 0xFFFF) != 0));
+        }
 
-        memcpy(pOut, &srd, sizeof(srd));
-        pOut = VoidPtrInc(pOut, sizeof(srd));
+        pOutSrd->word3.u32All = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT)     |
+                                 (word3Atc << SQ_BUF_RSRC_WORD3__ATC__SHIFT__CI__VI) |
+                                 (SQ_SEL_X << SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
+                                 (SQ_SEL_Y << SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
+                                 (SQ_SEL_Z << SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
+                                 (SQ_SEL_W << SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
+                                 (BUF_DATA_FORMAT_32 << SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                 (BUF_NUM_FORMAT_UINT << SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+
+        pOutSrd++;
     }
 }
 

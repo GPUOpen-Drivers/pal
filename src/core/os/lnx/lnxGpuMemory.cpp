@@ -102,9 +102,11 @@ void GpuMemory::Destroy()
 // Performs OS-specific initialization for allocating real, pinned or virtual memory objects. Responsible for reserving
 // GPU virtual address space for the allocation, and creating the allocation itself.
 Result GpuMemory::AllocateOrPinMemory(
-    gpusize                 baseVirtAddr,        // If non-zero, the base GPU virtual address the caller requires.
-    uint64*                 pPagingFence,        // Ignored on Linux platforms.
-    VirtualGpuMemAccessMode virtualAccessMode)   // Ignored on Linux platforms.
+    gpusize                 baseVirtAddr,              // If non-zero, the base GPU virtual address the caller requires.
+    uint64*                 pPagingFence,              // Ignored on Linux platforms.
+    VirtualGpuMemAccessMode virtualAccessMode,         // Ignored on Linux platforms.
+    uint32                  multiDeviceGpuMemoryCount, // Ignored on Linux platforms.
+    IDevice*const*          ppDevice)                  // Ignored on Linux platforms.
 {
     Device*                        pDevice      = static_cast<Device*>(m_pDevice);
     struct amdgpu_bo_alloc_request allocRequest = { };
@@ -229,6 +231,7 @@ Result GpuMemory::AllocateOrPinMemory(
 
                 if (pDevice->IsVmAlwaysValidSupported()     &&
                     (m_flags.isFlippable == 0)              && // Memory shared by multiple processes are not allowed
+                    (m_flags.interprocess == 0)             && // Memory shared by multiple processes are not allowed
                     (m_desc.flags.isExternal == 0))            // Memory shared by multiple processes are not allowed
                 {
                     // VM always valid guarantees VM addresses are always valid within local VM context.

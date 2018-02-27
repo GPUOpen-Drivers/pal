@@ -80,6 +80,7 @@ enum class GpuMemoryAllocationMethod : uint32
     Normal,                                 ///< Virtual memory allocation (not pinned/peer).
     Pinned,                                 ///< Pinned memory allocation.
     Peer,                                   ///< Peer memory allocation.
+    MultiDevice,                            ///< MultiDevice memory allocation.
     Opened,                                 ///< Shared memory allocation.
     Svm,                                    ///< Shared virtual memory allocation.
 };

@@ -39,6 +39,7 @@ namespace Pal
 
 // Forward declarations.
 class IGpuMemory;
+class IDevice;
 class IImage;
 enum class VaRange : uint32;
 

@@ -115,8 +115,9 @@ if(UNIX)
     target_link_libraries(jemalloc INTERFACE pthread)
 endif()
 
-### Visual Studio Filters ##############################################################################################
-target_vs_filters(jemalloc)
+### Find headers and build source groups ###############################################################################
+target_find_headers(jemalloc)
+target_source_groups(jemalloc)
 
 ### Mark all options as advanced #######################################################################################
 if(JEMALLOC_OPTIONS_MARK_ADVANCED)

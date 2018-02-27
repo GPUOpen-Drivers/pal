@@ -223,11 +223,7 @@ void SettingsLoader::OverrideGfx9Defaults()
         m_gfx9Settings.waDummyZpassDoneBeforeTs = true;
     }
 
-    if (IsVega10(*m_pDevice)
-#if PAL_BUILD_RAVEN1
-        || IsRaven(*m_pDevice)
-#endif
-        )
+    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice))
     {
         m_gfx9Settings.waHtilePipeBankXorMustBeZero = true;
 
@@ -263,8 +259,6 @@ void SettingsLoader::OverrideGfx9Defaults()
         // the PC used by a single batch.
         m_gfx9Settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
     }
-
-    m_gfx9Settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsImmediate;
 }
 
 // =====================================================================================================================

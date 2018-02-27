@@ -45,7 +45,9 @@ public:
     virtual Result AllocateOrPinMemory(
         gpusize                 baseVirtAddr,
         uint64*                 pPagingFence,
-        VirtualGpuMemAccessMode virtualAccessMode) override;
+        VirtualGpuMemAccessMode virtualAccessMode,
+        uint32                  multiDeviceGpuMemoryCount,
+        IDevice*const*          ppDevice) override;
 
     virtual OsExternalHandle GetSharedExternalHandle() const override;
 

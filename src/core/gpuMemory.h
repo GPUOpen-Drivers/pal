@@ -281,7 +281,9 @@ protected:
     virtual Result AllocateOrPinMemory(
         gpusize                 baseVirtAddr,
         uint64*                 pPagingFence,
-        VirtualGpuMemAccessMode virtualAccessMode) = 0;
+        VirtualGpuMemAccessMode virtualAccessMode,
+        uint32                  multiDeviceGpuMemoryCount,
+        IDevice*const*          ppDevice) = 0;
     // Performs OS-specific initialization for opening a shared, non-peer memory object.
     virtual Result OpenSharedMemory() = 0;
 

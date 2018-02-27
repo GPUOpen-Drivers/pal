@@ -636,7 +636,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
             }
             else
-#if PAL_BUILD_RAVEN1
             if (IsRaven(*m_pDevice)
                 )
             {
@@ -652,7 +651,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
             }
             else
-#endif // PAL_BUILD_RAVEN1
             {
                 // What is this?
                 PAL_ASSERT_ALWAYS();

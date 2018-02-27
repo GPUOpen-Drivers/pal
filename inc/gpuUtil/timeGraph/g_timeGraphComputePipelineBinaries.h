@@ -606,7 +606,7 @@ static constexpr Util::uint8 TimeGraphCsVega10[] =
 };
 #endif // PAL_BUILD_GFX9
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Time Graph compute shader binary
 static constexpr Util::uint8 TimeGraphCsRaven[] =
 {
@@ -717,7 +717,7 @@ static constexpr Util::uint8 TimeGraphCsRaven[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00,
 };
-#endif // PAL_BUILD_RAVEN1
+#endif // PAL_BUILD_GFX9
 
 // Table of compute pipeline binaries for Tahiti
 static constexpr PipelineBinary timeGraphComputeBinaryTableTahiti[] =
@@ -751,7 +751,7 @@ static constexpr PipelineBinary timeGraphComputeBinaryTableVega10[] =
 };
 #endif
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Table of compute pipeline binaries for Raven
 static constexpr PipelineBinary timeGraphComputeBinaryTableRaven[] =
 {

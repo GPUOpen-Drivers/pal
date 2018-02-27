@@ -93,7 +93,7 @@ Pal::Result CreateTextWriterComputePipelines(
         break;
 #endif
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Raven:
         pTable = textWriterComputeBinaryTableRaven;
         break;

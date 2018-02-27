@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 384
+#define PAL_INTERFACE_MAJOR_VERSION 386
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -105,9 +105,7 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_GFX9
     Vega10     = 0xB,
 #endif
-#if PAL_BUILD_RAVEN1
     Raven      = 0xC,
-#endif
     Max        = 0x10,
     All        = 0x11
 #elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 326
@@ -120,9 +118,7 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_GFX9
     Vega10,
 #endif
-#if PAL_BUILD_RAVEN1
     Raven,
-#endif
     Max,
     All
 #else

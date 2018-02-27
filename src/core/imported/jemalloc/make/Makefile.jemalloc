@@ -73,9 +73,12 @@ endif
 #-----------------------------------------------------------------------
 
 LCXXINCS += -I$(JEMALLOC_DEPTH)             \
-            -I$(JEMALLOC_DEPTH)/msvc_compat \
             -I$(JEMALLOC_DEPTH)/core
 
 LCINCS += -I$(JEMALLOC_DEPTH)             \
-          -I$(JEMALLOC_DEPTH)/msvc_compat \
           -I$(JEMALLOC_DEPTH)/core
+
+ifeq ($(PAL_PLATFORM), win)
+    LCXXINCS += -I$(JEMALLOC_DEPTH)/msvc_compat
+    LCINCS += -I$(JEMALLOC_DEPTH)/msvc_compat
+endif

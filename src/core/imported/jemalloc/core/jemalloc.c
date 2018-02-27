@@ -2702,6 +2702,16 @@ jemalloc_constructor(void)
 
 	malloc_init();
 }
+
+#ifdef __unix__
+JEMALLOC_ATTR(destructor)
+static void
+jemalloc_destructor(void)
+{
+    pthread_setspecific(tsd_tsd, NULL);
+}
+#endif
+
 #endif
 
 #ifndef JEMALLOC_MUTEX_INIT_CB

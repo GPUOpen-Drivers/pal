@@ -535,7 +535,11 @@ Result GpuMemory::Init(
 
         if (result == Result::Success && (Desc().flags.isExternPhys == false))
         {
-            result = AllocateOrPinMemory(baseVirtAddr, internalInfo.pPagingFence, createInfo.virtualAccessMode);
+            result = AllocateOrPinMemory(baseVirtAddr,
+                                         internalInfo.pPagingFence,
+                                         createInfo.virtualAccessMode,
+                                         0,
+                                         nullptr);
         }
 
         if (IsErrorResult(result) == false)
@@ -604,7 +608,11 @@ Result GpuMemory::Init(
         }
 
         m_desc.preferredHeap = m_heaps[0];
-        result               = AllocateOrPinMemory(m_desc.gpuVirtAddr, nullptr, VirtualGpuMemAccessMode::Undefined);
+        result               = AllocateOrPinMemory(m_desc.gpuVirtAddr,
+                                                   nullptr,
+                                                   VirtualGpuMemAccessMode::Undefined,
+                                                   0,
+                                                   nullptr);
         m_pPinnedMemory      = reinterpret_cast<const void*>(m_desc.gpuVirtAddr);
     }
 
@@ -645,7 +653,7 @@ Result GpuMemory::Init(
 
     m_desc.preferredHeap = m_heaps[0];
 
-    const Result result = AllocateOrPinMemory(0, nullptr, VirtualGpuMemAccessMode::Undefined);
+    const Result result = AllocateOrPinMemory(0, nullptr, VirtualGpuMemAccessMode::Undefined, 0, nullptr);
 
     // Verify that if the pinning succeeded, we got a GPU virtual address back as expected.
     PAL_ASSERT((result != Result::Success) || (m_desc.gpuVirtAddr != 0));
@@ -795,7 +803,8 @@ void GpuMemory::DestroyInternal()
 void GpuMemory::SetMapDestPeerMem(GpuMemory* pMapDestPeerMem)
 {
     // The p2p workaround only supports one mapping per virtual GPU memory object.
-    PAL_ASSERT((pMapDestPeerMem->IsPeer() && (m_pMapDestPeerMem == nullptr)));
+    PAL_ASSERT(pMapDestPeerMem->IsPeer());
+    PAL_ASSERT((m_pMapDestPeerMem == nullptr) || (m_pMapDestPeerMem == pMapDestPeerMem));
     m_pMapDestPeerMem = pMapDestPeerMem;
     m_flags.mapppedToPeerMemory = 1;
 }

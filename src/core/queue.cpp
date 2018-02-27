@@ -733,7 +733,13 @@ Result Queue::PresentDirectInternal(
     else
     {
          // We only want to add the dev overlay when the client issues their present.
-        if (isClientPresent && Queue::SupportsDevOverlay(m_type) && m_pDevice->GetPlatform()->ShowDevDriverOverlay())
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
+        if (isClientPresent &&  Queue::SupportsDevOverlay(m_type) &&
+            m_pDevice->GetPlatform()->ShowDevDriverOverlay()      &&
+            (presentInfo.flags.srcIsTypedBuffer == 0))
+#else
+        if (isClientPresent &&  Queue::SupportsDevOverlay(m_type) &&  m_pDevice->GetPlatform()->ShowDevDriverOverlay())
+#endif
         {
             result = SubmitDevOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage));
         }

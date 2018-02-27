@@ -2273,8 +2273,28 @@ Result QueueDecorator::PresentDirect(
     const PresentDirectInfo& presentInfo)
 {
     PresentDirectInfo nextPresentInfo = presentInfo;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
+    if (presentInfo.flags.srcIsTypedBuffer)
+    {
+        nextPresentInfo.pSrcTypedBuffer = NextGpuMemory(presentInfo.pSrcTypedBuffer);
+    }
+    else
+    {
+        nextPresentInfo.pSrcImage = NextImage(presentInfo.pSrcImage);
+    }
+    if (presentInfo.flags.dstIsTypedBuffer)
+    {
+        nextPresentInfo.pDstTypedBuffer = NextGpuMemory(presentInfo.pDstTypedBuffer);
+    }
+    else
+    {
+        nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
+    }
+#else
     nextPresentInfo.pSrcImage = NextImage(presentInfo.pSrcImage);
     nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 351
     PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);

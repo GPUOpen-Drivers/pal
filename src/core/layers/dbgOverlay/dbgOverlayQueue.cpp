@@ -190,7 +190,11 @@ Result Queue::PresentDirect(
 {
     Result result = Result::Success;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
+    if (m_overlaySupported && (presentInfo.flags.srcIsTypedBuffer == 0))
+#else
     if (m_overlaySupported)
+#endif
     {
         result = SubmitOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage), presentInfo.presentMode);
     }

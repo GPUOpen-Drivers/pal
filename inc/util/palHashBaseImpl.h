@@ -222,7 +222,7 @@ PAL_INLINE HashAllocator<Allocator>::HashAllocator(
 template<typename Allocator>
 PAL_INLINE HashAllocator<Allocator>::~HashAllocator()
 {
-    for (int32 i = 0; i <= NumBlocks; ++i)
+    for (int32 i = 0; i < NumBlocks; i++)
     {
         if (m_blocks[i].pMemory == nullptr)
         {

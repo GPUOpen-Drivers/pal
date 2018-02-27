@@ -545,7 +545,7 @@ static constexpr Util::uint8 TextWriterCsVega10[] =
 };
 #endif // PAL_BUILD_GFX9
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Text Writer compute shader binary
 static constexpr Util::uint8 TextWriterCsRaven[] =
 {
@@ -631,7 +631,7 @@ static constexpr Util::uint8 TextWriterCsRaven[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-#endif // PAL_BUILD_RAVEN1
+#endif // PAL_BUILD_GFX9
 
 // Table of compute pipeline binaries for Tahiti
 static constexpr PipelineBinary textWriterComputeBinaryTableTahiti[] =
@@ -671,7 +671,7 @@ static constexpr PipelineBinary textWriterComputeBinaryTableVega10[] =
 };
 #endif
 
-#if PAL_BUILD_RAVEN1
+#if PAL_BUILD_GFX9
 // Table of compute pipeline binaries for Raven
 static constexpr PipelineBinary textWriterComputeBinaryTableRaven[] =
 {

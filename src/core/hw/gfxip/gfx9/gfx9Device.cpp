@@ -1726,31 +1726,33 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
 
+    Gfx9BufferSrd* pOutSrd = static_cast<Gfx9BufferSrd*>(pOut);
+
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        const auto& view = pBufferViewInfo[idx];
+        const BufferViewInfo& view = pBufferViewInfo[idx];
         PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
 
-        Gfx9BufferSrd srd = { };
-        srd.word0.bits.BASE_ADDRESS    = LowPart(view.gpuAddr);
-        srd.word1.bits.BASE_ADDRESS_HI = HighPart(view.gpuAddr);
-        srd.word1.bits.STRIDE          = view.stride;
-        srd.word2.bits.NUM_RECORDS     = pGfxDevice->CalcNumRecords(view.swizzledFormat.format,
-                                                                    static_cast<size_t>(view.range),
-                                                                    srd.word1.bits.STRIDE);
-        srd.word3.bits.TYPE            = SQ_RSRC_BUF;
+        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(view.gpuAddr);
+
+        pOutSrd->word1.u32All = ((HighPart(view.gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT__GFX09) |
+                                 (static_cast<uint32>(view.stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT__GFX09));
+
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(view.swizzledFormat.format,
+                                                                     static_cast<size_t>(view.range),
+                                                                     static_cast<uint32>(view.stride));
 
         PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
 
-        srd.word3.bits.DST_SEL_X   = SQ_SEL_X;
-        srd.word3.bits.DST_SEL_Y   = SQ_SEL_Y;
-        srd.word3.bits.DST_SEL_Z   = SQ_SEL_Z;
-        srd.word3.bits.DST_SEL_W   = SQ_SEL_W;
-        srd.word3.bits.DATA_FORMAT = BUF_DATA_FORMAT_32;
-        srd.word3.bits.NUM_FORMAT  = BUF_NUM_FORMAT_UINT;
+        pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT__GFX09)   |
+                                  (SQ_SEL_X << SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT__GFX09) |
+                                  (SQ_SEL_Y << SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT__GFX09) |
+                                  (SQ_SEL_Z << SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT__GFX09) |
+                                  (SQ_SEL_W << SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT__GFX09) |
+                                  (BUF_DATA_FORMAT_32 << SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT__GFX09) |
+                                  (BUF_NUM_FORMAT_UINT << SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT__GFX09));
 
-        memcpy(pOut, &srd, sizeof(srd));
-        pOut = VoidPtrInc(pOut, sizeof(srd));
+        pOutSrd++;
     }
 }
 
@@ -2681,9 +2683,7 @@ GfxIpLevel DetermineIpLevel(
     {
     // GFX 9 Discrete GPU's (Arctic Islands):
     case FAMILY_AI:
-#if PAL_BUILD_RAVEN1
     case FAMILY_RV:
-#endif
         level = GfxIpLevel::GfxIp9;
         break;
     default:
@@ -2797,7 +2797,6 @@ void InitializeGpuChipProperties(
 
     switch (pInfo->familyId)
     {
-#if PAL_BUILD_RAVEN1
     // Gfx 9 APU's (Raven):
     case FAMILY_RV:
         pInfo->gpuType  = GpuType::Integrated;
@@ -2820,7 +2819,6 @@ void InitializeGpuChipProperties(
             PAL_ASSERT_ALWAYS();
         }
         break;
-#endif // PAL_BUILD_RAVEN1
     // Gfx 9 Discrete GPU's (Vega):
     case FAMILY_AI:
         pInfo->gpuType = GpuType::Discrete;

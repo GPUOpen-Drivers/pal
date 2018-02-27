@@ -62,11 +62,7 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
 #else
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
 #endif
-#if PAL_BUILD_RAVEN1
     { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
-#else
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-#endif
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
@@ -81,9 +77,7 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
 #if PAL_BUILD_GFX9
     { FAMILY_AI,      AI_VEGA10_P_A0,    PRID_AI_VEGA10_C3,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA10_P_6860  },
 #endif
-#if PAL_BUILD_RAVEN1
     { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
-#endif
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
 #else
     { FAMILY_CI,      CI_BONAIRE_M_A0,   PRID_CI_BONAIRE_TOBAGO_81, CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_BONAIRE_M_6640 },
@@ -115,11 +109,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 #else
     nullptr,
 #endif
-#if PAL_BUILD_RAVEN1
     "RAVEN",
-#else
-    nullptr,
-#endif
     nullptr,
     nullptr,
     nullptr,
@@ -133,9 +123,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 #if PAL_BUILD_GFX9
     "VEGA10",
 #endif
-#if PAL_BUILD_RAVEN1
     "RAVEN",
-#endif
 #else
     "BONAIRE",
     "TONGA",
@@ -709,7 +697,6 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#if PAL_BUILD_RAVEN1
     else if (AMDGPU_IS_RAVEN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
@@ -725,7 +712,6 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#endif
     else
     {
         // Unknown device id

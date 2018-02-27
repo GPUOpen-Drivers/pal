@@ -1099,11 +1099,7 @@ void LogContext::Enum(
 #else
         nullptr,
 #endif
-#if PAL_BUILD_RAVEN1
         "Raven",
-#else
-        nullptr,
-#endif
         nullptr,
         nullptr,
         nullptr,
@@ -1118,9 +1114,7 @@ void LogContext::Enum(
 #if PAL_BUILD_GFX9
         "Vega10",
 #endif
-#if PAL_BUILD_RAVEN1
         "Raven",
-#endif
         "Max",
         "All",
 #else

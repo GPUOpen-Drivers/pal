@@ -432,6 +432,16 @@ struct GpuChipProperties
     VcnIpLevel   vcnLevel;
     uint32       gfxStepping; // Stepping level of this GPU's GFX block.
 
+    uint32   vceUcodeVersion;                   // VCE Video encode firmware version
+    uint32   uvdUcodeVersion;                   // UVD Video encode firmware version
+
+    uint32   vceFwVersionMajor;                 // VCE Video encode firmware major version
+    uint32   vceFwVersionMinor;                 // VCE Video encode firmware minor version
+
+    uint32   uvdEncodeFwInterfaceVersionMajor;  // UVD Video encode firmware interface major version
+    uint32   uvdEncodeFwInterfaceVersionMinor;  // UVD Video encode firmware interface minor version
+    uint32   uvdFwVersionSubMinor;              // UVD firmware sub-minor version
+
     struct
     {
         union
@@ -2013,12 +2023,10 @@ PAL_INLINE bool IsVega10(const Device& device)
     return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-#if PAL_BUILD_RAVEN1
 PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-#endif
 #endif // PAL_BUILD_GFX9
 
 } // Pal

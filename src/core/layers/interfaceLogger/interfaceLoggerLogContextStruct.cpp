@@ -1941,12 +1941,42 @@ void LogContext::Struct(
     {
         Value("fullscreenDoNotWait");
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
+    if (value.flags.srcIsTypedBuffer)
+    {
+        Value("srcIsTypedBuffer");
+    }
+    if (value.flags.dstIsTypedBuffer)
+    {
+        Value("dstIsTypedBuffer");
+    }
+#endif
 
     EndList();
     KeyAndEnum("presentMode", value.presentMode);
     KeyAndValue("presentInterval", value.presentInterval);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 385
+    if (value.flags.srcIsTypedBuffer)
+    {
+        KeyAndObject("srcTypedBuffer", value.pSrcTypedBuffer);
+    }
+    else
+    {
+        KeyAndObject("srcImage", value.pSrcImage);
+    }
+    if (value.flags.dstIsTypedBuffer)
+    {
+        KeyAndObject("dstTypedBuffer", value.pDstTypedBuffer);
+    }
+    else
+    {
+        KeyAndObject("dstImage", value.pDstImage);
+    }
+#else
     KeyAndObject("srcImage", value.pSrcImage);
     KeyAndObject("dstImage", value.pDstImage);
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 351
     KeyAndBeginMap("mgpuSlsInfo", false);
