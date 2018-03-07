@@ -358,6 +358,7 @@ Device::Device(
     m_useDedicatedVmid(false),
     m_pSettingsPath(pSettingsPath),
     m_settingsMgr(SettingsFileName, pPlatform),
+    m_supportQuerySensorInfo(false),
     m_globalRefMap(MemoryRefMapElements, pPlatform),
     m_semType(SemaphoreType::Legacy),
     m_fenceType(FenceType::Legacy),
@@ -496,9 +497,16 @@ Result Device::OsLateInit()
         m_supportQueuePriority = true;
     }
 
-    if (IsDrmVersionOrGreater(3,22))
+    // Start to support per-vm bo from drm 3.20, but bugs were not fixed
+    // until drm 3.25 on pro dkms stack or kernel 4.16 on upstream stack.
+    if (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))
     {
         m_supportVmAlwaysValid = true;
+    }
+
+    if (IsDrmVersionOrGreater(3,25))
+    {
+        m_supportQuerySensorInfo = true;
     }
 
     return result;
@@ -3566,28 +3574,34 @@ Result Device::SetClockMode(
     Result result                         = Result::Success;
 
     int        ioRet                      = 0;
-    const bool needUpdatePerformanceLevel = (DeviceClockMode::Query != setClockModeInput.clockMode);
+    const bool needUpdatePerformanceLevel = (DeviceClockMode::Query          != setClockModeInput.clockMode) &&
+                                            (DeviceClockMode::QueryProfiling != setClockModeInput.clockMode) &&
+                                            (DeviceClockMode::QueryPeak      != setClockModeInput.clockMode);
     char       writeBuf[MaxClockSysFsEntryNameLen];
 
     const char* pStrKMDInterface[]    =
     {
-        "profile_exit",      // see the comments of DeviceClockMode::Default
-        "profile_query",     // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
-        "profile_standard",  // see the comments of DeviceClockMode::Profiling
-        "profile_min_mclk",  // see the comments of DeviceClockMode::MinimumMemory
-        "profile_min_sclk",  // see the comments of DeviceClockMode::MinimumEngine
-        "profile_peak",      // see the comments of DeviceClockMode::Peak
+        "profile_exit",            // see the comments of DeviceClockMode::Default
+        "profile_query",           // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
+        "profile_standard",        // see the comments of DeviceClockMode::Profiling
+        "profile_min_mclk",        // see the comments of DeviceClockMode::MinimumMemory
+        "profile_min_sclk",        // see the comments of DeviceClockMode::MinimumEngine
+        "profile_peak",            // see the comments of DeviceClockMode::Peak
+        "profile_query_profiling", // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
+        "profile_query_peak",      // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
     };
 
     // prepare contents which will be written to sysfs
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::Default)       == 0);
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::Query)         == 1);
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::Profiling)     == 2);
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::MinimumMemory) == 3);
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::MinimumEngine) == 4);
-    PAL_ASSERT(static_cast<uint32>(DeviceClockMode::Peak)          == 5);
+    static_assert(static_cast<uint32>(DeviceClockMode::Default)        == 0, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::Query)          == 1, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::Profiling)      == 2, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::MinimumMemory)  == 3, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::MinimumEngine)  == 4, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::Peak)           == 5, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::QueryProfiling) == 6, "DeviceClockMode definition changed!");
+    static_assert(static_cast<uint32>(DeviceClockMode::QueryPeak)      == 7, "DeviceClockMode definition changed!");
 
-    PAL_ASSERT(static_cast<uint32>(setClockModeInput.clockMode)    <  sizeof(pStrKMDInterface)/sizeof(char*));
+    PAL_ASSERT(static_cast<uint32>(setClockModeInput.clockMode) < sizeof(pStrKMDInterface)/sizeof(char*));
 
     memset(writeBuf, 0, sizeof(writeBuf));
     snprintf(writeBuf, sizeof(writeBuf), "%s", pStrKMDInterface[static_cast<uint32>(setClockModeInput.clockMode)]);
@@ -3649,11 +3663,101 @@ Result Device::SetClockMode(
         const uint32 sClkMaxLevelIndex = sClkInfo.NumElements() - 1;
         PAL_ASSERT(sClkCurLevelIndex <= sClkMaxLevelIndex);
         PAL_ASSERT(mClkCurLevelIndex <= mClkMaxLevelIndex);
+        // Check result of amdgpu_query_gpu_info and /sys/class/drm/cardX/device/pp_dpm_Xclk mismatch
+        PAL_ASSERT(m_chipProperties.maxEngineClock == sClkInfo.At(sClkMaxLevelIndex).value);
+        PAL_ASSERT(m_chipProperties.maxMemoryClock == mClkInfo.At(mClkMaxLevelIndex).value);
 
-        pSetClockModeOutput->engineClockRatioToPeak = (static_cast<float>(sClkInfo.At(sClkCurLevelIndex).value)) /
-                                                      (static_cast<float>(sClkInfo.At(sClkMaxLevelIndex).value));
-        pSetClockModeOutput->memoryClockRatioToPeak = (static_cast<float>(mClkInfo.At(mClkCurLevelIndex).value)) /
-                                                      (static_cast<float>(mClkInfo.At(mClkMaxLevelIndex).value));
+        uint32 sClkInMhz       = 0;
+        uint32 mClkInMhz       = 0;
+        float  requiredSclkVal = 0.0f;
+        float  maxSclkVal      = static_cast<float>(sClkInfo.At(sClkMaxLevelIndex).value);
+        float  requiredMclkVal = 0.0f;
+        float  maxMclkVal      = static_cast<float>(mClkInfo.At(mClkMaxLevelIndex).value);
+
+        switch (setClockModeInput.clockMode)
+        {
+            case DeviceClockMode::QueryProfiling:
+                // get stable pstate sclk in Mhz from KMD
+                if (m_supportQuerySensorInfo)
+                {
+                    result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(m_hDevice,
+                                                                             AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK,
+                                                                             sizeof(uint32),
+                                                                             static_cast<void*>(&sClkInMhz)),
+                                         Result::ErrorInvalidValue);
+                }
+                else
+                {
+                    result = Result::ErrorUnavailable;
+                }
+
+                if (result == Result::Success)
+                {
+                    // get stable pstate mclk in Mhz from KMD
+                    if (m_supportQuerySensorInfo)
+                    {
+                        result = CheckResult(m_drmProcs.pfnAmdgpuQuerySensorInfo(m_hDevice,
+                                                                                 AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK,
+                                                                                 sizeof(uint32),
+                                                                                 static_cast<void*>(&mClkInMhz)),
+                                             Result::ErrorInvalidValue);
+                    }
+                    else
+                    {
+                        result = Result::ErrorUnavailable;
+                    }
+                }
+
+                if (result == Result::Success)
+                {
+#if PAL_ENABLE_PRINTS_ASSERTS
+                    // There are three ways that could be used to query clocks under Linux:
+                    // 1. By libdrm interface amdgpu_query_gpu_info, but this interface only provide peak clock
+                    // 2. By libdrm interface amdgpu_query_sensor_info, but this interface only provide profiling clock
+                    // 3. By direct reading /sys/class/drm/cardX/device/pp_dpm_Xclk, this interface could provide all
+                    //    existing clock levels and the max level as peak clock.
+                    // Check result of amdgpu_query_sensor_info and /sys/class/drm/cardX/device/pp_dpm_Xclk mismatch
+                    bool isQueriedSclkValid = false;
+                    bool isQueriedMclkValid = false;
+
+                    for (uint32 i = 0; i < sClkInfo.NumElements(); ++i)
+                    {
+                        if (sClkInfo.At(i).value == sClkInMhz)
+                        {
+                            isQueriedSclkValid = true;
+                        }
+                    }
+
+                    for (uint32 i = 0; i < mClkInfo.NumElements(); ++i)
+                    {
+                        if (mClkInfo.At(i).value == mClkInMhz)
+                        {
+                            isQueriedMclkValid = true;
+                        }
+                    }
+
+                    PAL_ASSERT(isQueriedSclkValid);
+                    PAL_ASSERT(isQueriedMclkValid);
+#endif
+                    requiredSclkVal = static_cast<float>(sClkInMhz);
+                    requiredSclkVal = static_cast<float>(mClkInMhz);
+                }
+                break;
+            case DeviceClockMode::QueryPeak:
+                requiredSclkVal = maxSclkVal;
+                requiredMclkVal = maxMclkVal;
+                break;
+            default:
+                // for all other clockMode, use current clock value
+                requiredSclkVal = static_cast<float>(sClkInfo.At(sClkCurLevelIndex).value);
+                requiredMclkVal = static_cast<float>(mClkInfo.At(mClkCurLevelIndex).value);
+        }
+
+        if (result == Result::Success)
+        {
+            pSetClockModeOutput->engineClockRatioToPeak = requiredSclkVal / maxSclkVal;
+            pSetClockModeOutput->memoryClockRatioToPeak = requiredMclkVal / maxMclkVal;
+        }
     }
 
     return result;

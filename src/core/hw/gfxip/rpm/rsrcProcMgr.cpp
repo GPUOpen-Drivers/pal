@@ -2728,7 +2728,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
             boxes[i].offset.z      = 0;
             boxes[i].extent.width  = pRects[i].extent.width;
             boxes[i].extent.height = pRects[i].extent.height;
-            boxes[i].extent.depth  = 0;
+            boxes[i].extent.depth  = 1;
         }
 
         const bool clearRectCoversWholeImage = ((hasRects                  == false)                  ||
@@ -2922,7 +2922,6 @@ void RsrcProcMgr::CmdClearColorImage(
     const auto&                 createInfo    = dstImage.GetImageCreateInfo();
     const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
     const bool                  hasBoxes      = (boxCount > 0);
-    ClearColor                  clearColor    = color;
 
     const bool clearBoxCoversWholeImage = ((hasBoxes == false)                                    ||
                                            ((boxCount                 == 1)                       &&
@@ -2943,13 +2942,24 @@ void RsrcProcMgr::CmdClearColorImage(
         const auto& clearRange        = pRanges[rangeIdx];
         ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
 
+        uint32 convertedColor[4] = { 0 };
+        if (color.type == ClearColorType::Float)
+        {
+            const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
+            Formats::ConvertColor(baseFormat, &color.f32Color[0], &convertedColor[0]);
+        }
+        else
+        {
+            memcpy(&convertedColor[0], &color.u32Color[0], sizeof(convertedColor));
+        }
+
         // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes.  Futher, we only
         // can store one fast clear color per mip level, and therefore can only support fast clears when a range covers
         // all slices.
         if (clearBoxCoversWholeImage &&
             pGfxImage->IsFastColorClearSupported(pCmdBuffer,
                                                  dstImageLayout,
-                                                 clearColor.u32Color,
+                                                 &convertedColor[0],
                                                  clearRange))
         {
             // Assume that all portions of the original range can be fast cleared.
@@ -2989,17 +2999,6 @@ void RsrcProcMgr::CmdClearColorImage(
                 // Hand off to the HWL to perform the fast-clear.
                 PAL_ASSERT(dstImage.IsRenderTarget());
 
-                uint32 convertedColor[4] = { 0 };
-                if (color.type == ClearColorType::Float)
-                {
-                    const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(fastClearRange.startSubres)->format;
-                    Formats::ConvertColor(baseFormat, &color.f32Color[0], &convertedColor[0]);
-                }
-                else
-                {
-                    memcpy(&convertedColor[0], &color.u32Color[0], sizeof(convertedColor));
-                }
-
                 HwlFastColorClear(pCmdBuffer, *pGfxImage, &convertedColor[0], fastClearRange);
             }
         }
@@ -3018,7 +3017,7 @@ void RsrcProcMgr::CmdClearColorImage(
             if (pCmdBuffer->IsGraphicsSupported() &&
                 (slowClearMethod == ClearMethod::NormalGraphics))
             {
-                SlowClearGraphics(pCmdBuffer, dstImage, dstImageLayout, &clearColor, clearRange, boxCount, pBoxes);
+                SlowClearGraphics(pCmdBuffer, dstImage, dstImageLayout, &color, clearRange, boxCount, pBoxes);
             }
             else
             {
@@ -3035,7 +3034,7 @@ void RsrcProcMgr::CmdClearColorImage(
                                  dstImage,
                                  dstImageLayout,
                                  pStartSubRes->format,
-                                 &clearColor,
+                                 &color,
                                  clearRange,
                                  boxCount,
                                  pBoxes);

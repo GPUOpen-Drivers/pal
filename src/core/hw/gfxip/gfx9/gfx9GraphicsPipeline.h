@@ -164,9 +164,9 @@ public:
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const override;
 
-    virtual uint32* RequestPrefetch(
+    uint32* RequestPrefetch(
         const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const override;
+        uint32*                 pCmdSpace) const;
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_paScModeCntl1; }
 

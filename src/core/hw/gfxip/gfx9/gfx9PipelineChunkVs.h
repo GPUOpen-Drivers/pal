@@ -96,6 +96,10 @@ private:
         PM4_ME_SET_SH_REG                 hdrSpiShaderUserDataVs;
         regSPI_SHADER_USER_DATA_VS_1      spiShaderUserDataLoVs; // per-shader internal constant buffer table address
 
+        // Checksum register is optional, as not all GFX9+ hardware uses it.
+        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
+        regSPI_SHADER_PGM_CHKSUM_VS       spiShaderPgmChksumVs;
+
         // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
         // actual commands contained within.
         size_t                            spaceNeeded;

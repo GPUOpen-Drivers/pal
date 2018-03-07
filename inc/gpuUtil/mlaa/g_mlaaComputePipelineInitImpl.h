@@ -131,13 +131,8 @@ Pal::Result CreateMlaaComputePipelines(
 
 #if PAL_BUILD_GFX9
     case Pal::AsicRevision::Vega10:
-        pTable = mlaaComputeBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Raven:
-        pTable = mlaaComputeBinaryTableRaven;
+        pTable = mlaaComputeBinaryTableVega10;
         break;
 #endif
 

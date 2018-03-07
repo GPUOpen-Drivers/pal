@@ -69,17 +69,15 @@ protected:
         const GraphicsPipelineCreateInfo& createInfo,
         const AbiProcessor&               abiProcessor) = 0;
 
-    bool UsesAdjacency() const { return m_flags.adjacencyPrim; }
-    bool IsDccDecompress() const { return m_flags.dccDecompress; }
-    bool IsResolveFixedFunc() const { return m_flags.resolveFixedFunc; }
+    bool UsesAdjacency()        const { return m_flags.adjacencyPrim; }
+    bool IsDccDecompress()      const { return m_flags.dccDecompress; }
+    bool IsResolveFixedFunc()   const { return m_flags.resolveFixedFunc; }
     bool IsFastClearEliminate() const { return m_flags.fastClearElim; }
-    bool IsFmaskDecompress() const { return m_flags.fmaskDecompress; }
-    bool IsLateAllocVsLimit() const { return m_flags.lateAllocVsLimit; }
-    bool WritesDepth() const { return m_flags.psWritesDepth; }
+    bool IsFmaskDecompress()    const { return m_flags.fmaskDecompress; }
+    bool IsLateAllocVsLimit()   const { return m_flags.lateAllocVsLimit; }
+    bool WritesDepth()          const { return m_flags.psWritesDepth; }
 
-    void SetUsesViewportArrayIndex(bool enable) { m_flags.vportArrayIdx = enable ? 1 : 0; }
     void SetIsGsOnChip(bool onChip) { m_flags.isGsOnchip = onChip; }
-    void SetGsEnabled(bool enable) { m_flags.gsEnabled = enable; }
 
     uint32 GetLateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
@@ -104,12 +102,11 @@ private:
             uint32 dccDecompress         :  1; // Internal pipeline for RPM DCC decompression BLTs.
             uint32 resolveFixedFunc      :  1; // Internal pipeline for fixed function resolve.
             uint32 isGsOnchip            :  1; // Whether or not the Geometry shader (GS) is on-chip.
-            uint32 sampleInfoEnabled     :  1; // Sample info constant buffer is active.
             uint32 lateAllocVsLimit      :  1; // Whether to use the client specified lateAllocVsLimit.
             uint32 psWritesDepth         :  1; // This pipeline explicitly outputs depth data.
             uint32 psUsesAppendConsume   :  1; // PS uses atomic append/consume instructions.
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
-            uint32 reserved              : 15;
+            uint32 reserved              : 16;
         };
         uint32 u32All;
     } m_flags;

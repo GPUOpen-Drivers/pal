@@ -916,6 +916,7 @@ Result Device::CreateGraphicsPipeline(
     bool                                      isInternal,
     IPipeline**                               ppPipeline)
 {
+    PAL_ASSERT(pPlacementAddr != nullptr);
     auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
 
     Result result = pPipeline->Init(createInfo, internalInfo);

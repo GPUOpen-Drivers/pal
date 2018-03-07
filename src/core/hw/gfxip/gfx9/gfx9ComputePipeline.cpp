@@ -257,6 +257,9 @@ Result ComputePipeline::HwlInit(
             break;
         }
 
+        // Get the 32-bit compute shader checksum register, if present, for SPP.
+        abiProcessor.HasRegisterEntry(mmCOMPUTE_SHADER_CHKSUM, &m_pm4Commands.computeShaderChksum.u32All);
+
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(abiProcessor, &m_signature);
     }
@@ -299,7 +302,8 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 uint32* ComputePipeline::WriteCommands(
     Pal::CmdStream*                 pCmdStream,
     uint32*                         pCmdSpace,
-    const DynamicComputeShaderInfo& csInfo
+    const DynamicComputeShaderInfo& csInfo,
+    const Pal::PrefetchMgr&         prefetchMgr
     ) const
 {
     auto*const pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
@@ -342,23 +346,15 @@ uint32* ComputePipeline::WriteCommands(
     }
 #endif
 
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Requests that this pipeline indicates what it would like to prefetch.
-uint32* ComputePipeline::RequestPrefetch(
-    const Pal::PrefetchMgr& prefetchMgr,
-    uint32*                 pCmdSpace
-    ) const
-{
     const auto& gfx9PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
 
-    return gfx9PrefetchMgr.RequestPrefetch(PrefetchCs,
-                                           GetOriginalAddress(m_pm4Commands.computePgmLo.bits.DATA,
-                                                              m_pm4Commands.computePgmHi.bits.DATA),
-                                           m_stageInfo.codeLength,
-                                           pCmdSpace);
+    pCmdSpace = gfx9PrefetchMgr.RequestPrefetch(PrefetchCs,
+                                                GetOriginalAddress(m_pm4Commands.computePgmLo.bits.DATA,
+                                                                   m_pm4Commands.computePgmHi.bits.DATA),
+                                                m_stageInfo.codeLength,
+                                                pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -401,31 +397,39 @@ void ComputePipeline::BuildPm4Headers()
 {
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
-    // 1st PM4 packet: sets the following compute registers: COMPUTE_NUM_THREAD_X, COMPUTE_NUM_THREAD_Y,
+    // Sets the following compute registers: COMPUTE_NUM_THREAD_X, COMPUTE_NUM_THREAD_Y,
     // COMPUTE_NUM_THREAD_Z.
     m_pm4Commands.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
                                                           mmCOMPUTE_NUM_THREAD_Z,
                                                           ShaderCompute,
                                                           &m_pm4Commands.hdrComputeNumThread);
 
-    // 2nd PM4 packet: sets the following compute registers: COMPUTE_PGM_LO, COMPUTE_PGM_HI.
+    // Sets the following compute registers: COMPUTE_PGM_LO, COMPUTE_PGM_HI.
     m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_PGM_LO,
                                                            mmCOMPUTE_PGM_HI,
                                                            ShaderCompute,
                                                            &m_pm4Commands.hdrComputePgm);
 
-    // 3rd PM4 packet: sets the following compute registers: COMPUTE_PGM_RSRC1, COMPUTE_PGM_RSRC2.
+    // Sets the following compute registers: COMPUTE_PGM_RSRC1, COMPUTE_PGM_RSRC2.
     m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmCOMPUTE_PGM_RSRC1,
                                                            mmCOMPUTE_PGM_RSRC2,
                                                            ShaderCompute,
                                                            &m_pm4Commands.hdrComputePgmRsrc);
 
-    // 4th PM4 packet: sets the following compute register: COMPUTE_USER_DATA_1.
+    // Sets the following compute register: COMPUTE_USER_DATA_1.
     m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
                                                           ShaderCompute,
                                                           &m_pm4Commands.hdrComputeUserData);
 
-    // 5th PM4 packet: sets the following compute register: COMPUTE_RESOURCE_LIMITS.
+    if (m_pDevice->Parent()->ChipProperties().gfx9.supportSpp != 0)
+    {
+        // Sets the following compute register: COMPUTE_SHADER_CHKSUM.
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_SHADER_CHKSUM,
+                                                              ShaderCompute,
+                                                              &m_pm4Commands.hdrComputeShaderChksum);
+    }
+
+    // Sets the following compute register: COMPUTE_RESOURCE_LIMITS.
     m_pm4CommandsDynamic.spaceNeeded = cmdUtil.BuildSetOneShReg(mmCOMPUTE_RESOURCE_LIMITS,
                                                                 ShaderCompute,
                                                                 &m_pm4CommandsDynamic.hdrComputeResourceLimits);

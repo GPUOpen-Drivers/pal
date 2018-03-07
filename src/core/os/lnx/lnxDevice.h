@@ -781,6 +781,7 @@ private:
     char    m_forcePerformanceLevelPath[MaxClockSysFsEntryNameLen];
     char    m_sClkPath[MaxClockSysFsEntryNameLen];
     char    m_mClkPath[MaxClockSysFsEntryNameLen];
+    bool    m_supportQuerySensorInfo;
     static Result ParseClkInfo(const char* pFilePath, ClkInfo* pClkInfo, uint32* pCurIndex);
     Result        InitClkInfo();
 

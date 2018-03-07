@@ -635,6 +635,8 @@ void LogContext::Enum(
         "MinimumMemory",  // 0x3,
         "MinimumEngine",  // 0x4,
         "Peak",           // 0x5,
+        "QueryProfiling", // 0x6,
+        "QueryPeak",      // 0x7,
     };
 
     static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(DeviceClockMode::Count),

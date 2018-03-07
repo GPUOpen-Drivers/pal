@@ -98,6 +98,10 @@ private:
         regSPI_SHADER_PGM_LO_LS       spiShaderPgmLoLs;
         regSPI_SHADER_PGM_HI_LS       spiShaderPgmHiLs;
 
+        // Checksum register is optional, as not all GFX9+ hardware uses it.
+        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
+        regSPI_SHADER_PGM_CHKSUM_HS       spiShaderPgmChksumHs;
+
         // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
         // actual commands contained within.
         size_t                        spaceNeeded;

@@ -455,6 +455,15 @@ void PerfExperiment::IssueBegin(
     // Wait for GFX engine to become idle before freezing or sampling counters.
     pCmdSpace = WriteWaitIdleClean(pCmdStream, CacheFlushOnPerfCounter(), engineType, pCmdSpace);
 
+     if (HasSqCounters())
+    {
+        // SQ tests require rlc_perfom_clk_cntl set BEFORE spiConfigCntl
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 1, pCmdSpace);
+        }
+    }
+
     if (chipProps.gfx9.sqgEventsEnabled == false)
     {
         // Both SQ performance counters and traces need the SQG events enabled. Force them on
@@ -692,6 +701,15 @@ void PerfExperiment::IssueEnd(
         spiConfigCntl.u32All = m_spiConfigCntlDefault;
 
         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
+    }
+
+    if (HasSqCounters())
+    {
+        // SQ tests require RLC_PERFMON_CLK_CNTL set to work
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 0, pCmdSpace);
+        }
     }
 
     pCmdSpace = WriteComputePerfCountEnable(pCmdStream, pCmdSpace, false);

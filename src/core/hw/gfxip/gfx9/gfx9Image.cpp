@@ -67,7 +67,8 @@ Image::Image(
     m_fastClearEliminateMetaDataOffset(0),
     m_fastClearEliminateMetaDataSize(0),
     m_waTcCompatZRangeMetaDataOffset(0),
-    m_waTcCompatZRangeMetaDataSizePerMip(0)
+    m_waTcCompatZRangeMetaDataSizePerMip(0),
+    m_needToSetFirstPixel(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
     memset(m_addrSurfOutput,      0, sizeof(m_addrSurfOutput));
@@ -501,7 +502,7 @@ Result Image::Finalize(
                             // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
                             // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
                             // going to be used as UAV and disable dcc fast clear on other mips.
-                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
+                            if ((m_createInfo.usageFlags.shaderWrite == 0)                  ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
                                 const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);
@@ -543,6 +544,7 @@ Result Image::Finalize(
 
                 // Get the constant data for clears based on DCC meta equation
                 GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataDcc], metaBlkFastClearSize);
+
             }
         }
         else

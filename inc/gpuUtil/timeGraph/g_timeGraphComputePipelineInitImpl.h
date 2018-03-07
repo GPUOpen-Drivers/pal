@@ -86,13 +86,8 @@ Pal::Result CreateTimeGraphComputePipelines(
 
 #if PAL_BUILD_GFX9
     case Pal::AsicRevision::Vega10:
-        pTable = timeGraphComputeBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Raven:
-        pTable = timeGraphComputeBinaryTableRaven;
+        pTable = timeGraphComputeBinaryTableVega10;
         break;
 #endif
 

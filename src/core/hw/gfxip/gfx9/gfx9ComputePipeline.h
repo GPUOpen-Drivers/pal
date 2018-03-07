@@ -60,6 +60,10 @@ struct ComputePipelinePm4Img
     PM4_ME_SET_SH_REG          hdrComputeUserData;
     regCOMPUTE_USER_DATA_0     computeUserDataLo;
 
+    // Checksum register is optional, as not all GFX9+ hardware uses it.
+    PM4_ME_SET_SH_REG          hdrComputeShaderChksum;
+    regCOMPUTE_SHADER_CHKSUM   computeShaderChksum;
+
     // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
     // commands contained within.
     size_t                     spaceNeeded;
@@ -87,11 +91,8 @@ public:
     uint32* WriteCommands(
         Pal::CmdStream*                 pCmdStream,
         uint32*                         pCmdSpace,
-        const DynamicComputeShaderInfo& csInfo) const;
-
-    virtual uint32* RequestPrefetch(
-        const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const override;
+        const DynamicComputeShaderInfo& csInfo,
+        const Pal::PrefetchMgr&         prefetchMgr) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,

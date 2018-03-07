@@ -1914,17 +1914,19 @@ struct GetPrimaryInfoOutput
 /// Specifies different clock modes that the device can be set to.
 enum class DeviceClockMode : uint32
 {
-    Default       = 0,   ///< Device clocks and other power settings are restored to default.
-    Query         = 1,   ///< Queries the current device clock ratios. Leaves the clock mode of the device unchanged.
-    Profiling     = 2,   ///< Scale down from peak ratio. Clocks are set to a constant amount which is
-                         ///  known to be power and thermal sustainable. The engine/memory clock ratio
-                         ///  will be kept the same as much as possible.
-    MinimumMemory = 3,   ///< Memory clock is set to the lowest available level. Engine clock is set to
-                         ///  thermal and power sustainable level.
-    MinimumEngine = 4,   ///< Engine clock is set to the lowest available level. Memory clock is set to
-                         ///  thermal and power sustainable level.
-    Peak          = 5,   ///< Clocks set to maximum when possible. Fan set to maximum. Note: Under power
-                         ///  and thermal constraints device will clock down.
+    Default        = 0,   ///< Device clocks and other power settings are restored to default.
+    Query          = 1,   ///< Queries the current device clock ratios. Leaves the clock mode of the device unchanged.
+    Profiling      = 2,   ///< Scale down from peak ratio. Clocks are set to a constant amount which is
+                          ///  known to be power and thermal sustainable. The engine/memory clock ratio
+                          ///  will be kept the same as much as possible.
+    MinimumMemory  = 3,   ///< Memory clock is set to the lowest available level. Engine clock is set to
+                          ///  thermal and power sustainable level.
+    MinimumEngine  = 4,   ///< Engine clock is set to the lowest available level. Memory clock is set to
+                          ///  thermal and power sustainable level.
+    Peak           = 5,   ///< Clocks set to maximum when possible. Fan set to maximum. Note: Under power
+                          ///  and thermal constraints device will clock down.
+    QueryProfiling = 6,   ///< Queries the profiling device clock ratios. Leaves the clock mode of the device unchanged.
+    QueryPeak      = 7,   ///< Queries the peak device clock ratios. Leaves the clock mode of the device unchanged.
     Count
 };
 

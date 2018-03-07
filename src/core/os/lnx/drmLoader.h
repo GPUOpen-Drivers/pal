@@ -281,6 +281,12 @@ typedef int (*AmdgpuQueryGpuInfo)(
             amdgpu_device_handle      hDevice,
             struct amdgpu_gpu_info*   pInfo);
 
+typedef int (*AmdgpuQuerySensorInfo)(
+            amdgpu_device_handle  hDevice,
+            unsigned              sensor_type,
+            unsigned              size,
+            void*                 value);
+
 typedef int (*AmdgpuQueryInfo)(
             amdgpu_device_handle  hDevice,
             unsigned              infoId,
@@ -298,8 +304,8 @@ typedef int (*AmdgpuQuerySharedAperture)(
             uint64_t*             pEndVa);
 
 typedef int (*AmdgpuBoGetPhysAddress)(
-            amdgpu_bo_handle    hBuffer,
-            uint64_t*           pPhysAddress);
+            amdgpu_bo_handle  hBuffer,
+            uint64_t*         pPhysAddress);
 
 typedef int (*AmdgpuCsReservedVmid)(
             amdgpu_device_handle  hDevice);
@@ -346,11 +352,6 @@ typedef int (*AmdgpuCsSyncobjImportSyncFile)(
             uint32_t              syncObj,
             int                   syncFileFd);
 
-typedef int (*AmdgpuCsCtxCreate2)(
-            amdgpu_device_handle      hDevice,
-            uint32_t                  priority,
-            amdgpu_context_handle*    pContextHandle);
-
 typedef int (*AmdgpuCsSyncobjExportSyncFile)(
             amdgpu_device_handle  hDevice,
             uint32_t              syncObj,
@@ -368,6 +369,11 @@ typedef int (*AmdgpuCsSyncobjReset)(
             amdgpu_device_handle  hDevice,
             const uint32_t*       pHandles,
             uint32_t              numHandles);
+
+typedef int (*AmdgpuCsCtxCreate2)(
+            amdgpu_device_handle      hDevice,
+            uint32_t                  priority,
+            amdgpu_context_handle*    pContextHandle);
 
 // symbols from libdrm.so.2
 typedef int (*DrmGetNodeTypeFromFd)(
@@ -684,6 +690,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuQueryGpuInfoisValid() const
     {
         return (pfnAmdgpuQueryGpuInfo != nullptr);
+    }
+
+    AmdgpuQuerySensorInfo             pfnAmdgpuQuerySensorInfo;
+    bool pfnAmdgpuQuerySensorInfoisValid() const
+    {
+        return (pfnAmdgpuQuerySensorInfo != nullptr);
     }
 
     AmdgpuQueryInfo                   pfnAmdgpuQueryInfo;
@@ -1339,6 +1351,17 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryGpuInfo != nullptr);
     }
 
+    int pfnAmdgpuQuerySensorInfo(
+            amdgpu_device_handle  hDevice,
+            unsigned              sensor_type,
+            unsigned              size,
+            void*                 value) const;
+
+    bool pfnAmdgpuQuerySensorInfoisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuQuerySensorInfo != nullptr);
+    }
+
     int pfnAmdgpuQueryInfo(
             amdgpu_device_handle  hDevice,
             unsigned              infoId,
@@ -1371,8 +1394,8 @@ public:
     }
 
     int pfnAmdgpuBoGetPhysAddress(
-            amdgpu_bo_handle    hBuffer,
-            uint64_t*           pPhysAddress) const;
+            amdgpu_bo_handle  hBuffer,
+            uint64_t*         pPhysAddress) const;
 
     bool pfnAmdgpuBoGetPhysAddressisValid() const
     {

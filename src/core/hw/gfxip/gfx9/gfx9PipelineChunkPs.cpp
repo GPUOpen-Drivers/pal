@@ -88,6 +88,12 @@ void PipelineChunkPs::Init(
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
 
+    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
+    {
+        abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_CHKSUM_PS,
+                                      &m_pm4ImageSh.spiShaderPgmChksumPs.u32All);
+    }
+
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.CU_EN      = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
     m_pm4ImageContext.dbShaderControl.u32All    = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
@@ -274,6 +280,14 @@ void PipelineChunkPs::BuildPm4Headers(
     m_pm4ImageContext.spaceNeeded += m_device.CmdUtil().BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
                                                                                lastPsInterpolator,
                                                                                &m_pm4ImageContext.hdrSpiPsInputCntl);
+
+    // Sets the following SH register: SPI_SHADER_PGM_CHKSUM_PS.
+    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
+    {
+        m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_CHKSUM_PS,
+                                                             ShaderGraphics,
+                                                             &m_pm4ImageSh.hdrSpiShaderPgmChksum);
+    }
 }
 
 } // Gfx9

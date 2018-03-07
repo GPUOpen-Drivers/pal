@@ -29,7 +29,6 @@
 #include "core/os/lnx/lnxPlatform.h"
 #include "palSwapChain.h"
 #include "util/lnx/lnxTimeout.h"
-
 extern "C"
 {
 #include <X11/xshmfence.h>
@@ -205,43 +204,30 @@ Result Dri3PresentFence::Trigger()
 // =====================================================================================================================
 // Wait for the idle fence to be signaled which indicates that the pixmap is not being used by XServer anymore.
 Result Dri3PresentFence::WaitForCompletion(
-    uint64 timeout)
+    bool doWait)
 {
     Result          result   = Result::Success;
-    const bool      needWait = (timeout != 0);
-    struct timespec stopTime = {};
 
     if (m_presented == false)
     {
         result = Result::ErrorFenceNeverSubmitted;
     }
-    else if (needWait)
-    {
-        // timeout with value Uint64Max means blocks indefinitely, here just take Uint64Max as a normal timeout value
-        // as it is big enough to wait approximately forever.
-        ComputeTimeoutExpiration(&stopTime, timeout);
-    }
 
     if (result == Result::Success)
     {
-        int32 value = 0;
-        while (((value = m_windowSystem.m_dri3Procs.pfnXshmfenceQuery(m_pShmFence)) == 0) && needWait)
+        if (doWait)
         {
-            if (IsTimeoutExpired(&stopTime))
+            if (m_windowSystem.m_dri3Procs.pfnXshmfenceAwait(m_pShmFence) != 0)
             {
-                break;
+                result = Result::ErrorUnknown;
             }
-
-            YieldThread();
-        }
-
-        if (value == 0)
-        {
-            result = needWait ? Result::Timeout : Result::NotReady;
         }
         else
         {
-            result = Result::Success;
+            if (m_windowSystem.m_dri3Procs.pfnXshmfenceQuery(m_pShmFence) == 0)
+            {
+                result = Result::NotReady;
+            }
         }
     }
 

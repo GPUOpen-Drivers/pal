@@ -230,6 +230,9 @@ Result GpuMemory::AllocateOrPinMemory(
                 }
 
                 if (pDevice->IsVmAlwaysValidSupported()     &&
+                    // Remove DGMA memory from optimization, since DGMA requires blocking the surface from migration.
+                    // It seems KGD logic executes that operation on the usage.
+                    (allocRequest.preferred_heap != AMDGPU_GEM_DOMAIN_DGMA) &&
                     (m_flags.isFlippable == 0)              && // Memory shared by multiple processes are not allowed
                     (m_flags.interprocess == 0)             && // Memory shared by multiple processes are not allowed
                     (m_desc.flags.isExternal == 0))            // Memory shared by multiple processes are not allowed

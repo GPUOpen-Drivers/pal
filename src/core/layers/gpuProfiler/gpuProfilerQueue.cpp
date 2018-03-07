@@ -421,7 +421,9 @@ Result Queue::Submit(
                 auto*const pRecordedCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[cmdBufIdx]);
 
                 // Detect a DX12 app has issues a present that will end a logged frame.
-                if (pRecordedCmdBuffer->ContainsPresent() && m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame))
+                if (pRecordedCmdBuffer->ContainsPresent()                  &&
+                    m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
+                    (m_perFrameLogItem.pGpaSession != nullptr))
                 {
                     // Submit an internal command buffer to end the current frame-long performance experiment.
                     TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf();

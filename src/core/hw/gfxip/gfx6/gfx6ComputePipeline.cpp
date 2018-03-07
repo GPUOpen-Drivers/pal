@@ -312,7 +312,8 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
 uint32* ComputePipeline::WriteCommands(
     Pal::CmdStream*                 pCmdStream,
     uint32*                         pCmdSpace,
-    const DynamicComputeShaderInfo& csInfo
+    const DynamicComputeShaderInfo& csInfo,
+    const Pal::PrefetchMgr&         prefetchMgr
     ) const
 {
     auto*const pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
@@ -366,23 +367,15 @@ uint32* ComputePipeline::WriteCommands(
     }
 #endif
 
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Requests that this pipeline indicates what it would like to prefetch.
-uint32* ComputePipeline::RequestPrefetch(
-    const Pal::PrefetchMgr& prefetchMgr,
-    uint32*                 pCmdSpace
-    ) const
-{
     const auto& gfx6PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
 
-    return gfx6PrefetchMgr.RequestPrefetch(PrefetchCs,
-                                           GetOriginalAddress(m_pm4Commands.computePgmLo.bits.DATA,
-                                                              m_pm4Commands.computePgmHi.bits.DATA),
-                                           m_stageInfo.codeLength,
-                                           pCmdSpace);
+    pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(PrefetchCs,
+                                                GetOriginalAddress(m_pm4Commands.computePgmLo.bits.DATA,
+                                                                   m_pm4Commands.computePgmHi.bits.DATA),
+                                                m_stageInfo.codeLength,
+                                                pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

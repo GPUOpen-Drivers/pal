@@ -274,6 +274,10 @@ Result GraphicsPipeline::HwlInit(
         hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextPm4ImgHash));
 
         UpdateRingSizes(abiProcessor);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
+        m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
+#endif
     }
 
     return result;

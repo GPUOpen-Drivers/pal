@@ -155,7 +155,7 @@ if(ADDR_R900_BUILD)
 endif()
 
 if(ADDR_GFX9_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD ADDR_RAVEN1_BUILD)
 
     target_include_directories(addrlib PRIVATE
         ${PROJECT_SOURCE_DIR}/gfx9

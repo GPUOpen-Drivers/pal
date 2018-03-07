@@ -109,8 +109,6 @@ public:
 
     virtual const PipelineInfo& GetInfo() const override { return m_info; }
 
-    virtual uint32* RequestPrefetch(const Pal::PrefetchMgr& prefetchMgr, uint32* pCmdSpace) const = 0;
-
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
         GpuMemSubAllocInfo* const  pAllocInfoList) override;

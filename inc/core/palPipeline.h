@@ -294,6 +294,21 @@ struct PipelineInfo
         ShaderHash hash;      ///< Unique 128-bit identifier for this shader.  0 indicates there is no shader bound for
                               ///  the corresponding shader stage.
     } shader[NumShaderTypes]; ///< Array of per-shader pipeline properties.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
+    struct
+    {
+        union
+        {
+            struct
+            {
+                uint32 perSampleShading : 1;    ///< Shader instructions want per-sample execution.
+                uint32 reserved         : 31;   ///< Reserved for future use.
+            };
+            uint32 u32All;                      ///< All flags combined as a single uint32.
+        } flags;
+    } ps;                                       ///< Pixel shader properties.
+#endif
 };
 
 /// Used to represent API level shader stage.

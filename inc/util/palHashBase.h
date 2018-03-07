@@ -364,7 +364,6 @@ protected:
     uint32          m_numEntries;     ///< @internal Entries in the table.
     size_t          m_memorySize;     ///< @internal Memory allocation size for m_pMemory.
     void*           m_pMemory;        ///< @internal Base address as allocated (before alignment).
-    void*           m_pAlignedMemory; ///< @internal Base address of the hash table.
 
     static constexpr size_t EntrySize = sizeof(Entry);             ///< @internal Size (in bytes) of a single entry.
 

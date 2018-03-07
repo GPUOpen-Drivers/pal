@@ -110,13 +110,8 @@ Result CreateRpmComputePipelines(
 
 #if PAL_BUILD_GFX9
     case AsicRevision::Vega10:
-        pTable = rpmComputeBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
     case AsicRevision::Raven:
-        pTable = rpmComputeBinaryTableRaven;
+        pTable = rpmComputeBinaryTableVega10;
         break;
 #endif
 

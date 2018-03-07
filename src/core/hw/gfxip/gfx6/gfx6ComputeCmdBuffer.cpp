@@ -198,8 +198,7 @@ void ComputeCmdBuffer::CmdBindPipeline(
 
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-        pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream, pCmdSpace, params.cs);
-        pCmdSpace = pNewPipeline->RequestPrefetch(*m_pPrefetchMgr, pCmdSpace);
+        pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream, pCmdSpace, params.cs, *m_pPrefetchMgr);
 
         // NOTE: Compute pipelines always use a fixed user-data mapping from virtualized entries to physical SPI
         // registers, so we do not need to rewrite any bound user-data entries to the correct registers. Entries

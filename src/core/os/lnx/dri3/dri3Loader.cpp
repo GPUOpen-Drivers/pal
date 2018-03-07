@@ -582,6 +582,26 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceQuery(
 }
 
 // =====================================================================================================================
+int32 Dri3LoaderFuncsProxy::pfnXshmfenceAwait(
+    struct xshmfence*  pFence
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnXshmfenceAwait(pFence);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("XshmfenceAwait,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XshmfenceAwait(%p)\n",
+        pFence);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 Dri3LoaderFuncsProxy::pfnXshmfenceAllocShm(    ) const
 {
     int64 begin = Util::GetPerfCpuTime();
@@ -1240,13 +1260,27 @@ Dri3Loader::~Dri3Loader()
 }
 
 // =====================================================================================================================
-Result Dri3Loader::Init()
+Result Dri3Loader::Init(
+    Platform* pPlatform)
 {
-    Result result = Result::Success;
+    Result result                   = Result::Success;
+    constexpr uint32_t LibNameSize  = 64;
+    char LibNames[Dri3LoaderLibrariesCount][LibNameSize] = {
+        "libX11-xcb.so.1",
+        "libxcb.so.1",
+        "libxshmfence.so.1",
+        "libxcb-dri3.so.0",
+        "libxcb-dri2.so.0",
+        "libxcb-sync.so.1",
+        "libX11.so.6",
+        "libxcb-present.so.0",
+    };
+
+    SpecializedInit(pPlatform);
     if (m_initialized == false)
     {
         // resolve symbols from libX11-xcb.so.1
-        m_libraryHandles[LibX11Xcb] = dlopen("libX11-xcb.so.1", RTLD_LAZY);
+        m_libraryHandles[LibX11Xcb] = dlopen(LibNames[LibX11Xcb], RTLD_LAZY);
         if (m_libraryHandles[LibX11Xcb] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1259,7 +1293,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxcb.so.1
-        m_libraryHandles[LibXcb] = dlopen("libxcb.so.1", RTLD_LAZY);
+        m_libraryHandles[LibXcb] = dlopen(LibNames[LibXcb], RTLD_LAZY);
         if (m_libraryHandles[LibXcb] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1329,7 +1363,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxshmfence.so.1
-        m_libraryHandles[LibXshmFence] = dlopen("libxshmfence.so.1", RTLD_LAZY);
+        m_libraryHandles[LibXshmFence] = dlopen(LibNames[LibXshmFence], RTLD_LAZY);
         if (m_libraryHandles[LibXshmFence] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1345,6 +1379,9 @@ Result Dri3Loader::Init()
             m_funcs.pfnXshmfenceQuery = reinterpret_cast<XshmfenceQuery>(dlsym(
                         m_libraryHandles[LibXshmFence],
                         "xshmfence_query"));
+            m_funcs.pfnXshmfenceAwait = reinterpret_cast<XshmfenceAwait>(dlsym(
+                        m_libraryHandles[LibXshmFence],
+                        "xshmfence_await"));
             m_funcs.pfnXshmfenceAllocShm = reinterpret_cast<XshmfenceAllocShm>(dlsym(
                         m_libraryHandles[LibXshmFence],
                         "xshmfence_alloc_shm"));
@@ -1357,7 +1394,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxcb-dri3.so.0
-        m_libraryHandles[LibXcbDri3] = dlopen("libxcb-dri3.so.0", RTLD_LAZY);
+        m_libraryHandles[LibXcbDri3] = dlopen(LibNames[LibXcbDri3], RTLD_LAZY);
         if (m_libraryHandles[LibXcbDri3] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1388,7 +1425,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxcb-dri2.so.0
-        m_libraryHandles[LibXcbDri2] = dlopen("libxcb-dri2.so.0", RTLD_LAZY);
+        m_libraryHandles[LibXcbDri2] = dlopen(LibNames[LibXcbDri2], RTLD_LAZY);
         if (m_libraryHandles[LibXcbDri2] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1410,7 +1447,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxcb-sync.so.1
-        m_libraryHandles[LibXcbSync] = dlopen("libxcb-sync.so.1", RTLD_LAZY);
+        m_libraryHandles[LibXcbSync] = dlopen(LibNames[LibXcbSync], RTLD_LAZY);
         if (m_libraryHandles[LibXcbSync] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1426,7 +1463,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libX11.so.6
-        m_libraryHandles[LibX11] = dlopen("libX11.so.6", RTLD_LAZY);
+        m_libraryHandles[LibX11] = dlopen(LibNames[LibX11], RTLD_LAZY);
         if (m_libraryHandles[LibX11] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1442,7 +1479,7 @@ Result Dri3Loader::Init()
         }
 
         // resolve symbols from libxcb-present.so.0
-        m_libraryHandles[LibXcbPresent] = dlopen("libxcb-present.so.0", RTLD_LAZY);
+        m_libraryHandles[LibXcbPresent] = dlopen(LibNames[LibXcbPresent], RTLD_LAZY);
         if (m_libraryHandles[LibXcbPresent] == nullptr)
         {
             result = Result::ErrorUnavailable;
@@ -1488,6 +1525,11 @@ Result Dri3Loader::Init()
         }
     }
     return result;
+}
+
+void
+Dri3Loader::SpecializedInit(Platform* pPlatform)
+{
 }
 
 } //namespace Linux

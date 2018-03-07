@@ -42,6 +42,7 @@ libxcb.so.1         @proc const xcb_setup_t* xcb_flush (xcb_connection_t* pConne
 libxshmfence.so.1   @proc int32 xshmfence_unmap_shm (struct xshmfence* pFence)
 libxshmfence.so.1   @proc struct xshmfence* xshmfence_map_shm (int32 fence)
 libxshmfence.so.1   @proc int32 xshmfence_query (struct xshmfence* pFence)
+libxshmfence.so.1   @proc int32 xshmfence_await (struct xshmfence* pFence)
 libxshmfence.so.1   @proc int32 xshmfence_alloc_shm ()
 libxshmfence.so.1   @proc int32 xshmfence_trigger (struct xshmfence* pFence)
 libxshmfence.so.1   @proc void  xshmfence_reset (struct xshmfence* pFence)

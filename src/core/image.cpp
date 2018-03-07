@@ -321,6 +321,15 @@ Result Image::ValidateCreateInfo(
         }
     }
 
+    // We can't support 3D depth/stencil images.
+    if (ret == Result::Success)
+    {
+        if (depthStencilUsage && (imageInfo.imageType == ImageType::Tex3d))
+        {
+            ret = Result::ErrorInvalidValue;
+        }
+    }
+
     return ret;
 }
 
@@ -569,29 +578,32 @@ Result Image::Init()
             m_gpuMemLayout.dataAlignment = m_gpuMemAlignment;
         }
 
-        // The extentTexels.height of subresource 0 is different with the extent in the image create info, and this will
-        // cause all sorts of problems because there are many places where PAL (and our clients) assume that the extent
-        // in the image create info matches the first subresource's extentTexels. So we set the create info's height to
-        // the extentTexels.height of subresource zero when we have a stereo image.
-        if (m_createInfo.flags.stereo == 1)
+        if (result == Result::Success)
         {
-            const_cast<ImageCreateInfo&>(m_createInfo).extent.height = m_pSubResInfoList->extentTexels.height;
-        }
+            // The extentTexels.height of subresource 0 is different with the extent in the image create info, and this will
+            // cause all sorts of problems because there are many places where PAL (and our clients) assume that the extent
+            // in the image create info matches the first subresource's extentTexels. So we set the create info's height to
+            // the extentTexels.height of subresource zero when we have a stereo image.
+            if (m_createInfo.flags.stereo == 1)
+            {
+                const_cast<ImageCreateInfo&>(m_createInfo).extent.height = m_pSubResInfoList->extentTexels.height;
+            }
 
-        // Finalize the GfxIp Image sub-object, which will set up data structures for things like compression metadata,
-        // as well as updating the GPU memory size and alignment requirements for this Image.
-        result = GetGfxImage()->Finalize(dccUnsupported,
-                                         m_pSubResInfoList,
-                                         m_pTileInfoList,
-                                         &m_gpuMemLayout,
-                                         &m_gpuMemSize,
-                                         &m_gpuMemAlignment);
+            // Finalize the GfxIp Image sub-object, which will set up data structures for things like compression metadata,
+            // as well as updating the GPU memory size and alignment requirements for this Image.
+            result = GetGfxImage()->Finalize(dccUnsupported,
+                                             m_pSubResInfoList,
+                                             m_pTileInfoList,
+                                             &m_gpuMemLayout,
+                                             &m_gpuMemSize,
+                                             &m_gpuMemAlignment);
 
-        if (result == Result::ErrorNotShareable)
-        {
-            // This image is going to be re-created without shared metadata info, so the creator needs to be notified
-            // that metadata should be fully expanded.
-            SetOptimalSharingLevel(MetadataSharingLevel::FullExpand);
+            if (result == Result::ErrorNotShareable)
+            {
+                // This image is going to be re-created without shared metadata info, so the creator needs to be notified
+                // that metadata should be fully expanded.
+                SetOptimalSharingLevel(MetadataSharingLevel::FullExpand);
+            }
         }
     }
 

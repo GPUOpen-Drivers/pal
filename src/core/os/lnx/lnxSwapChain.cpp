@@ -165,10 +165,7 @@ Result SwapChain::PresentComplete(
         // Linux presents aren't queue operations so we must manually wait for the present to complete by waiting on
         // its idle fence before we let the base class do its work. Note that we shouldn't wait in mailbox mode because
         // it has no semaphore to signal and waiting now could deadlock the algorithm.
-        //
-        // Wait for a maximum of 2 seconds.
-        constexpr uint64 Timeout = 2000000000ull;
-        result = m_pPresentIdle[imageIndex]->WaitForCompletion(Timeout);
+        result = m_pPresentIdle[imageIndex]->WaitForCompletion(true);
 
         m_pPresentIdle[imageIndex]->Reset();
     }
@@ -201,7 +198,7 @@ Result SwapChain::ReclaimUnusedImages(
         for (uint32 idx = 0; idx < m_mailedImageCount; )
         {
             PresentFence*const pFence = m_pPresentIdle[m_mailedImageList[idx]];
-            const Result       status = pFence->WaitForCompletion(0);
+            const Result       status = pFence->WaitForCompletion(false);
 
             if (status == Result::NotReady)
             {

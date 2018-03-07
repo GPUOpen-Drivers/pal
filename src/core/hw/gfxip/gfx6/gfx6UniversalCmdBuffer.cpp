@@ -527,6 +527,10 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             SwitchGraphicsPipeline(pGfxOldPipeline, pNewPipeline);
+
+            pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace = pNewPipeline->RequestPrefetch(m_prefetchMgr, pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         else
         {
@@ -536,7 +540,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             const auto& signature    = pNewPipeline->Signature();
 
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = pNewPipeline->WriteCommands(&m_deCmdStream, pDeCmdSpace, params.cs);
+            pDeCmdSpace = pNewPipeline->WriteCommands(&m_deCmdStream, pDeCmdSpace, params.cs, m_prefetchMgr);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             if (signature.spillThreshold != NoUserDataSpilling)
@@ -594,12 +598,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
             m_pSignatureCs = &signature;
         }
-
-        auto*const pNewPipeline = static_cast<const Pipeline*>(params.pPipeline);
-
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = pNewPipeline->RequestPrefetch(m_prefetchMgr, pDeCmdSpace);
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
     else if (params.pipelineBindPoint == PipelineBindPoint::Compute)
     {

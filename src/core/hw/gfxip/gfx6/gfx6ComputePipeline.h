@@ -86,11 +86,8 @@ public:
     uint32* WriteCommands(
         Pal::CmdStream*                 pCmdStream,
         uint32*                         pCmdSpace,
-        const DynamicComputeShaderInfo& csInfo) const;
-
-    virtual uint32* RequestPrefetch(
-        const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const override;
+        const DynamicComputeShaderInfo& csInfo,
+        const Pal::PrefetchMgr&         prefetchMgr) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,

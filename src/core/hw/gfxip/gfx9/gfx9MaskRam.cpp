@@ -1122,6 +1122,11 @@ bool Gfx9MaskRam::SupportFastColorClear(
     // Enable Fast Clear Support if some mips are not shader writable.
     const bool allMipsShaderWritable = (pParent->IsShaderWritable() && (pParent->FirstShaderWritableMip() == 0));
 
+    // Enable Fast Clear if we are running Gfx10 even if it's shader writable. Also we need the panel to turn on
+    // DCC-on-UAV feature.
+    const bool enableDccForShaderWritable =
+        false;
+
     // Only enable fast color clear iff:
     // - The Image's format supports it.
     // - The Image is a Color Target - (ensured by caller)
@@ -1129,9 +1134,9 @@ bool Gfx9MaskRam::SupportFastColorClear(
     // - The Image is not linear tiled.
     PAL_ASSERT(pParent->IsRenderTarget());
 
-    return (fastColorClearEnable                       == true)  &&
-           (allMipsShaderWritable                      == false) &&
-           (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false) &&
+    return (fastColorClearEnable                       == true)             &&
+           ((allMipsShaderWritable == false) || enableDccForShaderWritable) &&
+           (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false)            &&
            (SupportsFastColorClear(createInfo.swizzledFormat.format));
 }
 
@@ -1895,7 +1900,11 @@ bool Gfx9Dcc::UseDccForImage(
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
         useDcc = false;
     }
-    else if (pParent->IsDepthStencil() || allMipsShaderWritable || (pParent->IsRenderTarget() == false))
+    else if (allMipsShaderWritable && (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9))
+    {
+        useDcc = false;
+    }
+    else if (pParent->IsDepthStencil() || (pParent->IsRenderTarget() == false))
     {
         // DCC only makes sense for renderable color buffers, or those color buffers such that some mips are
         // not shader writable
@@ -1903,9 +1912,9 @@ bool Gfx9Dcc::UseDccForImage(
     }
     // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
     // be readable by a shader.
-    else if((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
-            (metaDataTexFetchSupported == false) &&
-            (TestAnyFlagSet(settings.useDcc, Gfx9UseDccNonTcCompatShaderRead) == false))
+    else if ((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
+             (metaDataTexFetchSupported == false) &&
+             (TestAnyFlagSet(settings.useDcc, Gfx9UseDccNonTcCompatShaderRead) == false))
     {
         // Disable DCC for shader read resource that cannot be made TC compat, this avoids DCC decompress
         // for RT->SR barrier.

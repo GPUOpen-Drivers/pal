@@ -149,9 +149,9 @@ public:
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const override;
 
-    virtual uint32* RequestPrefetch(
+    uint32* RequestPrefetch(
         const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const override;
+        uint32*                 pCmdSpace) const;
 
     template <bool pm4OptImmediate>
     uint32* WriteDbShaderControl(

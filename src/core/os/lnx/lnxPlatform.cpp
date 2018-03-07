@@ -254,7 +254,7 @@ const Dri3Loader& Platform::GetDri3Loader()
     Result result = Result::Success;
     if (m_dri3Loader.Initialized() == false)
     {
-        result = m_dri3Loader.Init();
+        result = m_dri3Loader.Init(nullptr);
 #if defined(PAL_DEBUG_PRINTS)
         if (result == Result::Success)
         {

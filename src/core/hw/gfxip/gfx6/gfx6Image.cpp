@@ -2259,25 +2259,50 @@ Result Image::ComputeAddrTileMode(
 
         if (m_createInfo.flags.prt == 1)
         {
+            // Degrade the tile to avoid a tile split on some HW (e.g. Hawaii). Additionally,
+            // this lets the clients see the same tile thickness regardless of DRAM row size.
+            const bool degradeThickTile = (pSubResInfo->bitsPerTexel >= 128);
+
             switch(*pTileMode)
             {
             case ADDR_TM_1D_TILED_THIN1:
                 *pTileMode = ADDR_TM_PRT_TILED_THIN1;
                 break;
             case ADDR_TM_1D_TILED_THICK:
-                *pTileMode = ADDR_TM_PRT_TILED_THICK;
+                if (degradeThickTile == false)
+                {
+                    *pTileMode = ADDR_TM_PRT_TILED_THICK;
+                }
+                else
+                {
+                    *pTileMode = ADDR_TM_PRT_TILED_THIN1;
+                }
                 break;
             case ADDR_TM_2D_TILED_THIN1:
                 *pTileMode = ADDR_TM_PRT_2D_TILED_THIN1;
                 break;
             case ADDR_TM_2D_TILED_THICK:
-                *pTileMode = ADDR_TM_PRT_2D_TILED_THICK;
+                if (degradeThickTile == false)
+                {
+                    *pTileMode = ADDR_TM_PRT_2D_TILED_THICK;
+                }
+                else
+                {
+                    *pTileMode = ADDR_TM_PRT_2D_TILED_THIN1;
+                }
                 break;
             case ADDR_TM_3D_TILED_THIN1:
                 *pTileMode = ADDR_TM_PRT_3D_TILED_THIN1;
                 break;
             case ADDR_TM_3D_TILED_THICK:
-                *pTileMode = ADDR_TM_PRT_3D_TILED_THICK;
+                if (degradeThickTile == false)
+                {
+                    *pTileMode = ADDR_TM_PRT_3D_TILED_THICK;
+                }
+                else
+                {
+                    *pTileMode = ADDR_TM_PRT_3D_TILED_THIN1;
+                }
                 break;
             default:
                 PAL_ASSERT_ALWAYS();

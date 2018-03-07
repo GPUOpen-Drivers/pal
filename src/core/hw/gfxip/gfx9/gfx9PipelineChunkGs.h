@@ -140,6 +140,17 @@ private:
         size_t                            spaceNeeded;
     };
 
+    // This is only for writing the SPI_SHADER_PGM_CHKSUM_GS register for hardware that uses it.
+    struct Pm4ImageChksum
+    {
+        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
+        regSPI_SHADER_PGM_CHKSUM_GS       spiShaderPgmChksumGs;
+
+        // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
+        // actual commands contained within.
+        size_t spaceNeeded;
+    };
+
     // This is only for register writes determined during Pipeline Bind.
     struct Pm4ImageShDynamic
     {
@@ -226,6 +237,8 @@ private:
     Pm4ImageShDynamic m_pm4ImageShDynamic; // GS sh commands to be calculated and written when the associated pipeline
                                            // is bound.
     Pm4ImageGsLds     m_pm4ImageGsLds;     // Commands related to the configuration of the ES/GS LDS space
+    Pm4ImageChksum    m_pm4ImageChksum;    // Command to write the SPI_SHADER_PGM_CHKSUM_GS register when the associated
+                                           // pipeline is bound.
     Pm4ImageContext   m_pm4ImageContext;   // ES/GS PM4 commands to be written when the associated pipeline is bound.
 
     const PerfDataInfo* m_pGsPerfDataInfo;   // GS performance data information.

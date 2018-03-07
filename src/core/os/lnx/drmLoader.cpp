@@ -804,7 +804,7 @@ int DrmLoaderFuncsProxy::pfnAmdgpuCreateBoFromPhysMem(
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "AmdgpuCreateBoFromPhysMem(%p, %p, %lx, %p)\n",
+        "AmdgpuCreateBoFromPhysMem(%p, %lx, %lx, %p)\n",
         hDevice,
         physAddress,
         size,
@@ -1260,6 +1260,35 @@ int DrmLoaderFuncsProxy::pfnAmdgpuQueryGpuInfo(
 }
 
 // =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnAmdgpuQuerySensorInfo(
+    amdgpu_device_handle  hDevice,
+    unsigned              sensor_type,
+    unsigned              size,
+    void*                 value
+    ) const
+{
+    int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnAmdgpuQuerySensorInfo(hDevice,
+                                                 sensor_type,
+                                                 size,
+                                                 value);
+    int64 end = Util::GetPerfCpuTime();
+    int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuQuerySensorInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuQuerySensorInfo(%p, %x, %x, %p)\n",
+        hDevice,
+        sensor_type,
+        size,
+        value);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnAmdgpuQueryInfo(
     amdgpu_device_handle  hDevice,
     unsigned              infoId,
@@ -1342,8 +1371,8 @@ int DrmLoaderFuncsProxy::pfnAmdgpuQuerySharedAperture(
 
 // =====================================================================================================================
 int DrmLoaderFuncsProxy::pfnAmdgpuBoGetPhysAddress(
-    amdgpu_bo_handle    hBuffer,
-    uint64_t*           pPhysAddress
+    amdgpu_bo_handle  hBuffer,
+    uint64_t*         pPhysAddress
     ) const
 {
     int64 begin = Util::GetPerfCpuTime();
@@ -1653,7 +1682,7 @@ int DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjWait(
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "AmdgpuCsSyncobjWait(%p, %p, %x, %x, %x, %p)\n",
+        "AmdgpuCsSyncobjWait(%p, %p, %x, %lx, %x, %p)\n",
         hDevice,
         pHandles,
         numHandles,
@@ -2147,6 +2176,9 @@ Result DrmLoader::Init(
             m_funcs.pfnAmdgpuQueryGpuInfo = reinterpret_cast<AmdgpuQueryGpuInfo>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_query_gpu_info"));
+            m_funcs.pfnAmdgpuQuerySensorInfo = reinterpret_cast<AmdgpuQuerySensorInfo>(dlsym(
+                        m_libraryHandles[LibDrmAmdgpu],
+                        "amdgpu_query_sensor_info"));
             m_funcs.pfnAmdgpuQueryInfo = reinterpret_cast<AmdgpuQueryInfo>(dlsym(
                         m_libraryHandles[LibDrmAmdgpu],
                         "amdgpu_query_info"));

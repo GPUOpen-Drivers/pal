@@ -49,6 +49,7 @@ libdrm_amdgpu.so.1 @proc  int amdgpu_query_firmware_version (amdgpu_device_handl
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_hw_ip_count (amdgpu_device_handle hDevice, unsigned type, uint32_t* pCount)
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_heap_info (amdgpu_device_handle hDevice, uint32_t heap, uint32_t flags, struct amdgpu_heap_info* pInfo)
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_gpu_info (amdgpu_device_handle hDevice, struct amdgpu_gpu_info* pInfo)
+libdrm_amdgpu.so.1 @proc  int amdgpu_query_sensor_info (amdgpu_device_handle hDevice, unsigned sensor_type, unsigned size, void* value);
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_info (amdgpu_device_handle hDevice, unsigned infoId, unsigned size, void* pValue)
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_private_aperture (amdgpu_device_handle hDevice, uint64_t* pStartVa, uint64_t* pEndVa)
 libdrm_amdgpu.so.1 @proc  int amdgpu_query_shared_aperture (amdgpu_device_handle hDevice, uint64_t* pStartVa, uint64_t* pEndVa)

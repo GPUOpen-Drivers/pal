@@ -619,6 +619,10 @@ void UniversalCmdBuffer::CmdBindPipeline(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             SwitchGraphicsPipeline(pOldPipeline, pNewPipeline);
+
+            pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace = pNewPipeline->RequestPrefetch(m_prefetchMgr, pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         else
         {
@@ -627,7 +631,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
             const auto* pNewPipeline = static_cast<const ComputePipeline*>(params.pPipeline);
             auto&       signature    = pNewPipeline->Signature();
-            pDeCmdSpace = pNewPipeline->WriteCommands(&m_deCmdStream, pDeCmdSpace, params.cs);
+            pDeCmdSpace = pNewPipeline->WriteCommands(&m_deCmdStream, pDeCmdSpace, params.cs, m_prefetchMgr);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
             if (signature.spillThreshold != NoUserDataSpilling)
             {
                 if ((signature.spillThreshold < m_pSignatureCs->spillThreshold) ||
@@ -682,14 +687,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             // which don't fall beyond the spill threshold are always written to registers in CmdSetUserDataCs().
 
             m_pSignatureCs = &signature;
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
-
-        auto*const pNewPipeline = static_cast<const Pipeline*>(params.pPipeline);
-
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = pNewPipeline->RequestPrefetch(m_prefetchMgr, pDeCmdSpace);
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
     else if (params.pipelineBindPoint == PipelineBindPoint::Compute)
     {

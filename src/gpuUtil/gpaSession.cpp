@@ -2441,6 +2441,7 @@ Result GpaSession::AcquireGpuMem(
         {
             result = pBusyList->PushBack(*pCurGpuMem);
         }
+        PAL_ASSERT(result == Result::Success);
 
         if (pAvailableList->NumElements() > 0)
         {

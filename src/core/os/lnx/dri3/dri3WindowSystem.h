@@ -56,7 +56,7 @@ public:
 
     virtual Result Trigger() override;
 
-    virtual Result WaitForCompletion(uint64 timeout) override;
+    virtual Result WaitForCompletion(bool doWait) override;
 
     void SetPresented(bool set) { m_presented = set; }
 

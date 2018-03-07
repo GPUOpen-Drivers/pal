@@ -89,13 +89,8 @@ Result CreateRpmGraphicsPipelines(
 
 #if PAL_BUILD_GFX9
     case AsicRevision::Vega10:
-        pTable = rpmGfxBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
     case AsicRevision::Raven:
-        pTable = rpmGfxBinaryTableRaven;
+        pTable = rpmGfxBinaryTableVega10;
         break;
 #endif
 

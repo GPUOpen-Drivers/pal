@@ -473,6 +473,26 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
     },
+    {
+        mmSPI_SHADER_PGM_CHKSUM_PS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_CHKSUM_VS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_CHKSUM_GS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_CHKSUM_HS,
+        1
+    },
+    {
+        mmCOMPUTE_SHADER_CHKSUM,
+        1
+    },
 };
 constexpr uint32 Gfx9NumNonShadowedRanges = (sizeof(Gfx9NonShadowedRanges) / sizeof(Gfx9NonShadowedRanges[0]));
 #endif // #if PAL_ENABLE_PRINTS_ASSERTS

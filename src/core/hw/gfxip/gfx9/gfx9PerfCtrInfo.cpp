@@ -228,6 +228,7 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
                                0,
                                mmRMI_PERFCOUNTER2_SELECT1,
                                0,                                   }, },  // rmi
+
 };
 
 static_assert(sizeof(Gfx9PerfCountSelect1)/sizeof(Gfx9PerfCountSelect1[0])   == static_cast<uint32>(GpuBlock::Count),

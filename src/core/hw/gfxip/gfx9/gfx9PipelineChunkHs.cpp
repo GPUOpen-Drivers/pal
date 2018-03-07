@@ -98,6 +98,12 @@ void PipelineChunkHs::Init(
     {
         m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
     }
+
+    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
+    {
+        abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_CHKSUM_HS,
+                                      &m_pm4ImageSh.spiShaderPgmChksumHs.u32All);
+    }
 }
 
 // =====================================================================================================================
@@ -184,6 +190,14 @@ void PipelineChunkHs::BuildPm4Headers()
     m_pm4ImageContext.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
                                                                    mmVGT_HOS_MIN_TESS_LEVEL,
                                                                    &m_pm4ImageContext.hdrvVgtHosTessLevel);
+
+    // Sets the following sh register: SPI_SHADER_PGM_CHKSUM_HS.
+    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
+    {
+        m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_CHKSUM_HS,
+                                                             ShaderGraphics,
+                                                             &m_pm4ImageSh.hdrSpiShaderPgmChksum);
+    }
 }
 
 } // Gfx9

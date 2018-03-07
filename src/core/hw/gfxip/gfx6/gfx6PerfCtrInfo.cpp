@@ -598,7 +598,8 @@ void SetupGfx7Counters(
                    Gfx7NumDbCounters, Gfx7PerfCtrDbMaxEvent,
                    mmDB_PERFCOUNTER0_SELECT__CI__VI,
                    (mmDB_PERFCOUNTER1_SELECT__CI__VI - mmDB_PERFCOUNTER0_SELECT__CI__VI),
-                   0, 0,
+                   mmDB_PERFCOUNTER0_SELECT1__CI__VI,
+                   (mmDB_PERFCOUNTER1_SELECT1__CI__VI - mmDB_PERFCOUNTER0_SELECT1__CI__VI),
                    mmDB_PERFCOUNTER0_LO__CI__VI, mmDB_PERFCOUNTER0_HI__CI__VI,
                    (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI));
 
@@ -888,7 +889,8 @@ void SetupGfx8Counters(
                    Gfx8NumDbCounters, Gfx8PerfCtrDbMaxEvent,
                    mmDB_PERFCOUNTER0_SELECT__CI__VI,
                    (mmDB_PERFCOUNTER1_SELECT__CI__VI - mmDB_PERFCOUNTER0_SELECT__CI__VI),
-                   0, 0,
+                   mmDB_PERFCOUNTER0_SELECT1__CI__VI,
+                   (mmDB_PERFCOUNTER1_SELECT1__CI__VI - mmDB_PERFCOUNTER0_SELECT1__CI__VI),
                    mmDB_PERFCOUNTER0_LO__CI__VI, mmDB_PERFCOUNTER0_HI__CI__VI,
                    (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI));
 

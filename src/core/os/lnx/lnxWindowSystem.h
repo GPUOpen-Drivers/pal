@@ -80,7 +80,7 @@ public:
     virtual Result Trigger() = 0;
 
     // Wait for the window system to complete the present.
-    virtual Result WaitForCompletion(uint64 timeout) = 0;
+    virtual Result WaitForCompletion(bool doWait) = 0;
 
 protected:
     PresentFence() { }

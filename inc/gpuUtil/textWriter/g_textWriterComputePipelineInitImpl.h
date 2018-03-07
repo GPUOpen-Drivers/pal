@@ -89,13 +89,8 @@ Pal::Result CreateTextWriterComputePipelines(
 
 #if PAL_BUILD_GFX9
     case Pal::AsicRevision::Vega10:
-        pTable = textWriterComputeBinaryTableVega10;
-        break;
-#endif
-
-#if PAL_BUILD_GFX9
     case Pal::AsicRevision::Raven:
-        pTable = textWriterComputeBinaryTableRaven;
+        pTable = textWriterComputeBinaryTableVega10;
         break;
 #endif
 
