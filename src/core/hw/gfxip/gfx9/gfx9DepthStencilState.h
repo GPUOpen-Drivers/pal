@@ -61,6 +61,8 @@ public:
     Result Init(const DepthStencilStateCreateInfo& dsState);
 
     static size_t Pm4ImgSize() { return sizeof(DepthStencilStatePm4Img); }
+    static CompareRef  HwStencilCompare(CompareFunc func);
+
     uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     bool IsDepthEnabled() const { return (m_flags.isDepthEnabled != 0); }
@@ -78,7 +80,6 @@ private:
     void BuildPm4Headers();
 
     static CompareFrag HwDepthCompare(CompareFunc func);
-    static CompareRef  HwStencilCompare(CompareFunc func);
     static ::StencilOp HwStencilOp(StencilOp stencilOp);
 
     const Device&            m_device;

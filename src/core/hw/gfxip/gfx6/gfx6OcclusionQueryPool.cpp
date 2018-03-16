@@ -54,7 +54,7 @@ OcclusionQueryPool::OcclusionQueryPool(
               createInfo,
               Device::CpDmaCompatAlignment(device, OcclusionQueryMemoryAlignment),
               device.Parent()->ChipProperties().gfx6.numTotalRbs * sizeof(OcclusionQueryResultPair),
-              sizeof(uint32)),
+              (device.Parent()->ChipProperties().gfxLevel <= GfxIpLevel::GfxIp7) ? sizeof(uint32) : 0),
     m_device(device),
     m_canUseDmaFill(device.Parent()->ChipProperties().gfx6.numActiveRbs ==
                     device.Parent()->ChipProperties().gfx6.numTotalRbs),
@@ -85,8 +85,8 @@ void OcclusionQueryPool::Begin(
         {
             pCmdBuffer->AddQuery(QueryPoolType::Occlusion, flags);
 
-            // There are other events that "should/could" be used for Gfx7 and Gfx8 ASICs, but since we are supporting Gfx6
-            // as well we'll use the old-reliable-standby.
+            // There are other events that "should/could" be used for Gfx7 and Gfx8 ASICs, but since we are supporting
+            // Gfx6 as well we'll use the old-reliable-standby.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
             pCmdSpace += m_device.CmdUtil().BuildEventWriteQuery(ZPASS_DONE,
                                                                  gpuAddr + offsetof(OcclusionQueryResultPair, begin),
@@ -113,7 +113,7 @@ void OcclusionQueryPool::End(
         Result  result        = GetQueryGpuAddress(slot, &gpuAddr);
 
         gpusize timeStampAddr = 0;
-        if (result == Result::Success)
+        if ((result == Result::Success) && HasTimestamps())
         {
             result = GetTimestampGpuAddress(slot, &timeStampAddr);
         }
@@ -122,24 +122,27 @@ void OcclusionQueryPool::End(
         {
             pCmdBuffer->RemoveQuery(QueryPoolType::Occlusion);
 
-            // There are other events that "should/could" be used for Gfx7 and Gfx8 ASICs, but since we are supporting Gfx6
-            // as well we'll use the old-reliable-standby.
+            // There are other events that "should/could" be used for Gfx7 and Gfx8 ASICs, but since we are supporting
+            // Gfx6 as well we'll use the old-reliable-standby.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
             pCmdSpace += m_device.CmdUtil().BuildEventWriteQuery(ZPASS_DONE,
                                                                  gpuAddr + offsetof(OcclusionQueryResultPair, end),
                                                                  pCmdSpace);
 
-            pCmdSpace += m_device.CmdUtil().BuildEventWriteEop(BOTTOM_OF_PIPE_TS,
-                                                               timeStampAddr,
-                                                               EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
-                                                               QueryTimestampEnd,
-                                                               false,
-                                                               pCmdSpace);
+            if (HasTimestamps())
+            {
+                pCmdSpace += m_device.CmdUtil().BuildEventWriteEop(BOTTOM_OF_PIPE_TS,
+                                                                   timeStampAddr,
+                                                                   EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                                                   QueryTimestampEnd,
+                                                                   false,
+                                                                   pCmdSpace);
+            }
 
             pCmdStream->CommitCommands(pCmdSpace);
 
-            // Now that the occlusion query has ended, track the relevant memory range so that we can wait for all writes to
-            // complete before reseting this range in OptimizedReset().
+            // Now that the occlusion query has ended, track the relevant memory range so that we can wait for all
+            // writes to complete before reseting this range in OptimizedReset().
             auto* pActiveRanges = static_cast<UniversalCmdBuffer*>(pCmdBuffer)->ActiveOcclusionQueryWriteRanges();
 
             const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(1) - 1 };
@@ -158,40 +161,48 @@ void OcclusionQueryPool::WaitForSlots(
     uint32          queryCount
     ) const
 {
-    // The query slot will be ready when the QueryTimestampEnd is written to the timestamp GPU address. Thus, we
-    // must issue one WAIT_REG_MEM for each slot. If the caller specified a large queryCount we may need multiple
-    // reserve/commit calls.
-    gpusize gpuAddr = 0;
-    Result  result  = GetTimestampGpuAddress(startQuery, &gpuAddr);
-    PAL_ASSERT(result == Result::Success);
-
-    const auto&  cmdUtil        = m_device.CmdUtil();
-    const uint32 waitsPerCommit = pCmdStream->ReserveLimit() / CmdUtil::GetWaitRegMemSize();
-    uint32       remainingWaits = queryCount;
-
-    while (remainingWaits > 0)
+    if (HasTimestamps())
     {
-        // Write all of the waits or as many waits as we can fit in a reserve buffer.
-        const uint32 waitsToWrite = Min(remainingWaits, waitsPerCommit);
-        uint32*      pCmdSpace    = pCmdStream->ReserveCommands();
+        // The query slot will be ready when the QueryTimestampEnd is written to the timestamp GPU address. Thus, we
+        // must issue one WAIT_REG_MEM for each slot. If the caller specified a large queryCount we may need multiple
+        // reserve/commit calls.
+        gpusize gpuAddr = 0;
+        Result  result  = GetTimestampGpuAddress(startQuery, &gpuAddr);
+        PAL_ASSERT(result == Result::Success);
 
-        for (uint32 waitIdx = 0; waitIdx < waitsToWrite; ++waitIdx)
+        const auto&  cmdUtil        = m_device.CmdUtil();
+        const uint32 waitsPerCommit = pCmdStream->ReserveLimit() / CmdUtil::GetWaitRegMemSize();
+        uint32       remainingWaits = queryCount;
+
+        while (remainingWaits > 0)
         {
-            pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
-                                                 WAIT_REG_MEM_FUNC_EQUAL,
-                                                 WAIT_REG_MEM_ENGINE_ME,
-                                                 gpuAddr,
-                                                 QueryTimestampEnd,
-                                                 0xFFFFFFFF,
-                                                 false,
-                                                 pCmdSpace);
+            // Write all of the waits or as many waits as we can fit in a reserve buffer.
+            const uint32 waitsToWrite = Min(remainingWaits, waitsPerCommit);
+            uint32*      pCmdSpace    = pCmdStream->ReserveCommands();
 
-            // Advance to the next timestamp.
-            gpuAddr += m_timestampSizePerSlotInBytes;
+            for (uint32 waitIdx = 0; waitIdx < waitsToWrite; ++waitIdx)
+            {
+                pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                                     WAIT_REG_MEM_FUNC_EQUAL,
+                                                     WAIT_REG_MEM_ENGINE_ME,
+                                                     gpuAddr,
+                                                     QueryTimestampEnd,
+                                                     0xFFFFFFFF,
+                                                     false,
+                                                     pCmdSpace);
+
+                // Advance to the next timestamp.
+                gpuAddr += m_timestampSizePerSlotInBytes;
+            }
+
+            pCmdStream->CommitCommands(pCmdSpace);
+            remainingWaits -= waitsToWrite;
         }
-
-        pCmdStream->CommitCommands(pCmdSpace);
-        remainingWaits -= waitsToWrite;
+    }
+    else
+    {
+        // This function should never be called for occlusion query pools on GFX8+ that don't use timestamps.
+        PAL_NEVER_CALLED();
     }
 }
 
@@ -248,11 +259,14 @@ void OcclusionQueryPool::NormalReset(
             }
         }
 
-        // Reset the memory for querypool timestamps.
-        pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(),
-                                  GetTimestampOffset(startQuery),
-                                  m_timestampSizePerSlotInBytes * queryCount,
-                                  0);
+        if (HasTimestamps())
+        {
+            // Reset the memory for querypool timestamps.
+            pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(),
+                                      GetTimestampOffset(startQuery),
+                                      m_timestampSizePerSlotInBytes * queryCount,
+                                      0);
+        }
     }
 }
 
@@ -281,12 +295,15 @@ Result OcclusionQueryPool::Reset(
                 pSlotData = VoidPtrInc(pSlotData, slotSize);
             }
 
-            // Reset the timestamp
-            const size_t tsSize   = static_cast<size_t>(m_timestampSizePerSlotInBytes);
-            const size_t tsOffset = m_createInfo.numSlots * slotSize;
-            void* const  pTsData  = VoidPtrInc(pGpuData, tsOffset + tsSize * startQuery);
+            if (HasTimestamps())
+            {
+                // Reset the timestamp
+                const size_t tsSize   = static_cast<size_t>(m_timestampSizePerSlotInBytes);
+                const size_t tsOffset = m_createInfo.numSlots * slotSize;
+                void* const  pTsData  = VoidPtrInc(pGpuData, tsOffset + tsSize * startQuery);
 
-            memset(pTsData, 0, tsSize * queryCount);
+                memset(pTsData, 0, tsSize * queryCount);
+            }
 
             result = m_gpuMemory.Unmap();
         }
@@ -318,7 +335,7 @@ void OcclusionQueryPool::OptimizedReset(
         gpusize timestampGpuAddr = 0;
         Result  result           = GetQueryGpuAddress(startQuery, &gpuAddr);
 
-        if (result == Result::Success)
+        if ((result == Result::Success) && HasTimestamps())
         {
             result = GetTimestampGpuAddress(startQuery, &timestampGpuAddr);
         }
@@ -357,17 +374,20 @@ void OcclusionQueryPool::OptimizedReset(
 
         if (Pal::Device::OcclusionQueryDmaLowerBound <= GetGpuResultSizeInBytes(queryCount))
         {
-            DmaDataInfo tsDmaData = {};
-            tsDmaData.dstSel       = CPDMA_DST_SEL_DST_ADDR;
-            tsDmaData.dstAddr      = timestampGpuAddr;
-            tsDmaData.dstAddrSpace = CPDMA_ADDR_SPACE_MEM;
-            tsDmaData.srcSel       = CPDMA_SRC_SEL_DATA;
-            tsDmaData.srcData      = 0;
-            tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
-            tsDmaData.sync         = 1;
-            tsDmaData.usePfp       = false;
+            if (HasTimestamps())
+            {
+                DmaDataInfo tsDmaData = {};
+                tsDmaData.dstSel       = CPDMA_DST_SEL_DST_ADDR;
+                tsDmaData.dstAddr      = timestampGpuAddr;
+                tsDmaData.dstAddrSpace = CPDMA_ADDR_SPACE_MEM;
+                tsDmaData.srcSel       = CPDMA_SRC_SEL_DATA;
+                tsDmaData.srcData      = 0;
+                tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
+                tsDmaData.sync         = 1;
+                tsDmaData.usePfp       = false;
 
-            pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
+                pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
+            }
 
             // Execute the reset using the DMA copy optimization. Set everything except DMA size.
             DmaDataInfo dmaData = {};
@@ -437,7 +457,7 @@ void OcclusionQueryPool::OptimizedReset(
                 const uint32  periodBytes        = static_cast<uint32>(GetGpuResultSizeInBytes(1));
                 const uint32  periodDwords       = periodBytes / sizeof(uint32);
 
-                // Each slot will need this many Dwords to write data to the query and timestamp.
+                // Each slot will need this many Dwords to write data to the query (and timestamp on GFX6).
                 const uint32  totalDwordsPerSlot = periodDwords +
                                                    static_cast<uint32>(m_timestampSizePerSlotInBytes) / sizeof(uint32);
 
@@ -458,19 +478,23 @@ void OcclusionQueryPool::OptimizedReset(
                                                                 PredDisable,
                                                                 pCmdSpace);
 
-                    const uint32 zero = 0;
-                    pCmdSpace += cmdUtil.BuildWriteDataPeriodic(timestampGpuAddr,
-                                                                1,
-                                                                slotCount,
-                                                                WRITE_DATA_ENGINE_ME,
-                                                                WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                                true,
-                                                                &zero,
-                                                                PredDisable,
-                                                                pCmdSpace);
+                    gpuAddr += slotCount * periodBytes;
 
-                    gpuAddr          += slotCount * periodBytes;
-                    timestampGpuAddr += slotCount * m_timestampSizePerSlotInBytes;
+                    if (HasTimestamps())
+                    {
+                        const uint32 zero = 0;
+                        pCmdSpace += cmdUtil.BuildWriteDataPeriodic(timestampGpuAddr,
+                                                                    1,
+                                                                    slotCount,
+                                                                    WRITE_DATA_ENGINE_ME,
+                                                                    WRITE_DATA_DST_SEL_MEMORY_ASYNC,
+                                                                    true,
+                                                                    &zero,
+                                                                    PredDisable,
+                                                                    pCmdSpace);
+
+                        timestampGpuAddr += slotCount * m_timestampSizePerSlotInBytes;
+                    }
 
                     queryCount -= slotCount;
 
@@ -497,18 +521,23 @@ void OcclusionQueryPool::OptimizedReset(
                 dmaData.sync         = 1;
                 dmaData.usePfp       = false;
 
-                DmaDataInfo tsDmaData = {};
-                tsDmaData.dstSel       = CPDMA_DST_SEL_DST_ADDR;
-                tsDmaData.dstAddr      = timestampGpuAddr;
-                tsDmaData.dstAddrSpace = CPDMA_ADDR_SPACE_MEM;
-                tsDmaData.srcSel       = CPDMA_SRC_SEL_DATA;
-                tsDmaData.srcData      = 0;
-                tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
-                tsDmaData.sync         = 1;
-                tsDmaData.usePfp       = false;
-
                 pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
-                pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
+
+                if (HasTimestamps())
+                {
+                    DmaDataInfo tsDmaData = {};
+                    tsDmaData.dstSel       = CPDMA_DST_SEL_DST_ADDR;
+                    tsDmaData.dstAddr      = timestampGpuAddr;
+                    tsDmaData.dstAddrSpace = CPDMA_ADDR_SPACE_MEM;
+                    tsDmaData.srcSel       = CPDMA_SRC_SEL_DATA;
+                    tsDmaData.srcData      = 0;
+                    tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
+                    tsDmaData.sync         = 1;
+                    tsDmaData.usePfp       = false;
+
+                    pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
+                }
+
             }
         }
 

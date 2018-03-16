@@ -47,7 +47,8 @@ public:
         uint64*                 pPagingFence,
         VirtualGpuMemAccessMode virtualAccessMode,
         uint32                  multiDeviceGpuMemoryCount,
-        IDevice*const*          ppDevice) override;
+        IDevice*const*          ppDevice,
+        Pal::Image*const*       ppImage) override;
 
     virtual OsExternalHandle GetSharedExternalHandle() const override;
 

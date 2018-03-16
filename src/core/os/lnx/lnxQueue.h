@@ -139,12 +139,12 @@ public:
     Result SignalSemaphore(
         amdgpu_semaphore_handle hSemaphore);
 
-protected:
-    virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
-
     virtual Result OsSubmit(
         const SubmitInfo&         submitInfo,
         const InternalSubmitInfo& internalSubmitInfo) override;
+
+protected:
+    virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
 
     virtual Result OsWaitIdle() override;
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
@@ -175,10 +175,12 @@ private:
         bool    dropIfSameContext);
 
     Result SubmitIbs(
-        bool isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo,
+        bool                      isDummySubmission);
 
     Result SubmitIbsRaw(
-        bool isDummySubmission);
+        const InternalSubmitInfo& internalSubmitInfo,
+        bool                      isDummySubmission);
 
     Result SubmitPm4(
         const SubmitInfo&         submitInfo,

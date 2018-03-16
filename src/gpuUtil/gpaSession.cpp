@@ -240,9 +240,7 @@ void FillSqttAsicInfo(
 
 // =====================================================================================================================
 GpaSession::GpaSession(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
     IPlatform*           pPlatform,
-#endif
     IDevice*             pDevice,
     uint16               apiMajorVer,
     uint16               apiMinorVer,
@@ -255,35 +253,21 @@ GpaSession::GpaSession(
     m_apiMinorVer(apiMinorVer),
     m_instrumentationSpecVersion(rgpInstrumentationSpecVer),
     m_instrumentationApiVersion(rgpInstrumentationApiVer),
-
     m_pGpuEvent(nullptr),
     m_sessionState(GpaSessionState::Reset),
-
     m_pSrcSession(nullptr),
-
     m_curGartGpuMemOffset(0),
     m_curLocalInvisGpuMemOffset(0),
-
     m_sampleCount(0),
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
     m_pPlatform(pPlatform),
-#else
-    m_pPlatform(&m_allocator),
-#endif
-
     m_availableGartGpuMem(m_pPlatform),
     m_busyGartGpuMem(m_pPlatform),
-
     m_availableLocalInvisGpuMem(m_pPlatform),
     m_busyLocalInvisGpuMem(m_pPlatform),
-
     m_sampleItemArray(m_pPlatform),
-
     m_registeredPipelines(512, m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
-
     m_timedQueuesArray(m_pPlatform),
     m_queueEvents(m_pPlatform),
     m_timestampCalibrations(m_pPlatform),
@@ -372,35 +356,21 @@ GpaSession::GpaSession(
     m_apiMinorVer(src.m_apiMinorVer),
     m_instrumentationSpecVersion(src.m_instrumentationSpecVersion),
     m_instrumentationApiVersion(src.m_instrumentationApiVersion),
-
     m_pGpuEvent(nullptr),
     m_sessionState(GpaSessionState::Reset),
-
     m_pSrcSession(&src),
-
     m_curGartGpuMemOffset(0),
     m_curLocalInvisGpuMemOffset(0),
-
     m_sampleCount(0),
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
     m_pPlatform(src.m_pPlatform),
-#else
-    m_pPlatform(&m_allocator),
-#endif
-
     m_availableGartGpuMem(m_pPlatform),
     m_busyGartGpuMem(m_pPlatform),
-
     m_availableLocalInvisGpuMem(m_pPlatform),
     m_busyLocalInvisGpuMem(m_pPlatform),
-
     m_sampleItemArray(m_pPlatform),
-
     m_registeredPipelines(512, m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
-
     m_timedQueuesArray(m_pPlatform),
     m_queueEvents(m_pPlatform),
     m_timestampCalibrations(m_pPlatform),
@@ -1187,7 +1157,7 @@ uint32 GpaSession::BeginSample(
 
     Result result = Result::Success;
 
-    uint32    sampleId    = m_sampleCount; // sampleId starts from 0 as resizable array index
+    uint32      sampleId    = m_sampleCount; // sampleId starts from 0 as resizable array index
     SampleItem* pSampleItem = nullptr;
 
     // Validate sample type
@@ -1234,59 +1204,66 @@ uint32 GpaSession::BeginSample(
             gpusize       heapSize            = 0;
 
             // Get an idle performance experiment from the queue's pool.
-            IPerfExperiment* pPerfExperiment = AcquirePerfExperiment(sampleConfig,
-                                                                     &primaryGpuMemInfo,
-                                                                     &primaryOffset,
-                                                                     &secondaryGpuMemInfo,
-                                                                     &secondaryOffset,
-                                                                     &heapSize);
-            PAL_ASSERT(pPerfExperiment != nullptr);
-            pSampleItem->pPerfExperiment = pPerfExperiment;
+            IPerfExperiment* pPerfExperiment = nullptr;
+            result = AcquirePerfExperiment(sampleConfig,
+                                           &primaryGpuMemInfo,
+                                           &primaryOffset,
+                                           &secondaryGpuMemInfo,
+                                           &secondaryOffset,
+                                           &heapSize,
+                                           &pPerfExperiment);
 
-            if (pSampleItem->sampleConfig.type == GpaSampleType::Cumulative)
+            if (result == Result::Success)
             {
-                // CounterSample initialization.
-                CounterSample* pCounterSample = PAL_NEW (CounterSample, m_pPlatform, Util::SystemAllocType::AllocObject)
+                PAL_ASSERT(pPerfExperiment != nullptr);
+
+                pSampleItem->pPerfExperiment = pPerfExperiment;
+
+                if (pSampleItem->sampleConfig.type == GpaSampleType::Cumulative)
+                {
+                    // CounterSample initialization.
+                    CounterSample* pCtrSample = PAL_NEW(CounterSample, m_pPlatform, Util::SystemAllocType::AllocObject)
+                                                       (m_pDevice, pPerfExperiment, m_pPlatform);
+                    if (pCtrSample != nullptr)
+                    {
+                        pSampleItem->pPerfSample = pCtrSample;
+                        pCtrSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
+
+                        result = pCtrSample->Init(pSampleItem->sampleConfig.perfCounters.numCounters);
+                    }
+                    else
+                    {
+                        result = Result::ErrorOutOfMemory;
+                    }
+                }
+                else if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
+                {
+                    // TraceSample initialization
+                    TraceSample* pTraceSample = PAL_NEW(TraceSample, m_pPlatform, Util::SystemAllocType::AllocObject)
                                                         (m_pDevice, pPerfExperiment, m_pPlatform);
-                if (pCounterSample != nullptr)
-                {
-                    pSampleItem->pPerfSample = pCounterSample;
-                    pCounterSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
-
-                    result = pCounterSample->Init(pSampleItem->sampleConfig.perfCounters.numCounters);
-                }
-                else
-                {
-                    result = Result::ErrorOutOfMemory;
-                }
-            }
-            else if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
-            {
-                // TraceSample initialization
-                TraceSample* pTraceSample = PAL_NEW (TraceSample, m_pPlatform, Util::SystemAllocType::AllocObject)
-                                                     (m_pDevice, pPerfExperiment, m_pPlatform);
-                if (pTraceSample != nullptr)
-                {
-                    pSampleItem->pPerfSample = pTraceSample;
-                    pTraceSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
-                    pTraceSample->SetTraceMemory(primaryGpuMemInfo, primaryOffset, heapSize);
-
-                    // Initialize the thread trace portion of the TraceSample.
-                    if (pSampleItem->sampleConfig.sqtt.flags.enable)
+                    if (pTraceSample != nullptr)
                     {
-                        result = pTraceSample->InitThreadTrace(
-                                    m_deviceProps.gfxipProperties.shaderCore.numShaderEngines);
-                    }
+                        pSampleItem->pPerfSample = pTraceSample;
+                        pTraceSample->SetSampleMemoryProperties(secondaryGpuMemInfo, secondaryOffset, heapSize);
+                        pTraceSample->SetTraceMemory(primaryGpuMemInfo, primaryOffset, heapSize);
 
-                    // Spm trace is enabled, so init the Spm trace portion of the TraceSample.
-                    if (pSampleItem->sampleConfig.perfCounters.numCounters > 0)
-                    {
-                        result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig.perfCounters.numCounters);
+                        // Initialize the thread trace portion of the TraceSample.
+                        if (pSampleItem->sampleConfig.sqtt.flags.enable)
+                        {
+                            result = pTraceSample->InitThreadTrace(
+                                        m_deviceProps.gfxipProperties.shaderCore.numShaderEngines);
+                        }
+
+                        // Spm trace is enabled, so init the Spm trace portion of the TraceSample.
+                        if (pSampleItem->sampleConfig.perfCounters.numCounters > 0)
+                        {
+                            result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig.perfCounters.numCounters);
+                        }
                     }
-                }
-                else
-                {
-                    result = Result::ErrorOutOfMemory;
+                    else
+                    {
+                        result = Result::ErrorOutOfMemory;
+                    }
                 }
             }
 
@@ -2517,16 +2494,16 @@ Result GpaSession::AcquireGpuMem(
 
 // =====================================================================================================================
 // Acquires a GpaSession-owned performance experiment based on the device's active perf counter requests.
-IPerfExperiment* GpaSession::AcquirePerfExperiment(
+Result GpaSession::AcquirePerfExperiment(
     const GpaSampleConfig& sampleConfig,
     GpuMemoryInfo*         pGpuMem,
     gpusize*               pOffset,
     GpuMemoryInfo*         pSecondaryGpuMem,
     gpusize*               pSecondaryOffset,
-    gpusize*               pHeapSize)
+    gpusize*               pHeapSize,
+    IPerfExperiment**      ppExperiment
+    )
 {
-    IPerfExperiment* pExperiment = nullptr;
-
     // No experiments are currently idle (or possibly none exist at all) - allocate a new one.
     PerfExperimentCreateInfo createInfo                   = {};
 
@@ -2546,7 +2523,7 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
 
     if (pMemory != nullptr)
     {
-        result = m_pDevice->CreatePerfExperiment(createInfo, pMemory, &pExperiment);
+        result = m_pDevice->CreatePerfExperiment(createInfo, pMemory, ppExperiment);
 
         if (result != Result::Success)
         {
@@ -2610,7 +2587,7 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
                         counterInfo.eventId     = pCounters[i].eventId;
                         counterInfo.instance    = pCounters[i].instance;
 
-                        result = pExperiment->AddCounter(counterInfo);
+                        result = (*ppExperiment)->AddCounter(counterInfo);
                     }
                     PAL_ALERT(result != Result::Success);
                 }
@@ -2621,9 +2598,13 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
             // Add SQ thread trace to the experiment.
             if (sampleConfig.sqtt.flags.enable)
             {
+                // Use default SQTT size if client doesn't request specific size.
                 const size_t sqttSeBufferSize = static_cast<size_t>((sampleConfig.sqtt.gpuMemoryLimit == 0) ?
-                m_perfExperimentProps.maxSqttSeBufferSize :
+                    m_perfExperimentProps.maxSqttSeBufferSize :
                     sampleConfig.sqtt.gpuMemoryLimit / m_perfExperimentProps.shaderEngineCount);
+
+                const size_t alignedBufferSize = Util::Pow2AlignDown(sqttSeBufferSize,
+                                                                     m_perfExperimentProps.sqttSeBufferAlignment);
 
                 const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
@@ -2633,7 +2614,7 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
 #endif
                 sqttInfo.traceType               = PerfTraceType::ThreadTrace;
                 sqttInfo.optionFlags.bufferSize  = 1;
-                sqttInfo.optionValues.bufferSize = sqttSeBufferSize;
+                sqttInfo.optionValues.bufferSize = alignedBufferSize;
 
                 // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
                 // updated to a different value at a later time when sample updates are enabled.
@@ -2646,16 +2627,16 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
                 {
                     sqttInfo.instance = i;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-                    result = pExperiment->AddTrace(sqttInfo);
+                    result = (*ppExperiment)->AddTrace(sqttInfo);
 #else
-                    result = pExperiment->AddThreadTrace(sqttInfo);
+                    result = (*ppExperiment)->AddThreadTrace(sqttInfo);
 #endif
                 }
             }
 
             // Configure and add an Spm trace to the perf experiment if the GpaSampleType is a Trace while perf counters
             // are also requested.
-            if (sampleConfig.perfCounters.numCounters > 0)
+            if ((result == Result::Success) && (sampleConfig.perfCounters.numCounters > 0))
             {
                 const uint32 numStreamingCounters = sampleConfig.perfCounters.numCounters;
                 const PerfCounterId* pCounters    = sampleConfig.perfCounters.pIds;
@@ -2683,7 +2664,7 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
                         pCounterInfo->instance = pCounters[i].instance;
                     }
 
-                    result = pExperiment->AddSpmTrace(spmCreateInfo);
+                    result = (*ppExperiment)->AddSpmTrace(spmCreateInfo);
 
                     // Free the memory allocated for the PerfCounterInfo(s) once AddSpmTrace returns.
                     PAL_SAFE_FREE(pMem, m_pPlatform);
@@ -2703,14 +2684,14 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
 
     if (result == Result::Success)
     {
-        result = pExperiment->Finalize();
+        result = (*ppExperiment)->Finalize();
     }
 
     if (result == Result::Success)
     {
         // Acquire GPU memory for the query from the pool and bind it.
         GpuMemoryRequirements gpuMemReqs = {};
-        pExperiment->GetGpuMemoryRequirements(&gpuMemReqs);
+        (*ppExperiment)->GetGpuMemoryRequirements(&gpuMemReqs);
 
         result = AcquireGpuMem(gpuMemReqs.size,
                                gpuMemReqs.alignment,
@@ -2741,18 +2722,18 @@ IPerfExperiment* GpaSession::AcquirePerfExperiment(
 
         if ((result == Result::Success) && (pGpuMem->pGpuMemory != nullptr))
         {
-            pExperiment->BindGpuMemory(pGpuMem->pGpuMemory, *pOffset);
+            (*ppExperiment)->BindGpuMemory(pGpuMem->pGpuMemory, *pOffset);
         }
         else
         {
             // We weren't able to get memory for this perf experiment. Let's not accidentally bind a perf
             // experiment with no backing memory. Clean up this perf experiment.
-            pExperiment->Destroy();
-            PAL_SAFE_FREE(pExperiment, m_pPlatform);
+            (*ppExperiment)->Destroy();
+            PAL_SAFE_FREE((*ppExperiment), m_pPlatform);
         }
     }
-    PAL_ALERT(result != Result::Success);
-    return pExperiment;
+
+    return result;
 }
 
 // =====================================================================================================================

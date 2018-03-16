@@ -48,23 +48,14 @@ public:
     virtual uint32* WriteSetupCommands(gpusize ringBaseAddr, Pal::CmdStream* pCmdStream, uint32*  pCmdSpace) override;
     virtual uint32* WriteStartCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
     virtual uint32* WriteEndCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
-
-    virtual void CalculateSegmentSize() override;
-    virtual void CalculateMuxRam() override;
-
-    virtual Result  GetTraceLayout(SpmTraceLayout* pLayout) const override;
-
-    virtual Result Init(const SpmTraceCreateInfo& createInfo) override;
+    virtual Result  Init(const SpmTraceCreateInfo& createInfo) override;
 
     gpusize GetRingSize() const override { return m_ringSize.bits.RING_BASE_SIZE; }
 
 private:
-    uint32 GetMuxselRamDwords(uint32 seIndex) const;
-
     const Device& m_device;
 
     regRLC_SPM_PERFMON_RING_SIZE    m_ringSize;
-    regRLC_SPM_PERFMON_SEGMENT_SIZE m_segmentSize;
     regRLC_SPM_PERFMON_RING_BASE_HI m_ringBaseHi;
     regRLC_SPM_PERFMON_RING_BASE_LO m_ringBaseLo;
     regRLC_SPM_PERFMON_CNTL         m_spmPerfmonCntl;

@@ -219,11 +219,7 @@ public:
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         image,
         const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern* pSamplePattern,
-#else
-    const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
+        const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&   range
     ) const;
 
@@ -232,11 +228,7 @@ public:
         const Image&         image,
         ImageLayout          imageLayout,
         const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern* pSamplePattern,
-#else
-    const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
+        const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&   range
     ) const;
 
@@ -293,18 +285,10 @@ protected:
         const Image&         dstImage,
         const SubresRange&   range,
         const IMsaaState&    msaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        const SamplePattern* pSamplePattern,
-#else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
         RpmGfxPipeline       pipeline,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
         const GpuMemory*     pGpuMemory,
         gpusize              metaDataOffset
-#else
-        gpusize              mipCondDwordsAddr
-#endif
     ) const;
 
     static bool GetMetaDataTexFetchSupport(const Image*  pImage, ImageAspect aspect, uint32 mipLevel);

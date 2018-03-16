@@ -832,7 +832,12 @@ namespace DevDriver
 
     Result Session::Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs)
     {
-        return WriteMessageIntoSendWindow(SessionMessage::Data, payloadSizeInBytes, pPayload, timeoutInMs);
+        Result result = Result::Error;
+        if (m_sessionState != SessionState::Closed)
+        {
+            result = WriteMessageIntoSendWindow(SessionMessage::Data, payloadSizeInBytes, pPayload, timeoutInMs);
+        }
+        return result;
     }
 
     Result Session::Receive(uint32 payloadSizeInBytes, void* pPayload, uint32* pBytesReceived, uint32 timeoutInMs)

@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 387
+#define PAL_INTERFACE_MAJOR_VERSION 389
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -59,7 +59,7 @@
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 305
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 346
 
 /// Minimum supported major interface version for gpuopen library. This is the minimum interface version of the gpuopen
 /// library that PAL is backwards compatible to.
@@ -90,7 +90,6 @@ class      IPlatform;
 /// This is a list of GPU's that the NULL OS layer can compile shaders to in off-line mode.
 enum class NullGpuId : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 342
     Tahiti     = 0x0,
     Hainan     = 0x1,
     Bonaire    = 0x2,
@@ -108,29 +107,6 @@ enum class NullGpuId : uint32
     Raven      = 0xC,
     Max        = 0x10,
     All        = 0x11
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 326
-    Bonaire,
-    Hainan,
-    Tonga,
-    Fiji,
-    Godavari,
-    Carrizo,
-#if PAL_BUILD_GFX9
-    Vega10,
-#endif
-    Raven,
-    Max,
-    All
-#else
-    Bonaire,
-    Tonga,
-    Fiji,
-#if PAL_BUILD_GFX9
-    Vega10,
-#endif
-    Max,
-    All
-#endif
 };
 
 /// Maps a null GPU ID to its associated text name.

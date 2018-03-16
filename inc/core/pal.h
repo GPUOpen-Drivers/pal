@@ -88,13 +88,11 @@ enum EngineType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer            = 0x4,
 
-        #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
-            /// Corresponds to a hw engine that supports all operations (graphics and compute)
-            EngineTypeHighPriorityUniversal = 0x5,
+        /// Corresponds to a hw engine that supports all operations (graphics and compute)
+        EngineTypeHighPriorityUniversal = 0x5,
 
-            /// Corresponds to a hw engine that supports only graphics operations
-            EngineTypeHighPriorityGraphics  = 0x6,
-        #endif
+        /// Corresponds to a hw engine that supports only graphics operations
+        EngineTypeHighPriorityGraphics  = 0x6,
     /// Number of engine types.
     EngineTypeCount,
 };
@@ -200,7 +198,6 @@ enum class CompareFunc : uint32
 /// ratio between the luma and chroma data.
 enum class ChNumFormat : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     Undefined                = 0x0,     ///< Used in situations where no format is needed, like raw memory views, or to
                                         ///  indicate no color/depth target will be attached when creating a graphics
                                         ///  pipeline.
@@ -436,234 +433,6 @@ enum class ChNumFormat : uint32
                                         ///  luma and chroma sample are ignored. This allows the source data to be
                                         ///  interpreted as either P016 or P010 interchangably.
     Count
-#else
-    Undefined             = 0x0,     ///< Used in situations where no format is needed, like raw memory views, or to
-                                     ///  indicate no color/depth target will be attached when creating a graphics
-                                     ///  pipeline.
-    X1_Unorm              = 0x1,     ///< _Untested._
-    X1_Uscaled            = 0x2,     ///< _Untested._
-    X4Y4_Unorm            = 0x3,
-    X4Y4_Uscaled          = 0x4,
-    L4A4_Unorm            = 0x5,
-    X4Y4Z4W4_Unorm        = 0x6,
-    X4Y4Z4W4_Uscaled      = 0x7,
-    X5Y6Z5_Unorm          = 0x8,
-    X5Y6Z5_Uscaled        = 0x9,
-    X5Y5Z5W1_Unorm        = 0xA,
-    X5Y5Z5W1_Uscaled      = 0xB,
-    X1Y5Z5W5_Unorm        = 0xC,
-    X1Y5Z5W5_Uscaled      = 0xD,
-    X8_Unorm              = 0xE,
-    X8_Snorm              = 0xF,
-    X8_Uscaled            = 0x10,
-    X8_Sscaled            = 0x11,
-    X8_Uint               = 0x12,
-    X8_Sint               = 0x13,
-    X8_Srgb               = 0x14,
-    A8_Unorm              = 0x15,
-    L8_Unorm              = 0x16,
-    P8_Uint               = 0x17,
-    X8Y8_Unorm            = 0x18,
-    X8Y8_Snorm            = 0x19,
-    X8Y8_Uscaled          = 0x1A,
-    X8Y8_Sscaled          = 0x1B,
-    X8Y8_Uint             = 0x1C,
-    X8Y8_Sint             = 0x1D,
-    X8Y8_Srgb             = 0x1E,
-    L8A8_Unorm            = 0x1F,
-    X8Y8Z8W8_Unorm        = 0x20,
-    X8Y8Z8W8_Snorm        = 0x21,
-    X8Y8Z8W8_Uscaled      = 0x22,
-    X8Y8Z8W8_Sscaled      = 0x23,
-    X8Y8Z8W8_Uint         = 0x24,
-    X8Y8Z8W8_Sint         = 0x25,
-    X8Y8Z8W8_Srgb         = 0x26,
-    X10Y11Z11_Float       = 0x27,
-    X11Y11Z10_Float       = 0x28,
-    X10Y10Z10W2_Unorm     = 0x29,
-    X10Y10Z10W2_Snorm     = 0x2A,
-    X10Y10Z10W2_Uscaled   = 0x2B,
-    X10Y10Z10W2_Sscaled   = 0x2C,
-    X10Y10Z10W2_Uint      = 0x2D,
-    X10Y10Z10W2_Sint      = 0x2E,
-    X10Y10Z10W2Bias_Unorm = 0x2F,   ///< A four-component, 32-bit 2.8-biased fixed-point format that supports 10 bits
-                                    ///  for each color channel and 2-bit alpha. A shader must be aware of *Bias* and
-                                    ///  must perform its own bias and scale on any data that is read from or written.
-    X16_Unorm             = 0x30,
-    X16_Snorm             = 0x31,
-    X16_Uscaled           = 0x32,
-    X16_Sscaled           = 0x33,
-    X16_Uint              = 0x34,
-    X16_Sint              = 0x35,
-    X16_Float             = 0x36,
-    L16_Unorm             = 0x37,
-    X16Y16_Unorm          = 0x38,
-    X16Y16_Snorm          = 0x39,
-    X16Y16_Uscaled        = 0x3A,
-    X16Y16_Sscaled        = 0x3B,
-    X16Y16_Uint           = 0x3C,
-    X16Y16_Sint           = 0x3D,
-    X16Y16_Float          = 0x3E,
-    X16Y16Z16W16_Unorm    = 0x3F,
-    X16Y16Z16W16_Snorm    = 0x40,
-    X16Y16Z16W16_Uscaled  = 0x41,
-    X16Y16Z16W16_Sscaled  = 0x42,
-    X16Y16Z16W16_Uint     = 0x43,
-    X16Y16Z16W16_Sint     = 0x44,
-    X16Y16Z16W16_Float    = 0x45,
-    X32_Uint              = 0x46,
-    X32_Sint              = 0x47,
-    X32_Float             = 0x48,
-    X32Y32_Uint           = 0x49,
-    X32Y32_Sint           = 0x4A,
-    X32Y32_Float          = 0x4B,
-    X32Y32Z32_Uint        = 0x4C,
-    X32Y32Z32_Sint        = 0x4D,
-    X32Y32Z32_Float       = 0x4E,
-    X32Y32Z32W32_Uint     = 0x4F,
-    X32Y32Z32W32_Sint     = 0x50,
-    X32Y32Z32W32_Float    = 0x51,
-    D16_Unorm_S8_Uint     = 0x52,
-    D32_Float_S8_Uint     = 0x53,
-    X9Y9Z9E5_Float        = 0x54,    ///< Three partial-precision floating-point numbers encoded into a single 32-bit
-                                     ///  value all sharing the same 5-bit exponent (variant of s10e5, which is sign
-                                     ///  bit,10-bit mantissa, and 5-bit biased (15) exponent). There is no sign bit,
-                                     ///  and there is a shared 5-bit biased (15) exponent and a 9-bit mantissa for each
-                                     ///  channelShared exponent format.
-    Bc1_Unorm             = 0x55,    ///< [BC1](http://tinyurl.com/kejao56) compressed texture format.
-    Bc1_Srgb              = 0x56,    ///< [BC1](http://tinyurl.com/kejao56) compressed texture format.
-    Bc2_Unorm             = 0x57,    ///< [BC2](http://tinyurl.com/kxtubtj) compressed texture format.
-    Bc2_Srgb              = 0x58,    ///< [BC2](http://tinyurl.com/kxtubtj) compressed texture format.
-    Bc3_Unorm             = 0x59,    ///< [BC3](http://tinyurl.com/kwa65u3) compressed texture format.
-    Bc3_Srgb              = 0x5A,    ///< [BC3](http://tinyurl.com/kwa65u3) compressed texture format.
-    Bc4_Unorm             = 0x5B,    ///< [BC4](http://tinyurl.com/lvouv7q) compressed texture format.
-    Bc4_Snorm             = 0x5C,    ///< [BC4](http://tinyurl.com/lvouv7q) compressed texture format.
-    Bc5_Unorm             = 0x5D,    ///< [BC5](http://tinyurl.com/l59bu2s) compressed texture format.
-    Bc5_Snorm             = 0x5E,    ///< [BC5](http://tinyurl.com/l59bu2s) compressed texture format.
-    Bc6_Ufloat            = 0x5F,    ///< [BC6](http://tinyurl.com/nxxjhlq) unsigned compressed texture format.
-    Bc6_Sfloat            = 0x60,    ///< [BC6](http://tinyurl.com/nxxjhlq) signed compressed texture format.
-    Bc7_Unorm             = 0x61,    ///< [BC7](http://tinyurl.com/l6qhpgr) compressed texture format.
-    Bc7_Srgb              = 0x62,    ///< [BC7](http://tinyurl.com/l6qhpgr) compressed texture format.
-    Etc2X8Y8Z8_Unorm      = 0x63,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8_Srgb       = 0x64,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W1_Unorm    = 0x65,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W1_Srgb     = 0x66,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W8_Unorm    = 0x67,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X8Y8Z8W8_Srgb     = 0x68,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11_Unorm         = 0x69,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11_Snorm         = 0x6A,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11Y11_Unorm      = 0x6B,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    Etc2X11Y11_Snorm      = 0x6C,    ///< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
-    AstcLdr4x4_Unorm      = 0x6D,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr4x4_Srgb       = 0x6E,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x4_Unorm      = 0x6F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x4_Srgb       = 0x70,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x5_Unorm      = 0x71,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr5x5_Srgb       = 0x72,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x5_Unorm      = 0x73,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x5_Srgb       = 0x74,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x6_Unorm      = 0x75,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr6x6_Srgb       = 0x76,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x5_Unorm      = 0x77,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x5_Srgb       = 0x78,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x6_Unorm      = 0x79,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x6_Srgb       = 0x7A,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x8_Unorm      = 0x7B,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr8x8_Srgb       = 0x7C,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x5_Unorm     = 0x7D,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x5_Srgb      = 0x7E,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x6_Unorm     = 0x7F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x6_Srgb      = 0x80,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x8_Unorm     = 0x81,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x8_Srgb      = 0x82,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x10_Unorm    = 0x83,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr10x10_Srgb     = 0x84,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x10_Unorm    = 0x85,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x10_Srgb     = 0x86,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x12_Unorm    = 0x87,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcLdr12x12_Srgb     = 0x88,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr4x4_Float      = 0x89,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr5x4_Float      = 0x8A,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr5x5_Float      = 0x8B,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr6x5_Float      = 0x8C,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr6x6_Float      = 0x8D,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x5_Float      = 0x8E,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x6_Float      = 0x8F,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr8x8_Float      = 0x90,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x5_Float     = 0x91,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x6_Float     = 0x92,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x8_Float     = 0x93,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr10x10_Float    = 0x94,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr12x10_Float    = 0x95,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    AstcHdr12x12_Float    = 0x96,    ///< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
-    X8Y8_Z8Y8_Unorm       = 0x97,    ///< _Untested._
-    X8Y8_Z8Y8_Uscaled     = 0x98,    ///< _Untested._
-    Y8X8_Y8Z8_Unorm       = 0x99,    ///< _Untested._
-    Y8X8_Y8Z8_Uscaled     = 0x9A,    ///< _Untested._
-    AYUV                  = 0x9B,    ///< YUV 4:4:4 packed format.  Valid Image and Color-Target view formats are
-                                     ///  { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully maps the entire
-                                     ///  YUV subresource, with the V,U,Y,A channels mapped to the X,Y,Z,W channels
-                                     ///  respectively.  Additionally, Image views can use the { X32, Uint } format
-                                     ///  where all four channels are packed into a single uint32.
-    UYVY                  = 0x9C,    ///< YUV 4:2:2 packed format.  The Image data is subsampled such that each 32bit
-                                     ///  element contains two Y samples and one U and V sample.  Valid Image view
-                                     ///  formats are { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully maps
-                                     ///  the entire YUV subresource, with the X,Y,Z,W channels mapped to the
-                                     ///  U0,Y0,V0,Y1 channels respectively. Additionally, Image views can use the
-                                     ///  { X32, Uint } format where all four channels are packed into a single uint32.
-                                     ///  Image views can also use the { X8Y8_Z8Y8, Unorm } format to access these as
-                                     ///  well. In this case, the width of the Image view would appear to be twice as
-                                     ///  wide as it normally does, and the X0,Y0,Z0,Y1 channels map to the U0,Y0,V0,Y1
-                                     ///  channels respectively.
-    VYUY                  = 0x9D,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
-                                     ///  Image views with X8Y8Z8W8 channel formats map the X,Y,Z,W channels to the
-                                     ///  V0,Y0,U0,Y1 channels respectively. Image views with the X8Y8_Z8Y8 channel
-                                     ///  format map the X0,Y0,Z0,Y1 channels to the V0,Y0,U0,Y1 channels respectively.
-    YUY2                  = 0x9E,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
-                                     ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,U0,Y1,V0
-                                     ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
-                                     ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,U0,Y1,V0 channels.
-    YVY2                  = 0x9F,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::YUY2 format, except with a different channel ordering.
-                                     ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,V0,Y1,U0
-                                     ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
-                                     ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
-    YV12                  = 0xA0,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y plane
-                                     ///  is first, containg a uint8 per sample.  Next is the U plane and the V plane,
-                                     ///  both of which have a uint8 per sample.  Valid Image view formats are
-                                     ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y, U,
-                                     ///  or V planes.
-    NV11                  = 0xA1,    ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y plane
-                                     ///  is first, containing a uint8 per sample.  Next is a UV plane which has
-                                     ///  interleaved U and V samples, each stored as a uint8.  Valid Image and
-                                     ///  Color-Target view formats are { X8, Unorm }, { Y8, Uint }, { X8Y8, Unorm } and
-                                     ///  { X8Y8, Uint }.  When using an X8 channel format for the View, the view only
-                                     ///  has access to the Y plane.  When using X8Y8, the view only has access to the
-                                     ///  UV plane.
-    NV12                  = 0xA2,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y plane
-                                     ///  is first, containing a uint8 per sample.  Next is a UV plane which has
-                                     ///  interleaved U and V samples, each stored as a uint8.  Valid Image and
-                                     ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm } and
-                                     ///  { X8Y8, Uint }.  When using an X8 channel format for the View, the view only
-                                     ///  has access to the Y plane.  When using X8Y8, the view only has access to the
-                                     ///  UV plane.
-    NV21                  = 0xA3,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::NV12, except that the second plane swaps the
-                                     ///  ordering of the U and V samples. Image views behave just like with
-                                     ///  @ref ChNumFormat::NV12.
-    P016                  = 0xA4,    ///< YUV 4:2:0 planar format, with 16 bits per luma and chroma sample.  The plane
-                                     ///  ordering is identical to @ref ChNumFormat::NV12.  Instead of uint8 samples,
-                                     ///  this format uses 8.8 fixed point sample encoding.  Image views behave just
-                                     ///  like with @ref ChNumFormat::NV12, except R16 channel formats are used for the
-                                     ///  Y plane, and X16Y16 channel formats are used for the UV plane.
-    P010                  = 0xA5,    ///< YUV 4:2:0 planar format, with 10 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::P016, except that the lowest 6 bits of each
-                                     ///  luma and chroma sample are ignored. This allows the source data to be
-                                     ///  interpreted as either P016 or P010 interchangably.
-    Count
-#endif
 };
 
 /// Specifies which channel of a resource should be mapped to a particular component of an image view.
@@ -883,7 +652,8 @@ static const char* LogCategoryTable[] =
 {
     "Correctness",
     "Performance",
-    "Internal"
+    "Internal",
+    "Display"
 };
 
 /// Typedef for log category masks.

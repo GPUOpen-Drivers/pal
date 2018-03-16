@@ -543,21 +543,15 @@ struct GpuProfilerSettings
     bool                      gpuProfilerCacheFlushOnCounterCollection;
     GpuProfilerGranularity    gpuProfilerGranularity;
     uint32                    gpuProfilerSqThreadTraceTokenMask;
-    uint64                     gpuProfilerSqttPipelineHash;
-    uint32                     gpuProfilerSqttVsHashHi;
-    uint32                     gpuProfilerSqttVsHashLo;
-    uint32                     gpuProfilerSqttHsHashHi;
-    uint32                     gpuProfilerSqttHsHashLo;
-    uint32                     gpuProfilerSqttDsHashHi;
-    uint32                     gpuProfilerSqttDsHashLo;
-    uint32                     gpuProfilerSqttGsHashHi;
-    uint32                     gpuProfilerSqttGsHashLo;
-    uint32                     gpuProfilerSqttPsHashHi;
-    uint32                     gpuProfilerSqttPsHashLo;
-    uint32                     gpuProfilerSqttCsHashHi;
-    uint32                     gpuProfilerSqttCsHashLo;
-    uint32                     gpuProfilerSqttMaxDraws;
-    size_t                     gpuProfilerSqttBufferSize;
+    uint64                    gpuProfilerSqttPipelineHash;
+    ShaderHash                gpuProfilerSqttVsHash;
+    ShaderHash                gpuProfilerSqttHsHash;
+    ShaderHash                gpuProfilerSqttDsHash;
+    ShaderHash                gpuProfilerSqttGsHash;
+    ShaderHash                gpuProfilerSqttPsHash;
+    ShaderHash                gpuProfilerSqttCsHash;
+    uint32                    gpuProfilerSqttMaxDraws;
+    size_t                    gpuProfilerSqttBufferSize;
 
     uint32                     gpuProfilerTraceModeMask;
 
@@ -758,17 +752,12 @@ struct DeviceProperties
                 /// either @ref QueueCreateInfo::persistentCeRamSize or @ref QueueCreateInfo::persistentCeRamOffset.
                 uint32 supportPersistentCeRam          :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 320
                 /// If true, this engine does not support peer-to-peer copies that target memory in the invisible heap
                 /// on another GPU due to a hardware bug.
                 uint32 p2pCopyToInvisibleHeapIllegal  :  1;
 
                 /// Reserved for future use.
                 uint32 reserved                        : 19;
-#else
-                /// Reserved for future use.
-                uint32 reserved                        : 20;
-#endif
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -859,13 +848,8 @@ struct DeviceProperties
                 uint32 pageMigrationEnabled    :  1;
                 /// Placeholder.
                 uint32 placeholder0            :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 300
                 /// Reserved for future use.
                 uint32 reserved                : 22;
-#else
-                /// Reserved for future use.
-                uint32 reserved                : 21;
-#endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -969,10 +953,6 @@ struct DeviceProperties
                                     ///  irrelevant to clients, but may be useful to tools.
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        uint32 depthStencilSampleLocationsMetaDataSize;              ///< Size of sample location data
-#endif
-
         union
         {
             struct
@@ -1002,13 +982,6 @@ struct DeviceProperties
                                                                      ///  filtering operates on only one channel at
                                                                      ///  a time.
                 uint32 supportRgpTraces                         : 1; ///< Hardware supports RGP traces.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                uint32 supportDepthStencilSamplePatternMetadata : 1; ///< The HW supports sample pattern in the
-                                                                     ///  depth/stencil metadata and thus the client
-                                                                     ///  does not need the sample pattern to be tracked
-                                                                     ///  separately.
-#endif
-
                 uint32 placeholder0                             : 1; ///< Reserved for future hardware.
 
                 uint32 placeholder1                             : 1; ///< Reserved for future hardware.
@@ -1017,11 +990,7 @@ struct DeviceProperties
 
                 uint32 supportSpp                               : 1; ///< Hardware supports Shader Profiling for Power.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
                 uint32 reserved                                 : 14; ///< Reserved for future use.
-#else
-                uint32 reserved                                 : 13; ///< Reserved for future use.
-#endif
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1435,7 +1404,7 @@ struct GpuBlockPerfProperties
     uint32   instanceCount;            ///< How many instances of this block are in the device.
     uint32   maxEventId;               ///< Maximum event ID for this block.
     uint32   maxGlobalOnlyCounters;    ///< Number of counters available only for global counts.
-    uint32   maxGlobalSharedCounters;  ///< Total counters available.
+    uint32   maxGlobalSharedCounters;  ///< Total counters available per instance of the block.
     uint32   maxSpmCounters;           ///< Counters available for streaming only.
 };
 
@@ -1444,6 +1413,8 @@ struct PerfExperimentProperties
 {
     PerfExperimentDeviceFeatureFlags features;                              ///< Performance experiment device features.
     size_t                 maxSqttSeBufferSize;                             ///< SQTT buffer size per shader engine.
+    size_t                 sqttSeBufferAlignment;                           ///< SQTT buffer size and base address
+                                                                            ///  alignment.
     uint32                 shaderEngineCount;                               ///< Number of shader engines.
     GpuBlockPerfProperties blocks[static_cast<size_t>(GpuBlock::Count)];    ///< Reports availability and properties of
                                                                             ///  each device block.
@@ -1678,11 +1649,7 @@ struct SamplerInfo
         {
             uint32 mgpuIqMatch         : 1;  ///< Enables image compatibility for MGPU scenarios where paired devices
                                              ///  come from different hardware families.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 321
-            uint32 preciseAnsio        : 1;  ///< Anisotropic filtering should prefer precision over speed.
-#else
             uint32 preciseAniso        : 1;  ///< Anisotropic filtering should prefer precision over speed.
-#endif
             uint32 unnormalizedCoords  : 1;  ///< If set then always use unnormalized texture coordinates instead of
                                              ///  zero to one.  Only works under certain conditions (no mip filtering,
                                              ///  no computed LOD, no offsets, only edge or border clamp address modes)
@@ -1980,23 +1947,6 @@ struct GetXdmaInfoOutput
 {
     XdmaBufferInfo  xdmaBufferInfo[XdmaMaxDevices]; ///< Output XDMA cache buffer info
 };
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-
-constexpr uint32 TurboSyncMaxSurfaces = 2; ///< Specifies maximum number of surfaces in a private TurboSync swapchain
-
-/// Input argument for IDevice::TurboSyncControl. TurboSync is a feature that enables app to render at higher than
-/// V-Sync frame rates while still being tearing-free. It creates a private swapchain and copy application's back
-/// buffer to the primary in this private swapchain when application is flipping. KMD controls the flipping of the
-/// private swapchain to screen.
-struct TurboSyncControlInput
-{
-    bool              enable;           ///< Specifies if TurboSync should be enabled or disabled
-    uint32            vidPnSourceId;    ///< The vidPnSourceId the call is targeted
-    const IGpuMemory* pPrimaryMemoryArray[TurboSyncMaxSurfaces];///< GpuMemory of the primaries in private swapchain
-};
-
-#endif
 
 /// Specifies flipping status flags on a specific VidPnSource. It's Windows specific.
 union FlipStatusFlags
@@ -2561,20 +2511,6 @@ public:
         uint32                         vidPnSrcId,
         PerSourceFrameMetadataControl* pFrameMetadataControl) const = 0;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    /// Calls TurboSyncControl escape to enable or disable TurboSync on specific vidPnSourceId.
-    ///
-    /// The function is called when clients intend to toggle TurboSync on a vidPnSourceId. The client should allocate
-    /// private swapchain primary surfaces that's compatible with the application swapchain primaries. When used to
-    /// activate TurboSync, the private primaries' handles needs to be passed in the TurboSyncControlInput data.
-    ///
-    /// @param [in] pTurboSyncControlInput  TurboSyncControl input arguments. See TurboSyncControlInput.
-    ///
-    /// @returns Success if the TurboSyncControl request is handled successfully.
-    virtual Result TurboSyncControl(
-        const TurboSyncControlInput* pTurboSyncControlInput) const = 0;
-#endif
-
     /// Get flip status flags and a flag indicating if current device owns the flags. (DX only)
     ///
     /// The function is used by clients that need flip status polling through KMD-UMD shared memory.
@@ -2680,29 +2616,6 @@ public:
         PipelineBindPoint pipelineType,
         IGpuMemory*       pGpuMemory,
         gpusize           offset) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    /// Initialize memory within an image object to contain default sample pattern register values
-    ///
-    /// @param [in] pGpuMemory         GPU memory allocation to initialize.
-    /// @param [in] memOffset          Offset in bytes into pGpuMemory
-    /// @param [in] numSamplesPerPixel Number of samples per pixel
-    /// @param [in] quadSamplePattern  The input msaa sample pattern
-    ///
-    /// @returns Success if initialization is successful. Otherwise, one of the following errors may be returned:
-    ///          + ErrorInvalidPointer if the pGpuMemory is null.
-    ///          + ErrorGpuMemoryMapFailed if the object is busy and cannot be mapped by the OS. This error is expected
-    ///            behavior if the IGpuMemory object specified is allocated on the invisible heap.
-    ///          + ErrorNotMappable if the memory object cannot be mapped due to some of its heaps not having the CPU
-    ///            visible flag set.
-    ///          + ErrorUnavailable if the memory object is not a real allocation.
-    ///          + ErrorGpuMemoryUnmapFailed if the GPU memory object cannot be unlocked.
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) = 0;
-#endif
 
     /// Get the swap chain information for creating a swap chain and presenting an image.
     ///

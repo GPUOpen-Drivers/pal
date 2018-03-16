@@ -42,6 +42,9 @@ namespace DevDriver
         class ServerBlock;
     }
 
+    // The maximum allowed name for a service name
+    DD_STATIC_CONST size_t kMaxUriServiceNameLength = 128;
+
     enum struct URIDataFormat : uint32
     {
         Unknown = 0,

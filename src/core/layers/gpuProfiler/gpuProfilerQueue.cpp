@@ -974,10 +974,7 @@ Result Queue::AcquireGpaSession(
         *ppGpaSession        = PAL_NEW(GpuUtil::GpaSession,
                                        m_pDevice->GetPlatform(),
                                        SystemAllocType::AllocObject)
-                                      (
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
-                                       m_pDevice->GetPlatform(),
-#endif
+                                      (m_pDevice->GetPlatform(),
                                        m_pDevice,
                                        platform.ApiMajorVer(),
                                        platform.ApiMinorVer(),

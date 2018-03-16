@@ -73,16 +73,12 @@ namespace DevDriver
 
             bool result = false;
 
-            // Iterate through the null terminated string until we find the ":" character or the end of the string.
-            char* pCurrentChar = pRequestString;
-            while ((*pCurrentChar != ':') && (*pCurrentChar != 0))
-            {
-                ++pCurrentChar;
-            }
+            // Iterate through the null terminated string until we find "://" or the end of the string.
+            char* pCurrentChar = strstr(pRequestString, "://");
 
             // If we haven't reached the end of the string then we've found the ":" character.
             // Otherwise this string isn't formatted correctly.
-            if (*pCurrentChar != 0)
+            if (pCurrentChar != nullptr)
             {
                 // Overwrite the ":" character in memory with a null byte to allow us to divide up the request string
                 // in place.
@@ -102,6 +98,7 @@ namespace DevDriver
         URIServer::URIServer(IMsgChannel* pMsgChannel)
             : BaseProtocolServer(pMsgChannel, Protocol::URI, URI_SERVER_MIN_MAJOR_VERSION, URI_SERVER_MAX_MAJOR_VERSION)
             , m_registeredServices(pMsgChannel->GetAllocCb())
+            , m_registeredServiceNamesCache(pMsgChannel->GetAllocCb())
         {
             DD_ASSERT(m_pMsgChannel != nullptr);
         }
@@ -181,24 +178,13 @@ namespace DevDriver
 
                     if (result == Result::Success)
                     {
-                        // We've successfully extracted the request parameters.
-                        // Lock the mutex and look up the requested service if it's available.
-                        m_mutex.Lock();
-
-                        IService* pService = FindService(pServiceName);
-
-                        m_mutex.Unlock();
-
-                        // Check if the requested service was successfully located.
-                        if (pService != nullptr)
-                        {
                             // Handle the request using the appropriate service.
                             URIRequestContext context = {};
                             context.pRequestArguments = pServiceArguments;
                             context.pResponseBlock = pSessionData->pBlock;
                             context.responseDataFormat = URIDataFormat::Unknown;
 
-                            result = pService->HandleRequest(&context);
+                            result = ServiceRequest(pServiceName, &context);
 
                             // Close the response block.
                             pSessionData->pBlock->Close();
@@ -218,23 +204,6 @@ namespace DevDriver
                             {
                                 pSessionData->hasQueuedPayload = true;
                             }
-                        }
-                        else
-                        {
-                            // Failed to locate appropriate service.
-
-                            // Assemble the response payload.
-                            pSessionData->payload.command = URIMessage::URIResponse;
-                            pSessionData->payload.uriResponse.result = Result::Unavailable;
-                            pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
-                            pSessionData->payload.uriResponse.format = ResponseDataFormat::Unknown;
-
-                            // Mark the session as having a queued payload if we fail to send the response.
-                            if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
-                            {
-                                pSessionData->hasQueuedPayload = true;
-                            }
-                        }
                     }
                     else
                     {
@@ -278,9 +247,26 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIServer::RegisterService(IService* pService)
         {
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+            m_mutex.Lock();
+            Result result = m_registeredServices.PushBack(pService) ? Result::Success : Result::Error;
+            m_mutex.Unlock();
 
-            const Result result = m_registeredServices.PushBack(pService) ? Result::Success : Result::Error;
+            if (result == Result::Success)
+            {
+                m_cacheMutex.Lock();
+                result = m_registeredServiceNamesCache.PushBack(pService->GetName()) ? Result::Success : Result::Error;
+                m_cacheMutex.Unlock();
+
+                // To keep the cache consistent with the registered services list,
+                // undo the first insert if the second one failed.
+                // This may reorder the cache, and is why we cannot rely on there being a particular ordering.
+                if (result != Result::Success)
+                {
+                    m_mutex.Lock();
+                    result = m_registeredServices.Remove(pService) ? Result::Success : Result::Error;
+                    m_mutex.Unlock();
+                }
+            }
 
             return result;
         }
@@ -288,11 +274,41 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIServer::UnregisterService(IService* pService)
         {
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+            m_mutex.Lock();
+            Result result = m_registeredServices.Remove(pService) ? Result::Success : Result::Error;
+            m_mutex.Unlock();
 
-            const Result result = m_registeredServices.Remove(pService) ? Result::Success : Result::Error;
+            if (result == Result::Success)
+            {
+                m_cacheMutex.Lock();
+                FixedString<kMaxUriServiceNameLength>* pServiceName = DD_NEW(FixedString<kMaxUriServiceNameLength>, m_pMsgChannel->GetAllocCb())(pService->GetName());
+                result = m_registeredServiceNamesCache.Remove(*pServiceName) ? Result::Success : Result::Error;
+                DD_DELETE(pServiceName, m_pMsgChannel->GetAllocCb());
+                m_cacheMutex.Unlock();
+
+                // To keep the cache consistent with the registered services list,
+                // undo the first removal if the second one failed.
+                // This may reorder the cache, and is why we cannot rely on there being a particular ordering.
+                if (result != Result::Success)
+                {
+                    m_mutex.Lock();
+                    result = m_registeredServices.PushBack(pService) ? Result::Success : Result::Error;
+                    m_mutex.Unlock();
+                }
+            }
 
             return result;
+        }
+
+        // =====================================================================================================================
+        void URIServer::GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames)
+        {
+            Platform::LockGuard<Platform::Mutex> lock(m_cacheMutex);
+
+            for (const FixedString<kMaxUriServiceNameLength>& serviceName : m_registeredServiceNamesCache)
+            {
+                serviceNames.PushBack(serviceName);
+            }
         }
 
         // =====================================================================================================================
@@ -300,16 +316,35 @@ namespace DevDriver
         {
             IService* pService = nullptr;
 
-            for (size_t serviceIndex = 0; serviceIndex < m_registeredServices.Size(); ++serviceIndex)
+            for (auto& pSearchServer : m_registeredServices)
             {
-                if (strcmp(m_registeredServices[serviceIndex]->GetName(), pServiceName) == 0)
+                if (strcmp(pSearchServer->GetName(), pServiceName) == 0)
                 {
-                    pService = m_registeredServices[serviceIndex];
+                    pService = pSearchServer;
                     break;
                 }
             }
 
             return pService;
+        }
+
+        // =====================================================================================================================
+        Result URIServer::ServiceRequest(const char* pServiceName, URIRequestContext* pRequestContext)
+        {
+            Result result = Result::Unavailable;
+
+            // Lock the mutex
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+            // Look up the requested service to see if it's available.
+            IService* pService = FindService(pServiceName);
+
+            // Check if the requested service was successfully located.
+            if (pService != nullptr)
+            {
+                result = pService->HandleRequest(pRequestContext);
+            }
+            return result;
         }
     }
 } // DevDriver

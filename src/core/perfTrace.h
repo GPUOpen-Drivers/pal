@@ -38,12 +38,14 @@ class CmdStream;
 class Device;
 
 constexpr uint32 MaxNumShaderEngines = 4;
+constexpr uint32 NumWordsPerBitLine = 256 / 16;
 
 // Datatypes used for streaming performance counters common for both hardware layers.
+// This tracks the number of even and odd counters enabled in a given block instance for spm traces.
 struct ParityCount
 {
-    uint32 evenCount;
-    uint32 oddCount;
+    uint32 evenCount;   // number of counters with even index.
+    uint32 oddCount;    // number of counters with odd index.
 };
 
 // In some cases we need 16-bit addressability for the muxsel ram, in other cases we need 32 bit addressability. We use
@@ -123,24 +125,26 @@ public:
     // Represents the number of 16bit entries in a bit line in mux ram and in the sample data.
     static constexpr uint32 MuxselEntriesPerBitline = 16;
 
+    typedef uint32 SpmDataSegmentSizes[static_cast<uint32>(SpmDataSegmentType::Count) + 1];
+
     virtual ~SpmTrace();
     virtual uint32* WriteSetupCommands(gpusize ringBaseAddr, CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
     virtual uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
     virtual uint32* WriteEndCommands(CmdStream* pCmdStream, uint32* pCmdSpace) = 0;
-    virtual void CalculateSegmentSize() = 0;
-    virtual void CalculateMuxRam() = 0;
     virtual gpusize GetRingSize() const = 0;
-    virtual Result GetTraceLayout(SpmTraceLayout* pLayout) const = 0;
+    virtual Result  Init(const SpmTraceCreateInfo& createInfo) = 0;
 
-    virtual Result Init(const SpmTraceCreateInfo& createInfo) = 0;
-
+    Result GetTraceLayout(SpmTraceLayout* pLayout) const;
+    Result Finalize();
     Result AddStreamingCounter(StreamingPerfCounter* pCounter);
 
 protected:
     explicit SpmTrace(Device* pDevice);
-    bool BlockUsesGlobalMuxsel(GpuBlock block) const;
-    PerfmonSelData GetPerSeMuxselData(GpuBlock block, uint32 instance, uint32 counterId) const;
-    PerfmonSelData GetGlobalMuxselData(GpuBlock block, uint32 instance, uint32 counterId) const;
+
+    uint32 GetMuxselRamDwords(uint32 seIndex) const;
+
+    void CalculateSegmentSizes();
+    Result CalculateMuxselRam();
 
     Util::Deque<StreamingPerfCounter*, Platform> m_spmCounters;     // Represents HW counters.
     uint32                                       m_spmInterval;     // Spm trace sampling interval.
@@ -148,6 +152,9 @@ protected:
     PerfCounterInfo*                             m_pPerfCounterCreateInfos; // Local copy of create infos.
     SpmTraceFlags                                m_flags;
     MuxselRamData                                m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Count)];
+    SpmDataSegmentSizes                          m_segmentSizes;    // Number of 256-bit lines per segment.
+    bool                                         m_ctrLimitReached; // Indicates that the number of counters per segment
+                                                                    // exceeds 31.
 private:
 
     PAL_DISALLOW_DEFAULT_CTOR(SpmTrace);

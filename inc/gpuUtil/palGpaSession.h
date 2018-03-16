@@ -284,18 +284,11 @@ struct GpuClocksSample
 */
 class GpaSession
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
     typedef Pal::IPlatform             GpaAllocator;
-#else
-    typedef Util::GenericAllocatorAuto GpaAllocator;
-#endif
-
 public:
     /// Constructor.
     GpaSession(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
         Pal::IPlatform*      pPlatform,
-#endif
         Pal::IDevice*        pDevice,
         Pal::uint16          apiMajorVer,
         Pal::uint16          apiMinorVer,
@@ -549,12 +542,7 @@ private:
     // counts number of samples that has been spawned since begin of this GpaSession for sampleId creation ONLY
     Pal::uint32                   m_sampleCount;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 318
     Pal::IPlatform*const          m_pPlatform;                  // Platform associated with this GpaSesion.
-#else
-    GpaAllocator                  m_allocator;                  // Internal allocator for this session object.
-    GpaAllocator*                 m_pPlatform;                  // Set to &m_allocator for backwards compatibility.
-#endif
 
     // GartHeap and InvisHeap GPU chunk pools.
     Util::Deque<GpuMemoryInfo, GpaAllocator> m_availableGartGpuMem;
@@ -716,13 +704,14 @@ private:
         Pal::gpusize*           pOffset);
 
     // Acquires a GpaSession-owned performance experiment based on the device's active perf counter requests.
-    Pal::IPerfExperiment* AcquirePerfExperiment(
+    Pal::Result AcquirePerfExperiment(
         const GpaSampleConfig&  sampleConfig,
         GpuMemoryInfo*          pGpuMem,
         Pal::gpusize*           pOffset,
         GpuMemoryInfo*          pSecondaryGpuMem,
         Pal::gpusize*           pSecondaryOffset,
-        Pal::gpusize*           pHeapSize);
+        Pal::gpusize*           pHeapSize,
+        Pal::IPerfExperiment**  ppExperiment);
 
     // Acquires a session-owned pipeline stats query.
     Pal::Result AcquirePipeStatsQuery(

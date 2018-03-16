@@ -208,7 +208,6 @@ public:
         gpusize*                         pEmbeddedDataAddr,
         uint32*                          pEmbeddedDataSize) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -218,16 +217,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
 
     virtual void CmdInsertRgpTraceMarker(
         uint32      numDwords,

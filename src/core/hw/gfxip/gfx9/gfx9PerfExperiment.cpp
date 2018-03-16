@@ -682,10 +682,8 @@ void PerfExperiment::IssueEnd(
 
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            static constexpr regSQ_PERFCOUNTER_CTRL SqPerfCounterCtrl = {};
-
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                         SqPerfCounterCtrl.u32All,
+                                                         0,
                                                          pCmdSpace);
         }
 

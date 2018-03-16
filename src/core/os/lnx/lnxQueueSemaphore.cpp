@@ -46,9 +46,22 @@ QueueSemaphore::~QueueSemaphore()
 Result QueueSemaphore::OsInit(
     const QueueSemaphoreCreateInfo& createInfo)
 {
-    m_skipNextWait = (createInfo.initialCount != 0);
+    bool isCreateSignaledSemaphore = false;
+    Linux::Device* pLnxDevice = static_cast<Linux::Device*>(m_pDevice);
 
-    return static_cast<Linux::Device*>(m_pDevice)->CreateSemaphore(&m_hSemaphore);
+    if ((pLnxDevice->GetSemaphoreType() == Linux::SemaphoreType::SyncObj) &&
+        (pLnxDevice->IsInitialSignaledSyncobjSemaphoreSupported()))
+    {
+        m_skipNextWait = false;
+        isCreateSignaledSemaphore = (createInfo.initialCount != 0);
+    }
+    else
+    {
+        m_skipNextWait = (createInfo.initialCount != 0);
+        isCreateSignaledSemaphore = false;
+    }
+
+    return pLnxDevice->CreateSemaphore(isCreateSignaledSemaphore, &m_hSemaphore);
 }
 
 // =====================================================================================================================
@@ -114,13 +127,6 @@ Result QueueSemaphore::OsWait(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Get the QueueSemaphore's syncObj handle for Android external fence conversion
-amdgpu_semaphore_handle QueueSemaphore::GetSyncObjHandle() const
-{
-    return m_hSemaphore;
 }
 
 } // Pal

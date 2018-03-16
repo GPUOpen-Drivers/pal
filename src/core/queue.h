@@ -75,6 +75,12 @@ struct InternalSubmitInfo
     } flags;
 
     MgpuSlsInfo mgpuSlsInfo;
+
+    // The semaphore arrays are only used by Linux backend to better align with u/k interface
+    uint32                  signalSemaphoreCount; ///< The count of semaphores that have to signal after the submission.
+    uint32                  waitSemaphoreCount;   ///< The count of semaphores that have to wait before the submission.
+    IQueueSemaphore**       ppSignalSemaphores;   ///< Array of semaphores that have to signal after the submission.
+    IQueueSemaphore**       ppWaitSemaphores;     ///< Array of semaphores that have to wait after the submission.
 };
 
 // Enumerates the types of Queue commands which could be batched-up if the Queue is stalled on a Semaphore.
@@ -269,13 +275,13 @@ public:
 
     bool IsPresentModeSupported(PresentMode presentMode) const;
 
-protected:
-    Queue(Device* pDevice, const QueueCreateInfo& createInfo);
-
     // Performs OS-specific Queue submission behavior.
     virtual Result OsSubmit(
         const SubmitInfo&         submitInfo,
         const InternalSubmitInfo& internalSubmitInfo) = 0;
+
+protected:
+    Queue(Device* pDevice, const QueueCreateInfo& createInfo);
 
     // Performs OS-specific Queue wait-idle behavior.
     virtual Result OsWaitIdle() = 0;
@@ -321,7 +327,9 @@ protected:
             uint32  physicalModeSubmission :  1;
             uint32  midCmdBufPreemption    :  1;
             uint32  windowedPriorBlit      :  1;
-            uint32  reserved               : 29;
+            uint32  placeholder0           :  1;
+            uint32  placeholder1           :  1;
+            uint32  reserved               : 27;
         };
         uint32  u32All;
     }  m_flags; // Flags describing properties of this Queue.

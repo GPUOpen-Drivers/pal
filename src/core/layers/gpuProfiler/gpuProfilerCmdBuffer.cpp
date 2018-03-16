@@ -639,55 +639,6 @@ void CmdBuffer::ReplayCmdSetMsaaQuadSamplePattern(
     pTgtCmdBuffer->CmdSetMsaaQuadSamplePattern(numSamplesPerPixel, quadSamplePattern);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-void CmdBuffer::CmdStoreMsaaQuadSamplePattern(
-    const IGpuMemory&            dstGpuMemory,
-    gpusize                      dstMemOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    InsertToken(CmdBufCallId::CmdStoreMsaaQuadSamplePattern);
-    InsertToken(&dstGpuMemory);
-    InsertToken(dstMemOffset);
-    InsertToken(numSamplesPerPixel);
-    InsertToken(quadSamplePattern);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdStoreMsaaQuadSamplePattern(
-    Queue*            pQueue,
-    TargetCmdBuffer*  pTgtCmdBuffer)
-{
-    auto pDstGpuMemory      = ReadTokenVal<IGpuMemory*>();
-    auto dstMemOffset       = ReadTokenVal<gpusize>();
-    auto numSamplesPerPixel = ReadTokenVal<uint32>();
-    auto quadSamplePattern  = ReadTokenVal<MsaaQuadSamplePattern>();
-
-    pTgtCmdBuffer->CmdStoreMsaaQuadSamplePattern(*pDstGpuMemory, dstMemOffset, numSamplesPerPixel, quadSamplePattern);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-    const IGpuMemory* pSrcGpuMemory,
-    gpusize           srcMemOffset)
-{
-    InsertToken(CmdBufCallId::CmdLoadMsaaQuadSamplePattern);
-    InsertToken(&pSrcGpuMemory);
-    InsertToken(srcMemOffset);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdLoadMsaaQuadSamplePattern(
-    Queue*            pQueue,
-    TargetCmdBuffer*  pTgtCmdBuffer)
-{
-    auto pSrcGpuMemory     = ReadTokenVal<IGpuMemory**>();
-    auto srcMemOffset      = ReadTokenVal<gpusize>();
-    pTgtCmdBuffer->CmdLoadMsaaQuadSamplePattern(*pSrcGpuMemory, srcMemOffset);
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
@@ -2165,7 +2116,6 @@ void CmdBuffer::ReplayCmdResolveQuery(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 void CmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
@@ -2205,43 +2155,6 @@ void CmdBuffer::ReplayCmdSetPredication(
     pTgtCmdBuffer->CmdSetPredication(pQueryPool, slot, pGpuMemory, offset, predType, predPolarity,
                                      waitResults, accumData);
 }
-#else
-// =====================================================================================================================
-void CmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    InsertToken(CmdBufCallId::CmdSetPredication);
-    InsertToken(pQueryPool);
-    InsertToken(slot);
-    InsertToken(gpuVirtAddr);
-    InsertToken(predType);
-    InsertToken(predPolarity);
-    InsertToken(waitResults);
-    InsertToken(accumulateData);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetPredication(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto pQueryPool     = ReadTokenVal<IQueryPool*>();
-    auto slot           = ReadTokenVal<uint32>();
-    auto gpuVirtAddr    = ReadTokenVal<gpusize>();
-    auto predType       = ReadTokenVal<PredicateType>();
-    auto predPolarity   = ReadTokenVal<bool>();
-    auto waitResults    = ReadTokenVal<bool>();
-    auto accumData      = ReadTokenVal<bool>();
-
-    pTgtCmdBuffer->CmdSetPredication(pQueryPool, slot, gpuVirtAddr, predType, predPolarity, waitResults, accumData);
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
@@ -2786,6 +2699,61 @@ void CmdBuffer::ReplayCmdEndWhile(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState0(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    InsertToken(CmdBufCallId::CmdSetHiSCompareState0);
+    InsertToken(compFunc);
+    InsertToken(compMask);
+    InsertToken(compValue);
+    InsertToken(enable);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetHiSCompareState0(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const CompareFunc compFunc  = ReadTokenVal<CompareFunc>();
+    const uint32      compMask  = ReadTokenVal<uint32>();
+    const uint32      compValue = ReadTokenVal<uint32>();
+    const bool        enable    = ReadTokenVal<bool>();
+
+    pTgtCmdBuffer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState1(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    InsertToken(CmdBufCallId::CmdSetHiSCompareState1);
+    InsertToken(compFunc);
+    InsertToken(compMask);
+    InsertToken(compValue);
+    InsertToken(enable);
+
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetHiSCompareState1(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const CompareFunc compFunc  = ReadTokenVal<CompareFunc>();
+    const uint32      compMask  = ReadTokenVal<uint32>();
+    const uint32      compValue = ReadTokenVal<uint32>();
+    const bool        enable    = ReadTokenVal<bool>();
+
+    pTgtCmdBuffer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdFlglSync()
 {
     InsertToken(CmdBufCallId::CmdFlglSync);
@@ -3085,10 +3053,6 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetDepthBounds,
         &CmdBuffer::ReplayCmdSetStencilRefMasks,
         &CmdBuffer::ReplayCmdSetMsaaQuadSamplePattern,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        &CmdBuffer::ReplayCmdStoreMsaaQuadSamplePattern,
-        &CmdBuffer::ReplayCmdLoadMsaaQuadSamplePattern,
-#endif
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
@@ -3166,6 +3130,8 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,
+        &CmdBuffer::ReplayCmdSetHiSCompareState0,
+        &CmdBuffer::ReplayCmdSetHiSCompareState1,
     };
 
     constexpr size_t ReplayFuncTblSize = sizeof(ReplayFuncTbl) / sizeof(ReplayFuncTbl[0]);
@@ -3476,9 +3442,7 @@ static const char* FormatToString(
         "X8Y8Z8W8_Uint",
         "X8Y8Z8W8_Sint",
         "X8Y8Z8W8_Srgb",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         "U8V8_Snorm_L8W8_Unorm",
-#endif
         "X10Y11Z11_Float",
         "X11Y11Z10_Float",
         "X10Y10Z10W2_Unorm",
@@ -3488,9 +3452,7 @@ static const char* FormatToString(
         "X10Y10Z10W2_Uint",
         "X10Y10Z10W2_Sint",
         "X10Y10Z10W2Bias_Unorm",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         "U10V10W10_Snorm_A2_Unorm",
-#endif
         "X16_Unorm",
         "X16_Snorm",
         "X16_Uscaled",
@@ -3787,20 +3749,6 @@ void TargetCmdBuffer::BeginSample(
     bool     pipeStats,
     bool     perfExp)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    // If requested, surround this universal/compute queue operation a pipeline stats query.
-    if (pipeStats && ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute)))
-    {
-        // Get an idle query from the queue's pool.
-        pLogItem->pPipeStatsQuery = pQueue->AcquirePipeStatsQuery();
-
-        // Reset and begin the query.
-        const QueryControlFlags flags = { };
-        CmdResetQueryPool(*pLogItem->pPipeStatsQuery, 0, 1);
-        CmdBeginQuery(*pLogItem->pPipeStatsQuery, QueryType::PipelineStats, 0, flags);
-    }
-#endif
-
     const GpuUtil::GpaSampleConfig& config = pQueue->GetGpaSessionSampleConfig();
 
     pLogItem->pGpaSession   = m_pGpaSession;            // Save the session for later end it.

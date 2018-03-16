@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/masterQueueSemaphore.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxPresentScheduler.h"
@@ -114,9 +115,7 @@ PresentScheduler::PresentScheduler(
     WindowSystem* pWindowSystem)
     :
     Pal::PresentScheduler(pDevice),
-    m_pWindowSystem(pWindowSystem),
-    m_pPrevSwapChain(nullptr),
-    m_prevImageIndex(0)
+    m_pWindowSystem(pWindowSystem)
 {
 }
 
@@ -188,17 +187,6 @@ Result PresentScheduler::ProcessPresent(
                                                              nullptr,
                                                              pIdleFence);
 
-    // If the previous present was a ring-mode present it's possible we needed to delay its queue semaphore signal until
-    // we did this present. If so, wait for the previous present to be idle and signal its semaphore.
-    if (m_pPrevSwapChain != nullptr)
-    {
-        const Result completedResult = m_pPrevSwapChain->PresentComplete(pQueue, m_prevImageIndex);
-        result = CollapseResults(result, completedResult);
-
-        m_pPrevSwapChain = nullptr;
-        m_prevImageIndex = 0;
-    }
-
     if (swapChainMode == SwapChainMode::Mailbox)
     {
         // The image has been submitted to the mailbox so we consider the present complete.
@@ -215,20 +203,10 @@ Result PresentScheduler::ProcessPresent(
             result = CollapseResults(result, waitResult);
         }
 
-        if (presentInfo.presentMode == PresentMode::Fullscreen)
-        {
-            // The client requested a fullscreen present which may or may not actually result in a flip. To be safe, we
-            // must assume that a flip was queued which means it won't become idle until after the next present.
-            m_pPrevSwapChain = pSwapChain;
-            m_prevImageIndex = presentInfo.imageIndex;
-        }
-        else
-        {
-            // Otherwise we must be doing a blit present and would rather wait for it to complete now so that the
-            // application can reacquire the image as quickly as possible.
-            const Result completedResult = pSwapChain->PresentComplete(pQueue, presentInfo.imageIndex);
-            result = CollapseResults(result, completedResult);
-        }
+        // Otherwise we must be doing a blit present and would rather wait for it to complete now so that the
+        // application can reacquire the image as quickly as possible.
+        const Result completedResult = pSwapChain->PresentComplete(pQueue, presentInfo.imageIndex);
+        result = CollapseResults(result, completedResult);
     }
 
     return result;
@@ -263,6 +241,52 @@ Result PresentScheduler::FailedToQueuePresentJob(
     // Now call PresentComplete to fix the swap chain.
     const Result completedResult = pSwapChain->PresentComplete(pQueue, presentInfo.imageIndex);
     return CollapseResults(result, completedResult);
+}
+
+// =====================================================================================================================
+Result PresentScheduler::SignalOnAcquire(
+    IQueueSemaphore* pPresentComplete,
+    IQueueSemaphore* pSemaphore,
+    IFence* pFence)
+{
+    Result result = Result::Success;
+
+    if (static_cast<Device*>(m_pDevice)->GetSemaphoreType() == SemaphoreType::SyncObj)
+    {
+        InternalSubmitInfo internalSubmitInfo = {};
+
+        SubmitInfo submitInfo = {};
+        submitInfo.pFence     = pFence;
+
+        if ((result == Result::Success) && (pPresentComplete != nullptr))
+        {
+            result = m_pSignalQueue->WaitQueueSemaphore(pPresentComplete);
+        }
+
+        if (result == Result::Success)
+        {
+            if (pSemaphore != nullptr)
+            {
+                internalSubmitInfo.signalSemaphoreCount = 1;
+                internalSubmitInfo.ppSignalSemaphores = &pSemaphore;
+                static_cast<MasterQueueSemaphore*>(pSemaphore)->EarlySignal();
+            }
+
+            if (pFence != nullptr)
+            {
+                submitInfo.pFence = pFence;
+            }
+
+            result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, internalSubmitInfo);
+            PAL_ASSERT(result == Result::Success);
+        }
+    }
+    else
+    {
+        result = Pal::PresentScheduler::SignalOnAcquire(pPresentComplete, pSemaphore, pFence);
+    }
+
+    return result;
 }
 
 } // Linux

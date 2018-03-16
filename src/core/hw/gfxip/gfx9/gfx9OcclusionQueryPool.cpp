@@ -40,8 +40,6 @@ namespace Pal
 namespace Gfx9
 {
 
-static constexpr uint32  QueryTimestampEnd = 0xABCD1234;
-
 // =====================================================================================================================
 OcclusionQueryPool::OcclusionQueryPool(
     const Device&              device,
@@ -51,7 +49,7 @@ OcclusionQueryPool::OcclusionQueryPool(
               createInfo,
               OcclusionQueryMemoryAlignment,
               device.Parent()->ChipProperties().gfx9.numTotalRbs * sizeof(OcclusionQueryResultPair),
-              sizeof(uint32)),
+              0),
     m_device(device),
     m_canUseDmaFill(device.Parent()->ChipProperties().gfx9.numActiveRbs ==
                     device.Parent()->ChipProperties().gfx9.numTotalRbs)
@@ -100,14 +98,8 @@ void OcclusionQueryPool::End(
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported() &&
                ((queryType == QueryType::Occlusion) || (queryType == QueryType::BinaryOcclusion)));
 
-    gpusize gpuAddr       = 0;
-    Result  result        = GetQueryGpuAddress(slot, &gpuAddr);
-    gpusize timeStampAddr = 0;
-
-    if (result == Result::Success)
-    {
-        result = GetTimestampGpuAddress(slot, &timeStampAddr);
-    }
+    gpusize gpuAddr = 0;
+    Result  result  = GetQueryGpuAddress(slot, &gpuAddr);
 
     if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::Occlusion))
     {
@@ -120,16 +112,6 @@ void OcclusionQueryPool::End(
                                                               engineType,
                                                               gpuAddr + offsetof(OcclusionQueryResultPair, end),
                                                               pCmdSpace);
-
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = engineType;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = timeStampAddr;
-        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data           = QueryTimestampEnd;
-
-        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(releaseInfo, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
 
@@ -152,40 +134,8 @@ void OcclusionQueryPool::WaitForSlots(
     uint32          queryCount
     ) const
 {
-    // The query slot will be ready when the QueryTimestampEnd is written to the timestamp GPU address. Thus, we
-    // must issue one WAIT_REG_MEM for each slot. If the caller specified a large queryCount we may need multiple
-    // reserve/commit calls.
-    gpusize gpuAddr = 0;
-    Result  result  = GetTimestampGpuAddress(startQuery, &gpuAddr);
-    PAL_ASSERT(result == Result::Success);
-
-    const auto&  cmdUtil        = m_device.CmdUtil();
-    const uint32 waitsPerCommit = pCmdStream->ReserveLimit() / CmdUtil::WaitRegMemSizeDwords;
-    uint32       remainingWaits = queryCount;
-
-    while (remainingWaits > 0)
-    {
-        // Write all of the waits or as many waits as we can fit in a reserve buffer.
-        const uint32 waitsToWrite = Min(remainingWaits, waitsPerCommit);
-        uint32*      pCmdSpace    = pCmdStream->ReserveCommands();
-
-        for (uint32 waitIdx = 0; waitIdx < waitsToWrite; ++waitIdx)
-        {
-            pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                                 function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                 engine_sel__me_wait_reg_mem__micro_engine,
-                                                 gpuAddr,
-                                                 QueryTimestampEnd,
-                                                 0xFFFFFFFF,
-                                                 pCmdSpace);
-
-            // Advance to the next timestamp.
-            gpuAddr += m_timestampSizePerSlotInBytes;
-        }
-
-        pCmdStream->CommitCommands(pCmdSpace);
-        remainingWaits -= waitsToWrite;
-    }
+    // This function should never be called for GFX9 occlusion queries, as waiting is implemented in the shader.
+    PAL_NEVER_CALLED();
 }
 
 // =====================================================================================================================
@@ -238,12 +188,6 @@ void OcclusionQueryPool::NormalReset(
             region.dstOffset += region.copySize;
         }
     }
-
-    // Reset the memory for querypool timestamps.
-    pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(),
-                              GetTimestampOffset(startQuery),
-                              m_timestampSizePerSlotInBytes * queryCount,
-                              0);
 }
 
 // =====================================================================================================================
@@ -271,13 +215,6 @@ Result OcclusionQueryPool::Reset(
                 pSlotData = VoidPtrInc(pSlotData, slotSize);
             }
 
-            // Reset the timestamp
-            const size_t tsSize   = static_cast<size_t>(m_timestampSizePerSlotInBytes);
-            const size_t tsOffset = m_createInfo.numSlots * slotSize;
-            void* const  pTsData  = VoidPtrInc(pGpuData, tsOffset + tsSize * startQuery);
-
-            memset(pTsData, 0, tsSize * queryCount);
-
             result = m_gpuMemory.Unmap();
         }
     }
@@ -303,13 +240,7 @@ void OcclusionQueryPool::OptimizedReset(
     uint32*      pCmdSpace     = pCmdSpaceBase;
 
     gpusize gpuAddr          = 0;
-    gpusize timestampGpuAddr = 0;
     Result  result           = GetQueryGpuAddress(startQuery, &gpuAddr);
-
-    if (result == Result::Success)
-    {
-        result = GetTimestampGpuAddress(startQuery, &timestampGpuAddr);
-    }
 
     PAL_ASSERT(result == Result::Success);
 
@@ -350,18 +281,6 @@ void OcclusionQueryPool::OptimizedReset(
 
     if (Pal::Device::OcclusionQueryDmaLowerBound <= GetGpuResultSizeInBytes(queryCount))
     {
-        DmaDataInfo tsDmaData = {};
-        tsDmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
-        tsDmaData.dstAddr      = timestampGpuAddr;
-        tsDmaData.dstAddrSpace = das__pfp_dma_data__memory;
-        tsDmaData.srcSel       = src_sel__pfp_dma_data__data;
-        tsDmaData.srcData      = 0;
-        tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
-        tsDmaData.sync         = 1;
-        tsDmaData.usePfp       = false;
-
-        pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
-
         // Execute the reset using the DMA copy optimization. Set everything except DMA size.
         DmaDataInfo dmaData = {};
         dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
@@ -430,15 +349,11 @@ void OcclusionQueryPool::OptimizedReset(
             const uint32  periodBytes        = static_cast<uint32>(GetGpuResultSizeInBytes(1));
             const uint32  periodDwords       = periodBytes / sizeof(uint32);
 
-            // Each slot will need this many Dwords to write data to the query and timestamp.
-            const uint32  totalDwordsPerSlot = periodDwords +
-                                               static_cast<uint32>(m_timestampSizePerSlotInBytes) / sizeof(uint32);
-
             while (queryCount > 0)
             {
                 // We'll need to know how many DWORDs we can write without exceeding the size of the reserve buffer.
                 // If we're writing more DWORDs than will fit, we will adjust gpuAddr and queryCount and loop again.
-                const uint32 maxSlots  = (remainingDwords - CmdUtil::WriteDataSizeDwords * 2) / totalDwordsPerSlot;
+                const uint32 maxSlots  = (remainingDwords - CmdUtil::WriteDataSizeDwords * 2) / periodDwords;
                 const uint32 slotCount = Min(queryCount, maxSlots);
 
                 pCmdSpace += cmdUtil.BuildWriteDataPeriodic(pCmdBuffer->GetEngineType(),
@@ -452,20 +367,7 @@ void OcclusionQueryPool::OptimizedReset(
                                                             PredDisable,
                                                             pCmdSpace);
 
-                const uint32 zero = 0;
-                pCmdSpace += cmdUtil.BuildWriteDataPeriodic(pCmdBuffer->GetEngineType(),
-                                                            timestampGpuAddr,
-                                                            1,
-                                                            slotCount,
-                                                            engine_sel__me_write_data__micro_engine,
-                                                            dst_sel__me_write_data__memory,
-                                                            true,
-                                                            &zero,
-                                                            PredDisable,
-                                                            pCmdSpace);
-
                 gpuAddr          += slotCount * periodBytes;
-                timestampGpuAddr += slotCount * m_timestampSizePerSlotInBytes;
                 queryCount       -= slotCount;
 
                 // Get a fresh reserve buffer if we're going to loop again.
@@ -491,18 +393,7 @@ void OcclusionQueryPool::OptimizedReset(
             dmaData.sync         = 1;
             dmaData.usePfp       = false;
 
-            DmaDataInfo tsDmaData = {};
-            tsDmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
-            tsDmaData.dstAddr      = timestampGpuAddr;
-            tsDmaData.dstAddrSpace = das__pfp_dma_data__memory;
-            tsDmaData.srcSel       = src_sel__pfp_dma_data__data;
-            tsDmaData.srcData      = 0;
-            tsDmaData.numBytes     = queryCount * static_cast<uint32>(m_timestampSizePerSlotInBytes);
-            tsDmaData.sync         = 1;
-            tsDmaData.usePfp       = false;
-
             pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
-            pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
         }
     }
 

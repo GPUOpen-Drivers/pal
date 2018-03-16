@@ -163,10 +163,5 @@ namespace DevDriver
             }
             return result;
         }
-
-        void ETWClient::ResetState()
-        {
-            // Nothing to do.
-        }
     }
 } // DevDriver

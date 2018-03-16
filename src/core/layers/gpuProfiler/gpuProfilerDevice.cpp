@@ -145,19 +145,12 @@ Result Device::CommitSettingsAndInit()
         m_logPipeStats        = settings.gpuProfilerRecordPipelineStats;
         m_sqttCompilerHash    = settings.gpuProfilerSqttPipelineHash;
 
-        // TODO: Add support for 128-bit hashes
-        m_sqttVsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttVsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttVsHashHi) << 32));
-        m_sqttHsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttHsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttHsHashHi) << 32));
-        m_sqttDsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttDsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttDsHashHi) << 32));
-        m_sqttGsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttGsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttGsHashHi) << 32));
-        m_sqttPsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttPsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttPsHashHi) << 32));
-        m_sqttCsHash.lower = (static_cast<uint64>(settings.gpuProfilerSqttCsHashLo) |
-                             (static_cast<uint64>(settings.gpuProfilerSqttCsHashHi) << 32));
+        m_sqttVsHash = settings.gpuProfilerSqttVsHash;
+        m_sqttHsHash = settings.gpuProfilerSqttHsHash;
+        m_sqttDsHash = settings.gpuProfilerSqttDsHash;
+        m_sqttGsHash = settings.gpuProfilerSqttGsHash;
+        m_sqttPsHash = settings.gpuProfilerSqttPsHash;
+        m_sqttCsHash = settings.gpuProfilerSqttCsHash;
 
         m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0)         ||
                                   ShaderHashIsNonzero(m_sqttVsHash) ||
@@ -230,18 +223,14 @@ Result Device::UpdateSettings()
     m_profilerSettings.gpuProfilerGranularity = GpuProfilerGranularityDraw;
     m_profilerSettings.gpuProfilerSqThreadTraceTokenMask = 0xFFFF;
     m_profilerSettings.gpuProfilerSqttPipelineHash = 0;
-    m_profilerSettings.gpuProfilerSqttVsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttVsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttHsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttHsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttDsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttDsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttGsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttGsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttPsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttPsHashLo = 0;
-    m_profilerSettings.gpuProfilerSqttCsHashHi = 0;
-    m_profilerSettings.gpuProfilerSqttCsHashLo = 0;
+
+    constexpr ShaderHash ZeroShaderHash = {};
+    m_profilerSettings.gpuProfilerSqttVsHash = ZeroShaderHash;
+    m_profilerSettings.gpuProfilerSqttHsHash = ZeroShaderHash;
+    m_profilerSettings.gpuProfilerSqttDsHash = ZeroShaderHash;
+    m_profilerSettings.gpuProfilerSqttGsHash = ZeroShaderHash;
+    m_profilerSettings.gpuProfilerSqttPsHash = ZeroShaderHash;
+    m_profilerSettings.gpuProfilerSqttCsHash = ZeroShaderHash;
     m_profilerSettings.gpuProfilerSqttMaxDraws = 0;
     m_profilerSettings.gpuProfilerSqttBufferSize = 1048576;
 

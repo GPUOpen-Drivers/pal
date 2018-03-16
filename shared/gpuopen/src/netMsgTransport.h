@@ -32,7 +32,7 @@
 #pragma once
 
 #include "msgTransport.h"
-#include "socket.h"
+#include "ddSocket.h"
 
 namespace DevDriver
 {

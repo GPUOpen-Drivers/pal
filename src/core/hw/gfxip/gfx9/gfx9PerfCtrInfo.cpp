@@ -41,9 +41,9 @@ namespace PerfCtrInfo
 
 struct  BlockPerfCounterInfo
 {
-    uint32  numRegs;                             // Number of counter registers in this block instance.
-    uint32  numTotalStreamingCounterRegs;        // Number of streaming counter registers in this block.
-    uint32  numStreamingCounters;                // Num streaming counters this SELECT(0/1) configures.
+    uint32  numRegs;                         // Number of counter registers in this block instance.
+    uint32  numTotalStreamingCounterRegs;    // Number of streaming counter registers in this block.
+    uint32  numStreamingCounters;            // Num streaming counters this SELECT(0/1) configures.
     uint32  regOffsets[MaxCountersPerBlock]; // Address offsets for all counters in this block.
 };
 
@@ -321,6 +321,60 @@ uint32 GetMaxEventId(
 }
 
 // =====================================================================================================================
+uint32 GetSpmBlockSelect(
+    GpuChipProperties* pProps,
+    GpuBlock           block)
+{
+
+    const uint32  blockIdx = static_cast<uint32>(block);
+    const uint32 DefaultBlockSelect = 0xFFFF;
+
+    uint32  blockSelectCode = 0;
+    if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        static constexpr uint32  BlockSelectCodes[static_cast<uint32>(GpuBlock::Count)] =
+        {
+            Gfx9SpmGlobalBlockSelect::Cpf,
+            Gfx9SpmGlobalBlockSelect::Ia,
+            Gfx9SpmSeBlockSelect::Vgt,
+            Gfx9SpmSeBlockSelect::Pa,
+            Gfx9SpmSeBlockSelect::Sc,
+            Gfx9SpmSeBlockSelect::Spi,
+            Gfx9SpmSeBlockSelect::Sqg,
+            Gfx9SpmSeBlockSelect::Sx,
+            Gfx9SpmSeBlockSelect::Ta,
+            Gfx9SpmSeBlockSelect::Td,
+            Gfx9SpmSeBlockSelect::Tcp,
+            Gfx9SpmGlobalBlockSelect::Tcc,
+            Gfx9SpmGlobalBlockSelect::Tca,
+            Gfx9SpmSeBlockSelect::Db,
+            Gfx9SpmSeBlockSelect::Cb,
+            Gfx9SpmGlobalBlockSelect::Gds,
+            DefaultBlockSelect, // Srbm,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            Gfx9SpmGlobalBlockSelect::Cpg,
+            Gfx9SpmGlobalBlockSelect::Cpc,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            DefaultBlockSelect,
+            Gfx9SpmSeBlockSelect::Rmi,
+        };
+
+        blockSelectCode = BlockSelectCodes[blockIdx];
+    }
+
+    return blockSelectCode;
+}
+
+// =====================================================================================================================
 // Helper function to initialize the performance counter information for a specific GPU block.
 void SetupBlockInfo(
     GpuChipProperties* pProps,
@@ -347,6 +401,7 @@ void SetupBlockInfo(
     pInfo->block[blockIdx].numStreamingCounters    = pSelReg0->numStreamingCounters + pSelReg1->numStreamingCounters;
     pInfo->block[blockIdx].numStreamingCounterRegs = pSelReg0->numTotalStreamingCounterRegs;
     pInfo->block[blockIdx].maxEventId              = GetMaxEventId(pProps, block);
+    pInfo->block[blockIdx].spmBlockSelectCode      = GetSpmBlockSelect(pProps, block);
 
     // Setup the register addresses for each counter for this block.
     for (uint32  idx = 0; idx < pSelReg0->numRegs; idx++)

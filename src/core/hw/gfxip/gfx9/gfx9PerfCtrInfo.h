@@ -167,6 +167,33 @@ constexpr uint32 PerfmonStartCounting   = 1;
 // Performance monitoring state for stopping ("freezing") counters.
 constexpr uint32 PerfmonStopCounting    = 2;
 
+enum Gfx9SpmGlobalBlockSelect : uint32
+{
+    Cpg = 0x0,
+    Cpc = 0x1,
+    Cpf = 0x2,
+    Gds = 0x3,
+    Tcc = 0x4,
+    Tca = 0x5,
+    Ia  = 0x6
+};
+
+enum Gfx9SpmSeBlockSelect : uint32
+{
+    Cb  = 0x0,
+    Db  = 0x1,
+    Pa  = 0x2,
+    Sx  = 0x3,
+    Sc  = 0x4,
+    Ta  = 0x5,
+    Td  = 0x6,
+    Tcp = 0x7,
+    Spi = 0x8,
+    Sqg = 0x9,
+    Vgt = 0xA,
+    Rmi = 0xB
+};
+
 } // PerfExperiment
 } // Gfx9
 } // Pal

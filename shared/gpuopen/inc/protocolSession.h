@@ -32,12 +32,12 @@
 #pragma once
 
 #include "gpuopen.h"
+#include "ddPlatform.h"
 #include "util/template.h"
 #include "util/sharedptr.h"
 
 namespace DevDriver
 {
-
     // A container struct that can hold any protocol's payload and keep track of its size.
     // Not intended for network transport. This struct is intended to help simplify code that works with variably sized payloads.
     // The struct is 8 byte aligned because the internal payload field requires 8 byte alignment.
@@ -61,8 +61,8 @@ namespace DevDriver
             static_assert((sizeof(T) <= kMaxPayloadSizeInBytes), "Type provided is too large to fit in the container");
 
             DD_STATIC_CONST bool Value = Platform::IsStandardLayout<T>::Value &&
-                                         Platform::IsTriviallyDestructible<T>::Value &&
-                                         (sizeof(T) <= kMaxPayloadSizeInBytes);
+                                            Platform::IsTriviallyDestructible<T>::Value &&
+                                            (sizeof(T) <= kMaxPayloadSizeInBytes);
         };
 
         // We additionally only allow creation of a payload if the type is constructible using the arguments specified
@@ -73,7 +73,7 @@ namespace DevDriver
             static_assert(Platform::IsConstructible<T, Args...>::Value, "Type provided cannot be constructed with the provided arguments");
 
             DD_STATIC_CONST bool Value = CanUseAsPayload<T>::Value &&
-                                         Platform::IsConstructible<T, Args...>::Value;
+                                            Platform::IsConstructible<T, Args...>::Value;
         };
 
         // Convenience function to allow in-place construction of a payload object using placement new.
@@ -92,6 +92,9 @@ namespace DevDriver
             // a giant data buffer) it will also skip re-initializing the memory here. This is not the case with
             // when you create another instance of the object and copy it - the temporary object is almost certainly
             // zero initialized, and the copy/move will result in the entire struct being copied.
+
+            static_assert(alignof(T) <= alignof(SizedPayloadContainer), "Type provided cannot be aligned in the container");
+
             new(reinterpret_cast<T*>(&payload[0])) T(Platform::Forward<Args>(args)...);
             payloadSize = sizeof(T);
         }
@@ -101,7 +104,17 @@ namespace DevDriver
                  typename = typename Platform::EnableIf<CanUseAsPayload<T>::Value>::Type>
             T& GetPayload()
         {
-            return *reinterpret_cast<T*>(&payload[0]);
+            return *GetPayloadPointer<T>(&payload[0]);
+        }
+
+    private:
+        // Convenience function to allow accessing the payload as if it was the specified type.
+        template<typename T,
+                 typename = typename Platform::EnableIf<CanUseAsPayload<T>::Value>::Type>
+            static constexpr T* GetPayloadPointer(char* DD_RESTRICT pPointer)
+        {
+            static_assert(alignof(T) <= alignof(SizedPayloadContainer), "Type provided cannot be aligned in the container");
+            return (T*)(pPointer);
         }
     };
 

@@ -71,9 +71,10 @@ struct GpuMemoryInternalCreateInfo
                                             // suballocating smaller memory blocks.
             uint32 privateScreen      :  1; // GPU memory will be used for a private screen image.
             uint32 userQueue          :  1; // GPU memory will be used for an user queue.
+            uint32 placeholder0       :  1; // Reserved. Set to 0.
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
-            uint32 reserved           : 17;
+            uint32 reserved           : 16;
         };
         uint32 u32All;
     } flags;
@@ -142,9 +143,10 @@ union GpuMemoryFlags
         uint32 autoPriority             :  1; // GPU memory priority is to be managed automatically
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
-        uint32 placeholder0             :  1; // Placeholder.
+        uint32 placeholder0             :  2; // Placeholder.
+        uint32 reserved                 : 31;
     };
-    uint32  u32All;
+    uint64  u64All;
 };
 
 // =====================================================================================================================
@@ -283,7 +285,8 @@ protected:
         uint64*                 pPagingFence,
         VirtualGpuMemAccessMode virtualAccessMode,
         uint32                  multiDeviceGpuMemoryCount,
-        IDevice*const*          ppDevice) = 0;
+        IDevice*const*          ppDevice,
+        Image*const*            ppImage) = 0;
     // Performs OS-specific initialization for opening a shared, non-peer memory object.
     virtual Result OpenSharedMemory() = 0;
 

@@ -670,43 +670,6 @@ void Device::BindTrapBuffer(
     m_queueContextUpdateCounter++;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-// Initialize memory within an image object to contain default sample location register values
-Result Device::InitMsaaQuadSamplePatternGpuMemory(
-    IGpuMemory*                  pGpuMemory,
-    gpusize                      memOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    Result result = Result::Success;
-
-    void* pMappedAddr = nullptr;
-    GpuMemory* pSampleLocationsGpuMemory = static_cast<GpuMemory*>(pGpuMemory);
-
-    result = pSampleLocationsGpuMemory->Map(&pMappedAddr);
-    pMappedAddr = Util::VoidPtrInc(pMappedAddr, static_cast<size_t>(memOffset));
-
-    if (result == Result::Success)
-    {
-        PaScCentroid   paScCentroid   = {};
-        PaScSampleQuad paScSampleQuad = {};
-
-        MsaaState::SetCentroidPriorities(&paScCentroid, &quadSamplePattern.topLeft[0], numSamplesPerPixel);
-        MsaaState::SetQuadSamplePattern(&paScSampleQuad, quadSamplePattern, numSamplesPerPixel);
-
-        memcpy(pMappedAddr, &paScCentroid, sizeof(paScCentroid));
-
-        uint8* pMappedAddrSampleQuad = static_cast<uint8*>(pMappedAddr) + sizeof(paScCentroid);
-        memcpy(pMappedAddrSampleQuad, &paScSampleQuad, sizeof(paScSampleQuad));
-
-        result = pSampleLocationsGpuMemory->Unmap();
-    }
-
-    return result;
-}
-#endif
-
 #if DEBUG
 // =====================================================================================================================
 // Useful helper function for debugging command buffers on the GPU. This adds a WAIT_REG_MEM command to the specified
@@ -1541,20 +1504,20 @@ Result Device::InitAddrLibCreateInput(
 }
 
 // =====================================================================================================================
-// Helper function telling whether an image created with the specified creation image has all of its potential view
-// formats compatible with DCC.
-bool Device::AreImageFormatsDccCompatible(
+// Helper function telling what kind of DCC format encoding an image created with
+// the specified creation image and all of its potential view formats will end up with
+DccFormatEncoding Device::ComputeDccFormatEncoding(
     const ImageCreateInfo& imageCreateInfo
     ) const
 {
-    bool dccCompatible = true;
+    DccFormatEncoding dccFormatEncoding = DccFormatEncoding::Optimal;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     if (imageCreateInfo.viewFormatCount == AllCompatibleFormats)
     {
         // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
         // the format compatibility classes comprise only of formats that are DCC compatible.
-        dccCompatible = false;
+        dccFormatEncoding = DccFormatEncoding::Incompatible;
     }
     else
     {
@@ -1564,13 +1527,16 @@ bool Device::AreImageFormatsDccCompatible(
         // as long as all formats are from within one of the following compatible buckets:
         // (1) Unorm, Uint, Uscaled, and Srgb
         // (2) Snorm, Sint, and Sscaled
-        bool baseFormatIsUnsigned = Formats::IsUnorm(imageCreateInfo.swizzledFormat.format)   ||
-                                    Formats::IsUint(imageCreateInfo.swizzledFormat.format)    ||
-                                    Formats::IsUscaled(imageCreateInfo.swizzledFormat.format) ||
-                                    Formats::IsSrgb(imageCreateInfo.swizzledFormat.format);
-        bool baseFormatIsSigned   = Formats::IsSnorm(imageCreateInfo.swizzledFormat.format)   ||
-                                    Formats::IsSint(imageCreateInfo.swizzledFormat.format)    ||
-                                    Formats::IsSscaled(imageCreateInfo.swizzledFormat.format);
+        const bool baseFormatIsUnsigned = Formats::IsUnorm(imageCreateInfo.swizzledFormat.format)   ||
+                                          Formats::IsUint(imageCreateInfo.swizzledFormat.format)    ||
+                                          Formats::IsUscaled(imageCreateInfo.swizzledFormat.format) ||
+                                          Formats::IsSrgb(imageCreateInfo.swizzledFormat.format);
+
+        const bool baseFormatIsSigned = Formats::IsSnorm(imageCreateInfo.swizzledFormat.format) ||
+                                        Formats::IsSint(imageCreateInfo.swizzledFormat.format)  ||
+                                        Formats::IsSscaled(imageCreateInfo.swizzledFormat.format);
+
+        const bool baseFormatIsFloat = Formats::IsFloat(imageCreateInfo.swizzledFormat.format);
 
         // If viewFormatCount is not zero then pViewFormats must point to a valid array.
         PAL_ASSERT((imageCreateInfo.viewFormatCount == 0) || (imageCreateInfo.pViewFormats != nullptr));
@@ -1582,19 +1548,28 @@ bool Device::AreImageFormatsDccCompatible(
             // The pViewFormats array should not contain the base format of the image.
             PAL_ASSERT(memcmp(&imageCreateInfo.swizzledFormat, &pFormats[i], sizeof(SwizzledFormat)) != 0);
 
-            bool viewFormatIsUnsigned = Formats::IsUnorm(pFormats[i].format)   ||
-                                        Formats::IsUint(pFormats[i].format)    ||
-                                        Formats::IsUscaled(pFormats[i].format) ||
-                                        Formats::IsSrgb(pFormats[i].format);
-            bool viewFormatIsSigned   = Formats::IsSnorm(pFormats[i].format)   ||
-                                        Formats::IsSint(pFormats[i].format)    ||
-                                        Formats::IsSscaled(pFormats[i].format);
+            const bool viewFormatIsUnsigned = Formats::IsUnorm(pFormats[i].format)   ||
+                                              Formats::IsUint(pFormats[i].format)    ||
+                                              Formats::IsUscaled(pFormats[i].format) ||
+                                              Formats::IsSrgb(pFormats[i].format);
 
-            if ((Formats::ShareChFmt(imageCreateInfo.swizzledFormat.format, pFormats[i].format) == false) ||
-                (baseFormatIsUnsigned != viewFormatIsUnsigned) ||
-                (baseFormatIsSigned != viewFormatIsSigned))
+            const bool viewFormatIsSigned = Formats::IsSnorm(pFormats[i].format) ||
+                                            Formats::IsSint(pFormats[i].format)  ||
+                                            Formats::IsSscaled(pFormats[i].format);
+
+            const bool viewFormatIsFloat = Formats::IsFloat(pFormats[i].format);
+
+            if (baseFormatIsFloat != viewFormatIsFloat)
             {
-                dccCompatible = false;
+                dccFormatEncoding = DccFormatEncoding::Incompatible;
+                break;
+            }
+            else if ((Formats::ShareChFmt(imageCreateInfo.swizzledFormat.format, pFormats[i].format) == false) ||
+                     (baseFormatIsUnsigned != viewFormatIsUnsigned) ||
+                     (baseFormatIsSigned != viewFormatIsSigned))
+            {
+                //dont have to turn off DCC entirely only Constant Encoding
+                dccFormatEncoding = DccFormatEncoding::SignIndependent;
                 break;
             }
         }
@@ -1605,11 +1580,11 @@ bool Device::AreImageFormatsDccCompatible(
         // In the generic case if formatChangeSrd or formatChangeTgt is requested then all compatible formats are
         // assumed to be potential valid view formats and none of the format compatibility classes comprise only of
         // formats that are DCC compatible.
-        dccCompatible = false;
+        dccFormatEncoding = DccFormatEncoding::Incompatible;
     }
 #endif
 
-    return dccCompatible;
+    return dccFormatEncoding;
 }
 
 // =====================================================================================================================
@@ -2383,17 +2358,10 @@ void PAL_STDCALL Device::CreateSamplerSrds(
             pSrd->word2.bits.FILTER_PREC_FIX    = settings.samplerPrecisionFixEnabled;
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 321
-            PAL_ASSERT((pInfo->flags.preciseAnsio == 0) ||
-                       ((pInfo->flags.preciseAnsio == 1) && (pInfo->flags.useAnisoThreshold == 0)));
-
-            if (pInfo->flags.preciseAnsio == 0)
-#else
             PAL_ASSERT((pInfo->flags.preciseAniso == 0) ||
                        ((pInfo->flags.preciseAniso == 1) && (pInfo->flags.useAnisoThreshold == 0)));
 
             if (pInfo->flags.preciseAniso == 0)
-#endif
             {
                 // Setup filtering optimization levels: these will be modulated by the global filter
                 // optimization aggressiveness, which is controlled by the "TFQ" public setting.
@@ -2643,11 +2611,6 @@ void InitializeGpuChipProperties(
 
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
     pInfo->gfx6.supports2BitSignedValues = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    pInfo->gfx6.supportDepthStencilSamplePatternMetadata = 0;
-    pInfo->gfx6.depthStencilSampleLocationsMetaDataSize = sizeof(PaScCentroid) + sizeof(PaScSampleQuad);
-#endif
 
     switch (pInfo->familyId)
     {
@@ -3135,8 +3098,9 @@ void InitializePerfExperimentProperties(
 
     pProperties->features.u32All = perfCounterInfo.features.u32All;
 
-    pProperties->maxSqttSeBufferSize  = PerfCtrInfo::MaximumBufferSize;
-    pProperties->shaderEngineCount    = chipProps.gfx6.numShaderEngines;
+    pProperties->maxSqttSeBufferSize   = PerfCtrInfo::MaximumBufferSize;
+    pProperties->sqttSeBufferAlignment = PerfCtrInfo::BufferAlignment;
+    pProperties->shaderEngineCount     = chipProps.gfx6.numShaderEngines;
 
     for (uint32 blockIdx = 0; blockIdx < static_cast<uint32>(GpuBlock::Count); blockIdx++)
     {

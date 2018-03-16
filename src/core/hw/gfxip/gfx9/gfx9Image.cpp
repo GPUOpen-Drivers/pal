@@ -447,15 +447,10 @@ Result Image::Finalize(
 
                 if (useSharedMetadata == false)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
                     if (Parent()->IsResolveSrc() || Parent()->IsResolveDst())
                     {
                         needsHtileLookupTable = true;
                     }
-#else
-                    needsHtileLookupTable = true;
-#endif
-
                 }
                 else
                 {
@@ -574,9 +569,9 @@ Result Image::Finalize(
             if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
             {
                 const uint32 bpp = Formats::BitsPerPixel(m_createInfo.swizzledFormat.format);
-                // According to the CB Micro-Architecture Specification, CB can hang on HW resolve with slow-mode
-                // quads (128bpp) and it is illegal to resolve a 1 fragment eqaa surface.
-                if ((bpp <= 64) && ((Parent()->IsEqaa() == false) || (m_createInfo.fragments > 1)))
+                // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
+                // surface.
+                if ((Parent()->IsEqaa() == false) || (m_createInfo.fragments > 1))
                 {
                     m_pImageInfo->resolveMethod.fixedFunc = 1;
                 }
@@ -809,7 +804,7 @@ void Image::InitLayoutStateMasks()
                 }
 
                 // We can keep this layout compressed if all view formats are DCC compatible.
-                if (Parent()->AllViewFormatsDccCompatible())
+                if (Parent()->GetDccFormatEncoding() != DccFormatEncoding::Incompatible)
                 {
                     m_layoutToState.color.compressed.usages |= LayoutShaderRead;
                 }
@@ -1616,7 +1611,6 @@ gpusize Image::GetDccStateMetaDataAddr(
           (metaDataIndex * sizeof(MipDccStateMetaData));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 // Determines the offset of the DCC state meta-data. Returns the offset of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
@@ -1638,7 +1632,6 @@ gpusize Image::GetDccStateMetaDataOffset(
         ? 0
         : m_dccStateMetaDataOffset + (metaDataIndex * sizeof(MipDccStateMetaData));
 }
-#endif
 
 // =====================================================================================================================
 // Initializes the GPU offset for this Image's DCC state metadata. It must include an array of Gfx9DccMipMetaData with
@@ -1938,7 +1931,6 @@ gpusize Image::GetFastClearEliminateMetaDataAddr(
           (mipLevel * sizeof(MipFceStateMetaData));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 // Determines the offset of the fast-clear-eliminate meta-data.  This metadata is used by a
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the offset of the
@@ -1953,7 +1945,6 @@ gpusize Image::GetFastClearEliminateMetaDataOffset(
         ? 0
         : m_fastClearEliminateMetaDataOffset + (mipLevel * sizeof(MipFceStateMetaData));
 }
-#endif
 
 //=====================================================================================================================
 // Returns the GPU address of the meta-data. This function is not called if this image doesn't have waTcCompatZRange
@@ -2125,9 +2116,10 @@ bool Image::IsComprFmaskShaderReadable(
              ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
               ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false))) &&
              // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
-             // it...  Msaa image with resolveSrc usage flag will be more likely going through shader based resolve,
-             // the image will be readable by a shader.
-             (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
+             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
+             // resolve is not preferred, the image will be readable by a shader.
+             (m_pParent->IsShaderReadable() ||
+              (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
              // Since TC block can't write to compressed images
              (m_pParent->IsShaderWritable() == false))
     {
@@ -2156,17 +2148,17 @@ bool Image::SupportsMetaDataTextureFetch(
     {
         // If this device doesn't allow any tex fetches of meta data, then don't bother continuing
         if ((m_device.GetPublicSettings()->tcCompatibleMetaData != 0) &&
-            // If this image is not readable by a shader then no shader is going to be performing texture fetches from
-            // it....
-            // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image
-            // will be readable by a shader.
-            (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
+            // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
+            // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
+            // resolve is not preferred, the image will be readable by a shader.
+            (m_pParent->IsShaderReadable() ||
+             (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
             // Meta-data isn't fetchable if the meta-data itself isn't addressable
             CanMipSupportMetaData(subResource.mipLevel) &&
             // Linear swizzle modes don't have meta-data to be fetched
             (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false))
         {
-            if(m_pParent->IsDepthStencil())
+            if (m_pParent->IsDepthStencil())
             {
                 // Check if DB resource can use shader compatible compression
                 texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subResource);

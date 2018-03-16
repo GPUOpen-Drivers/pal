@@ -1114,18 +1114,18 @@ void Device::CopyLayerSettings()
     m_gpuProfilerSettings.gpuProfilerGranularity                    = settings.gpuProfilerGranularity;
     m_gpuProfilerSettings.gpuProfilerSqThreadTraceTokenMask         = settings.gpuProfilerSqThreadTraceTokenMask;
     m_gpuProfilerSettings.gpuProfilerSqttPipelineHash               = settings.gpuProfilerSqttPipelineHash;
-    m_gpuProfilerSettings.gpuProfilerSqttVsHashHi                   = settings.gpuProfilerSqttVsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttVsHashLo                   = settings.gpuProfilerSqttVsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttHsHashHi                   = settings.gpuProfilerSqttHsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttHsHashLo                   = settings.gpuProfilerSqttHsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttDsHashHi                   = settings.gpuProfilerSqttDsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttDsHashLo                   = settings.gpuProfilerSqttDsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttGsHashHi                   = settings.gpuProfilerSqttGsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttGsHashLo                   = settings.gpuProfilerSqttGsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttPsHashHi                   = settings.gpuProfilerSqttPsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttPsHashLo                   = settings.gpuProfilerSqttPsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttCsHashHi                   = settings.gpuProfilerSqttCsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttCsHashLo                   = settings.gpuProfilerSqttCsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttVsHash.upper               = settings.gpuProfilerSqttVsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttVsHash.lower               = settings.gpuProfilerSqttVsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttHsHash.upper               = settings.gpuProfilerSqttHsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttHsHash.lower               = settings.gpuProfilerSqttHsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttDsHash.upper               = settings.gpuProfilerSqttDsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttDsHash.lower               = settings.gpuProfilerSqttDsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttGsHash.upper               = settings.gpuProfilerSqttGsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttGsHash.lower               = settings.gpuProfilerSqttGsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttPsHash.upper               = settings.gpuProfilerSqttPsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttPsHash.lower               = settings.gpuProfilerSqttPsHashLo;
+    m_gpuProfilerSettings.gpuProfilerSqttCsHash.upper               = settings.gpuProfilerSqttCsHashHi;
+    m_gpuProfilerSettings.gpuProfilerSqttCsHash.lower               = settings.gpuProfilerSqttCsHashLo;
     m_gpuProfilerSettings.gpuProfilerSqttMaxDraws                   = settings.gpuProfilerSqttMaxDraws;
     m_gpuProfilerSettings.gpuProfilerSqttBufferSize                 = settings.gpuProfilerSqttBufferSize;
 
@@ -1630,9 +1630,7 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportVirtualMemoryRemap       = engineInfo.flags.supportVirtualMemoryRemap;
             pEngineInfo->flags.runsInPhysicalMode              = engineInfo.flags.physicalAddressingMode;
             pEngineInfo->flags.supportPersistentCeRam          = engineInfo.flags.supportPersistentCeRam;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 320
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
-#endif
 
             for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; engineIdx++)
             {
@@ -1761,14 +1759,6 @@ Result Device::GetProperties(
                 m_chipProperties.gfx6.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
                 m_chipProperties.gfx6.supportTrapezoidTessDistribution;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            // Sample pattern settings
-            pInfo->gfxipProperties.flags.supportDepthStencilSamplePatternMetadata =
-                gfx6Props.supportDepthStencilSamplePatternMetadata;
-            pInfo->gfxipProperties.depthStencilSampleLocationsMetaDataSize =
-                gfx6Props.depthStencilSampleLocationsMetaDataSize;
-#endif
 
             break;
         }
@@ -3236,11 +3226,7 @@ Result Device::CreateGraphicsPipeline(
 
     return (m_pGfxDevice != nullptr) ?
             m_pGfxDevice->CreateGraphicsPipeline(createInfo, NullInternalInfo, pPlacementAddr,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 309)
                                                  createInfo.flags.clientInternal, ppPipeline) :
-#else
-                                                 false, ppPipeline) :
-#endif
             Result::ErrorUnavailable;
 }
 
@@ -4066,9 +4052,7 @@ bool Device::EngineSupportsCompute(
                              (engineType == EngineTypeUniversal) ||
                              (engineType == EngineTypeExclusiveCompute));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
     supportsCompute |= (engineType == EngineTypeHighPriorityUniversal);
-#endif
 
     return supportsCompute;
 }
@@ -4079,10 +4063,8 @@ bool Device::EngineSupportsGraphics(
 {
     bool  supportsGraphics = (engineType == EngineTypeUniversal);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
     supportsGraphics |= ((engineType == EngineTypeHighPriorityUniversal) ||
                          (engineType == EngineTypeHighPriorityGraphics));
-#endif
 
     return supportsGraphics;
 }

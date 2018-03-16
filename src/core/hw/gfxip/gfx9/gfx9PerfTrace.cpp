@@ -46,7 +46,6 @@ Gfx9SpmTrace::Gfx9SpmTrace(
 {
     m_ringBaseLo.u32All     = 0;
     m_ringBaseHi.u32All     = 0;
-    m_segmentSize.u32All    = 0;
 }
 
 // =====================================================================================================================
@@ -97,7 +96,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
     for (auto iter = m_spmCounters.Begin(); iter.Get(); iter.Next())
     {
         pCmdStream->CommitCommands(pCmdSpace);
-        pCmdStream->ReserveCommands();
+        pCmdSpace = pCmdStream->ReserveCommands();
 
         pStreamingCounter = static_cast<StreamingPerfCounter*>(*iter.Get());
 
@@ -149,7 +148,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                     // Depending on the number of counters requested and the SE configuration a large number of
                     // write_data packets can be generated.
                     pCmdStream->CommitCommands(pCmdSpace);
-                    pCmdStream->ReserveCommands();
+                    pCmdSpace = pCmdStream->ReserveCommands();
 
                     pCmdSpace += m_device.CmdUtil().BuildWriteData(pCmdStream->GetEngineType(),
                                                                    mmRLC_SPM_SE_MUXSEL_DATA__GFX09,
@@ -181,7 +180,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                 for (uint32 i = 0; i < muxselRamDwords; ++i)
                 {
                     pCmdStream->CommitCommands(pCmdSpace);
-                    pCmdStream->ReserveCommands();
+                    pCmdSpace = pCmdStream->ReserveCommands();
 
                     pCmdSpace += m_device.CmdUtil().BuildWriteData(pCmdStream->GetEngineType(),
                                                                    mmRLC_SPM_GLOBAL_MUXSEL_DATA__GFX09,
@@ -208,9 +207,15 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
     pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_PERFMON_CNTL,
                                                      m_spmPerfmonCntl.u32All,
                                                      pCmdSpace);
+    regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};
+    spmSegmentSize.bits.GLOBAL_NUM_LINE      = m_segmentSizes[static_cast<uint32>(SpmDataSegmentType::Global)];
+    spmSegmentSize.bits.SE0_NUM_LINE         = m_segmentSizes[static_cast<uint32>(SpmDataSegmentType::Se0)];
+    spmSegmentSize.bits.SE1_NUM_LINE         = m_segmentSizes[static_cast<uint32>(SpmDataSegmentType::Se1)];
+    spmSegmentSize.bits.SE2_NUM_LINE         = m_segmentSizes[static_cast<uint32>(SpmDataSegmentType::Se2)];
+    spmSegmentSize.bits.PERFMON_SEGMENT_SIZE = m_segmentSizes[static_cast<uint32>(SpmDataSegmentType::Count)];
 
     pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_PERFMON_SEGMENT_SIZE,
-                                                     m_segmentSize.u32All,
+                                                     spmSegmentSize.u32All,
                                                      pCmdSpace);
     pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_PERFMON_RING_BASE_LO,
                                                      m_ringBaseLo.u32All,
@@ -316,363 +321,6 @@ uint32* Gfx9SpmTrace::WriteEndCommands(
     }
 
     return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Calculates number of 256-bit lines needed for the muxsel ram. The segment size also determines the layout of the
-// RLC ring buffer.
-void Gfx9SpmTrace::CalculateSegmentSize()
-{
-    Result result = Result::Success;
-
-    // Array to track counter parity counts. Size is number of shader engines + 1 for global counters.
-    ParityCount seParityCounts[static_cast<uint32>(SpmDataSegmentType::Count)];
-    memset(&seParityCounts, 0, sizeof(seParityCounts));
-
-    // Increment count in the global segment for GPU timestamp. The last element of the seParityCounts is used for
-    // global counts.
-    seParityCounts[static_cast<uint32>(SpmDataSegmentType::Global)].evenCount = 4;
-
-    for (auto it = m_spmCounters.Begin(); it.Get(); it.Next())
-    {
-        // Check if block uses global or per-SE RLC HW.
-        Pal::StreamingPerfCounter* pCounter = *it.Get();
-        GpuBlock block                      = pCounter->BlockType();
-        uint32  seIndex                     = 0;
-
-        if (BlockUsesGlobalMuxsel(block))
-        {
-            seIndex = static_cast<uint32>(SpmDataSegmentType::Global);
-            pCounter->SetSegmentIndex(SpmDataSegmentType::Global);
-        }
-        else
-        {
-            seIndex = PerfCounter::GetSeIndex(m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
-                                              pCounter->BlockType(),
-                                              pCounter->GetInstanceId());
-
-            pCounter->SetSegmentIndex(static_cast<SpmDataSegmentType>(seIndex));
-        }
-
-        // Check if it is an even counter or an odd counter and increment the appropriate counts.
-        for (uint32 i = 0; i < PerfCtrInfo::Gfx9StreamingCtrsPerSummaryCtr; ++i)
-        {
-            if(pCounter->GetEventId(i) != StreamingPerfCounter::InvalidEventId)
-            {
-                uint32 streamingCounterId = (block == GpuBlock::Sq) ? pCounter->GetSlot() :
-                                            (pCounter->GetSlot() * PerfCtrInfo::Gfx9StreamingCtrsPerSummaryCtr + i);
-
-                if (streamingCounterId % 2)
-                {
-                    seParityCounts[seIndex].oddCount++;
-                }
-                else
-                {
-                    seParityCounts[seIndex].evenCount++;
-                }
-            }
-        }
-    }
-
-    // Pad out the even/odd counts to the width of bit lines. There can be a maximum of 16 muxsels per bit line.
-    for (uint32 i = 0; i < static_cast<uint32>(SpmDataSegmentType::Count); ++i)
-    {
-        if ((seParityCounts[i].evenCount % MuxselEntriesPerBitline) != 0)
-        {
-            seParityCounts[i].evenCount += MuxselEntriesPerBitline - (seParityCounts[i].evenCount %
-                                                                          MuxselEntriesPerBitline);
-        }
-
-        if ((seParityCounts[i].oddCount % MuxselEntriesPerBitline) != 0)
-        {
-            seParityCounts[i].oddCount += MuxselEntriesPerBitline - (seParityCounts[i].oddCount %
-                                                                         MuxselEntriesPerBitline);
-        }
-    }
-
-    m_segmentSize.u32All = 0;
-
-    // Calculate number of bit lines of size 256-bits. This is used for the mux selects as well as the ring buffer.
-    // Even lines hold counter0 and counter2, while odd lines hold counter1 and counter3. We need double of whichever
-    // we have more of.
-    // Example: If we have 32 global deltas coming from counter0 and counter2 and 16 deltas coming from counter1 and
-    //          counter3, then we need four lines ( 2 * Max( 2 even, 1 odd)). Lines 0 and 2 hold the delta
-    //          values coming from counter0,2 while Line 1 holds the delta values coming from counter1,3. Line 3 is
-    //          empty.
-
-    // Global counters.
-    uint32 index                       = static_cast<uint32>(SpmDataSegmentType::Global);
-    uint32 numEvenBitLines             = seParityCounts[index].evenCount / MuxselEntriesPerBitline;
-    uint32 numOddBitLines              = seParityCounts[index].oddCount / MuxselEntriesPerBitline;
-    m_segmentSize.bits.GLOBAL_NUM_LINE = 2 * Util::Max(numEvenBitLines, numOddBitLines);
-
-    // SE0
-    index                           = static_cast<uint32>(SpmDataSegmentType::Se0);
-    numEvenBitLines                 = seParityCounts[index].evenCount / MuxselEntriesPerBitline;
-    numOddBitLines                  = seParityCounts[index].oddCount / MuxselEntriesPerBitline;
-    m_segmentSize.bits.SE0_NUM_LINE = 2 * Util::Max(numEvenBitLines, numOddBitLines);
-
-    // SE1
-    index                           = static_cast<uint32>(SpmDataSegmentType::Se1);
-    numEvenBitLines                 = seParityCounts[index].evenCount / MuxselEntriesPerBitline;
-    numOddBitLines                  = seParityCounts[index].oddCount / MuxselEntriesPerBitline;
-    m_segmentSize.bits.SE1_NUM_LINE = 2 * Util::Max(numEvenBitLines, numOddBitLines);
-
-    // SE2
-    index                           = static_cast<uint32>(SpmDataSegmentType::Se2);
-    numEvenBitLines                 = seParityCounts[index].evenCount / MuxselEntriesPerBitline;
-    numOddBitLines                  = seParityCounts[index].oddCount / MuxselEntriesPerBitline;
-    m_segmentSize.bits.SE2_NUM_LINE = 2 * Util::Max(numEvenBitLines, numOddBitLines);
-
-    // SE3 does not have to be entered. It is calculated in the HW by subtracting sum of other segments from the total.
-    index                       = static_cast<uint32>(SpmDataSegmentType::Se3);
-    const uint32 se3SegmentSize = 2 * Util::Max(seParityCounts[index].evenCount / MuxselEntriesPerBitline,
-                                                seParityCounts[index].oddCount / MuxselEntriesPerBitline);
-
-    // Total segment size.
-    m_segmentSize.bits.PERFMON_SEGMENT_SIZE = m_segmentSize.bits.GLOBAL_NUM_LINE +
-                                              m_segmentSize.bits.SE0_NUM_LINE +
-                                              m_segmentSize.bits.SE1_NUM_LINE +
-                                              m_segmentSize.bits.SE2_NUM_LINE +
-                                              se3SegmentSize;
-}
-
-// =====================================================================================================================
-uint32 Gfx9SpmTrace::GetMuxselRamDwords(
-    uint32 seIndex
-    ) const
-{
-    // We will always have at least one global line for the timestamp. This value can only be zero if
-    // CalculateSegmentSize has not been called.
-    PAL_ASSERT(m_segmentSize.bits.GLOBAL_NUM_LINE != 0);
-    uint32 muxselRamDwords = 0;
-
-    switch (seIndex)
-    {
-    case 0:
-        muxselRamDwords = m_segmentSize.bits.SE0_NUM_LINE * (NumBitsPerBitline / 32);
-        break;
-    case 1:
-        muxselRamDwords = m_segmentSize.bits.SE1_NUM_LINE * (NumBitsPerBitline / 32);
-        break;
-    case 2:
-        muxselRamDwords = m_segmentSize.bits.SE2_NUM_LINE * (NumBitsPerBitline / 32);
-        break;
-    case 3:
-        muxselRamDwords = (m_segmentSize.bits.PERFMON_SEGMENT_SIZE - (m_segmentSize.bits.SE0_NUM_LINE +
-                                                                      m_segmentSize.bits.SE1_NUM_LINE +
-                                                                      m_segmentSize.bits.SE2_NUM_LINE +
-                                                                      m_segmentSize.bits.GLOBAL_NUM_LINE)) *
-                           (NumBitsPerBitline / 32);
-        break;
-    case PerfCtrInfo::MaxNumShaderEngines:
-        muxselRamDwords = m_segmentSize.bits.GLOBAL_NUM_LINE * (NumBitsPerBitline / 32);
-        break;
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-
-    return muxselRamDwords;
-}
-
-// =====================================================================================================================
-void Gfx9SpmTrace::CalculateMuxRam()
-{
-    // Allocate memory for the muxsel ram data based on the segment size previously calculated.
-    for (uint32 se = 0; se < static_cast<uint32>(SpmDataSegmentType::Count); se++)
-    {
-        uint32 muxselDwords = GetMuxselRamDwords(se);
-
-        if (muxselDwords != 0)
-        {
-            // We allocate the muxsel RAM space in dwords and write the muxsel RAM in RLC with write_data packets as
-            // dwords, but we calculate and write the values in system memory as uint16.
-            m_muxselRamData[se].pMuxselRamUint32 = static_cast<uint32*>(
-                PAL_CALLOC(sizeof(uint32) * muxselDwords,
-                           m_device.GetPlatform(),
-                           Util::SystemAllocType::AllocInternal));
-
-            // Memory allocation failed.
-            PAL_ASSERT(m_muxselRamData[se].pMuxselRamUint32 != nullptr);
-        }
-    }
-
-    /*
-    *    Example layout of the muxsel ram:
-    *
-    *      +---------------------+--------------------+---------------------+--
-    * SE0: |       Even          |       Odd          |       Even          | ...
-    *      +---------------------+--------------------+---------------------+--
-    */
-
-    struct MuxselWriteIndex
-    {
-        uint32 evenIndex;
-        uint32 oddIndex;
-    };
-
-    // This stores the indices in the mux select ram data to which the next mux select must be written to.
-    MuxselWriteIndex muxselWriteIndices[static_cast<uint32>(SpmDataSegmentType::Count)];
-
-    // Initialize the muxsel write indices. Even indices start at 0, while odd indices start at 16.
-    for (uint32 index = 0; index < static_cast<uint32>(SpmDataSegmentType::Count); index++)
-    {
-        muxselWriteIndices[index].evenIndex = 0;
-        muxselWriteIndices[index].oddIndex  = MuxselEntriesPerBitline;
-    }
-
-    // Enter the muxsel encoding for GPU timestamp in the global section, in the even bit line.
-    m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Global)].pMuxselRamUint32[0] = 0xF0F0F0F0;
-    m_muxselRamData[static_cast<uint32>(SpmDataSegmentType::Global)].pMuxselRamUint32[1] = 0xF0F0F0F0;
-    muxselWriteIndices[static_cast<uint32>(SpmDataSegmentType::Global)].evenIndex        = 4;
-
-    Pal::StreamingPerfCounter* pCounter = nullptr;
-
-    // Iterate over our deque of counters and write out the muxsel ram data.
-    for (auto iter = m_spmCounters.Begin(); iter.Get(); iter.Next())
-    {
-        pCounter = *iter.Get();
-        GpuBlock block    = pCounter->BlockType();
-
-        for (uint32 subSlot = 0; subSlot < MaxNumStreamingCtrPerSummaryCtr; ++subSlot)
-        {
-            if (pCounter->GetEventId(subSlot) != StreamingPerfCounter::InvalidEventId)
-            {
-                uint32 seIndex            = 0;
-                uint32* pWriteIndex       = nullptr;
-                PerfmonSelData muxselData = {};
-
-                if (BlockUsesGlobalMuxsel(block))
-                {
-                    muxselData = GetGlobalMuxselData(block, pCounter->GetInstanceId(), subSlot);
-                    seIndex    = static_cast<uint32>(SpmDataSegmentType::Global);
-                }
-                else
-                {
-                    muxselData = GetPerSeMuxselData(block, pCounter->GetInstanceId(), subSlot);
-                    seIndex    = PerfCounter::GetSeIndex(m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
-                                                         pCounter->BlockType(),
-                                                         pCounter->GetInstanceId());
-                }
-
-                // Write the mux select data in the appropriate location based on even/odd counterId (subSlot).
-                if (subSlot % 2)
-                {
-                    pWriteIndex = &muxselWriteIndices[seIndex].oddIndex;
-                }
-                else
-                {
-                    pWriteIndex = &muxselWriteIndices[seIndex].evenIndex;
-                }
-
-                m_muxselRamData[seIndex].pMuxselRamUint16[*pWriteIndex] = muxselData.u16All;
-
-                // Find the offset into the output buffer for this counter.
-                uint32 offset = *pWriteIndex;
-
-                // Calculate offset within the sample for this counter's data. This is where the HW will write the
-                // counter value. Use the offset as-is for the global block, since it is the first segment within the
-                // sample.
-                if (BlockUsesGlobalMuxsel(block) == false)
-                {
-                    offset += m_segmentSize.bits.GLOBAL_NUM_LINE * 256 / 16;
-
-                    // Se1
-                    if (seIndex > 0)
-                    {
-                        offset += m_segmentSize.bits.SE0_NUM_LINE *  256 / 16;
-                    }
-
-                    if (seIndex > 1)
-                    {
-                        offset += m_segmentSize.bits.SE1_NUM_LINE * 256 / 16;
-                    }
-
-                    if (seIndex > 2)
-                    {
-                        offset += m_segmentSize.bits.SE2_NUM_LINE * 256 / 16;
-                    }
-                }
-
-                // Offset 0 to 3 holds the GPU timestamp.
-                PAL_ASSERT(offset > 3);
-                pCounter->SetDataOffset(subSlot, offset);
-
-                ++(*pWriteIndex);
-
-                // Advance the write index to the next even/odd section once 16 mux selects have been written in the
-                // current section.
-                if ((*pWriteIndex % MuxselEntriesPerBitline) == 0)
-                {
-                    (*pWriteIndex) += MuxselEntriesPerBitline;
-                }
-            } // Valid eventID.
-        } // Iterate over subSlots in the counter.
-    } // Iterate over StreamingPerfCounters.
-}
-
-// =====================================================================================================================
-Result Gfx9SpmTrace::GetTraceLayout(
-    SpmTraceLayout* pLayout
-    ) const
-{
-    Result result = Result::Success;
-
-    pLayout->offset       = m_dataOffset;
-    pLayout->wptrOffset   = m_dataOffset;       // The very first dword is the wptr.
-    pLayout->sampleOffset = 8 * sizeof(uint32); // Data begins 8 dwords from the beginning of the buffer.
-
-    // Fill in the segment parents.
-    pLayout->sampleSizeInBytes = m_segmentSize.bits.PERFMON_SEGMENT_SIZE * (NumBitsPerBitline / 8);
-    pLayout->segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Global)] =
-        m_segmentSize.bits.GLOBAL_NUM_LINE * (NumBitsPerBitline / 8);
-    pLayout->segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Se0)] =
-        m_segmentSize.bits.SE0_NUM_LINE * (NumBitsPerBitline / 8);
-    pLayout->segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Se1)] =
-        m_segmentSize.bits.SE1_NUM_LINE * (NumBitsPerBitline / 8);
-    pLayout->segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Se2)] =
-        m_segmentSize.bits.SE2_NUM_LINE * (NumBitsPerBitline / 8);
-    pLayout->segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Se3)] =
-        (m_segmentSize.bits.PERFMON_SEGMENT_SIZE - (m_segmentSize.bits.GLOBAL_NUM_LINE +
-                                                    m_segmentSize.bits.SE0_NUM_LINE +
-                                                    m_segmentSize.bits.SE1_NUM_LINE +
-                                                    m_segmentSize.bits.SE2_NUM_LINE )) * (NumBitsPerBitline / 8);
-
-    // There must be enough space in the layout allocation for all the counters that were requested.
-    PAL_ASSERT(pLayout->numCounters == m_numPerfCounters);
-
-    // Fill in the SpmCounterInfo array.
-    for (uint32 i = 0; i < m_numPerfCounters; ++i)
-    {
-        for (auto iter = m_spmCounters.Begin(); iter.Get() != nullptr; iter.Next())
-        {
-            Pal::StreamingPerfCounter* pHwCounter = *(iter.Get());
-
-            if ((m_pPerfCounterCreateInfos[i].block    == pHwCounter->BlockType()) &&
-                (m_pPerfCounterCreateInfos[i].instance == pHwCounter->GetInstanceId()))
-            {
-                for (uint32 subSlot = 0; subSlot < MaxNumStreamingCtrPerSummaryCtr; subSlot++)
-                {
-                    const uint32 eventId = pHwCounter->GetEventId(subSlot);
-
-                    if (m_pPerfCounterCreateInfos[i].eventId == eventId)
-                    {
-                        // We have found the matching HW counter and the API counter.
-                        pLayout->counterData[i].offset   = pHwCounter->GetDataOffset(subSlot);
-                        pLayout->counterData[i].segment  = pHwCounter->GetSpmSegmentIndex();
-                        pLayout->counterData[i].eventId  = eventId;
-                        pLayout->counterData[i].gpuBlock = m_pPerfCounterCreateInfos[i].block;
-                        pLayout->counterData[i].instance = m_pPerfCounterCreateInfos[i].instance;
-                    }
-                }
-            }
-        }
-    }
-
-    pLayout->wptrOffset = 0;
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -1084,7 +732,8 @@ Result Gfx9ThreadTrace::Init()
 
     if ((result == Result::Success)  &&
         (flags.bufferSize)           &&
-        ((values.bufferSize > PerfCtrInfo::MaximumBufferSize) ||
+        ((values.bufferSize == 0) ||
+         (values.bufferSize > PerfCtrInfo::MaximumBufferSize) ||
          (Util::Pow2Align(values.bufferSize, PerfCtrInfo::BufferAlignment) != values.bufferSize)))
     {
         result = Result::ErrorInvalidValue;

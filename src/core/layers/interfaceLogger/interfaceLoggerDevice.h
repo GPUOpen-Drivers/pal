@@ -68,10 +68,6 @@ public:
         SetClockModeOutput*      pSetClockModeOutput) override;
     virtual Result SetMgpuMode(
         const SetMgpuModeInput& setMgpuModeInput) const override;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    virtual Result TurboSyncControl(
-        const TurboSyncControlInput* pTurboSyncControlInput) const override;
-#endif
     virtual Result ResetFences(
         uint32              fenceCount,
         IFence*const*       ppFences) const override;
@@ -88,13 +84,6 @@ public:
         PipelineBindPoint pipelineType,
         IGpuMemory*       pGpuMemory,
         gpusize           offset) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-#endif
     virtual size_t GetQueueSize(
         const QueueCreateInfo& createInfo,
         Result*                pResult) const override;

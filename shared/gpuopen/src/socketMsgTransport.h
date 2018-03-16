@@ -32,28 +32,49 @@
 #pragma once
 
 #include "msgTransport.h"
-#include "socket.h"
+#include "ddSocket.h"
 
 namespace DevDriver
 {
     class SocketMsgTransport : public IMsgTransport
     {
     public:
-        explicit SocketMsgTransport(const TransportCreateInfo& createInfo);
+        explicit SocketMsgTransport(const HostInfo& hostInfo);
         ~SocketMsgTransport();
 
         Result Connect(ClientId* pClientId, uint32 timeoutInMs) override;
         Result Disconnect() override;
 
-        Result ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs) override;
-        Result WriteMessage(const MessageBuffer &messageBuffer) override;
+        Result ReadMessage(MessageBuffer& messageBuffer, uint32 timeoutInMs) override;
+        Result WriteMessage(const MessageBuffer& messageBuffer) override;
+
+        const char* GetTransportName() const override
+        {
+            const char *pName = "Unknown";
+            switch (m_socketType)
+            {
+                case SocketType::Tcp:
+                    pName = "TCP Socket";
+                    break;
+                case SocketType::Udp:
+                    pName = "UDP Socket";
+                    break;
+                case SocketType::Local:
+                    pName = "Unix Domain Socket";
+                    break;
+                default:
+                    break;
+            }
+
+            return pName;
+        }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
         Result UpdateClientStatus(ClientId clientId, StatusFlags flags) override;
-        static Result QueryStatus(TransportType type, StatusFlags* pFlags, uint32 timeoutInMs, HostInfo* pHostInfo = nullptr);
+        static Result QueryStatus(const HostInfo& hostInfo, uint32 timeoutInMs, StatusFlags *pFlags);
 #endif
 
-        static Result TestConnection(TransportType type, uint32 timeoutInMs, HostInfo* pHostInfo = nullptr);
+        static Result TestConnection(const HostInfo& connectionInfo, uint32 timeoutInMs);
 
         DD_STATIC_CONST bool RequiresKeepAlive()
         {
@@ -68,7 +89,7 @@ namespace DevDriver
     private:
         Socket              m_clientSocket;
         bool                m_connected;
-        HostInfo            m_hostInfo;
+        const HostInfo      m_hostInfo;
         const SocketType    m_socketType;
     };
 

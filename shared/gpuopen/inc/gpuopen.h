@@ -25,8 +25,8 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 30
-#define GPUOPEN_INTERFACE_MINOR_VERSION 2
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 31
+#define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
 
@@ -44,6 +44,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 31.0    | Clean up DevDriverClient and DevDriverServer create info structs. Replace TransportCreateInfo            |
+*|         | struct with MessageChannelCreateInfo and HostInfo structs.                                               |
 *| 30.2    | Added support for RGP v6 protocol which supports trace trigger markers.                                  |
 *| 30.1    | Add Push transfer support to the transfer protocol. Added PushBlock class, added v2 of the               |
 *|         | TransferProtocol, and did a lot of internal cleanup. Legacy interfaces will be deprecated in a future    |
@@ -133,6 +135,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_CREATE_INFO_CLEANUP_VERSION 31
 #define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION 30
 #define GPUOPEN_URI_RESPONSE_FORMATS_VERSION 29
 #define GPUOPEN_DEPRECATE_LEGACY_KMD_VERSION 28
@@ -179,7 +182,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define DD_ALIGNAS(x) alignas(x)
 #else
-static_assert(false, "Error: unsupported compiler detected. Please implement support for DD_ALIGNED_STRUCT structures ")
+static_assert(false, "Error: unsupported compiler detected. Support is required to build.");
 #endif
 #endif
 
@@ -405,11 +408,49 @@ namespace DevDriver
     // Invalid Session ID
     DD_STATIC_CONST SessionId kInvalidSessionId = 0;
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
     // Default named pipe name
     DD_STATIC_CONST char kNamedPipeName[] = "\\\\.\\pipe\\AMD-Developer-Service";
 
+#endif
     // Default network port number
     DD_STATIC_CONST uint32 kDefaultNetworkPort = 27300;
+
+    // Transport type enumeration
+    enum class TransportType : uint32
+    {
+        Local = 0,
+        Remote,
+    };
+
+    // Struct used to designate a transport type, port number, and hostname
+    struct HostInfo
+    {
+        TransportType   type;                       // Transport type, as defined above
+        uint32          port;                       // Port number if applicable
+        char            hostname[kMaxStringLength]; // Host address, address, or path
+    };
+
+    // Default local host information
+    DD_STATIC_CONST HostInfo kDefaultLocalHost =
+    {
+        TransportType::Remote,
+        kDefaultNetworkPort,
+        "127.0.0.1"
+    };
+
+    // Default named pipe information
+    DD_STATIC_CONST HostInfo kDefaultNamedPipe =
+    {
+        TransportType::Local,
+        0,
+#if defined(__APPLE__)
+        "/tmp/com.amd.AMD-Developer-Service"
+#else
+        "\\\\.\\pipe\\AMD-Developer-Service"
+#endif
+
+    };
 
     ////////////////////////////
     // Common definition of a message header

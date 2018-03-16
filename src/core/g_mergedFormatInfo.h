@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -421,7 +421,6 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Srgb,
     },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     // U8V8_Snorm_L8W8_Unorm
     {
         32,  4,                             // 32 bpp, 4 components
@@ -433,7 +432,6 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Snorm,
     },
-#endif
     // X10Y11Z11_Float
     {
         32,  3,                             // 32 bpp, 3 components
@@ -531,7 +529,6 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Unorm,
     },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     // U10V10W10_Snorm_A2_Unorm
     {
         32,  4,                             // 32 bpp, 4 components
@@ -543,7 +540,6 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Snorm,
     },
-#endif
     // X16_Unorm
     {
         16,  1,                             // 16 bpp, 1 component

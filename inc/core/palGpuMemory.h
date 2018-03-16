@@ -116,16 +116,12 @@ union GpuMemoryCreateFlags
                                       ///  with this flag set must be initialized by including a reference to it in
                                       ///  the ppExternPhysMem list for the first submission that references it.
         uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 312
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370
         uint32 placeholder0      :  1; ///< Placeholder.
         uint32 reserved          : 15; ///< Reserved for future use.
 #else
         uint32 reserved          : 16; ///< Reserved for future use.
-#endif
-#else
-        uint32 reserved          : 17; ///< Reserved for future use.
 #endif
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.

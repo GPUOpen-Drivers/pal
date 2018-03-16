@@ -1113,22 +1113,13 @@ ElfProcessor<Allocator>::ElfProcessor(
     m_fileHeader.e_shnum     = 0;
 
     m_fileHeader.e_shstrndx  = static_cast<uint16>(SectionHeaderIndex::Undef);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 329
-    m_initResult = m_sections.Init();
-    PAL_ASSERT(m_initResult == Result::Success);
-#endif
 }
 
 // =====================================================================================================================
 template <typename Allocator>
 Result ElfProcessor<Allocator>::Init()
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 329
     return m_sections.Init();
-#else
-    return m_initResult;
-#endif
 }
 
 // =====================================================================================================================
@@ -1285,11 +1276,7 @@ Result ElfProcessor<Allocator>::LoadFromBuffer(
     const void* pBufferStart = pBuffer;
     PAL_ASSERT(bufferSize >= FileHeaderSize);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 329
     Result result = m_sections.Init();
-#else
-    Result result = m_initResult;
-#endif
     if (result == Result::Success)
     {
         // Read in the ELF FileHeader

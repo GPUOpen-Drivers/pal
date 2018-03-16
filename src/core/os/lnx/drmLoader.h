@@ -317,6 +317,11 @@ typedef int (*AmdgpuCsCreateSyncobj)(
             amdgpu_device_handle  hDevice,
             uint32_t*             pSyncObj);
 
+typedef int (*AmdgpuCsCreateSyncobj2)(
+            amdgpu_device_handle  hDevice,
+            uint32_t              flags,
+            uint32_t*             pSyncObj);
+
 typedef int (*AmdgpuCsDestroySyncobj)(
             amdgpu_device_handle  hDevice,
             uint32_t              syncObj);
@@ -366,6 +371,11 @@ typedef int (*AmdgpuCsSyncobjWait)(
             uint32_t*             pFirstSignaled);
 
 typedef int (*AmdgpuCsSyncobjReset)(
+            amdgpu_device_handle  hDevice,
+            const uint32_t*       pHandles,
+            uint32_t              numHandles);
+
+typedef int (*AmdgpuCsSyncobjSignal)(
             amdgpu_device_handle  hDevice,
             const uint32_t*       pHandles,
             uint32_t              numHandles);
@@ -740,6 +750,12 @@ struct DrmLoaderFuncs
         return (pfnAmdgpuCsCreateSyncobj != nullptr);
     }
 
+    AmdgpuCsCreateSyncobj2            pfnAmdgpuCsCreateSyncobj2;
+    bool pfnAmdgpuCsCreateSyncobj2isValid() const
+    {
+        return (pfnAmdgpuCsCreateSyncobj2 != nullptr);
+    }
+
     AmdgpuCsDestroySyncobj            pfnAmdgpuCsDestroySyncobj;
     bool pfnAmdgpuCsDestroySyncobjisValid() const
     {
@@ -798,6 +814,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsSyncobjResetisValid() const
     {
         return (pfnAmdgpuCsSyncobjReset != nullptr);
+    }
+
+    AmdgpuCsSyncobjSignal             pfnAmdgpuCsSyncobjSignal;
+    bool pfnAmdgpuCsSyncobjSignalisValid() const
+    {
+        return (pfnAmdgpuCsSyncobjSignal != nullptr);
     }
 
     AmdgpuCsCtxCreate2                pfnAmdgpuCsCtxCreate2;
@@ -1427,6 +1449,16 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCreateSyncobj != nullptr);
     }
 
+    int pfnAmdgpuCsCreateSyncobj2(
+            amdgpu_device_handle  hDevice,
+            uint32_t              flags,
+            uint32_t*             pSyncObj) const;
+
+    bool pfnAmdgpuCsCreateSyncobj2isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsCreateSyncobj2 != nullptr);
+    }
+
     int pfnAmdgpuCsDestroySyncobj(
             amdgpu_device_handle  hDevice,
             uint32_t              syncObj) const;
@@ -1528,6 +1560,16 @@ public:
     bool pfnAmdgpuCsSyncobjResetisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjReset != nullptr);
+    }
+
+    int pfnAmdgpuCsSyncobjSignal(
+            amdgpu_device_handle  hDevice,
+            const uint32_t*       pHandles,
+            uint32_t              numHandles) const;
+
+    bool pfnAmdgpuCsSyncobjSignalisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsSyncobjSignal != nullptr);
     }
 
     int pfnAmdgpuCsCtxCreate2(

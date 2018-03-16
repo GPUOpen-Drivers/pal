@@ -194,13 +194,9 @@ public:
     bool HasFastClearEliminateMetaData() const { return m_fastClearEliminateMetaDataOffset != 0; }
 
     gpusize GetDccStateMetaDataAddr(uint32 mipLevel) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize GetDccStateMetaDataOffset(uint32 mipLevel) const;
-#endif
     gpusize GetFastClearEliminateMetaDataAddr(uint32 mipLevel) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize GetFastClearEliminateMetaDataOffset(uint32 mipLevel) const;
-#endif
     gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;
 
     bool HasWaTcCompatZRangeMetaData() const { return m_waTcCompatZRangeMetaDataOffset != 0; }

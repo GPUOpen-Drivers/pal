@@ -92,6 +92,7 @@ public:
         amdgpu_device_handle        hDevice,
         uint32                      drmMajorVer,
         uint32                      drmMinorVer,
+        size_t                      deviceSize,
         uint32                      deviceIndex,
         uint32                      deviceNodeIndex,
         uint32                      attachedScreenCount,
@@ -282,11 +283,6 @@ public:
     virtual Result PollFullScreenFrameMetadataControl(
         uint32                         vidPnSrcId,
         PerSourceFrameMetadataControl* pFrameMetadataControl) const override { return Result::ErrorUnavailable; }
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    virtual Result TurboSyncControl(
-        const TurboSyncControlInput* pTurboSyncControlInput) const override { return Result::ErrorUnavailable; }
-#endif
 
     virtual Result FlglQueryState(
         Pal::FlglState* pState) override
@@ -497,6 +493,9 @@ public:
         uint32_t*            pFences,
         uint32_t             fenceCount) const;
 
+    bool IsInitialSignaledSyncobjSemaphoreSupported() const
+        { return m_syncobjSupportState.InitialSignaledSyncobjSemaphore == 1; }
+
     Result ReadRegisters(
         uint32  dwordOffset,
         uint32  count,
@@ -518,6 +517,7 @@ public:
         bool* pIsSame) const;
 
     Result CreateSyncObject(
+        uint32                    flags,
         amdgpu_syncobj_handle*    pSyncObject) const;
 
     Result DestroySyncObject(
@@ -535,6 +535,7 @@ public:
         amdgpu_syncobj_handle    exportSyncObj) const;
 
     Result CreateSemaphore(
+        bool                     isCreatedSignaled,
         amdgpu_semaphore_handle* pSemaphoreHandle) const;
 
     Result DestroySemaphore(
@@ -690,9 +691,10 @@ protected:
     virtual Result EnumPrivateScreensInfo(
         uint32* pNumScreen) override { return Result::ErrorUnavailable; }
 
+    virtual Result OsLateInit() override;
+
 private:
     virtual Result OsEarlyInit() override;
-    virtual Result OsLateInit() override;
 
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;
 
@@ -712,6 +714,8 @@ private:
         uint32    kernelMajorVer,
         uint32    kernelMinorVer
         ) const;
+
+    void CheckSyncObjectSupportStatus();
 
     Result OpenExternalResource(
         const ExternalResourceOpenInfo& openInfo,
@@ -801,6 +805,20 @@ private:
     // 2: work on both upstream and pro kernel
     SemaphoreType m_semType;
     FenceType     m_fenceType;
+
+    // state flags for real sync object support status.
+    // double check syncobj's implementation: with paritial or full features in libdrm.so and drm.ko.
+    union
+    {
+        struct
+        {
+            uint32 SyncobjSemaphore                : 1;
+            uint32 InitialSignaledSyncobjSemaphore : 1;
+            uint32 SyncobjFence                    : 1;
+            uint32 reserved                        : 29;
+        };
+        uint32 flags;
+    } m_syncobjSupportState;
 
     // Support creating submission queue with priority.
     bool m_supportQueuePriority;

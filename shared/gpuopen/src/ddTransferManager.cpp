@@ -40,6 +40,7 @@ namespace DevDriver
             , m_rng()
             , m_mutex()
             , m_registeredServerBlocks(allocCb)
+            , m_idleBlocks(allocCb)
         {}
 
         // ============================================================================================================
@@ -161,7 +162,7 @@ namespace DevDriver
             {
                 // Attempt to abort the transfer if there's currently one in progress.
                 const Result result = transferClient.AbortPullTransfer();
-                DD_ASSERT(result == Result::Success);
+                DD_UNUSED(result);
             }
 
             transferClient.Disconnect();
@@ -213,7 +214,7 @@ namespace DevDriver
         }
 
         // ============================================================================================================
-        void ServerBlock::Write(const uint8* pSrcBuffer, size_t numBytes)
+        void ServerBlock::Write(const void* pSrcBuffer, size_t numBytes)
         {
             // Writes can only be performed on blocks that are not closed.
             DD_ASSERT(m_isClosed == false);
@@ -269,7 +270,7 @@ namespace DevDriver
         // ============================================================================================================
         void ServerBlock::BeginTransfer()
         {
-            m_pendingTransfersMutex.Lock();
+            Platform::LockGuard<Platform::Mutex> lockGuard(m_pendingTransfersMutex);
 
             // Increment the number of pending transfers.
             ++m_numPendingTransfers;
@@ -279,14 +280,12 @@ namespace DevDriver
             {
                 m_transfersCompletedEvent.Clear();
             }
-
-            m_pendingTransfersMutex.Unlock();
         }
 
         // ============================================================================================================
         void ServerBlock::EndTransfer()
         {
-            m_pendingTransfersMutex.Lock();
+            Platform::LockGuard<Platform::Mutex> lockGuard(m_pendingTransfersMutex);
 
             // We should always have pending transfers when end is called.
             DD_ASSERT(m_numPendingTransfers > 0);
@@ -299,8 +298,13 @@ namespace DevDriver
             {
                 m_transfersCompletedEvent.Signal();
             }
+        }
 
-            m_pendingTransfersMutex.Unlock();
+        // ============================================================================================================
+        bool ServerBlock::HasPendingTransfers()
+        {
+            Platform::LockGuard<Platform::Mutex> lockGuard(m_pendingTransfersMutex);
+            return (m_numPendingTransfers > 0);
         }
 
         // ============================================================================================================

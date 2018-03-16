@@ -73,10 +73,6 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetDepthBounds()",
     "CmdSetStencilRefMasks()",
     "CmdSetMsaaQuadSamplePattern()",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    "CmdStoreMsaaQuadSamplePattern()",
-    "CmdLoadMsaaQuadSamplePattern()",
-#endif
     "CmdSetViewports()",
     "CmdSetScissorRects()",
     "CmdSetGlobalScissor()",
@@ -154,6 +150,9 @@ static const char* CmdBufCallIdStrings[] =
     "CmdStartGpuProfilerLogging()",
     "CmdStopGpuProfilerLogging()",
     "CmdSetViewInstanceMask()",
+    "CmdSetHiSCompareState0()",
+    "CmdSetHiSCompareState1()",
+
 };
 
 static_assert((sizeof(CmdBufCallIdStrings)/sizeof(CmdBufCallIdStrings[0])) == static_cast<uint32>(CmdBufCallId::Count),
@@ -270,10 +269,8 @@ void Queue::OpenLogFile(
         "XAce",
         "Dma",
         "Timer",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
         "HpUniversal",
         "HpGfxOnly",
-#endif
     };
 
     static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,
@@ -360,10 +357,8 @@ void Queue::OpenSqttFile(
         "XAce",
         "Dma",
         "Timer",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
         "HpUniversal",
         "HpGfxOnly",
-#endif
     };
 
     static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,

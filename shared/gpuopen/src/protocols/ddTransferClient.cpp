@@ -367,6 +367,7 @@ namespace DevDriver
                         // received a sentinel in response to calling abort. Sanity check the results with an assert.
                         DD_ASSERT((finalResult == Result::Aborted) ||
                                   (finalResult == Result::Success));
+                        DD_UNUSED(finalResult);
 
                         m_transferContext.state = TransferState::Idle;
                         result = Result::Success;

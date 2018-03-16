@@ -66,10 +66,6 @@ enum class CmdBufCallId : uint32
     CmdSetDepthBounds,
     CmdSetStencilRefMasks,
     CmdSetMsaaQuadSamplePattern,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    CmdStoreMsaaQuadSamplePattern,
-    CmdLoadMsaaQuadSamplePattern,
-#endif
     CmdSetViewports,
     CmdSetScissorRects,
     CmdSetGlobalScissor,
@@ -147,6 +143,8 @@ enum class CmdBufCallId : uint32
     CmdStartGpuProfilerLogging,
     CmdStopGpuProfilerLogging,
     CmdSetViewInstanceMask,
+    CmdSetHiSCompareState0,
+    CmdSetHiSCompareState1,
     Count
 };
 
@@ -223,16 +221,6 @@ public:
     virtual void CmdSetMsaaQuadSamplePattern(
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override;
-#endif
     virtual void CmdSetViewports(
         const ViewportParams& params) override;
     virtual void CmdSetScissorRects(
@@ -427,7 +415,6 @@ public:
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset,
         gpusize           dstStride) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -437,16 +424,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
     virtual void CmdWriteTimestamp(
         HwPipePoint       pipePoint,
         const IGpuMemory& dstGpuMemory,
@@ -545,6 +522,16 @@ public:
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
         uint32 stateFlags) override;
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;
@@ -714,10 +701,6 @@ private:
     void ReplayCmdSetDepthBounds(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetStencilRefMasks(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetMsaaQuadSamplePattern(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    void ReplayCmdStoreMsaaQuadSamplePattern(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdLoadMsaaQuadSamplePattern(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdSetViewports(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -792,6 +775,8 @@ private:
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToPackedPixelImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetHiSCompareState0(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetHiSCompareState1(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglSync(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFlglDisable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

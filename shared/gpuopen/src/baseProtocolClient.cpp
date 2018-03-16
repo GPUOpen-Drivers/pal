@@ -80,6 +80,8 @@ namespace DevDriver
             m_pSession->Close(Result::Success);
             m_pSession.Clear();
         }
+        // Reset the state to make sure all owned objects are released before destruction.
+        ResetState();
     }
 
     Version BaseProtocolClient::GetSessionVersion() const
@@ -127,9 +129,6 @@ namespace DevDriver
         m_connectResult = terminationReason;
         m_pendingOperationEvent.Signal();
         m_pSession.Clear();
-
-        // Always reset the internal client state after the session is terminated.
-        ResetState();
     }
 
     Result BaseProtocolClient::Connect(ClientId clientId)
@@ -142,12 +141,9 @@ namespace DevDriver
             // Even in the disconnected state. This dead session object should be deleted. It can't
             // be deleted immediately upon termination because other parts of the client code could
             // still be using it.
-            if (!m_pSession.IsNull())
-            {
-                m_pSession.Clear();
+            m_pSession.Clear();
 
-                ResetState();
-            }
+            ResetState();
 
             DD_ASSERT(m_pMsgChannel != nullptr);
 
@@ -175,7 +171,6 @@ namespace DevDriver
 
     void BaseProtocolClient::Disconnect()
     {
-        ResetState();
         if (IsConnected())
         {
             m_pendingOperationEvent.Clear();
@@ -186,6 +181,7 @@ namespace DevDriver
                 m_pendingOperationEvent.Wait(kDefaultRetryTimeoutInMs);
             }
         }
+        ResetState();
     }
 
 } // DevDriver

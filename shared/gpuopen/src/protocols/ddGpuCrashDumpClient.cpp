@@ -183,11 +183,6 @@ namespace DevDriver
 
             return result;
         }
-
-        void GpuCrashDumpClient::ResetState()
-        {
-            // Nothing to do.
-        }
 }
 
 } // DevDriver

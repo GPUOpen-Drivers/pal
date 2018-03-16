@@ -429,7 +429,12 @@ namespace DevDriver
     {
         friend Vector;
     public:
-        // Comparison operator
+        // Comparison operators
+        bool operator==(const Iterator& rhs) const
+        {
+            return ((m_pContainer == rhs.m_pContainer) & (m_index == rhs.m_index));
+        }
+
         bool operator!=(const Iterator& rhs) const
         {
             return ((m_pContainer != rhs.m_pContainer) | (m_index != rhs.m_index));

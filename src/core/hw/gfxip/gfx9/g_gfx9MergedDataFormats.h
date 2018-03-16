@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -260,7 +260,7 @@ constexpr MergedFormatPropertiesTable Gfx9MergedFormatPropertiesTable =
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X5Y6Z5_Uscaled
         { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y5Z5W1_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X5Y5Z5W1_Uscaled
-        { IrXsIwXdIflCBX,                 IrXsIwXdIflCBMX                }, // ChNumFormat::X1Y5Z5W5_Unorm
+        { IrXsIwXdIflIfmmCBX,             IrXsIwXdIflIfmmCBMX            }, // ChNumFormat::X1Y5Z5W5_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X1Y5Z5W5_Uscaled
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X8_Snorm
@@ -287,10 +287,8 @@ constexpr MergedFormatPropertiesTable Gfx9MergedFormatPropertiesTable =
         { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X8Y8Z8W8_Uint
         { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X8Y8Z8W8_Sint
         { IrXsXdIaIflIfmmTaCBXP,          IrXsXdIaIflIfmmTaCBMXP         }, // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
-        { IrXsIwXdIaIflTrTwTaCBX,         IrXsIwXdIaIflTrTwTaCBMX        }, // ChNumFormat::X10Y11Z11_Float
+        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y11Z11_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X11Y11Z10_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2_Unorm
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y10Z10W2_Snorm
@@ -299,9 +297,7 @@ constexpr MergedFormatPropertiesTable Gfx9MergedFormatPropertiesTable =
         { IrXsIwXdIaIfmmTrTwTaCX,         IrXsIwXdIaIfmmTrTwTaCMX        }, // ChNumFormat::X10Y10Z10W2_Uint
         { IrXsIwIaIfmmTrTwTa,             IrXsIwIaIfmmTrTwTaM            }, // ChNumFormat::X10Y10Z10W2_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
         { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
@@ -895,7 +891,6 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     // ChNumFormat::U8V8_Snorm_L8W8_Unorm
     {
         ChNumFormat::U8V8_Snorm_L8W8_Unorm, // ChNumFormat
@@ -908,7 +903,6 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
-#endif
     // ChNumFormat::X10Y11Z11_Float
     {
         ChNumFormat::X10Y11Z11_Float,      // ChNumFormat
@@ -1017,7 +1011,6 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
     {
         ChNumFormat::U10V10W10_Snorm_A2_Unorm, // ChNumFormat
@@ -1030,7 +1023,6 @@ constexpr MergedFmtInfo Gfx9MergedChannelFmtInfoTbl[] =
         Z_INVALID,                         // ZFormat
         STENCIL_INVALID,                   // StencilFormat
     },
-#endif
     // ChNumFormat::X16_Unorm
     {
         ChNumFormat::X16_Unorm,            // ChNumFormat

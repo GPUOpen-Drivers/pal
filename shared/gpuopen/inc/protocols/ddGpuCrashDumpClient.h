@@ -62,8 +62,6 @@ namespace DevDriver
             Result EndGpuCrashDump();
 
         private:
-            void ResetState() override;
-
             uint8* m_pCrashDump;
             uint32 m_crashDumpSize;
             uint32 m_crashDumpBytesSent;

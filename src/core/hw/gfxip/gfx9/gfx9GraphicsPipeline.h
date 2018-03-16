@@ -276,7 +276,8 @@ private:
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
 
     void SetupNonShaderRegisters(
-        const GraphicsPipelineCreateInfo& createInfo);
+        const GraphicsPipelineCreateInfo& createInfo,
+        const AbiProcessor&               abiProcessor);
     void SetupLateAllocVs(
         const AbiProcessor& abiProcessor);
     bool SetupRbPlusShaderRegisters(

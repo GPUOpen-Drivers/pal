@@ -35,35 +35,6 @@
 
 namespace DevDriver
 {
-    enum class TransportType : uint32
-    {
-        Local = 0,
-        Remote,
-        MessageBus
-    };
-
-    struct HostInfo
-    {
-        char   hostname[kMaxStringLength];
-        uint32 port;
-    };
-
-    DD_STATIC_CONST HostInfo kLocalHostInfo = {
-        "127.0.0.1",
-        kDefaultNetworkPort
-    };
-
-    struct TransportCreateInfo
-    {
-        TransportType   type;
-        StatusFlags     initialFlags;
-        char            clientDescription[kMaxStringLength];
-        HostInfo        hostInfo;
-        bool            createUpdateThread;
-        Component       componentType;
-        AllocCb         allocCb;
-    };
-
     class IMsgTransport
     {
     public:
@@ -76,6 +47,9 @@ namespace DevDriver
         // Read and Write messages from a connected transport
         virtual Result WriteMessage(const MessageBuffer &messageBuffer) = 0;
         virtual Result ReadMessage(MessageBuffer &messageBuffer, uint32 timeoutInMs) = 0;
+
+        // Get a human-readable string describing the connection type.
+        virtual const char* GetTransportName() const = 0;
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
         virtual Result UpdateClientStatus(ClientId clientId, StatusFlags flags) = 0;

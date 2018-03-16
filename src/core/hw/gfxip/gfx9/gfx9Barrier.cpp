@@ -141,19 +141,11 @@ void Device::TransitionDepthStencil(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                             image,
-                                             pMsaaState,
-                                             &transition.imageInfo.samplePattern,
-                                             transition.imageInfo.subresRange);
-#else
             RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                              image,
                                              pMsaaState,
                                              transition.imageInfo.pQuadSamplePattern,
                                              transition.imageInfo.subresRange);
-#endif
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -210,11 +202,7 @@ void Device::TransitionDepthStencil(
                                                           image,
                                                           transition.imageInfo.newLayout,
                                                           pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                                                          &transition.imageInfo.samplePattern,
-#else
                                                           transition.imageInfo.pQuadSamplePattern,
-#endif
                                                           transition.imageInfo.subresRange);
 
                     pMsaaState->Destroy();
@@ -435,21 +423,12 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            RsrcProcMgr().DccDecompress(pCmdBuf,
-                                        pCmdStream,
-                                        gfx9Image,
-                                        pMsaaState,
-                                        &transition.imageInfo.samplePattern,
-                                        transition.imageInfo.subresRange);
-#else
             RsrcProcMgr().DccDecompress(pCmdBuf,
                                         pCmdStream,
                                         gfx9Image,
                                         pMsaaState,
                                         transition.imageInfo.pQuadSamplePattern,
                                         transition.imageInfo.subresRange);
-#endif
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -485,21 +464,12 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                          pCmdStream,
-                                          gfx9Image,
-                                          pMsaaState,
-                                          &transition.imageInfo.samplePattern,
-                                          transition.imageInfo.subresRange);
-#else
             RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                           pCmdStream,
                                           gfx9Image,
                                           pMsaaState,
                                           transition.imageInfo.pQuadSamplePattern,
                                           transition.imageInfo.subresRange);
-#endif
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -514,21 +484,12 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                             pCmdStream,
-                                             gfx9Image,
-                                             pMsaaState,
-                                             &transition.imageInfo.samplePattern,
-                                             transition.imageInfo.subresRange);
-#else
             RsrcProcMgr().FastClearEliminate(pCmdBuf,
                                              pCmdStream,
                                              gfx9Image,
                                              pMsaaState,
                                              transition.imageInfo.pQuadSamplePattern,
                                              transition.imageInfo.subresRange);
-#endif
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -710,6 +671,16 @@ void Device::IssueSyncs(
 
     FillCacheOperations(syncReqs, pOperations);
 
+    if (syncReqs.syncCpDma)
+    {
+        // Stalls the CP ME until the CP's DMA engine has finished all async DMA_DATA commands. This needs to
+        // go before the calls to BuildWaitOnReleaseMemEvent and BuildAcquireMem so that the results of CP blts are
+        // flushed properly. Also note that DMA packets are the only way to wait for DMA work, we can't use something
+        // like a bottom-of-pipe timestamp.
+        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        pOperations->pipelineStalls.syncCpDma = 1;
+    }
+
     // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must force a wait-on-eop-ts.
     if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
     {
@@ -776,15 +747,6 @@ void Device::IssueSyncs(
             pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
             pOperations->pipelineStalls.csPartialFlush = 1;
         }
-    }
-
-    if (syncReqs.syncCpDma)
-    {
-        // Stalls the CP ME until the CP's DMA engine has finished all async DMA_DATA commands. This needs to
-        // go before the call to BuildAcquireMem so that the results of CP blts are flushed properly. Also note that
-        // DMA packets are the only way to wait for DMA work, we can't use something like a bottom-of-pipe timestamp.
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        pOperations->pipelineStalls.syncCpDma = 1;
     }
 
     // Issue accumulated ACQUIRE_MEM commands on the specified memory range. Note that we must issue one ACQUIRE_MEM

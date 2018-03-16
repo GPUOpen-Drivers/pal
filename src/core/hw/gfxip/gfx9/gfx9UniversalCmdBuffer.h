@@ -140,13 +140,11 @@ struct DrawTimeHwState
             uint32 indexOffset            :  1; // Set when startIndex matches the HW value.
             uint32 log2IndexSize          :  1; // Set when log2IndexSize matches the HW value.
             uint32 numInstances           :  1; // Set when numInstances matches the HW value.
-            uint32 vgtLsHsConfig          :  1; // Set when vgtLsHsConfig matches the HW value.
-            uint32 iaMultiVgtParam        :  1; // Set when iaMultiVgtParam matches the HW value.
             uint32 paScModeCntl1          :  1; // Set when paScModeCntl1 matches the HW value.
             uint32 dbCountControl         :  1; // Set when dbCountControl matches the HW value.
             uint32 vgtMultiPrimIbResetEn  :  1; // Set when vgtMultiPrimIbResetEn matches the HW value.
             uint32 nggIndexBufferBaseAddr :  1; // Set when nggIndexBufferBaseAddr matches the HW value.
-            uint32 reserved               : 20; // Reserved bits
+            uint32 reserved               : 22; // Reserved bits
         };
         uint32     u32All;                // The flags as a single integer.
     } valid;                              // Draw state valid flags.
@@ -171,8 +169,6 @@ struct DrawTimeHwState
     uint32                        startIndex;             // Current value of the start index user data.
     uint32                        log2IndexSize;          // Current value of the Log2(sizeof(indexType)) user data.
     uint32                        numInstances;           // Current value of the NUM_INSTANCES state.
-    regVGT_LS_HS_CONFIG           vgtLsHsConfig;          // Current value of the VGT_LS_HS_CONFIG register.
-    regIA_MULTI_VGT_PARAM         iaMultiVgtParam;        // Current value of the IA_MULTI_VGT_PARAM register.
     regPA_SC_MODE_CNTL_1          paScModeCntl1;          // Current value of the PA_SC_MODE_CNTL1 register.
     regDB_COUNT_CONTROL           dbCountControl;         // Current value of the DB_COUNT_CONTROL register.
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;  // Current value of the VGT_MULTI_PRIM_IB_RESET_EN register.
@@ -417,17 +413,6 @@ public:
     virtual void CmdSetPointLineRasterState(const PointLineRasterStateParams& params) override;
     virtual void CmdSetMsaaQuadSamplePattern(uint32                       numSamplesPerPixel,
                                              const MsaaQuadSamplePattern& quadSamplePattern) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override;
-#endif
     virtual void CmdSetViewports(const ViewportParams& params) override;
     virtual void CmdSetScissorRects(const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(const GlobalScissorParams& params) override;
@@ -646,7 +631,18 @@ public:
         uint32            mask,
         CompareFunc       compareFunc) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -656,16 +652,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
@@ -789,8 +775,6 @@ protected:
 
     template <bool indexed, bool indirect, bool isNgg, bool isNggFastLaunch, bool pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
-        regIA_MULTI_VGT_PARAM         iaMultiVgtParam,
-        regVGT_LS_HS_CONFIG           vgtLsHsConfig,
         regPA_SC_MODE_CNTL_1          paScModeCntl1,
         regDB_COUNT_CONTROL           dbCountControl,
         regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn,
@@ -979,9 +963,6 @@ private:
 
     void DescribeDraw(Developer::DrawDispatchType cmdType);
 
-    void UpdatePrimGroupOpt(uint32 vxtIdxCount);
-    void DisablePrimGroupOpt();
-
     void P2pBltWaSync();
 
     uint32* UpdateNggRingData(
@@ -1115,23 +1096,6 @@ private:
     // Function pointers for handling draw- or dispatch-time validation of CS/GFX user-data tables.
     ValidateUserDataTablesFunc  m_pfnValidateUserDataTablesGfx;
     ValidateUserDataTablesFunc  m_pfnValidateUserDataTablesCs;
-
-    // All state required by the dynamic primitive group size optimization. This optimization will track the number
-    // of primitives per draw over a given window and issue a new IA_MULTI_VGT_PARAM with an optimal primgroup size
-    // if those draws are small enough that they would benefit from a smaller primgroup size.
-    struct
-    {
-        uint32 windowSize;  // Number of draws between updates to the dynamic primgroup size.  Will be set to zero if
-                            // the optimization is disabled for this entire command buffer.
-        uint32 step;        // Granularity of the dynamic primgroup sizes we'll choose
-        uint32 minSize;     // Minimum primgroup size for the dynamic primgroup optimization
-        uint32 maxSize;     // Maximum primgroup size for the dynamic primgroup optimization
-
-        uint64 vtxIdxTotal; // Total number of vertices/indices drawn during the current window.
-        uint32 drawCount;   // The number of draws processed during the current window.
-        uint32 optimalSize; // If non-zero, this value was written to IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE.
-        bool   enabled;     // The optimization is disabled in certain conditions (e.g. tess, indirect draws).
-    } m_primGroupOpt;
 
     NggState m_nggState;
 

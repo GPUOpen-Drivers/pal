@@ -109,9 +109,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -129,9 +127,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -154,9 +150,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -174,9 +168,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -194,9 +186,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -219,9 +209,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -239,9 +227,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -259,9 +245,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -284,9 +268,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -309,9 +291,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         internalInfo = { };
         internalInfo.flags.dccDecompress = true;
@@ -332,9 +312,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -352,9 +330,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -372,9 +348,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -397,9 +371,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         internalInfo = { };
         internalInfo.flags.fastClearElim = true;
@@ -425,9 +397,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         internalInfo = { };
         internalInfo.flags.fmaskDecompress = true;
@@ -453,9 +423,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -478,9 +446,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -503,9 +469,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -528,9 +492,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -553,9 +515,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -578,9 +538,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -603,9 +561,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -628,9 +584,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -653,9 +607,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -678,9 +630,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -703,9 +653,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -728,9 +676,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -753,9 +699,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -778,9 +722,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -803,9 +745,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -828,9 +768,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -853,9 +791,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -878,9 +814,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -903,9 +837,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -928,9 +860,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -953,9 +883,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -978,9 +906,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1003,9 +929,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1028,9 +952,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1053,9 +975,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1078,9 +998,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1103,9 +1021,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1128,9 +1044,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1153,9 +1067,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1178,9 +1090,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1203,9 +1113,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1228,9 +1136,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1253,9 +1159,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1278,9 +1182,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1303,9 +1205,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1328,9 +1228,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1353,9 +1251,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1378,9 +1274,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1403,9 +1297,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1428,9 +1320,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1453,9 +1343,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1478,9 +1366,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1503,9 +1389,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1528,9 +1412,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1553,9 +1435,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1578,9 +1458,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1603,9 +1481,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1628,9 +1504,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1653,9 +1527,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1678,9 +1550,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1703,9 +1573,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1728,9 +1596,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1753,9 +1619,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1778,9 +1642,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1803,9 +1665,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1828,9 +1688,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1853,9 +1711,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1878,9 +1734,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1903,9 +1757,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1928,9 +1780,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1953,9 +1803,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1978,9 +1826,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2003,9 +1849,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2028,9 +1872,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2053,9 +1895,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2078,9 +1918,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2103,9 +1941,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2128,9 +1964,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2153,9 +1987,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2178,9 +2010,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2203,9 +2033,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2228,9 +2056,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2248,9 +2074,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2273,9 +2097,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2298,9 +2120,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -2321,9 +2141,7 @@ Result CreateRpmGraphicsPipelines(
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2346,9 +2164,7 @@ Result CreateRpmGraphicsPipelines(
             { ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-#endif
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,

@@ -280,7 +280,7 @@ GpuMemory::GpuMemory(
     memset(&m_heaps[0], 0, sizeof(m_heaps));
     memset(&m_typedBufferInfo, 0, sizeof(m_typedBufferInfo));
 
-    m_flags.u32All   = 0;
+    m_flags.u64All   = 0;
     m_pPinnedMemory  = nullptr;
     m_pOriginalMem   = nullptr;
 }
@@ -325,9 +325,7 @@ Result GpuMemory::Init(
     m_flags.busAddressable     = createInfo.flags.busAddressable;
     m_flags.isStereo           = createInfo.flags.stereo;
     m_flags.autoPriority       = createInfo.flags.autoPriority;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 312
     m_flags.peerWritable       = createInfo.flags.peerWritable;
-#endif
     m_flags.isClient           = internalInfo.flags.isClient;
     m_flags.pageDirectory      = internalInfo.flags.pageDirectory;
     m_flags.pageTableBlock     = internalInfo.flags.pageTableBlock;
@@ -539,6 +537,7 @@ Result GpuMemory::Init(
                                          internalInfo.pPagingFence,
                                          createInfo.virtualAccessMode,
                                          0,
+                                         nullptr,
                                          nullptr);
         }
 
@@ -612,6 +611,7 @@ Result GpuMemory::Init(
                                                    nullptr,
                                                    VirtualGpuMemAccessMode::Undefined,
                                                    0,
+                                                   nullptr,
                                                    nullptr);
         m_pPinnedMemory      = reinterpret_cast<const void*>(m_desc.gpuVirtAddr);
     }
@@ -653,7 +653,7 @@ Result GpuMemory::Init(
 
     m_desc.preferredHeap = m_heaps[0];
 
-    const Result result = AllocateOrPinMemory(0, nullptr, VirtualGpuMemAccessMode::Undefined, 0, nullptr);
+    const Result result = AllocateOrPinMemory(0, nullptr, VirtualGpuMemAccessMode::Undefined, 0, nullptr, nullptr);
 
     // Verify that if the pinning succeeded, we got a GPU virtual address back as expected.
     PAL_ASSERT((result != Result::Success) || (m_desc.gpuVirtAddr != 0));
@@ -753,10 +753,8 @@ Result GpuMemory::Init(
     m_flags.interprocess  = m_pOriginalMem->m_flags.interprocess;
     m_flags.globalGpuVa   = m_pOriginalMem->m_flags.globalGpuVa;
     m_flags.cpuVisible    = m_pOriginalMem->m_flags.cpuVisible;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 312
     m_flags.peerWritable  = m_pOriginalMem->m_flags.peerWritable;
     PAL_ASSERT(m_flags.peerWritable == 1);
-#endif
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa())

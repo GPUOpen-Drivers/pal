@@ -111,7 +111,12 @@ struct QueueCreateInfo
         uint32 placeholder1      :  1; ///< Reserved field. Set to 0.
         uint32 windowedPriorBlit :  1; ///< All windowed presents on this queue are notifications that the client
                                        ///  has manually done a blit present
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 388
+        uint32 placeholder2      :  1; ///< Reserved field. Set to 0.
+        uint32 reserved          : 29; ///< Reserved for future use.
+#else
         uint32 reserved          : 30; ///< Reserved for future use.
+#endif
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue

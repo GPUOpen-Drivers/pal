@@ -986,14 +986,7 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    m_graphicsState.samplePatternState.isLoad                        = false;
-    m_graphicsState.samplePatternState.immediate                     = quadSamplePattern;
-    m_graphicsState.samplePatternState.pGpuMemory                    = nullptr;
-    m_graphicsState.samplePatternState.memOffset                     = 0;
-#else
     m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
-#endif
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
 
@@ -1019,188 +1012,6 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     pDeCmdSpace = m_deCmdStream.WritePm4Image(samplePosPm4Image.spaceNeeded, &samplePosPm4Image, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdStoreMsaaQuadSamplePattern(
-    const IGpuMemory&            dstGpuMemory,
-    gpusize                      dstMemOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    size_t centroidPrioritiesHdrSize = 0;
-    size_t quadSamplePatternHdrSize  = 0;
-
-    MsaaSamplePositionsPm4Img samplePosPm4Image = {};
-
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    MsaaState::BuildSamplePosPm4Image(cmdUtil,
-                                      &samplePosPm4Image,
-                                      numSamplesPerPixel,
-                                      quadSamplePattern,
-                                      &centroidPrioritiesHdrSize,
-                                      &quadSamplePatternHdrSize);
-
-    gpusize dstGpuMemoryAddr = dstGpuMemory.Desc().gpuVirtAddr + dstMemOffset;
-    PAL_ASSERT((dstGpuMemoryAddr != 0) && ((dstGpuMemoryAddr & 0x3) == 0));
-
-    // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
-    PAL_ASSERT((HighPart(dstGpuMemoryAddr) & 0xFFFF0000) == 0);
-
-    constexpr size_t CentroidPriorityRegsDwords = 2;
-    constexpr uint32 NumCentroidPriorityRegs    = 2;
-
-    PAL_ASSERT(centroidPrioritiesHdrSize == (CentroidPriorityRegsDwords + PM4_CMD_SET_DATA_DWORDS));
-
-    uint32 centroidPriorityRegisters[NumCentroidPriorityRegs];
-    centroidPriorityRegisters[0] = samplePosPm4Image.paScCentroid.priority0.u32All;
-    centroidPriorityRegisters[1] = samplePosPm4Image.paScCentroid.priority1.u32All;
-
-    // Issue a WRITE_DATA command to update the centroidPriority data in memory
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(dstGpuMemoryAddr,
-                                            CentroidPriorityRegsDwords,
-                                            WRITE_DATA_ENGINE_PFP,
-                                            WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                            true,
-                                            &centroidPriorityRegisters[0],
-                                            PredDisable,
-                                            pDeCmdSpace);
-
-    dstGpuMemoryAddr += sizeof(centroidPriorityRegisters);
-    PAL_ASSERT((dstGpuMemoryAddr & 0x3) == 0);
-
-    constexpr size_t SampleLocationsRegsDwords = 16;
-    constexpr uint32 NumSampleLocationRegs = 16;
-    constexpr uint32 NumSampleQuadRegs = 4;
-
-    PAL_ASSERT(quadSamplePatternHdrSize == (SampleLocationsRegsDwords + PM4_CMD_SET_DATA_DWORDS));
-
-    uint32 sampleLocationRegisters[NumSampleLocationRegs];
-
-    memcpy(&sampleLocationRegisters[0], samplePosPm4Image.paScSampleQuad.X0Y0,
-        sizeof(samplePosPm4Image.paScSampleQuad.X0Y0));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs], samplePosPm4Image.paScSampleQuad.X1Y0,
-        sizeof(samplePosPm4Image.paScSampleQuad.X1Y0));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs * 2], samplePosPm4Image.paScSampleQuad.X0Y1,
-        sizeof(samplePosPm4Image.paScSampleQuad.X0Y1));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs * 3], samplePosPm4Image.paScSampleQuad.X1Y1,
-        sizeof(samplePosPm4Image.paScSampleQuad.X1Y1));
-
-    // Issue a WRITE_DATA command to update the sample locations in memory
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(dstGpuMemoryAddr,
-                                            SampleLocationsRegsDwords,
-                                            WRITE_DATA_ENGINE_PFP,
-                                            WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                            true,
-                                            &sampleLocationRegisters[0],
-                                            PredDisable,
-                                            pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdLoadMsaaQuadSamplePattern(
-    const IGpuMemory* pSrcGpuMemory,
-    gpusize           srcMemOffset)
-{
-    m_graphicsState.samplePatternState.isLoad                        = true;
-    m_graphicsState.samplePatternState.pGpuMemory                    = pSrcGpuMemory;
-    m_graphicsState.samplePatternState.memOffset                     = srcMemOffset;
-    m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
-
-    LoadDataIndexPm4Img loadCentroidPriorityPm4Img  = {};
-    LoadDataIndexPm4Img loadQuadSamplePatternPm4Img = {};
-
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    // If we use legacy LOAD_CONTEXT_REG packet to load the centroid priority and sample pattern registers, we need
-    // to subtract the register offset for the LOAD packet from the address we specify to account for the fact that
-    // the CP uses that register offset for both the register address and to compute the final GPU address to
-    // fetch from. The newer LOAD_CONTEXT_REG_INDEX packet does not add the register offset to the GPU address.
-    bool usesLoadRegIndexPkt = m_device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt != 0;
-    gpusize srcGpuMemoryAddr = pSrcGpuMemory->Desc().gpuVirtAddr + srcMemOffset;
-    PAL_ASSERT((srcGpuMemoryAddr != 0) && ((srcGpuMemoryAddr & 0x3) == 0));
-
-    // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
-    PAL_ASSERT((HighPart(srcGpuMemoryAddr) & 0xFFFF0000) == 0);
-
-    uint32 startRegAddr = mmPA_SC_CENTROID_PRIORITY_0;
-    uint32 regCount     = (mmPA_SC_CENTROID_PRIORITY_1 - mmPA_SC_CENTROID_PRIORITY_0 + 1);
-
-    gpusize centroidPriorityGpuMemoryAddr = srcGpuMemoryAddr;
-
-    if (usesLoadRegIndexPkt)
-    {
-        loadCentroidPriorityPm4Img.spaceNeeded = cmdUtil.BuildLoadContextRegsIndex<true>(
-            centroidPriorityGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadCentroidPriorityPm4Img.loadDataIndex);
-    }
-    else
-    {
-        centroidPriorityGpuMemoryAddr -= (sizeof(uint32) * (startRegAddr - CONTEXT_SPACE_START));
-
-        loadCentroidPriorityPm4Img.spaceNeeded += cmdUtil.BuildLoadContextRegs(
-            centroidPriorityGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadCentroidPriorityPm4Img.loadData);
-    }
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(loadCentroidPriorityPm4Img.spaceNeeded,
-                                              &loadCentroidPriorityPm4Img,
-                                              pDeCmdSpace);
-
-    startRegAddr = mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0;
-    regCount     = (mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3 - mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0 + 1);
-
-    gpusize quadSamplePatternGpuMemoryAddr = srcGpuMemoryAddr + sizeof(PaScCentroid);
-
-    if (usesLoadRegIndexPkt)
-    {
-        loadQuadSamplePatternPm4Img.spaceNeeded = cmdUtil.BuildLoadContextRegsIndex<true>(
-            quadSamplePatternGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadQuadSamplePatternPm4Img.loadDataIndex);
-    }
-    else
-    {
-        quadSamplePatternGpuMemoryAddr -= (sizeof(uint32) * (startRegAddr - CONTEXT_SPACE_START));
-
-        loadQuadSamplePatternPm4Img.spaceNeeded += cmdUtil.BuildLoadContextRegs(
-            quadSamplePatternGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadQuadSamplePatternPm4Img.loadData);
-    }
-
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(loadQuadSamplePatternPm4Img.spaceNeeded,
-                                              &loadQuadSamplePatternPm4Img,
-                                              pDeCmdSpace);
-
-    // Build and write register for MAX_SAMPLE_DIST
-    // PA_SC_AA_CONFIG is partially owned by the MSAA state object, and partially by the MSAA sample positions.
-    // In particular, the max sample distance field is owned by the sample pattern, while everything else is
-    // owned by the MSAA state. Right now, we handle that with a CONTEXTREGRMW packet. However, there is no RMW
-    // version of LOAD_CONTEXT reg, so we will simply set MAX_SAMPLE_DIST to maximun value.
-    // For the custom scenario where this function will be used, the application would different sample locations
-    // per pixels in the quad. If we assume a uniform distribution is used to pick the sample locations, then the
-    // probability of hitting the max distance is 50% for 2x and 100% for 4x and and 200% for 8x.
-    regPA_SC_AA_CONFIG paScAaConfig = {};
-    paScAaConfig.bits.MAX_SAMPLE_DIST = 8;
-    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                                   static_cast<uint32>(PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK),
-                                                   paScAaConfig.u32All,
-                                                   pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdSetViewports(
@@ -5149,28 +4960,6 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdBindMsaaState(newGraphicsState.pMsaaState);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    if (memcmp(&newGraphicsState.samplePatternState,
-        &m_graphicsState.samplePatternState,
-        sizeof(SamplePattern)) != 0)
-    {
-        // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
-        if (newGraphicsState.numSamplesPerPixel != 0)
-        {
-            if (newGraphicsState.samplePatternState.isLoad)
-            {
-                PAL_ASSERT(newGraphicsState.samplePatternState.pGpuMemory != nullptr);
-                CmdLoadMsaaQuadSamplePattern(newGraphicsState.samplePatternState.pGpuMemory,
-                    newGraphicsState.samplePatternState.memOffset);
-            }
-            else
-            {
-                CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
-                    newGraphicsState.samplePatternState.immediate);
-            }
-        }
-    }
-#else
     if (memcmp(&newGraphicsState.quadSamplePatternState,
                &m_graphicsState.quadSamplePatternState,
                sizeof(MsaaQuadSamplePattern)) != 0)
@@ -5182,7 +4971,6 @@ void UniversalCmdBuffer::SetGraphicsState(
                 newGraphicsState.quadSamplePatternState);
         }
     }
-#endif
 
     if (memcmp(&newGraphicsState.triangleRasterState,
                &m_graphicsState.triangleRasterState,
@@ -5542,7 +5330,6 @@ void UniversalCmdBuffer::CmdWaitBusAddressableMemoryMarker(
 // Enables or disables a flexible predication check which the CP uses to determine if a draw or dispatch can be skipped
 // based on the results of prior GPU work.
 // SEE: CmdUtil::BuildSetPredication(...) for more details on the meaning of this method's parameters.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 void UniversalCmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
     uint32              slot,
@@ -5566,7 +5353,7 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     if (pQueryPool != nullptr)
     {
-        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(slot, &gpuVirtAddr);
         PAL_ASSERT(result == Result::Success);
     }
 
@@ -5587,44 +5374,6 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
-#else
-void UniversalCmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    PAL_ASSERT((pQueryPool == nullptr) || (gpuVirtAddr == 0));
-
-    m_gfxCmdBufState.clientPredicate = ((pQueryPool != nullptr) || (gpuVirtAddr != 0)) ? 1 : 0;
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
-
-    if (pQueryPool != nullptr)
-    {
-        static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
-    }
-
-    // Clear/disable predicate
-    if ((pQueryPool == nullptr) && (gpuVirtAddr == 0))
-    {
-        predType = static_cast<PredicateType>(0);
-    }
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace += m_cmdUtil.BuildSetPredication(gpuVirtAddr,
-                                                 predPolarity,
-                                                 waitResults,
-                                                 predType,
-                                                 accumulateData,
-                                                 pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdCopyRegisterToMemory(
@@ -5655,14 +5404,15 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 {
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
-        auto*const pCmdBuffer = static_cast<Gfx6::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
+        auto*const pCallee = static_cast<Gfx6::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
+        PAL_ASSERT(pCallee != nullptr);
 
-        if (pCmdBuffer->m_state.nestedIndirectRingInstances > 0)
+        if (pCallee->m_state.nestedIndirectRingInstances > 0)
         {
             // The nestedIndirectRingInstances reflects the total number of ring instances used by the nested command
             // buffer. Nested command buffers will handle wrapping by inserting CE-DE sync as needed. The required
             // instance count is clamped to maximum indirect CE dump table instances in this case.
-            const uint32 requiredInstances = Min(pCmdBuffer->m_state.nestedIndirectRingInstances,
+            const uint32 requiredInstances = Min(pCallee->m_state.nestedIndirectRingInstances,
                                                  m_nestedIndirectCeDumpTable.ring.numInstances);
 
             RelocateRingedUserDataTable(&m_state,
@@ -5712,20 +5462,20 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
 
-        ValidateExecuteNestedCmdBuffers(*pCmdBuffer);
+        ValidateExecuteNestedCmdBuffers(*pCallee);
 
         // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
         // command buffer's command streams.
 
-        const bool exclusiveSubmit = pCmdBuffer->IsExclusiveSubmit();
-        const bool allowIb2Launch  = (pCmdBuffer->AllowLaunchViaIb2() &&
-                                      (pCmdBuffer->m_state.flags.containsDrawIndirect == 0));
+        const bool exclusiveSubmit = pCallee->IsExclusiveSubmit();
+        const bool allowIb2Launch  = (pCallee->AllowLaunchViaIb2() &&
+                                      (pCallee->m_state.flags.containsDrawIndirect == 0));
 
-        m_deCmdStream.TrackNestedEmbeddedData(pCmdBuffer->m_embeddedData.chunkList);
-        m_deCmdStream.TrackNestedCommands(pCmdBuffer->m_deCmdStream);
-        m_ceCmdStream.TrackNestedCommands(pCmdBuffer->m_ceCmdStream);
+        m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
+        m_deCmdStream.TrackNestedCommands(pCallee->m_deCmdStream);
+        m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
 
-        const bool existRef = CheckNestedExecuteReference(pCmdBuffer);
+        const bool existRef = CheckNestedExecuteReference(pCallee);
         if (existRef)
         {
             // If the nested command buffer has been called by this caller before, and it dumped CE RAM to embedded
@@ -5753,12 +5503,12 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
 
-        m_deCmdStream.Call(pCmdBuffer->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
-        m_ceCmdStream.Call(pCmdBuffer->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
+        m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
+        m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.
-        LeakNestedCmdBufferState(*pCmdBuffer);
+        LeakNestedCmdBufferState(*pCallee);
     }
 }
 
@@ -6289,6 +6039,50 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetHiSCompareState0(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    regDB_SRESULTS_COMPARE_STATE0 dbSResultCompare;
+
+    dbSResultCompare.bitfields.COMPAREFUNC0  = DepthStencilState :: HwStencilCompare(compFunc);
+    dbSResultCompare.bitfields.COMPAREMASK0  = compMask;
+    dbSResultCompare.bitfields.COMPAREVALUE0 = compValue;
+    dbSResultCompare.bitfields.ENABLE0       = enable;
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace =
+        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE0, dbSResultCompare.u32All, pDeCmdSpace);
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetHiSCompareState1(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    regDB_SRESULTS_COMPARE_STATE1 dbSResultCompare;
+
+    dbSResultCompare.bitfields.COMPAREFUNC1  = DepthStencilState :: HwStencilCompare(compFunc);
+    dbSResultCompare.bitfields.COMPAREMASK1  = compMask;
+    dbSResultCompare.bitfields.COMPAREVALUE1 = compValue;
+    dbSResultCompare.bitfields.ENABLE1       = enable;
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace =
+        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE1, dbSResultCompare.u32All, pDeCmdSpace);
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================

@@ -263,20 +263,6 @@ public:
         const MsaaQuadSamplePattern& quadSamplePattern) override
         { PAL_NEVER_CALLED(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override
-        { PAL_NEVER_CALLED(); }
-#endif
-
     virtual void CmdSetViewports(
         const ViewportParams& params) override
         { PAL_NEVER_CALLED(); }
@@ -571,7 +557,6 @@ public:
         const IBorderColorPalette* pPalette) override
         { PAL_NEVER_CALLED(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -582,17 +567,6 @@ public:
         bool                waitResults,
         bool                accumulateData) override
         { PAL_NEVER_CALLED(); }
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override
-        { PAL_NEVER_CALLED(); }
-#endif
 
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
@@ -729,6 +703,18 @@ public:
         const char* pComment) override { PAL_NEVER_CALLED(); }
 
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
+
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override { PAL_NEVER_CALLED(); }
+
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override { PAL_NEVER_CALLED(); }
 
     // Maximum length of a filename allowed for command buffer dumps
     static constexpr uint32 MaxFilenameLength = 32;

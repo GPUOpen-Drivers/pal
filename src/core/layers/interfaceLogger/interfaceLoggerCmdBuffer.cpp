@@ -585,60 +585,6 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-void CmdBuffer::CmdStoreMsaaQuadSamplePattern(
-    const IGpuMemory&            dstGpuMemory,
-    gpusize                      dstMemOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdStoreMsaaQuadSamplePattern;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdStoreMsaaQuadSamplePattern(dstGpuMemory, dstMemOffset, numSamplesPerPixel, quadSamplePattern);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
-        pLogContext->KeyAndValue("dstMemOffset", dstMemOffset);
-        pLogContext->KeyAndValue("numSamplesPerPixel", numSamplesPerPixel);
-        pLogContext->KeyAndStruct("quadSamplePattern", quadSamplePattern);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-    const IGpuMemory* pSrcGpuMemory,
-    gpusize           srcMemOffset)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdBufferCmdLoadMsaaQuadSamplePattern;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("pSrcGpuMemory", pSrcGpuMemory);
-        pLogContext->KeyAndValue("srcMemOffset", srcMemOffset);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
@@ -2096,7 +2042,6 @@ void CmdBuffer::CmdBindBorderColorPalette(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 void CmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
@@ -2139,47 +2084,6 @@ void CmdBuffer::CmdSetPredication(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
-#else
-// =====================================================================================================================
-void CmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetPredication;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetPredication(NextQueryPool(pQueryPool),
-                                    slot,
-                                    gpuVirtAddr,
-                                    predType,
-                                    predPolarity,
-                                    waitResults,
-                                    accumulateData);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("queryPool", pQueryPool);
-        pLogContext->KeyAndValue("slot", slot);
-        pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
-        pLogContext->KeyAndEnum("predType", predType);
-        pLogContext->KeyAndValue("predPolarity", predPolarity);
-        pLogContext->KeyAndValue("waitResults", waitResults);
-        pLogContext->KeyAndValue("accumulateData", accumulateData);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdIf(
@@ -2376,6 +2280,66 @@ void CmdBuffer::CmdWaitBusAddressableMemoryMarker(
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState0(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::CmdSetHiSCompareState0;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndEnum("compFunc", compFunc);
+        pLogContext->KeyAndValue("compMask", compMask);
+        pLogContext->KeyAndValue("compValue", compValue);
+        pLogContext->KeyAndValue("enable", enable);
+
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState1(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::CmdSetHiSCompareState1;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndEnum("compFunc", compFunc);
+        pLogContext->KeyAndValue("compMask", compMask);
+        pLogContext->KeyAndValue("compValue", compValue);
+        pLogContext->KeyAndValue("enable", enable);
+
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
 }
 
 // =====================================================================================================================

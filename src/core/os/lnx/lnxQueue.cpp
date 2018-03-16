@@ -320,7 +320,7 @@ Result Queue::Init(
     if ((result == Result::Success) &&
         (static_cast<Device*>(m_pDevice)->GetSemaphoreType() == SemaphoreType::SyncObj))
     {
-        result =  static_cast<Device*>(m_pDevice)->CreateSyncObject(&m_lastSignaledSyncObject);
+        result =  static_cast<Device*>(m_pDevice)->CreateSyncObject(0, &m_lastSignaledSyncObject);
     }
 
     return result;
@@ -754,7 +754,7 @@ Result Queue::SubmitPm4(
                 result = WaitQueueSemaphoreInternal(pWaitBeforeLaunch, true);
             }
 
-            result = SubmitIbs(isDummySubmission);
+            result = SubmitIbs(internalSubmitInfo, isDummySubmission);
 
             if ((pSignalAfterLaunch != nullptr) && (result == Result::Success))
             {
@@ -1002,7 +1002,7 @@ Result Queue::SubmitNonGfxIp(
             if ((++chunkCount == maxChunkCount) && (result == Result::Success))
             {
                 // Submit the command buffer and reset the chunk count.
-                result     = SubmitIbs(isDummySubmission);
+                result     = SubmitIbs(internalSubmitInfo, isDummySubmission);
                 chunkCount = 0;
             }
         }
@@ -1010,7 +1010,7 @@ Result Queue::SubmitNonGfxIp(
         // Submit the rest of the chunks.
         if ((chunkCount > 0) && (result == Result::Success))
         {
-            result = SubmitIbs(isDummySubmission);
+            result = SubmitIbs(internalSubmitInfo, isDummySubmission);
         }
     }
 
@@ -1232,7 +1232,8 @@ Result Queue::AddIb(
 // =====================================================================================================================
 // Submits the accumulated list of IBs to the GPU. Resets the IB list to begin building the next submission.
 Result Queue::SubmitIbsRaw(
-    bool isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo,
+    bool                      isDummySubmission)
 {
     auto*const pDevice  = static_cast<Device*>(m_pDevice);
     auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
@@ -1240,22 +1241,28 @@ Result Queue::SubmitIbsRaw(
 
     uint32  totalChunk = m_numIbs;
     uint32  currentChunk = 0;
-    uint32  waitCount = m_waitSemList.NumElements();
-    // all semaphores supposed to be waited before submission need one chunk
+    uint32  waitCount = m_waitSemList.NumElements() + internalSubmitInfo.waitSemaphoreCount;
     // Each queue manages one sync object which refers to the fence of last submission.
+    uint32  signalCount = internalSubmitInfo.signalSemaphoreCount + 1;
+    // all semaphores supposed to be waited before submission need one chunk
     totalChunk += waitCount > 0 ? 1 : 0;
+    // all semaphores supposed to be signaled after submission need one chunk
     totalChunk += 1;
 
-    AutoBuffer<struct drm_amdgpu_cs_chunk, 8, Pal::Platform> chunkArray(totalChunk, m_pDevice->GetPlatform());
-    AutoBuffer<struct drm_amdgpu_cs_chunk_data, 8, Pal::Platform> chunkDataArray(m_numIbs, m_pDevice->GetPlatform());
-    AutoBuffer<struct drm_amdgpu_cs_chunk_sem, 32, Pal::Platform> semChunkArray(waitCount, m_pDevice->GetPlatform());
-
-    struct drm_amdgpu_cs_chunk_sem semToSignal = {};
+    AutoBuffer<struct drm_amdgpu_cs_chunk, 8, Pal::Platform>
+                        chunkArray(totalChunk, m_pDevice->GetPlatform());
+    AutoBuffer<struct drm_amdgpu_cs_chunk_data, 8, Pal::Platform>
+                        chunkDataArray(m_numIbs, m_pDevice->GetPlatform());
+    AutoBuffer<struct drm_amdgpu_cs_chunk_sem, 32, Pal::Platform>
+                        waitChunkArray(waitCount, m_pDevice->GetPlatform());
+    AutoBuffer<struct drm_amdgpu_cs_chunk_sem, 32, Pal::Platform>
+                        signalChunkArray(signalCount, m_pDevice->GetPlatform());
 
     // default size is the minumum capacity of AutoBuffer.
-    if ((chunkArray.Capacity() < totalChunk) ||
-        (chunkDataArray.Capacity() < m_numIbs) ||
-        (semChunkArray.Capacity() < waitCount))
+    if ((chunkArray.Capacity()       < totalChunk) ||
+        (chunkDataArray.Capacity()   < m_numIbs)   ||
+        (waitChunkArray.Capacity()   < waitCount)  ||
+        (signalChunkArray.Capacity() < signalCount))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -1285,21 +1292,40 @@ Result Queue::SubmitIbsRaw(
         {
             chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_IN;
             chunkArray[currentChunk].length_dw = waitCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
-            chunkArray[currentChunk].chunk_data = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&semChunkArray[0]));
-            for (uint32 i = 0; i < waitCount; i++)
+            chunkArray[currentChunk].chunk_data = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&waitChunkArray[0]));
+            uint32 waitListSize = m_waitSemList.NumElements();
+            uint32 index = 0;
+            for (uint32 i = 0; i < waitListSize; i++, index++)
             {
                 amdgpu_semaphore_handle handle;
                 m_waitSemList.PopBack(&handle);
-                semChunkArray[i].handle = reinterpret_cast<uintptr_t>(handle);
+                waitChunkArray[index].handle = reinterpret_cast<uintptr_t>(handle);
+            }
+            for (uint32 i = 0; i < internalSubmitInfo.waitSemaphoreCount; i++, index++)
+            {
+                amdgpu_semaphore_handle handle =
+                    static_cast<QueueSemaphore*>(internalSubmitInfo.ppWaitSemaphores[i])->GetSyncObjHandle();
+                waitChunkArray[index].handle = reinterpret_cast<uintptr_t>(handle);
             }
             currentChunk ++;
         }
 
         // add the semaphore supposed to be signaled after the submission.
-        chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
-        chunkArray[currentChunk].length_dw = sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
-        chunkArray[currentChunk].chunk_data = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&semToSignal));
-        semToSignal.handle = m_lastSignaledSyncObject;
+        if (signalCount > 0)
+        {
+            chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
+            chunkArray[currentChunk].length_dw = signalCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
+            chunkArray[currentChunk].chunk_data =
+                static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&signalChunkArray[0]));
+
+            for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
+            {
+                amdgpu_semaphore_handle handle =
+                    static_cast<QueueSemaphore*>(internalSubmitInfo.ppSignalSemaphores[i])->GetSyncObjHandle();
+                signalChunkArray[i].handle = reinterpret_cast<uintptr_t>(handle);
+            }
+            signalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
+        }
 
         result = pDevice->SubmitRaw(pContext->Handle(),
                 isDummySubmission ? m_hDummyResourceList : m_hResourceList,
@@ -1319,7 +1345,8 @@ Result Queue::SubmitIbsRaw(
 // =====================================================================================================================
 // Submits the accumulated list of IBs to the GPU. Resets the IB list to begin building the next submission.
 Result Queue::SubmitIbs(
-    bool isDummySubmission)
+    const InternalSubmitInfo& internalSubmitInfo,
+    bool                      isDummySubmission)
 {
     auto*const pDevice  = static_cast<Device*>(m_pDevice);
     auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
@@ -1328,7 +1355,7 @@ Result Queue::SubmitIbs(
     // we should only use new submit routine when sync object is supported in the kenrel as well as u/k interfaces.
     if (pDevice->GetSemaphoreType() == SemaphoreType::SyncObj)
     {
-        result = SubmitIbsRaw(isDummySubmission);
+        result = SubmitIbsRaw(internalSubmitInfo, isDummySubmission);
     }
     else
     {

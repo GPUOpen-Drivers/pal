@@ -49,7 +49,7 @@ namespace DevDriver
 
         bool GetSupportedVersion(Version minVersion, Version maxVersion, Version * version) const override final;
 
-        virtual void Finalize();
+        virtual void Finalize() override;
     protected:
         BaseProtocolServer(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion);
 

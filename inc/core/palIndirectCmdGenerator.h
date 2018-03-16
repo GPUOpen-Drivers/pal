@@ -87,11 +87,9 @@ struct IndirectParam
     /// BindUntypedSrd |  Must equal sizeof(BindUntypedSrdIndirectArgs).
     /// SetUserData    |  Must equal (sizeof(uint32) * userData.entryCount).
     uint32  sizeInBytes;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 324
     uint32 userDataShaderUsage; ///< Shader usage mask defining API shader stage access for
                                 ///  IndirectParamType::SetUserData (@see ShaderStageFlagBits).
                                 ///  Must be ApiShaderStageCompute for IndirectParamType::Dispatch.
-#endif
     union
     {
         struct

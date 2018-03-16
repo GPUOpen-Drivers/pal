@@ -55,7 +55,7 @@ namespace DevDriver
     static_assert(static_cast<MessageCode>(SessionMessage::Ack) == 5, "Unexpected SessionMessage::Ack value.");
     static_assert(static_cast<MessageCode>(SessionMessage::Rst) == 6, "Unexpected SessionMessage::Rst value.");
     static_assert(static_cast<MessageCode>(SessionMessage::Count) == 7, "Unexpected SessionMessage::Count value.");
-
+/*
     DD_STATIC_CONST const char* kMessageNames[static_cast<MessageCode>(SessionMessage::Count)] =
     {
         "Unknown",
@@ -66,6 +66,7 @@ namespace DevDriver
         "Ack",
         "Rst",
     };
+*/
 #endif
 
     // We break the SessionId value into two, 16 bit values. These variables make it easier to operate on the bitfield

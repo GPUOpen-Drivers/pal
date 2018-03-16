@@ -114,9 +114,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_flags.dccDecompress    = internalInfo.flags.dccDecompress;
     m_flags.resolveFixedFunc = internalInfo.flags.resolveFixedFunc;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
     m_binningOverride = createInfo.rsState.binningOverride;
-#endif
 
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
     m_lateAllocVsLimit       = createInfo.lateAllocVsLimit;
@@ -159,13 +157,9 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         m_targetWriteMasks[i]      = createInfo.cbState.target[i].channelWriteMask;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 338
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
-#endif
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 338
     hasher.Update(m_viewInstancingDesc);
-#endif
 
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);

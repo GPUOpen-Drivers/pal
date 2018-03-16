@@ -66,10 +66,6 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetDepthBounds()",
     "CmdSetStencilRefMasks()",
     "CmdSetMsaaQuadSamplePattern()",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    "CmdStoreMsaaQuadSamplePattern",
-    "CmdLoadMsaaQuadSamplePattern",
-#endif
     "CmdSetViewports()",
     "CmdSetScissorRects()",
     "CmdSetGlobalScissor()",
@@ -149,6 +145,8 @@ static const char* CmdBufCallIdStrings[] =
     "CmdStopGpuProfilerLogging()",
     "CmdCopyImageToPackedPixelImage()",
     "CmdSetViewInstanceMask()",
+    "CmdSetHiSCompareState0()",
+    "CmdSetHiSCompareState1()",
 };
 
 static_assert((sizeof(CmdBufCallIdStrings)/sizeof(CmdBufCallIdStrings[0])) == static_cast<uint32>(CmdBufCallId::Count),
@@ -331,9 +329,7 @@ static const char* FormatToString(
         "X8Y8Z8W8_Uint",
         "X8Y8Z8W8_Sint",
         "X8Y8Z8W8_Srgb",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         "U8V8_Snorm_L8W8_Unorm",
-#endif
         "X10Y11Z11_Float",
         "X11Y11Z10_Float",
         "X10Y10Z10W2_Unorm",
@@ -343,9 +339,7 @@ static const char* FormatToString(
         "X10Y10Z10W2_Uint",
         "X10Y10Z10W2_Sint",
         "X10Y10Z10W2Bias_Unorm",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         "U10V10W10_Snorm_A2_Unorm",
-#endif
         "X16_Unorm",
         "X16_Snorm",
         "X16_Uscaled",
@@ -1552,40 +1546,6 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
     GetNextLayer()->CmdSetMsaaQuadSamplePattern(numSamplesPerPixel, quadSamplePattern);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-void CmdBuffer::CmdStoreMsaaQuadSamplePattern(
-    const IGpuMemory&            dstGpuMemory,
-    gpusize                      dstMemOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    if (m_flags.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdStoreMsaaQuadSamplePattern));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdStoreMsaaQuadSamplePattern(dstGpuMemory, dstMemOffset, numSamplesPerPixel, quadSamplePattern);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdLoadMsaaQuadSamplePattern(
-    const IGpuMemory* pSrcGpuMemory,
-    gpusize           srcMemOffset)
-{
-    if (m_flags.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadMsaaQuadSamplePattern));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset);
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
@@ -1773,25 +1733,11 @@ static void BarrierTransitionToString(
         ImageLayoutToString(transition.imageInfo.newLayout, &string[0]);
         pCmdBuffer->CmdCommentString(&string[0]);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        if (transition.imageInfo.samplePattern.pImmediate != nullptr)
-        {
-            DumpMsaaQuadSamplePattern(
-                pCmdBuffer, *transition.imageInfo.samplePattern.pImmediate, "samplePattern.pImmediate", "\t\t");
-        }
-
-        if (transition.imageInfo.samplePattern.pGpuMemory != nullptr)
-        {
-            DumpGpuMemoryInfo(
-                pCmdBuffer, transition.imageInfo.samplePattern.pGpuMemory, "samplePattern.pGpuMemory", "\t\t");
-        }
-#else
         if (transition.imageInfo.pQuadSamplePattern != nullptr)
         {
             DumpMsaaQuadSamplePattern(
                 pCmdBuffer, *transition.imageInfo.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
         }
-#endif
     }
     else
     {
@@ -3314,7 +3260,6 @@ void CmdBuffer::CmdResolveQuery(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 void CmdBuffer::CmdSetPredication(
     IQueryPool*       pQueryPool,
     uint32            slot,
@@ -3341,32 +3286,6 @@ void CmdBuffer::CmdSetPredication(
                                    waitResults,
                                    accumulateData);
 }
-#else
-void CmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    if (m_flags.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPredication));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdSetPredication(NextQueryPool(pQueryPool),
-                                   slot,
-                                   gpuVirtAddr,
-                                   predType,
-                                   predPolarity,
-                                   waitResults,
-                                   accumulateData);
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
@@ -3717,6 +3636,40 @@ void CmdBuffer::CmdEndWhile()
     }
 
     GetNextLayer()->CmdEndWhile();
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState0(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    if (m_flags.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState0));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetHiSCompareState1(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    if (m_flags.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState1));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
 }
 
 // =====================================================================================================================

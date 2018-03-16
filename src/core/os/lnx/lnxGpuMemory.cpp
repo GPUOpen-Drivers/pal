@@ -106,7 +106,8 @@ Result GpuMemory::AllocateOrPinMemory(
     uint64*                 pPagingFence,              // Ignored on Linux platforms.
     VirtualGpuMemAccessMode virtualAccessMode,         // Ignored on Linux platforms.
     uint32                  multiDeviceGpuMemoryCount, // Ignored on Linux platforms.
-    IDevice*const*          ppDevice)                  // Ignored on Linux platforms.
+    IDevice*const*          ppDevice,                  // Ignored on Linux platforms.
+    Pal::Image*const*       ppImage)                   // Ignored on Linux platforms.
 {
     Device*                        pDevice      = static_cast<Device*>(m_pDevice);
     struct amdgpu_bo_alloc_request allocRequest = { };

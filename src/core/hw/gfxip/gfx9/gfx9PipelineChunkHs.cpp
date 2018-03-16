@@ -65,9 +65,6 @@ void PipelineChunkHs::Init(
     m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_HS);
     m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
-#endif
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
     m_pm4ImageContext.vgtHosMinTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MIN_TESS_LEVEL);
@@ -117,12 +114,7 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    if (m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT == 0)
-#endif
-    {
-        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
-    }
+    pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
 
     if (hsStageInfo.cuEnableMask != 0)
     {

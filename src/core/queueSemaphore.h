@@ -54,7 +54,7 @@ public:
 
     virtual OsExternalHandle ExportExternalHandle() const override;
 
-    virtual amdgpu_semaphore_handle GetSyncObjHandle() const;
+    amdgpu_semaphore_handle GetSyncObjHandle() const { return m_hSemaphore; }
 
     static Result ValidateInit(const Device* pDevice, const QueueSemaphoreCreateInfo& createInfo);
     static Result ValidateOpen(const Device* pDevice, const QueueSemaphoreOpenInfo& openInfo);
@@ -81,8 +81,10 @@ protected:
     Device*const  m_pDevice;
 
     amdgpu_semaphore_handle m_hSemaphore;
-    bool                    m_skipNextWait; // Currently amdgpu lacks a way to signal a semaphore at creation.
-                                            // As a workaround, we skip the OS wait if this is set.
+    bool                    m_skipNextWait; // For SemaphoreType::SyncObj Semaphore, we can create
+                                            // Signaled Semaphore with DRM_SYNCOBJ_CREATE_SIGNALED.
+                                            // For other Semaphores, keep usage of m_skipNextWait
+                                            // as a workaround to skip the OS wait if it is set.
 private:
     Result ValidateOpenExternal(const ExternalQueueSemaphoreOpenInfo& openInfo);
 

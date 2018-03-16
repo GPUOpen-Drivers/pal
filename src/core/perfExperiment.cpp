@@ -223,7 +223,7 @@ Result PerfExperiment::AddThreadTrace(
 Result PerfExperiment::Finalize()
 {
     // Assume the operation fails due to already being in the 'Finalized' state.
-    Result result = Result::ErrorUnavailable;
+    Result result = Result::Success;
 
     if (IsFinalized() == false)
     {
@@ -292,9 +292,8 @@ Result PerfExperiment::Finalize()
 
         if (HasSpmTrace())
         {
-             // Use this opportunity to finalize the spm trace based on the configuration.
-             m_pSpmTrace->CalculateSegmentSize();
-             m_pSpmTrace->CalculateMuxRam();
+             // Finalize the spm trace based on the create info.
+             result = m_pSpmTrace->Finalize();
 
             // Set the start offset of spm data. The Spm trace data starts from where the thread trace results end.
             m_pSpmTrace->SetDataOffset(m_totalMemSize);
@@ -305,7 +304,10 @@ Result PerfExperiment::Finalize()
 
         // Mark this Experiment as 'finalized'.
         m_flags.isFinalized = 1;
-        result = Result::Success;
+    }
+    else
+    {
+        result = Result::ErrorUnavailable;
     }
 
     return result;

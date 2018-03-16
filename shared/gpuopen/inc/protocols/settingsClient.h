@@ -58,7 +58,6 @@ namespace DevDriver
             Result SetSetting(const char* pName, const SettingValue* pValue);
 
         private:
-            void ResetState() override;
         };
     }
 } // DevDriver

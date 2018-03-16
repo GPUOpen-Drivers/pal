@@ -126,17 +126,7 @@ struct GraphicsState
     ViewportParams              viewportState;          // (CmdSetViewports)
     ScissorRectParams           scissorRectState;       // (CmdSetScissorRects)
     GlobalScissorParams         globalScissorState;     // (CmdSetGlobalScissor)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    struct
-    {
-        bool                  isLoad;
-        MsaaQuadSamplePattern immediate;
-        const IGpuMemory*     pGpuMemory;
-        gpusize               memOffset;
-    } samplePatternState;                               // (CmdSetQuadSamplePattern), (CmdLoadQuadSamplePattern)
-#else
     MsaaQuadSamplePattern       quadSamplePatternState; // (CmdSetQuadSamplePattern)
-#endif
 
     uint32                      numSamplesPerPixel;     // (CmdSetQuadSamplePattern)
 

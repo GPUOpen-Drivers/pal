@@ -149,14 +149,9 @@ union ImageCreateFlags
                                              ///  equation is also acceptable.
         uint32 fixedTileSwizzle        :  1; ///< Fix this image's tile swizzle to ImageCreateInfo::tileSwizzle. This
                                              ///  is only supported for single-sampled color images.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 328
         uint32 videoReferenceOnly      :  1; ///< Image is used by video hardware for reference buffer only.
                                              ///  It uses a different tiling format than the decoder output buffer.
         uint32 reserved                : 14; ///< Reserved for future use.
-#else
-        uint32 reserved                : 15; ///< Reserved for future use.
-#endif
-
     };
     uint32 u32All;                     ///< Flags packed as 32-bit uint.
 };
@@ -213,9 +208,7 @@ union ImageUsageFlags
         uint32 shaderRead             :  1;  ///< Image will be read from shader (i.e., texture).
         uint32 shaderWrite            :  1;  ///< Image will be written from a shader (i.e., UAV).
         uint32 resolveSrc             :  1;  ///< Image will be used as resolve source image
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
         uint32 resolveDst             :  1;  ///< Image will be used as resolve dst image
-#endif
         uint32 colorTarget            :  1;  ///< Image will be bound as a color target.
         uint32 depthStencil           :  1;  ///< Image will be bound as a depth/stencil target.
         uint32 noStencilShaderRead    :  1;  ///< Image will be neither read as stencil nor resolved on stencil aspect.
@@ -234,11 +227,7 @@ union ImageUsageFlags
                                              ///  is used as a color target and compute is used to generate mipmaps,PAL
                                              ///  may be able to enable additional compression on the baseLevels which
                                              ///  are used exclusively as color target and shader read.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
         uint32 reserved               : 19;  ///< Reserved for future use.
-#else
-        uint32 reserved               : 20;  ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                 ///< Flags packed as 32-bit uint.
 };
@@ -312,12 +301,8 @@ struct PresentableImageCreateInfo
             uint32 stereo       :  1;   ///< Image supports stereoscopic rendering and display.
                                         ///  Implies an array size of 2. Fullscreen must be set.
             uint32 turbosync    :  1;   ///< Image supports turbosync flip
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 323
             uint32 peerWritable :  1;   ///< Indicates if the memory allocated will be writable by other devices
             uint32 reserved     : 28;   ///< Reserved for future use.
-#else
-            uint32 reserved     : 29;   ///< Reserved for future use.
-#endif
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Presentable image creation flags.

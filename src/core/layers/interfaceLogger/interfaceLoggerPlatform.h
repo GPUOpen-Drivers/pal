@@ -113,10 +113,8 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) override;
-#endif
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

@@ -92,23 +92,22 @@ public:
         uint32        queryCount) const;
 
     // Writes commands to pCmdStream to wait until the given query slots are full of valid data. This will hang the GPU
-    // if it was not preceeded by a pair of calls to Begin and End.
+    // if it was not preceded by a pair of calls to Begin and End.
     virtual void WaitForSlots(CmdStream* pCmdStream, uint32 startQuery, uint32 queryCount) const = 0;
 
     const GpuMemory& GpuMemory() const { return *m_gpuMemory.Memory(); }
 
     Result GetQueryGpuAddress(uint32 slot, gpusize* pGpuAddr) const;
     Result GetTimestampGpuAddress(uint32 slot, gpusize* pGpuAddr) const;
+    gpusize GetTimestampOffset(uint32 slot) const;
 
     gpusize GetQueryOffset(uint32 slot) const { return m_gpuMemory.Offset() + GetGpuResultSizeInBytes(slot); }
-    gpusize GetTimestampOffset(uint32 slot) const
-    {
-        return m_gpuMemory.Offset() + m_timestampStartOffset + slot * m_timestampSizePerSlotInBytes;
-    }
     const QueryPoolCreateInfo& CreateInfo() const { return m_createInfo; }
 
     size_t GetGpuResultSizeInBytes(uint32 queryCount) const
         { return static_cast<size_t>(m_gpuResultSizePerSlotInBytes * queryCount); }
+
+    bool HasTimestamps() const { return (m_timestampSizePerSlotInBytes != 0); }
 
     virtual bool HasForcedQueryResult() const { return false; }
     virtual uint32 GetForcedQueryResult() const { return 0; }

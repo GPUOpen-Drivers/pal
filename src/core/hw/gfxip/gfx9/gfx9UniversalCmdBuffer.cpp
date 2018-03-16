@@ -273,7 +273,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_paScBinnerCntl0,          0, sizeof(m_paScBinnerCntl0));
     memset(&m_cachedSettings,           0, sizeof(m_cachedSettings));
     memset(&m_drawTimeHwState,          0, sizeof(m_drawTimeHwState));
-    memset(&m_primGroupOpt,             0, sizeof(m_primGroupOpt));
     memset(&m_nggState,                 0, sizeof(m_nggState));
 
     // Setup default engine support - Universal Cmd Buffer supports Graphics, Compute and CPDMA.
@@ -317,18 +316,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Because Compute pipelines use a fixed user-data entry mapping, the CS CmdSetUserData callback never changes.
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &UniversalCmdBuffer::CmdSetUserDataCs);
-
-    if (settings.dynamicPrimGroupEnable)
-    {
-        m_primGroupOpt.windowSize = settings.dynamicPrimGroupWindowSize;
-        m_primGroupOpt.step       = settings.dynamicPrimGroupStep;
-        m_primGroupOpt.minSize    = settings.dynamicPrimGroupMin;
-        m_primGroupOpt.maxSize    = settings.dynamicPrimGroupMax;
-    }
-    else
-    {
-        memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
-    }
 
     const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
                              (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
@@ -1034,19 +1021,6 @@ void UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_vgtDmaIndexType.bits.PRIMGEN_EN = static_cast<uint32>(isNgg);
     }
 
-    if (m_primGroupOpt.windowSize != 0)
-    {
-        // Reset the primgroup window state so that we can start gathering data on this new pipeline.
-        // Note that we will only enable this optimization for VS/PS pipelines.
-        m_primGroupOpt.vtxIdxTotal = 0;
-        m_primGroupOpt.drawCount   = 0;
-        m_primGroupOpt.optimalSize = 0;
-        m_primGroupOpt.enabled = ((pNewPipeline->IsGsEnabled() == false)   &&
-                                  (pNewPipeline->IsTessEnabled() == false) &&
-                                  (pNewPipeline->UsesStreamOut() == false) &&
-                                  (isNgg == false));
-    }
-
     m_pSignatureGfx = &signature;
 }
 
@@ -1157,14 +1131,7 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     const MsaaQuadSamplePattern& quadSamplePattern)
 {
     PAL_ASSERT((numSamplesPerPixel > 0) && (numSamplesPerPixel <= MaxMsaaRasterizerSamples));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    m_graphicsState.samplePatternState.isLoad                        = false;
-    m_graphicsState.samplePatternState.immediate                     = quadSamplePattern;
-    m_graphicsState.samplePatternState.pGpuMemory                    = nullptr;
-    m_graphicsState.samplePatternState.memOffset                     = 0;
-#else
     m_graphicsState.quadSamplePatternState                           = quadSamplePattern;
-#endif
     m_graphicsState.numSamplesPerPixel                               = numSamplesPerPixel;
     m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
 
@@ -1190,191 +1157,6 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     pDeCmdSpace = m_deCmdStream.WritePm4Image(samplePosPm4Image.spaceNeeded, &samplePosPm4Image, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdStoreMsaaQuadSamplePattern(
-    const IGpuMemory&            dstGpuMemory,
-    gpusize                      dstMemOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    size_t centroidPrioritiesHdrSize = 0;
-    size_t quadSamplePatternHdrSize  = 0;
-
-    MsaaSamplePositionsPm4Img samplePosPm4Image = {};
-
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    MsaaState::BuildSamplePosPm4Image(cmdUtil,
-                                      &samplePosPm4Image,
-                                      numSamplesPerPixel,
-                                      quadSamplePattern,
-                                      &centroidPrioritiesHdrSize,
-                                      &quadSamplePatternHdrSize);
-
-    gpusize dstGpuMemoryAddr = dstGpuMemory.Desc().gpuVirtAddr + dstMemOffset;
-    PAL_ASSERT((dstGpuMemoryAddr != 0) && ((dstGpuMemoryAddr & 0x3) == 0));
-
-    // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
-    PAL_ASSERT((HighPart(dstGpuMemoryAddr) & 0xFFFF0000) == 0);
-
-    constexpr size_t CentroidPriorityRegsDwords = 2;
-    constexpr uint32 NumCentroidPriorityRegs = 2;
-
-    PAL_ASSERT(centroidPrioritiesHdrSize == (CentroidPriorityRegsDwords + CmdUtil::ContextRegSizeDwords));
-
-    uint32 centroidPriorityRegisters[NumCentroidPriorityRegs];
-    centroidPriorityRegisters[0] = samplePosPm4Image.paScCentroid.priority0.u32All;
-    centroidPriorityRegisters[1] = samplePosPm4Image.paScCentroid.priority1.u32All;
-
-    // Issue a WRITE_DATA command to update the centroidPriority data in memory
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                            dstGpuMemoryAddr,
-                                            CentroidPriorityRegsDwords,
-                                            engine_sel__pfp_write_data__prefetch_parser,
-                                            dst_sel__me_write_data__memory,
-                                            wr_confirm__me_write_data__wait_for_write_confirmation,
-                                            &centroidPriorityRegisters[0],
-                                            PredDisable,
-                                            pDeCmdSpace);
-
-    dstGpuMemoryAddr += sizeof(centroidPriorityRegisters);
-    PAL_ASSERT((dstGpuMemoryAddr & 0x3) == 0);
-
-    constexpr size_t SampleLocationsRegsDwords = 16;
-    constexpr uint32 NumSampleLocationRegs = 16;
-    constexpr uint32 NumSampleQuadRegs = 4;
-
-    PAL_ASSERT(quadSamplePatternHdrSize == (SampleLocationsRegsDwords + CmdUtil::ContextRegSizeDwords));
-
-    uint32 sampleLocationRegisters[NumSampleLocationRegs];
-
-    memcpy(&sampleLocationRegisters[0], samplePosPm4Image.paScSampleQuad.X0Y0,
-        sizeof(samplePosPm4Image.paScSampleQuad.X0Y0));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs], samplePosPm4Image.paScSampleQuad.X1Y0,
-        sizeof(samplePosPm4Image.paScSampleQuad.X1Y0));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs * 2], samplePosPm4Image.paScSampleQuad.X0Y1,
-        sizeof(samplePosPm4Image.paScSampleQuad.X0Y1));
-    memcpy(&sampleLocationRegisters[NumSampleQuadRegs * 3], samplePosPm4Image.paScSampleQuad.X1Y1,
-        sizeof(samplePosPm4Image.paScSampleQuad.X1Y1));
-
-    // Issue a WRITE_DATA command to update the sample locations in memory
-    pDeCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                            dstGpuMemoryAddr,
-                                            SampleLocationsRegsDwords,
-                                            engine_sel__pfp_write_data__prefetch_parser,
-                                            dst_sel__me_write_data__memory,
-                                            wr_confirm__me_write_data__wait_for_write_confirmation,
-                                            &sampleLocationRegisters[0],
-                                            PredDisable,
-                                            pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdLoadMsaaQuadSamplePattern(
-    const IGpuMemory* pSrcGpuMemory,
-    gpusize           srcMemOffset)
-{
-    m_graphicsState.samplePatternState.isLoad                        = true;
-    m_graphicsState.samplePatternState.pGpuMemory                    = pSrcGpuMemory;
-    m_graphicsState.samplePatternState.memOffset                     = srcMemOffset;
-    m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
-
-    LoadDataIndexPm4Img loadCentroidPriorityPm4Img  = {};
-    LoadDataIndexPm4Img loadQuadSamplePatternPm4Img = {};
-
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
-
-    // If we use legacy LOAD_CONTEXT_REG packet to load the centroid priority and sample pattern registers, we need
-    // to subtract the register offset for the LOAD packet from the address we specify to account for the fact that
-    // the CP uses that register offset for both the register address and to compute the final GPU address to
-    // fetch from. The newer LOAD_CONTEXT_REG_INDEX packet does not add the register offset to the GPU address.
-    bool usesLoadRegIndexPkt = m_device.Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt != 0;
-    gpusize srcGpuMemoryAddr = pSrcGpuMemory->Desc().gpuVirtAddr + srcMemOffset;
-
-    PAL_ASSERT((srcGpuMemoryAddr != 0) && ((srcGpuMemoryAddr & 0x3) == 0));
-
-    // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
-    PAL_ASSERT((HighPart(srcGpuMemoryAddr) & 0xFFFF0000) == 0);
-
-    uint32 startRegAddr = mmPA_SC_CENTROID_PRIORITY_0;
-    uint32 regCount     = (mmPA_SC_CENTROID_PRIORITY_1 - mmPA_SC_CENTROID_PRIORITY_0 + 1);
-
-    gpusize centroidPriorityGpuMemoryAddr = srcGpuMemoryAddr;
-
-    if (usesLoadRegIndexPkt)
-    {
-        loadCentroidPriorityPm4Img.spaceNeeded = cmdUtil.BuildLoadContextRegsIndex<true>(
-            centroidPriorityGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadCentroidPriorityPm4Img.loadDataIndex);
-    }
-    else
-    {
-        centroidPriorityGpuMemoryAddr -= (sizeof(uint32) * (startRegAddr - CONTEXT_SPACE_START));
-
-        loadCentroidPriorityPm4Img.spaceNeeded += cmdUtil.BuildLoadContextRegs(
-            centroidPriorityGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadCentroidPriorityPm4Img.loadData);
-    }
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(loadCentroidPriorityPm4Img.spaceNeeded,
-                                              &loadCentroidPriorityPm4Img,
-                                              pDeCmdSpace);
-
-    startRegAddr = mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0;
-    regCount     = (mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3 - mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0 + 1);
-
-    gpusize quadSamplePatternGpuMemoryAddr = srcGpuMemoryAddr + sizeof(PaScCentroid);
-
-    if (usesLoadRegIndexPkt)
-    {
-        loadQuadSamplePatternPm4Img.spaceNeeded = cmdUtil.BuildLoadContextRegsIndex<true>(
-            quadSamplePatternGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadQuadSamplePatternPm4Img.loadDataIndex);
-    }
-    else
-    {
-        quadSamplePatternGpuMemoryAddr -= (sizeof(uint32) * (startRegAddr - CONTEXT_SPACE_START));
-
-        loadQuadSamplePatternPm4Img.spaceNeeded += cmdUtil.BuildLoadContextRegs(
-            quadSamplePatternGpuMemoryAddr,
-            startRegAddr,
-            regCount,
-            &loadQuadSamplePatternPm4Img.loadData);
-    }
-
-    pDeCmdSpace = m_deCmdStream.WritePm4Image(loadQuadSamplePatternPm4Img.spaceNeeded,
-                                              &loadQuadSamplePatternPm4Img,
-                                              pDeCmdSpace);
-
-    // Build and write register for MAX_SAMPLE_DIST
-    // PA_SC_AA_CONFIG is partially owned by the MSAA state object, and partially by the MSAA sample positions.
-    // In particular, the max sample distance field is owned by the sample pattern, while everything else is
-    // owned by the MSAA state. Right now, we handle that with a CONTEXTREGRMW packet. However, there is no RMW
-    // version of LOAD_CONTEXT reg, so we will simply set MAX_SAMPLE_DIST to maximun value.
-    // For the custom scenario where this function will be used, the application would different sample locations
-    // per pixels in the quad. If we assume a uniform distribution is used to pick the sample locations, then the
-    // probability of hitting the max distance is 50% for 2x and 100% for 4x and and 200% for 8x.
-    regPA_SC_AA_CONFIG paScAaConfig = {};
-    paScAaConfig.bits.MAX_SAMPLE_DIST = 8;
-    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SC_AA_CONFIG,
-                                                   static_cast<uint32>(PA_SC_AA_CONFIG__MAX_SAMPLE_DIST_MASK),
-                                                   paScAaConfig.u32All,
-                                                   pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdSetViewports(
@@ -2509,11 +2291,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
 
-    if (pThis->m_primGroupOpt.enabled)
-    {
-        pThis->UpdatePrimGroupOpt(vertexCount);
-    }
-
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace = pThis->ValidateDraw<false, false>(drawInfo, pDeCmdSpace);
@@ -2592,11 +2369,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     drawInfo.firstVertex   = vertexOffset;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = firstIndex;
-
-    if (pThis->m_primGroupOpt.enabled)
-    {
-        pThis->UpdatePrimGroupOpt(indexCount);
-    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -2732,12 +2504,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
 
-    if (pThis->m_primGroupOpt.enabled)
-    {
-        // Since we can't compute the number of primitives this draw uses we disable this optimization to be safe.
-        pThis->DisablePrimGroupOpt();
-    }
-
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDraw<false, true>(drawInfo, pDeCmdSpace);
@@ -2839,12 +2605,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
-
-    if (pThis->m_primGroupOpt.enabled)
-    {
-        // Since we can't compute the number of primitives this draw uses we disable this optimization to be safe.
-        pThis->DisablePrimGroupOpt();
-    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -3491,8 +3251,6 @@ Result UniversalCmdBuffer::AddPreamble()
                                                                &ZeroStencilRefMasks[0],
                                                                pDeCmdSpace);
         }
-
-        m_deCmdStream.SetContextRollDetected<true>();
     }
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
@@ -4616,19 +4374,24 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = UpdateDbCountControl<pm4OptImmediate>(log2OcclusionQuerySamples, &dbCountControl, pDeCmdSpace);
     }
 
-    // Before we do per-draw HW state validation we need to get a copy of the current IA_MULTI_VGT_PARAM register. This
-    // is also where we do things like force WdSwitchOnEop and optimize the primgroup size.
-    const bool            wdSwitchOnEop   = ForceWdSwitchOnEop(*pPipeline, drawInfo);
-    regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
-    regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
-
-    // NGG cannot change IA_MULTI_VGT_PARAM from the already precalculated results in VGT_GS_ONCHIP_CNTL.
-    if (isNgg == false)
+    if (pipelineDirty || (stateDirty && dirtyFlags.inputAssemblyState) || m_cachedSettings.disableWdLoadBalancing)
     {
-        if (m_primGroupOpt.optimalSize > 0)
+        // Typically, ForceWdSwitchOnEop only depends on the primitive topology and restart state.  However, when we
+        // disable the hardware WD load balancing feature, we do need to some draw time parameters that can
+        // change every draw.
+        const bool            wdSwitchOnEop   = ForceWdSwitchOnEop(*pPipeline, drawInfo);
+        regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
+        regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
+
+        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
-            iaMultiVgtParam.bits.PRIMGROUP_SIZE = m_primGroupOpt.optimalSize - 1;
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmIA_MULTI_VGT_PARAM__GFX09,
+                                                             iaMultiVgtParam.u32All,
+                                                             pDeCmdSpace,
+                                                             index__pfp_set_uconfig_reg__multi_vgt_param);
         }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
     }
 
     // MSAA num samples are associated with the MSAA state object, but inner coverage affects how many samples are
@@ -4652,7 +4415,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                         PA_SC_AA_CONFIG__MSAA_NUM_SAMPLES_MASK,
                                                                         paScAaConfig.u32All,
                                                                         pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
     }
 
     bool disableDfsm = m_cachedSettings.disableDfsm;
@@ -4740,9 +4502,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                           indirect,
                                           isNgg,
                                           isNggFastLaunch,
-                                          pm4OptImmediate>(iaMultiVgtParam,
-                                                           vgtLsHsConfig,
-                                                           paScModeCntl1,
+                                          pm4OptImmediate>(paScModeCntl1,
                                                            dbCountControl,
                                                            vgtMultiPrimIbResetEn,
                                                            drawInfo,
@@ -5224,7 +4984,6 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
                                                                        m_paScBinnerCntl0.u32All,
                                                                        pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 
     return pDeCmdSpace;
 }
@@ -5546,30 +5305,12 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 // in pDeCmdSpace.
 template <bool indexed, bool indirect, bool isNgg, bool isNggFastLaunch, bool pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
-    regIA_MULTI_VGT_PARAM         iaMultiVgtParam,       // The draw preamble's IA_MULTI_VGT_PARAM register value.
-    regVGT_LS_HS_CONFIG           vgtLsHsConfig,         // The draw preamble's VGT_LS_HS_CONFIG register value.
     regPA_SC_MODE_CNTL_1          paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
     regDB_COUNT_CONTROL           dbCountControl,        // DB_COUNT_CONTROL register value.
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn, // VGT_MULTI_PRIM_IB_RESET_EN register value.
     const ValidateDrawInfo&       drawInfo,              // Draw info
     uint32*                       pDeCmdSpace)           // Write new draw-engine commands here.
 {
-    // Start with the IA_MULTI_VGT_PARAM regsiter.
-    if ((m_drawTimeHwState.iaMultiVgtParam.u32All != iaMultiVgtParam.u32All) ||
-        (m_drawTimeHwState.valid.iaMultiVgtParam == 0))
-    {
-        m_drawTimeHwState.iaMultiVgtParam.u32All = iaMultiVgtParam.u32All;
-        m_drawTimeHwState.valid.iaMultiVgtParam  = 1;
-
-        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-        {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmIA_MULTI_VGT_PARAM__GFX09,
-                                                             iaMultiVgtParam.u32All,
-                                                             pDeCmdSpace,
-                                                             index__pfp_set_uconfig_reg__multi_vgt_param);
-        }
-    }
-
     if ((m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All != vgtMultiPrimIbResetEn.u32All) ||
         (m_drawTimeHwState.valid.vgtMultiPrimIbResetEn == 0))
     {
@@ -5582,16 +5323,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
                                                          index__pfp_set_uconfig_reg__default);
     }
 
-    if ((m_drawTimeHwState.vgtLsHsConfig.u32All != vgtLsHsConfig.u32All) ||
-        (m_drawTimeHwState.valid.vgtLsHsConfig == 0))
-    {
-        m_drawTimeHwState.vgtLsHsConfig.u32All = vgtLsHsConfig.u32All;
-        m_drawTimeHwState.valid.vgtLsHsConfig  = 1;
-
-        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
-    }
-
     if ((m_drawTimeHwState.paScModeCntl1.u32All != paScModeCntl1.u32All) ||
         (m_drawTimeHwState.valid.paScModeCntl1 == 0))
     {
@@ -5601,7 +5332,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_MODE_CNTL_1,
                                                                            paScModeCntl1.u32All,
                                                                            pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
     }
 
     if ((m_drawTimeHwState.dbCountControl.u32All != dbCountControl.u32All) ||
@@ -5613,7 +5343,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
                                                                            dbCountControl.u32All,
                                                                            pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
     }
 
     if (m_drawIndexReg != UserDataNotMapped)
@@ -6215,7 +5944,6 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
                                                                             DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
                                                                             pDbCountControl->u32All,
                                                                             pDeCmdSpace);
-            m_deCmdStream.SetContextRollDetected<true>();
         }
     }
     else
@@ -6258,14 +5986,9 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
                           (primTopology != PrimitiveTopology::LineStrip) &&
                           (primTopology != PrimitiveTopology::TriangleStrip))));
 
-    // Note the following optimization is not needed on gfx9 and is only here for debug and experimental purpose.
-    // TODO: Remove this block of code once we are confident that automatic work distributor load balancing works
-    // correctly.
     if ((switchOnEop == false) && m_cachedSettings.disableWdLoadBalancing)
     {
-        const uint32 primGroupSize =
-            (m_primGroupOpt.optimalSize > 0) ? m_primGroupOpt.optimalSize
-                                             : (pipeline.IaMultiVgtParam(false).bits.PRIMGROUP_SIZE + 1);
+        const uint32 primGroupSize = pipeline.IaMultiVgtParam(false).bits.PRIMGROUP_SIZE + 1;
 
         PAL_ASSERT(pipeline.VertsPerPrimitive() != 0);
         const uint32 primCount     = drawInfo.vtxIdxCount / pipeline.VertsPerPrimitive();
@@ -6286,7 +6009,16 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
 uint32* UniversalCmdBuffer::FlushStreamOut(
     uint32* pDeCmdSpace)
 {
-    pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmCP_STRMOUT_CNTL, 0, pDeCmdSpace);
+    constexpr uint32 CpStrmoutCntlData = 0;
+    pDeCmdSpace += m_cmdUtil.BuildWriteData(m_engineType,
+                                            mmCP_STRMOUT_CNTL,
+                                            1,
+                                            engine_sel__me_write_data__micro_engine,
+                                            dst_sel__me_write_data__mem_mapped_register,
+                                            false,
+                                            &CpStrmoutCntlData,
+                                            PredDisable,
+                                            pDeCmdSpace);
 
     pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     pDeCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__pfp_wait_reg_mem__register_space,
@@ -6398,28 +6130,6 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdBindMsaaState(newGraphicsState.pMsaaState);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    if (memcmp(&newGraphicsState.samplePatternState,
-        &m_graphicsState.samplePatternState,
-        sizeof(SamplePattern)) != 0)
-    {
-        // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
-        if (newGraphicsState.numSamplesPerPixel != 0)
-        {
-            if (newGraphicsState.samplePatternState.isLoad)
-            {
-                PAL_ASSERT(newGraphicsState.samplePatternState.pGpuMemory != nullptr);
-                CmdLoadMsaaQuadSamplePattern(newGraphicsState.samplePatternState.pGpuMemory,
-                    newGraphicsState.samplePatternState.memOffset);
-            }
-            else
-            {
-                CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
-                    newGraphicsState.samplePatternState.immediate);
-            }
-        }
-    }
-#else
     if (memcmp(&newGraphicsState.quadSamplePatternState,
                &m_graphicsState.quadSamplePatternState,
                sizeof(MsaaQuadSamplePattern)) != 0)
@@ -6431,7 +6141,6 @@ void UniversalCmdBuffer::SetGraphicsState(
                 newGraphicsState.quadSamplePatternState);
         }
     }
-#endif
 
     if (memcmp(&newGraphicsState.triangleRasterState,
                 &m_graphicsState.triangleRasterState,
@@ -6782,10 +6491,53 @@ void UniversalCmdBuffer::CmdWaitBusAddressableMemoryMarker(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdSetHiSCompareState0(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    regDB_SRESULTS_COMPARE_STATE0 dbSResultCompare;
+
+    dbSResultCompare.bitfields.COMPAREFUNC0  = DepthStencilState :: HwStencilCompare(compFunc);
+    dbSResultCompare.bitfields.COMPAREMASK0  = compMask;
+    dbSResultCompare.bitfields.COMPAREVALUE0 = compValue;
+    dbSResultCompare.bitfields.ENABLE0       = enable;
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace =
+        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE0, dbSResultCompare.u32All, pDeCmdSpace);
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetHiSCompareState1(
+    CompareFunc compFunc,
+    uint32      compMask,
+    uint32      compValue,
+    bool        enable)
+{
+    regDB_SRESULTS_COMPARE_STATE1 dbSResultCompare;
+
+    dbSResultCompare.bitfields.COMPAREFUNC1  = DepthStencilState :: HwStencilCompare(compFunc);
+    dbSResultCompare.bitfields.COMPAREMASK1  = compMask;
+    dbSResultCompare.bitfields.COMPAREVALUE1 = compValue;
+    dbSResultCompare.bitfields.ENABLE1       = enable;
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace =
+        m_deCmdStream.WriteSetOneContextReg(mmDB_SRESULTS_COMPARE_STATE1, dbSResultCompare.u32All, pDeCmdSpace);
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
 // Enables or disables a flexible predication check which the CP uses to determine if a draw or dispatch can be skipped
 // based on the results of prior GPU work.
 // SEE: CmdUtil::BuildSetPredication(...) for more details on the meaning of this method's parameters.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 void UniversalCmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
     uint32              slot,
@@ -6809,7 +6561,7 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     if (pQueryPool != nullptr)
     {
-        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
+        Result result = static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(slot, &gpuVirtAddr);
         PAL_ASSERT(result == Result::Success);
     }
 
@@ -6830,44 +6582,6 @@ void UniversalCmdBuffer::CmdSetPredication(
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
-#else
-void UniversalCmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    PAL_ASSERT((pQueryPool == nullptr) || (gpuVirtAddr == 0));
-
-    m_gfxCmdBufState.clientPredicate = ((pQueryPool != nullptr) || (gpuVirtAddr != 0)) ? 1 : 0;
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
-
-    if (pQueryPool != nullptr)
-    {
-        static_cast<QueryPool*>(pQueryPool)->GetQueryGpuAddress(static_cast<uint32>(slot), &gpuVirtAddr);
-    }
-
-    // Clear/disable predicate
-    if ((pQueryPool == nullptr) && (gpuVirtAddr == 0))
-    {
-        predType = static_cast<PredicateType>(0);
-    }
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace += m_cmdUtil.BuildSetPredication(gpuVirtAddr,
-                                                 predPolarity,
-                                                 waitResults,
-                                                 predType,
-                                                 accumulateData,
-                                                 pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdCopyRegisterToMemory(
@@ -7402,16 +7116,17 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 {
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
-        auto*const pCmdBuffer = static_cast<Gfx9::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
+        auto*const pCallee = static_cast<Gfx9::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
+        PAL_ASSERT(pCallee != nullptr);
 
-        ValidateExecuteNestedCmdBuffers(*pCmdBuffer);
+        ValidateExecuteNestedCmdBuffers(*pCallee);
 
-        if (pCmdBuffer->m_state.nestedIndirectRingInstances > 0)
+        if (pCallee->m_state.nestedIndirectRingInstances > 0)
         {
             // The nestedIndirectRingInstances reflects the total number of ring instances used by the nested command
             // buffer. Nested command buffers will handle wrapping by inserting CE-DE sync as needed. The required
             // instance count is clamped to maximum indirect CE dump instances in this case.
-            const uint32 requiredInstances = Min(pCmdBuffer->m_state.nestedIndirectRingInstances,
+            const uint32 requiredInstances = Min(pCallee->m_state.nestedIndirectRingInstances,
                                                  m_nestedIndirectCeDumpTable.ring.numInstances);
 
             RelocateRingedUserDataTable(&m_state,
@@ -7464,15 +7179,15 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
         // command buffer's command streams.
 
-        const bool exclusiveSubmit = pCmdBuffer->IsExclusiveSubmit();
-        const bool allowIb2Launch  = (pCmdBuffer->AllowLaunchViaIb2() &&
-                                      (pCmdBuffer->m_state.flags.containsDrawIndirect == 0));
+        const bool exclusiveSubmit = pCallee->IsExclusiveSubmit();
+        const bool allowIb2Launch  = (pCallee->AllowLaunchViaIb2() &&
+                                      (pCallee->m_state.flags.containsDrawIndirect == 0));
 
-        m_deCmdStream.TrackNestedEmbeddedData(pCmdBuffer->m_embeddedData.chunkList);
-        m_deCmdStream.TrackNestedCommands(pCmdBuffer->m_deCmdStream);
-        m_ceCmdStream.TrackNestedCommands(pCmdBuffer->m_ceCmdStream);
+        m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
+        m_deCmdStream.TrackNestedCommands(pCallee->m_deCmdStream);
+        m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
 
-        const bool existRef = CheckNestedExecuteReference(pCmdBuffer);
+        const bool existRef = CheckNestedExecuteReference(pCallee);
         if (existRef)
         {
             // If the nested command buffer has been called by this caller before, and it dumped CE RAM to embedded
@@ -7500,12 +7215,12 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
             m_deCmdStream.SetContextRollDetected<false>();
         }
 
-        m_deCmdStream.Call(pCmdBuffer->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
-        m_ceCmdStream.Call(pCmdBuffer->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
+        m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
+        m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.
-        LeakNestedCmdBufferState(*pCmdBuffer);
+        LeakNestedCmdBufferState(*pCallee);
     }
 }
 
@@ -7557,45 +7272,6 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
-}
-
-// =====================================================================================================================
-// Applies the primgroup size optimization to a new draw.
-void UniversalCmdBuffer::UpdatePrimGroupOpt(
-    uint32 vxtIdxCount)
-{
-    const auto& pipeline = static_cast<const GraphicsPipeline&>(*m_graphicsState.pipelineState.pPipeline);
-
-    // Update the draw counters.
-    m_primGroupOpt.vtxIdxTotal += vxtIdxCount;
-    m_primGroupOpt.drawCount++;
-
-    // If we've reached the end of the window, determine if we need to update our primgroup size.
-    const uint32 windowSize = m_primGroupOpt.windowSize;
-    if (m_primGroupOpt.drawCount >= windowSize)
-    {
-        // Compute the optimal primgroup size. The calculation is simple, compute the average primgroup size over the
-        // window, divide by the number of prims per clock, round to a multiple of the step, and clamp to the min/max.
-        const uint32 primRate      = m_device.Parent()->ChipProperties().primsPerClock;
-        const uint64 primTotal     = m_primGroupOpt.vtxIdxTotal / pipeline.VertsPerPrimitive();
-        const uint32 rawGroupSize  = static_cast<uint32>(primTotal / (windowSize * primRate));
-        const uint32 roundedSize   = static_cast<uint32>(Pow2AlignDown(rawGroupSize, m_primGroupOpt.step));
-        m_primGroupOpt.optimalSize = Min(m_primGroupOpt.maxSize, Max(m_primGroupOpt.minSize, roundedSize));
-
-        // Reset the draw counters.
-        m_primGroupOpt.vtxIdxTotal = 0;
-        m_primGroupOpt.drawCount   = 0;
-    }
-}
-
-// =====================================================================================================================
-// Disables the primgroup size optimization and zeros the optimial primgroup size.
-void UniversalCmdBuffer::DisablePrimGroupOpt()
-{
-    // Force off the primgroup size optimization and reset our primgroup size.
-    // We do this to be sure that any large indirect draws will still run at full speed.
-    m_primGroupOpt.enabled     = false;
-    m_primGroupOpt.optimalSize = 0;
 }
 
 // =====================================================================================================================

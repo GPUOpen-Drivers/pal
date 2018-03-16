@@ -95,11 +95,7 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        const SamplePattern*         pSamplePattern,
-#else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
         const SubresRange&           range) const;
 
     void FmaskColorExpand(
@@ -112,11 +108,7 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        const SamplePattern*         pSamplePattern,
-#else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
         const SubresRange&           range) const;
 
     void InitMaskRam(
@@ -137,22 +129,14 @@ public:
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        const SamplePattern*         pSamplePattern,
-#else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
         const SubresRange&           range) const;
 
     virtual void ExpandDepthStencil(
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        const SamplePattern*         pSamplePattern,
-#else
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
         const SubresRange&           range) const override;
 
 protected:

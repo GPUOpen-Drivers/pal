@@ -278,6 +278,10 @@ GraphicsPipeline::GraphicsPipeline(
 
     m_vgtLsHsConfig.u32All = 0;
     m_paScModeCntl1.u32All = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    m_dbRenderOverride.u32All = 0;
+#endif
 }
 
 // =====================================================================================================================
@@ -876,10 +880,6 @@ void GraphicsPipeline::SetupNonShaderRegisters(
                                regValue.u32All,
                                &m_stateContextPm4Cmds.dbAlphaToMaskRmw);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
-    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
-#endif
-
     // Handling Rb+ registers as long as Rb+ funcation is supported regardless of enabled/disabled.
     if (m_pDevice->Parent()->ChipProperties().gfx6.rbPlus)
     {
@@ -987,6 +987,14 @@ void GraphicsPipeline::InitCommonStateRegisters(
     m_stateContextPm4Cmds.paClVteCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_CL_VTE_CNTL);
     m_stateContextPm4Cmds.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+    regDB_SHADER_CONTROL dbShaderControl;
+    dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
+
+    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+                                                      (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
+#endif
 
     m_stateContextPm4Cmds.vgtShaderStagesEn.u32All = abiProcessor.GetRegisterEntry(mmVGT_SHADER_STAGES_EN);
     m_stateContextPm4Cmds.vgtReuseOff.u32All       = abiProcessor.GetRegisterEntry(mmVGT_REUSE_OFF);

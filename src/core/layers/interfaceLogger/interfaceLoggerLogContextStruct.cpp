@@ -102,30 +102,11 @@ void LogContext::Struct(
             KeyAndStruct("oldLayout", transition.imageInfo.oldLayout);
             KeyAndStruct("newLayout", transition.imageInfo.newLayout);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            Key("samplePattern.pImmediate");
-            if (transition.imageInfo.samplePattern.pImmediate != nullptr)
-            {
-                Struct(*transition.imageInfo.samplePattern.pImmediate);
-            }
-            else
-            {
-                NullValue();
-            }
-
-            Key("samplePattern.pGpuMemory");
-            if (transition.imageInfo.samplePattern.pGpuMemory != nullptr)
-            {
-                KeyAndObject("samplePattern.pGpuMemory", transition.imageInfo.samplePattern.pGpuMemory);
-                KeyAndValue("samplePattern.memOffset", transition.imageInfo.samplePattern.memOffset);
-            }
-#else
             Key("pQuadSamplePattern");
             if (transition.imageInfo.pQuadSamplePattern != nullptr)
             {
                 Struct(*transition.imageInfo.pQuadSamplePattern);
             }
-#endif
             else
             {
                 NullValue();
@@ -1282,9 +1263,7 @@ void LogContext::Struct(
         KeyAndValue("rasterizeLastLinePixel", value.rsState.rasterizeLastLinePixel);
         KeyAndValue("outOfOrderPrimsEnable", value.rsState.outOfOrderPrimsEnable);
         KeyAndValue("perpLineEndCapsEnable", value.rsState.perpLineEndCapsEnable);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
-#endif
     }
     EndMap();
     KeyAndBeginMap("cbState", false);
@@ -1304,7 +1283,6 @@ void LogContext::Struct(
     }
     EndMap();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 338
     KeyAndBeginMap("viewInstancingDesc", false);
     {
         KeyAndValue("viewInstanceCount", value.viewInstancingDesc.viewInstanceCount);
@@ -1329,12 +1307,9 @@ void LogContext::Struct(
         KeyAndValue("enableMasking", value.viewInstancingDesc.enableMasking);
     }
     EndMap();
-#endif
 
     EndMap();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 332
-#endif
 }
 
 // =====================================================================================================================
@@ -2227,9 +2202,7 @@ void LogContext::Struct(
     KeyAndEnum("queueType", value.queueType);
     KeyAndEnum("engineType", value.engineType);
     KeyAndValue("engineIndex", value.engineIndex);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 327
     KeyAndEnum("submitOptMode", value.submitOptMode);
-#endif
     KeyAndValue("numReservedCu", value.numReservedCu);
     KeyAndValue("persistentCeRamOffset", value.persistentCeRamOffset);
     KeyAndValue("persistentCeRamSize", value.persistentCeRamSize);
@@ -2330,17 +2303,10 @@ void LogContext::Struct(
         Value("mgpuIqMatch");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 321
-    if (value.flags.preciseAnsio)
-    {
-        Value("preciseAnsio");
-    }
-#else
     if (value.flags.preciseAniso)
     {
         Value("preciseAniso");
     }
-#endif
 
     if (value.flags.unnormalizedCoords)
     {
@@ -2422,12 +2388,10 @@ void LogContext::Struct(
         Value("dstColorKey");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 349
     if (value.srcAlpha)
     {
         Value("srcAlpha");
     }
-#endif
 
     EndList();
 }
@@ -2703,21 +2667,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-
-    KeyAndValue("enable", value.enable);
-    KeyAndValue("vidPnSourceId", value.vidPnSourceId);
-    KeyAndBeginList("primaryMemoryArray", false);
-
-    for (uint32 idx = 0; idx < TurboSyncMaxSurfaces; ++idx)
-    {
-        Object(value.pPrimaryMemoryArray[idx]);
-    }
-
-    EndList();
-
-#else
-
     KeyAndEnum("mode", value.mode);
     KeyAndValue("vidPnSourceId", value.vidPnSourceId);
     KeyAndBeginList("primaryMemoryArray", false);
@@ -2735,8 +2684,6 @@ void LogContext::Struct(
     }
 
     EndList();
-
-#endif
 
     EndMap();
 }

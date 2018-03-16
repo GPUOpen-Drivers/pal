@@ -43,7 +43,7 @@
 
 namespace DevDriver
 {
-    template <class T>
+    template <class MsgTransport>
     class MessageChannel : public IMsgChannel
     {
         static void MsgChannelReceiveFunc(void* pThreadParam);
@@ -51,7 +51,10 @@ namespace DevDriver
 
     public:
         template <class ...Args>
-        MessageChannel(const TransportCreateInfo& createInfo, Args&&... args);
+
+        MessageChannel(const AllocCb&                  allocCb,
+                       const MessageChannelCreateInfo& createInfo,
+                       Args&&...                       args);
 
         ~MessageChannel();
 
@@ -64,7 +67,9 @@ namespace DevDriver
         Result SetStatusFlags(StatusFlags flags) override final;
         StatusFlags GetStatusFlags() const override final;
 
-        Result Send(ClientId dstClientId, Protocol protocol, MessageCode message,
+        Result Send(ClientId dstClientId,
+                    Protocol protocol,
+                    MessageCode message,
                     const ClientMetadata& metadata,
                     uint32 payloadSizeInBytes,
                     const void* pPayload) override final;
@@ -84,6 +89,11 @@ namespace DevDriver
             return m_clientInfoResponse;
         }
 
+        const char* GetTransportName() const override
+        {
+            return m_msgTransport.GetTransportName();
+        }
+
         Result FindFirstClient(const ClientMetadata& filter,
                                ClientId*             pClientId,
                                uint32                timeoutInMs,
@@ -91,7 +101,7 @@ namespace DevDriver
 
         const AllocCb& GetAllocCb() const override final
         {
-            return m_createInfo.allocCb;
+            return m_allocCb;
         }
 
         TransferProtocol::TransferManager& GetTransferManager() override final
@@ -115,6 +125,11 @@ namespace DevDriver
             return m_pURIServer->UnregisterService(pService);
         }
 
+        void GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames) override
+        {
+            m_pURIServer->GetServiceNames(serviceNames);
+        }
+
     protected:
         struct MsgThreadInfo
         {
@@ -136,9 +151,9 @@ namespace DevDriver
         Result DestroyMsgThread();
 
         Result Disconnect();
-        bool HandleMessageReceived(const MessageBuffer &messageBuffer);
+        bool HandleMessageReceived(const MessageBuffer& messageBuffer);
 
-        Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata &metadata);
+        Result SendSystem(ClientId dstClientId, SystemProtocol::SystemMessage message, const ClientMetadata& metadata);
 
 #ifdef DEVDRIVER_ENABLE_PACKET_LOSS
         // Returns true if a packet should be dropped. Used for testing.
@@ -193,30 +208,30 @@ namespace DevDriver
         }
 #endif
 
+        DD_STATIC_CONST uint64            kKeepAliveTimeout = 2000;
+        DD_STATIC_CONST uint64            kKeepAliveThreshold = 5;
+        DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
+
+        MsgTransport                      m_msgTransport;
+        ReceiveQueue                      m_receiveQueue;
+        ClientId                          m_clientId;
+
+        AllocCb                           m_allocCb;
+        const MessageChannelCreateInfo    m_createInfo;
+        ClientInfoStruct                  m_clientInfoResponse;
 #ifdef DEVDRIVER_ENABLE_PACKET_LOSS
         // Random number generator for packet loss testing.
         Platform::Random                  m_packetLossRng;
 #endif
 
-        ClientId                          m_clientId;
-        SessionManager                    m_sessionManager;
-        Platform::Thread                  m_msgThread;
-        MsgThreadInfo                     m_msgThreadParams;
-        T                                 m_msgTransport;
-        const TransportCreateInfo         m_createInfo;
-        ClientInfoStruct                  m_clientInfoResponse;
-
-        ReceiveQueue                      m_receiveQueue;
-
-        DD_STATIC_CONST uint64            kKeepAliveTimeout      = 2000;
-        DD_STATIC_CONST uint64            kKeepAliveThreshold    = 5;
-        DD_STATIC_CONST uint64            kRetransmitTimeoutInMs = 50;
-
         volatile uint64                   m_lastActivityTimeMs;
         SessionId                         m_lastKeepaliveTransmitted;
         SessionId                         m_lastKeepaliveReceived;
-        Platform::Semaphore               m_updateSemaphore;
 
+        Platform::Thread                  m_msgThread;
+        MsgThreadInfo                     m_msgThreadParams;
+        Platform::Semaphore               m_updateSemaphore;
+        SessionManager                    m_sessionManager;
         TransferProtocol::TransferManager m_transferManager;
         URIProtocol::URIServer*           m_pURIServer;
         ClientURIService                  m_clientURIService;

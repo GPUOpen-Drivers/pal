@@ -1895,7 +1895,7 @@ bool Gfx9Dcc::UseDccForImage(
         // Don't use DCC if the caller asked that we allocate no metadata.
         useDcc = false;
     }
-    else if (pParent->AllViewFormatsDccCompatible() == false)
+    else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
     {
         // Don't use DCC if the caller can switch between view formats that are not DCC compatible with each other.
         useDcc = false;
@@ -1910,9 +1910,10 @@ bool Gfx9Dcc::UseDccForImage(
         // not shader writable
         useDcc = false;
     }
-    // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-    // be readable by a shader.
-    else if ((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
+    // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
+    // preferred, the image will be readable by a shader.
+    else if ((pParent->IsShaderReadable() ||
+              (pParent->IsResolveSrc() && (pParent->PreferCbResolve() == false))) &&
              (metaDataTexFetchSupported == false) &&
              (TestAnyFlagSet(settings.useDcc, Gfx9UseDccNonTcCompatShaderRead) == false))
     {
@@ -1925,9 +1926,10 @@ bool Gfx9Dcc::UseDccForImage(
         // DCC is never available for shared, presentable, or flippable images.
         useDcc = false;
     }
-    else if ((createInfo.extent.width * createInfo.extent.height) <=
-            (pPalSettings->hintDisableSmallSurfColorCompressionSize *
-             pPalSettings->hintDisableSmallSurfColorCompressionSize))
+    else if (((createInfo.extent.width * createInfo.extent.height) <=
+             (pPalSettings->hintDisableSmallSurfColorCompressionSize *
+              pPalSettings->hintDisableSmallSurfColorCompressionSize))
+            )
     {
         // DCC should be disabled if the client has indicated that they want to disable color compression on small
         // surfaces and this surface qualifies.
@@ -2129,18 +2131,30 @@ uint8 Gfx9Dcc::GetFastClearCode(
             {
                 clearCode = Gfx9DccClearColor::ClearColor0000;
             }
-            else if ((alphaIsZero == false) && (rgbIsZero == true))
-            {
-                clearCode = Gfx9DccClearColor::ClearColor0001;
-            }
-            else if ((alphaIsZero == true) && (rgbIsZero == false))
-            {
-                clearCode = Gfx9DccClearColor::ClearColor1110;
-            }
             else
             {
-                clearCode = Gfx9DccClearColor::ClearColor1111;
+                if (image.Parent()->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent)
+                {
+                    // cant allow special clear color code because the formats do not support DCC Constant
+                    // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+                    // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+                    clearCode = Gfx9DccClearColor::ClearColorReg;
+                    fastClearElimRequired = true;
+                }
+                else if ((alphaIsZero == false) && (rgbIsZero == true))
+                {
+                    clearCode = Gfx9DccClearColor::ClearColor0001;
+                }
+                else if ((alphaIsZero == true) && (rgbIsZero == false))
+                {
+                    clearCode = Gfx9DccClearColor::ClearColor1110;
+                }
+                else
+                {
+                    clearCode = Gfx9DccClearColor::ClearColor1111;
+                }
             }
+
         }
 
         *pNeedFastClearElim = fastClearElimRequired;

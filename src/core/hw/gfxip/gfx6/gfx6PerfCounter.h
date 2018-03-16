@@ -55,15 +55,6 @@ public:
     // Returns true if the GPU block this counter samples from is indexed for reads and writes
     bool IsIndexed() const { return (m_flags.isIndexed != 0); }
 
-    // Helper functions used by both PerfCounter and StreamingPerfCounter.
-    static uint32 GetSeIndex(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance)
-    {
-        return InstanceIdToSe(perfInfo, block, instance);
-    }
-    static uint32 InstanceIdToSe(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
-    static uint32 InstanceIdToSh(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
-    static uint32 InstanceIdToInstance(const Gfx6PerfCounterInfo& perfInfo, const GpuBlock& block, uint32 instance);
-
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -99,8 +90,9 @@ class StreamingPerfCounter : public Pal::StreamingPerfCounter
 public:
     StreamingPerfCounter(const Device& device, GpuBlock block, uint32 instance, uint32 slot);
 
-    virtual Result AddEvent(const GpuBlock& block, uint32 event) override;
+    Result AddEvent(const GpuBlock& block, uint32 event) override;
     uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+    uint16 GetMuxselEncoding(uint32 slot) const override;
 
 protected:
     bool IsSelect0RegisterValid() const;

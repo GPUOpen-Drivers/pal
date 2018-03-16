@@ -197,8 +197,6 @@ enum class TurboSyncControlMode : uint32
     Count
 };
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337) // For TurboSync 2.0 mGPU support
-
 constexpr uint32 TurboSyncMaxSurfaces = 2; ///< Specifies maximum number of surfaces in a private TurboSync swapchain
 
 /// Input argument for IPlatform::TurboSyncControl. TurboSync is a feature that enables app to render at higher than
@@ -214,8 +212,6 @@ struct TurboSyncControlInput
     /// the platform. Pal forwards the allocation handles (if IGpuMemory ptr is not null) to Kmd without validation.
     const IGpuMemory*    pPrimaryMemoryArray[MaxDevices][TurboSyncMaxSurfaces];
 };
-
-#endif
 
 /**
 ************************************************************************************************************************
@@ -411,7 +407,6 @@ public:
         uint32                  vidPnSourceId,
         GetPrimaryLayoutOutput* pPrimaryLayoutOutput) = 0;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337) // For TurboSync 2.0 mGPU support
     /// Calls TurboSyncControl escape to control TurboSync on specific vidPnSourceId.
     ///
     /// The function is called when clients intend to toggle TurboSync on a vidPnSourceId. The client should allocate
@@ -423,7 +418,6 @@ public:
     /// @returns Success if the TurboSyncControl request is handled successfully.
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) = 0;
-#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

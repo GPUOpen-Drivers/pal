@@ -55,7 +55,8 @@ void SetupBlockInfo(
     int32              selReg1Incr,      // Secondary select register increment
     uint32             ctrLoRegAddr,     // Low counter data address register address
     uint32             ctrHiRegAddr,     // High counter data address register address
-    int32              ctrRegIncr)       // Counter data register block address increment
+    int32              ctrRegIncr,       // Counter data register block address increment
+    uint32             spmBlockSelect)
 {
     const GfxIpLevel          gfxIpLevel = pProps->gfxLevel;
     Gfx6PerfCounterInfo*const pInfo      = &pProps->gfx6.perfCounterInfo;
@@ -63,12 +64,13 @@ void SetupBlockInfo(
     const uint32 blockIdx = static_cast<uint32>(block);
     PAL_ASSERT(numCounters <= Gfx6MaxCountersPerBlock);
 
-    pInfo->block[blockIdx].available        = true;
-    pInfo->block[blockIdx].numShaderEngines = numShaderEngines;
-    pInfo->block[blockIdx].numShaderArrays  = numShaderArrays;
-    pInfo->block[blockIdx].numInstances     = numInstances;
-    pInfo->block[blockIdx].numCounters      = numCounters;
-    pInfo->block[blockIdx].maxEventId       = maxEventId;
+    pInfo->block[blockIdx].available          = true;
+    pInfo->block[blockIdx].numShaderEngines   = numShaderEngines;
+    pInfo->block[blockIdx].numShaderArrays    = numShaderArrays;
+    pInfo->block[blockIdx].numInstances       = numInstances;
+    pInfo->block[blockIdx].numCounters        = numCounters;
+    pInfo->block[blockIdx].maxEventId         = maxEventId;
+    pInfo->block[blockIdx].spmBlockSelectCode = spmBlockSelect;
 
     // Setup the register addresses for each counter for this block.
     uint32 perfSel0RegAddr = selReg0Addr;
@@ -225,7 +227,7 @@ void SetupMcBlockAndRegInfo(
     for (uint32 idx = 0; idx < pInfo->block[BlockIdx].numCounters; ++idx)
     {
         pInfo->block[BlockIdx].regInfo[idx].perfSel0RegAddr = mmMC_SEQ_PERF_SEQ_CTL;
-        pInfo->block[BlockIdx].regInfo[idx].perfSel0RegAddr = mmMC_SEQ_PERF_CNTL_1;
+        pInfo->block[BlockIdx].regInfo[idx].perfSel1RegAddr = mmMC_SEQ_PERF_CNTL_1;
         pInfo->block[BlockIdx].regInfo[idx].perfCountLoAddr = perfCountAddrChannel0;
         pInfo->block[BlockIdx].regInfo[idx].perfCountHiAddr = perfCountAddrChannel1;
 
@@ -326,6 +328,8 @@ void SetupGfx6Counters(
     const uint32 numCuPerSh         = pProps->gfx6.maxNumCuPerSh;
     const uint32 rbPerShaderArray   = (pProps->gfx6.maxNumRbPerSe / shaderArrays);
 
+    const uint32 DefaultSpmBlockSelect = 0xFFFF;
+
     // SRBM block
     SetupBlockInfo(pProps, GpuBlock::Srbm,
                    DefaultShaderEngines, DefaultShaderArrays, DefaultInstances,
@@ -334,7 +338,8 @@ void SetupGfx6Counters(
                    (mmSRBM_PERFCOUNTER1_SELECT__SI__CI - mmSRBM_PERFCOUNTER0_SELECT__SI__CI),
                    0, 0,
                    mmSRBM_PERFCOUNTER0_LO__SI__CI, mmSRBM_PERFCOUNTER0_HI__SI__CI,
-                   (mmSRBM_PERFCOUNTER1_LO__SI__CI - mmSRBM_PERFCOUNTER0_LO__SI__CI));
+                   (mmSRBM_PERFCOUNTER1_LO__SI__CI - mmSRBM_PERFCOUNTER0_LO__SI__CI),
+                   DefaultSpmBlockSelect);
 
     // CP block
     SetupBlockInfo(pProps, GpuBlock::Cpf,
@@ -342,7 +347,8 @@ void SetupGfx6Counters(
                    Gfx6NumCpCounters, Gfx6PerfCtrCpMaxEvent,
                    mmCP_PERFCOUNTER_SELECT__SI, 0,
                    0, 0,
-                   mmCP_PERFCOUNTER_LO__SI, mmCP_PERFCOUNTER_HI__SI, 0);
+                   mmCP_PERFCOUNTER_LO__SI, mmCP_PERFCOUNTER_HI__SI, 0,
+                   DefaultSpmBlockSelect);
 
     // CB block
     SetupBlockInfo(pProps, GpuBlock::Cb,
@@ -353,7 +359,8 @@ void SetupGfx6Counters(
                    mmCB_PERFCOUNTER0_SELECT1__SI,
                    (mmCB_PERFCOUNTER1_SELECT1__SI - mmCB_PERFCOUNTER0_SELECT1__SI),
                    mmCB_PERFCOUNTER0_LO__SI, mmCB_PERFCOUNTER0_HI__SI,
-                   (mmCB_PERFCOUNTER1_LO__SI - mmCB_PERFCOUNTER0_LO__SI));
+                   (mmCB_PERFCOUNTER1_LO__SI - mmCB_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // DB block
     SetupBlockInfo(pProps, GpuBlock::Db,
@@ -363,7 +370,8 @@ void SetupGfx6Counters(
                    (mmDB_PERFCOUNTER1_SELECT__SI - mmDB_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmDB_PERFCOUNTER0_LO__SI, mmDB_PERFCOUNTER0_HI__SI,
-                   (mmDB_PERFCOUNTER1_LO__SI - mmDB_PERFCOUNTER0_LO__SI));
+                   (mmDB_PERFCOUNTER1_LO__SI - mmDB_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // GRBM block
     SetupBlockInfo(pProps, GpuBlock::Grbm,
@@ -373,7 +381,8 @@ void SetupGfx6Counters(
                    (mmGRBM_PERFCOUNTER1_SELECT__SI - mmGRBM_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmGRBM_PERFCOUNTER0_LO__SI, mmGRBM_PERFCOUNTER0_HI__SI,
-                   (mmGRBM_PERFCOUNTER1_LO__SI - mmGRBM_PERFCOUNTER0_LO__SI));
+                   (mmGRBM_PERFCOUNTER1_LO__SI - mmGRBM_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // GRBMSE block
     SetupBlockInfo(pProps, GpuBlock::GrbmSe,
@@ -381,7 +390,8 @@ void SetupGfx6Counters(
                    Gfx6NumGrbmseCounters, Gfx6PerfCtrGrbmseMaxEvent,
                    mmGRBM_SE0_PERFCOUNTER_SELECT__SI, 0,
                    mmGRBM_SE1_PERFCOUNTER_SELECT__SI, 0,
-                   mmGRBM_SE0_PERFCOUNTER_LO__SI, mmGRBM_SE0_PERFCOUNTER_HI__SI, 0);
+                   mmGRBM_SE0_PERFCOUNTER_LO__SI, mmGRBM_SE0_PERFCOUNTER_HI__SI, 0,
+                   DefaultSpmBlockSelect);
 
     // PA block
     SetupBlockInfo(pProps, GpuBlock::Pa,
@@ -391,7 +401,8 @@ void SetupGfx6Counters(
                    (mmPA_SU_PERFCOUNTER1_SELECT__SI - mmPA_SU_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmPA_SU_PERFCOUNTER0_LO__SI, mmPA_SU_PERFCOUNTER0_HI__SI,
-                   (mmPA_SU_PERFCOUNTER1_LO__SI - mmPA_SU_PERFCOUNTER0_LO__SI));
+                   (mmPA_SU_PERFCOUNTER1_LO__SI - mmPA_SU_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // SC block
     SetupBlockInfo(pProps, GpuBlock::Sc,
@@ -401,7 +412,8 @@ void SetupGfx6Counters(
                    (mmPA_SC_PERFCOUNTER1_SELECT__SI - mmPA_SC_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmPA_SC_PERFCOUNTER0_LO__SI, mmPA_SC_PERFCOUNTER0_HI__SI,
-                   (mmPA_SC_PERFCOUNTER1_LO__SI - mmPA_SC_PERFCOUNTER0_LO__SI));
+                   (mmPA_SC_PERFCOUNTER1_LO__SI - mmPA_SC_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // SX block
     SetupBlockInfo(pProps, GpuBlock::Sx,
@@ -411,7 +423,8 @@ void SetupGfx6Counters(
                    (mmSX_PERFCOUNTER1_SELECT__SI - mmSX_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmSX_PERFCOUNTER0_LO__SI, mmSX_PERFCOUNTER0_HI__SI,
-                   (mmSX_PERFCOUNTER1_LO__SI - mmSX_PERFCOUNTER0_LO__SI));
+                   (mmSX_PERFCOUNTER1_LO__SI - mmSX_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // SPI block
     SetupBlockInfo(pProps, GpuBlock::Spi,
@@ -421,7 +434,8 @@ void SetupGfx6Counters(
                    (mmSPI_PERFCOUNTER1_SELECT__SI - mmSPI_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmSPI_PERFCOUNTER0_LO__SI, mmSPI_PERFCOUNTER0_HI__SI,
-                   (mmSPI_PERFCOUNTER1_LO__SI - mmSPI_PERFCOUNTER0_LO__SI));
+                   (mmSPI_PERFCOUNTER1_LO__SI - mmSPI_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // SQ block
     SetupBlockInfo(pProps, GpuBlock::Sq,
@@ -431,7 +445,8 @@ void SetupGfx6Counters(
                    (mmSQ_PERFCOUNTER1_SELECT__SI - mmSQ_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmSQ_PERFCOUNTER0_LO__SI, mmSQ_PERFCOUNTER0_HI__SI,
-                   (mmSQ_PERFCOUNTER1_LO__SI - mmSQ_PERFCOUNTER0_LO__SI));
+                   (mmSQ_PERFCOUNTER1_LO__SI - mmSQ_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // TA block
     SetupBlockInfo(pProps, GpuBlock::Ta,
@@ -441,7 +456,8 @@ void SetupGfx6Counters(
                    (mmTA_PERFCOUNTER1_SELECT__SI - mmTA_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmTA_PERFCOUNTER0_LO__SI, mmTA_PERFCOUNTER0_HI__SI,
-                   (mmTA_PERFCOUNTER1_LO__SI - mmTA_PERFCOUNTER0_LO__SI));
+                   (mmTA_PERFCOUNTER1_LO__SI - mmTA_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // TD block
     SetupBlockInfo(pProps, GpuBlock::Td,
@@ -449,7 +465,8 @@ void SetupGfx6Counters(
                    Gfx6NumTdCounters, Gfx6PerfCtrTdMaxEvent,
                    mmTD_PERFCOUNTER0_SELECT__SI, 0,
                    0, 0,
-                   mmTD_PERFCOUNTER0_LO__SI, mmTD_PERFCOUNTER0_HI__SI, 0);
+                   mmTD_PERFCOUNTER0_LO__SI, mmTD_PERFCOUNTER0_HI__SI, 0,
+                   DefaultSpmBlockSelect);
 
     // TCP block
     SetupBlockInfo(pProps, GpuBlock::Tcp,
@@ -459,7 +476,8 @@ void SetupGfx6Counters(
                    (mmTCP_PERFCOUNTER1_SELECT__SI - mmTCP_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmTCP_PERFCOUNTER0_LO__SI, mmTCP_PERFCOUNTER0_HI__SI,
-                   (mmTCP_PERFCOUNTER1_LO__SI - mmTCP_PERFCOUNTER0_LO__SI));
+                   (mmTCP_PERFCOUNTER1_LO__SI - mmTCP_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // TCC block
     SetupBlockInfo(pProps, GpuBlock::Tcc,
@@ -469,7 +487,8 @@ void SetupGfx6Counters(
                    (mmTCC_PERFCOUNTER1_SELECT__SI - mmTCC_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmTCC_PERFCOUNTER0_LO__SI, mmTCC_PERFCOUNTER0_HI__SI,
-                   (mmTCC_PERFCOUNTER1_LO__SI - mmTCC_PERFCOUNTER0_LO__SI));
+                   (mmTCC_PERFCOUNTER1_LO__SI - mmTCC_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // TCA block
     SetupBlockInfo(pProps, GpuBlock::Tca,
@@ -479,7 +498,8 @@ void SetupGfx6Counters(
                    (mmTCA_PERFCOUNTER1_SELECT__SI - mmTCA_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmTCA_PERFCOUNTER0_LO__SI, mmTCA_PERFCOUNTER0_HI__SI,
-                   (mmTCA_PERFCOUNTER1_LO__SI - mmTCA_PERFCOUNTER0_LO__SI));
+                   (mmTCA_PERFCOUNTER1_LO__SI - mmTCA_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // GDS block
     SetupBlockInfo(pProps, GpuBlock::Gds,
@@ -489,7 +509,8 @@ void SetupGfx6Counters(
                    (mmGDS_PERFCOUNTER1_SELECT__SI - mmGDS_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmGDS_PERFCOUNTER0_LO__SI, mmGDS_PERFCOUNTER0_HI__SI,
-                   (mmGDS_PERFCOUNTER1_LO__SI - mmGDS_PERFCOUNTER0_LO__SI));
+                   (mmGDS_PERFCOUNTER1_LO__SI - mmGDS_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // VGT block
     SetupBlockInfo(pProps, GpuBlock::Vgt,
@@ -499,7 +520,8 @@ void SetupGfx6Counters(
                    (mmVGT_PERFCOUNTER1_SELECT__SI - mmVGT_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmVGT_PERFCOUNTER0_LO__SI, mmVGT_PERFCOUNTER0_HI__SI,
-                   (mmVGT_PERFCOUNTER1_LO__SI - mmVGT_PERFCOUNTER0_LO__SI));
+                   (mmVGT_PERFCOUNTER1_LO__SI - mmVGT_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // IA block
     SetupBlockInfo(pProps, GpuBlock::Ia,
@@ -509,7 +531,8 @@ void SetupGfx6Counters(
                    (mmIA_PERFCOUNTER1_SELECT__SI - mmIA_PERFCOUNTER0_SELECT__SI),
                    0, 0,
                    mmIA_PERFCOUNTER0_LO__SI, mmIA_PERFCOUNTER0_HI__SI,
-                   (mmIA_PERFCOUNTER1_LO__SI - mmIA_PERFCOUNTER0_LO__SI));
+                   (mmIA_PERFCOUNTER1_LO__SI - mmIA_PERFCOUNTER0_LO__SI),
+                   DefaultSpmBlockSelect);
 
     // MC block
     SetupMcBlockAndRegInfo(pProps);
@@ -541,6 +564,8 @@ void SetupGfx7Counters(
     const uint32 numCuPerSh         = pProps->gfx6.maxNumCuPerSh;
     const uint32 rbPerShaderArray   = (pProps->gfx6.maxNumRbPerSe / shaderArrays);
 
+    const uint32 DefaultSpmBlockSelect = 0xFFFF;
+
     // SRBM block
     SetupBlockInfo(pProps, GpuBlock::Srbm,
                    DefaultShaderEngines, DefaultShaderArrays, DefaultInstances,
@@ -549,7 +574,8 @@ void SetupGfx7Counters(
                    (mmSRBM_PERFCOUNTER1_SELECT__SI__CI - mmSRBM_PERFCOUNTER0_SELECT__SI__CI),
                    0, 0,
                    mmSRBM_PERFCOUNTER0_LO__SI__CI, mmSRBM_PERFCOUNTER0_HI__SI__CI,
-                   (mmSRBM_PERFCOUNTER1_LO__SI__CI - mmSRBM_PERFCOUNTER0_LO__SI__CI));
+                   (mmSRBM_PERFCOUNTER1_LO__SI__CI - mmSRBM_PERFCOUNTER0_LO__SI__CI),
+                   DefaultSpmBlockSelect);
 
     // CPF block
     SetupBlockInfo(pProps, GpuBlock::Cpf,
@@ -559,7 +585,8 @@ void SetupGfx7Counters(
                    (mmCPF_PERFCOUNTER1_SELECT__CI__VI - mmCPF_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPF_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPF_PERFCOUNTER0_LO__CI__VI, mmCPF_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPF_PERFCOUNTER1_LO__CI__VI - mmCPF_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPF_PERFCOUNTER1_LO__CI__VI - mmCPF_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpf);
 
     // CPG block
     SetupBlockInfo(pProps, GpuBlock::Cpg,
@@ -569,7 +596,8 @@ void SetupGfx7Counters(
                    (mmCPG_PERFCOUNTER1_SELECT__CI__VI - mmCPG_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPG_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPG_PERFCOUNTER0_LO__CI__VI, mmCPG_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPG_PERFCOUNTER1_LO__CI__VI - mmCPG_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPG_PERFCOUNTER1_LO__CI__VI - mmCPG_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpg);
 
     // CPC block
     SetupBlockInfo(pProps, GpuBlock::Cpc,
@@ -579,7 +607,8 @@ void SetupGfx7Counters(
                    (mmCPC_PERFCOUNTER1_SELECT__CI__VI - mmCPC_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPC_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPC_PERFCOUNTER0_LO__CI__VI, mmCPC_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPC_PERFCOUNTER1_LO__CI__VI - mmCPC_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPC_PERFCOUNTER1_LO__CI__VI - mmCPC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpc);
 
     // CB block
     SetupBlockInfo(pProps, GpuBlock::Cb,
@@ -590,7 +619,8 @@ void SetupGfx7Counters(
                    mmCB_PERFCOUNTER0_SELECT1__CI__VI,
                    0,
                    mmCB_PERFCOUNTER0_LO__CI__VI, mmCB_PERFCOUNTER0_HI__CI__VI,
-                   (mmCB_PERFCOUNTER1_LO__CI__VI - mmCB_PERFCOUNTER0_LO__CI__VI));
+                   (mmCB_PERFCOUNTER1_LO__CI__VI - mmCB_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Cb);
 
     // DB block
     SetupBlockInfo(pProps, GpuBlock::Db,
@@ -601,7 +631,8 @@ void SetupGfx7Counters(
                    mmDB_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmDB_PERFCOUNTER1_SELECT1__CI__VI - mmDB_PERFCOUNTER0_SELECT1__CI__VI),
                    mmDB_PERFCOUNTER0_LO__CI__VI, mmDB_PERFCOUNTER0_HI__CI__VI,
-                   (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI));
+                   (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Db);
 
     // GRBM block
     SetupBlockInfo(pProps, GpuBlock::Grbm,
@@ -611,7 +642,8 @@ void SetupGfx7Counters(
                    (mmGRBM_PERFCOUNTER1_SELECT__CI__VI - mmGRBM_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmGRBM_PERFCOUNTER0_LO__CI__VI, mmGRBM_PERFCOUNTER0_HI__CI__VI,
-                   (mmGRBM_PERFCOUNTER1_LO__CI__VI - mmGRBM_PERFCOUNTER0_LO__CI__VI));
+                   (mmGRBM_PERFCOUNTER1_LO__CI__VI - mmGRBM_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // GRBMSE block
     SetupBlockInfo(pProps, GpuBlock::GrbmSe,
@@ -619,7 +651,8 @@ void SetupGfx7Counters(
                    Gfx7NumGrbmseCounters, Gfx7PerfCtrGrbmseMaxEvent,
                    mmGRBM_SE0_PERFCOUNTER_SELECT__CI__VI, 0,
                    mmGRBM_SE1_PERFCOUNTER_SELECT__CI__VI, 0,
-                   mmGRBM_SE0_PERFCOUNTER_LO__CI__VI, mmGRBM_SE0_PERFCOUNTER_HI__CI__VI, 0);
+                   mmGRBM_SE0_PERFCOUNTER_LO__CI__VI, mmGRBM_SE0_PERFCOUNTER_HI__CI__VI, 0,
+                   DefaultSpmBlockSelect);
 
     // RLC block
     SetupBlockInfo(pProps, GpuBlock::Rlc,
@@ -629,7 +662,8 @@ void SetupGfx7Counters(
                    (mmRLC_PERFCOUNTER1_SELECT__CI__VI - mmRLC_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmRLC_PERFCOUNTER0_LO__CI__VI, mmRLC_PERFCOUNTER0_HI__CI__VI,
-                   (mmRLC_PERFCOUNTER1_LO__CI__VI - mmRLC_PERFCOUNTER0_LO__CI__VI));
+                   (mmRLC_PERFCOUNTER1_LO__CI__VI - mmRLC_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // PA block
     SetupBlockInfo(pProps, GpuBlock::Pa,
@@ -640,7 +674,8 @@ void SetupGfx7Counters(
                    mmPA_SU_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmPA_SU_PERFCOUNTER1_SELECT1__CI__VI - mmPA_SU_PERFCOUNTER0_SELECT1__CI__VI),
                    mmPA_SU_PERFCOUNTER0_LO__CI__VI, mmPA_SU_PERFCOUNTER0_HI__CI__VI,
-                   (mmPA_SU_PERFCOUNTER1_LO__CI__VI - mmPA_SU_PERFCOUNTER0_LO__CI__VI));
+                   (mmPA_SU_PERFCOUNTER1_LO__CI__VI - mmPA_SU_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Pa);
 
     // SC block
     SetupBlockInfo(pProps, GpuBlock::Sc,
@@ -650,7 +685,8 @@ void SetupGfx7Counters(
                    (mmPA_SC_PERFCOUNTER1_SELECT__CI__VI - mmPA_SC_PERFCOUNTER0_SELECT__CI__VI),
                    mmPA_SC_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmPA_SC_PERFCOUNTER0_LO__CI__VI, mmPA_SC_PERFCOUNTER0_HI__CI__VI,
-                   (mmPA_SC_PERFCOUNTER1_LO__CI__VI - mmPA_SC_PERFCOUNTER0_LO__CI__VI));
+                   (mmPA_SC_PERFCOUNTER1_LO__CI__VI - mmPA_SC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sc);
 
     // SX block
     SetupBlockInfo(pProps, GpuBlock::Sx,
@@ -660,7 +696,8 @@ void SetupGfx7Counters(
                    (mmSX_PERFCOUNTER1_SELECT__CI__VI - mmSX_PERFCOUNTER0_SELECT__CI__VI),
                    mmSX_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmSX_PERFCOUNTER0_LO__CI__VI, mmSX_PERFCOUNTER0_HI__CI__VI,
-                   (mmSX_PERFCOUNTER1_LO__CI__VI - mmSX_PERFCOUNTER0_LO__CI__VI));
+                   (mmSX_PERFCOUNTER1_LO__CI__VI - mmSX_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sx);
 
     // SPI block
     SetupBlockInfo(pProps, GpuBlock::Spi,
@@ -671,7 +708,8 @@ void SetupGfx7Counters(
                    mmSPI_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmSPI_PERFCOUNTER1_SELECT1__CI__VI - mmSPI_PERFCOUNTER0_SELECT1__CI__VI),
                    mmSPI_PERFCOUNTER0_LO__CI__VI, mmSPI_PERFCOUNTER0_HI__CI__VI,
-                   (mmSPI_PERFCOUNTER1_LO__CI__VI - mmSPI_PERFCOUNTER0_LO__CI__VI));
+                   (mmSPI_PERFCOUNTER1_LO__CI__VI - mmSPI_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Spi);
 
     // SQ block
     SetupBlockInfo(pProps, GpuBlock::Sq,
@@ -681,7 +719,8 @@ void SetupGfx7Counters(
                    (mmSQ_PERFCOUNTER1_SELECT__CI__VI - mmSQ_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmSQ_PERFCOUNTER0_LO__CI__VI, mmSQ_PERFCOUNTER0_HI__CI__VI,
-                   (mmSQ_PERFCOUNTER1_LO__CI__VI - mmSQ_PERFCOUNTER0_LO__CI__VI));
+                   (mmSQ_PERFCOUNTER1_LO__CI__VI - mmSQ_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sqg);
 
     // TA block
     SetupBlockInfo(pProps, GpuBlock::Ta,
@@ -691,7 +730,8 @@ void SetupGfx7Counters(
                    (mmTA_PERFCOUNTER1_SELECT__CI__VI - mmTA_PERFCOUNTER0_SELECT__CI__VI),
                    mmTA_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmTA_PERFCOUNTER0_LO__CI__VI, mmTA_PERFCOUNTER0_HI__CI__VI,
-                   (mmTA_PERFCOUNTER1_LO__CI__VI - mmTA_PERFCOUNTER0_LO__CI__VI));
+                   (mmTA_PERFCOUNTER1_LO__CI__VI - mmTA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Ta);
 
     // TD block
     SetupBlockInfo(pProps, GpuBlock::Td,
@@ -700,7 +740,8 @@ void SetupGfx7Counters(
                    mmTD_PERFCOUNTER0_SELECT__CI__VI,
                    (mmTD_PERFCOUNTER1_SELECT__CI__VI - mmTD_PERFCOUNTER0_SELECT__CI__VI),
                    mmTD_PERFCOUNTER0_SELECT1__CI__VI, 0,
-                   mmTD_PERFCOUNTER0_LO__CI__VI, mmTD_PERFCOUNTER0_HI__CI__VI, 0);
+                   mmTD_PERFCOUNTER0_LO__CI__VI, mmTD_PERFCOUNTER0_HI__CI__VI, 0,
+                   Gfx7SpmSeBlockSelect::Td);
 
     // TCP block
     SetupBlockInfo(pProps, GpuBlock::Tcp,
@@ -711,7 +752,8 @@ void SetupGfx7Counters(
                    mmTCP_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCP_PERFCOUNTER1_SELECT1__CI__VI - mmTCP_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCP_PERFCOUNTER0_LO__CI__VI, mmTCP_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCP_PERFCOUNTER1_LO__CI__VI - mmTCP_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCP_PERFCOUNTER1_LO__CI__VI - mmTCP_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Tcp);
 
     // TCC block
     SetupBlockInfo(pProps, GpuBlock::Tcc,
@@ -722,7 +764,8 @@ void SetupGfx7Counters(
                    mmTCC_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCC_PERFCOUNTER1_SELECT1__CI__VI - mmTCC_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCC_PERFCOUNTER0_LO__CI__VI, mmTCC_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCC_PERFCOUNTER1_LO__CI__VI - mmTCC_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCC_PERFCOUNTER1_LO__CI__VI - mmTCC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Tcc);
 
     // TCA block
     SetupBlockInfo(pProps, GpuBlock::Tca,
@@ -733,7 +776,8 @@ void SetupGfx7Counters(
                    mmTCA_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCA_PERFCOUNTER1_SELECT1__CI__VI - mmTCA_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCA_PERFCOUNTER0_LO__CI__VI, mmTCA_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCA_PERFCOUNTER1_LO__CI__VI - mmTCA_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCA_PERFCOUNTER1_LO__CI__VI - mmTCA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Tca);
 
     // GDS block
     SetupBlockInfo(pProps, GpuBlock::Gds,
@@ -743,7 +787,8 @@ void SetupGfx7Counters(
                    (mmGDS_PERFCOUNTER1_SELECT__CI__VI - mmGDS_PERFCOUNTER0_SELECT__CI__VI),
                    mmGDS_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmGDS_PERFCOUNTER0_LO__CI__VI, mmGDS_PERFCOUNTER0_HI__CI__VI,
-                   (mmGDS_PERFCOUNTER1_LO__CI__VI - mmGDS_PERFCOUNTER0_LO__CI__VI));
+                   (mmGDS_PERFCOUNTER1_LO__CI__VI - mmGDS_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Gds);
 
     // VGT block
     SetupBlockInfo(pProps, GpuBlock::Vgt,
@@ -754,7 +799,8 @@ void SetupGfx7Counters(
                    mmVGT_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmVGT_PERFCOUNTER1_SELECT1__CI__VI - mmVGT_PERFCOUNTER0_SELECT1__CI__VI),
                    mmVGT_PERFCOUNTER0_LO__CI__VI, mmVGT_PERFCOUNTER0_HI__CI__VI,
-                   (mmVGT_PERFCOUNTER1_LO__CI__VI - mmVGT_PERFCOUNTER0_LO__CI__VI));
+                   (mmVGT_PERFCOUNTER1_LO__CI__VI - mmVGT_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Vgt);
 
     // IA block
     SetupBlockInfo(pProps, GpuBlock::Ia,
@@ -764,7 +810,8 @@ void SetupGfx7Counters(
                    (mmIA_PERFCOUNTER1_SELECT__CI__VI - mmIA_PERFCOUNTER0_SELECT__CI__VI),
                    mmIA_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmIA_PERFCOUNTER0_LO__CI__VI, mmIA_PERFCOUNTER0_HI__CI__VI,
-                   (mmIA_PERFCOUNTER1_LO__CI__VI - mmIA_PERFCOUNTER0_LO__CI__VI));
+                   (mmIA_PERFCOUNTER1_LO__CI__VI - mmIA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Ia);
 
     // WD block
     SetupBlockInfo(pProps, GpuBlock::Wd,
@@ -774,7 +821,8 @@ void SetupGfx7Counters(
                    (mmWD_PERFCOUNTER1_SELECT__CI__VI - mmWD_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmWD_PERFCOUNTER0_LO__CI__VI, mmWD_PERFCOUNTER0_HI__CI__VI,
-                   (mmWD_PERFCOUNTER1_LO__CI__VI - mmWD_PERFCOUNTER0_LO__CI__VI));
+                   (mmWD_PERFCOUNTER1_LO__CI__VI - mmWD_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // MC block
     SetupMcBlockAndRegInfo(pProps);
@@ -788,7 +836,8 @@ void SetupGfx7Counters(
                    0, 0,
                    mmSDMA0_PERFCOUNTER0_RESULT__CI,
                    mmSDMA0_PERFCOUNTER1_RESULT__CI,
-                   (mmSDMA1_PERFCOUNTER0_RESULT__CI - mmSDMA0_PERFCOUNTER1_RESULT__CI));
+                   (mmSDMA1_PERFCOUNTER0_RESULT__CI - mmSDMA0_PERFCOUNTER1_RESULT__CI),
+                   DefaultSpmBlockSelect);
 
     // Only Kaveri (Spectre & Spooky) chips have the TCS block.
     if (AMDGPU_IS_SPECTRE(pProps->familyId, pProps->eRevId) ||
@@ -802,7 +851,8 @@ void SetupGfx7Counters(
                        mmTCS_PERFCOUNTER0_SELECT1__CI, 0,
                        mmTCS_PERFCOUNTER0_LO__CI,
                        mmTCS_PERFCOUNTER0_HI__CI,
-                       (mmTCS_PERFCOUNTER1_LO__CI - mmTCS_PERFCOUNTER0_LO__CI));
+                       (mmTCS_PERFCOUNTER1_LO__CI - mmTCS_PERFCOUNTER0_LO__CI),
+                       Gfx7SpmGlobalBlockSelect::Tcs);
     }
 }
 
@@ -832,6 +882,8 @@ void SetupGfx8Counters(
     const uint32 numCuPerSh         = pProps->gfx6.maxNumCuPerSh;
     const uint32 rbPerShaderArray   = (pProps->gfx6.maxNumRbPerSe / shaderArrays);
 
+    const uint32 DefaultSpmBlockSelect = 0xFFFF;
+
     // SRBM block
     SetupBlockInfo(pProps, GpuBlock::Srbm,
                    DefaultShaderEngines, DefaultShaderArrays, DefaultInstances,
@@ -840,7 +892,8 @@ void SetupGfx8Counters(
                    (mmSRBM_PERFCOUNTER1_SELECT__VI - mmSRBM_PERFCOUNTER0_SELECT__VI),
                    0, 0,
                    mmSRBM_PERFCOUNTER0_LO__VI, mmSRBM_PERFCOUNTER0_HI__VI,
-                   (mmSRBM_PERFCOUNTER1_LO__VI - mmSRBM_PERFCOUNTER0_LO__VI));
+                   (mmSRBM_PERFCOUNTER1_LO__VI - mmSRBM_PERFCOUNTER0_LO__VI),
+                   DefaultSpmBlockSelect);
 
     // CPF block
     SetupBlockInfo(pProps, GpuBlock::Cpf,
@@ -850,7 +903,8 @@ void SetupGfx8Counters(
                    (mmCPF_PERFCOUNTER1_SELECT__CI__VI - mmCPF_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPF_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPF_PERFCOUNTER0_LO__CI__VI, mmCPF_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPF_PERFCOUNTER1_LO__CI__VI - mmCPF_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPF_PERFCOUNTER1_LO__CI__VI - mmCPF_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpf);
 
     // CPG block
     SetupBlockInfo(pProps, GpuBlock::Cpg,
@@ -860,7 +914,8 @@ void SetupGfx8Counters(
                    (mmCPG_PERFCOUNTER1_SELECT__CI__VI - mmCPG_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPG_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPG_PERFCOUNTER0_LO__CI__VI, mmCPG_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPG_PERFCOUNTER1_LO__CI__VI - mmCPG_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPG_PERFCOUNTER1_LO__CI__VI - mmCPG_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpg);
 
     // CPC block
     SetupBlockInfo(pProps, GpuBlock::Cpc,
@@ -870,7 +925,8 @@ void SetupGfx8Counters(
                    (mmCPC_PERFCOUNTER1_SELECT__CI__VI - mmCPC_PERFCOUNTER0_SELECT__CI__VI),
                    mmCPC_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmCPC_PERFCOUNTER0_LO__CI__VI, mmCPC_PERFCOUNTER0_HI__CI__VI,
-                   (mmCPC_PERFCOUNTER1_LO__CI__VI - mmCPC_PERFCOUNTER0_LO__CI__VI));
+                   (mmCPC_PERFCOUNTER1_LO__CI__VI - mmCPC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Cpc);
 
     // CB block
     SetupBlockInfo(pProps, GpuBlock::Cb,
@@ -881,7 +937,8 @@ void SetupGfx8Counters(
                    mmCB_PERFCOUNTER0_SELECT1__CI__VI,
                    0,
                    mmCB_PERFCOUNTER0_LO__CI__VI, mmCB_PERFCOUNTER0_HI__CI__VI,
-                   (mmCB_PERFCOUNTER1_LO__CI__VI - mmCB_PERFCOUNTER0_LO__CI__VI));
+                   (mmCB_PERFCOUNTER1_LO__CI__VI - mmCB_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Cb);
 
     // DB block
     SetupBlockInfo(pProps, GpuBlock::Db,
@@ -892,7 +949,8 @@ void SetupGfx8Counters(
                    mmDB_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmDB_PERFCOUNTER1_SELECT1__CI__VI - mmDB_PERFCOUNTER0_SELECT1__CI__VI),
                    mmDB_PERFCOUNTER0_LO__CI__VI, mmDB_PERFCOUNTER0_HI__CI__VI,
-                   (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI));
+                   (mmDB_PERFCOUNTER1_LO__CI__VI - mmDB_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Db);
 
     // GRBM block
     SetupBlockInfo(pProps, GpuBlock::Grbm,
@@ -902,7 +960,8 @@ void SetupGfx8Counters(
                    (mmGRBM_PERFCOUNTER1_SELECT__CI__VI - mmGRBM_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmGRBM_PERFCOUNTER0_LO__CI__VI, mmGRBM_PERFCOUNTER0_HI__CI__VI,
-                   (mmGRBM_PERFCOUNTER1_LO__CI__VI - mmGRBM_PERFCOUNTER0_LO__CI__VI));
+                   (mmGRBM_PERFCOUNTER1_LO__CI__VI - mmGRBM_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // GRBMSE block
     SetupBlockInfo(pProps, GpuBlock::GrbmSe,
@@ -910,7 +969,8 @@ void SetupGfx8Counters(
                    Gfx8NumGrbmseCounters, Gfx8PerfCtrGrbmseMaxEvent,
                    mmGRBM_SE0_PERFCOUNTER_SELECT__CI__VI, 0,
                    mmGRBM_SE1_PERFCOUNTER_SELECT__CI__VI, 0,
-                   mmGRBM_SE0_PERFCOUNTER_LO__CI__VI, mmGRBM_SE0_PERFCOUNTER_HI__CI__VI, 0);
+                   mmGRBM_SE0_PERFCOUNTER_LO__CI__VI, mmGRBM_SE0_PERFCOUNTER_HI__CI__VI, 0,
+                   DefaultSpmBlockSelect);
 
     // RLC block
     SetupBlockInfo(pProps, GpuBlock::Rlc,
@@ -920,7 +980,8 @@ void SetupGfx8Counters(
                    (mmRLC_PERFCOUNTER1_SELECT__CI__VI - mmRLC_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmRLC_PERFCOUNTER0_LO__CI__VI, mmRLC_PERFCOUNTER0_HI__CI__VI,
-                   (mmRLC_PERFCOUNTER1_LO__CI__VI - mmRLC_PERFCOUNTER0_LO__CI__VI));
+                   (mmRLC_PERFCOUNTER1_LO__CI__VI - mmRLC_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // PA block
     SetupBlockInfo(pProps, GpuBlock::Pa,
@@ -931,7 +992,8 @@ void SetupGfx8Counters(
                    mmPA_SU_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmPA_SU_PERFCOUNTER1_SELECT1__CI__VI - mmPA_SU_PERFCOUNTER0_SELECT1__CI__VI),
                    mmPA_SU_PERFCOUNTER0_LO__CI__VI, mmPA_SU_PERFCOUNTER0_HI__CI__VI,
-                   (mmPA_SU_PERFCOUNTER1_LO__CI__VI - mmPA_SU_PERFCOUNTER0_LO__CI__VI));
+                   (mmPA_SU_PERFCOUNTER1_LO__CI__VI - mmPA_SU_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Pa);
 
     // SC block
     SetupBlockInfo(pProps, GpuBlock::Sc,
@@ -941,7 +1003,8 @@ void SetupGfx8Counters(
                    (mmPA_SC_PERFCOUNTER1_SELECT__CI__VI - mmPA_SC_PERFCOUNTER0_SELECT__CI__VI),
                    mmPA_SC_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmPA_SC_PERFCOUNTER0_LO__CI__VI, mmPA_SC_PERFCOUNTER0_HI__CI__VI,
-                   (mmPA_SC_PERFCOUNTER1_LO__CI__VI - mmPA_SC_PERFCOUNTER0_LO__CI__VI));
+                   (mmPA_SC_PERFCOUNTER1_LO__CI__VI - mmPA_SC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sc);
 
     // SX block
     SetupBlockInfo(pProps, GpuBlock::Sx,
@@ -951,7 +1014,8 @@ void SetupGfx8Counters(
                    (mmSX_PERFCOUNTER1_SELECT__CI__VI - mmSX_PERFCOUNTER0_SELECT__CI__VI),
                    mmSX_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmSX_PERFCOUNTER0_LO__CI__VI, mmSX_PERFCOUNTER0_HI__CI__VI,
-                   (mmSX_PERFCOUNTER1_LO__CI__VI - mmSX_PERFCOUNTER0_LO__CI__VI));
+                   (mmSX_PERFCOUNTER1_LO__CI__VI - mmSX_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sx);
 
     // SPI block
     SetupBlockInfo(pProps, GpuBlock::Spi,
@@ -962,7 +1026,8 @@ void SetupGfx8Counters(
                    mmSPI_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmSPI_PERFCOUNTER1_SELECT1__CI__VI - mmSPI_PERFCOUNTER0_SELECT1__CI__VI),
                    mmSPI_PERFCOUNTER0_LO__CI__VI, mmSPI_PERFCOUNTER0_HI__CI__VI,
-                   (mmSPI_PERFCOUNTER1_LO__CI__VI - mmSPI_PERFCOUNTER0_LO__CI__VI));
+                   (mmSPI_PERFCOUNTER1_LO__CI__VI - mmSPI_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Spi);
 
     // SQ block
     SetupBlockInfo(pProps, GpuBlock::Sq,
@@ -973,7 +1038,8 @@ void SetupGfx8Counters(
                    (mmSQ_PERFCOUNTER1_SELECT__CI__VI - mmSQ_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmSQ_PERFCOUNTER0_LO__CI__VI, mmSQ_PERFCOUNTER0_HI__CI__VI,
-                   (mmSQ_PERFCOUNTER1_LO__CI__VI - mmSQ_PERFCOUNTER0_LO__CI__VI));
+                   (mmSQ_PERFCOUNTER1_LO__CI__VI - mmSQ_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Sqg);
 
     // TA block
     SetupBlockInfo(pProps, GpuBlock::Ta,
@@ -983,7 +1049,8 @@ void SetupGfx8Counters(
                    (mmTA_PERFCOUNTER1_SELECT__CI__VI - mmTA_PERFCOUNTER0_SELECT__CI__VI),
                    mmTA_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmTA_PERFCOUNTER0_LO__CI__VI, mmTA_PERFCOUNTER0_HI__CI__VI,
-                   (mmTA_PERFCOUNTER1_LO__CI__VI - mmTA_PERFCOUNTER0_LO__CI__VI));
+                   (mmTA_PERFCOUNTER1_LO__CI__VI - mmTA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Ta);
 
     // TD block
     SetupBlockInfo(pProps, GpuBlock::Td,
@@ -992,7 +1059,8 @@ void SetupGfx8Counters(
                    mmTD_PERFCOUNTER0_SELECT__CI__VI,
                    (mmTD_PERFCOUNTER1_SELECT__CI__VI - mmTD_PERFCOUNTER0_SELECT__CI__VI),
                    mmTD_PERFCOUNTER0_SELECT1__CI__VI, 0,
-                   mmTD_PERFCOUNTER0_LO__CI__VI, mmTD_PERFCOUNTER0_HI__CI__VI, 0);
+                   mmTD_PERFCOUNTER0_LO__CI__VI, mmTD_PERFCOUNTER0_HI__CI__VI, 0,
+                   Gfx7SpmSeBlockSelect::Td);
 
     // TCP block
     SetupBlockInfo(pProps, GpuBlock::Tcp,
@@ -1003,7 +1071,8 @@ void SetupGfx8Counters(
                    mmTCP_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCP_PERFCOUNTER1_SELECT1__CI__VI - mmTCP_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCP_PERFCOUNTER0_LO__CI__VI, mmTCP_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCP_PERFCOUNTER1_LO__CI__VI - mmTCP_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCP_PERFCOUNTER1_LO__CI__VI - mmTCP_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Tcp);
 
     // TCC block
     SetupBlockInfo(pProps, GpuBlock::Tcc,
@@ -1014,7 +1083,8 @@ void SetupGfx8Counters(
                    mmTCC_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCC_PERFCOUNTER1_SELECT1__CI__VI - mmTCC_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCC_PERFCOUNTER0_LO__CI__VI, mmTCC_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCC_PERFCOUNTER1_LO__CI__VI - mmTCC_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCC_PERFCOUNTER1_LO__CI__VI - mmTCC_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Tcc);
 
     // TCA block
     SetupBlockInfo(pProps, GpuBlock::Tca,
@@ -1025,7 +1095,8 @@ void SetupGfx8Counters(
                    mmTCA_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmTCA_PERFCOUNTER1_SELECT1__CI__VI - mmTCA_PERFCOUNTER0_SELECT1__CI__VI),
                    mmTCA_PERFCOUNTER0_LO__CI__VI, mmTCA_PERFCOUNTER0_HI__CI__VI,
-                   (mmTCA_PERFCOUNTER1_LO__CI__VI - mmTCA_PERFCOUNTER0_LO__CI__VI));
+                   (mmTCA_PERFCOUNTER1_LO__CI__VI - mmTCA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Tca);
 
     // GDS block
     SetupBlockInfo(pProps, GpuBlock::Gds,
@@ -1035,7 +1106,8 @@ void SetupGfx8Counters(
                    (mmGDS_PERFCOUNTER1_SELECT__CI__VI - mmGDS_PERFCOUNTER0_SELECT__CI__VI),
                    mmGDS_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmGDS_PERFCOUNTER0_LO__CI__VI, mmGDS_PERFCOUNTER0_HI__CI__VI,
-                   (mmGDS_PERFCOUNTER1_LO__CI__VI - mmGDS_PERFCOUNTER0_LO__CI__VI));
+                   (mmGDS_PERFCOUNTER1_LO__CI__VI - mmGDS_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Gds);
 
     // VGT block
     SetupBlockInfo(pProps, GpuBlock::Vgt,
@@ -1046,7 +1118,8 @@ void SetupGfx8Counters(
                    mmVGT_PERFCOUNTER0_SELECT1__CI__VI,
                    (mmVGT_PERFCOUNTER1_SELECT1__CI__VI - mmVGT_PERFCOUNTER0_SELECT1__CI__VI),
                    mmVGT_PERFCOUNTER0_LO__CI__VI, mmVGT_PERFCOUNTER0_HI__CI__VI,
-                   (mmVGT_PERFCOUNTER1_LO__CI__VI - mmVGT_PERFCOUNTER0_LO__CI__VI));
+                   (mmVGT_PERFCOUNTER1_LO__CI__VI - mmVGT_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmSeBlockSelect::Vgt);
 
     // IA block
     SetupBlockInfo(pProps, GpuBlock::Ia,
@@ -1056,7 +1129,8 @@ void SetupGfx8Counters(
                    (mmIA_PERFCOUNTER1_SELECT__CI__VI - mmIA_PERFCOUNTER0_SELECT__CI__VI),
                    mmIA_PERFCOUNTER0_SELECT1__CI__VI, 0,
                    mmIA_PERFCOUNTER0_LO__CI__VI, mmIA_PERFCOUNTER0_HI__CI__VI,
-                   (mmIA_PERFCOUNTER1_LO__CI__VI - mmIA_PERFCOUNTER0_LO__CI__VI));
+                   (mmIA_PERFCOUNTER1_LO__CI__VI - mmIA_PERFCOUNTER0_LO__CI__VI),
+                   Gfx7SpmGlobalBlockSelect::Ia);
 
     // WD block
     SetupBlockInfo(pProps, GpuBlock::Wd,
@@ -1066,7 +1140,8 @@ void SetupGfx8Counters(
                    (mmWD_PERFCOUNTER1_SELECT__CI__VI - mmWD_PERFCOUNTER0_SELECT__CI__VI),
                    0, 0,
                    mmWD_PERFCOUNTER0_LO__CI__VI, mmWD_PERFCOUNTER0_HI__CI__VI,
-                   (mmWD_PERFCOUNTER1_LO__CI__VI - mmWD_PERFCOUNTER0_LO__CI__VI));
+                   (mmWD_PERFCOUNTER1_LO__CI__VI - mmWD_PERFCOUNTER0_LO__CI__VI),
+                   DefaultSpmBlockSelect);
 
     // MC block
     SetupMcBlockAndRegInfo(pProps);
@@ -1080,7 +1155,8 @@ void SetupGfx8Counters(
                    0, 0,
                    mmSDMA0_PERFCOUNTER0_RESULT__VI,
                    mmSDMA0_PERFCOUNTER1_RESULT__VI,
-                   (mmSDMA1_PERFCOUNTER0_RESULT__VI - mmSDMA0_PERFCOUNTER1_RESULT__VI));
+                   (mmSDMA1_PERFCOUNTER0_RESULT__VI - mmSDMA0_PERFCOUNTER1_RESULT__VI),
+                   DefaultSpmBlockSelect);
 }
 
 // =====================================================================================================================
@@ -1146,7 +1222,8 @@ Result ValidateThreadTraceOptions(
     const auto& values = info.optionValues;
 
     if ((flags.bufferSize) &&
-        ((values.bufferSize > MaximumBufferSize) ||
+        ((values.bufferSize == 0) ||
+         (values.bufferSize > MaximumBufferSize) ||
          (Pow2Align(values.bufferSize, BufferAlignment) != values.bufferSize)))
     {
         result = Result::ErrorInvalidValue;

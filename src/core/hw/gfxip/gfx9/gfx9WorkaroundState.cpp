@@ -145,7 +145,6 @@ uint32* WorkaroundState::PreDraw(
                         CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
                         cbColorDccControl.u32All,
                         pCmdSpace);
-                    pDeCmdStream->SetContextRollDetected<true>();
                 }
             }
         }
@@ -179,7 +178,6 @@ uint32* WorkaroundState::PreDraw(
             DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK,
             dbDfsmControl.u32All,
             pCmdSpace);
-        pDeCmdStream->SetContextRollDetected<true>();
     }
 
     if (pPipeline->IsNggFastLaunch())

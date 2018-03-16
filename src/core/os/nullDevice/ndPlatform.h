@@ -57,9 +57,7 @@ public:
 
     virtual Result GetPrimaryLayout(uint32 vidPnSourceId, GetPrimaryLayoutOutput* pPrimaryLayoutOutput) override;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     virtual Result TurboSyncControl(const TurboSyncControlInput& turboSyncControlInput) override;
-#endif
 
 private:
     virtual Result ConnectToOsInterface() override;

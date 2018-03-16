@@ -85,14 +85,6 @@ public:
     virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) override;
     virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-#endif
-
     virtual Result CreateEngine(
         EngineType engineType,
         uint32     engineIndex,
@@ -257,7 +249,7 @@ public:
         ChNumFormat*           pFormat,
         uint32*                pPixelsPerBlock) const override { return false; }
 
-    virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const override;
+    virtual DccFormatEncoding ComputeDccFormatEncoding(const ImageCreateInfo& imageCreateInfo) const override;
 
     // Function definition for creating typed buffer view SRDs.
     static void PAL_STDCALL CreateTypedBufferViewSrds(

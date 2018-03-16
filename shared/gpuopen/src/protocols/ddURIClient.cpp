@@ -58,8 +58,6 @@ namespace DevDriver
         // =====================================================================================================================
         URIClient::~URIClient()
         {
-            // Reset the state to make sure all owned objects are released before destruction.
-            ResetState();
         }
 
         // =====================================================================================================================
@@ -97,22 +95,37 @@ namespace DevDriver
                     if (result == Result::Success)
                     {
                         // Attempt to open the pull block containing the response data.
+                        // @Todo: Detect if the service returns the invalid block ID and treat that as a success.
+                        //        It will require a new protocol version because existing clients will fail if
+                        //        the invalid block ID is returned in lieu of a block of size 0.
                         TransferProtocol::PullBlock* pPullBlock =
                             m_pMsgChannel->GetTransferManager().OpenPullBlock(GetRemoteClientId(), remoteBlockId);
 
                         if (pPullBlock != nullptr)
                         {
+                            m_context.pBlock = pPullBlock;
+                            const size_t blockSize = m_context.pBlock->GetBlockDataSize();
+
                             // We successfully opened the block. Return the block data size and format via the header.
                             // The header is optional so check for nullptr first.
                             if (pResponseHeader != nullptr)
                             {
-                                pResponseHeader->responseDataSizeInBytes = pPullBlock->GetBlockDataSize();
+                                pResponseHeader->responseDataSizeInBytes = blockSize;
                                 pResponseHeader->responseDataFormat      = responseDataFormat;
                             }
 
-                            // Set up internal state.
-                            m_context.state = State::ReadResponse;
-                            m_context.pBlock = pPullBlock;
+                            // If the block size is non-zero we move to the read state
+                            if (blockSize > 0)
+                            {
+                                // Set up internal state.
+                                m_context.state = State::ReadResponse;
+                            }
+                            else // If the block size is zero we automatically close it and move back to idle
+                            {
+                                // @Todo: Pass the invalid block ID back instead of a zero sized block.
+                                m_context.state = State::Idle;
+                                m_pMsgChannel->GetTransferManager().ClosePullBlock(&m_context.pBlock);
+                            }
                         }
                         else
                         {

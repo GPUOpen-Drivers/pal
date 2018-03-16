@@ -168,9 +168,6 @@ void SettingsLoader::HwlValidateSettings()
     {
         // When WD load balancing flowchart optimization is enabled, the primgroup size cannot exceed 253.
         m_gfx9Settings.primGroupSize = Min(253u, m_gfx9Settings.primGroupSize);
-
-        // Disable dynamic prim-group software optimization if WD load balancing is enabled.
-        m_gfx9Settings.dynamicPrimGroupEnable = false;
     }
 
     m_gfx9Settings.nggRegLaunchGsPrimsPerSubgrp     = Min(m_gfx9Settings.nggRegLaunchGsPrimsPerSubgrp,

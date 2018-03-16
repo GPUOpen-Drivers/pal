@@ -41,24 +41,43 @@ namespace DevDriver
 {
     class IProtocolServer;
 
-    struct DevDriverServerCreateInfo
+    // Server Creation Info
+    // This struct extends the MessageChannelCreateInfo struct and adds information about the destination host
+    // the client will connect to. It additionally allows specifying protocol servers to enable during initialization.
+    // See msgChannel.h for a full list of members.
+    struct ServerCreateInfo : public MessageChannelCreateInfo
     {
-        TransportCreateInfo transportCreateInfo;
-        ProtocolFlags       enabledProtocols;
+        HostInfo                 connectionInfo;    // Connection information describing how the Server should connect
+                                                    // to the message bus.
+        ProtocolFlags            servers;           // Set of boolean values indicating which servers should be created
+                                                    // during initialization.
     };
 
-    DD_STATIC_CONST uint32 kQueryStatusTimeoutInMs = 50;
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
+    struct DevDriverServerCreateInfo
+    {
+        struct TransportCreateInfo : public MessageChannelCreateInfo
+        {
+            AllocCb       allocCb;
+            HostInfo      hostInfo;
+            TransportType type;
+        } transportCreateInfo;
+        ProtocolFlags     enabledProtocols;
+    };
+#endif
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
     Result QueryDevDriverStatus(const TransportType type, StatusFlags* pFlags, HostInfo *pHostInfo = nullptr);
 #endif
 
+    DD_STATIC_CONST uint32 kQueryStatusTimeoutInMs = 50;
+
     class DevDriverServer
     {
     public:
-        static bool IsConnectionAvailable(const TransportType type, uint32 timeout = kQueryStatusTimeoutInMs);
+        static bool IsConnectionAvailable(const HostInfo& hostInfo, uint32 timeout = kQueryStatusTimeoutInMs);
 
-        explicit DevDriverServer(const DevDriverServerCreateInfo& createInfo);
+        explicit DevDriverServer(const AllocCb& allocCb, const ServerCreateInfo& createInfo);
         ~DevDriverServer();
 
         Result Initialize();
@@ -72,6 +91,12 @@ namespace DevDriver
         SettingsProtocol::SettingsServer* GetSettingsServer();
         DriverControlProtocol::DriverControlServer* GetDriverControlServer();
         RGPProtocol::RGPServer* GetRGPServer();
+        bool ShouldShowOverlay();
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
+        static bool IsConnectionAvailable(const TransportType type, uint32 timeout = kQueryStatusTimeoutInMs);
+        explicit DevDriverServer(const DevDriverServerCreateInfo& createInfo);
+#endif
     private:
         Result InitializeProtocols();
         void DestroyProtocols();
@@ -80,8 +105,9 @@ namespace DevDriver
         void UnregisterProtocol(Protocol protocol);
         void FinalizeProtocol(Protocol protocol);
 
-        DevDriverServerCreateInfo   m_createInfo;
-        IMsgChannel*                m_pMsgChannel;
+        IMsgChannel*     m_pMsgChannel;
+        AllocCb          m_allocCb;
+        ServerCreateInfo m_createInfo;
 
         template <Protocol protocol, class ...Args>
         inline Result RegisterProtocol(Args... args);

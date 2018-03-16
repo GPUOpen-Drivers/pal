@@ -50,7 +50,10 @@ namespace DevDriver
             ~LoggingClient();
 
             // Overrides the base client's update session functionality
-            void UpdateSession(const SharedPointer<ISession>& pSession) override;
+            void UpdateSession(const SharedPointer<ISession>& pSession) override final;
+
+            // Overrides the base client's session termination callback to ensure state gets reset
+            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override final;
 
             // Sends an enable logging message to the UMD
             Result EnableLogging(LogLevel priority, LoggingCategory categoryMask);

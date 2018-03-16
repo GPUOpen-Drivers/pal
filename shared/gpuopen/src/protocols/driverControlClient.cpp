@@ -397,11 +397,6 @@ namespace DevDriver
 
             return result;
         }
-
-        void DriverControlClient::ResetState()
-        {
-            // Nothing to do.
-        }
 }
 
 } // DevDriver

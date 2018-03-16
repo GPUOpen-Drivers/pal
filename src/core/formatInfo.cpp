@@ -360,9 +360,7 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::X8Y8Z8W8_Unorm,        // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Unorm,        // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Unorm,        // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Unorm,        // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Unorm,     // ChNumFormat::X10Y10Z10W2_Unorm
@@ -372,9 +370,7 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::X10Y10Z10W2_Unorm,     // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Unorm,     // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Unorm,     // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Unorm,     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Unorm,             // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Unorm,             // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Unorm,             // ChNumFormat::X16_Uscaled
@@ -547,9 +543,7 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::X8Y8Z8W8_Snorm,        // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Snorm,        // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Snorm,        // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Snorm,        // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Snorm,     // ChNumFormat::X10Y10Z10W2_Unorm
@@ -559,9 +553,7 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::X10Y10Z10W2_Snorm,     // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Snorm,     // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Snorm,     // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Snorm,     // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Snorm,             // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Snorm,             // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Snorm,             // ChNumFormat::X16_Uscaled
@@ -734,9 +726,7 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::X8Y8Z8W8_Uscaled,      // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Uscaled,      // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Uscaled,      // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Uscaled,      // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Uscaled,   // ChNumFormat::X10Y10Z10W2_Unorm
@@ -746,9 +736,7 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::X10Y10Z10W2_Uscaled,   // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Uscaled,   // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Uscaled,   // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Uscaled,   // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Uscaled,           // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Uscaled,           // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Uscaled,           // ChNumFormat::X16_Uscaled
@@ -921,9 +909,7 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::X8Y8Z8W8_Sscaled,      // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Sscaled,      // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Sscaled,      // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Sscaled,      // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Sscaled,   // ChNumFormat::X10Y10Z10W2_Unorm
@@ -933,9 +919,7 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::X10Y10Z10W2_Sscaled,   // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Sscaled,   // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Sscaled,   // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Sscaled,   // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Sscaled,           // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Sscaled,           // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Sscaled,           // ChNumFormat::X16_Uscaled
@@ -1108,9 +1092,7 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::X8Y8Z8W8_Uint,         // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Uint,         // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Uint,         // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Uint,         // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Uint,      // ChNumFormat::X10Y10Z10W2_Unorm
@@ -1120,9 +1102,7 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::X10Y10Z10W2_Uint,      // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Uint,      // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Uint,      // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Uint,      // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Uint,              // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Uint,              // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Uint,              // ChNumFormat::X16_Uscaled
@@ -1295,9 +1275,7 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::X8Y8Z8W8_Sint,         // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Sint,         // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Sint,         // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Sint,         // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::X10Y10Z10W2_Sint,      // ChNumFormat::X10Y10Z10W2_Unorm
@@ -1307,9 +1285,7 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::X10Y10Z10W2_Sint,      // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::X10Y10Z10W2_Sint,      // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::X10Y10Z10W2_Sint,      // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X10Y10Z10W2_Sint,      // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Sint,              // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Sint,              // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Sint,              // ChNumFormat::X16_Uscaled
@@ -1482,9 +1458,7 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::Undefined,             // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::X10Y11Z11_Float,       // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::X11Y11Z10_Float,       // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Unorm
@@ -1494,9 +1468,7 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::Undefined,             // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::X16_Float,             // ChNumFormat::X16_Unorm
         ChNumFormat::X16_Float,             // ChNumFormat::X16_Snorm
         ChNumFormat::X16_Float,             // ChNumFormat::X16_Uscaled
@@ -1669,9 +1641,7 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::X8Y8Z8W8_Srgb,         // ChNumFormat::X8Y8Z8W8_Uint
         ChNumFormat::X8Y8Z8W8_Srgb,         // ChNumFormat::X8Y8Z8W8_Sint
         ChNumFormat::X8Y8Z8W8_Srgb,         // ChNumFormat::X8Y8Z8W8_Srgb
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::X8Y8Z8W8_Srgb,         // ChNumFormat::U8V8_Snorm_L8W8_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X10Y11Z11_Float
         ChNumFormat::Undefined,             // ChNumFormat::X11Y11Z10_Float
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Unorm
@@ -1681,9 +1651,7 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2_Sint
         ChNumFormat::Undefined,             // ChNumFormat::X10Y10Z10W2Bias_Unorm
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
         ChNumFormat::Undefined,             // ChNumFormat::U10V10W10_Snorm_A2_Unorm
-#endif
         ChNumFormat::Undefined,             // ChNumFormat::X16_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X16_Snorm
         ChNumFormat::Undefined,             // ChNumFormat::X16_Uscaled
@@ -1903,10 +1871,8 @@ bool ShareChFmt(
     case ChNumFormat::NV21:
     case ChNumFormat::P016:
     case ChNumFormat::P010:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 307
     case ChNumFormat::U8V8_Snorm_L8W8_Unorm:
     case ChNumFormat::U10V10W10_Snorm_A2_Unorm:
-#endif
         isSame = (srcFormat == dstFormat);
         break;
     case ChNumFormat::X1_Unorm:

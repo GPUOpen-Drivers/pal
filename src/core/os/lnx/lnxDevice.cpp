@@ -177,10 +177,12 @@ Result Device::Create(
     if (result == Result::Success)
     {
         Device::GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
-        const size_t totalSize = sizeof(Device) +
-                                 hwDeviceSizes.gfx   +
-                                 hwDeviceSizes.oss   +
-                                 addrMgrSize;
+
+        size_t totalSize = 0;
+        totalSize += sizeof(Device);
+        totalSize += (hwDeviceSizes.gfx   +
+                      hwDeviceSizes.oss   +
+                      addrMgrSize);
 
         void*  pMemory  = PAL_MALLOC_BASE(totalSize,
                                           alignof(Device),
@@ -200,6 +202,7 @@ Result Device::Create(
                                                                hDevice,
                                                                drmMajorVer,
                                                                drmMinorVer,
+                                                               sizeof(Device),
                                                                deviceIndex,
                                                                deviceNodeIndex,
                                                                attachedScreenCount,
@@ -341,6 +344,7 @@ Device::Device(
     amdgpu_device_handle        hDevice,
     uint32                      drmMajorVer,
     uint32                      drmMinorVer,
+    size_t                      deviceSize,
     uint32                      deviceIndex,
     uint32                      deviceNodeIndex,
     uint32                      attachedScreenCount,
@@ -348,7 +352,7 @@ Device::Device(
     const HwIpDeviceSizes&      hwDeviceSizes,
     const drmPciBusInfo&        pciBusInfo)
     :
-    Pal::Device(pPlatform, deviceIndex, attachedScreenCount, sizeof(Device), hwDeviceSizes, MaxSemaphoreCount),
+    Pal::Device(pPlatform, deviceIndex, attachedScreenCount, deviceSize, hwDeviceSizes, MaxSemaphoreCount),
     m_fileDescriptor(fileDescriptor),
     m_hDevice(hDevice),
     m_hContext(nullptr),
@@ -444,7 +448,8 @@ Result Device::OsEarlyInit()
 }
 
 // =====================================================================================================================
-// Performs OS-specific late initialization stage for the Device Object.
+// Performs potentially unsafe OS-specific late initialization steps for this Device object. Anything created or
+// initialized by this function must be destroyed or deinitialized in Cleanup().
 Result Device::OsLateInit()
 {
     Result result = Result::Success;
@@ -466,23 +471,17 @@ Result Device::OsLateInit()
         m_semType = SemaphoreType::ProOnly;
     }
 
-    // enable sync object support
-    if (static_cast<Platform*>(m_pPlatform)->IsSyncObjectSupported())
+    // check sync object support status - with parital or complete features
+    CheckSyncObjectSupportStatus();
+
+    // reconfigure Semaphore/Fence Type with m_syncobjSupportState.
+    if ((Settings().disableSyncObject == false) && m_syncobjSupportState.SyncobjSemaphore)
     {
-        uint64_t supported = 0;
-        if ((Settings().disableSyncObject == false) &&
-            (m_drmProcs.pfnDrmGetCap(m_fileDescriptor, DRM_CAP_SYNCOBJ, &supported) == 0))
+        m_semType = SemaphoreType::SyncObj;
+
+        if ((Settings().disableSyncobjFence == false) && m_syncobjSupportState.SyncobjFence)
         {
-            if (supported == 1)
-            {
-                m_semType = SemaphoreType::SyncObj;
-                if ((Settings().disableSyncobjFence == false) &&
-                    (IsDrmVersionOrGreater(3,20)) &&
-                    (IsKernelVersionEqualOrGreater(4,15)))
-                {
-                    m_fenceType = FenceType::SyncObj;
-                }
-            }
+            m_fenceType = FenceType::SyncObj;
         }
     }
 
@@ -1258,7 +1257,6 @@ Result Device::InitMemQueueInfo()
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
             case EngineTypeHighPriorityUniversal:
             case EngineTypeHighPriorityGraphics:
                 // not supported on linux
@@ -1266,7 +1264,6 @@ Result Device::InitMemQueueInfo()
                 pEngineInfo->startAlign         = 1;
                 pEngineInfo->sizeAlignInDwords  = 1;
                 break;
-#endif
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -2903,6 +2900,75 @@ void Device::UpdateMetaData(
 }
 
 // =====================================================================================================================
+// For SyncObject feature: We check Platform's feature by judging whether the libdrm's API is valid or not. But there
+// is no way to guarantee the corresponding kernel ioctl is correctly support. We already meet broken kernel image
+// (4.13) with only partial sync object ioctl's implementation while libdrm (2.4.89) have all wrapper functions.
+// To confirm Sync Object's real support status, we will invoke some important ioctls to double confirm and update
+// the status in Device::m_syncobjSupportState.
+void Device::CheckSyncObjectSupportStatus()
+{
+    Result status = Result::Success;
+    bool isDrmCapWithSyncobj = false;
+    uint64_t supported = 0;
+    Platform* pLnxPlatform = static_cast<Platform*>(m_pPlatform);
+
+    m_syncobjSupportState.flags = 0;
+
+    if (m_drmProcs.pfnDrmGetCap(m_fileDescriptor, DRM_CAP_SYNCOBJ, &supported) == 0)
+    {
+        isDrmCapWithSyncobj = (supported == 1);
+    }
+
+    if (isDrmCapWithSyncobj && (pLnxPlatform->IsSyncObjectSupported()))
+    {
+        amdgpu_syncobj_handle hSyncobj = 0;
+
+        // Check Basic SyncObject's support with create and destroy api.
+        status = CreateSyncObject(0, &hSyncobj);
+        if (status == Result::Success)
+        {
+            status = DestroySyncObject(hSyncobj);
+        }
+        m_syncobjSupportState.SyncobjSemaphore = (status == Result::Success);
+
+        // Check CreateSignaledSyncObject support with DRM_SYNCOBJ_CREATE_SIGNALED flags
+        // Dependent on Basic SyncObject's support
+        if ((pLnxPlatform->IsCreateSignaledSyncObjectSupported()) &&
+            (m_syncobjSupportState.SyncobjSemaphore == 1))
+        {
+            status = CreateSyncObject(DRM_SYNCOBJ_CREATE_SIGNALED, &hSyncobj);
+            m_syncobjSupportState.InitialSignaledSyncobjSemaphore = (status == Result::Success);
+
+            // Check SyncobjFence needed SyncObject api with wait/reset interface
+            // Dependent on CreateSignaledSyncObject support; Will just wait on this initial Signaled Syncobj.
+            if ((pLnxPlatform->IsSyncobjFenceSupported()) &&
+                (m_syncobjSupportState.InitialSignaledSyncobjSemaphore == 1))
+            {
+                if (status == Result::Success)
+                {
+                    uint32 count = 1;
+                    uint64 timeout = 0;
+                    uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
+                    uint32 firstSignaledFence = UINT32_MAX;
+
+                    status = WaitForSyncobjFences(&hSyncobj,
+                                                  count,
+                                                  timeout,
+                                                  flags,
+                                                  &firstSignaledFence);
+                    if (status == Result::Success)
+                    {
+                        status = ResetSyncObject(&hSyncobj, 1);
+                    }
+                    DestroySyncObject(hSyncobj);
+                    m_syncobjSupportState.SyncobjFence = (status == Result::Success);
+                }
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
 Result Device::SyncObjImportSyncFile(
     int                     syncFileFd,
     amdgpu_syncobj_handle   syncObj
@@ -2955,11 +3021,24 @@ Result Device::ConveySyncObjectState(
 
 // =====================================================================================================================
 Result Device::CreateSyncObject(
+    uint32                    flags,
     amdgpu_syncobj_handle*    pSyncObject
     ) const
 {
-    amdgpu_syncobj_handle syncObject;
-    Result result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj(m_hDevice, &syncObject), Result::ErrorUnknown);
+    amdgpu_syncobj_handle syncObject = 0;
+    Result result = Result::ErrorUnavailable;
+
+    if (m_drmProcs.pfnAmdgpuCsCreateSyncobj2isValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj2(m_hDevice, flags, &syncObject),
+                             Result::ErrorUnknown);
+    }
+    else if (m_drmProcs.pfnAmdgpuCsCreateSyncobjisValid())
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsCreateSyncobj(m_hDevice, &syncObject),
+                             Result::ErrorUnknown);
+    }
+
     if (result == Result::Success)
     {
         *pSyncObject = syncObject;
@@ -3008,6 +3087,7 @@ Result Device::ImportSyncObject(
 
 // =====================================================================================================================
 Result Device::CreateSemaphore(
+    bool                     isCreatedSignaled,
     amdgpu_semaphore_handle* pSemaphoreHandle
     ) const
 {
@@ -3025,7 +3105,9 @@ Result Device::CreateSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        result = CreateSyncObject(&hSem);
+        uint32 flags = isCreatedSignaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0;
+
+        result = CreateSyncObject(flags, &hSem);
         if (result == Result::Success)
         {
             *pSemaphoreHandle = reinterpret_cast<amdgpu_semaphore_handle>(hSem);
@@ -3930,17 +4012,19 @@ bool Device::IsKernelVersionEqualOrGreater(
     uint32    kernelMinorVer
     ) const
 {
-    struct utsname buffer = {};
-    uint32 majorVersion = 0;
-    uint32 minorVersion = 0;
     bool result = false;
+
+    struct utsname buffer = {};
 
     if (uname(&buffer) == 0)
     {
+        uint32 majorVersion = 0;
+        uint32 minorVersion = 0;
+
         if (sscanf(buffer.release, "%d.%d", &majorVersion, &minorVersion) == 2)
         {
             if ((majorVersion > kernelMajorVer) ||
-                ((majorVersion == kernelMajorVer) && (minorVersion >= kernelMinorVer)))
+               ((majorVersion == kernelMajorVer) && (minorVersion >= kernelMinorVer)))
             {
                 result = true;
             }

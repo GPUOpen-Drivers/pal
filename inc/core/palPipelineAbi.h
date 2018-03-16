@@ -204,26 +204,6 @@ static const char* PipelineMetadataNameStrings[] =
     "CS_PERFORMANCE_DATA_BUFFER_SIZE",
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 347
-/// Some pipelines may require specifying multiple values of the same hardware register, so that the PAL runtime can
-/// choose between different options when recording command buffers in different use-cases.  These flags enumerate the
-/// different options available.  They are logically OR'ed with the registers offset value to generate a metadata key.
-enum class PipelineRegisterFlags : uint32
-{
-    /// Mask value for none of the available flags for a single register.
-    MaskNone = 0,
-
-    /// @internal Register flags for IA_MULTI_VGT_PARAM.
-
-    IaMultiVgtParamDefault          = 0,            ///< Default value for the IA_MULTI_VGT_PARAM register.
-    IaMultiVgtParamForceSwitchOnEop = 0x00010000,   ///< Value for the IA_MULTI_VGT_PARAM register when draw-time
-                                                    ///  conditions require that the WD_SWITCH_ON_EOP bit is set.
-
-    /// Mask value for all possible flags for a single register.
-    MaskAll  = 0x0FFF0000,
-};
-#endif
-
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
 /// easily find a particular piece of metadata or symbol for any hardware shader stage.
 /// @note: The order of these stages must match the order used for each stages' symbol type or metadata
@@ -508,36 +488,6 @@ enum class PipelineMetadataType : uint32
                                                                    ///  size.
     ShaderPerformanceDataBufferSize = LsPerformanceDataBufferSize, ///< Shorthand for the first shader's performance
                                                                    ///  data buffer's size.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 335
-    ApiCsHashLo = ApiCsHashDword0,
-    ApiCsHashHi = ApiCsHashDword1,
-
-    ApiVsHashLo = ApiVsHashDword0,
-    ApiVsHashHi = ApiVsHashDword1,
-
-    ApiHsHashLo = ApiHsHashDword0,
-    ApiHsHashHi = ApiHsHashDword1,
-
-    ApiDsHashLo = ApiDsHashDword0,
-    ApiDsHashHi = ApiDsHashDword1,
-
-    ApiGsHashLo = ApiGsHashDword0,
-    ApiGsHashHi = ApiGsHashDword1,
-
-    ApiPsHashLo = ApiPsHashDword0,
-    ApiPsHashHi = ApiPsHashDword1,
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 336
-    LsScratchSize = LsScratchByteSize,
-    HsScratchSize = HsScratchByteSize,
-    EsScratchSize = EsScratchByteSize,
-    GsScratchSize = GsScratchByteSize,
-    VsScratchSize = VsScratchByteSize,
-    PsScratchSize = PsScratchByteSize,
-    CsScratchSize = CsScratchByteSize,
-#endif
 };
 
 static_assert(static_cast<uint32>(PipelineMetadataType::Count) == sizeof(PipelineMetadataNameStrings)/sizeof(char*),

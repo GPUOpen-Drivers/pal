@@ -204,7 +204,6 @@ Result DmaCmdBuffer::Reset(
 
     m_cmdStream.Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     CmdSetPredication(nullptr,
                       0,
                       nullptr,
@@ -213,15 +212,6 @@ Result DmaCmdBuffer::Reset(
                       false,
                       false,
                       false);
-#else
-    CmdSetPredication(nullptr,
-                      0,
-                      0,
-                      static_cast<PredicateType>(0),
-                      false,
-                      false,
-                      false);
-#endif
 
     return result;
 }
@@ -1108,7 +1098,6 @@ void DmaCmdBuffer::CmdFillMemory(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 void DmaCmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
@@ -1133,27 +1122,6 @@ void DmaCmdBuffer::CmdSetPredication(
 
     m_predMemEnabled = ((pQueryPool == nullptr) && (pGpuMemory == nullptr)) ? false : true;
 }
-#else
-// =====================================================================================================================
-void DmaCmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    PAL_ASSERT(pQueryPool == nullptr);
-
-    // On DMA queue, this is the only supported predication
-    PAL_ASSERT((gpuVirtAddr == 0) || (predType == PredicateType::Boolean));
-
-    m_predMemAddress = gpuVirtAddr;
-
-    m_predMemEnabled = ((pQueryPool == nullptr) && (gpuVirtAddr == 0)) ? false : true;
-}
-#endif
 
 // =====================================================================================================================
 void DmaCmdBuffer::CmdExecuteNestedCmdBuffers(

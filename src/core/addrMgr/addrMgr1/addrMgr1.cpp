@@ -311,7 +311,6 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
         {
             flags.depth     = 1;
             flags.noStencil = (imageInfo.numPlanes == 1) ? 1 : 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
             if ((device.ChipProperties().gfxLevel > GfxIpLevel::GfxIp6) && flags.noStencil && image.IsResolveDst())
             {
                 // Depth-copy resolve is only supported when depth surface is not splitted on Gfx7/Gfx8. So we set
@@ -320,7 +319,6 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
                 // surface.
                 flags.nonSplit = 1;
             }
-#endif
         }
     }
     else

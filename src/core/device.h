@@ -360,6 +360,8 @@ struct Gfx6PerfCounterInfo
         uint32   numStreamingCounters;              // Number of streaming perf ctr's for each instance
         uint32   numStreamingCounterRegs;           // Number of registers which can be configured for
                                                     // streaming counters
+        uint32   spmBlockSelectCode;                // The select code for obtaining spm counter data for this block;
+
         struct
         {
             uint32  perfSel0RegAddr;                // Perf select register offset #0
@@ -397,6 +399,7 @@ struct Gfx9PerfCounterInfo
         uint32   numStreamingCounters;              // Number of streaming perf ctr's for each instance
         uint32   numStreamingCounterRegs;           // Number of registers which can be configured for
                                                     // streaming counters
+        uint32   spmBlockSelectCode;                // The select code for obtaining spm counter data for this block;
         struct
         {
             uint32  perfSel0RegAddr;                // Perf select register offset #0
@@ -554,9 +557,6 @@ struct GpuChipProperties
             uint32 gsVgtTableDepth;
             uint32 gsPrimBufferDepth;
             uint32 maxGsWavesPerVgt;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            uint32 depthStencilSampleLocationsMetaDataSize;
-#endif
 
             struct
             {
@@ -579,16 +579,8 @@ struct GpuChipProperties
                 uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                uint32 supportDepthStencilSamplePatternMetadata :  1; // HW supports sample pattern in the
-                                                                      // depth/stencil metadata.
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
                 uint32 reserved                                 : 16;
-#else
-                uint32 reserved                                 : 15;
-#endif
 
             };
 
@@ -624,10 +616,6 @@ struct GpuChipProperties
             uint32 gsPrimBufferDepth;
             uint32 maxGsWavesPerVgt;
             uint32 parameterCacheLines;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            uint32 depthStencilSampleLocationsMetaDataSize;
-#endif
-
             // First index is the shader array, second index is the shader engine
             uint32 activeCuMask[4][4];
             uint32 alwaysOnCuMask[4][4];
@@ -652,15 +640,7 @@ struct GpuChipProperties
                 uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                uint32 supportDepthStencilSamplePatternMetadata :  1; // HW supports sample pattern in the
-                                                                      // depth/stencil metadata
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
                 uint32 reserved                                 : 16;
-#else
-                uint32 reserved                                 : 15;
-#endif
             };
 
             struct
@@ -813,22 +793,6 @@ public:
         PAL_ASSERT(m_pGfxDevice != nullptr);
         m_pGfxDevice->BindTrapBuffer(pipelineType, pGpuMemory, offset);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    // NOTE: Part of the public IDevice interface.
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern)
-    {
-        PAL_ASSERT(m_pGfxDevice != nullptr);
-        return m_pGfxDevice->InitMsaaQuadSamplePatternGpuMemory(pGpuMemory,
-                                                                memOffset,
-                                                                numSamplesPerPixel,
-                                                                quadSamplePattern);
-    }
-#endif
 
     // NOTE: Part of the public IDevice interface.
     virtual uint32 GetMaxAtomicCounters(
@@ -1067,11 +1031,7 @@ public:
     {
         return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
                 m_pGfxDevice->CreateComputePipeline(createInfo, pPlacementAddr,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 309)
                                                     createInfo.flags.clientInternal, ppPipeline);
-#else
-                                                    false, ppPipeline);
-#endif
     }
 
     // NOTE: Part of the public IDevice interface.

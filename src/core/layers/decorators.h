@@ -259,10 +259,8 @@ public:
         GetPrimaryLayoutOutput* pPrimaryLayoutOutput) override
         { return m_pNextLayer->GetPrimaryLayout(vidPnSourceId, pPrimaryLayoutOutput); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) override;
-#endif
 
 #if PAL_BUILD_GPUOPEN
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override
@@ -505,17 +503,6 @@ public:
         IGpuMemory*       pGpuMemory,
         gpusize           offset) override
         { m_pNextLayer->BindTrapBuffer(pipelineType, NextGpuMemory(pGpuMemory), offset); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern)
-    {
-        return m_pNextLayer->InitMsaaQuadSamplePatternGpuMemory(NextGpuMemory(pGpuMemory), memOffset, numSamplesPerPixel, quadSamplePattern);
-    }
-#endif
 
     virtual Result GetSwapChainInfo(
         OsDisplayHandle      hDisplay,
@@ -936,11 +923,6 @@ public:
         PerSourceFrameMetadataControl* pFrameMetadataControl) const override
         { return m_pNextLayer->PollFullScreenFrameMetadataControl(vidPnSrcId, pFrameMetadataControl); }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    virtual Result TurboSyncControl(
-        const TurboSyncControlInput* pTurboSyncControlInput) const override;
-#endif
-
     virtual uint32 GetValidFormatFeatureFlags(
         const ChNumFormat format,
         const ImageAspect aspect,
@@ -1225,19 +1207,6 @@ public:
         const MsaaQuadSamplePattern& quadSamplePattern) override
         { m_pNextLayer->CmdSetMsaaQuadSamplePattern(numSamplesPerPixel, quadSamplePattern); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override
-        { m_pNextLayer->CmdStoreMsaaQuadSamplePattern(dstGpuMemory, dstMemOffset, numSamplesPerPixel, quadSamplePattern); }
-
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override
-        { m_pNextLayer->CmdLoadMsaaQuadSamplePattern(pSrcGpuMemory, srcMemOffset); }
-#endif
     virtual void CmdSetViewports(
         const ViewportParams& params) override
         { m_pNextLayer->CmdSetViewports(params); }
@@ -1702,7 +1671,6 @@ public:
         const IBorderColorPalette* pPalette) override
         { m_pNextLayer->CmdBindBorderColorPalette(pipelineBindPoint, NextBorderColorPalette(pPalette)); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -1716,19 +1684,6 @@ public:
         m_pNextLayer->CmdSetPredication(pQueryPool, slot, pGpuMemory, offset, predType,
                                         predPolarity, waitResults, accumulateData);
     }
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override
-    {
-        m_pNextLayer->CmdSetPredication(pQueryPool, slot, gpuVirtAddr, predType, predPolarity, waitResults, accumulateData);
-    }
-#endif
 
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
@@ -1890,6 +1845,24 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override
         { m_pNextLayer->CmdSetViewInstanceMask(mask); }
+
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override
+    {
+        m_pNextLayer->CmdSetHiSCompareState0(compFunc, compMask, compValue, enable);
+    }
+
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override
+    {
+        m_pNextLayer->CmdSetHiSCompareState1(compFunc, compMask, compValue, enable);
+    }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

@@ -92,7 +92,8 @@ union ResolveQueryControl
         uint32 partialResults    : 1;
         uint32 accumulateResults : 1;
         uint32 booleanResults    : 1;
-        uint32 reserved          : 27;
+        uint32 noWait            : 1;
+        uint32 reserved          : 26;
     };
     uint32     value;
 };
@@ -569,6 +570,7 @@ void RsrcProcMgr::CmdFillMemoryGraphics(
             // Save current command buffer state and bind graphics state which is common for all mipmap levels.
             pCmdBuffer->PushGraphicsState();
             RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+            RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
             pCmdBuffer->CmdBindTargets(bindTargetsInfo);
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
             pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &convertedColor[0]);
@@ -802,32 +804,14 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     auto*const pStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute));
     PAL_ASSERT(pStream != nullptr);
 
-    if (TestAnyFlagSet(flags, QueryResultWait))
+    if (TestAnyFlagSet(flags, QueryResultWait) && queryPool.HasTimestamps())
     {
         // Wait for the query data to get to memory if it was requested.
+        // The shader is required to implement the wait if the query pool doesn't have timestamps.
         queryPool.WaitForSlots(pStream, startQuery, queryCount);
     }
 
-    // Invalidate the L1 caches because they might contain stale source data from a previous resolve. We have to do this
-    // in RPM because we do not require barriers for "normal" PAL objects like IQueryPool.
-    AcquireMemInfo acquireInfo = {};
-    acquireInfo.flags.invSqK$ = 1;
-    acquireInfo.tcCacheOp     = TcCacheOp::InvL1;
-    acquireInfo.engineType    = pCmdBuffer->GetEngineType();
-    acquireInfo.sizeBytes     = queryPool.GetGpuResultSizeInBytes(queryCount);
-
-    Result result = queryPool.GetQueryGpuAddress(startQuery, &acquireInfo.baseAddress);
-    PAL_ASSERT(result == Result::Success);
-
-    uint32* pCmdSpace = pStream->ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
-    pStream->CommitCommands(pCmdSpace);
-
-    if (acquireInfo.engineType == EngineTypeUniversal)
-    {
-        pStream->SetContextRollDetected<false>();
-    }
-
+    // On GFX9, we don't need to invalidate the L2, as DB writes timestamps directly to it.
     // It should be safe to launch our compute shader now. Select the correct pipeline.
     const ComputePipeline* pPipeline = nullptr;
 
@@ -839,6 +823,8 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     controlFlags.partialResults    = TestAnyFlagSet(flags, QueryResultPartial);
     controlFlags.accumulateResults = TestAnyFlagSet(flags, QueryResultAccumulate);
     controlFlags.booleanResults    = (queryType == QueryType::BinaryOcclusion);
+    // We should only use shader-based wait if the query pool doesn't already use timestamps.
+    controlFlags.noWait            = ((TestAnyFlagSet(flags, QueryResultWait) == false) || queryPool.HasTimestamps());
 
     uint32 constData[4]    = { controlFlags.value, queryCount, static_cast<uint32>(dstStride), 0 };
     uint32 constEntryCount = 0;
@@ -863,6 +849,9 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
         // Note that accumulation was not implemented for this query pool type because no clients support it.
         PAL_ASSERT(TestAnyFlagSet(flags, QueryResultAccumulate) == false);
         PAL_ASSERT(queryType == QueryType::PipelineStats);
+
+        // Pipeline stats query doesn't implement shader-based wait.
+        PAL_ASSERT(controlFlags.noWait == 1);
         break;
 
     case QueryPoolType::StreamoutStats:
@@ -878,6 +867,9 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
                    (queryType == QueryType::StreamoutStats1) ||
                    (queryType == QueryType::StreamoutStats2) ||
                    (queryType == QueryType::StreamoutStats3));
+
+        // Streamout stats query doesn't implement shader-based wait.
+        PAL_ASSERT(controlFlags.noWait == 1);
         break;
 
     default:
@@ -1361,11 +1353,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern*         pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&           range
     ) const
 {
@@ -1465,11 +1453,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     else
     {
         // Do the expand the legacy way.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pSamplePattern, range);
-#else
         Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pMsaaState, pQuadSamplePattern, range);
-#endif
     }
 }
 
@@ -2036,7 +2020,7 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
     const Image*  pGfxDstImage = reinterpret_cast<const Image*>(dstImage.GetGfxImage());
 
     bool canDoFixedFuncResolve = true;
-    for (uint32 region = 0; canDoFixedFuncResolve && (region < regionCount); ++region)
+    for (uint32 region = 0; region < regionCount; ++region)
     {
         const ImageResolveRegion& imageRegion = pRegions[region];
         const SubresId srcSubResId = { imageRegion.srcAspect,
@@ -2055,6 +2039,12 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
         canDoFixedFuncResolve =
             ((memcmp(&pSrcSubResInfo->format, &pDstSubResInfo->format, sizeof(SwizzledFormat)) == 0) &&
              (srcAddrSettings.swizzleMode == dstAddrSettings.swizzleMode));
+
+        if (canDoFixedFuncResolve == false)
+        {
+            PAL_ALERT_ALWAYS();
+            break;
+        }
     }
 
     // Hardware only has support for Average resolves, so we can't perform a fixed function resolve if we're using
@@ -2415,6 +2405,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // All mip levels share the same depth export value, so only need to do it once.
     RpmUtil::WriteVsZOut(pCmdBuffer, depth);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     // Box of partial clear is only valid when number of mip-map is equal to 1.
     PAL_ASSERT((boxCnt == 0) || ((pBox != nullptr) && (range.numMips == 1)));
@@ -2678,11 +2669,7 @@ void RsrcProcMgr::DccDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern*         pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&           range
     ) const
 {
@@ -2706,7 +2693,6 @@ void RsrcProcMgr::DccDecompress(
             // level.
             const bool multiRange = (range.numSlices > 1) || (range.numMips > 1);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
             const GpuMemory* pGpuMem = nullptr;
             gpusize metaDataOffset = (alwaysDecompress || multiRange) ? 0 :
                     image.GetDccStateMetaDataOffset(range.startSubres.mipLevel, range.startSubres.arraySlice);
@@ -2722,27 +2708,10 @@ void RsrcProcMgr::DccDecompress(
                              *image.Parent(),
                              range,
                              *pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                             pSamplePattern,
-#else
                              pQuadSamplePattern,
-#endif
                              RpmGfxPipeline::DccDecompress,
                              pGpuMem,
                              metaDataOffset);
-#else
-            const gpusize metaDataAddr  =
-                (alwaysDecompress || multiRange) ? 0 : image.GetDccStateMetaDataAddr(range.startSubres.mipLevel,
-                                                                                     range.startSubres.arraySlice);
-            // Execute a generic CB blit using the appropriate DCC decompress pipeline.
-            GenericColorBlit(pCmdBuffer,
-                             *image.Parent(),
-                             range,
-                             *pMsaaState,
-                             pSamplePattern,
-                             RpmGfxPipeline::DccDecompress,
-                             metaDataAddr);
-#endif
         }
 
         // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't
@@ -2766,17 +2735,12 @@ void RsrcProcMgr::FastClearEliminate(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern*         pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&           range
     ) const
 {
     const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().alwaysDecompress, Gfx9DecompressFastClear);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     const GpuMemory* pGpuMem = nullptr;
     gpusize metaDataOffset = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataOffset(range.startSubres.mipLevel);
     if (metaDataOffset)
@@ -2786,22 +2750,8 @@ void RsrcProcMgr::FastClearEliminate(
     }
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
-#else
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
-#endif
-
-#else
-    const gpusize metaDataAddr = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataAddr(range.startSubres.mipLevel);
-
-    // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FastClearElim, metaDataAddr);
-#endif
-
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
@@ -3002,11 +2952,7 @@ void RsrcProcMgr::FmaskDecompress(
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
     const IMsaaState*            pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern*         pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&           range
     ) const
 {
@@ -3014,16 +2960,8 @@ void RsrcProcMgr::FmaskDecompress(
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
 
     // Execute a generic CB blit using the appropriate FMask Decompress pipeline.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
     GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
                      pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
-#else
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range, *pMsaaState,
-                     pSamplePattern, RpmGfxPipeline::FmaskDecompress, 0);
-#endif
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
@@ -3049,7 +2987,6 @@ void RsrcProcMgr::CommitBeginEndGfxCopy(
                                                      pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
-    pGfxCmdStream->SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================

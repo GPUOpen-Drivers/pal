@@ -54,7 +54,7 @@ static PAL_INLINE bool IsMatchingPool(
 {
     bool matches = true;
 
-    if ((pool.memFlags.u32All == memFlags.u32All) &&
+    if ((pool.memFlags.u64All == memFlags.u64All) &&
         (pool.heapCount       == heapCount)       &&
         (pool.readOnly        == readOnly)        &&
         (pool.vaRange         == vaRange)         &&
@@ -87,7 +87,7 @@ static PAL_INLINE GpuMemoryFlags ConvertGpuMemoryFlags(
 {
     GpuMemoryFlags flags;
 
-    flags.u32All = 0;
+    flags.u64All = 0;
     flags.isShareable    = createInfo.flags.shareable;
     flags.isFlippable    = createInfo.flags.flippable;
     flags.interprocess   = createInfo.flags.interprocess;

@@ -238,12 +238,15 @@ Result QueryPool::GetQueryGpuAddress(
 }
 
 // =====================================================================================================================
-// Returns the GPU address for the given slot`s timestamp in the query pool.
+// Returns the GPU address for the given slot's timestamp in the query pool.
 Result QueryPool::GetTimestampGpuAddress(
     uint32   slot,
     gpusize* pGpuAddr
     ) const
 {
+    // A size of zero indicates that this query pool didn't allocate timestamps and this should never be called.
+    PAL_ASSERT(m_timestampSizePerSlotInBytes != 0);
+
     Result result = ValidateSlot(slot);
 
     if (result == Result::Success)
@@ -252,6 +255,17 @@ Result QueryPool::GetTimestampGpuAddress(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Returns the GPU memory offset for the given slot's timestamp in the query pool.
+gpusize QueryPool::GetTimestampOffset(
+    uint32 slot
+    ) const
+{
+    // A size of zero indicates that this query pool didn't allocate timestamps and this should never be called.
+    PAL_ASSERT(m_timestampSizePerSlotInBytes != 0);
+    return m_gpuMemory.Offset() + m_timestampStartOffset + slot * m_timestampSizePerSlotInBytes;
 }
 
 } // Pal

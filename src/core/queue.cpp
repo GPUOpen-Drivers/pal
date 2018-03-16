@@ -71,13 +71,8 @@ Queue::Queue(
     m_type(createInfo.queueType),
     m_engineType(createInfo.engineType),
     m_engineId(createInfo.engineIndex),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 327
     m_submitOptMode((pDevice->Settings().submitOptModeOverride == 0)
         ? createInfo.submitOptMode : static_cast<SubmitOptMode>(pDevice->Settings().submitOptModeOverride - 1)),
-#else
-    m_submitOptMode((pDevice->Settings().submitOptModeOverride == 0)
-        ? SubmitOptMode::Disabled : static_cast<SubmitOptMode>(pDevice->Settings().submitOptModeOverride - 1)),
-#endif
     m_pEngine(pDevice->GetEngine(createInfo.engineType, createInfo.engineIndex)),
     m_pSubmissionContext(nullptr),
     m_pDummyCmdBuffer(nullptr),

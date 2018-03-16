@@ -168,7 +168,6 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     const IndirectParam& param
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 324
     // NOTE: We do not know whether this command signature will be used with a NGG pipeline. We always assume non - NGG
     //       which has the worst case total count of HW shader stages
 
@@ -199,9 +198,6 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 
     const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : numHwStages);
     PAL_ASSERT((type != GeneratorType::Dispatch) || (param.userDataShaderUsage == ApiShaderStageCompute));
-#else
-    const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : NumHwShaderStagesGfx);
-#endif
 
     uint32 size = 0;
     switch (opType)

@@ -29,7 +29,7 @@
 ***********************************************************************************************************************
 */
 
-#include "../socket.h"
+#include "../ddSocket.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -52,11 +52,15 @@ namespace DevDriver
     Result GetDataError(bool nonBlocking)
     {
         Result result = Result::Error;
-        switch (errno)
+        const int err = errno;
+        switch (err)
         {
         case EAGAIN:
             if (nonBlocking)
                 result = Result::NotReady;
+            break;
+        case ENOBUFS:
+            result = Result::NotReady;
             break;
         case ECONNRESET:
         case ENOTCONN:
@@ -75,7 +79,6 @@ namespace DevDriver
 
     bool IsRWOperationPending()
     {
-
         return ((errno == EAGAIN) || (errno == EWOULDBLOCK));
     }
 
@@ -86,6 +89,8 @@ namespace DevDriver
         , m_isNonBlocking(false)
         , m_socketType(SocketType::Unknown)
         , m_hints()
+        , m_address()
+        , m_addressSize(0)
     {
     }
 
@@ -137,95 +142,43 @@ namespace DevDriver
             result = (m_osSocket != -1) ? Result::Success : Result::Error;
         }
 
-        if (result == Result::Success)
+        if ((result == Result::Success) & m_isNonBlocking)
         {
-            if (m_isNonBlocking)
+            // Enable non blocking mode for the socket.
+            if (fcntl(m_osSocket, F_SETFL, O_NONBLOCK) != 0)
             {
-                // Enable non blocking mode for the socket.
-                result = (fcntl(m_osSocket, F_SETFL, O_NONBLOCK) == 0) ? Result::Success : Result::Error;
+                result = Result::Error;
             }
         }
+
         DD_ASSERT(result != Result::Error);
         return result;
     }
 
     Result Socket::Connect(const char* pAddress, uint32 port)
     {
-        Result result = Result::Error;
-        switch (m_socketType)
+        char sockAddress[kMaxStringLength] = {};
+        size_t addressSize = 0;
+        Result result = LookupAddressInfo(pAddress, port, sizeof(sockAddress), &sockAddress[0], &addressSize);
+        if (result == Result::Success)
         {
-            case SocketType::Tcp:
-            case SocketType::Udp:
+            const int retVal = Platform::RetryTemporaryFailure(connect,
+                                                               m_osSocket,
+                                                               reinterpret_cast<sockaddr*>(&sockAddress[0]),
+                                                               addressSize);
+
+            if (retVal == 0)
             {
-                char portBuffer[16];
-                snprintf(portBuffer, sizeof(portBuffer), "%d", port);
-
-                addrinfo* pResult = nullptr;
-                int retVal = getaddrinfo(pAddress, portBuffer, &m_hints, &pResult);
-                if (retVal == 0)
-                {
-                    sockaddr *addr = pResult->ai_addr;
-                    size_t addrSize = pResult->ai_addrlen;
-
-                    retVal = Platform::RetryTemporaryFailure(connect,
-                                                             m_osSocket,
-                                                             addr,
-                                                             static_cast<int>(addrSize));
-
-                    if (retVal == 0)
-                    {
-                        result = Result::Success;
-                    }
-                    else if (retVal == -1)
-                    {
-                        result = GetDataError(m_isNonBlocking);
-                    }
-                    else
-                    {
-                        result = Result::Error;
-                    }
-
-                    freeaddrinfo(pResult);
-                }
-                else
-                {
-                    result = Result::Error;
-                }
+                result = Result::Success;
             }
-            break;
-            case SocketType::Local:
+            else if (retVal == -1)
             {
-                sockaddr_un addr = {};
-
-                addr.sun_family = AF_UNIX;
-
-                // Start the path with a null byte to bind as an abstract socket.
-                addr.sun_path[0] = '\0';
-                Platform::Strncpy(addr.sun_path + 1, pAddress, sizeof(addr.sun_path) - 1);
-
-                const int retVal = Platform::RetryTemporaryFailure(connect,
-                                                                   m_osSocket,
-                                                                   reinterpret_cast<sockaddr*>(&addr),
-                                                                   static_cast<int>(sizeof(sockaddr_un)));
-
-                if (retVal == 0)
-                {
-                    result = Result::Success;
-                }
-                else if (retVal == -1)
-                {
-                    result = GetDataError(m_isNonBlocking);
-                }
-                else
-                {
-                    result = Result::Error;
-                }
-
+                result = GetDataError(m_isNonBlocking);
             }
-            break;
-            default:
-                DD_UNREACHABLE();
-                break;
+            else
+            {
+                result = Result::Error;
+            }
         }
         DD_ASSERT(result != Result::Error);
         return result;
@@ -292,21 +245,60 @@ namespace DevDriver
 
         if (m_socketType == SocketType::Local)
         {
-            sockaddr_un addr = {};
-            addr.sun_family = AF_UNIX;
-            size_t addrSize = sizeof(addr);
+            DD_ASSERT(sizeof(m_address) >= sizeof(sockaddr_un));
 
+            m_addressSize = 0;
+
+            sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(&m_address[0]);
+            pAddr->sun_family = AF_UNIX;
+            pAddr->sun_path[0] = '\0';
+
+#if defined(DD_LINUX)
             if (pAddress != nullptr)
             {
                 // Start the path with a null byte to bind as an abstract socket.
-                addr.sun_path[0] = '\0';
-                Platform::Strncpy(addr.sun_path + 1, pAddress, sizeof(addr.sun_path) - 1);
-            } else {
-                addrSize = sizeof(sa_family_t);
+                Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 2);
+                m_addressSize = sizeof(sockaddr_un);
             }
-            if (bind(m_osSocket, reinterpret_cast<sockaddr*>(&addr), static_cast<int>(addrSize)) != -1)
+            else
+            {
+                m_addressSize = sizeof(sa_family_t);
+            }
+#else
+            if (pAddress != nullptr)
+            {
+                Platform::Strncpy(pAddr->sun_path, pAddress, sizeof(pAddr->sun_path) - 1);
+            }
+            else
+            {
+                // If pAddress is null we attempt to generate a random filesystem path to bind to
+                DD_STATIC_CONST char kUnixSocketTemplate[] =  "/tmp/com.amd.gpuopen-XXXXXX";
+                Platform::Strncpy(pAddr->sun_path, kUnixSocketTemplate, sizeof(pAddr->sun_path) - 1);
+                const char* pPath = mktemp(pAddr->sun_path);
+                DD_ASSERT(pPath != nullptr);
+            }
+            m_addressSize = SUN_LEN(pAddr);
+#endif
+
+            // As a precaution, we unlink the address before we attempt to bind to it
+            // We have to do this because we have no way of determining whether or not the file has been orphaned
+            // by another process or not. It is *extremely* important to ensure that the bind address passed into
+            // the socket is not a file as this can cause data loss.
+            if (pAddr->sun_path[0] != 0)
+            {
+                 unlink(&pAddr->sun_path[0]);
+            }
+
+            // We bind the socket to the address that was either provided or generated.
+            if (bind(m_osSocket, reinterpret_cast<sockaddr*>(pAddr), m_addressSize) != -1)
             {
                 result = Result::Success;
+            }
+            else
+            {
+                const int err = errno;
+                DD_UNUSED(err);
+                DD_ASSERT_REASON("Bind failed");
             }
         }
         else
@@ -400,7 +392,7 @@ namespace DevDriver
                 if (retVal == 0)
                 {
                     sockaddr* addr = pResult->ai_addr;
-                    size_t addrSize = pResult->ai_addrlen;
+                    const size_t& addrSize = pResult->ai_addrlen;
                     if (addressInfoSize >= addrSize)
                     {
                         memcpy(pAddressInfo, addr, addrSize);
@@ -416,13 +408,12 @@ namespace DevDriver
             {
                 DD_ASSERT(addressInfoSize >= sizeof(sockaddr_un));
 
-                sockaddr_un *pAddr = reinterpret_cast<sockaddr_un *>(pAddressInfo);
-
+                sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(pAddressInfo);
                 pAddr->sun_family = AF_UNIX;
 
                 // Start the path with a null byte to bind as an abstract socket.
                 pAddr->sun_path[0] = '\0';
-                Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 1);
+                Platform::Strncpy(pAddr->sun_path + 1, pAddress, sizeof(pAddr->sun_path) - 2);
                 *pAddressSize = sizeof(sockaddr_un);
                 result = Result::Success;
                 break;
@@ -563,10 +554,18 @@ namespace DevDriver
         // The result doesn't matter since we're closing it anyways.
         shutdown(m_osSocket, SHUT_RDWR);
 
-        int retVal = close(m_osSocket);
-        if (retVal != -1)
+        if (close(m_osSocket) != -1)
         {
             m_osSocket = -1;
+            if (m_socketType == SocketType::Local)
+            {
+                sockaddr_un* DD_RESTRICT pAddr = reinterpret_cast<sockaddr_un *>(&m_address[0]);
+                // If the socket wasn't in the abstract namespace, unlink it from the filesystem
+                if (pAddr->sun_path[0] != 0)
+                {
+                    unlink(&pAddr->sun_path[0]);
+                }
+            }
             result = Result::Success;
         }
 
@@ -597,11 +596,9 @@ namespace DevDriver
     {
 
         DD_ASSERT(m_socketType == SocketType::Tcp);
+        DD_UNUSED(pAddress);
+        DD_UNUSED(port);
 
-        // pAddress currently unused
-        // port currently unused
-        (void)pAddress;
-        (void)port;
         Result result = Result::Success;
 
         m_isNonBlocking = isNonBlocking;

@@ -88,7 +88,7 @@ public:
 
     // These functions correspond to ISwapChain's image acquire/release points, scheduling the necessary syncs and
     // GPU work necessary to execute a complete swap chain present cycle.
-    Result SignalOnAcquire(IQueueSemaphore* pWaitSemaphore, IQueueSemaphore* pSemaphore, IFence* pFence);
+    virtual Result SignalOnAcquire(IQueueSemaphore* pWaitSemaphore, IQueueSemaphore* pSemaphore, IFence* pFence);
     Result Present(const PresentSwapChainInfo& presentInfo, IQueue* pQueue);
 
     // Waits for all internal present work to be idle before returning.

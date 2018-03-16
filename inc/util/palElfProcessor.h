@@ -883,10 +883,6 @@ private:
     Segments<Allocator> m_segments;
 
     Allocator* const    m_pAllocator;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 329
-    Result  m_initResult;
-#endif
 };
 
 } // Elf

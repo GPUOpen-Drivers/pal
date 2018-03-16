@@ -553,44 +553,6 @@ struct DepthStencilBindInfo
                                                  ///  have a stencil aspect.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-/// Container struct for MsaaQuadSamplePattern immediate values vs memory address and offset
-struct SamplePattern
-{
-    union
-    {
-        struct
-        {
-            uint32 isLoad : 1;                  ///< If the client sets this to true, it explicitly tells PAL that the
-                                                ///  sample pattern needs to be loaded before a decompress.
-
-            uint32 reserved : 31;
-        };
-
-        /// Flags packed as 32-bit uint.
-        uint32 u32All;
-    } flags;
-
-    /// pImmediate specifies a custom sample pattern over a 2x2 pixel quad. The position for each sample is specified
-    /// on a maximum grid where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is
-    /// the valid position (not quite to the bottom/right border of the pixel).
-    /// pImmediate can be left as null for non-MSAA images or when a valid IMsaaState is bound prior to the CmdBarrier
-    /// call.
-    /// pImmediate is an immediate state as the name suggests. In contrast, pGpuMemory and memOffset below allow
-    /// loading the sample pattern from memory at a later time.
-    const MsaaQuadSamplePattern* pImmediate;
-
-    /// In terms of barrier transition, pImmediate above is the pattern that will be used for next render, while
-    /// pGpuMemory and memOffset point to the previous pattern used for the previous render.
-    /// This is important for depth surfaces. The previous sample pattern has to be loaded before decompressing
-    /// the depth surface. pGpuMemory and memOffset allow loading of the sample pattern from memory.
-
-    /// pGpuMemory and memOffset allow loading of the sample pattern from memory.
-    const IGpuMemory*            pGpuMemory;
-    gpusize                      memOffset;
-};
-#endif
-
 /// Represents a GPU memory or image transition as part of a barrier.
 ///
 /// A single transition will ensure cache coherency of dirty data in the specific set of source caches with the
@@ -635,17 +597,12 @@ struct BarrierTransition
                                       ///  between oldLayoutUsageMask and newLayoutUsageMask may result in a
                                       ///  decompression.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-        SamplePattern samplePattern;  ///< Msaa quad sample pattern container
-#else
         /// Specifies a custom sample pattern over a 2x2 pixel quad.  The position for each sample is specified on a
         /// grid where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is the maximum
         /// valid position (not quite to the bottom/right border of the pixel).
         /// Specifies a custom sample pattern over a 2x2 pixel quad. Can be left null for non-MSAA images or when
         /// a valid IMsaaState is bound prior to the CmdBarrier call.
         const MsaaQuadSamplePattern* pQuadSamplePattern;
-#endif
-
     } imageInfo;                      ///< Image-specific transition information.
 };
 
@@ -1501,21 +1458,6 @@ public:
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    /// Binds a graphics or compute pipeline to the current command buffer state.
-    ///
-    /// @param [in] pipelineBindPoint Specifies which type of pipeline is to be bound (i.e., compute or graphics).
-    /// @param [in] pPipeline         New pipeline to be bound.  Can be null in order to unbind a previously bound
-    ///                               pipeline without binding a new one.
-    void CmdBindPipeline(
-        PipelineBindPoint pipelineBindPoint,
-        const IPipeline*  pPipeline)
-    {
-        const PipelineBindParams params = { pipelineBindPoint, pPipeline, };
-        CmdBindPipeline(params);
-    }
-#endif
-
     /// Binds the specified MSAA state object to the current command buffer state.
     ///
     /// @param [in] pMsaaState New MSAA state to be bound.  Can be null in order to unbind a previously bound MSAA state
@@ -1710,30 +1652,6 @@ public:
     virtual void CmdSetMsaaQuadSamplePattern(
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    /// Stores user defined MSAA quad-pixel sample pattern to the given GPU memory location.
-    /// The client can use it to store the last used sample pattern in the MSAA depth/stencil images memory.
-    /// This function should only be called on universal command buffers.
-    ///
-    /// @param [in] dstGpuMemory       Destination memory for storing the sample pattern
-    /// @param [in] dstMemOffset       Destination memory offset
-    /// @param [in] numSamplesPerPixel Number of samples per pixel
-    /// @param [in] quadSamplePattern  The input msaa sample pattern
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) = 0;
-
-    /// Loads user defined MSAA quad-pixel sample pattern, should only be called on universal command buffers
-    ///
-    /// @param [in] srcGpuMemory       Source memory for loading the sample pattern
-    /// @param [in] srcMemOffset       Source memory offset
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) = 0;
-#endif
 
     /// Sets the specified viewports to the current command buffer state.
     ///
@@ -2698,7 +2616,6 @@ public:
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     /// Sets predication for this command buffer to use the specified GPU memory location. Any draw, dispatch or copy
     /// operation between this command and the corresponding reset/disable call will be skipped if the value in spec-
     /// ified location matches the passed-in predicated value
@@ -2729,36 +2646,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) = 0;
-#else
-    /// Sets predication for this command buffer to use the specified GPU memory location. Any draw, dispatch or copy
-    /// operation between this command and the corresponding reset/disable call will be skipped if the value in spec-
-    /// ified location matches the passed-in predicated value
-    ///
-    /// @param [in] pQueryPool     pointer to QueryPool obj, not-nullptr means this is a QueryPool based predication
-    ///                                - Zpass/Occlusion based predication
-    ///                                - or PrimCount/Streamout based predication
-    /// @param [in] slot           Slot to use for setting occlusion predication, valid when pQueryPool is not nullptr
-    /// @param [in] gpuVirtAddr    GPU memory location of predication value, only valid when pQueryPool is nullptr
-    /// @param [in] predType       Predication type.
-    /// @param [in] predPolarity   Controls the polarity of the predication test
-    ///                                true  = draw_if_visible_or_no_overflow
-    ///                                false = draw_if_not_visible_or_overflow
-    /// @param [in] waitResults    Hint only valid for Zpass/Occlusion.
-    ///                                false = wait_until_final_zpass_written
-    ///                                true  = draw_if_not_final_zpass_written
-    /// @param [in] accumulateData true(1) = allow_accumulation of ZPASS count across command buffer boundaries.
-    ///
-    /// pQueryPool and gpuVirtAddr should be exclusively set, when both are nullptr/0, other params will be ignored
-    /// and it means to reset/disable predication so that the following commands can perform normally.
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) = 0;
-#endif
 
     /// Begins a conditional block in the current command buffer. All commands between this and the corresponding
     /// CmdEndIf() (or CmdElse() if it is present) command are executed if the specified condition is true.
@@ -3059,6 +2946,70 @@ public:
         gpusize                      offset,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) = 0;
+
+    /// Sets the hierarchical stencil compare state (slot 0).
+    ///
+    /// Hierarchical stencil (Hi-S) allows work to be discarded by the stencil test at tile rate in certain cases.
+    /// Unfortunately, this feature is more difficult to use than Hi-Z, and requires help from the client driver,
+    /// possibly driven by app detect, to get the most out of this feature.
+    ///
+    /// In order to use Hi-S, the client will define one or two "pre-tests" that will be performed whenever a
+    /// particular stencil image is written.  HTILE will track the results of the pre-test for each 8x8 tile, keeping a
+    /// record of whether any pixel in the tile "may-pass" or "may-fail" the specified pre-test.  When stencil testing
+    /// is enabled, the hardware may be able to discard whole tiles early based on what it can glean from the Hi-S
+    /// pretest states.
+    ///
+    /// This feature works best if the future stencil test behavior is known, either directly told via an API extension
+    /// or via an app profile in the client layer. For example, if the application 1) clears stencil, 2) does a pass to
+    /// write stencil, 3) then does a final pass that masks rendering based on the stencil value being > 0, ideally we
+    /// would choose a pretest of compFunc=Greater, compMask=0xFF, and compValue=0 so that #2 would update HTILE with
+    /// per-tile data that lets #3 be accelerated at maximum effeciency.
+    ///
+    /// @warning Hi-S compare states must be programmed consistently when rendering any particular image starting with
+    /// the first draw after a full image clear until its next full clear. Otherwise, the may-pass and may-fail bits
+    /// will not have the expected meaning, and will lead to incorrect behavior.  It is up to the client to enforce
+    /// this restriction.
+    ///
+    /// In absence of app-specific knowledge, the following algorithm may be a good generic approach:
+    /// 1. When the stencil image is cleared, set pre-test #0 to compFunc=Equal, compMask=0xFF, and compValue set to
+    ///    the specified clear value.
+    /// 2. On the first draw with stencil writes enabled, set pre-test #1 with compMask set to the app's current stencil
+    ///    mask, and
+    ///      a. If the stencil op is INC or DEC, set compFunc=GreaterEqual and compValue the same as in #1.
+    ///      b. If the stencil op is REPLACE, set compFunc=Equal and set compValue to the app's current stencil ref
+    ///         value.
+    ///
+    /// @param [in] compFunc      Comparison function determines how a pass/fail condition is determined between
+    ///                           compValue and the destination stencil data. The expression is evaluated with
+    ///                           compValue as the left-hand operand and the destination stencil data as the right-hand
+    ///                           operand.
+    /// @param [in] comMask       This value is ANDed with the SResults compare value. This value is ANDed with the
+    ///                           destination stencil data before evaluating the comparison function. A mask of 0
+    ///                           invalidates the may-pass/may-fail bist in HTILE.
+    /// @param [in] comValue      Stencil value compared against for pre-test operation.
+    /// @param [in] enable        Enables Hi-S tile culling based on pre-test results.
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) = 0;
+
+    /// Sets the hierarchical stencil compare state (slot 1).
+    ///
+    /// @param [in] compFunc      Comparison function determines how a pass/fail condition is determined between
+    ///                           compValue and the destination stencil data. The expression is evaluated with
+    ///                           compValue as the left-hand operand and the destination stencil data as the right-hand
+    ///                           operand.
+    /// @param [in] comMask       This value is ANDed with the SResults compare value. This value is ANDed with the
+    ///                           destination stencil data before evaluating the comparison function. A mask of 0
+    ///                           invalidates the may-pass/may-fail bist in HTILE.
+    /// @param [in] comValue      Stencil value compared against for pre-test operation.
+    /// @param [in] enable        Enables Hi-S tile culling based on pre-test results.
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) = 0;
 
     /// Inserts a string embedded inside a NOP packet with a signature that is recognized by tools and can be printed
     /// inside a command buffer disassembly. Note that this is a real NOP that willl really be submitted to the GPU

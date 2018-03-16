@@ -207,11 +207,6 @@ namespace DevDriver
             return result;
         }
 
-        void SettingsClient::ResetState()
-        {
-            // Nothing to do.
-        }
-
         Result SettingsClient::QueryNumCategories(uint32* pNumCategories)
         {
             Result result = Result::Error;

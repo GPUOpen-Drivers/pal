@@ -334,19 +334,23 @@ Result PerfExperiment::ConstructSpmTraceObj(
 
     auto perfCounterInfo  = m_device.Parent()->ChipProperties().gfx6.perfCounterInfo;
 
+    PerfExperimentProperties perfExpProperties = { };
+    result = m_device.Parent()->GetPerfExperimentProperties(&perfExpProperties);
+
     // Validate the SPM trace create info.
-    for (uint32 i = 0; i < info.numPerfCounters; i++)
+    for (uint32 i = 0; i < info.numPerfCounters && (result == Result::Success); i++)
     {
-        auto blockIdx = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+        auto blockIdx             = static_cast<uint32>(info.pPerfCounterInfos[i].block);
+        const auto& block         = perfCounterInfo.block[blockIdx];
+        const uint32 maxInstances = perfExpProperties.blocks[blockIdx].instanceCount;
 
         // Check if block, eventid and instance number are within bounds.
-        if (((info.pPerfCounterInfos[i].block < GpuBlock::Count) &&
-            (info.pPerfCounterInfos[i].eventId < perfCounterInfo.block[blockIdx].maxEventId) &&
-            (info.pPerfCounterInfos[i].instance < (perfCounterInfo.block[blockIdx].numInstances *
-             perfCounterInfo.block[blockIdx].numShaderEngines))) == false)
+        if (((info.pPerfCounterInfos[i].block   < GpuBlock::Count)  && // Valid Block
+            (info.pPerfCounterInfos[i].eventId  < block.maxEventId) && // Valid Event
+            (info.pPerfCounterInfos[i].instance < maxInstances)     && // Valid block instance
+            (block.numStreamingCounters         > 0)) == false)        // Block supports streaming counters
         {
             result = Result::ErrorInvalidValue;
-            break;
         }
     }
 

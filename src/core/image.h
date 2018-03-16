@@ -201,24 +201,26 @@ struct SubResourceInfo
     } flags;
 };
 
+enum class DccFormatEncoding : uint32
+{
+    Incompatible     = 0, // uncompatible view formats.
+    SignIndependent  = 1, // Use sign independednt encoding because clearing to a clear color when there
+                          // is 1 in any of the channels ((1,1,1,1), (0,0,0,1), (1,1,1,0) and when
+                          // signed-unsigned view formats are mixed
+                          // (R8G8B8A8 UNORM surface viewed as an R8G8B8A8 SNORM SRV) will be messed up
+    Optimal          = 2, // Indicates that all possible view formats are DCC compatible
+
+};
+
 // Contains the information describing an image resource, including the creation info and other information not tied
 // to a particular sub-resource.
 struct ImageInfo
 {
-    ImageInternalCreateInfo internalCreateInfo; // Internal create info
-    size_t                  numPlanes;          // Number of planes in the image
-    size_t                  numSubresources;    // Total number of subresources in the image
-    ResolveMethod           resolveMethod;      // Resolve method RPM will use for this Image
-
-    union
-    {
-        struct
-        {
-            uint32 dccCompatibleFormatChange   :  1;  // Indicates that all possible view formats are DCC compatible
-            uint32 reserved                    : 31;
-        };
-        uint32      u32All;
-    } flags;
+    ImageInternalCreateInfo internalCreateInfo;    // Internal create info
+    size_t                  numPlanes;             // Number of planes in the image
+    size_t                  numSubresources;       // Total number of subresources in the image
+    ResolveMethod           resolveMethod;         // Resolve method RPM will use for this Image
+    DccFormatEncoding       dccFormatEncoding;     // Indicates how possible view formats will be encoded
 };
 
 constexpr uint32 MaxArraySlices    = 2048;
@@ -344,13 +346,17 @@ public:
     bool IsResolveSrc() const
         { return (m_createInfo.usageFlags.resolveSrc != 0); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
     // Returns whether or not this image can be used as resolve destination access
     bool IsResolveDst() const
     {
         return (m_createInfo.usageFlags.resolveDst != 0);
     }
-#endif
+
+    // Returns the dcc encoding for possible view formats
+    DccFormatEncoding GetDccFormatEncoding() const
+    {
+        return m_imageInfo.dccFormatEncoding;
+    }
 
     // Returns the first Mip which is shader writable if this value is 0 then entire
     // image is shader writable. Only relevent when shaderwritable flag is set.
@@ -416,10 +422,6 @@ public:
         { return (m_createInfo.flags.formatChangeSrd != 0) || (m_createInfo.flags.formatChangeTgt != 0); }
 #endif
 
-    // Returns whether or not all possible view formats are DCC compatible
-    bool AllViewFormatsDccCompatible() const
-        { return (m_imageInfo.flags.dccCompatibleFormatChange != 0); }
-
     // Returns the memory object that's bound to this surface.  It's the callers responsibility to verify that the
     // returned object is valid.
     const BoundGpuMemory& GetBoundGpuMemory() const { return m_vidMem; }
@@ -461,6 +463,10 @@ public:
         SwizzledFormat* pFormat,
         ImageAspect*    pAspect,
         uint32          plane) const;
+
+    // Returns whether or not this image prefers CB fixed function resolve
+    bool PreferCbResolve() const
+        { return (m_createInfo.flags.repetitiveResolve != 0); }
 
 protected:
     Image(Device*                        pDevice,

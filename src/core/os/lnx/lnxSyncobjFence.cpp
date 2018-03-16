@@ -70,7 +70,7 @@ Result SyncobjFence::Init(
     result = Fence::Init(createInfo, needsEvent);
     if (result == Result::Success)
     {
-        result = m_device.CreateSyncObject(&m_fenceSyncObject);
+        result = m_device.CreateSyncObject(0, &m_fenceSyncObject);
     }
 
     return result;

@@ -50,11 +50,10 @@ public:
         void*                      pPlacementAddr,
         ISwapChain**               ppSwapChain);
 
-    virtual Result PresentComplete(IQueue* pQueue, uint32 imageIndex) override;
-
     WindowSystem* GetWindowSystem() const { return m_pWindowSystem; }
     PresentFence* PresentIdleFence(uint32 imageIndex) { return m_pPresentIdle[imageIndex]; }
 
+    virtual void WaitForImageIdle(uint32 imageIndex) override;
 private:
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();

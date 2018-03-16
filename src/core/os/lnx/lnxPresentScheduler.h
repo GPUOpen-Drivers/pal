@@ -50,6 +50,10 @@ public:
         void*                   pPlacementAddr,
         Pal::PresentScheduler** ppPresentScheduler);
 
+    virtual Result SignalOnAcquire(IQueueSemaphore* pWaitSemaphore,
+                                   IQueueSemaphore* pSemaphore,
+                                   IFence* pFence) override;
+
 private:
     PresentScheduler(Device* pDevice, WindowSystem* pWindowSystem);
     virtual ~PresentScheduler() { }
@@ -61,11 +65,6 @@ private:
     virtual Result FailedToQueuePresentJob(const PresentSwapChainInfo& presentInfo, IQueue* pQueue) override;
 
     WindowSystem*const m_pWindowSystem; // A cached pointer to our parent swap chain's WindowSystem.
-
-    // This state is only needed by swap chains using the ring ordering mode. It records the swap chain image that was
-    // previously presented. If flips are being used this would be the image currently being scanned out.
-    SwapChain*         m_pPrevSwapChain;
-    uint32             m_prevImageIndex;
 
     PAL_DISALLOW_DEFAULT_CTOR(PresentScheduler);
     PAL_DISALLOW_COPY_AND_ASSIGN(PresentScheduler);

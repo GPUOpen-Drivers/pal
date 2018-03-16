@@ -34,6 +34,10 @@
 #include "gpuopen.h"
 #include "protocolClient.h"
 #include "protocolServer.h"
+#include "msgTransport.h"
+#include "ddUriInterface.h"
+#include "util/string.h"
+#include "util/vector.h"
 
 namespace DevDriver
 {
@@ -46,6 +50,19 @@ namespace DevDriver
 
     DD_STATIC_CONST uint32 kDefaultUpdateTimeoutInMs = 10;
     DD_STATIC_CONST uint32 kFindClientTimeout        = 500;
+
+    // Struct of information required to initialize an IMsgChannel instance
+    struct MessageChannelCreateInfo
+    {
+        StatusFlags initialFlags;                           // Initial client status flags.
+        Component   componentType;                          // Type of component the message channel represents.
+        bool        createUpdateThread;                     // Create a background processing thread for the message
+                                                            // channel. This should only be set to false if the
+                                                            // owning object is able to call IMsgChannel::Update()
+                                                            // at least once per frame.
+        char        clientDescription[kMaxStringLength];    // Description of the client provided to other clients on
+                                                            // the message bus.
+    };
 
     class IMsgChannel
     {
@@ -79,6 +96,9 @@ namespace DevDriver
         virtual Result RegisterService(IService* pService) = 0;
         virtual Result UnregisterService(IService* pService) = 0;
 
+        // Get the names of all currently registered services
+        virtual void GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames) = 0;
+
         // Get the allocator used to create this message channel
         virtual const AllocCb& GetAllocCb() const = 0;
 
@@ -93,6 +113,9 @@ namespace DevDriver
 
         // Get the client information struct for the message channel.
         virtual const ClientInfoStruct& GetClientInfo() const = 0;
+
+        // Get a human-readable string describing the connection type.
+        virtual const char* GetTransportName() const = 0;
 
         // Set and get all client status flags.
         virtual Result SetStatusFlags(StatusFlags flags) = 0;

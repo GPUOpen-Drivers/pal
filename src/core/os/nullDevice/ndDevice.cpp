@@ -45,7 +45,6 @@ namespace NullDevice
 // Identification table for all the GPUs that are supported in NULL device mode
 constexpr  NullIdLookup  NullIdLookupTable[]=
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 342
     { FAMILY_SI,      SI_TAHITI_P_A21,   PRID_SI_TAHITI,            CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_SI_TAHITI_P_6780  },
     { FAMILY_SI,      SI_HAINAN_V_A0,    PRID_SI_HAINAN_EXO_81,     CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_SI_HAINAN_V_6660  },
     { FAMILY_CI,      CI_BONAIRE_M_A0,   PRID_CI_BONAIRE_TOBAGO_81, CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_BONAIRE_M_6640 },
@@ -67,32 +66,10 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
     { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0 },
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 326
-    { FAMILY_CI,      CI_BONAIRE_M_A0,   PRID_CI_BONAIRE_TOBAGO_81, CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_BONAIRE_M_6640 },
-    { FAMILY_SI,      SI_HAINAN_V_A0,    PRID_SI_HAINAN_EXO_81,     CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_SI_HAINAN_V_6660  },
-    { FAMILY_VI,      VI_TONGA_P_A1,     PRID_VI_TONGA_00,          CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_TONGA_P_6920   },
-    { FAMILY_VI,      VI_FIJI_P_A0,      PRID_VI_FIJI_CC,           CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_FIJI_P_7300    },
-    { FAMILY_KV,      KV_GODAVARI_A0,    PRID_GODAVARI_MULLINS_01,  CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_KV_GODAVARI__9850 },
-    { FAMILY_CZ,      CZ_CARRIZO_A0,     PRID_CZ_CARRIZO_C4,        CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CZ_CARRIZO_9870   },
-#if PAL_BUILD_GFX9
-    { FAMILY_AI,      AI_VEGA10_P_A0,    PRID_AI_VEGA10_C3,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA10_P_6860  },
-#endif
-    { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-#else
-    { FAMILY_CI,      CI_BONAIRE_M_A0,   PRID_CI_BONAIRE_TOBAGO_81, CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_BONAIRE_M_6640 },
-    { FAMILY_VI,      VI_TONGA_P_A1,     PRID_VI_TONGA_00,          CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_TONGA_P_6920   },
-    { FAMILY_VI,      VI_FIJI_P_A0,      PRID_VI_FIJI_CC,           CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_FIJI_P_7300    },
-#if PAL_BUILD_GFX9
-    { FAMILY_AI,      AI_VEGA10_P_A0,    PRID_AI_VEGA10_C3,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA10_P_6860  },
-#endif
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-#endif
 };
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 342
     "TAHITI",
     "HAINAN",
     "BONAIRE",
@@ -113,25 +90,6 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
     nullptr,
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 326
-    "BONAIRE",
-    "HAINAN",
-    "TONGA",
-    "FIJI",
-    "GODAVARI",
-    "CARRIZO",
-#if PAL_BUILD_GFX9
-    "VEGA10",
-#endif
-    "RAVEN",
-#else
-    "BONAIRE",
-    "TONGA",
-    "FIJI",
-#if PAL_BUILD_GFX9
-    "VEGA10"
-#endif
-#endif
 };
 
 // =====================================================================================================================
@@ -1133,16 +1091,6 @@ Result Device::PollFullScreenFrameMetadataControl(
 {
     return Result::Unsupported;
 }
-
-// =====================================================================================================================
-// Enable or disable TurboSync.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-Result Device::TurboSyncControl(
-    const TurboSyncControlInput* pTurboSyncControlInput) const
-{
-    return Result::Unsupported;
-}
-#endif
 
 // =====================================================================================================================
 // We don't support NULL devices that emulate workstation GPUs, so there's nothing to do here.

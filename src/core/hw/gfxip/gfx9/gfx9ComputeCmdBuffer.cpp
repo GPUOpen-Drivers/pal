@@ -1203,7 +1203,6 @@ uint32* ComputeCmdBuffer::UpdateUserDataTableAddressses(
 // based on the results of prior GPU work.
 // SEE: CmdUtil::BuildSetPredication(...) for more details on the meaning of this method's parameters.
 // Note that this function is currently only implemented for memory-based/DX12 predication
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 void ComputeCmdBuffer::CmdSetPredication(
     IQueryPool*         pQueryPool,
     uint32              slot,
@@ -1262,64 +1261,6 @@ void ComputeCmdBuffer::CmdSetPredication(
         m_predGpuAddr = 0;
     }
 }
-#else
-void ComputeCmdBuffer::CmdSetPredication(
-    IQueryPool*   pQueryPool,
-    uint32        slot,
-    gpusize       gpuVirtAddr,
-    PredicateType predType,
-    bool          predPolarity,
-    bool          waitResults,
-    bool          accumulateData)
-{
-    // This emulation doesn't work for QueryPool based predication, fortuanately DX12 just has Boolean type
-    // predication. TODO: emulation for Zpass and Streamout predication if they are really used on compute.
-    PAL_ASSERT((predType == PredicateType::Boolean) && (pQueryPool == nullptr));
-
-    // When gpuVirtAddr is 0, it means client is disabling/resetting predication
-    m_gfxCmdBufState.clientPredicate = (gpuVirtAddr != 0);
-    m_gfxCmdBufState.packetPredicate = m_gfxCmdBufState.clientPredicate;
-
-    if (gpuVirtAddr != 0)
-    {
-        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
-        uint32 *pCmdSpace    = m_cmdStream.ReserveCommands();
-
-        // Execute if 64-bit value in memory are all 0 when predPolarity is false,
-        // or Execute if one or more bits of 64-bit value in memory are not 0 when predPolarity is true.
-        uint32 predCopyData  = (predPolarity == true);
-        *pPredCpuAddr        = (predPolarity == false);
-
-        pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr, CmdUtil::WriteDataSizeDwords + 1, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWriteData(EngineTypeCompute,
-                                              m_predGpuAddr,
-                                              1,
-                                              engine_sel__pfp_write_data__prefetch_parser,
-                                              dst_sel__pfp_write_data__memory,
-                                              true,
-                                              &predCopyData,
-                                              PredDisable,
-                                              pCmdSpace);
-
-        pCmdSpace += m_cmdUtil.BuildCondExec(gpuVirtAddr + 4, CmdUtil::WriteDataSizeDwords + 1, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWriteData(EngineTypeCompute,
-                                              m_predGpuAddr,
-                                              1,
-                                              engine_sel__pfp_write_data__prefetch_parser,
-                                              dst_sel__pfp_write_data__memory,
-                                              true,
-                                              &predCopyData,
-                                              PredDisable,
-                                              pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
-    else
-    {
-        m_predGpuAddr = 0;
-    }
-}
-#endif
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdExecuteIndirectCmds(

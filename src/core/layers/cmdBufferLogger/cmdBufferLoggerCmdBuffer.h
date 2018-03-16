@@ -59,10 +59,6 @@ enum class CmdBufCallId : uint32
     CmdSetDepthBounds,
     CmdSetStencilRefMasks,
     CmdSetMsaaQuadSamplePattern,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    CmdStoreMsaaQuadSamplePattern,
-    CmdLoadMsaaQuadSamplePattern,
-#endif
     CmdSetViewports,
     CmdSetScissorRects,
     CmdSetGlobalScissor,
@@ -142,6 +138,8 @@ enum class CmdBufCallId : uint32
     CmdStopGpuProfilerLogging,
     CmdCopyImageToPackedPixelImage,
     CmdSetViewInstanceMask,
+    CmdSetHiSCompareState0,
+    CmdSetHiSCompareState1,
     Count
 };
 
@@ -228,16 +226,6 @@ public:
     virtual void CmdSetMsaaQuadSamplePattern(
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override;
-#endif
     virtual void CmdSetViewports(
         const ViewportParams& params) override;
     virtual void CmdSetScissorRects(
@@ -432,7 +420,6 @@ public:
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset,
         gpusize           dstStride) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*       pQueryPool,
         uint32            slot,
@@ -442,16 +429,6 @@ public:
         bool              predPolarity,
         bool              waitResults,
         bool              accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
     virtual void CmdWriteTimestamp(
         HwPipePoint       pipePoint,
         const IGpuMemory& dstGpuMemory,
@@ -573,6 +550,18 @@ public:
         Pal::PackedPixelType   packPixelType) override;
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
+
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

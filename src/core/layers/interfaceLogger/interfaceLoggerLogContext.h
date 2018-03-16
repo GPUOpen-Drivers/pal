@@ -96,10 +96,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetStencilRefMasks,
     CmdBufferCmdSetUserClipPlanes,
     CmdBufferCmdSetMsaaQuadSamplePattern,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    CmdBufferCmdStoreMsaaQuadSamplePattern,
-    CmdBufferCmdLoadMsaaQuadSamplePattern,
-#endif
     CmdBufferCmdSetViewports,
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
@@ -179,6 +175,8 @@ enum class InterfaceFunc : uint32
     CmdBufferDestroy,
     CmdBufferCopyImageToPackedPixelImage,
     CmdBufferCmdSetViewInstanceMask,
+    CmdSetHiSCompareState0,
+    CmdSetHiSCompareState1,
     ColorBlendStateDestroy,
     DepthStencilStateDestroy,
     DeviceCommitSettingsAndInit,
@@ -190,18 +188,12 @@ enum class InterfaceFunc : uint32
     DeviceRemoveGpuMemoryReferences,
     DeviceSetClockMode,
     DeviceSetMgpuMode,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    DeviceTurboSyncControl,
-#endif
     DeviceOfferAllocations,
     DeviceReclaimAllocations,
     DeviceResetFences,
     DeviceWaitForFences,
     DeviceBindTrapHandler,
     DeviceBindTrapBuffer,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    DeviceInitMsaaQuadSamplePatternGpuMemory,
-#endif
     DeviceCreateQueue,
     DeviceCreateGpuMemory,
     DeviceCreatePinnedGpuMemory,
@@ -269,9 +261,7 @@ enum class InterfaceFunc : uint32
     PipelineDestroy,
     PlatformEnumerateDevices,
     PlatformGetScreens,
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     PlatformTurboSyncControl,
-#endif
     PlatformDestroy,
     PrivateScreenEnable,
     PrivateScreenDisable,

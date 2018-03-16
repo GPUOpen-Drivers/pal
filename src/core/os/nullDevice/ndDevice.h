@@ -213,11 +213,6 @@ public:
         uint32                         vidPnSrcId,
         PerSourceFrameMetadataControl* pFrameMetadataControl) const override;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    virtual Result TurboSyncControl(
-        const TurboSyncControlInput* pTurboSyncControlInput) const override;
-#endif
-
     virtual Result QueryDisplayConnectors(
         uint32*                     pConnectorCount,
         DisplayConnectorProperties* pConnectors) override;

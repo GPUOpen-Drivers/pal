@@ -123,14 +123,6 @@ public:
         const void* pCode,
         size_t      codeSize);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    Result SetPipelineCode(
-        const void* pCode,
-        size_t      codeSize,
-        gpusize     gpuVirtLoadAddr)
-    { return SetPipelineCode(pCode, codeSize); }
-#endif
-
     /// Set the pipeline data.
     ///
     /// @param [in] pData           Pointer to the pipeline data.
@@ -143,15 +135,6 @@ public:
         size_t      dataSize,
         gpusize     alignment);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    Result SetData(
-        const void* pData,
-        size_t      dataSize,
-        gpusize     gpuVirtLoadAddr,
-        gpusize     alignment)
-    { return SetData(pData, dataSize, alignment); }
-#endif
-
     /// Set the pipeline read only data.
     ///
     /// @param [in] pData           Pointer to the pipeline read only data.
@@ -163,15 +146,6 @@ public:
         const void* pData,
         size_t      dataSize,
         gpusize     alignment);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    Result SetReadOnlyData(
-        const void* pData,
-        size_t      dataSize,
-        gpusize     gpuVirtLoadAddr,
-        gpusize     alignment)
-    { return SetReadOnlyData(pData, dataSize, alignment); }
-#endif
 
     /// Set the pipelines' disassembly data.  This should contain disassembly for all shader stages in the
     /// pipeline.  Each shader stage has an associated symbol type which defines the size and offset to the
@@ -328,17 +302,6 @@ public:
         const void** ppCode,
         size_t*      pCodeSize) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    void GetPipelineCode(
-        const void** ppCode,
-        size_t*      pCodeSize,
-        gpusize*     pGpuVirtAddr) const
-    {
-        GetPipelineCode(ppCode, pCodeSize);
-        *pGpuVirtAddr = 0;
-    }
-#endif
-
     /// Get the pipeline data.
     ///
     /// @param [out] ppData           Pointer to the pipeline data.
@@ -349,18 +312,6 @@ public:
         size_t*      pDataSize,
         gpusize*     pAlignment) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    void GetData(
-        const void** ppData,
-        size_t*      pDataSize,
-        gpusize*     pGpuVirtAddr,
-        gpusize*     pAlignment) const
-    {
-        GetData(ppData, pDataSize, pAlignment);
-        *pGpuVirtAddr = 0;
-    }
-#endif
-
     /// Get the pipeline read only data.
     ///
     /// @param [out] ppData           Pointer to the pipeline read only data.
@@ -370,18 +321,6 @@ public:
         const void** ppData,
         size_t*      pDataSize,
         gpusize*     pAlignment) const;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 346
-    void GetReadOnlyData(
-        const void** ppData,
-        size_t*      pDataSize,
-        gpusize*     pGpuVirtAddr,
-        gpusize*     pAlignment) const
-    {
-        GetReadOnlyData(ppData, pDataSize, pAlignment);
-        *pGpuVirtAddr = 0;
-    }
-#endif
 
     /// Get the comment which contains compiler version info.
     ///
@@ -467,9 +406,6 @@ public:
     ///
     /// @returns Returns Success if successful, otherwise ErrorOutOfMemory if memory allocation failed.
     Result Finalize(const char* pPipelineName);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 343
-    Result Finalize() { return Finalize(nullptr); }
-#endif
 
     /// Returns an ElfProcessor to allow direct ELF queries.
     ///

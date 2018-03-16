@@ -207,24 +207,18 @@ Result ComputePipeline::HwlInit(
         m_threadsPerTgY = m_pm4Commands.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_pm4Commands.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-        if (false == abiProcessor.HasRegisterEntry(mmCOMPUTE_RESOURCE_LIMITS,
-                                                   &m_pm4CommandsDynamic.computeResourceLimits.u32All))
-#endif
+        const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
+        const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.wavefrontSize);
+
+        // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
+        // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
+        m_pm4CommandsDynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+
+        // Force even distribution on all SIMDs in CU for workgroup size is 64
+        // This has shown some good improvements if #CU per SE not a multiple of 4
+        if (((chipProps.gfx6.numShaderArrays * chipProps.gfx6.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
         {
-            const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
-            const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.wavefrontSize);
-
-            // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
-            // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
-            m_pm4CommandsDynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
-
-            // Force even distribution on all SIMDs in CU for workgroup size is 64
-            // This has shown some good improvements if #CU per SE not a multiple of 4
-            if (((chipProps.gfx6.numShaderArrays * chipProps.gfx6.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
-            {
-                m_pm4CommandsDynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
-            }
+            m_pm4CommandsDynamic.computeResourceLimits.bits.FORCE_SIMD_DIST__CI__VI = 1;
         }
 
         if (m_pDevice->Parent()->HwsTrapHandlerPresent())
@@ -322,12 +316,7 @@ uint32* ComputePipeline::WriteCommands(
 
     ComputePipelinePm4ImgDynamic pm4CommandsDynamic = m_pm4CommandsDynamic;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 345
-    if (pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH == 0)
-#endif
-    {
-        pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
-    }
+    pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx6MaxTgPerCu = 15;

@@ -240,53 +240,6 @@ PerfCounter::PerfCounter(
 }
 
 // =====================================================================================================================
-// Compute the Shader Engine associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToSe(
-    const Gfx9PerfCounterInfo& perfInfo,
-    GpuBlock                   block,
-    uint32                     instance)
-{
-    const uint32 blockNum = static_cast<uint32>(block);
-
-    // SE is the truncated result of dividing our instanceId by the total instances per SE.
-    const uint32 instancesPerEngine = (perfInfo.block[blockNum].numInstances *
-                                       perfInfo.block[blockNum].numShaderArrays);
-
-    return instance / instancesPerEngine;
-}
-
-// =====================================================================================================================
-// Compute the Shader Array associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToSh(
-    const Gfx9PerfCounterInfo& perfInfo,
-    GpuBlock                   block,
-    uint32                     instance)
-{
-    const auto& perfBlockInfo = perfInfo.block[static_cast<uint32>(block)];
-
-    // Compute the total shader arrays in this instanceId.
-    const uint32 arraysInInstanceId = (instance / perfBlockInfo.numInstances);
-
-    // SH is  the modulus of the total arrays in our instanceId and number of arrays per SE.
-    const uint32 shIdx =  arraysInInstanceId % perfBlockInfo.numShaderArrays;
-
-    return shIdx;
-}
-
-// =====================================================================================================================
-// Compute the Instance Index associated with this counter's global instance ID.
-uint32 PerfCounter::InstanceIdToInstance(
-    const Gfx9PerfCounterInfo& perfInfo,
-    GpuBlock                   block,
-    uint32                     instance)
-{
-    const auto& perfBlockInfo = perfInfo.block[static_cast<uint32>(block)];
-
-    // 'Local' instance index is the modulus of the global instance index and the number of instances per shader array.
-    return (instance % perfBlockInfo.numInstances);
-}
-
-// =====================================================================================================================
 // Accumulates the values of the SDMA counter setup registers across multiple counters.
 uint32 PerfCounter::SetupSdmaSelectReg(
     regSDMA0_PERFMON_CNTL* pSdma0PerfmonCntl, // SDMA0_PERFMON_CNTL reg value
@@ -340,19 +293,18 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
 {
     if (IsIndexed())
     {
-
-        const uint32 seIndex = PerfCounter::InstanceIdToSe(
-                                               m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
-                                               m_info.block,
-                                               m_info.instance);
-        PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
-
         const auto& perfInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+        const uint32 numInstances = perfInfo.block[static_cast<uint32>(m_info.block)].numInstances;
+        const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
+
+        const uint32 seIndex = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_info.instance);
+
+        PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
 
         regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
         grbmGfxIndex.bits.SE_INDEX       = seIndex;
-        grbmGfxIndex.bits.SH_INDEX       = InstanceIdToSh(perfInfo, m_info.block, m_info.instance);
-        grbmGfxIndex.bits.INSTANCE_INDEX = InstanceIdToInstance(perfInfo, m_info.block, m_info.instance);
+        grbmGfxIndex.bits.SH_INDEX       = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_info.instance);
+        grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_info.instance);
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                      grbmGfxIndex.u32All,
@@ -372,10 +324,11 @@ uint32* PerfCounter::WriteGrbmGfxBroadcastSe(
 {
     if (IsIndexed())
     {
+        const auto& perfInfo         = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+        const uint32 numInstances    = perfInfo.block[static_cast<uint32>(m_info.block)].numInstances;
+        const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
 
-        const uint32 seIndex = PerfCounter::InstanceIdToSe(m_device.Parent()->ChipProperties().gfx9.perfCounterInfo,
-                                                           m_info.block,
-                                                           m_info.instance);
+        const uint32 seIndex = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_info.instance);
         PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
 
         regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
@@ -554,6 +507,40 @@ Gfx9StreamingPerfCounter::Gfx9StreamingPerfCounter(
     default:
         break;
     }
+
+    switch (block)
+    {
+    case GpuBlock::Cpg:
+    case GpuBlock::Cpc:
+    case GpuBlock::Cpf:
+    case GpuBlock::Gds:
+    case GpuBlock::Tcc:
+    case GpuBlock::Tca:
+    case GpuBlock::Ia:
+    case GpuBlock::Tcs:
+    case GpuBlock::Ea:
+        m_flags.isGlobalBlock = 1;
+        break;
+    default:
+        break;
+    }
+
+    if (m_flags.isGlobalBlock)
+    {
+        m_segmentType = SpmDataSegmentType::Global;
+    }
+    else
+    {
+        auto const& gfx9ChipProps = m_device.Parent()->ChipProperties().gfx9;
+        const uint32 numInstances = gfx9ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].numInstances;
+
+        m_segmentType = static_cast<SpmDataSegmentType>(PerfCounter::InstanceIdToSe(numInstances,
+                                                                                    gfx9ChipProps.numShaderArrays,
+                                                                                    m_instance));
+    }
+
+    PAL_ASSERT(m_segmentType < SpmDataSegmentType::Count);
+
 }
 // =====================================================================================================================
 // Returns true if any of the events governing perfcounter_select0 register is valid.
@@ -620,17 +607,17 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
     const uint32 blockIdx     = static_cast<uint32>(m_block);
     const uint32 primaryReg   = perfInfo.block[blockIdx].regInfo[m_slot].perfSel0RegAddr;
     const uint32 secondaryReg = perfInfo.block[blockIdx].regInfo[m_slot].perfSel1RegAddr;
-    const uint32 seIndex      = PerfCounter::InstanceIdToSe(perfInfo, m_block, m_instance);
-    const uint32 shIndex      = PerfCounter::InstanceIdToSh(perfInfo, m_block, m_instance);
-    const uint32 instance     = PerfCounter::InstanceIdToInstance(perfInfo, m_block, m_instance);
+
+    const uint32 numInstances    = perfInfo.block[blockIdx].numInstances;
+    const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
 
     // If this is an indexed counter, we need to modify the GRBM_GFX_INDEX.
     if (m_flags.isIndexed)
     {
         regGRBM_GFX_INDEX__GFX09 grbmGfxIndex   = {};
-        grbmGfxIndex.bits.SE_INDEX       = seIndex;
-        grbmGfxIndex.bits.SH_INDEX       = shIndex;
-        grbmGfxIndex.bits.INSTANCE_INDEX = instance;
+        grbmGfxIndex.bits.SE_INDEX       = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_instance);
+        grbmGfxIndex.bits.SH_INDEX       = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_instance);
+        grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
 
         pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                         grbmGfxIndex.u32All,
@@ -643,7 +630,7 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
         pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(primaryReg, GetSelect0RegisterData(), pCmdSpace);
     }
 
-    // Gfx6 SQ blocks have only one SELECT register.
+    // SQ blocks have only one SELECT register.
     if (m_block != GpuBlock::Sq)
     {
         if (IsSelect1RegisterValid())
@@ -653,6 +640,24 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
     }
 
     return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Returns gfx9 hw specific muxselect encoding
+uint16 Gfx9StreamingPerfCounter::GetMuxselEncoding(
+    uint32 subSlot) const
+{
+    MuxselEncoding muxselEncoding;
+    muxselEncoding.u16All = 0;
+
+    auto const& gfx9ChipProps = m_device.Parent()->ChipProperties().gfx9;
+    const uint32 numInstances = gfx9ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].numInstances;
+
+    muxselEncoding.counter  = subSlot;
+    muxselEncoding.instance = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
+    muxselEncoding.block    = gfx9ChipProps.perfCounterInfo.block[static_cast<uint32>(m_block)].spmBlockSelectCode;
+
+    return muxselEncoding.u16All;
 }
 
 // =====================================================================================================================
@@ -678,7 +683,7 @@ uint32 Gfx9StreamingPerfCounter::GetSelect0RegisterData() const
     }
 
     // The CNTR_MODE is set to clamp for now.
-    selectReg |= (1 << Gfx9PerfCounterCntrModeShift);
+    selectReg |= (PERFMON_SPM_MODE_16BIT_CLAMP << Gfx9PerfCounterCntrModeShift);
 
     return selectReg;
 }

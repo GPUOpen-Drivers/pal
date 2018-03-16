@@ -68,7 +68,10 @@ namespace DevDriver
             Result ClosePushTransfer(bool discard = false);
 
             // Returns true if there's currently a transfer in progress.
-            bool IsTransferInProgress() const { return (m_transferContext.state == TransferState::TransferInProgress); }
+            bool IsTransferInProgress() const
+            {
+                return IsConnected() && (m_transferContext.state == TransferState::TransferInProgress);
+            }
 
             // Backwards compatibility
             Result RequestTransfer(BlockId blockId, size_t* pTransferSizeInBytes)

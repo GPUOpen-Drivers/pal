@@ -90,9 +90,8 @@ Image::Image(
 {
     m_imageInfo.internalCreateInfo     = internalCreateInfo;
     m_imageInfo.resolveMethod.u32All   = 0;
-    m_imageInfo.flags.u32All           = 0;
 
-    m_imageInfo.flags.dccCompatibleFormatChange = m_pDevice->GetGfxDevice()->AreImageFormatsDccCompatible(createInfo);
+    m_imageInfo.dccFormatEncoding = m_pDevice->GetGfxDevice()->ComputeDccFormatEncoding(createInfo);
 
     if (IsDepthStencil())
     {
@@ -702,8 +701,8 @@ bool Image::IsAspectValid(
         {
             valid = true;
         }
-        else if ((aspect == ImageAspect::Stencil)  &&
-                 (format == ChNumFormat::X8_Unorm) &&
+        else if ((aspect == ImageAspect::Stencil) &&
+                 (format == ChNumFormat::X8_Uint) &&
                  m_pDevice->SupportsStencil(format, ImageTiling::Optimal))
         {
             valid = true;

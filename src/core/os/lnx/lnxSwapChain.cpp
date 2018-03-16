@@ -152,26 +152,25 @@ Result SwapChain::Init(
 }
 
 // =====================================================================================================================
-// Called by the present scheduler when it is done scheduling a present and all necessary synchronization. The swap
-// chain can submit a fence or semaphore signal on pQueue to track present completion.
-Result SwapChain::PresentComplete(
-    IQueue* pQueue,
-    uint32  imageIndex)
+void SwapChain::WaitForImageIdle(
+    uint32 imageIndex)
 {
-    Result result = Result::Success;
-
     if (m_createInfo.swapChainMode != SwapChainMode::Mailbox)
     {
         // Linux presents aren't queue operations so we must manually wait for the present to complete by waiting on
         // its idle fence before we let the base class do its work. Note that we shouldn't wait in mailbox mode because
         // it has no semaphore to signal and waiting now could deadlock the algorithm.
-        result = m_pPresentIdle[imageIndex]->WaitForCompletion(true);
-
-        m_pPresentIdle[imageIndex]->Reset();
+        Result result = m_pPresentIdle[imageIndex]->WaitForCompletion(true);
+        if (result == Result::Success)
+        {
+            m_pPresentIdle[imageIndex]->Reset();
+        }
+        else
+        {
+            // in case the present fence has not been associated with a present
+            PAL_ASSERT(result == Result::ErrorFenceNeverSubmitted);
+        }
     }
-
-    const Result baseResult = Pal::SwapChain::PresentComplete(pQueue, imageIndex);
-    return CollapseResults(result, baseResult);
 }
 
 // =====================================================================================================================

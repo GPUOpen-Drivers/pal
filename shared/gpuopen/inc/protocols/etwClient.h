@@ -57,7 +57,6 @@ namespace DevDriver
             Result DisableTracing(size_t *pNumEvents);
             Result GetTraceData(GpuEvent *buffer, size_t numEvents);
         private:
-            void ResetState() override;
             SessionState m_sessionState;
         };
 

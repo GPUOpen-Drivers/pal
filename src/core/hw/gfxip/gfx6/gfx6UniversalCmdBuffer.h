@@ -341,18 +341,6 @@ public:
     virtual void CmdSetMsaaQuadSamplePattern(uint32                       numSamplesPerPixel,
                                              const MsaaQuadSamplePattern& quadSamplePattern) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override;
-#endif
-
     virtual void CmdSetViewports(const ViewportParams& params) override;
     virtual void CmdSetScissorRects(const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(const GlobalScissorParams& params) override;
@@ -573,7 +561,6 @@ public:
         uint32            mask,
         CompareFunc       compareFunc) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -583,16 +570,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
@@ -633,6 +610,18 @@ public:
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
         uint32         targetIndex) override;
+
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
 
 protected:
     virtual ~UniversalCmdBuffer() {}

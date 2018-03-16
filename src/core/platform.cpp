@@ -471,6 +471,8 @@ void Platform::EarlyInitDevDriver()
                 m_pRgpServer     = m_pDevDriverServer->GetRGPServer();
                 m_pLoggingServer = m_pDevDriverServer->GetLoggingServer();
 
+                static_assert(static_cast<uint32>(LogCategory::Count) == sizeof(LogCategoryTable)/sizeof(char*),
+                    "LogCategory enum does not match LogCategoryTable.");
                 // Initialize the logging subsystem if we successfully started the dev driver server.
                 m_pLoggingServer->AddCategoryTable(0, static_cast<uint32>(LogCategory::Count), LogCategoryTable);
 
@@ -637,10 +639,7 @@ bool Platform::ShowDevDriverOverlay() const
     bool showOverlay = false;
     if (m_pDevDriverServer != nullptr)
     {
-        // We show the overlay whenever there's a valid dev driver server object (which implies dev mode is enabled).
-        // The one exception to this is when an RGP trace is running. In that case, we'll temporarily stop drawing
-        // the overlay to prevent it from affecting the trace.
-        showOverlay = ((m_pRgpServer == nullptr) || (m_pRgpServer->IsTraceRunning() == false));
+        showOverlay = m_pDevDriverServer->ShouldShowOverlay();
     }
 
     return showOverlay;

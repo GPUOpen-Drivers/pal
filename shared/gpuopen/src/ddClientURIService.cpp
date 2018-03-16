@@ -50,8 +50,6 @@ namespace DevDriver
         // We can only handle requests if a valid message channel has been bound.
         if (m_pMsgChannel != nullptr)
         {
-            // We currently only handle the "info" command.
-            // All other commands will result in an error.
             if (strcmp(pContext->pRequestArguments, "info") == 0)
             {
                 // Fetch the desired information about the client.
@@ -78,6 +76,10 @@ namespace DevDriver
 
                 // Write the client message bus version
                 Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Supported Message Bus Version: %u", kMessageVersion);
+                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+
+                // Write the client transport type
+                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Transport: %s", m_pMsgChannel->GetTransportName());
                 pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
 
                 // Write the client id
@@ -218,6 +220,45 @@ namespace DevDriver
 
                 pContext->responseDataFormat = URIDataFormat::Text;
 
+                result = Result::Success;
+            }
+            else if (strcmp(pContext->pRequestArguments, "services") == 0)
+            {
+                auto& pBlock = pContext->pResponseBlock;
+
+                static constexpr char responseHeader[] = "{\n    \"Services\": [\n";
+                static constexpr char itemSuffix[]      = ",\n";
+                static constexpr char itemFinalSuffix[] = "\n"; // JSON doesn't allow trailing commas
+                static constexpr char responseFooter[]  = "    ]\n}\n";
+
+                Vector<FixedString<kMaxUriServiceNameLength>> serviceNames { m_pMsgChannel->GetAllocCb() };
+                m_pMsgChannel->GetServiceNames(serviceNames);
+
+                pBlock->Write(responseHeader, strlen(responseHeader));
+
+                for (size_t serviceIndex = 0; serviceIndex < serviceNames.Size(); ++serviceIndex)
+                {
+                    const FixedString<kMaxUriServiceNameLength>& serviceName = serviceNames[serviceIndex];
+
+                    // We'll write a few things to this: the service name + 8 spaces to indent + 2 quotes + 1 null
+                    char buffer[kMaxUriServiceNameLength + 8 + 2 + 1];
+                    Platform::Snprintf(buffer, sizeof(buffer), "        \"%s\"", serviceName.AsCStr());
+                    pBlock->Write(buffer, strlen(buffer));
+
+                    // There's a special suffix for the final service name, so don't write the usual one.
+                    if (serviceIndex + 1 < serviceNames.Size())
+                    {
+                        pBlock->Write(itemSuffix, strlen(itemSuffix));
+                    }
+                }
+                // Only write the final suffix if we actually wrote some items.
+                if (serviceNames.Size() != 0)
+                {
+                    pBlock->Write(itemFinalSuffix, strlen(itemFinalSuffix));
+                }
+                pBlock->Write(responseFooter, strlen(responseFooter));
+
+                pContext->responseDataFormat = URIDataFormat::Text;
                 result = Result::Success;
             }
         }

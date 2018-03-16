@@ -76,7 +76,9 @@ namespace DevDriver
 
     protected:
         BaseProtocolClient(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion);
-        virtual void ResetState() = 0;
+
+        // Default implementation of ResetState that does nothing
+        virtual void ResetState() {};
 
         IMsgChannel* const m_pMsgChannel;
         const Protocol m_protocol;

@@ -79,10 +79,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern,          (CmdBuild)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    { InterfaceFunc::CmdBufferCmdStoreMsaaQuadSamplePattern,        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdLoadMsaaQuadSamplePattern,         (CmdBuild)            },
-#endif
     { InterfaceFunc::CmdBufferCmdSetViewports,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
@@ -162,6 +158,8 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferDestroy,                              (CrtDstry | CmdBuild) },
     { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,          (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,               (CmdBuild)            },
+    { InterfaceFunc::CmdSetHiSCompareState0,                        (CmdBuild)            },
+    { InterfaceFunc::CmdSetHiSCompareState1,                        (CmdBuild)            },
     { InterfaceFunc::ColorBlendStateDestroy,                        (CrtDstry)            },
     { InterfaceFunc::DepthStencilStateDestroy,                      (CrtDstry)            },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                   (GenCalls)            },
@@ -173,18 +171,12 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::DeviceRemoveGpuMemoryReferences,               (GenCalls)            },
     { InterfaceFunc::DeviceSetClockMode,                            (GenCalls)            },
     { InterfaceFunc::DeviceSetMgpuMode,                             (GenCalls)            },
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    { InterfaceFunc::DeviceTurboSyncControl,                        (GenCalls)            },
-#endif
     { InterfaceFunc::DeviceOfferAllocations,                        (GenCalls)            },
     { InterfaceFunc::DeviceReclaimAllocations,                      (GenCalls)            },
     { InterfaceFunc::DeviceResetFences,                             (GenCalls)            },
     { InterfaceFunc::DeviceWaitForFences,                           (GenCalls)            },
     { InterfaceFunc::DeviceBindTrapHandler,                         (GenCalls)            },
     { InterfaceFunc::DeviceBindTrapBuffer,                          (GenCalls)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    { InterfaceFunc::DeviceInitMsaaQuadSamplePatternGpuMemory,      (GenCalls)            },
-#endif
     { InterfaceFunc::DeviceCreateQueue,                             (CrtDstry | QueueOps) },
     { InterfaceFunc::DeviceCreateGpuMemory,                         (CrtDstry)            },
     { InterfaceFunc::DeviceCreatePinnedGpuMemory,                   (CrtDstry)            },
@@ -252,9 +244,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::PipelineDestroy,                               (CrtDstry)            },
     { InterfaceFunc::PlatformEnumerateDevices,                      (GenCalls)            },
     { InterfaceFunc::PlatformGetScreens,                            (GenCalls)            },
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     { InterfaceFunc::PlatformTurboSyncControl,                      (GenCalls)            },
-#endif
     { InterfaceFunc::PlatformDestroy,                               (CrtDstry)            },
     { InterfaceFunc::PrivateScreenEnable,                           (GenCalls)            },
     { InterfaceFunc::PrivateScreenDisable,                          (GenCalls)            },
@@ -963,7 +953,6 @@ LogContext* Platform::CreateThreadLogContext(
     return pContext;
 }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
 // =====================================================================================================================
 // Send turboSync control
 Result Platform::TurboSyncControl(
@@ -1001,7 +990,6 @@ Result Platform::TurboSyncControl(
 
     return result;
 }
-#endif
 
 } // InterfaceLogger
 } // Pal

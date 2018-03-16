@@ -88,13 +88,11 @@ Result Image::Addr1InitSurfaceInfo(
     {
         bool tcCompatibleEnabledForResolveDst = false;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
         tcCompatibleEnabledForResolveDst =
             (m_pParent->IsResolveDst()                                       &&
              m_pParent->IsAspectValid(ImageAspect::Depth)                    &&
              m_pParent->IsAspectValid(ImageAspect::Stencil)                  &&
              TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthAndStencil));
-#endif
 
         if ((subResInfo.subresId.aspect == ImageAspect::Depth)                                               &&
             (subResInfo.subresId.mipLevel == 0)                                                              &&
@@ -701,9 +699,9 @@ Result Image::Finalize(
             if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
             {
                 const uint32 bpp = Formats::BitsPerPixel(m_createInfo.swizzledFormat.format);
-                // According to the CB Micro-Architecture Specification, CB can hang on HW resolve with slow-mode quads
-                // (128bpp) and it is illegal to resolve a 1 fragment eqaa surface.
-                if ((bpp <= 64) && ((Parent()->IsEqaa() == false) || (m_createInfo.fragments > 1)))
+                // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
+                // surface.
+                if ((Parent()->IsEqaa() == false) || (m_createInfo.fragments > 1))
                 {
                     m_pImageInfo->resolveMethod.fixedFunc = 1;
                 }
@@ -913,7 +911,7 @@ void Image::InitLayoutStateMasksOneMip(
                 }
 
                 // We can keep this layout compressed if all view formats are DCC compatible.
-                if (Parent()->AllViewFormatsDccCompatible())
+                if (Parent()->GetDccFormatEncoding() != DccFormatEncoding::Incompatible)
                 {
                     m_layoutToState[mip].color.compressed.usages |= LayoutShaderRead;
                 }
@@ -1617,9 +1615,10 @@ bool Image::IsComprFmaskShaderReadable(
         ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
          ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false))) &&
         // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
-        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-        // be readable by a shader.
-        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc()) &&
+        // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
+        // preferred, the image will be readable by a shader.
+        (m_pParent->IsShaderReadable() ||
+         (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
         // Since TC block can't write to compressed images
         (m_pParent->IsShaderWritable() == false) &&
         // Only 2D/3D tiled resources can use shader compatible compression
@@ -1643,7 +1642,6 @@ bool Image::SupportsMetaDataTextureFetch(
     bool  texFetchSupported = false;
     bool  enableTcCompatResolveDst = false;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 306
     // TcCompatible could be enabled for resolveDst depth-stencil in order to enhance opportunity to trigger fixed-func
     // depth-stencil resolve.
     const bool isDepthStencilResolveDst = (m_pParent->IsResolveDst() && m_pParent->IsDepthStencil());
@@ -1655,7 +1653,6 @@ bool Image::SupportsMetaDataTextureFetch(
          ((isDepth  && !isStencil && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthOnly))   ||
           (!isDepth && isStencil  && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstStencilOnly)) ||
           (isDepth  && isStencil  && TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthAndStencil))));
-#endif
 
     const bool useSharedMetadata = m_pParent->GetInternalCreateInfo().flags.useSharedMetadata;
 
@@ -1664,9 +1661,12 @@ bool Image::SupportsMetaDataTextureFetch(
         // TC compatibility is only important for Gfx8+
         (m_device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp8) &&
         // If this image isn't readable by a shader then no shader is going to be performing texture fetches from it...
-        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-        // be readable by a shader.
-        (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc() || enableTcCompatResolveDst || useSharedMetadata) &&
+        // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
+        // preferred, the image will be readable by a shader.
+        (m_pParent->IsShaderReadable() ||
+         (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false)) ||
+         enableTcCompatResolveDst ||
+         useSharedMetadata) &&
         // Only 2D/3D tiled resources can use shader compatible compression
         IsMacroTiled(tileMode))
     {
@@ -2080,7 +2080,6 @@ gpusize Image::GetDccStateMetaDataAddr(
           (mipLevel * sizeof(MipDccStateMetaData));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 // Determines the offset of the DCC state meta-data. Returns the offset of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
@@ -2094,7 +2093,6 @@ gpusize Image::GetDccStateMetaDataOffset(
         ? 0
         : m_dccStateMetaDataOffset + (mipLevel * sizeof(MipDccStateMetaData));
 }
-#endif
 
 // =====================================================================================================================
 // Determines the GPU virtual address of the fast-clear-eliminate meta-data.  This metadata is used by a
@@ -2112,7 +2110,6 @@ gpusize Image::GetFastClearEliminateMetaDataAddr(
           (mipLevel * sizeof(MipFceStateMetaData));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
 // =====================================================================================================================
 // Determines the offset of the fast-clear-eliminate meta-data.  This metadata is used by a
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the offset of the
@@ -2127,7 +2124,6 @@ gpusize Image::GetFastClearEliminateMetaDataOffset(
         ? 0
         : m_fastClearEliminateMetaDataOffset + (mipLevel * sizeof(MipFceStateMetaData));
 }
-#endif
 
 // =====================================================================================================================
 // Determines the GPU virtual address of the waTcCompatZRange meta-data. Returns the GPU address of the meta-data

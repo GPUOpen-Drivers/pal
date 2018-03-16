@@ -211,9 +211,7 @@ struct GraphicsPipelineCreateInfo
                                                    ///  ignores this if it is unsupported in hardware.
         bool            perpLineEndCapsEnable;     ///< Forces the use of perpendicular line end caps as opposed to
                                                    ///  axis-aligned line end caps during line rasterization.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 310
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
@@ -236,10 +234,8 @@ struct GraphicsPipelineCreateInfo
         } target[MaxColorTargets];              ///< Per-MRT color target info.
     } cbState;                                  ///< Color target state.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 338
     ViewInstancingDescriptor viewInstancingDesc;    ///< Descriptor describes view instancing state
                                                     ///  of the graphics pipeline
-#endif
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering
@@ -267,27 +263,12 @@ struct GraphicPipelineViewInstancingInfo
 /// use to correlate PAL pipeline/shader dumps with corresponding API-level pipelines/shaders.
 struct PipelineInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 344
     uint64 pipelineHash;      ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler information and
                               ///  PAL-specific information.
     uint64 compilerHash;      ///< 64-bit identifier extracted from this pipeline's ELF binary, composed of the state
                               ///  the compiler decided was appropriate to identify the compiled shaders.  Pipelines
                               ///  can have identical compiler hashes but different pipeline hashes.  Note that this
                               ///  is not computed by taking a hash of the binary blob data.
-#else
-    ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler information and PAL-specific information.
-    ///  The union allows us to use the renamed pipelineHash while preserving backwards compatibility.
-    union
-    {
-        uint64 hash;
-        uint64 pipelineHash;
-    };
-
-    uint64 compilerHash;      ///< 64-bit identifier extracted from this pipeline's ELF binary, composed of the state
-                              ///  the compiler decided was appropriate to identify the compiled shaders.  Pipelines
-                              ///  can have identical compiler hashes but different pipeline hashes.  Note that this
-                              ///  is not computed by taking a hash of the binary blob data.
-#endif
 
     struct
     {

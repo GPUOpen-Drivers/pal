@@ -97,16 +97,6 @@ public:
     virtual void CmdSetMsaaQuadSamplePattern(
         uint32                       numSamplesPerPixel,
         const MsaaQuadSamplePattern& quadSamplePattern) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual void CmdStoreMsaaQuadSamplePattern(
-        const IGpuMemory&            dstGpuMemory,
-        gpusize                      dstMemOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) override;
-    virtual void CmdLoadMsaaQuadSamplePattern(
-        const IGpuMemory* pSrcGpuMemory,
-        gpusize           srcMemOffset) override;
-#endif
     virtual void CmdSetViewports(
         const ViewportParams& params) override;
     virtual void CmdSetScissorRects(
@@ -324,7 +314,6 @@ public:
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     virtual void CmdSetPredication(
         IQueryPool*         pQueryPool,
         uint32              slot,
@@ -334,16 +323,6 @@ public:
         bool                predPolarity,
         bool                waitResults,
         bool                accumulateData) override;
-#else
-    virtual void CmdSetPredication(
-        IQueryPool*   pQueryPool,
-        uint32        slot,
-        gpusize       gpuVirtAddr,
-        PredicateType predType,
-        bool          predPolarity,
-        bool          waitResults,
-        bool          accumulateData) override;
-#endif
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -375,6 +354,16 @@ public:
         uint32            data,
         uint32            mask,
         CompareFunc       compareFunc) override;
+    virtual void CmdSetHiSCompareState0(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
+    virtual void CmdSetHiSCompareState1(
+        CompareFunc compFunc,
+        uint32      compMask,
+        uint32      compValue,
+        bool        enable) override;
     virtual void CmdFlglSync() override;
     virtual void CmdFlglEnable() override;
     virtual void CmdFlglDisable() override;

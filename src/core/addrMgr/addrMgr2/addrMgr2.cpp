@@ -624,13 +624,11 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             if (IsVega10(*m_pDevice)
                 )
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 328
                 if (createInfo.flags.videoReferenceOnly)
                 {
                     pOut->swizzleMode = ADDR_SW_256B_D;
                 }
                 else
-#endif
                 {
                     pOut->swizzleMode = ADDR_SW_64KB_D;
                 }
@@ -639,13 +637,11 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             if (IsRaven(*m_pDevice)
                 )
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 328
                 if (createInfo.flags.videoReferenceOnly)
                 {
                     pOut->swizzleMode = ADDR_SW_256B_D;
                 }
                 else
-#endif
                 {
                     pOut->swizzleMode = ADDR_SW_64KB_S;
                 }

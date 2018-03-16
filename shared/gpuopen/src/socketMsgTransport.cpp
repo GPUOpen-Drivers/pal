@@ -32,7 +32,8 @@ using namespace DevDriver::ClientManagementProtocol;
 
 namespace DevDriver
 {
-    static SocketType TransportToSocketType(TransportType type)
+    // Take a TransportType and find the associated SocketType for the current platform
+    inline static SocketType TransportToSocketType(TransportType type)
     {
         SocketType result = SocketType::Unknown;
         switch (type)
@@ -50,28 +51,14 @@ namespace DevDriver
         return result;
     }
 
-    SocketMsgTransport::SocketMsgTransport(const TransportCreateInfo& createInfo) :
+    SocketMsgTransport::SocketMsgTransport(const HostInfo& hostInfo) :
         m_connected(false),
-        m_hostInfo(createInfo.hostInfo),
-        m_socketType(TransportToSocketType(createInfo.type))
+        m_hostInfo(hostInfo),
+        m_socketType(TransportToSocketType(hostInfo.type))
     {
-        switch (m_socketType)
+        if ((m_socketType != SocketType::Udp) && (m_socketType != SocketType::Local))
         {
-        case SocketType::Local:
-        {
-            static_assert(sizeof(m_hostInfo.hostname) >= sizeof(kNamedPipeName),
-                "Error, pipe name is too large to fit in hostname field");
-            Platform::Strncpy(m_hostInfo.hostname, kNamedPipeName, sizeof(m_hostInfo.hostname));
-            m_hostInfo.port = 0;
-            break;
-        }
-        case SocketType::Udp:
-        {
-            break;
-        }
-        default:
-            DD_ALERT_REASON("Invalid socket type specified");
-            break;
+            DD_ASSERT_REASON("Unsupported socket type provided");
         }
     }
 
@@ -166,23 +153,13 @@ namespace DevDriver
     }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_DISTRIBUTED_STATUS_FLAGS_VERSION)
-    Result SocketMsgTransport::QueryStatus(TransportType type, StatusFlags* pFlags, uint32 timeoutInMs, HostInfo *pHostInfo)
+    Result SocketMsgTransport::QueryStatus(const HostInfo& hostInfo,
+                                           uint32          timeoutInMs,
+                                           StatusFlags*    pFlags)
     {
         Result result = Result::Error;
         Socket clientSocket;
-        HostInfo hostInfo = kLocalHostInfo;
-        SocketType sType = TransportToSocketType(type);
-
-        if (sType == SocketType::Local)
-        {
-            static_assert(sizeof(hostInfo.hostname) >= sizeof(kNamedPipeName), "Error, pipe name is too large to fit in hostname field");
-            Platform::Strncpy(hostInfo.hostname, kNamedPipeName, sizeof(hostInfo.hostname));
-            hostInfo.port = 0;
-        }
-        else if (pHostInfo != nullptr)
-        {
-            memcpy(&hostInfo, pHostInfo, sizeof(HostInfo));
-        }
+        const SocketType sType = TransportToSocketType(hostInfo.type);
 
         if (sType != SocketType::Unknown)
         {
@@ -225,7 +202,8 @@ namespace DevDriver
                                     IsValidOutOfBandMessage(responseMessage) &
                                     (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::QueryStatusResponse)))
                                 {
-                                    QueryStatusResponsePayload *pResponse = reinterpret_cast<QueryStatusResponsePayload *>(&responseMessage.payload[0]);
+                                    const QueryStatusResponsePayload *pResponse =
+                                        reinterpret_cast<QueryStatusResponsePayload *>(&responseMessage.payload[0]);
                                     result = pResponse->result;
                                     *pFlags = pResponse->flags;
                                 }
@@ -242,25 +220,11 @@ namespace DevDriver
 
     // ================================================================================================================
     // Tests to see if the client can connect to RDS through this transport
-    Result SocketMsgTransport::TestConnection(TransportType type, uint32 timeoutInMs, HostInfo* pHostInfo)
+    Result SocketMsgTransport::TestConnection(const HostInfo& hostInfo, uint32 timeoutInMs)
     {
         Result result = Result::Error;
         Socket clientSocket;
-        HostInfo hostInfo = kLocalHostInfo;
-        SocketType sType = TransportToSocketType(type);
-
-        // if it is a local socket we ignore the pHostInfo struct and set it to our named pipe
-        if (sType == SocketType::Local)
-        {
-            static_assert(sizeof(hostInfo.hostname) >= sizeof(kNamedPipeName), "Error, pipe name is too large to fit in hostname field");
-            Platform::Strncpy(hostInfo.hostname, kNamedPipeName, sizeof(hostInfo.hostname));
-            hostInfo.port = 0;
-        }
-        // otherwise, overwrite the default hostname with the information provided
-        else if (pHostInfo != nullptr)
-        {
-            memcpy(&hostInfo, pHostInfo, sizeof(HostInfo));
-        }
+        const SocketType sType = TransportToSocketType(hostInfo.type);
 
         if (sType != SocketType::Unknown)
         {

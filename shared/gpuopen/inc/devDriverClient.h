@@ -33,6 +33,7 @@
 
 #include "gpuopen.h"
 #include "ddPlatform.h"
+#include "msgChannel.h"
 #include "msgTransport.h"
 #include "protocols/systemProtocols.h"
 #include "protocols/typemap.h"
@@ -44,15 +45,35 @@ namespace DevDriver
     class IMsgChannel;
     class IProtocolClient;
 
+    // Client Creation Info
+    // This struct extends the MessageChannelCreateInfo struct and adds information about the destination host
+    // the client will connect to. See msgChannel.h for a full list of members.
+    struct ClientCreateInfo : public MessageChannelCreateInfo
+    {
+        HostInfo                 connectionInfo;    // Connection information describing how the Server should connect
+                                                    // to the message bus.
+    };
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
     struct DevDriverClientCreateInfo
     {
-        TransportCreateInfo transportCreateInfo;
+        struct TransportCreateInfo : public MessageChannelCreateInfo
+        {
+            AllocCb       allocCb;
+            HostInfo      hostInfo;
+            TransportType type;
+        } transportCreateInfo;
     };
+#endif
 
     class DevDriverClient
     {
     public:
+#if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)
         explicit DevDriverClient(const DevDriverClientCreateInfo& createInfo);
+#endif
+        explicit DevDriverClient(const AllocCb& allocCb,
+                                 const ClientCreateInfo& createInfo);
         ~DevDriverClient();
 
         Result Initialize();
@@ -81,7 +102,7 @@ namespace DevDriver
                 }
             }
 
-            pProtocolClient = DD_NEW(T, m_createInfo.transportCreateInfo.allocCb)(m_pMsgChannel);
+            pProtocolClient = DD_NEW(T, m_allocCb)(m_pMsgChannel);
             if (pProtocolClient != nullptr)
             {
                 m_pClients.PushBack(pProtocolClient);
@@ -102,12 +123,15 @@ namespace DevDriver
 
     private:
         DD_STATIC_CONST uint32      kRegistrationTimeoutInMs = 1000;
-        DevDriverClientCreateInfo   m_createInfo;
         IMsgChannel*                m_pMsgChannel;
 
         Platform::AtomicLock        m_clientLock;
         Vector<IProtocolClient*, 8> m_pClients;
         Vector<IProtocolClient*, 8> m_pUnusedClients;
+
+        // Allocator and create info are stored at the end of the struct since they will be used infrequently
+        AllocCb                     m_allocCb;
+        ClientCreateInfo            m_createInfo;
     };
 
 } // DevDriver

@@ -404,46 +404,6 @@ Result Device::SetMgpuMode(
 }
 
 // =====================================================================================================================
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-Result Device::TurboSyncControl(
-    const TurboSyncControlInput* pTurboSyncControlInput
-    ) const
-{
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceTurboSyncControl;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::TurboSyncControl(pTurboSyncControlInput);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        if (pTurboSyncControlInput != nullptr)
-        {
-            pLogContext->KeyAndStruct("turboSyncControlInput", *pTurboSyncControlInput);
-        }
-        else
-        {
-            pLogContext->KeyAndNullValue("turboSyncControlInput");
-        }
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-#endif
-
-// =====================================================================================================================
 Result Device::ResetFences(
     uint32        fenceCount,
     IFence*const* ppFences
@@ -580,44 +540,6 @@ void Device::BindTrapBuffer(
         pPlatform->LogEndFunc(pLogContext);
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-// =====================================================================================================================
-Result Device::InitMsaaQuadSamplePatternGpuMemory(
-    IGpuMemory*                  pGpuMemory,
-    gpusize                      memOffset,
-    uint32                       numSamplesPerPixel,
-    const MsaaQuadSamplePattern& quadSamplePattern)
-{
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::DeviceInitMsaaQuadSamplePatternGpuMemory;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
-    Result result = DeviceDecorator::InitMsaaQuadSamplePatternGpuMemory(pGpuMemory, memOffset, numSamplesPerPixel, quadSamplePattern);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
-        pLogContext->KeyAndValue("memOffset", memOffset);
-        pLogContext->KeyAndValue("numSamplesPerPixel", numSamplesPerPixel);
-        pLogContext->KeyAndStruct("quadSamplePattern", quadSamplePattern);
-        pLogContext->EndInput();
-
-        pLogContext->BeginOutput();
-        pLogContext->KeyAndEnum("result", result);
-        pLogContext->EndOutput();
-
-        pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return result;
-}
-#endif
 
 // =====================================================================================================================
 size_t Device::GetQueueSize(

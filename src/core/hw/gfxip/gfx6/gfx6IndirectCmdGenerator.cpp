@@ -168,17 +168,12 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     const IndirectParam& param
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 324
     // NOTE: We can use CountSetBits because the API shader stages line up 1:1 with the HW shader stages except for cases
     //       where all stages are enabled. We do not expect user data to be bound to the copy shader other than the
     //       streamout SRD table. Streamout targets cannot be changed by an indirect command generator, so we don't need
     //       to flag this stage.
     const uint32 numHwStages = Util::CountSetBits(param.userDataShaderUsage);
-
     const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : numHwStages);
-#else
-    const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : NumHwShaderStagesGfx);
-#endif
 
     uint32 size = 0;
     switch (opType)

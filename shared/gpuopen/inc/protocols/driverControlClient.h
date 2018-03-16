@@ -24,8 +24,8 @@
  **********************************************************************************************************************/
 /**
 ***********************************************************************************************************************
-* @file  tcpSocket.h
-* @brief PAL utility collection MsgChannel class declaration.
+* @file  driverControlClient.h
+* @brief Developer Driver Control Client Interface
 ***********************************************************************************************************************
 */
 
@@ -76,7 +76,6 @@ namespace DevDriver
             Result WaitForDriverInitialization(uint32 timeoutInMs);
 
         private:
-            void ResetState() override;
         };
     }
 } // DevDriver

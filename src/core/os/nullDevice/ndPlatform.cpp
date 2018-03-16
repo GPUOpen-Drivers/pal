@@ -150,7 +150,6 @@ Result Platform::GetPrimaryLayout(
 }
 
 // =====================================================================================================================
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
 Result Platform::TurboSyncControl(
     const TurboSyncControlInput& turboSyncControlInput)
 {
@@ -158,7 +157,6 @@ Result Platform::TurboSyncControl(
 
     return Result::Success;
 }
-#endif
 
 } // NullDevice
 

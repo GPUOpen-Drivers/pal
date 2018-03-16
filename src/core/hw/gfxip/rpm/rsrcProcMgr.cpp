@@ -492,6 +492,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     SubresRange viewRange = { };
     viewRange.startSubres = srcImage.GetBaseSubResource();
@@ -561,15 +562,19 @@ void RsrcProcMgr::CopyColorImageGraphics(
         const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
         restoreMask              |= HwlBeginGraphicsCopy(pCmdBuffer, pPipeline, dstImage, bitsPerPixel);
 
-        // 3D images can't have slices and non-3D images shouldn't specify depth > 1 so we expect at least one
-        // of them to be set to 1.
+        // When copying from 3D to 3D, the number of slices should be 1. When copying from
+        // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
+        // to the dst image type, either the depth or the number of slices should be equal to 1.
         PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
-                   (copyRegion.numSlices == 1) || (copyRegion.extent.depth == 1));
+                   (copyRegion.numSlices == 1) ||
+                   (copyRegion.extent.depth == 1));
 
-        // When copying from 2D to 3D, the number of slices should match the depth.
+        // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
         PAL_ASSERT((srcCreateInfo.imageType == dstCreateInfo.imageType) ||
-                   (((srcCreateInfo.imageType == ImageType::Tex3d && dstCreateInfo.imageType == ImageType::Tex2d) ||
-                     (srcCreateInfo.imageType == ImageType::Tex2d && dstCreateInfo.imageType == ImageType::Tex3d)) &&
+                   ((((srcCreateInfo.imageType == ImageType::Tex3d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex2d)) ||
+                     ((srcCreateInfo.imageType == ImageType::Tex2d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex3d))) &&
                     (copyRegion.numSlices == copyRegion.extent.depth)));
 
         copyRegion.srcOffset.x  *= texelScale;
@@ -733,6 +738,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     // Setup the viewport and scissor to restrict rendering to the destination region being copied.
     viewportInfo.viewports[0].originX = static_cast<float>(pRegions[0].dstOffset.x);
@@ -1087,9 +1093,20 @@ void RsrcProcMgr::CopyImageCompute(
     {
         ImageCopyRegion copyRegion = pRegions[idx];
 
-        // 3D images can't have slices and non-3D images shouldn't specify depth > 1 so we expect at least one
-        // of them to be set to 1.
-        PAL_ASSERT((copyRegion.numSlices == 1) || (copyRegion.extent.depth == 1));
+        // When copying from 3D to 3D, the number of slices should be 1. When copying from
+        // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
+        // to the dst image type, either the depth or the number of slices should be equal to 1.
+        PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
+                   (copyRegion.numSlices == 1) ||
+                   (copyRegion.extent.depth == 1));
+
+        // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
+        PAL_ASSERT((srcCreateInfo.imageType == dstCreateInfo.imageType) ||
+                   ((((srcCreateInfo.imageType == ImageType::Tex3d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex2d)) ||
+                     ((srcCreateInfo.imageType == ImageType::Tex2d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex3d))) &&
+                    (copyRegion.numSlices == copyRegion.extent.depth)));
 
         if (p2pBltInfoRequired)
         {
@@ -3121,6 +3138,7 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     uint32 convertedColor[4] = {0};
 
@@ -3992,6 +4010,7 @@ void RsrcProcMgr::ResolveImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     // Determine which format we should use to view the source image. The initial value is the stencil format.
     SwizzledFormat srcFormat =
@@ -4519,11 +4538,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     GfxCmdBuffer*        pCmdBuffer,
     const Image&         image,
     const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern* pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&   range
     ) const
 {
@@ -4588,29 +4603,10 @@ void RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
     if (pQuadSamplePattern != nullptr)
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#else
-    if (pSamplePattern != nullptr)
-    {
-        if (pSamplePattern->flags.isLoad == 0)
-        {
-            if (pSamplePattern->pImmediate != nullptr)
-            {
-                pCmdBuffer->CmdSetMsaaQuadSamplePattern(
-                    image.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-            }
-        }
-        else
-        {
-            PAL_ASSERT(pSamplePattern->pGpuMemory != nullptr);
-            pCmdBuffer->CmdLoadMsaaQuadSamplePattern(pSamplePattern->pGpuMemory, pSamplePattern->memOffset);
-        }
-    }
-#endif
 
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
@@ -4619,6 +4615,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     const uint32 lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
     const uint32 lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
@@ -4695,11 +4692,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const Image&         image,
     ImageLayout          imageLayout,
     const IMsaaState*    pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern* pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     const SubresRange&   range
     ) const
 {
@@ -4762,22 +4755,10 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
     pCmdBuffer->CmdBindMsaaState(pMsaaState);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
     if (pQuadSamplePattern != nullptr)
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#else
-    if (pSamplePattern != nullptr)
-    {
-        // ResummarizeDepthStencil always needs to set the sample pattern in immediate mode. It does not need
-        // to know what the previous sample pattern was.
-        if (pSamplePattern->pImmediate != nullptr)
-        {
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-        }
-    }
-#endif
 
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
@@ -4786,6 +4767,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     const uint32 lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
     const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
@@ -4863,18 +4845,10 @@ void RsrcProcMgr::GenericColorBlit(
     const Image&         dstImage,
     const SubresRange&   range,
     const IMsaaState&    msaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    const SamplePattern* pSamplePattern,
-#else
     const MsaaQuadSamplePattern* pQuadSamplePattern,
-#endif
     RpmGfxPipeline       pipeline,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     const GpuMemory*     pGpuMemory,
     gpusize              metaDataOffset
-#else
-    gpusize              mipCondDwordsAddr
-#endif
     ) const
 {
     PAL_ASSERT(dstImage.IsRenderTarget());
@@ -4950,22 +4924,10 @@ void RsrcProcMgr::GenericColorBlit(
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(&msaaState);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 339
     if (pQuadSamplePattern != nullptr)
     {
         pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pQuadSamplePattern);
     }
-#else
-    if (pSamplePattern != nullptr)
-    {
-        // GenericColorBlit always needs to set the sample pattern in immediate mode. It does not need
-        // to know what the previous sample pattern was. That's only needed if we are decompressing depth.
-        if (pSamplePattern->pImmediate != nullptr)
-        {
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pSamplePattern->pImmediate);
-        }
-    }
-#endif
 
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
@@ -4974,11 +4936,10 @@ void RsrcProcMgr::GenericColorBlit(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
 
     const uint32 lastMip = (range.startSubres.mipLevel + range.numMips - 1);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
     gpusize mipCondDwordsOffset = metaDataOffset;
-#endif
     for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
     {
         // If this is a decompress operation of some sort, then don't bother continuing unless this
@@ -4989,7 +4950,6 @@ void RsrcProcMgr::GenericColorBlit(
             // Use predication to skip this operation based on the image's conditional dwords.
             // We can only perform this optimization if the client is not currently using predication.
             bool needDisablePredication = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
             if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (pGpuMemory != nullptr))
             {
                 // Set/Enable predication
@@ -5005,22 +4965,6 @@ void RsrcProcMgr::GenericColorBlit(
 
                 needDisablePredication = true;
             }
-#else
-            if ((pCmdBuffer->GetGfxCmdBufState().clientPredicate == 0) && (mipCondDwordsAddr != 0))
-            {
-                // Set/Enable predication
-                pCmdBuffer->CmdSetPredication(nullptr,
-                                              0,
-                                              mipCondDwordsAddr,
-                                              PredicateType::Boolean,
-                                              true,
-                                              false,
-                                              false);
-                mipCondDwordsAddr += PredicationAlign; // Advance to the next mip's conditional meta-data.
-
-                needDisablePredication = true;
-            }
-#endif
 
             const SubresId mipSubres  = { range.startSubres.aspect, mip, 0 };
             const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
@@ -5084,9 +5028,7 @@ void RsrcProcMgr::GenericColorBlit(
                 // Disable predication
                 pCmdBuffer->CmdSetPredication(nullptr,
                                               0,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 311
                                               nullptr,
-#endif
                                               0,
                                               static_cast<PredicateType>(0),
                                               false,

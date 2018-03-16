@@ -46,7 +46,7 @@ class ThreadTrace;
 struct BlockUsageKey
 {
     GpuBlock block;
-    uint32   instance;
+    uint32   instance; // Device wide instance number. (Eg.: Tahiti has 12 instances of TCC block).
     uint32   counter;
 };
 

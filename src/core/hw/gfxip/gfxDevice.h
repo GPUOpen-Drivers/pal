@@ -101,6 +101,7 @@ struct     ViewportStateCreateInfo;
 
 enum class PipelineBindPoint : uint32;
 enum class ShaderType : uint32;
+enum class DccFormatEncoding : uint32;
 
 // Additional information for creating PAL-internal color target views.
 struct ColorTargetViewInternalCreateInfo
@@ -251,14 +252,6 @@ public:
     virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) = 0;
     virtual const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const = 0;
     virtual const BoundGpuMemory& TrapBuffer(PipelineBindPoint pipelineType) const  = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    virtual Result InitMsaaQuadSamplePatternGpuMemory(
-        IGpuMemory*                  pGpuMemory,
-        gpusize                      memOffset,
-        uint32                       numSamplesPerPixel,
-        const MsaaQuadSamplePattern& quadSamplePattern) = 0;
-#endif
 
     virtual Result CreateEngine(
         EngineType engineType,
@@ -436,9 +429,9 @@ public:
     // Helper function that disables a specific CU mask within the UMD managed range.
     uint16 GetCuEnableMask(uint16 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
-    // Helper function telling whether an image created with the specified creation image has all of its
-    // potential view formats compatible with DCC.
-    virtual bool AreImageFormatsDccCompatible(const ImageCreateInfo& imageCreateInfo) const = 0;
+    // Helper function telling what kind of DCC format encoding an image created with
+    // the specified creation image and all of its potential view formats will end up with
+    virtual DccFormatEncoding ComputeDccFormatEncoding(const ImageCreateInfo& imageCreateInfo) const = 0;
 
     // Init and get the cmd buffer that increment memory of frame count and write to register.
     Result InitAndGetFrameCountCmdBuffer(QueueType queueType, EngineType engineType, GfxCmdBuffer** ppBuffer);

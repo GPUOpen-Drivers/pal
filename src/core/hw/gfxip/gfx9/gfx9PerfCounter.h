@@ -60,18 +60,6 @@ public:
     // Returns true if the GPU block this counter samples from is indexed for reads and writes
     bool IsIndexed() const { return (m_flags.isIndexed != 0); }
 
-    static uint32 GetSeIndex(
-    const Gfx9PerfCounterInfo& perfCounterInfo,
-    const GpuBlock&            block,
-    uint32                     instance)
-    {
-        return InstanceIdToSe(perfCounterInfo, block, instance);
-    }
-
-    static uint32 InstanceIdToSe(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
-    static uint32 InstanceIdToSh(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
-    static uint32 InstanceIdToInstance(const Gfx9PerfCounterInfo& perfCounterInfo, GpuBlock block, uint32 instance);
-
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -110,6 +98,7 @@ public:
 
     virtual Result AddEvent(const GpuBlock& block, uint32 eventId) override;
     uint32* WriteSetupCommands(Pal::CmdStream* pCmdStream, uint32* pCmdSpace) override;
+    uint16 GetMuxselEncoding(uint32 slot) const override;
 
 protected:
     bool IsSelect0RegisterValid() const;

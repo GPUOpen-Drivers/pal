@@ -27,7 +27,6 @@
 #include "core/presentScheduler.h"
 #include "core/swapChain.h"
 #include "palQueueSemaphore.h"
-
 using namespace Util;
 
 namespace Pal
@@ -190,7 +189,6 @@ Result SwapChain::AcquireNextImage(
         // means it must wait for the previous frame to be idle before building the next. Thus, while the use of
         // m_unusedImageQueue complicates the swap chain it is more application friendly.
         const uint32 imageIndex = m_unusedImageQueue[0];
-
         m_unusedImageCount--;
 
         for (uint32 dstIdx = 0; dstIdx < m_unusedImageCount; ++dstIdx)
@@ -201,6 +199,9 @@ Result SwapChain::AcquireNextImage(
         // We must release this lock before calling SignalOnAcquire to avoid deadlocking with the queue unbatching code
         // which will call ReuseImage as it unbatches Present calls.
         m_unusedImageMutex.Unlock();
+
+        // wait for image to be idle
+        WaitForImageIdle(imageIndex);
 
         // Signal the caller's queue semaphore and/or fence when the selected image is done being presented. Note that
         // no wait will be queued in mailbox mode because the present complete semaphore must be null.

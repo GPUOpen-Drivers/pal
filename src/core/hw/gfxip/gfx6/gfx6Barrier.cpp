@@ -280,19 +280,11 @@ void Device::DepthStencilExpand(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                     *gfx6Image.Parent(),
-                                     pMsaaState,
-                                     &transition.imageInfo.samplePattern,
-                                     subresRange);
-#else
     RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                      *gfx6Image.Parent(),
                                      pMsaaState,
                                      transition.imageInfo.pQuadSamplePattern,
                                      subresRange);
-#endif
 
     pMsaaState->Destroy();
     PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -345,11 +337,7 @@ void Device::DepthStencilResummarize(
                                           *gfx6Image.Parent(),
                                           transition.imageInfo.newLayout,
                                           pMsaaState,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-                                          &transition.imageInfo.samplePattern,
-#else
                                           transition.imageInfo.pQuadSamplePattern,
-#endif
                                           subresRange);
 
     pMsaaState->Destroy();
@@ -656,21 +644,12 @@ void Device::DccDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    RsrcProcMgr().DccDecompress(pCmdBuf,
-                                pCmdStream,
-                                gfx6Image,
-                                pMsaaState,
-                                &transition.imageInfo.samplePattern,
-                                subresRange);
-#else
     RsrcProcMgr().DccDecompress(pCmdBuf,
                                 pCmdStream,
                                 gfx6Image,
                                 pMsaaState,
                                 transition.imageInfo.pQuadSamplePattern,
                                 subresRange);
-#endif
     pMsaaState->Destroy();
     PAL_SAFE_FREE(pMsaaState, &allocator);
 }
@@ -696,21 +675,12 @@ void Device::FmaskDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                  pCmdStream,
-                                  gfx6Image,
-                                  pMsaaState,
-                                  &transition.imageInfo.samplePattern,
-                                  subresRange);
-#else
     RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                   pCmdStream,
                                   gfx6Image,
                                   pMsaaState,
                                   transition.imageInfo.pQuadSamplePattern,
                                   subresRange);
-#endif
 
     // On gfx6 hardware, the CB Fmask cache writes corrupted data if cache lines are flushed after their
     // context has been retired. To avoid this, we must flush the CB metadata caches after every Fmask
@@ -783,21 +753,12 @@ void Device::FastClearEliminate(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                     pCmdStream,
-                                     gfx6Image,
-                                     pMsaaState,
-                                     &transition.imageInfo.samplePattern,
-                                     subresRange);
-#else
     RsrcProcMgr().FastClearEliminate(pCmdBuf,
                                      pCmdStream,
                                      gfx6Image,
                                      pMsaaState,
                                      transition.imageInfo.pQuadSamplePattern,
                                      subresRange);
-#endif
     pMsaaState->Destroy();
     PAL_SAFE_FREE(pMsaaState, &allocator);
 }

@@ -1166,7 +1166,7 @@ bool Gfx6Dcc::UseDccForImage(
             // Don't use DCC if the caller asked that we allocate no metadata.
             useDcc = false;
         }
-        else if (pParent->AllViewFormatsDccCompatible() == false)
+        else if (pParent->GetDccFormatEncoding() == DccFormatEncoding::Incompatible)
         {
             // Don't use DCC if the caller can switch between color target formats.
             // Or if caller can switch between shader formats
@@ -1178,9 +1178,10 @@ bool Gfx6Dcc::UseDccForImage(
             // not shader writable
             useDcc = false;
         }
-        // Msaa image with resolveSrc usage flag will be more likely going through shader based resolve, the image will
-        // be readable by a shader.
-        else if ((pParent->IsShaderReadable() || pParent->IsResolveSrc()) &&
+        // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
+        // preferred, the image will be readable by a shader.
+        else if ((pParent->IsShaderReadable() ||
+                  (pParent->IsResolveSrc() && (pParent->PreferCbResolve() == false))) &&
                  (metaDataTexFetchSupported == false) &&
                  (TestAnyFlagSet(settings.gfx8UseDcc, Gfx8UseDccNonTcCompatShaderRead) == false))
         {
@@ -1603,17 +1604,28 @@ uint32 Gfx6Dcc::GetFastClearCode(
             {
                 clearCode = Gfx8DccClearColor::ClearColor0000;
             }
-            else if ((alphaIsZero == false) && (rgbIsZero == true))
-            {
-                clearCode = Gfx8DccClearColor::ClearColor0001;
-            }
-            else if ((alphaIsZero == true) && (rgbIsZero == false))
-            {
-                clearCode = Gfx8DccClearColor::ClearColor1110;
-            }
             else
             {
-                clearCode = Gfx8DccClearColor::ClearColor1111;
+                if (image.Parent()->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent)
+                {
+                    // cant allow special clear color code because the formats do not support DCC Constant
+                    // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+                    // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+                    clearCode = Gfx8DccClearColor::ClearColorReg;
+                    fastClearElimRequired = true;
+                }
+                else if ((alphaIsZero == false) && (rgbIsZero == true))
+                {
+                    clearCode = Gfx8DccClearColor::ClearColor0001;
+                }
+                else if ((alphaIsZero == true) && (rgbIsZero == false))
+                {
+                    clearCode = Gfx8DccClearColor::ClearColor1110;
+                }
+                else
+                {
+                    clearCode = Gfx8DccClearColor::ClearColor1111;
+                }
             }
         }
 

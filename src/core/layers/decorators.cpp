@@ -292,23 +292,6 @@ Result DeviceDecorator::Finalize(
 }
 
 // =====================================================================================================================
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-Result DeviceDecorator::TurboSyncControl(
-    const TurboSyncControlInput* pTurboSyncControlInput
-) const
-{
-    TurboSyncControlInput nextTurboSyncControlInput = *pTurboSyncControlInput;
-    for (uint32 i = 0; i < Pal::TurboSyncMaxSurfaces; i++)
-    {
-        nextTurboSyncControlInput.pPrimaryMemoryArray[i] =
-            NextGpuMemory(pTurboSyncControlInput->pPrimaryMemoryArray[i]);
-    }
-
-    return m_pNextLayer->TurboSyncControl(&nextTurboSyncControlInput);
-}
-#endif
-
-// =====================================================================================================================
 Result DeviceDecorator::AddGpuMemoryReferences(
     uint32              gpuMemRefCount,
     const GpuMemoryRef* pGpuMemoryRefs,
@@ -2157,7 +2140,6 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
 }
 
 // =====================================================================================================================
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
 Result PlatformDecorator::TurboSyncControl(
     const TurboSyncControlInput& turboSyncControlInput)
 {
@@ -2186,7 +2168,6 @@ Result PlatformDecorator::TurboSyncControl(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 Result QueueDecorator::Submit(

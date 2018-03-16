@@ -835,7 +835,7 @@ void GraphicsPipeline::InitCommonStateRegisters(
         SetupLateAllocVs(abiProcessor);
     }
 
-    SetupNonShaderRegisters(createInfo);
+    SetupNonShaderRegisters(createInfo, abiProcessor);
     SetupIaMultiVgtParam(abiProcessor);
 }
 
@@ -1070,12 +1070,14 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
             pIaMultiVgtParam->bits.EN_INST_OPT_ADV = 1;
         }
     }
+
 }
 
 // =====================================================================================================================
 // Sets-up some render-state register values which don't depend on the shader portions of the graphics pipeline.
 void GraphicsPipeline::SetupNonShaderRegisters(
-    const GraphicsPipelineCreateInfo& createInfo)
+    const GraphicsPipelineCreateInfo& createInfo,
+    const AbiProcessor&               abiProcessor)
 {
     const Gfx9PalSettings& settings = m_pDevice->Settings();
 
@@ -1195,11 +1197,15 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
-    dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkPs.DbShaderControl().bits.Z_ORDER == RE_Z);
+    regDB_SHADER_CONTROL dbShaderControl;
+    dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (dbShaderControl.bits.Z_ORDER == RE_Z);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     // Configure depth clamping
-    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable == true);
+    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+                                                    (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
 
     // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or
     // FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update these three bitfields.
@@ -1219,7 +1225,8 @@ void GraphicsPipeline::SetupNonShaderRegisters(
                                &m_statePm4CmdsContext.dbRenderOverrideRmw);
 
     // Handling Rb+ registers as long as Rb+ function is supported regardless of enabled/disabled.
-    if (m_pDevice->Parent()->ChipProperties().gfx9.rbPlus)
+    if (m_pDevice->Parent()->ChipProperties().gfx9.rbPlus
+        )
     {
         uint8          writeMask[MaxColorTargets]       = {};
         SwizzledFormat swizzledFormats[MaxColorTargets] = {};

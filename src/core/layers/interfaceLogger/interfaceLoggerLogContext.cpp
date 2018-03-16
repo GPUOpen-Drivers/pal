@@ -123,10 +123,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                            InterfaceObject::CmdBuffer,            "CmdSetStencilRefMasks"                   },
     { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                             InterfaceObject::CmdBuffer,            "CmdSetUserClipPlanes"                    },
     { InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern,                      InterfaceObject::CmdBuffer,            "CmdSetMsaaQuadSamplePattern"             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    { InterfaceFunc::CmdBufferCmdStoreMsaaQuadSamplePattern,                    InterfaceObject::CmdBuffer,            "CmdStoreMsaaQuadSamplePattern"           },
-    { InterfaceFunc::CmdBufferCmdLoadMsaaQuadSamplePattern,                     InterfaceObject::CmdBuffer,            "CmdLoadMsaaQuadSamplePattern"            },
-#endif
     { InterfaceFunc::CmdBufferCmdSetViewports,                                  InterfaceObject::CmdBuffer,            "CmdSetViewports"                         },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
@@ -206,6 +202,8 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferDestroy,                                          InterfaceObject::CmdBuffer,            "Destroy"                                 },
     { InterfaceFunc::CmdBufferCopyImageToPackedPixelImage,                      InterfaceObject::CmdBuffer,            "CmdBufferCopyImageToPackedPixelImage"    },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,                           InterfaceObject::CmdBuffer,            "CmdSetViewInstanceMask"                  },
+    { InterfaceFunc::CmdSetHiSCompareState0,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState0"                  },
+    { InterfaceFunc::CmdSetHiSCompareState1,                                    InterfaceObject::CmdBuffer,            "CmdSetHiSCompareState1"                  },
     { InterfaceFunc::ColorBlendStateDestroy,                                    InterfaceObject::ColorBlendState,      "Destroy"                                 },
     { InterfaceFunc::DepthStencilStateDestroy,                                  InterfaceObject::DepthStencilState,    "Destroy"                                 },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                               InterfaceObject::Device,               "CommitSettingsAndInit"                   },
@@ -217,18 +215,12 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::DeviceRemoveGpuMemoryReferences,                           InterfaceObject::Device,               "RemoveGpuMemoryReferences"               },
     { InterfaceFunc::DeviceSetClockMode,                                        InterfaceObject::Device,               "SetClockMode"                            },
     { InterfaceFunc::DeviceSetMgpuMode,                                         InterfaceObject::Device,               "SetMgpuMode"                             },
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 337)
-    { InterfaceFunc::DeviceTurboSyncControl,                                    InterfaceObject::Device,               "TurboSyncControl"                        },
-#endif
     { InterfaceFunc::DeviceOfferAllocations,                                    InterfaceObject::Device,               "OfferAllocations"                        },
     { InterfaceFunc::DeviceReclaimAllocations,                                  InterfaceObject::Device,               "ReclaimAllocations"                      },
     { InterfaceFunc::DeviceResetFences,                                         InterfaceObject::Device,               "ResetFences"                             },
     { InterfaceFunc::DeviceWaitForFences,                                       InterfaceObject::Device,               "WaitForFences"                           },
     { InterfaceFunc::DeviceBindTrapHandler,                                     InterfaceObject::Device,               "BindTrapHandler"                         },
     { InterfaceFunc::DeviceBindTrapBuffer,                                      InterfaceObject::Device,               "BindTrapBuffer"                          },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-    { InterfaceFunc::DeviceInitMsaaQuadSamplePatternGpuMemory,                  InterfaceObject::Device,               "InitMsaaQuadSamplePatternGpuMemory"      },
-#endif
     { InterfaceFunc::DeviceCreateQueue,                                         InterfaceObject::Device,               "CreateQueue"                             },
     { InterfaceFunc::DeviceCreateGpuMemory,                                     InterfaceObject::Device,               "CreateGpuMemory"                         },
     { InterfaceFunc::DeviceCreatePinnedGpuMemory,                               InterfaceObject::Device,               "CreatePinnedGpuMemory"                   },
@@ -296,9 +288,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::PipelineDestroy,                                           InterfaceObject::Pipeline,             "Destroy"                                 },
     { InterfaceFunc::PlatformEnumerateDevices,                                  InterfaceObject::Platform,             "EnumerateDevices"                        },
     { InterfaceFunc::PlatformGetScreens,                                        InterfaceObject::Platform,             "GetScreens"                              },
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     { InterfaceFunc::PlatformTurboSyncControl,                                  InterfaceObject::Platform,             "TurboSyncControl"                        },
-#endif
     { InterfaceFunc::PlatformDestroy,                                           InterfaceObject::Platform,             "Destroy"                                 },
     { InterfaceFunc::PrivateScreenEnable,                                       InterfaceObject::PrivateScreen,        "Enable"                                  },
     { InterfaceFunc::PrivateScreenDisable,                                      InterfaceObject::PrivateScreen,        "Disable"                                 },
@@ -1158,10 +1148,8 @@ const char* LogContext::GetEngineName(
         "ExclusiveCompute", // EngineTypeExclusiveCompute
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
-    #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 315
             "HpUniversal",      // EngineTypeHighPriorityUniversal
             "HpGfxOnly",        // EngineTypeHighPriorityGraphics
-    #endif
     };
 
     static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == EngineTypeCount,

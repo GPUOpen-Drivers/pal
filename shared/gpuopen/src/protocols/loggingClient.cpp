@@ -87,6 +87,15 @@ namespace DevDriver
             }
         }
 
+        void LoggingClient::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
+        {
+            BaseProtocolClient::SessionTerminated(pSession, terminationReason);
+            // ResetState() dumps all pending log messages. If the server disconnects and the session dies, any
+            // unread log messages will be lost.
+            // @todo: Separate log messages from internal state and allow preservation past session termination.
+            ResetState();
+        }
+
         Result LoggingClient::EnableLogging(LogLevel priority, LoggingCategory categoryMask)
         {
             Result result = Result::Error;

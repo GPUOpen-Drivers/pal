@@ -76,7 +76,8 @@ protected:
         uint64*                 pPagingFence,
         VirtualGpuMemAccessMode virtualAccessMode,
         uint32                  multiDeviceGpuMemoryCount,
-        IDevice*const*          ppDevice) override;
+        IDevice*const*          ppDevice,
+        Pal::Image*const*       ppImage) override;
     virtual Result OpenSharedMemory() override;
     virtual Result OpenPeerMemory() override;
 

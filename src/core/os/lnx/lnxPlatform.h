@@ -60,10 +60,8 @@ public:
         uint32 vidPnSourceId,
         GetPrimaryLayoutOutput* pPrimaryLayoutOutput) override {return Result::ErrorUnavailable;}
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 337)
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) override {return Result::ErrorUnavailable;}
-#endif
 
     virtual bool      IsDtifEnabled() const override { return m_features.dtifEnabled == 1; }
     bool              CheckDtifStatus();
@@ -71,6 +69,8 @@ public:
     bool  IsQueuePrioritySupported() const { return m_features.supportQueuePriority == 1; }
     bool  IsProSemaphoreSupported()  const { return m_features.supportProSemaphore  == 1; }
     bool  IsSyncObjectSupported()    const { return m_features.supportSyncObj       == 1; }
+    bool  IsCreateSignaledSyncObjectSupported() const { return m_features.supportCreateSignaledSyncobj == 1; }
+    bool  IsSyncobjFenceSupported()  const { return m_features.supportSyncobjFence  == 1; }
 protected:
     virtual Result InitProperties() override;
     virtual Result ConnectToOsInterface() override;
@@ -92,12 +92,14 @@ protected:
     {
         struct
         {
-            uint32 dtifEnabled              :  1;    // Whether DTIF is enabled
-            uint32 supportProSemaphore      :  1;    // Support Pro stack Semaphore
-            uint32 supportSyncObj           :  1;    // Support Sync Object Interface
-            uint32 supportRawSubmitRoutine  :  1;    // Support raw submit routine
-            uint32 supportQueuePriority     :  1;    // Support creating queue with priority
-            uint32 reserved                 : 27;
+            uint32 dtifEnabled                  :  1;    // Whether DTIF is enabled
+            uint32 supportProSemaphore          :  1;    // Support Pro stack Semaphore
+            uint32 supportSyncObj               :  1;    // Support Sync Object Interface
+            uint32 supportRawSubmitRoutine      :  1;    // Support raw submit routine
+            uint32 supportQueuePriority         :  1;    // Support creating queue with priority
+            uint32 supportCreateSignaledSyncobj :  1;    // support creating initial signaled syncobj.
+            uint32 supportSyncobjFence          :  1;    // support fence based on sync object.
+            uint32 reserved                     : 25;
         };
         uint32 u32All;
     } m_features;
