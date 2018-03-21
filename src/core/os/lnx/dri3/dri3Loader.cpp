@@ -1204,6 +1204,7 @@ Dri3Loader::Dri3Loader()
     :
     m_pXcbDri3Id(nullptr),
     m_pXcbPresentId(nullptr),
+    m_pXcbDri2Id(nullptr),
     m_initialized(false)
 {
     memset(m_libraryHandles, 0, sizeof(m_libraryHandles));
@@ -1220,6 +1221,12 @@ xcb_extension_t* Dri3Loader::GetXcbDri3Id() const
 xcb_extension_t* Dri3Loader::GetXcbPresentId() const
 {
     return m_pXcbPresentId;
+}
+
+// =====================================================================================================================
+xcb_extension_t* Dri3Loader::GetXcbDri2Id() const
+{
+    return m_pXcbDri2Id;
 }
 
 // =====================================================================================================================
@@ -1516,6 +1523,14 @@ Result Dri3Loader::Init(
         {
             m_pXcbPresentId = reinterpret_cast<xcb_extension_t*>(dlsym(m_libraryHandles[LibXcbPresent], "xcb_present_id"));
         }
+        if (m_libraryHandles[LibXcbDri2] == nullptr)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_pXcbDri2Id = reinterpret_cast<xcb_extension_t*>(dlsym(m_libraryHandles[LibXcbDri2], "xcb_dri2_id"));
+        }
         if (result == Result::Success)
         {
             m_initialized = true;
@@ -1534,3 +1549,4 @@ Dri3Loader::SpecializedInit(Platform* pPlatform)
 
 } //namespace Linux
 } //namespace Pal
+

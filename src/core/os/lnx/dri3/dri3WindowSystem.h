@@ -159,6 +159,7 @@ private:
     const SwapChainMode    m_swapChainMode;       // swapchain mode
     const xcb_window_t     m_hWindow;             // xcb window created by App
     xcb_connection_t*      m_pConnection;         // xcb connection created by App
+    bool                   m_dri2Supported;
     int32                  m_dri3MajorVersion;
     int32                  m_dri3MinorVersion;
     int32                  m_presentMajorVersion;

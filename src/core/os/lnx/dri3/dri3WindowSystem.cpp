@@ -275,6 +275,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_swapChainMode(createInfo.swapChainMode),
     m_hWindow(static_cast<xcb_window_t>(createInfo.hWindow)),
     m_pConnection(nullptr),
+    m_dri2Supported(true),
     m_dri3MajorVersion(0),
     m_dri3MinorVersion(0),
     m_presentMajorVersion(0),
@@ -384,14 +385,21 @@ bool Dri3WindowSystem::IsFormatPresentable(
 }
 
 // =====================================================================================================================
-// Check if DRI3 and Presnet extension are supported by Xserver
+// Check if DRI2, DRI3 and Present extensions are supported by Xserver
 bool Dri3WindowSystem::IsExtensionSupported()
 {
     const xcb_query_extension_reply_t* pReply = nullptr;
     bool                               result = true;
 
+    m_dri3Procs.pfnXcbPrefetchExtensionData(m_pConnection, m_dri3Loader.GetXcbDri2Id());
     m_dri3Procs.pfnXcbPrefetchExtensionData(m_pConnection, m_dri3Loader.GetXcbDri3Id());
     m_dri3Procs.pfnXcbPrefetchExtensionData(m_pConnection, m_dri3Loader.GetXcbPresentId());
+
+    pReply = m_dri3Procs.pfnXcbGetExtensionData(m_pConnection, m_dri3Loader.GetXcbDri2Id());
+    if ((pReply == nullptr) || (pReply->present == 0))
+    {
+        m_dri2Supported = false;
+    }
 
     pReply = m_dri3Procs.pfnXcbGetExtensionData(m_pConnection, m_dri3Loader.GetXcbDri3Id());
     if ((pReply == nullptr) || (pReply->present == 0))
@@ -429,23 +437,26 @@ int32 Dri3WindowSystem::OpenDri3()
         free(pReply);
     }
 
-    constexpr char ProDdxVendorString[] = "amdgpu";
-
-    const xcb_dri2_connect_cookie_t dri2Cookie = m_dri3Procs.pfnXcbDri2Connect(m_pConnection, m_hWindow, DRI2DriverDRI);
-    xcb_dri2_connect_reply_t*const  pDri2Reply = m_dri3Procs.pfnXcbDri2ConnectReply(m_pConnection, dri2Cookie, NULL);
-
-    if ((pDri2Reply != nullptr) && (m_dri3Procs.pfnXcbDri2ConnectDriverNameLength(pDri2Reply) > 0))
+    if (m_dri2Supported)
     {
-        const char*const pName = m_dri3Procs.pfnXcbDri2ConnectDriverName(pDri2Reply);
-        if (strncmp(pName, ProDdxVendorString, strlen(ProDdxVendorString)) == 0)
+        constexpr char ProDdxVendorString[] = "amdgpu";
+
+        const xcb_dri2_connect_cookie_t dri2Cookie = m_dri3Procs.pfnXcbDri2Connect(m_pConnection, m_hWindow, DRI2DriverDRI);
+        xcb_dri2_connect_reply_t*const  pDri2Reply = m_dri3Procs.pfnXcbDri2ConnectReply(m_pConnection, dri2Cookie, NULL);
+
+        if ((pDri2Reply != nullptr) && (m_dri3Procs.pfnXcbDri2ConnectDriverNameLength(pDri2Reply) > 0))
         {
-            m_windowSystemProperties.supportFreeSyncExtension = 1;
+            const char*const pName = m_dri3Procs.pfnXcbDri2ConnectDriverName(pDri2Reply);
+            if (strncmp(pName, ProDdxVendorString, strlen(ProDdxVendorString)) == 0)
+            {
+                m_windowSystemProperties.supportFreeSyncExtension = 1;
+            }
         }
-    }
 
-    if (pDri2Reply != nullptr)
-    {
-        free(pDri2Reply);
+        if (pDri2Reply != nullptr)
+        {
+            free(pDri2Reply);
+        }
     }
 
     return fd;
