@@ -53,3 +53,4 @@ libxcb-dri2.so.0    @proc xcb_dri2_connect_cookie_t xcb_dri2_connect (xcb_connec
 libxcb-dri2.so.0    @proc int xcb_dri2_connect_driver_name_length (const xcb_dri2_connect_reply_t* pReplay)
 libxcb-dri2.so.0    @proc char* xcb_dri2_connect_driver_name (const xcb_dri2_connect_reply_t* pReplay)
 libxcb-dri2.so.0    @proc xcb_dri2_connect_reply_t* xcb_dri2_connect_reply (xcb_connection_t* pConnection, xcb_dri2_connect_cookie_t cookie, xcb_generic_error_t** ppError)
+libxcb-dri2.so.0    @var xcb_extension_t xcb_dri2_id
