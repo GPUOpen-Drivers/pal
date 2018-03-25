@@ -445,8 +445,12 @@ int32 Dri3WindowSystem::OpenDri3()
     {
         constexpr char ProDdxVendorString[] = "amdgpu";
 
-        const xcb_dri2_connect_cookie_t dri2Cookie = m_dri3Procs.pfnXcbDri2Connect(m_pConnection, m_hWindow, DRI2DriverDRI);
-        xcb_dri2_connect_reply_t*const  pDri2Reply = m_dri3Procs.pfnXcbDri2ConnectReply(m_pConnection, dri2Cookie, NULL);
+        const xcb_dri2_connect_cookie_t dri2Cookie = m_dri3Procs.pfnXcbDri2Connect(m_pConnection,
+                                                                                   m_hWindow,
+                                                                                   DRI2DriverDRI);
+        xcb_dri2_connect_reply_t*const  pDri2Reply = m_dri3Procs.pfnXcbDri2ConnectReply(m_pConnection,
+                                                                                        dri2Cookie,
+                                                                                        NULL);
 
         if ((pDri2Reply != nullptr) && (m_dri3Procs.pfnXcbDri2ConnectDriverNameLength(pDri2Reply) > 0))
         {
