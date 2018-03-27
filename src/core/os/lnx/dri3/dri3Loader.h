@@ -1062,18 +1062,18 @@ public:
 
     void   SpecializedInit(Platform* pPlatform);
 
-    xcb_extension_t* GetXcbDri2Id() const;
-
     xcb_extension_t* GetXcbDri3Id() const;
 
     xcb_extension_t* GetXcbPresentId() const;
 
-private:
-    xcb_extension_t* m_pXcbDri2Id;
+    xcb_extension_t* GetXcbDri2Id() const;
 
+private:
     xcb_extension_t* m_pXcbDri3Id;
 
     xcb_extension_t* m_pXcbPresentId;
+
+    xcb_extension_t* m_pXcbDri2Id;
 
     void* m_libraryHandles[Dri3LoaderLibrariesCount];
     bool  m_initialized;
