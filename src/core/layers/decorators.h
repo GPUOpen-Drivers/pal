@@ -137,7 +137,7 @@ extern IViewportState*        NextViewportState(const IViewportState* pViewportS
 // Templated function for getting the previous layer that wraps the one passed in.
 template<typename IObj>
 IObj* PreviousObject(
-    const IObj* pObj)
+    IObj* pObj)
 {
     IObj* pPreviousObj = nullptr;
 
@@ -154,7 +154,7 @@ IObj* PreviousObject(
 // Templated function for computing the placement address for the decorator's next object.
 template<typename IObj>
 void* NextObjectAddr(
-    const void* pObjectAddr)
+    void* pObjectAddr)
 {
     return Util::VoidPtrInc(pObjectAddr, sizeof(IObj));
 }
@@ -165,9 +165,9 @@ static bool TranslateBarrierEventData(
     void* pCbData)
 {
     Developer::BarrierData* pData       = static_cast<Developer::BarrierData*>(pCbData);
-    pData->transition.imageInfo.pImage  = PreviousObject<IImage>(pData->transition.imageInfo.pImage);
+    pData->transition.imageInfo.pImage  = PreviousObject(pData->transition.imageInfo.pImage);
 
-    ICmdBuffer* pPrevCmdBuffer          = PreviousObject<ICmdBuffer>(pData->pCmdBuffer);
+    ICmdBuffer* pPrevCmdBuffer          = PreviousObject(pData->pCmdBuffer);
     const bool  hasValidData            = (pPrevCmdBuffer != nullptr);
     pData->pCmdBuffer                   = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
 
@@ -181,7 +181,7 @@ static bool TranslateDrawDispatchData(
 {
     Developer::DrawDispatchData* pData = static_cast<Developer::DrawDispatchData*>(pCbData);
 
-    ICmdBuffer* pPrevCmdBuffer         = PreviousObject<ICmdBuffer>(pData->pCmdBuffer);
+    ICmdBuffer* pPrevCmdBuffer         = PreviousObject(pData->pCmdBuffer);
     const bool  hasValidData           = (pPrevCmdBuffer != nullptr);
     pData->pCmdBuffer                  = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
 

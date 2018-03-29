@@ -43,128 +43,155 @@ namespace Pal
 namespace Gfx6
 {
 
+// Value for CB_COLOR_DCC_CONTROL when compressed rendering is disabled.
+constexpr uint32 CbColorDccControlDecompressed = 0;
+
+// Value for CB_COLOR_CMASK_SLICE when compressed rendering is disabled.
+constexpr uint32 CbColorCmaskSliceDecompressed = 0;
+
+// Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
+constexpr uint32 CbColorInfoDecompressedMask = (CB_COLOR0_INFO__DCC_ENABLE_MASK__VI                    |
+                                                CB_COLOR0_INFO__COMPRESSION_MASK                       |
+                                                CB_COLOR0_INFO__FAST_CLEAR_MASK                        |
+                                                CB_COLOR0_INFO__CMASK_IS_LINEAR_MASK                   |
+                                                CB_COLOR0_INFO__CMASK_ADDR_TYPE_MASK__VI               |
+                                                CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK__CI__VI |
+                                                CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK__VI);
+
 // =====================================================================================================================
-ColorTargetView::ColorTargetView()
+ColorTargetView::ColorTargetView(
+    const Device&                            device,
+    const ColorTargetViewCreateInfo&         createInfo,
+    const ColorTargetViewInternalCreateInfo& internalInfo)
     :
     m_pImage(nullptr)
 {
     m_flags.u32All = 0;
 
-    memset(&m_subresource, 0, sizeof(m_subresource));
-    memset(&m_pm4CmdsCompressed, 0, sizeof(m_pm4CmdsCompressed));
-    memset(&m_pm4CmdsDecompressed, 0, sizeof(m_pm4CmdsDecompressed));
+    // Note that buffew views have their VA ranges locked because they cannot have their memory rebound.
+    m_flags.isBufferView = createInfo.flags.isBufferView;
+    m_flags.viewVaLocked = createInfo.flags.imageVaLocked | createInfo.flags.isBufferView;
+
+    m_flags.usesLoadRegIndexPkt = device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt;
+
+    if (m_flags.isBufferView == 0)
+    {
+        PAL_ASSERT(createInfo.imageInfo.pImage != nullptr);
+
+        // Retain a pointer to the attached image.
+        m_pImage = GetGfx6Image(createInfo.imageInfo.pImage);
+
+        // Sets the base subresource for this mip.
+        m_subresource.aspect     = createInfo.imageInfo.baseSubRes.aspect;
+        m_subresource.mipLevel   = createInfo.imageInfo.baseSubRes.mipLevel;
+        m_subresource.arraySlice = 0;
+
+        // Set all of the metadata flags.
+        m_flags.hasCmask              = m_pImage->HasCmaskData();
+        m_flags.hasFmask              = m_pImage->HasFmaskData();
+        m_flags.hasDcc                = m_pImage->HasDccData();
+        m_flags.hasDccStateMetaData   = m_pImage->HasDccStateMetaData();
+        m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData() && !internalInfo.flags.depthStencilCopy);
+        m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
+
+        m_layoutToState = m_pImage->LayoutToColorCompressionState(m_subresource);
+    }
+    else
+    {
+        memset(&m_subresource, 0, sizeof(m_subresource));
+    }
+
+    m_cbColorAttribDecompressed.u32All = 0;
+    memset(&m_pm4Cmds, 0, sizeof(m_pm4Cmds));
+    BuildPm4Headers(device);
+    InitRegisters(device, createInfo, internalInfo);
+
+    if (m_flags.viewVaLocked && (m_flags.isBufferView == 0))
+    {
+        UpdateImageVa(&m_pm4Cmds);
+    }
 }
 
 // =====================================================================================================================
 // Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
 void ColorTargetView::BuildPm4Headers(
-    const Device&          device,         // Gfx6 device
-    bool                   useCompression, // If true, enables color compression if available
-    ColorTargetViewPm4Img* pPm4Img         // Output PM4 image to initialize packet headers for
-    ) const
+    const Device& device)
 {
-    PAL_ASSERT(pPm4Img != nullptr);
-
     const CmdUtil& cmdUtil = device.CmdUtil();
 
-    // 1st PM4 set data packet: sets the context registers CB_COLOR*_BASE through
-    // CB_COLOR*_VIEW.
-    //
-    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this
-    // View is being bound to.
-    pPm4Img->spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_BASE,
-                                                          mmCB_COLOR0_VIEW,
-                                                          &pPm4Img->hdrCbColorBaseToView);
+    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this View is being bound to.
+    size_t spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_BASE,
+                                                        mmCB_COLOR0_VIEW,
+                                                        &m_pm4Cmds.hdrCbColorBaseToView);
 
-    // 2nd PM4 packet, a register read/modify/write of CB_COLOR*_INFO.
-    // The real packet will be created later, we just need to get the size here.
-    //
-    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this
-    // View is being bound to.
-    pPm4Img->spaceNeeded += CmdUtil::GetContextRegRmwSize();
+    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this View is being bound to.
+    spaceNeeded += CmdUtil::GetContextRegRmwSize();
 
-    // 3rd PM4 set data packet: sets the context registers CB_COLOR*_ATTRIB through
-    // CB_COLOR*_FMASK_SLICE.
-    //
-    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this
-    // view is being bound to.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_ATTRIB,
-                                                           mmCB_COLOR0_FMASK_SLICE,
-                                                           &pPm4Img->hdrCbColorAttribToFmaskSlice);
+    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this view is being bound to.
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_ATTRIB,
+                                                  mmCB_COLOR0_FMASK_SLICE,
+                                                  &m_pm4Cmds.hdrCbColorAttribToFmaskSlice);
 
-    // 4th PM4 set data packet: sets the context registers PA_SC_GENERIC_SCISSOR_TL and
-    // PA_SC_GENERIC_SCISSOR_BR.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
-                                                           mmPA_SC_GENERIC_SCISSOR_BR,
-                                                           &pPm4Img->hdrPaScGenericScissorTlBr);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_GENERIC_SCISSOR_TL,
+                                                  mmPA_SC_GENERIC_SCISSOR_BR,
+                                                  &m_pm4Cmds.hdrPaScGenericScissorTlBr);
 
-    // 5th PM4 set data packet:  sets the DCC base register
-    //
-    // NOTE: The register offset will be updated at bind-time to reflect the actual slot
-    //       this view is being bound to.
-    //
-    // NOTE: This register is an unused location on pre-VI ASICs; writing to it doesn't
-    //       do anything.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCB_COLOR0_DCC_BASE__VI,
-                                                          &pPm4Img->hdrCbColorDccBase);
+    // NOTE: The register offset will be updated at bind-time to reflect the actual slot this view is being bound to.
+    // NOTE: This register is an unused location on pre-VI ASICs; writing to it doesn't do anything.
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCB_COLOR0_DCC_BASE__VI, &m_pm4Cmds.hdrCbColorDccBase);
 
-    if (useCompression)
+    m_pm4Cmds.spaceNeeded             = spaceNeeded;
+    m_pm4Cmds.spaceNeededDecompressed = spaceNeeded;
+
+    if (m_flags.fastClearSupported)
     {
-        if (m_flags.fastClearSupported)
+        // If the parent Image supports fast clears, then we need to add a LOAD_CONTEXT_REG packet to load the
+        // image's fast-clear metadata.
+        //
+        // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
+        constexpr uint32 RegCount = (mmCB_COLOR0_CLEAR_WORD1 - mmCB_COLOR0_CLEAR_WORD0 + 1);
+
+        if (m_flags.usesLoadRegIndexPkt != 0)
         {
-            // If the parent Image supports fast clears, then we need to add a LOAD_CONTEXT_REG packet to load the
-            // image's fast-clear metadata.
-            //
-            // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
-            constexpr uint32 RegCount = (mmCB_COLOR0_CLEAR_WORD1 - mmCB_COLOR0_CLEAR_WORD0 + 1);
-
-            if (m_flags.usesLoadRegIndexPkt != 0)
-            {
-                pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
-                                                                                mmCB_COLOR0_CLEAR_WORD0,
-                                                                                RegCount,
-                                                                                &pPm4Img->loadMetaDataIndex);
-            }
-            else
-            {
-                pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegs(0,
-                                                                     mmCB_COLOR0_CLEAR_WORD0,
-                                                                     RegCount,
-                                                                     &pPm4Img->loadMetaData);
-            }
+            m_pm4Cmds.spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
+                                                                             mmCB_COLOR0_CLEAR_WORD0,
+                                                                             RegCount,
+                                                                             &m_pm4Cmds.loadMetaDataIndex);
         }
-
-        if (m_flags.dccCompressionEnabled && m_flags.hasDccStateMetaData)
+        else
         {
-            // Our PM4 image layout assumes that the loadMetaData packet is always used in this case.
-            PAL_ASSERT(m_flags.fastClearSupported);
-
-            // We also need to update the DCC state metadata when compression is enabled.
-            //
-            // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
-            constexpr gpusize NumDwords = sizeof(pPm4Img->mipMetaData) / sizeof(uint32);
-
-            pPm4Img->spaceNeeded += cmdUtil.BuildWriteData(0,
-                                                           NumDwords,
-                                                           WRITE_DATA_ENGINE_PFP,
-                                                           WRITE_DATA_DST_SEL_MEMORY_ASYNC,
-                                                           true,
-                                                           nullptr,
-                                                           PredDisable,
-                                                           &pPm4Img->hdrMipMetaData);
+            m_pm4Cmds.spaceNeeded +=
+                cmdUtil.BuildLoadContextRegs(0, mmCB_COLOR0_CLEAR_WORD0, RegCount, &m_pm4Cmds.loadMetaData);
         }
+    }
+
+    if (m_flags.dccCompressionEnabled && m_flags.hasDccStateMetaData)
+    {
+        // Our PM4 image layout assumes that the loadMetaData packet is always used in this case.
+        PAL_ASSERT(m_flags.fastClearSupported);
+
+        // We also need to update the DCC state metadata when compression is enabled.
+        //
+        // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
+        constexpr gpusize NumDwords = sizeof(m_pm4Cmds.mipMetaData) / sizeof(uint32);
+
+        m_pm4Cmds.spaceNeeded += cmdUtil.BuildWriteData(0,
+                                                       NumDwords,
+                                                       WRITE_DATA_ENGINE_PFP,
+                                                       WRITE_DATA_DST_SEL_MEMORY_ASYNC,
+                                                       true,
+                                                       nullptr,
+                                                       PredDisable,
+                                                       &m_pm4Cmds.hdrMipMetaData);
     }
 }
 
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void ColorTargetView::InitRegisters(
-    const Device&                            device,         // Gfx6 device
-    const ColorTargetViewCreateInfo&         createInfo,     // Creation parameters
-    const ColorTargetViewInternalCreateInfo& internalInfo,   // Internal view creation parameters
-    bool                                     useCompression, // If true, enables color compression if available
-    ColorTargetViewPm4Img*                   pPm4Img         // Output PM4 image to initialize packet headers for
-    ) const
+    const Device&                            device,
+    const ColorTargetViewCreateInfo&         createInfo,
+    const ColorTargetViewInternalCreateInfo& internalInfo)
 {
     const auto& settings = device.Settings();
 
@@ -189,28 +216,28 @@ void ColorTargetView::InitRegisters(
         const gpusize baseOffset = bufferAddr & 0xFF;
         const gpusize baseAddr   = bufferAddr & (~0xFF);
 
-        pPm4Img->cbColorBase.bits.BASE_256B = Get256BAddrLo(baseAddr);
+        m_pm4Cmds.cbColorBase.bits.BASE_256B = Get256BAddrLo(baseAddr);
 
         // The CI addressing doc states that the CB requires linear general surfaces pitches to be 8-element aligned.
         const uint32 alignedExtent = Pow2Align(createInfo.bufferInfo.extent, 8);
 
-        pPm4Img->cbColorPitch.bits.TILE_MAX = (alignedExtent / TileWidth)  - 1;
-        pPm4Img->cbColorSlice.bits.TILE_MAX = (alignedExtent / TilePixels) - 1;
+        m_pm4Cmds.cbColorPitch.bits.TILE_MAX = (alignedExtent / TileWidth)  - 1;
+        m_pm4Cmds.cbColorSlice.bits.TILE_MAX = (alignedExtent / TilePixels) - 1;
 
         // The view slice_start is overloaded to specify the base offset.
-        pPm4Img->cbColorView.bits.SLICE_START = baseOffset;
-        pPm4Img->cbColorView.bits.SLICE_MAX   = 0;
+        m_pm4Cmds.cbColorView.bits.SLICE_START = baseOffset;
+        m_pm4Cmds.cbColorView.bits.SLICE_MAX   = 0;
 
-        pPm4Img->cbColorAttrib.bits.TILE_MODE_INDEX   = baseTileIndex;
-        pPm4Img->cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
-        pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = 0;
-        pPm4Img->cbColorAttrib.bits.NUM_FRAGMENTS     = 0;
+        m_pm4Cmds.cbColorAttrib.bits.TILE_MODE_INDEX   = baseTileIndex;
+        m_pm4Cmds.cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
+        m_pm4Cmds.cbColorAttrib.bits.NUM_SAMPLES       = 0;
+        m_pm4Cmds.cbColorAttrib.bits.NUM_FRAGMENTS     = 0;
 
-        pPm4Img->paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = true;
-        pPm4Img->paScGenericScissorTl.bits.TL_X = 0;
-        pPm4Img->paScGenericScissorTl.bits.TL_Y = 0;
-        pPm4Img->paScGenericScissorBr.bits.BR_X = createInfo.bufferInfo.extent;
-        pPm4Img->paScGenericScissorBr.bits.BR_Y = 1;
+        m_pm4Cmds.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = true;
+        m_pm4Cmds.paScGenericScissorTl.bits.TL_X = 0;
+        m_pm4Cmds.paScGenericScissorTl.bits.TL_Y = 0;
+        m_pm4Cmds.paScGenericScissorBr.bits.BR_X = createInfo.bufferInfo.extent;
+        m_pm4Cmds.paScGenericScissorBr.bits.BR_Y = 1;
     }
     else
     {
@@ -268,36 +295,37 @@ void ColorTargetView::InitRegisters(
             m_pImage->PadYuvPlanarViewActualExtent(m_subresource, &actualExtent);
         }
 
-        pPm4Img->cbColorPitch.bits.TILE_MAX = (actualExtent.width / TileWidth) - 1;
-        pPm4Img->cbColorSlice.bits.TILE_MAX = (actualExtent.width * actualExtent.height / TilePixels) - 1;
+        m_pm4Cmds.cbColorPitch.bits.TILE_MAX = (actualExtent.width / TileWidth) - 1;
+        m_pm4Cmds.cbColorSlice.bits.TILE_MAX = (actualExtent.width * actualExtent.height / TilePixels) - 1;
 
         if ((createInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
         {
-            pPm4Img->cbColorView.bits.SLICE_START = createInfo.zRange.offset;
-            pPm4Img->cbColorView.bits.SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
+            m_pm4Cmds.cbColorView.bits.SLICE_START = createInfo.zRange.offset;
+            m_pm4Cmds.cbColorView.bits.SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
         }
         else
         {
             const uint32 baseArraySlice = createInfo.imageInfo.baseSubRes.arraySlice;
-            pPm4Img->cbColorView.bits.SLICE_START = baseArraySlice;
-            pPm4Img->cbColorView.bits.SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
+            m_pm4Cmds.cbColorView.bits.SLICE_START = baseArraySlice;
+            m_pm4Cmds.cbColorView.bits.SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
         }
-        pPm4Img->cbColorAttrib.bits.TILE_MODE_INDEX   = baseTileIndex;
-        pPm4Img->cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
-        pPm4Img->cbColorAttrib.bits.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-        pPm4Img->cbColorAttrib.bits.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_pm4Cmds.cbColorAttrib.bits.TILE_MODE_INDEX   = baseTileIndex;
+        m_pm4Cmds.cbColorAttrib.bits.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(createInfo.swizzledFormat) ? 1 : 0;
+        m_pm4Cmds.cbColorAttrib.bits.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+        m_pm4Cmds.cbColorAttrib.bits.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
 
-        pPm4Img->paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = true;
-        pPm4Img->paScGenericScissorTl.bits.TL_X = 0;
-        pPm4Img->paScGenericScissorTl.bits.TL_Y = 0;
-        pPm4Img->paScGenericScissorBr.bits.BR_X = extent.width;
-        pPm4Img->paScGenericScissorBr.bits.BR_Y = extent.height;
+        m_pm4Cmds.paScGenericScissorTl.bits.WINDOW_OFFSET_DISABLE = 1;
+        m_pm4Cmds.paScGenericScissorTl.bits.TL_X = 0;
+        m_pm4Cmds.paScGenericScissorTl.bits.TL_Y = 0;
+        m_pm4Cmds.paScGenericScissorBr.bits.BR_X = extent.width;
+        m_pm4Cmds.paScGenericScissorBr.bits.BR_Y = extent.height;
     }
 
-    const auto&       parent      = *device.Parent();
-    const auto        gfxLevel    = parent.ChipProperties().gfxLevel;
-    regCB_COLOR0_INFO cbColorInfo = {};
+    const auto& parent     = *device.Parent();
+    const auto  gfxLevel   = parent.ChipProperties().gfxLevel;
+    m_flags.isGfx7OrHigher = (gfxLevel >= GfxIpLevel::GfxIp7);
 
+    regCB_COLOR0_INFO cbColorInfo = { };
     cbColorInfo.bits.ENDIAN       = ENDIAN_NONE;
     cbColorInfo.bits.FORMAT       = Formats::Gfx6::HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel),
                                                               createInfo.swizzledFormat.format);
@@ -323,11 +351,11 @@ void ColorTargetView::InitRegisters(
     cbColorInfo.bits.ROUND_MODE     = roundMode;
     cbColorInfo.bits.LINEAR_GENERAL = (baseTileIndex == TileIndexLinearGeneral);
 
-    if (useCompression && m_flags.hasDcc)
+    if (m_flags.hasDcc != 0)
     {
-        const Gfx6Dcc* const pDcc = m_pImage->GetDcc(m_subresource);
+        const Gfx6Dcc*const pDcc = m_pImage->GetDcc(m_subresource);
 
-        pPm4Img->cbColorDccControl = pDcc->GetControlReg();
+        m_pm4Cmds.cbColorDccControl = pDcc->GetControlReg();
 
         // We have DCC memory for this surface, but if it's not available for use by the HW, then
         // we can't actually use it.
@@ -338,13 +366,13 @@ void ColorTargetView::InitRegisters(
         // "isCompressed" to one as we expect the CB to write to DCC.
         if (pDcc->IsCompressionEnabled())
         {
-            pPm4Img->mipMetaData.isCompressed = (internalInfo.flags.dccDecompress == 0);
+            m_pm4Cmds.mipMetaData.isCompressed = (internalInfo.flags.dccDecompress == 0);
         }
     }
 
-    if (useCompression && m_flags.hasCmask)
+    if (m_flags.hasCmask != 0)
     {
-        const Gfx6Cmask* const pCmask = m_pImage->GetCmask(m_subresource);
+        const Gfx6Cmask*const pCmask = m_pImage->GetCmask(m_subresource);
 
         // Setup CB_COLOR*_INFO register fields which depend on CMask state:
         cbColorInfo.bits.COMPRESSION = 1;
@@ -363,7 +391,7 @@ void ColorTargetView::InitRegisters(
             cbColorInfo.bits.FAST_CLEAR = 1;
         }
 
-        if (gfxLevel == GfxIpLevel::GfxIp6 || gfxLevel == GfxIpLevel::GfxIp7)
+        if ((gfxLevel == GfxIpLevel::GfxIp6) || (gfxLevel == GfxIpLevel::GfxIp7))
         {
             // This bit is obsolete on gfxip 8 (VI), although it still exists in the reg spec (therefore,
             // there's no __SI__CI extension on its name).
@@ -386,21 +414,21 @@ void ColorTargetView::InitRegisters(
             }
         }
 
-        pPm4Img->cbColorCmaskSlice.u32All = pCmask->CbColorCmaskSlice().u32All;
+        m_pm4Cmds.cbColorCmaskSlice.u32All = pCmask->CbColorCmaskSlice().u32All;
     }
 
-    if (useCompression && m_flags.hasFmask)
+    if (m_flags.hasFmask != 0)
     {
         const Gfx6Fmask* const pFmask = m_pImage->GetFmask(m_subresource);
 
         // Setup CB_COLOR*_INFO, CB_COLOR*_ATTRIB and CB_COLOR*_PITCH register fields which
         // depend on FMask state:
-        pPm4Img->cbColorAttrib.bits.FMASK_TILE_MODE_INDEX = pFmask->TileIndex();
-        pPm4Img->cbColorAttrib.bits.FMASK_BANK_HEIGHT     = pFmask->BankHeight();
+        m_pm4Cmds.cbColorAttrib.bits.FMASK_TILE_MODE_INDEX = pFmask->TileIndex();
+        m_pm4Cmds.cbColorAttrib.bits.FMASK_BANK_HEIGHT     = pFmask->BankHeight();
 
         if (gfxLevel != GfxIpLevel::GfxIp6)
         {
-            pPm4Img->cbColorPitch.bits.FMASK_TILE_MAX__CI__VI  = (pFmask->Pitch() / TileWidth) - 1;
+            m_pm4Cmds.cbColorPitch.bits.FMASK_TILE_MAX__CI__VI  = (pFmask->Pitch() / TileWidth) - 1;
 
             cbColorInfo.bits.FMASK_COMPRESSION_DISABLE__CI__VI = !pFmask->UseCompression();
 
@@ -416,22 +444,28 @@ void ColorTargetView::InitRegisters(
             }
         }
 
-        pPm4Img->cbColorFmaskSlice.u32All = pFmask->CbColorFmaskSlice().u32All;
+        m_pm4Cmds.cbColorFmaskSlice.u32All = pFmask->CbColorFmaskSlice().u32All;
     }
     else
     {
         // NOTE: Due to a quirk in the hardware when FMask is not in-use, we need to set some
         // FMask-specific register fields to match the attributes of the base subResource.
-        pPm4Img->cbColorAttrib.bits.FMASK_TILE_MODE_INDEX = baseTileIndex;
-        pPm4Img->cbColorAttrib.bits.FMASK_BANK_HEIGHT     = baseBankHeight;
+        m_pm4Cmds.cbColorAttrib.bits.FMASK_TILE_MODE_INDEX = baseTileIndex;
+        m_pm4Cmds.cbColorAttrib.bits.FMASK_BANK_HEIGHT     = baseBankHeight;
 
         if (gfxLevel != GfxIpLevel::GfxIp6)
         {
-            pPm4Img->cbColorPitch.bits.FMASK_TILE_MAX__CI__VI = pPm4Img->cbColorPitch.bits.TILE_MAX;
+            m_pm4Cmds.cbColorPitch.bits.FMASK_TILE_MAX__CI__VI = m_pm4Cmds.cbColorPitch.bits.TILE_MAX;
         }
 
-        pPm4Img->cbColorFmaskSlice.bits.TILE_MAX = pPm4Img->cbColorSlice.bits.TILE_MAX;
+        m_pm4Cmds.cbColorFmaskSlice.bits.TILE_MAX = m_pm4Cmds.cbColorSlice.bits.TILE_MAX;
     }
+
+    // NOTE: As mentioned above, due to quirks in the hardware when FMask is not being used, it is necessary to
+    // save a separate copy of CB_COLOR_ATTRIB.
+    m_cbColorAttribDecompressed.u32All = m_pm4Cmds.cbColorAttrib.u32All;
+    m_cbColorAttribDecompressed.bits.FMASK_TILE_MODE_INDEX = baseTileIndex;
+    m_cbColorAttribDecompressed.bits.FMASK_BANK_HEIGHT     = baseBankHeight;
 
     // Initialize blend optimization register bits. The blend optimizer will override these bits at draw time
     // based on bound blend state. See ColorBlendState::WriteBlendOptimizations.
@@ -456,55 +490,7 @@ void ColorTargetView::InitRegisters(
     device.CmdUtil().BuildContextRegRmw(mmCB_COLOR0_INFO,
                                         RmwCbColorInfoMask,
                                         cbColorInfo.u32All,
-                                        &pPm4Img->colorBufferInfo);
-}
-
-// =====================================================================================================================
-// Performs Gfx6 hardware-specific initialization for a color target view object, including:
-//  - Initialize the PM4 commands used to write the pipeline to HW.
-void ColorTargetView::Init(
-    const Device&                            device,       // Associated Gfx6 Device object
-    const ColorTargetViewCreateInfo&         createInfo,   // ColorTargetView create info
-    const ColorTargetViewInternalCreateInfo& internalInfo) // Internal create info
-{
-    // Note that buffew views have their VA ranges locked because they cannot have their memory rebound.
-    m_flags.isBufferView = createInfo.flags.isBufferView;
-    m_flags.viewVaLocked = createInfo.flags.imageVaLocked || createInfo.flags.isBufferView;
-
-    m_flags.usesLoadRegIndexPkt = device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt;
-
-    if (m_flags.isBufferView == 0)
-    {
-        PAL_ASSERT(createInfo.imageInfo.pImage != nullptr);
-
-        // Retain a pointer to the attached image.
-        m_pImage = GetGfx6Image(createInfo.imageInfo.pImage);
-
-        // Sets the base subresource for this mip.
-        m_subresource.aspect     = createInfo.imageInfo.baseSubRes.aspect;
-        m_subresource.mipLevel   = createInfo.imageInfo.baseSubRes.mipLevel;
-        m_subresource.arraySlice = 0;
-
-        // Set all of the metadata flags.
-        m_flags.hasCmask              = m_pImage->HasCmaskData();
-        m_flags.hasFmask              = m_pImage->HasFmaskData();
-        m_flags.hasDcc                = m_pImage->HasDccData();
-        m_flags.hasDccStateMetaData   = m_pImage->HasDccStateMetaData();
-        m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData() && !internalInfo.flags.depthStencilCopy);
-        m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
-    }
-
-    BuildPm4Headers(device, true,  &m_pm4CmdsCompressed);
-    BuildPm4Headers(device, false, &m_pm4CmdsDecompressed);
-
-    InitRegisters(device, createInfo, internalInfo, true,  &m_pm4CmdsCompressed);
-    InitRegisters(device, createInfo, internalInfo, false, &m_pm4CmdsDecompressed);
-
-    if (m_flags.viewVaLocked && (m_flags.isBufferView == 0))
-    {
-        UpdateImageVa(&m_pm4CmdsCompressed);
-        UpdateImageVa(&m_pm4CmdsDecompressed);
-    }
+                                        &m_pm4Cmds.colorBufferInfo);
 }
 
 // =====================================================================================================================
@@ -593,12 +579,14 @@ uint32* ColorTargetView::WriteCommands(
     uint32*     pCmdSpace
     ) const
 {
-    const bool compressed = (m_flags.isBufferView == 0) &&
-                            (m_pImage->LayoutToColorCompressionState(m_subresource, imageLayout) == ColorCompressed);
+    const bool decompressedImage =
+        (m_flags.isBufferView == 0) &&
+        (ImageLayoutToColorCompressionState(m_layoutToState, imageLayout) != ColorCompressed);
 
-    const ColorTargetViewPm4Img* pPm4Commands = (compressed ? &m_pm4CmdsCompressed : &m_pm4CmdsDecompressed);
-    // Spawn a local copy of the PM4 image, since the register offsets may need to be updated in this method.  For
-    // some clients, the base address, Fmask address and Cmask address also need to be updated.
+    const ColorTargetViewPm4Img* pPm4Commands = &m_pm4Cmds;
+    // Spawn a local copy of the PM4 image, since some register values and/or offsets may need to be updated in this
+    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The contents
+    // of the local copy will depend on which Image state is specified.
     ColorTargetViewPm4Img patchedPm4Commands;
 
     if (slot != 0)
@@ -631,9 +619,36 @@ uint32* ColorTargetView::WriteCommands(
         }
     }
 
+    size_t spaceNeeded = pPm4Commands->spaceNeeded;
+    if (decompressedImage)
+    {
+        if (pPm4Commands != &patchedPm4Commands)
+        {
+            patchedPm4Commands = *pPm4Commands;
+            pPm4Commands = &patchedPm4Commands;
+        }
+
+        // For decompressed rendering to an Image, we need to override the values for CB_COLOR_INFO,,
+        // CB_COLOR_CMASK_SLICE and for CB_COLOR_DCC_CONTROL__VI.
+        patchedPm4Commands.cbColorCmaskSlice.u32All = CbColorCmaskSliceDecompressed;
+        patchedPm4Commands.cbColorDccControl.u32All = CbColorDccControlDecompressed;
+        patchedPm4Commands.colorBufferInfo.regData &= ~CbColorInfoDecompressedMask;
+
+        // NOTE: Due to a quirk in the hardware when FMask is not in-use, we need to set some FMask-specific register
+        // fields to match the attributes of the base subResource.
+        if (m_flags.isGfx7OrHigher)
+        {
+            patchedPm4Commands.cbColorPitch.bits.FMASK_TILE_MAX__CI__VI = patchedPm4Commands.cbColorPitch.bits.TILE_MAX;
+        }
+        patchedPm4Commands.cbColorFmaskSlice.bits.TILE_MAX = patchedPm4Commands.cbColorSlice.bits.TILE_MAX;
+        patchedPm4Commands.cbColorAttrib.u32All            = m_cbColorAttribDecompressed.u32All;
+
+        spaceNeeded = pPm4Commands->spaceNeededDecompressed;
+    }
+
     if ((m_flags.viewVaLocked == 0) && m_pImage->Parent()->GetBoundGpuMemory().IsBound())
     {
-        if (slot == 0) // Note: If slot == 0, then we wouldn't have copied the unpatched PM4 image above!
+        if (pPm4Commands != &patchedPm4Commands)
         {
             patchedPm4Commands = *pPm4Commands;
             pPm4Commands = &patchedPm4Commands;
@@ -642,7 +657,7 @@ uint32* ColorTargetView::WriteCommands(
     }
 
     PAL_ASSERT(pCmdStream != nullptr);
-    return pCmdStream->WritePm4Image(pPm4Commands->spaceNeeded, pPm4Commands, pCmdSpace);
+    return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -669,17 +684,15 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
 // Helper method which checks if DCC is enabled for a particular slot & image-layout combination. This is useful for a
 // hardware workaround for the DCC overwrite combiner.
 bool ColorTargetView::IsDccEnabled(
-    ImageLayout activeLayout
+    ImageLayout imageLayout
     ) const
 {
     bool enabled = false;
 
     if ((m_flags.isBufferView == 0) &&
-        (m_pImage->LayoutToColorCompressionState(m_subresource, activeLayout) == ColorCompressed))
+        (ImageLayoutToColorCompressionState(m_layoutToState, imageLayout) == ColorCompressed))
     {
-        constexpr uint32 DccEnableMask = CB_COLOR0_INFO__DCC_ENABLE_MASK__VI;
-
-        enabled = ((m_pm4CmdsCompressed.colorBufferInfo.regData & DccEnableMask) != 0);
+        enabled = ((m_pm4Cmds.colorBufferInfo.regData & CB_COLOR0_INFO__DCC_ENABLE_MASK__VI) != 0);
     }
 
     return enabled;

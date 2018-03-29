@@ -57,6 +57,48 @@ namespace Gfx9
 
 // Any generally useful constants, structures, etc. for gfx9 go here
 
+union SpiShaderPgmRsrc2Gs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC2_GS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc3Gs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC3_GS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc4Gs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC4_GS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc2Hs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC2_HS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc3Hs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC3_HS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc2Ps
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC2_PS__GFX09  gfx9;
+};
+
+union SpiShaderPgmRsrc2Vs
+{
+    uint32                             u32All;
+    regSPI_SHADER_PGM_RSRC2_VS__GFX09  gfx9;
+};
+
 // Describes the layout of the index buffer attributes used by a INDEX_ATTRIBUTES_INDIRECT packet.
 struct IndexAttribIndirect
 {
@@ -90,8 +132,6 @@ constexpr uint32 Log2IndexSize[] =
 
 static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
     "Different VGT_INDEX_TYPE_MODE values than are expected!");
-
-constexpr size_t SizeDispatchIndirectArgs = sizeof(Pal::DispatchIndirectArgs);
 
 // Context reg space technically goes to 0xBFFF, but in reality there are no registers we currently write beyond
 // a certain limit. This enum can save some memory space in situations where we shadow register state in the driver.
@@ -460,60 +500,17 @@ constexpr uint32 NumHwShaderStagesGfx = (static_cast<uint32>(HwShaderStage::Ps) 
 // shader stage.
 struct UserDataEntryMap
 {
-    // Each entry in this array is the address of the SPI user-data register which the associated user-data entry is
-    // mapped to (e.g., mmSPI_SHADER_USER_DATA_LS_9). A value of 'UserDataNotMapped' indicates that the entry is not
-    // mapped to any user-data register. A particular entry could be not mapped in two scenarios:
-    //  1) The shader doesn't need to read this entry at all;
-    //  2) The shader reads the entry out of the spill table (GPU memory) instead of from a register.
-    uint16 regAddr[MaxUserDataEntries];
-    // Address of the first user-data register used for the spill table. Zero indicates no user-data entries are
-    // spilled to memory.
+    // Each element of this array is the entry ID which is mapped to the user-SGPR associated with that array element.
+    // The only elements in this array which are valid are ones whose index is less than userSgprCount.
+    uint8  mappedEntry[NumUserDataRegisters - FastUserDataStartReg];
+    uint8  userSgprCount;           // Number of valid entries in the mappedEntry array.
+    uint16 firstUserSgprRegAddr;    // Address of the first user-SGPR which is mapped to user-data entries.
+    // Address of the user-SGPR which is used for each indirect user-data table GPU virtual address.  Zero indicates
+    // that the indirect user-data table is not referenced by this stage.
+    uint16 indirectTableRegAddr[MaxIndirectUserDataTables];
+    // Address of the user-SGPR used for the spill table GPU virtual address for this stage.  Zero indicates that this
+    // stage does not read any entries from the spill table.
     uint16 spillTableRegAddr;
-    // This is a hash of the regAddr array and spillTableRegAddr used to speed up pipeline binds. In order to ensure
-    // that the hash does NOT include itself this variable must be the last member of this structure.
-    uint64 userDataHash;
-};
-
-union SpiShaderPgmRsrc2Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc3Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC3_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc4Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC4_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Hs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_HS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc3Hs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC3_HS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Ps
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_PS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Vs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_VS__GFX09  gfx9;
 };
 
 // Special value indicating that a user-data entry is not mapped to a physical SPI register.
@@ -542,6 +539,7 @@ struct ComputePipelineSignature
     // The number of 'important' user-data entries for this pipeline. This effectively equates to one plus the index
     // of the highest user-data entry accessed by the pipeline.
     uint16  userDataLimit;
+
 };
 
 // User-data signature for an unbound compute pipeline.
@@ -560,6 +558,7 @@ struct GraphicsPipelineSignature
     // First user-data entry (+1) containing the GPU virtual address of the stream-output SRD table used by this
     // pipeline. Zero indicates that stream-output is not used by this pipeline.
     uint16  streamOutTableAddr;
+    uint16  streamOutTableRegAddr; // User-SGPR address for the stream-out table.
 
     // Register address for the vertex ID offset of a draw. The instance ID offset is always the very next register.
     uint16  vertexOffsetRegAddr;
@@ -587,6 +586,9 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for view ID.  This is a compacted list, so it is not safe to assume
     // that each index of this array corresponds to the associated HW shader stage enum value.
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
+
+    // Hash of each stages user-data mapping, used to speed up pipeline binds.
+    uint64  userDataHash[NumHwShaderStagesGfx];
 };
 
 // User-data signature for an unbound graphics pipeline.

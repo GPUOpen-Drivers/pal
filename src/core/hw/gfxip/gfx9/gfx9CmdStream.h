@@ -107,28 +107,15 @@ public:
     template <bool pm4OptImmediate>
     uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
 
-    uint32* WriteUserDataRegisters(
+    template <bool IgnoreDirtyFlags>
+    uint32* WriteUserDataEntriesToSgprsGfx(
         const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        Pm4ShaderType           shaderType,
+        const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
-
-    uint32* WriteUserDataRegistersMany(
+    template <bool IgnoreDirtyFlags, bool Pm4OptImmediate>
+    uint32* WriteUserDataEntriesToSgprsGfx(
         const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        Pm4ShaderType           shaderType,
-        uint32*                 pCmdSpace);
-
-    uint32* WriteUserDataRegistersOne(
-        const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        Pm4ShaderType           shaderType,
-        uint32*                 pCmdSpace);
-
-    template <Pm4ShaderType shaderType>
-    uint32* WriteUserDataRegisterOffset(
-        const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
+        const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
 
     uint32* WriteClearState(

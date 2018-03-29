@@ -560,15 +560,15 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
 
     while (pRegisterGroup != pNextHeader)
     {
-        const uint32 startRegOffset = static_cast<uint32>(*reinterpret_cast<const uint16*>(pRegisterGroup));
-        const uint32 numRegs        = *reinterpret_cast<uint32*>(Util::VoidPtrInc(pRegisterGroup, sizeof(uint32)));
-        const uint32  endRegOffset  = (startRegOffset + numRegs - 1);
+        const uint32 startRegOffset = *static_cast<const uint16*>(pRegisterGroup);
+        const uint32 numRegs        = *static_cast<const uint32*>(VoidPtrInc(pRegisterGroup, sizeof(uint32)));
+        const uint32 endRegOffset   = (startRegOffset + numRegs - 1);
         for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
         {
             pRegStateBase[reg].flags.valid = 0;
         }
 
-        pRegisterGroup = Util::VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
+        pRegisterGroup = VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
     }
 }
 

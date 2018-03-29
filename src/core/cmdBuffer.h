@@ -857,7 +857,7 @@ protected:
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Utility function for determing if command buffer dumping has been enabled.
-    bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode != CmdBufDumpModeDisabled; }
+    bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode == CmdBufDumpModeRecordTime; }
 
     Util::File* DumpFile() { return &m_file; }
     uint32      UniqueId() const { return m_uniqueId; }

@@ -47,37 +47,39 @@ DepthStencilView::DepthStencilView(
     const DepthStencilViewInternalCreateInfo& internalInfo)
     :
     m_device(*pDevice),
-    m_pImage(GetGfx6Image(createInfo.pImage)),
-    m_createInfo(createInfo),
-    m_internalInfo(internalInfo)
+    m_pImage(GetGfx6Image(createInfo.pImage))
 {
     PAL_ASSERT(createInfo.pImage != nullptr);
     const auto& imageInfo = m_pImage->Parent()->GetImageCreateInfo();
     const auto& parent    = *m_device.Parent();
-    const auto& settings  = m_device.Settings();
 
-    m_flags.u32All              = 0;
-    m_flags.hTile               = m_pImage->HasHtileData();
-    m_flags.depth               = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.stencil             = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.waDbTcCompatFlush   = m_device.WaDbTcCompatFlush();
+    m_flags.u32All            = 0;
+    m_flags.hTile             = m_pImage->HasHtileData();
+    m_flags.depth             = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.stencil           = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.readOnlyDepth     = createInfo.flags.readOnlyDepth;
+    m_flags.readOnlyStencil   = createInfo.flags.readOnlyStencil;
+    m_flags.waDbTcCompatFlush = m_device.WaDbTcCompatFlush();
+    m_flags.viewVaLocked      = createInfo.flags.imageVaLocked;
+    m_flags.isExpand          = internalInfo.flags.isExpand;
+
     m_flags.usesLoadRegIndexPkt = m_device.Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt;
 
     if (m_flags.depth && m_flags.stencil)
     {
         // Depth & Stencil format.
         m_depthSubresource.aspect       = ImageAspect::Depth;
-        m_depthSubresource.mipLevel     = m_createInfo.mipLevel;
+        m_depthSubresource.mipLevel     = createInfo.mipLevel;
         m_depthSubresource.arraySlice   = 0;
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
-        m_stencilSubresource.mipLevel   = m_createInfo.mipLevel;
+        m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
     }
     else if (m_flags.depth)
     {
         // Depth-only format.
         m_depthSubresource.aspect     = ImageAspect::Depth;
-        m_depthSubresource.mipLevel   = m_createInfo.mipLevel;
+        m_depthSubresource.mipLevel   = createInfo.mipLevel;
         m_depthSubresource.arraySlice = 0;
         m_stencilSubresource          = m_depthSubresource;
     }
@@ -85,90 +87,60 @@ DepthStencilView::DepthStencilView(
     {
         // Stencil-only format.
         m_stencilSubresource.aspect     = ImageAspect::Stencil;
-        m_stencilSubresource.mipLevel   = m_createInfo.mipLevel;
+        m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
         m_depthSubresource              = m_stencilSubresource;
     }
 
+    m_depthLayoutToState   = m_pImage->LayoutToDepthCompressionState(m_depthSubresource);
+    m_stencilLayoutToState = m_pImage->LayoutToDepthCompressionState(m_stencilSubresource);
+
     const SubResourceInfo*const pDepthSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
+
     m_flags.depthMetadataTexFetch   = pDepthSubResInfo->flags.supportMetaDataTexFetch;
     m_flags.stencilMetadataTexFetch = pStencilSubResInfo->flags.supportMetaDataTexFetch;
 
-    // Initialize the register states for the various depth/stencil compression states.
-    for (uint32 depthState = 0; depthState < DepthStencilCompressionStateCount; ++depthState)
+    memset(&m_pm4Cmds, 0, sizeof(m_pm4Cmds));
+    BuildPm4Headers();
+    InitRegisters(createInfo, internalInfo);
+
+    if (m_flags.viewVaLocked != 0)
     {
-        for (uint32 stencilState = 0; stencilState < DepthStencilCompressionStateCount; ++stencilState)
-        {
-            BuildPm4Headers(
-                static_cast<DepthStencilCompressionState>(depthState),
-                static_cast<DepthStencilCompressionState>(stencilState));
-
-            InitRegisters(
-                static_cast<DepthStencilCompressionState>(depthState),
-                static_cast<DepthStencilCompressionState>(stencilState));
-
-            if (m_createInfo.flags.imageVaLocked)
-            {
-                UpdateImageVa(&m_pm4Images[depthState][stencilState]);
-            }
-        }
+        UpdateImageVa(&m_pm4Cmds);
     }
 }
 
 // =====================================================================================================================
 // Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
-void DepthStencilView::BuildPm4Headers(
-    DepthStencilCompressionState depthState,   // Depth state - indexes into m_pm4Images to be initialized.
-    DepthStencilCompressionState stencilState) // Stencil state - indexes into m_pm4Images to be initialized.
+void DepthStencilView::BuildPm4Headers()
 {
-    const CmdUtil& cmdUtil          = m_device.CmdUtil();
-    DepthStencilViewPm4Img* pPm4Img = &m_pm4Images[depthState][stencilState];
+    const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-    memset(pPm4Img, 0, sizeof(DepthStencilViewPm4Img));
+    size_t spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmDB_DEPTH_INFO, mmDB_DEPTH_SLICE, &m_pm4Cmds.hdrDbDepthInfo);
 
-    // 1st PM4 set data packet: sets the context registers DB_DEPTH_INFO through DB_DEPTH_SLICE.
-    pPm4Img->spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmDB_DEPTH_INFO,
-                                                          mmDB_DEPTH_SLICE,
-                                                          &pPm4Img->hdrDbDepthInfo);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_VIEW, &m_pm4Cmds.hdrDbDepthView);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
+                                                  mmDB_HTILE_DATA_BASE,
+                                                  &m_pm4Cmds.hdrDbRenderOverride2);
 
-    // 2nd PM4 set data packet: sets the context register DB_DEPTH_VIEW.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_VIEW, &pPm4Img->hdrDbDepthView);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_HTILE_SURFACE, &m_pm4Cmds.hdrDbHtileSurface);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_PRELOAD_CONTROL, &m_pm4Cmds.hdrDbPreloadControl);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &m_pm4Cmds.hdrDbRenderControl);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
+                                                 &m_pm4Cmds.hdrPaSuPolyOffsetDbFmtCntl);
 
-    // 3rd PM4 set data packet: sets the context registers DB_RENDER_OVERRIDE2 and
-    //  DB_HTILE_DATA_BASE.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
-                                                           mmDB_HTILE_DATA_BASE,
-                                                           &pPm4Img->hdrDbRenderOverride2);
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                                  mmPA_SC_SCREEN_SCISSOR_BR,
+                                                  &m_pm4Cmds.hdrPaScScreenScissorTlBr);
 
-    // 4th PM4 set data packet: sets the context register DB_HTILE_SURFACE.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_HTILE_SURFACE, &pPm4Img->hdrDbHtileSurface);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_0, &m_pm4Cmds.hdrCoherDestBase0);
+    spaceNeeded += cmdUtil.GetContextRegRmwSize(); // Header and value defined by InitRegisters()
 
-    // 5th PM4 set data packet: sets the context register DB_PRELOAD_CONTROL.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_PRELOAD_CONTROL, &pPm4Img->hdrDbPreloadControl);
+    m_pm4Cmds.spaceNeeded             = spaceNeeded;
+    m_pm4Cmds.spaceNeededDecompressed = spaceNeeded;
 
-    // 6th PM4 set data packet: sets the context register DB_RENDER_CONTROL.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_RENDER_CONTROL, &pPm4Img->hdrDbRenderControl);
-
-    // 7th PM4 set data packet: sets the context register PA_SU_POLY_OFFSET_DB_FMT_CNTL.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
-                                                          &pPm4Img->hdrPaSuPolyOffsetDbFmtCntl);
-
-    // 8th PM4 set data packet: sets the context registers PA_SC_SCREEN_SCISSOR_TL and
-    //  PA_SC_SCREEN_SCISSOR_BR.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                           mmPA_SC_SCREEN_SCISSOR_BR,
-                                                           &pPm4Img->hdrPaScScreenScissorTlBr);
-
-    // 9th PM4 set data packet: sets the first two generic COHER_DEST_BASE context registers.
-    pPm4Img->spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_0, &pPm4Img->hdrCoherDestBase0);
-
-    // 10th PM4 set data packet: RMW set of portions of DB_RENDER_OVERRIDE defined by a depth stencil view (other parts
-    // written by graphics pipelines)
-    pPm4Img->spaceNeeded += cmdUtil.GetContextRegRmwSize(); // Header and value defined by InitRegisters()
-
-    if (m_flags.hTile &&
-        ((depthState == DepthStencilCompressed) || (stencilState == DepthStencilCompressed)))
+    if (m_flags.hTile != 0)
     {
         // If the parent image has HTile and some aspect is in the compressed state, we need to add a LOAD_CONTEXT_REG
         // packet to load the image's fast-clear metadata.
@@ -178,17 +150,14 @@ void DepthStencilView::BuildPm4Headers(
 
         if (m_flags.usesLoadRegIndexPkt != 0)
         {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
-                                                                            StartRegAddr,
-                                                                            RegCount,
-                                                                            &pPm4Img->loadMetaDataIndex);
+            m_pm4Cmds.spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
+                                                                             StartRegAddr,
+                                                                             RegCount,
+                                                                             &m_pm4Cmds.loadMetaDataIndex);
         }
         else
         {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegs(0,
-                                                                 StartRegAddr,
-                                                                 RegCount,
-                                                                 &pPm4Img->loadMetaData);
+            m_pm4Cmds.spaceNeeded += cmdUtil.BuildLoadContextRegs(0, StartRegAddr, RegCount, &m_pm4Cmds.loadMetaData);
         }
     }
 }
@@ -196,12 +165,13 @@ void DepthStencilView::BuildPm4Headers(
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void DepthStencilView::InitRegisters(
-    DepthStencilCompressionState depthState,
-    DepthStencilCompressionState stencilState)
+    const DepthStencilViewCreateInfo&         createInfo,
+    const DepthStencilViewInternalCreateInfo& internalInfo)
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
-    const ImageInfo& imageInfo = m_pImage->Parent()->GetImageInfo();
-    const ImageCreateInfo& createInfo = m_pImage->Parent()->GetImageCreateInfo();
+
+    const ImageInfo&       imageInfo       = m_pImage->Parent()->GetImageInfo();
+    const ImageCreateInfo& imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
 
     const Gfx6PalSettings& settings = m_device.Settings();
 
@@ -214,12 +184,10 @@ void DepthStencilView::InitRegisters(
     const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(m_pImage->Parent(), m_depthSubresource);
     const AddrMgr1::TileInfo*const pStTileInfo = AddrMgr1::GetTileInfo(m_pImage->Parent(), m_stencilSubresource);
 
-    DepthStencilViewPm4Img* pPm4Img = &m_pm4Images[depthState][stencilState];
-
     if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
     {
-        pPm4Img->dbZInfo.bits.TILE_MODE_INDEX       = pTileInfo->tileIndex;
-        pPm4Img->dbStencilInfo.bits.TILE_MODE_INDEX = pStTileInfo->tileIndex;
+        m_pm4Cmds.dbZInfo.bits.TILE_MODE_INDEX       = pTileInfo->tileIndex;
+        m_pm4Cmds.dbStencilInfo.bits.TILE_MODE_INDEX = pStTileInfo->tileIndex;
     }
     else
     {
@@ -227,42 +195,39 @@ void DepthStencilView::InitRegisters(
         // TILE_MODE_INDEX fields have been removed from DB_Z_INFO and DB_STENCIL_INFO and instead the per surface
         // tiling parameters will need to be programmed directly in DB_Z_INFO, DB_DEPTH_INFO, and DB_STENCIL_INFO
         // registers.
-        pPm4Img->dbDepthInfo.bits.PIPE_CONFIG__CI__VI       = pTileInfo->pipeConfig;
-        pPm4Img->dbDepthInfo.bits.NUM_BANKS__CI__VI         = pTileInfo->banks;
-        pPm4Img->dbDepthInfo.bits.BANK_WIDTH__CI__VI        = pTileInfo->bankWidth;
-        pPm4Img->dbDepthInfo.bits.BANK_HEIGHT__CI__VI       = pTileInfo->bankHeight;
-        pPm4Img->dbDepthInfo.bits.MACRO_TILE_ASPECT__CI__VI = pTileInfo->macroAspectRatio;
-        pPm4Img->dbDepthInfo.bits.ARRAY_MODE__CI__VI        = pTileInfo->tileMode;
-        pPm4Img->dbZInfo.bits.TILE_SPLIT__CI__VI            = pTileInfo->tileSplitBytes;
-        pPm4Img->dbStencilInfo.bits.TILE_SPLIT__CI__VI      = pStTileInfo->tileSplitBytes;
+        m_pm4Cmds.dbDepthInfo.bits.PIPE_CONFIG__CI__VI       = pTileInfo->pipeConfig;
+        m_pm4Cmds.dbDepthInfo.bits.NUM_BANKS__CI__VI         = pTileInfo->banks;
+        m_pm4Cmds.dbDepthInfo.bits.BANK_WIDTH__CI__VI        = pTileInfo->bankWidth;
+        m_pm4Cmds.dbDepthInfo.bits.BANK_HEIGHT__CI__VI       = pTileInfo->bankHeight;
+        m_pm4Cmds.dbDepthInfo.bits.MACRO_TILE_ASPECT__CI__VI = pTileInfo->macroAspectRatio;
+        m_pm4Cmds.dbDepthInfo.bits.ARRAY_MODE__CI__VI        = pTileInfo->tileMode;
+        m_pm4Cmds.dbZInfo.bits.TILE_SPLIT__CI__VI            = pTileInfo->tileSplitBytes;
+        m_pm4Cmds.dbStencilInfo.bits.TILE_SPLIT__CI__VI      = pStTileInfo->tileSplitBytes;
     }
 
-    const bool zReadOnly = (m_createInfo.flags.readOnlyDepth != 0);
-    const bool sReadOnly = (m_createInfo.flags.readOnlyStencil != 0);
+    const bool zReadOnly = (createInfo.flags.readOnlyDepth != 0);
+    const bool sReadOnly = (createInfo.flags.readOnlyStencil != 0);
 
-    if (m_flags.hTile)
+    if (m_flags.hTile != 0)
     {
         const Gfx6Htile*const pHtile = m_pImage->GetHtile(m_depthSubresource);
 
         // Tell the HW that HTILE metadata is present.
-        pPm4Img->dbZInfo.bits.ZRANGE_PRECISION           = pHtile->ZRangePrecision();
-        pPm4Img->dbZInfo.bits.TILE_SURFACE_ENABLE        = 1;
-        pPm4Img->dbStencilInfo.bits.TILE_STENCIL_DISABLE = pHtile->TileStencilDisabled();
+        m_pm4Cmds.dbZInfo.bits.ZRANGE_PRECISION           = pHtile->ZRangePrecision();
+        m_pm4Cmds.dbZInfo.bits.TILE_SURFACE_ENABLE        = 1;
+        m_pm4Cmds.dbStencilInfo.bits.TILE_STENCIL_DISABLE = pHtile->TileStencilDisabled();
 
-        if (m_internalInfo.flags.isExpand || m_internalInfo.flags.isDepthCopy || m_internalInfo.flags.isStencilCopy)
+        if (internalInfo.flags.isExpand | internalInfo.flags.isDepthCopy | internalInfo.flags.isStencilCopy)
         {
-            pPm4Img->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = !zReadOnly;
-            pPm4Img->dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = !sReadOnly;
-        }
-        else
-        {
-            pPm4Img->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = (depthState == DepthStencilCompressed) ? 0 : 1;
-            pPm4Img->dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = (stencilState == DepthStencilCompressed) ? 0 : 1;
+            m_pm4Cmds.dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = !zReadOnly;
+            m_pm4Cmds.dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = !sReadOnly;
+
+            m_flags.dbRenderControlLocked = 1; // This cannot change at bind-time for expands and copies!
         }
 
-        if (m_internalInfo.flags.isResummarize)
+        if (internalInfo.flags.isResummarize)
         {
-            pPm4Img->dbRenderControl.bits.RESUMMARIZE_ENABLE = 1;
+            m_pm4Cmds.dbRenderControl.bits.RESUMMARIZE_ENABLE = 1;
         }
 
         // NOTE: From regspec: For 32B tiles, indicates whether the data should be stored in the upper or lower half of
@@ -271,108 +236,109 @@ void DepthStencilView::InitRegisters(
         //
         // The texture block can't understand the addr5-swizzle stuff, so if this surface might be texture fetched,
         // then don't use addr5-swizzle.
-        if (m_flags.depthMetadataTexFetch == false)
+        if (m_flags.depthMetadataTexFetch == 0)
         {
-            pPm4Img->dbDepthInfo.bits.ADDR5_SWIZZLE_MASK = settings.dbAddr5SwizzleMask;
+            m_pm4Cmds.dbDepthInfo.bits.ADDR5_SWIZZLE_MASK = settings.dbAddr5SwizzleMask;
         }
         else
         {
             // This image might get texture-fetched, so setup any register info specific to texture fetches here.
-            pPm4Img->dbZInfo.bits.DECOMPRESS_ON_N_ZPLANES__VI =
-                CalcDecompressOnZPlanesValue(pPm4Img->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE);
+            m_pm4Cmds.dbZInfo.bits.DECOMPRESS_ON_N_ZPLANES__VI =
+                CalcDecompressOnZPlanesValue(m_pm4Cmds.dbRenderControl.bits.DEPTH_COMPRESS_DISABLE);
         }
 
-        pPm4Img->dbZInfo.bits.ALLOW_EXPCLEAR       =
-                (createInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
-        pPm4Img->dbStencilInfo.bits.ALLOW_EXPCLEAR =
-                (createInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
+        m_pm4Cmds.dbZInfo.bits.ALLOW_EXPCLEAR       =
+                (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
+        m_pm4Cmds.dbStencilInfo.bits.ALLOW_EXPCLEAR =
+                (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
 
-        pPm4Img->dbHtileSurface.u32All   = pHtile->DbHtileSurface().u32All;
-        pPm4Img->dbPreloadControl.u32All = pHtile->DbPreloadControl().u32All;
+        m_pm4Cmds.dbHtileSurface.u32All   = pHtile->DbHtileSurface().u32All;
+        m_pm4Cmds.dbPreloadControl.u32All = pHtile->DbPreloadControl().u32All;
     }
     else
     {
         // Tell the HW that HTILE metadata is not present.
-        pPm4Img->dbDepthInfo.bits.ADDR5_SWIZZLE_MASK           = 0;
-        pPm4Img->dbZInfo.bits.TILE_SURFACE_ENABLE              = 0;
-        pPm4Img->dbStencilInfo.bits.TILE_STENCIL_DISABLE       = 1;
-        pPm4Img->dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = 1;
-        pPm4Img->dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = 1;
+        m_pm4Cmds.dbDepthInfo.bits.ADDR5_SWIZZLE_MASK           = 0;
+        m_pm4Cmds.dbZInfo.bits.TILE_SURFACE_ENABLE              = 0;
+        m_pm4Cmds.dbStencilInfo.bits.TILE_STENCIL_DISABLE       = 1;
+        m_pm4Cmds.dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = 1;
+        m_pm4Cmds.dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = 1;
     }
 
     const MergedFmtInfo* pChFmtInfo = MergedChannelFmtInfoTbl(m_device.Parent()->ChipProperties().gfxLevel);
 
     // Setup DB_Z_INFO, DB_DEPTH_INFO, and DB_STENCIL_INFO.
-    pPm4Img->dbZInfo.bits.FORMAT       = HwZFmt(pChFmtInfo, zFmt);
-    pPm4Img->dbZInfo.bits.READ_SIZE    = settings.dbRequestSize;
-    pPm4Img->dbZInfo.bits.NUM_SAMPLES  = Log2(createInfo.samples);
-    pPm4Img->dbStencilInfo.bits.FORMAT = HwStencilFmt(pChFmtInfo, sFmt);
+    m_pm4Cmds.dbZInfo.bits.FORMAT       = HwZFmt(pChFmtInfo, zFmt);
+    m_pm4Cmds.dbZInfo.bits.READ_SIZE    = settings.dbRequestSize;
+    m_pm4Cmds.dbZInfo.bits.NUM_SAMPLES  = Log2(imageCreateInfo.samples);
+    m_pm4Cmds.dbStencilInfo.bits.FORMAT = HwStencilFmt(pChFmtInfo, sFmt);
 
     //     Z_INFO and STENCIL_INFO CLEAR_DISALLOWED were never reliably working on GFX8 or 9.  Although the
     //     bit is not implemented, it does actually connect into logic.  In block regressions, some tests
     //     worked but many tests did not work using this bit.  Please do not set this bit
-    PAL_ASSERT((pPm4Img->dbZInfo.bits.CLEAR_DISALLOWED__VI == 0) &&
-               (pPm4Img->dbStencilInfo.bits.CLEAR_DISALLOWED__VI == 0));
+    PAL_ASSERT((m_pm4Cmds.dbZInfo.bits.CLEAR_DISALLOWED__VI == 0) &&
+               (m_pm4Cmds.dbStencilInfo.bits.CLEAR_DISALLOWED__VI == 0));
 
     const auto& actualExtent = pDepthSubResInfo->actualExtentTexels;
 
     // Setup DB_DEPTH_SLICE.
-    pPm4Img->dbDepthSlice.bits.SLICE_TILE_MAX = (actualExtent.width * actualExtent.height / TilePixels) - 1;
+    m_pm4Cmds.dbDepthSlice.bits.SLICE_TILE_MAX = (actualExtent.width * actualExtent.height / TilePixels) - 1;
 
     // Setup DB_DEPTH_SIZE.
-    pPm4Img->dbDepthSize.bits.PITCH_TILE_MAX  = (actualExtent.width  / TileWidth) - 1;
-    pPm4Img->dbDepthSize.bits.HEIGHT_TILE_MAX = (actualExtent.height / TileWidth) - 1;
+    m_pm4Cmds.dbDepthSize.bits.PITCH_TILE_MAX  = (actualExtent.width  / TileWidth) - 1;
+    m_pm4Cmds.dbDepthSize.bits.HEIGHT_TILE_MAX = (actualExtent.height / TileWidth) - 1;
 
     // NOTE: Base addresses of the depth and stencil planes aren't known until bind-time.
-    pPm4Img->dbZReadBase.u32All        = 0;
-    pPm4Img->dbZWriteBase.u32All       = 0;
-    pPm4Img->dbStencilReadBase.u32All  = 0;
-    pPm4Img->dbStencilWriteBase.u32All = 0;
-    pPm4Img->dbHtileDataBase.u32All    = 0;
-    pPm4Img->coherDestBase0.u32All     = 0;
+    m_pm4Cmds.dbZReadBase.u32All        = 0;
+    m_pm4Cmds.dbZWriteBase.u32All       = 0;
+    m_pm4Cmds.dbStencilReadBase.u32All  = 0;
+    m_pm4Cmds.dbStencilWriteBase.u32All = 0;
+    m_pm4Cmds.dbHtileDataBase.u32All    = 0;
+    m_pm4Cmds.coherDestBase0.u32All     = 0;
 
     // Setup DB_DEPTH_VIEW.
-    pPm4Img->dbDepthView.bits.SLICE_START = m_createInfo.baseArraySlice;
-    pPm4Img->dbDepthView.bits.SLICE_MAX   = (m_createInfo.arraySize + m_createInfo.baseArraySlice - 1);
-    pPm4Img->dbDepthView.bits.Z_READ_ONLY       = (zReadOnly ? 1 : 0);
-    pPm4Img->dbDepthView.bits.STENCIL_READ_ONLY = (sReadOnly ? 1 : 0);
+    m_pm4Cmds.dbDepthView.bits.SLICE_START = createInfo.baseArraySlice;
+    m_pm4Cmds.dbDepthView.bits.SLICE_MAX   = (createInfo.arraySize + createInfo.baseArraySlice - 1);
+    m_pm4Cmds.dbDepthView.bits.Z_READ_ONLY       = (zReadOnly ? 1 : 0);
+    m_pm4Cmds.dbDepthView.bits.STENCIL_READ_ONLY = (sReadOnly ? 1 : 0);
 
     // Set clear enable fields if the create info indicates the view should be a fast clear view
-    pPm4Img->dbRenderControl.bits.DEPTH_CLEAR_ENABLE   = m_internalInfo.flags.isDepthClear;
-    pPm4Img->dbRenderControl.bits.STENCIL_CLEAR_ENABLE = m_internalInfo.flags.isStencilClear;
-    pPm4Img->dbRenderControl.bits.DEPTH_COPY = m_internalInfo.flags.isDepthCopy;
-    pPm4Img->dbRenderControl.bits.STENCIL_COPY = m_internalInfo.flags.isStencilCopy;
+    m_pm4Cmds.dbRenderControl.bits.DEPTH_CLEAR_ENABLE   = internalInfo.flags.isDepthClear;
+    m_pm4Cmds.dbRenderControl.bits.STENCIL_CLEAR_ENABLE = internalInfo.flags.isStencilClear;
+    m_pm4Cmds.dbRenderControl.bits.DEPTH_COPY           = internalInfo.flags.isDepthCopy;
+    m_pm4Cmds.dbRenderControl.bits.STENCIL_COPY         = internalInfo.flags.isStencilCopy;
 
-    if (m_internalInfo.flags.isDepthCopy || m_internalInfo.flags.isStencilCopy)
+    if (internalInfo.flags.isDepthCopy | internalInfo.flags.isStencilCopy)
     {
-        pPm4Img->dbRenderControl.bits.COPY_SAMPLE = 0;
-        pPm4Img->dbRenderControl.bits.COPY_CENTROID = 1;
+        m_pm4Cmds.dbRenderControl.bits.COPY_SAMPLE   = 0;
+        m_pm4Cmds.dbRenderControl.bits.COPY_CENTROID = 1;
     }
 
     // For 4xAA and 8xAA need to decompress on flush for better performance
-    pPm4Img->dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH = (createInfo.samples > 2) ? 1 : 0;
+    m_pm4Cmds.dbRenderOverride2.bits.DECOMPRESS_Z_ON_FLUSH = (imageCreateInfo.samples > 2) ? 1 : 0;
 
-    pPm4Img->dbRenderOverride2.bits.DISABLE_COLOR_ON_VALIDATION = settings.dbDisableColorOnValidation;
+    m_pm4Cmds.dbRenderOverride2.bits.DISABLE_COLOR_ON_VALIDATION = settings.dbDisableColorOnValidation;
 
     // Setup PA_SU_POLY_OFFSET_DB_FMT_CNTL.
-    if (m_createInfo.flags.absoluteDepthBias == 0)
+    if (createInfo.flags.absoluteDepthBias == 0)
     {
         // NOTE: The client has indicated this Image has promoted 24bit depth to 32bits, we should set the negative num
         // bit as -24 and use fixed points format
-        pPm4Img->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS =
-            (createInfo.usageFlags.depthAsZ24 == 1) ? -24 : ((pPm4Img->dbZInfo.bits.FORMAT == Z_16) ? -16 : -23);
-        pPm4Img->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_DB_IS_FLOAT_FMT =
-            (pPm4Img->dbZInfo.bits.FORMAT == Z_32_FLOAT && (createInfo.usageFlags.depthAsZ24 == 0)) ? 1 : 0;    }
+        m_pm4Cmds.paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS =
+            (imageCreateInfo.usageFlags.depthAsZ24 == 1) ? -24 : ((m_pm4Cmds.dbZInfo.bits.FORMAT == Z_16) ? -16 : -23);
+        m_pm4Cmds.paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_DB_IS_FLOAT_FMT =
+            (m_pm4Cmds.dbZInfo.bits.FORMAT == Z_32_FLOAT && (imageCreateInfo.usageFlags.depthAsZ24 == 0)) ? 1 : 0;
+    }
     else
     {
-        pPm4Img->paSuPolyOffsetDbFmtCntl.u32All = 0;
+        m_pm4Cmds.paSuPolyOffsetDbFmtCntl.u32All = 0;
     }
 
     // Setup screen scissor registers.
-    pPm4Img->paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
-    pPm4Img->paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
-    pPm4Img->paScScreenScissorBr.bits.BR_X = pDepthSubResInfo->extentTexels.width;
-    pPm4Img->paScScreenScissorBr.bits.BR_Y = pDepthSubResInfo->extentTexels.height;
+    m_pm4Cmds.paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
+    m_pm4Cmds.paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
+    m_pm4Cmds.paScScreenScissorBr.bits.BR_X = pDepthSubResInfo->extentTexels.width;
+    m_pm4Cmds.paScScreenScissorBr.bits.BR_Y = pDepthSubResInfo->extentTexels.height;
 
     // Setup DB_RENDER_OVERRIDE fields
     DB_RENDER_OVERRIDE dbRenderOverride;
@@ -384,22 +350,13 @@ void DepthStencilView::InitRegisters(
     dbRenderOverride.bits.FORCE_HIS_ENABLE0 = settings.hiStencilEnable ? FORCE_OFF : FORCE_DISABLE;
     dbRenderOverride.bits.FORCE_HIS_ENABLE1 = settings.hiStencilEnable ? FORCE_OFF : FORCE_DISABLE;
 
-    // Turn off HiZ/HiS if the current image layout disallows use of the htile
-    if (m_internalInfo.flags.u32All == 0)
+    if (internalInfo.flags.u32All != 0)
     {
-        if (depthState == DepthStencilDecomprNoHiZ)
-        {
-            dbRenderOverride.bits.FORCE_HIZ_ENABLE = FORCE_DISABLE;
-        }
-
-        if (stencilState == DepthStencilDecomprNoHiZ)
-        {
-            dbRenderOverride.bits.FORCE_HIS_ENABLE0 = FORCE_DISABLE;
-            dbRenderOverride.bits.FORCE_HIS_ENABLE1 = FORCE_DISABLE;
-        }
+        // DB_RENDER_OVERRIDE cannot change at bind-time due to compression states for internal blit types.
+        m_flags.dbRenderOverrideLocked = 1;
     }
 
-    if (m_internalInfo.flags.isResummarize)
+    if (internalInfo.flags.isResummarize)
     {
         dbRenderOverride.bits.FORCE_Z_VALID           = !zReadOnly;
         dbRenderOverride.bits.FORCE_STENCIL_VALID     = !sReadOnly;
@@ -409,11 +366,10 @@ void DepthStencilView::InitRegisters(
 
     PAL_ASSERT((dbRenderOverride.u32All & ~DbRenderOverrideRmwMask) == 0);
 
-    cmdUtil.BuildContextRegRmw(
-        mmDB_RENDER_OVERRIDE,
-        DbRenderOverrideRmwMask,
-        dbRenderOverride.u32All,
-        &pPm4Img->dbRenderOverrideRmw);
+    cmdUtil.BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
+                               DbRenderOverrideRmwMask,
+                               dbRenderOverride.u32All,
+                               &m_pm4Cmds.dbRenderOverrideRmw);
 }
 
 // =====================================================================================================================
@@ -480,39 +436,69 @@ void DepthStencilView::UpdateImageVa(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
 uint32* DepthStencilView::WriteCommands(
-    ImageLayout             depthLayout,   // Allowed usages/queues for the depth aspect. Implies compression state.
-    ImageLayout             stencilLayout, // Allowed usages/queues for the stencil aspect. Implies compression state.
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace
+    ImageLayout depthLayout,
+    ImageLayout stencilLayout,
+    CmdStream*  pCmdStream,
+    uint32*     pCmdSpace
     ) const
 {
-    const DepthStencilCompressionState depthCompressionState =
-        m_pImage->LayoutToDepthCompressionState(m_depthSubresource, depthLayout);
-    const DepthStencilCompressionState stencilCompressionState =
-        m_pImage->LayoutToDepthCompressionState(m_stencilSubresource, stencilLayout);
+    const DepthStencilCompressionState depthState =
+            ImageLayoutToDepthCompressionState(m_depthLayoutToState, depthLayout);
+    const DepthStencilCompressionState stencilState =
+            ImageLayoutToDepthCompressionState(m_stencilLayoutToState, stencilLayout);
+
+    const DepthStencilViewPm4Img* pPm4Commands = &m_pm4Cmds;
+    // Spawn a local copy of the PM4 image, since some register values may need to be updated in this method.  For
+    // some clients, the base address and Htile address also need to be updated.  The contents of the local copy will
+    // depend on which Image state is specified.
+    DepthStencilViewPm4Img patchedPm4Commands;
+
+    if ((depthState != DepthStencilCompressed) | (stencilState != DepthStencilCompressed))
+    {
+        patchedPm4Commands = *pPm4Commands;
+        pPm4Commands = &patchedPm4Commands;
+
+        // For decompressed rendering to an Image, we need to override the values of DB_DEPTH_CONTROL and
+        // DB_RENDER_OVERRIDE, depending on the compression states for depth and stencil.
+        if (m_flags.dbRenderControlLocked == 0)
+        {
+            patchedPm4Commands.dbRenderControl.bits.DEPTH_COMPRESS_DISABLE   = (depthState   != DepthStencilCompressed);
+            patchedPm4Commands.dbRenderControl.bits.STENCIL_COMPRESS_DISABLE = (stencilState != DepthStencilCompressed);
+        }
+        if (m_flags.dbRenderOverrideLocked == 0)
+        {
+            if (depthState == DepthStencilDecomprNoHiZ)
+            {
+                patchedPm4Commands.dbRenderOverrideRmw.regData &= ~DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK;
+                patchedPm4Commands.dbRenderOverrideRmw.regData |=
+                    (FORCE_DISABLE << DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE__SHIFT);
+            }
+            if (stencilState == DepthStencilDecomprNoHiZ)
+            {
+                patchedPm4Commands.dbRenderOverrideRmw.regData &= ~(DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK |
+                                                                    DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK);
+                patchedPm4Commands.dbRenderOverrideRmw.regData |=
+                    ((FORCE_DISABLE << DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0__SHIFT) |
+                     (FORCE_DISABLE << DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1__SHIFT));
+            }
+        }
+    }
+
+    if ((m_flags.viewVaLocked == 0) && m_pImage->Parent()->GetBoundGpuMemory().IsBound())
+    {
+        if (pPm4Commands != &patchedPm4Commands)
+        {
+            patchedPm4Commands = *pPm4Commands;
+            pPm4Commands = &patchedPm4Commands;
+        }
+        UpdateImageVa(&patchedPm4Commands);
+    }
+
+    const size_t spaceNeeded = ((depthState == DepthStencilCompressed) || (stencilState == DepthStencilCompressed))
+        ? m_pm4Cmds.spaceNeeded : m_pm4Cmds.spaceNeededDecompressed;
 
     PAL_ASSERT(pCmdStream != nullptr);
-
-    // The "GetSubresource256BAddrSwizzled" function will crash if no memory has been bound to the associated image
-    // yet, so don't do anything if it's not safe
-    if (m_createInfo.flags.imageVaLocked)
-    {
-        const DepthStencilViewPm4Img*const pPm4Img = &m_pm4Images[depthCompressionState][stencilCompressionState];
-
-        pCmdSpace = pCmdStream->WritePm4Image(pPm4Img->spaceNeeded, pPm4Img, pCmdSpace);
-    }
-    else if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
-    {
-        // Spawn a local copy of the PM4 image, since the Base address and HTile address need to be updated in this
-        // method. The contents of the local copy will depend on which Image state is specified.
-        DepthStencilViewPm4Img pm4Commands = m_pm4Images[depthCompressionState][stencilCompressionState];
-
-        UpdateImageVa(&pm4Commands);
-
-        pCmdSpace = pCmdStream->WritePm4Image(pm4Commands.spaceNeeded, &pm4Commands, pCmdSpace);
-    }
-
-    return pCmdSpace;
+    return pCmdStream->WritePm4Image(spaceNeeded, pPm4Commands, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -575,7 +561,7 @@ uint32 DepthStencilView::CalcDecompressOnZPlanesValue(
 
     // Decompress BLT performance is poor but on Fiji and Gfx8.1 variants, this can be avoided by setting
     // DB_RENDER_CONTROL.DECOMPRESS_ON_N_ZPLANES to 0.
-    if (m_internalInfo.flags.isExpand && depthCompressDisable && m_device.WaDbDecompressPerformance())
+    if (m_flags.isExpand && depthCompressDisable && m_device.WaDbDecompressPerformance())
     {
         decompressOnZPlanes = 0;
     }
@@ -753,7 +739,7 @@ uint32* DepthStencilView::UpdateZRangePrecision(
         }
 
         // DB_Z_INFO is the same for all compression states
-        regDB_Z_INFO regVal = m_pm4Images[DepthStencilCompressed][DepthStencilCompressed].dbZInfo;
+        regDB_Z_INFO regVal = m_pm4Cmds.dbZInfo;
         regVal.bits.ZRANGE_PRECISION = 0;
 
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_Z_INFO, regVal.u32All, pCmdSpace);

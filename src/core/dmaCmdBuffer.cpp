@@ -305,6 +305,37 @@ void DmaCmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+// Executes one region's worth of memory-memory copy.
+void DmaCmdBuffer::CopyMemoryRegion(
+    const IGpuMemory&       srcGpuMemory,
+    const IGpuMemory&       dstGpuMemory,
+    const MemoryCopyRegion& region)
+{
+    gpusize srcGpuAddr      = srcGpuMemory.Desc().gpuVirtAddr + region.srcOffset;
+    gpusize dstGpuAddr      = dstGpuMemory.Desc().gpuVirtAddr + region.dstOffset;
+    gpusize bytesJustCopied = 0;
+    gpusize bytesLeftToCopy = region.copySize;
+
+    const DmaCopyFlags flags = DmaCopyFlags::None;
+
+    while (bytesLeftToCopy > 0)
+    {
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        pCmdSpace = WriteCopyGpuMemoryCmd(srcGpuAddr,
+                                          dstGpuAddr,
+                                          bytesLeftToCopy,
+                                          flags,
+                                          pCmdSpace,
+                                          &bytesJustCopied);
+        m_cmdStream.CommitCommands(pCmdSpace);
+
+        bytesLeftToCopy -= bytesJustCopied;
+        srcGpuAddr      += bytesJustCopied;
+        dstGpuAddr      += bytesJustCopied;
+    }
+}
+
+// =====================================================================================================================
 void DmaCmdBuffer::CmdCopyMemory(
     const IGpuMemory&       srcGpuMemory,
     const IGpuMemory&       dstGpuMemory,
@@ -371,30 +402,7 @@ void DmaCmdBuffer::CmdCopyMemory(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        const auto* pRegion    = &pRegions[rgnIdx];
-        gpusize     srcGpuAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegion->srcOffset;
-        gpusize     dstGpuAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegion->dstOffset;
-
-        gpusize bytesJustCopied = 0;
-        gpusize bytesLeftToCopy = pRegion->copySize;
-
-        const DmaCopyFlags flags = DmaCopyFlags::None;
-
-        while (bytesLeftToCopy > 0)
-        {
-            pCmdSpace = m_cmdStream.ReserveCommands();
-            pCmdSpace = WriteCopyGpuMemoryCmd(srcGpuAddr,
-                                              dstGpuAddr,
-                                              bytesLeftToCopy,
-                                              flags,
-                                              pCmdSpace,
-                                              &bytesJustCopied);
-            m_cmdStream.CommitCommands(pCmdSpace);
-
-            bytesLeftToCopy -= bytesJustCopied;
-            srcGpuAddr      += bytesJustCopied;
-            dstGpuAddr      += bytesJustCopied;
-        }
+        CopyMemoryRegion(srcGpuMemory, dstGpuMemory, pRegions[rgnIdx]);
     }
 
     if (p2pBltInfoRequired)
@@ -488,6 +496,23 @@ bool DmaCmdBuffer::IsAlignedForT2t(
 }
 
 // =====================================================================================================================
+// Allocates the embedded GPU memory chunk reserved for doing unaligned workarounds of mem-image and image-image
+// copies.
+void DmaCmdBuffer::AllocateEmbeddedT2tMemory()
+{
+    PAL_ASSERT(m_pT2tEmbeddedGpuMemory == nullptr);
+
+    const uint32 embeddedDataLimit = GetEmbeddedDataLimit();
+
+    CmdAllocateEmbeddedData(embeddedDataLimit,
+        1, // SDMA can access dword aligned linear data.
+        &m_pT2tEmbeddedGpuMemory,
+        &m_t2tEmbeddedMemOffset);
+
+    PAL_ASSERT(m_pT2tEmbeddedGpuMemory != nullptr);
+}
+
+// =====================================================================================================================
 // Tiled image to tiled image copy, slice by slice, scanline by scanline.
 void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
     const DmaImageCopyInfo& imageCopyInfo)
@@ -512,10 +537,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
     // as-needed basis.
     if (m_pT2tEmbeddedGpuMemory == nullptr)
     {
-        CmdAllocateEmbeddedData(embeddedDataLimit,
-                                1, // SDMA can access dword aligned linear data.
-                                &m_pT2tEmbeddedGpuMemory,
-                                &m_t2tEmbeddedMemOffset);
+        AllocateEmbeddedT2tMemory();
 
         PAL_ASSERT(m_pT2tEmbeddedGpuMemory != nullptr);
     }
@@ -852,18 +874,33 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
         // which can come from different places in the original "region".
         region.imageExtent.depth  = ((imageType == ImageType::Tex3d) ? region.imageExtent.depth : region.numSlices);
 
-        pCmdSpace = m_cmdStream.ReserveCommands();
+        // Figure out whether we can copy using native DMA packets or need to punt to a workaround path
+        const bool isLinearImg  = dstImg.IsSubResourceLinear(region.imageSubres);
+        const auto copyMethod   = GetMemImageCopyMethod(isLinearImg, imageInfo, region);
 
-        if (dstImg.IsSubResourceLinear(region.imageSubres))
+        // Native copy path
+        if (copyMethod == DmaMemImageCopyMethod::Native)
         {
-            pCmdSpace = WriteCopyMemToLinearImageCmd(srcMemory, imageInfo, region, pCmdSpace);
+            pCmdSpace = m_cmdStream.ReserveCommands();
+
+            if (isLinearImg)
+            {
+                pCmdSpace = WriteCopyMemToLinearImageCmd(srcMemory, imageInfo, region, pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace = WriteCopyMemToTiledImageCmd(srcMemory, imageInfo, region, pCmdSpace);
+            }
+
+            m_cmdStream.CommitCommands(pCmdSpace);
         }
+        // Workaround path where the x-extents are not properly dword-aligned (slow)
         else
         {
-            pCmdSpace = WriteCopyMemToTiledImageCmd(srcMemory, imageInfo, region, pCmdSpace);
-        }
+            PAL_ASSERT(copyMethod == DmaMemImageCopyMethod::DwordUnaligned);
 
-        m_cmdStream.CommitCommands(pCmdSpace);
+            WriteCopyMemImageDwordUnalignedCmd(true, isLinearImg, srcMemory, imageInfo, region);
+        }
     }
 
     if (p2pBltInfoRequired)
@@ -965,18 +1002,33 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
         // which can come from different places in the original "region".
         region.imageExtent.depth  = ((imageType == ImageType::Tex3d) ? region.imageExtent.depth : region.numSlices);
 
-        pCmdSpace = m_cmdStream.ReserveCommands();
+        // Figure out whether we can use native SDMA copy or need to punt to a workaround path
+        const bool isLinearImg = srcImg.IsSubResourceLinear(region.imageSubres);
+        const auto copyMethod  = GetMemImageCopyMethod(isLinearImg, imageInfo, region);
 
-        if (srcImg.IsSubResourceLinear(region.imageSubres))
+        // Native copy with SDMA
+        if (copyMethod == DmaMemImageCopyMethod::Native)
         {
-            pCmdSpace = WriteCopyLinearImageToMemCmd(imageInfo, dstMemory, region, pCmdSpace);
+            pCmdSpace = m_cmdStream.ReserveCommands();
+
+            if (isLinearImg)
+            {
+                pCmdSpace = WriteCopyLinearImageToMemCmd(imageInfo, dstMemory, region, pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace = WriteCopyTiledImageToMemCmd(imageInfo, dstMemory, region, pCmdSpace);
+            }
+
+            m_cmdStream.CommitCommands(pCmdSpace);
         }
+        // Workaround path where the x-extents are not properly dword-aligned (slow)
         else
         {
-            pCmdSpace = WriteCopyTiledImageToMemCmd(imageInfo, dstMemory, region, pCmdSpace);
-        }
+            PAL_ASSERT(copyMethod == DmaMemImageCopyMethod::DwordUnaligned);
 
-        m_cmdStream.CommitCommands(pCmdSpace);
+            WriteCopyMemImageDwordUnalignedCmd(false, isLinearImg, dstMemory, imageInfo, region);
+        }
     }
 
     if (p2pBltInfoRequired)
@@ -1260,7 +1312,6 @@ void DmaCmdBuffer::SetupDmaTypedBufferCopyInfo(
     pBuffer->linearDepthPitch   = static_cast<uint32>(region.depthPitch / bytesPerPixel);
 
     *pTexelScale = texelScale;
-
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -1274,5 +1325,343 @@ void DmaCmdBuffer::DumpCmdStreamsToFile(
     m_cmdStream.DumpCommands(pFile, "# DMA Queue - Command length = ", mode);
 }
 #endif
+
+// =====================================================================================================================
+// Helper function for a number of OSS versions to ensure that various memory-image copy region values dependent on
+// the X-axis are dword-aligned when expressed in units of bytes, as per HW requirements.
+bool DmaCmdBuffer::AreMemImageXParamsDwordAligned(
+    const DmaImageInfo&          imageInfo,
+    const MemoryImageCopyRegion& region)
+{
+    bool aligned = true;
+
+    // The requirement applies to the the x, rect_x, src/dst_pitch and src/dst_slice_pitch fields of L2T and potentially
+    // L2L copy packets.
+    if ((((region.imageOffset.x       * imageInfo.bytesPerPixel) & 0x3) != 0) ||
+        (((region.imageExtent.width   * imageInfo.bytesPerPixel) & 0x3) != 0) ||
+        (((region.gpuMemoryRowPitch   * imageInfo.bytesPerPixel) & 0x3) != 0) ||
+        (((region.gpuMemoryDepthPitch * imageInfo.bytesPerPixel) & 0x3) != 0))
+    {
+        aligned = false;
+    }
+
+    return aligned;
+}
+
+// =====================================================================================================================
+// Helper function used by unaligned mem-image copy workaround paths to pad the X-extents of a copy region to
+// dword-alignment requirements when those extents are expressed in units of bytes.
+static void AlignMemImgCopyRegionToDword(
+    const DmaImageInfo&    image,
+    MemoryImageCopyRegion* pRgn)
+{
+    // The x-offset and x-width values, when represented in units of bytes, must be dword-aligned
+    constexpr uint32 XAlign = sizeof(uint32);
+
+    const uint32 bpp   = image.bytesPerPixel;
+    const uint32 origX = pRgn->imageOffset.x;
+
+    pRgn->imageOffset.x     = Util::Pow2AlignDown(pRgn->imageOffset.x * bpp, XAlign) / bpp;
+    pRgn->imageExtent.width += (origX - pRgn->imageOffset.x);
+    pRgn->imageExtent.width = Util::Pow2Align(pRgn->imageExtent.width * bpp, XAlign) / bpp;
+
+    PAL_ASSERT(pRgn->imageExtent.width <= image.actualExtent.width);
+}
+
+// =====================================================================================================================
+// Workaround for some mem-image copy rectangles:
+//
+// Copies (slowly) a rectangle whose x byte offset/width is not dword aligned between linear memory and a
+// linear/tiled image (both to and from memory).
+//
+// The copy is done (at best) one scanline at a time:
+//
+// 1. Copy a larger, correctly-aligned scanline from image to temporary embedded memory (T2L subwindow).
+// 2. For memory -> image copies:
+//    2a. Copy source memory scanline on top of aligned image scanline in embedded memory (byte copy).
+//    2b. Copy (modified) aligned image scanline back to image (L2T subwindow).
+// 3. For image -> memory copies:
+//    3a. Copy original unaligned portion from embedded image scanline to destination memory (byte copy).
+//
+// Copies between src/dst memory and embedded memory are done using byte-copies that are not subject to the dword-
+// alignment restrictions.  Copies between image and embedded memory are done exclusively using correctly-aligned
+// rectangles using L2L/L2T/T2L subwindow copies.
+void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
+    bool                         memToImg,
+    bool                         isLinearImg,
+    const GpuMemory&             gpuMemory,
+    const DmaImageInfo&          image,
+    const MemoryImageCopyRegion& rgn)
+{
+    // Duplicate copy information because we're going to change parts of it in the logic below to conform to
+    // alignment requirements and to split the copy volume into multiple pieces
+    MemoryImageCopyRegion alignedRgn  = rgn;
+    DmaImageInfo alignedImage         = image;
+    SubResourceInfo alignedSubResInfo = *image.pSubresInfo;
+
+    alignedImage.pSubresInfo = &alignedSubResInfo;
+
+    // Calculate a correctly aligned region of the image to copy to/from the embedded intermediate.
+    AlignMemImgCopyRegionToDword(image, &alignedRgn);
+
+    // The aligned region must be within the (actual i.e. padded) bounds of the subresource
+    PAL_ASSERT(alignedRgn.imageExtent.width <= image.actualExtent.width);
+
+    // Calculate the scanline and slice sizes of the aligned region in bytes
+    const uint32 scanlineBytes = alignedRgn.imageExtent.width * image.bytesPerPixel;
+    const uint32 sliceBytes    = scanlineBytes * alignedRgn.imageExtent.height;
+
+    // This region should already be dword-aligned
+    PAL_ASSERT((scanlineBytes % sizeof(uint32)) == 0);
+
+    // How many bytes of embedded data do we have available.  This is used as temp memory to store the aligned
+    // region of the image that we are modifying.
+    const uint32 embeddedDataBytes = GetEmbeddedDataLimit() * sizeof(uint32);
+
+    // We only need one instance of this memory for the entire life of this command buffer.  Allocate it on an
+    // as-needed basis.
+    if (m_pT2tEmbeddedGpuMemory == nullptr)
+    {
+        AllocateEmbeddedT2tMemory();
+
+        PAL_ASSERT(m_pT2tEmbeddedGpuMemory != nullptr);
+    }
+
+    // Figure out if we can copy a whole slice at a time between image and embedded (per-scanline is always done
+    // between memory and embedded).  This is an optimization for small subresources
+    bool wholeSliceInEmbedded = (sliceBytes <= embeddedDataBytes);
+
+    // Figure out at much how many pixels we can copy per scanline between embedded and memory (and image and
+    // embedded for scanline copies).  This may actually be less than a scanline in which case even the scanline
+    // copy is split into pieces.
+    const uint32 copySizeBytes  = Min(scanlineBytes, embeddedDataBytes);
+    const uint32 copySizePixels = copySizeBytes / image.bytesPerPixel;
+
+    // Region to copy a scanline (or piece of a scanline) between memory and embedded data, and for non-whole-slice
+    // copies between image and embedded memory
+    MemoryImageCopyRegion passRgn = {};
+
+    passRgn.imageSubres         = rgn.imageSubres;
+    passRgn.imageOffset         = alignedRgn.imageOffset;
+    passRgn.imageExtent.width   = copySizePixels;
+    passRgn.imageExtent.height  = 1;
+    passRgn.imageExtent.depth   = 1;
+    passRgn.numSlices           = 1;
+    passRgn.gpuMemoryRowPitch   = copySizeBytes;
+    passRgn.gpuMemoryDepthPitch = wholeSliceInEmbedded ? sliceBytes : copySizeBytes;
+    passRgn.gpuMemoryOffset     = m_t2tEmbeddedMemOffset;
+
+    Pal::HwPipePoint pipePoints = HwPipePoint::HwPipeBottom;
+    Pal::BarrierInfo barrierInfo = {};
+
+    barrierInfo.waitPoint          = HwPipeTop;
+    barrierInfo.pipePointWaitCount = 1;
+    barrierInfo.pPipePoints        = &pipePoints;
+
+    MemoryImageCopyRegion sliceRgn;
+
+    uint32_t skip = 0;
+
+    for (uint32 zIdx = 0; zIdx < alignedRgn.imageExtent.depth; zIdx++)
+    {
+        if (zIdx > 0)
+        {
+            if (GetImageType(*image.pImage) == ImageType::Tex3d)
+            {
+                passRgn.imageOffset.z++;
+            }
+            else
+            {
+                passRgn.imageSubres.arraySlice++;
+            }
+        }
+
+        // Attempt to copy the whole slice from image to embedded if we can.  This simplifies the inner loop
+        // below.
+        if (wholeSliceInEmbedded)
+        {
+            // Copy whole slice from image to embedded
+            sliceRgn                    = passRgn;
+            sliceRgn.imageOffset.x      = alignedRgn.imageOffset.x;
+            sliceRgn.imageOffset.y      = alignedRgn.imageOffset.y;
+            sliceRgn.imageExtent.width  = alignedRgn.imageExtent.width;
+            sliceRgn.imageExtent.height = alignedRgn.imageExtent.height;
+
+            alignedImage.offset = sliceRgn.imageOffset;
+
+            // Copy scanline-piece from image to embedded.
+            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+            if (isLinearImg)
+            {
+                pCmdSpace = WriteCopyLinearImageToMemCmd(alignedImage, *m_pT2tEmbeddedGpuMemory, sliceRgn, pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace = WriteCopyTiledImageToMemCmd(alignedImage, *m_pT2tEmbeddedGpuMemory, sliceRgn, pCmdSpace);
+            }
+
+            m_cmdStream.CommitCommands(pCmdSpace);
+
+            CmdBarrier(barrierInfo);
+        }
+
+        for (uint32 yIdx = 0; yIdx < alignedRgn.imageExtent.height; yIdx++)
+        {
+            passRgn.imageOffset.y = alignedRgn.imageOffset.y + yIdx;
+
+            // Copy the scanline in contiguous pieces, as much as we can fit in embedded data at once
+            for (uint32 xIdx = 0; xIdx < alignedRgn.imageExtent.width; xIdx += copySizePixels)
+            {
+                passRgn.imageOffset.x = alignedRgn.imageOffset.x + xIdx;
+
+                // If this pass's piece of the scanline intersects the true copy region
+                if (((rgn.imageOffset.x >= passRgn.imageOffset.x) &&
+                     (rgn.imageOffset.x < passRgn.imageOffset.x + static_cast<int32>(passRgn.imageExtent.width))) ||
+                    ((passRgn.imageOffset.x >= rgn.imageOffset.x) &&
+                     (passRgn.imageOffset.x < rgn.imageOffset.x + static_cast<int32>(rgn.imageExtent.width))))
+                {
+                    uint32* pCmdSpace = nullptr;
+
+                    // Copy from image to embedded per scanline if we did not already do a whole slice
+                    if (wholeSliceInEmbedded == false)
+                    {
+                        // Propagate the copy offset to the other struct
+                        alignedImage.offset = passRgn.imageOffset;
+
+                        // Copy scanline-piece from image to embedded.
+                        pCmdSpace = m_cmdStream.ReserveCommands();
+
+                        if (isLinearImg)
+                        {
+                            pCmdSpace = WriteCopyLinearImageToMemCmd(alignedImage,
+                                                                     *m_pT2tEmbeddedGpuMemory,
+                                                                     passRgn,
+                                                                     pCmdSpace);
+                        }
+                        else
+                        {
+                            pCmdSpace = WriteCopyTiledImageToMemCmd(alignedImage,
+                                                                    *m_pT2tEmbeddedGpuMemory,
+                                                                    passRgn,
+                                                                    pCmdSpace);
+                        }
+
+                        m_cmdStream.CommitCommands(pCmdSpace);
+
+                        CmdBarrier(barrierInfo);
+                    }
+
+                    // Calculate start/end X-extents of the piece of the copy rectangle that intersects this
+                    // scanline
+                    const uint32 rectXStart  = Util::Max(rgn.imageOffset.x, passRgn.imageOffset.x);
+                    const uint32 rectXEnd    = Util::Min(rgn.imageOffset.x + rgn.imageExtent.width,
+                                                         passRgn.imageOffset.x + passRgn.imageExtent.width);
+
+                    // X-offset to start of copy rectangle border within the memory buffer and the embedded region,
+                    // respectively.
+                    const uint32 memXStart      = rectXStart - rgn.imageOffset.x;
+                    const uint32 embeddedXStart = rectXStart - passRgn.imageOffset.x;
+
+                    // Calculate linear byte offset for this scanline-piece within src/dst memory
+                    const gpusize memOffset = rgn.gpuMemoryOffset +               // Start of data
+                                              zIdx * rgn.gpuMemoryDepthPitch +    // Start of slice
+                                              yIdx * rgn.gpuMemoryRowPitch +      // Start of scanline
+                                              memXStart * image.bytesPerPixel;    // Start of scanline-piece
+
+                    // Calculate same byte offset for this scanline-piece within the embedded memory
+                    gpusize embeddedOffset = passRgn.gpuMemoryOffset +              // Start of data
+                                             embeddedXStart * image.bytesPerPixel;  // Start of scanline-piece
+
+                    // If the whole slice is in embedded, offset to the start of the y-th scanline
+                    if (wholeSliceInEmbedded)
+                    {
+                        embeddedOffset += yIdx * passRgn.gpuMemoryRowPitch;
+                    }
+
+                    // Number of bytes to copy during this pass to/from memory to embedded
+                    const gpusize byteCopySize = (rectXEnd - rectXStart) * image.bytesPerPixel;
+
+                    if (memToImg)
+                    {
+                        // Copy from memory to embedded region
+                        MemoryCopyRegion memToEmbeddedRgn = {};
+
+                        memToEmbeddedRgn.copySize  = byteCopySize;
+                        memToEmbeddedRgn.srcOffset = memOffset;
+                        memToEmbeddedRgn.dstOffset = embeddedOffset;
+
+                        CopyMemoryRegion(gpuMemory, *m_pT2tEmbeddedGpuMemory, memToEmbeddedRgn);
+
+                        skip++;
+
+                        // Copy from embedded back to the image
+                        if (wholeSliceInEmbedded == false)
+                        {
+                            CmdBarrier(barrierInfo);
+
+                            pCmdSpace = m_cmdStream.ReserveCommands();
+
+                            if (isLinearImg)
+                            {
+                                pCmdSpace = WriteCopyMemToLinearImageCmd(*m_pT2tEmbeddedGpuMemory, alignedImage,
+                                                                         passRgn, pCmdSpace);
+                            }
+                            else
+                            {
+                                pCmdSpace = WriteCopyMemToTiledImageCmd(*m_pT2tEmbeddedGpuMemory, alignedImage,
+                                                                        passRgn, pCmdSpace);
+                            }
+
+                            m_cmdStream.CommitCommands(pCmdSpace);
+                        }
+                    }
+                    else
+                    {
+                        // Copy from embedded region to memory
+                        MemoryCopyRegion embeddedToMemRgn = {};
+
+                        embeddedToMemRgn.copySize  = byteCopySize;
+                        embeddedToMemRgn.srcOffset = embeddedOffset;
+                        embeddedToMemRgn.dstOffset = memOffset;
+
+                        // Copy from embedded region to memory
+                        CopyMemoryRegion(*m_pT2tEmbeddedGpuMemory, gpuMemory, embeddedToMemRgn);
+                    }
+
+                    CmdBarrier(barrierInfo);
+                }
+            } // X
+        } // Y
+
+        // Copy from embedded back to the image
+        if (memToImg && wholeSliceInEmbedded)
+        {
+            // Note that sliceRgn has already been set-up at the top of this z-iteration
+            CmdBarrier(barrierInfo);
+
+            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+            if (isLinearImg)
+            {
+                pCmdSpace = WriteCopyMemToLinearImageCmd(*m_pT2tEmbeddedGpuMemory,
+                                                         alignedImage,
+                                                         sliceRgn,
+                                                         pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace = WriteCopyMemToTiledImageCmd(*m_pT2tEmbeddedGpuMemory,
+                                                        alignedImage,
+                                                        sliceRgn,
+                                                        pCmdSpace);
+            }
+
+            m_cmdStream.CommitCommands(pCmdSpace);
+
+            CmdBarrier(barrierInfo);
+        }
+    } // Z
+}
 
 } // Pal

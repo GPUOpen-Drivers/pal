@@ -390,10 +390,9 @@ void Queue::DumpCmdToFile(
 
     static const char* const pSuffix[] =
     {
-        "",         // CmdBufDumpMode::CmdBufDumpModeDisabled
-        ".txt",     // CmdBufDumpMode::CmdBufDumpModeText
-        ".bin",     // CmdBufDumpMode::CmdBufDumpModeBinary
-        ".pm4"      // CmdBufDumpMode::CmdBufDumpModeBinaryHeaders
+        ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
+        ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
+        ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
     };
 
     const uint32 frameCnt = m_pDevice->GetFrameCount();
@@ -431,7 +430,7 @@ void Queue::DumpCmdToFile(
                  this,
                  frameCnt,
                  m_submitIdPerFrame,
-                 pSuffix[settings.cmdBufDumpFormat]);
+                 pSuffix[dumpFormat]);
 
         m_lastFrameCnt = frameCnt;
 
@@ -518,7 +517,7 @@ void Queue::DumpCmdToFile(
         for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.cmdBufferCount; ++idxCmdBuf)
         {
             const auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idxCmdBuf]);
-            pCmdBuffer->DumpCmdStreamsToFile(&logFile, settings.cmdBufDumpFormat);
+            pCmdBuffer->DumpCmdStreamsToFile(&logFile, dumpFormat);
         }
 
         for (uint32 idx = 0; idx < internalSubmitInfo.numPostambleCmdStreams; ++idx)

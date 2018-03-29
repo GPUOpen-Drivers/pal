@@ -134,6 +134,10 @@ protected:
 
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const override;
 
+    virtual DmaMemImageCopyMethod GetMemImageCopyMethod(bool                         isLinearImg,
+                                                        const DmaImageInfo&          imageInfo,
+                                                        const MemoryImageCopyRegion& region) const override;
+
 private:
     static uint32* CopyImageLinearTiledTransform(
         const DmaImageCopyInfo&  copyInfo,

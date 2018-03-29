@@ -199,6 +199,12 @@ public:
     }
 
 protected:
+    enum class DmaMemImageCopyMethod
+    {
+        Native,
+        DwordUnaligned
+    };
+
     DmaCmdBuffer(Device* pDevice, const CmdBufferCreateInfo& createInfo, bool copyOverlapHazardSyncs);
     virtual ~DmaCmdBuffer() {}
 
@@ -214,6 +220,28 @@ protected:
     virtual void PatchPredicateCmd(size_t predicateDwords, void* pPredicateCmd) const = 0;
 
     virtual void WriteCopyImageTiledToTiledCmdScanlineCopy(const DmaImageCopyInfo& imageCopyInfo);
+
+    void AllocateEmbeddedT2tMemory();
+
+    virtual DmaMemImageCopyMethod GetMemImageCopyMethod(
+        bool                         linearImg,
+        const DmaImageInfo&          imageInfo,
+        const MemoryImageCopyRegion& region) const = 0;
+
+    static bool AreMemImageXParamsDwordAligned(
+        const DmaImageInfo&          imageInfo,
+        const MemoryImageCopyRegion& region);
+
+    void CopyMemoryRegion(const IGpuMemory& srcGpuMemory,
+                          const IGpuMemory& dstGpuMemory,
+                          const MemoryCopyRegion& region);
+
+    virtual void WriteCopyMemImageDwordUnalignedCmd(
+        bool                         memToImg,
+        bool                         linearImg,
+        const GpuMemory&             srcGpuMemory,
+        const DmaImageInfo&          dstImage,
+        const MemoryImageCopyRegion& rgn);
 
     virtual uint32* WriteCopyGpuMemoryCmd(
         gpusize      srcGpuAddr,

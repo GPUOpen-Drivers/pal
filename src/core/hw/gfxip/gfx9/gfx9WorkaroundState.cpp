@@ -63,10 +63,13 @@ WorkaroundState::WorkaroundState(
 
 // =====================================================================================================================
 uint32* WorkaroundState::SwitchToNggPipeline(
-    const GraphicsPipeline* pOldPipeline,
-    bool                    usesOffchipPc,
-    CmdStream*              pDeCmdStream,
-    uint32*                 pCmdSpace
+    bool        isFirstDraw,
+    bool        prevPipeIsNgg,
+    bool        prevPipeUsesTess,
+    bool        prevPipeUsesGs,
+    bool        usesOffchipPc,
+    CmdStream*  pDeCmdStream,
+    uint32*     pCmdSpace
     ) const
 {
     // When a transition from a legacy tessellation pipeline (GS disabled) to an NGG pipeline, the broadcast logic
@@ -75,7 +78,7 @@ uint32* WorkaroundState::SwitchToNggPipeline(
     // NOTE: For non-nested command buffers, there is the potential that we could chain multiple command buffers
     //       together. In this scenario, we have no method of detecting what the previous command buffer's last bound
     //       pipeline is, so we have to assume the worst and insert this event.
-    if ((pOldPipeline == nullptr) || (pOldPipeline->IsTessEnabled() && (pOldPipeline->IsGsEnabled() == false)))
+    if (isFirstDraw || (prevPipeUsesTess && !prevPipeUsesGs))
     {
         // If we see hangs, this alert will draw our attention to this possible workaround.
         PAL_ALERT_ALWAYS();
@@ -87,8 +90,7 @@ uint32* WorkaroundState::SwitchToNggPipeline(
     }
 
     // When we transition from a legacy pipeline to an NGG pipeline we need to send a VS_PARTIAL_FLUSH to avoid a hang.
-    if (m_settings.waLegacyToNggVsPartialFlush && (usesOffchipPc == false) &&
-        ((pOldPipeline == nullptr) || (pOldPipeline->IsNgg() == false)))
+    if (m_settings.waLegacyToNggVsPartialFlush && !usesOffchipPc && (isFirstDraw || !prevPipeIsNgg))
     {
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
     }

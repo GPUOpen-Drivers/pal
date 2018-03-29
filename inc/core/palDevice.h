@@ -815,41 +815,44 @@ struct DeviceProperties
             struct
             {
                 /// Indicates support for virtual GPU memory allocations.  @see IQueue::RemapVirtualMemoryPages.
-                uint32 virtualRemappingSupport :  1;
+                uint32 virtualRemappingSupport          :  1;
 
                 /// Indicates support for pinning system memory for access as GPU memory.
                 /// @see IDevice::PinSystemMemory.
-                uint32 pinningSupport          :  1;
+                uint32 pinningSupport                   :  1;
+
+                /// Indicates support pinned memory which is host-mapped from foreign device.
+                uint32 supportHostMappedForeignMemory   :  1;
 
                 /// Indicates whether specifying memory references at Submit time is supported. If not supported
                 /// all memory references must be manged via IDevice or IQueue AddGpuMemoryReferences()
-                uint32 supportPerSubmitMemRefs :  1;
+                uint32 supportPerSubmitMemRefs          :  1;
 
                 /// Indicates support for GPU virtual addresses that are visible to all devices.
-                uint32 globalGpuVaSupport      :  1;
+                uint32 globalGpuVaSupport               :  1;
 
                 /// Indicates support for Shared Virtual Memory VA range.
-                uint32 svmSupport              :  1;
+                uint32 svmSupport                       :  1;
 
                 /// Indicates support for shadow desc VA range.
-                uint32 shadowDescVaSupport     :  1;
+                uint32 shadowDescVaSupport              :  1;
 
                 /// Indicates support for IOMMUv2. Fine grain SVM is not supported without IOMMU.
                 /// PAL client needs to check this flag before using fine grain SVM.
                 /// IOMMU is a memory management unit (MMU) that connects a direct-memory-access-capable
                 /// (DMA-capable) I/O bus to the main memory.
-                uint32 iommuv2Support          :  1;
+                uint32 iommuv2Support                   :  1;
 
                 /// Indiciates that the platform supports automatic GPU memory priority management.
-                uint32 autoPrioritySupport     :  1;
+                uint32 autoPrioritySupport              :  1;
 
                 /// Indicates KMD has enabled HBCC(High Bandwidth Cache Controller) page migration support.
                 /// This means shaders must be compiled such that all memory clauses can be replayed in response to an XNACK.
-                uint32 pageMigrationEnabled    :  1;
+                uint32 pageMigrationEnabled             :  1;
                 /// Placeholder.
-                uint32 placeholder0            :  1;
+                uint32 placeholder0                     :  1;
                 /// Reserved for future use.
-                uint32 reserved                : 22;
+                uint32 reserved                         : 21;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -989,8 +992,12 @@ struct DeviceProperties
                 uint32 placeholder2                             : 1; ///< Reserved for future hardware.
 
                 uint32 supportSpp                               : 1; ///< Hardware supports Shader Profiling for Power.
+                uint32 timestampResetOnIdle                     : 1; ///< GFX timestamp resets after idle between
+                                                                     ///  submissions. The client cannot assume that
+                                                                     ///  timestamps will increase monotonically across
+                                                                     ///  command buffer submissions.
 
-                uint32 reserved                                 : 14; ///< Reserved for future use.
+                uint32 reserved                                 : 13; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1553,7 +1560,8 @@ enum class BorderColorType : uint32
 struct BufferViewInfo
 {
     gpusize         gpuAddr;        ///< GPU memory virtual address where the buffer view starts, in bytes.
-    gpusize         range;          ///< Restrict the buffer view to this many bytes. Must be a multiple of the stride.
+    gpusize         range;          ///< Restrict the buffer view to this many bytes.  Will be rounded down to a
+                                    ///< multiple of the stride.
     gpusize         stride;         ///< Stride in bytes. Must match the bytes-per-element of the view format for typed
                                     ///  access.
     SwizzledFormat  swizzledFormat; ///< Format and channel swizzle for typed access. Must be Undefined for structured

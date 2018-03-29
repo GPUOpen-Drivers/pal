@@ -71,6 +71,7 @@ public:
     bool  IsSyncObjectSupported()    const { return m_features.supportSyncObj       == 1; }
     bool  IsCreateSignaledSyncObjectSupported() const { return m_features.supportCreateSignaledSyncobj == 1; }
     bool  IsSyncobjFenceSupported()  const { return m_features.supportSyncobjFence  == 1; }
+    bool  IsHostMappedForeignMemorySupported() const { return m_features.suportHostMappedForeignMemory == 1; }
 protected:
     virtual Result InitProperties() override;
     virtual Result ConnectToOsInterface() override;
@@ -97,9 +98,10 @@ protected:
             uint32 supportSyncObj               :  1;    // Support Sync Object Interface
             uint32 supportRawSubmitRoutine      :  1;    // Support raw submit routine
             uint32 supportQueuePriority         :  1;    // Support creating queue with priority
-            uint32 supportCreateSignaledSyncobj :  1;    // support creating initial signaled syncobj.
-            uint32 supportSyncobjFence          :  1;    // support fence based on sync object.
-            uint32 reserved                     : 25;
+            uint32 supportCreateSignaledSyncobj :  1;    // Support creating initial signaled syncobj.
+            uint32 supportSyncobjFence          :  1;    // Support fence based on sync object.
+            uint32 suportHostMappedForeignMemory:  1;    // Support pin memory which is host-mapped from foreign device.
+            uint32 reserved                     : 24;
         };
         uint32 u32All;
     } m_features;

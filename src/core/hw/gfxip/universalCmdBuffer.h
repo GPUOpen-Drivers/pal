@@ -234,18 +234,8 @@ protected:
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
 
+    template <bool filterRedundantUserData>
     static void PAL_STDCALL CmdSetUserDataGfx(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
-    static void CmdSetUserDataGfxOne(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        const uint32* pEntryValues);
-
-    static void CmdSetUserDataGfxMany(
         ICmdBuffer*   pCmdBuffer,
         uint32        firstEntry,
         uint32        entryCount,
@@ -255,8 +245,8 @@ protected:
 
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
 
-    GraphicsState         m_graphicsState;        // Currently bound graphics command buffer state.
-    GraphicsState         m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
+    GraphicsState  m_graphicsState;        // Currently bound graphics command buffer state.
+    GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
 
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets]; // Current blend optimization state
 

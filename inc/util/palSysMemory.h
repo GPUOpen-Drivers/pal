@@ -633,7 +633,7 @@ void static DeleteArray(T* p, Allocator* pAllocator)
             Destructor(p + i);
         }
 
-        p = static_cast<T*>(VoidPtrDec(static_cast<const void*>(p), headerSize));
+        p = static_cast<T*>(VoidPtrDec(p, headerSize));
     }
 
     PAL_FREE_BASE(p, pAllocator, MemBlkType::NewArray);

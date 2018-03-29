@@ -556,178 +556,132 @@ uint32* CmdStream::WriteSetShRegDataOffset<ShaderCompute>(
     uint32*       pCmdSpace);
 
 // =====================================================================================================================
-// Helper function to route to fast path for writing one user-data entry to an SPI register or to the general path for
-// writing many.
-uint32* CmdStream::WriteUserDataRegisters(
+// Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.
+template <bool IgnoreDirtyFlags>
+uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
     const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
-    Pm4ShaderType           shaderType,
+    const UserDataEntries&  entries,
     uint32*                 pCmdSpace)
 {
-    if (pUserDataArgs->entryCount == 1)
+    if (m_flags.optModeImmediate != 0)
     {
-        pCmdSpace = WriteUserDataRegistersOne(entryMap, pUserDataArgs, shaderType, pCmdSpace);
+        pCmdSpace = WriteUserDataEntriesToSgprsGfx<IgnoreDirtyFlags, true>(entryMap, entries, pCmdSpace);
     }
     else
     {
-        pCmdSpace = WriteUserDataRegistersMany(entryMap, pUserDataArgs, shaderType, pCmdSpace);
+        pCmdSpace = WriteUserDataEntriesToSgprsGfx<IgnoreDirtyFlags, false>(entryMap, entries, pCmdSpace);
     }
 
     return pCmdSpace;
 }
 
-// =====================================================================================================================
-// Helper function to write one user-data entry which has been remapped to a SPI user-data register. Returns a
-// pointer to the next unused DWORD in pCmdSpace.
-uint32* CmdStream::WriteUserDataRegistersOne(
-    const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
-    Pm4ShaderType           shaderType,
-    uint32*                 pCmdSpace)
-{
-    uint32 regAddr = entryMap.regAddr[pUserDataArgs->firstEntry];
-
-    if (regAddr != UserDataNotMapped)
-    {
-        if (m_flags.optModeImmediate == 1)
-        {
-            PM4_ME_SET_SH_REG setShReg;
-
-            const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(regAddr, regAddr, shaderType, &setShReg);
-            PAL_ASSERT(totalDwords == (1 + CmdUtil::ShRegSizeDwords));
-
-            pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg,
-                                                                    &(pUserDataArgs->pEntryValues[0]),
-                                                                    pCmdSpace);
-        }
-        else
-        {
-            uint32*const pCmdPayload = (pCmdSpace + CmdUtil::ShRegSizeDwords);
-
-            const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(regAddr, regAddr, shaderType, pCmdSpace);
-            PAL_ASSERT(totalDwords == (1 + CmdUtil::ShRegSizeDwords));
-
-            pCmdPayload[0] = pUserDataArgs->pEntryValues[0];
-
-            // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
-            PAL_ASSERT(totalDwords == (1 + CmdUtil::ShRegSizeDwords));
-            pCmdSpace += totalDwords;
-        }
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Helper function to write a group of user-data entries which have been remapped to SPI user-data registers. Returns a
-// pointer to the next unused DWORD in pCmdSpace.
-uint32* CmdStream::WriteUserDataRegistersMany(
-    const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
-    Pm4ShaderType           shaderType,
-    uint32*                 pCmdSpace)
-{
-    // Virtualized user-data entries are always remapped to a consecutive sequence of SPI user-data registers. Because
-    // the entries are remapped to consecutive registers, we can always assume that this call will result in a sequence
-    // of zero or more SPI registers being written.
-    //
-    // NOTE: We'll track the last register address written and the count of registers written rather than the starting
-    // register address to prevent unnecessary branching in the loop below.
-
-    uint32 firstEntry          = pUserDataArgs->firstEntry;
-    uint32 entryCount          = pUserDataArgs->entryCount;
-    const uint32* pEntryValues = pUserDataArgs->pEntryValues;
-
-    uint32 endRegAddr = 0;
-    uint32 count = 0;
-
-    // This loop will copy all of the mapped user-data entries' values into the data buffer following the PM4 command
-    // header.  If we are using the optimizer, we need to write into cacheable memory because the optimizer will read
-    // from the data.
-
-    uint32 scratchMem[MaxUserDataEntries];
-
-    uint32*const pCmdPayload = (m_flags.optModeImmediate == 1) ? scratchMem : (pCmdSpace + CmdUtil::ShRegSizeDwords);
-    for (uint32 e = 0; e < entryCount; ++e)
-    {
-        const uint32 currRegAddr = entryMap.regAddr[e + firstEntry];
-        if (currRegAddr != UserDataNotMapped)
-        {
-            pCmdPayload[count] = pEntryValues[e];
-
-            PAL_ASSERT((endRegAddr == 0) || (endRegAddr == (currRegAddr - 1)));
-            endRegAddr = currRegAddr;
-            ++count;
-        }
-    }
-
-    if (count >= 1)
-    {
-        // If we copied any registers at all to the output buffer, we need to assemble the correct packet for setting
-        // a group of sequential SPI user-data registers.
-
-        if (m_flags.optModeImmediate == 1)
-        {
-            PM4_ME_SET_SH_REG setShReg;
-
-            m_cmdUtil.BuildSetSeqShRegs((endRegAddr - count + 1), endRegAddr, shaderType, &setShReg);
-
-            pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
-        }
-        else
-        {
-            const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs((endRegAddr - count + 1),
-                                                                   endRegAddr,
-                                                                   shaderType,
-                                                                   pCmdSpace);
-
-            // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
-            PAL_ASSERT(totalDwords == (count + CmdUtil::ShRegSizeDwords));
-            pCmdSpace += totalDwords;
-        }
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Helper function to write one indirect user-data entry which has been remapped to a SPI user-data register. Returns a
-// pointer to the next unused DWORD in pCmdSpace.
-template <Pm4ShaderType shaderType>
-uint32* CmdStream::WriteUserDataRegisterOffset(
-    const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
-    uint32*                 pCmdSpace)
-{
-    const uint32 regAddr = entryMap.regAddr[pUserDataArgs->firstEntry];
-
-    if (regAddr != UserDataNotMapped)
-    {
-        if (m_flags.optModeImmediate == 1)
-        {
-            pCmdSpace = WriteSetShRegDataOffset<shaderType, true>(regAddr, pUserDataArgs->pEntryValues[0], pCmdSpace);
-        }
-        else
-        {
-            pCmdSpace = WriteSetShRegDataOffset<shaderType, false>(regAddr, pUserDataArgs->pEntryValues[0], pCmdSpace);
-        }
-    }
-
-    return pCmdSpace;
-}
-
-// Instsantiate template for linker.
+// Instantiate template for linker.
 template
-uint32* CmdStream::WriteUserDataRegisterOffset<ShaderGraphics>(
+uint32* CmdStream::WriteUserDataEntriesToSgprsGfx<false>(
     const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
+    const UserDataEntries&  entries,
+    uint32*                 pCmdSpace);
+template
+uint32* CmdStream::WriteUserDataEntriesToSgprsGfx<true>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries&  entries,
     uint32*                 pCmdSpace);
 
-template
-uint32* CmdStream::WriteUserDataRegisterOffset<ShaderCompute>(
+// =====================================================================================================================
+// Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.
+template <bool IgnoreDirtyFlags, bool Pm4OptImmediate>
+uint32* CmdStream::WriteUserDataEntriesToSgprsGfx(
     const UserDataEntryMap& entryMap,
-    const UserDataArgs*     pUserDataArgs,
-    uint32*                 pCmdSpace);
+    const UserDataEntries&  entries,
+    uint32*                 pCmdSpace)
+{
+    // Virtualized user-data entries are always remapped to a consecutive sequence of user-SGPR's.  Because of this
+    // mapping, we can always assume that this operation will result in a series of zero or more consecutive registers
+    // being written, except in the case where we skip entries which aren't dirty (i.e., IgnoreDirtyFlags is false).
+    const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;
+    const uint16 userSgprCount = entryMap.userSgprCount;
+
+    uint32 scratchMem[NumUserDataRegisters - FastUserDataStartReg];
+    uint32* pCmdPayload = Pm4OptImmediate ? scratchMem : (pCmdSpace + CmdUtil::ShRegSizeDwords);
+
+    if (IgnoreDirtyFlags)
+    {
+        if (userSgprCount != 0)
+        {
+            for (uint16 sgpr = 0; sgpr < userSgprCount; ++sgpr)
+            {
+                pCmdPayload[sgpr] = entries.entries[entryMap.mappedEntry[sgpr]];
+            }
+
+            if (Pm4OptImmediate)
+            {
+                PM4_ME_SET_SH_REG setShReg;
+                m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
+                                            (firstUserSgpr + userSgprCount - 1),
+                                            ShaderGraphics,
+                                            &setShReg);
+
+                pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
+            }
+            else
+            {
+                const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(firstUserSgpr,
+                                                                       (firstUserSgpr + userSgprCount - 1),
+                                                                       ShaderGraphics,
+                                                                       pCmdSpace);
+                // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
+                PAL_ASSERT(totalDwords == (userSgprCount + CmdUtil::ShRegSizeDwords));
+                pCmdSpace += totalDwords;
+            }
+        }
+    }
+    else
+    {
+        // If we are honoring the dirty flags, then there may be multiple packets because skipping dirty entries
+        // can break the assumption about only writing consecutive registers.
+        for (uint16 sgpr = 0; sgpr < userSgprCount; ++sgpr)
+        {
+            const uint16 packetFirstSgpr = (firstUserSgpr + sgpr);
+            uint16       packetSgprCount = 0;
+
+            uint16 entry = entryMap.mappedEntry[sgpr];
+            while ((sgpr < userSgprCount) && WideBitfieldIsSet(entries.dirty, entry))
+            {
+                pCmdPayload[packetSgprCount] = entries.entries[entry];
+                ++packetSgprCount;
+                ++sgpr;
+                entry = entryMap.mappedEntry[sgpr];
+            }
+
+            if (packetSgprCount > 0)
+            {
+                if (Pm4OptImmediate)
+                {
+                    PM4_ME_SET_SH_REG setShReg;
+                    m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
+                                                (packetFirstSgpr + packetSgprCount - 1),
+                                                ShaderGraphics,
+                                                &setShReg);
+
+                    pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
+                }
+                else
+                {
+                    const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
+                                                                           (packetFirstSgpr + packetSgprCount - 1),
+                                                                           ShaderGraphics,
+                                                                           pCmdSpace);
+                    // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
+                    PAL_ASSERT(totalDwords == (packetSgprCount + CmdUtil::ShRegSizeDwords));
+                    pCmdSpace   += totalDwords;
+                    pCmdPayload += totalDwords;
+                }
+            }
+        } // for each mapped user-SGPR
+    }
+
+    return pCmdSpace;
+}
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given registers unless the PM4 optimizer indicates that it is redundant.

@@ -403,11 +403,6 @@ Result Device::EarlyInit(
 
     if (result == Result::Success)
     {
-        result = SetupPublicSettingDefaults();
-    }
-
-    if (result == Result::Success)
-    {
         result = OsEarlyInit();
     }
 
@@ -680,7 +675,9 @@ void Device::InitMemoryHeapProperties()
 // Initializes the Pal setting structure
 Result Device::InitSettings()
 {
-    Result ret = Result::_Success;
+    Result ret = Result::Success;
+
+    // Make sure we only initialize settings once
     if (m_pSettingsLoader == nullptr)
     {
         switch (m_chipProperties.gfxLevel)
@@ -710,6 +707,12 @@ Result Device::InitSettings()
         else
         {
             ret = m_pSettingsLoader->Init();
+        }
+
+        // If the regular settings initialize successfully, then initialize the public settings too.
+        if (ret == Result::Success)
+        {
+            ret = SetupPublicSettingDefaults();
         }
     }
 
@@ -1783,6 +1786,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
+            pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;

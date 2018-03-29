@@ -1331,11 +1331,7 @@ Result Device::CreateColorTargetView(
     IColorTargetView**                       ppColorTargetView
     ) const
 {
-    ColorTargetView* const pView = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView();
-
-    pView->Init(*this, createInfo, internalInfo);
-
-    *ppColorTargetView = pView;
+    (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(*this, createInfo, internalInfo);
 
     return Result::Success;
 }
@@ -1413,7 +1409,17 @@ gpusize Device::CalcNumRecords(
         (Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp7))
     {
         // On GFX6 and GFX7 GPUs, the units of the "num_records" field is in terms of the stride.
-        numRecords = (stride == 0) ? range : (range / stride);
+        numRecords = (stride <= 1) ? range : (range / stride);
+    }
+    else
+    {
+        // On GFX8+ GPUs, the units of the "num_records" field is always in terms of bytes.
+        // We need to round down to a multiple of stride.  This happens as a side effect of dividing by stride for
+        // GFX6 and GFX7.
+        if (stride > 1)
+        {
+            numRecords = RoundDownToMultiple(range, stride);
+        }
     }
 
     return numRecords;

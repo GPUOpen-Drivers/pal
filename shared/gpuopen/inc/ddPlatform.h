@@ -266,6 +266,18 @@ namespace DevDriver
     // Dilip V. Sarwate, and is based off of Stephan Brumme's implementation. See also:
     // https://dl.acm.org/citation.cfm?doid=63030.63037
     // http://create.stephan-brumme.com/crc32/#sarwate
+    //
+    // Copyright (c) 2004-2006 Intel Corporation - All Rights Reserved
+    //
+    //
+    //
+    // This software program is licensed subject to the BSD License,
+    // available at http://www.opensource.org/licenses/bsd-license.html.
+    //
+    // Abstract:
+    //
+    // Tables for software CRC generation
+    //
     static inline uint32 CRC32(const void *pData, size_t length, uint32 lastCRC = 0)
     {
         DD_STATIC_CONST uint32_t lookupTable[256] =

@@ -183,6 +183,8 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
+    bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
+
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,

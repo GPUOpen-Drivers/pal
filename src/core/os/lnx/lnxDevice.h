@@ -32,6 +32,7 @@
 #include "core/os/lnx/drmLoader.h"
 #include "core/os/lnx/lnxPlatform.h"
 #include "core/os/lnx/lnxGpuMemory.h"
+#include "core/svmMgr.h"
 namespace Pal
 {
 namespace Linux
@@ -365,7 +366,7 @@ public:
 
     virtual Result CheckExecutionState() const override;
 
-    bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid && Settings().enableVmAlwaysValid; }
+    bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
     // Access KMD interfaces
     Result AllocBuffer(
@@ -570,24 +571,15 @@ public:
         Pal::GpuMemory*         pGpuMemory);
 
     // Reserve gpu virtual address range. This function is called by SVM manager 'SvmMgr'
-    // This function returns error because PAL linux Devices don't support SVM.
     virtual Result ReserveGpuVirtualAddress(VaRange                 vaRange,
                                             gpusize                 baseVirtAddr,
                                             gpusize                 size,
                                             bool                    isVirtual,
                                             VirtualGpuMemAccessMode virtualAccessMode,
-                                            gpusize*                pGpuVirtAddr) override
-    {
-        PAL_NEVER_CALLED();
-        return Result::ErrorUnavailable;
-    }
+                                            gpusize*                pGpuVirtAddr) override;
+
     // Free gpu virtual address. This function is called by SVM manager 'SvmMgr'
-    // This function returns error because PAL linux Devices don't support SVM.
-    virtual Result FreeGpuVirtualAddress(gpusize vaStartAddress, gpusize vaSize) override
-    {
-        PAL_NEVER_CALLED();
-        return Result::ErrorUnavailable;
-    }
+    virtual Result FreeGpuVirtualAddress(gpusize vaStartAddress, gpusize vaSize) override;
 
     virtual Result GetFlipStatus(
         uint32           vidPnSrcId,
@@ -672,6 +664,8 @@ public:
         gpusize*    pCardAddr);
 
     Result FreeSdiSurface(GpuMemory* pGpuMem);
+
+    SvmMgr* GetSvmMgr() const { return m_pSvmMgr; }
 
 protected:
     virtual void FinalizeQueueProperties() override;
@@ -770,6 +764,17 @@ private:
 
     const char*                     m_pSettingsPath;
     Util::SettingsFileMgr<Platform> m_settingsMgr;
+
+    SvmMgr* m_pSvmMgr;
+
+    struct ReservedVaRangeInfo
+    {
+        gpusize size;
+        amdgpu_va_handle vaHandle;
+    };
+    typedef Util::HashMap<gpusize, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
+    GenericAllocatorAuto m_mapAllocator;
+    ReservedVaMap m_reservedVaMap;
 
     // Store information of shader and memory clock.
     // For example(cat /sys/class/drm/card0/device/pp_dpm_mclk):

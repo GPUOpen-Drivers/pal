@@ -27,6 +27,7 @@
 
 #include "palColorTargetView.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 
 namespace Pal
@@ -42,7 +43,6 @@ namespace Gfx9
 class CmdStream;
 class CmdUtil;
 class Device;
-class Image;
 
 // =====================================================================================================================
 // Gfx9+ HW-specific base implementation of the Pal::IColorTargetView interface
@@ -64,8 +64,6 @@ public:
         CmdStream*    pCmdStream,
         ImageLayout   imageLayout) const;
 
-    virtual void Init() = 0;
-
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
 
@@ -80,7 +78,6 @@ public:
 
     static uint32* HandleBoundTargetsChanged(
         const Device& device,
-        CmdStream*    pCmdStream,
         uint32*       pCmdSpace);
 
 protected:
@@ -92,34 +89,29 @@ protected:
     }
 
     template <typename Pm4ImgType>
-    void CommonBuildPm4Headers(
-        bool        useCompression,
-        Pm4ImgType* pPm4Img) const;
+    void CommonBuildPm4Headers(Pm4ImgType* pPm4Img) const;
 
     template <typename Pm4ImgType>
-    void InitCommonBufferView(Pm4ImgType* pPm4Img) const;
+    void InitCommonBufferView(
+        const ColorTargetViewCreateInfo& createInfo,
+        Pm4ImgType*                      pPm4Img) const;
 
     template <typename FmtInfoType>
-    void InitCommonCbColorInfo(
-        const FmtInfoType*  pFmtInfo,
-        regCB_COLOR0_INFO*  pCbColorInfo) const;
+    regCB_COLOR0_INFO InitCommonCbColorInfo(
+        const ColorTargetViewCreateInfo& createInfo,
+        const FmtInfoType*               pFmtInfo) const;
 
     template <typename Pm4ImgType>
     void InitCommonImageView(
-        bool                useCompression,
-        const Extent3d&     baseExtent,
-        const Extent3d&     extent,
-        Pm4ImgType*         pPm4Img,
-        regCB_COLOR0_INFO*  pCbColorInfo) const;
+        const ColorTargetViewCreateInfo&         createInfo,
+        const ColorTargetViewInternalCreateInfo& internalInfo,
+        const Extent3d&                          baseExtent,
+        const Extent3d&                          extent,
+        Pm4ImgType*                              pPm4Img,
+        regCB_COLOR0_INFO*                       pCbColorInfo) const;
 
     template <typename Pm4ImgType>
     void UpdateImageVa(Pm4ImgType* pPm4Img) const;
-
-    template <typename Pm4ImgType>
-    uint32* WriteCommandsInternal(
-        CmdStream*         pCmdStream,
-        uint32*            pCmdSpace,
-        const Pm4ImgType&  pm4Img) const;
 
     union
     {
@@ -142,14 +134,14 @@ protected:
         uint32 u32All;
     } m_flags;
 
-    // If this is an image view, these members give the bound image and its base subresource.
-    const Device*                            m_pDevice;
-    const Image*                             m_pImage;
-    SubresId                                 m_subresource;
-    uint32                                   m_arraySize;
-    Range                                    m_zRange;
-    const ColorTargetViewCreateInfo          m_createInfo;
-    const ColorTargetViewInternalCreateInfo  m_internalInfo;
+    const Device*const  m_pDevice;
+    const Image* const  m_pImage;
+
+    SubresId  m_subresource;
+    uint32    m_arraySize;
+    Range     m_zRange;
+
+    ColorLayoutToState  m_layoutToState;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ColorTargetView);
@@ -188,16 +180,18 @@ struct Gfx9ColorTargetViewPm4Img
     PM4PFP_SET_CONTEXT_REG        hdrCbMrtEpitch;
     regCB_MRT0_EPITCH__GFX09      cbMrtEpitch;
 
-    // PM4 load context regs packet to load the Image's fast-clear meta-data.
+    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
+    // image because it is either absent or present depending on compression state.
     union
     {
         PM4PFP_LOAD_CONTEXT_REG       loadMetaData;
         PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
     };
 
-    // Command space needed, in DWORDs. This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                        spaceNeeded;
+    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
+    // in the structure to not interfere w/ the actual commands contained within.
+    size_t  spaceNeeded;
+    size_t  spaceNeededDecompressed;
 };
 
 // =====================================================================================================================
@@ -216,8 +210,6 @@ public:
         CmdStream*  pCmdStream,
         uint32*     pCmdSpace) const;
 
-    virtual void Init();
-
 protected:
     virtual ~Gfx9ColorTargetView()
     {
@@ -227,19 +219,14 @@ protected:
     }
 
 private:
-    void BuildPm4Headers(
-        bool                       useCompression,
-        Gfx9ColorTargetViewPm4Img* pPm4Img) const;
-
+    void BuildPm4Headers();
     void InitRegisters(
-        bool                       useCompression,
-        Gfx9ColorTargetViewPm4Img* pPm4Img) const;
+        const ColorTargetViewCreateInfo&         createInfo,
+        const ColorTargetViewInternalCreateInfo& internalInfo);
 
-    // Image of PM4 commands used to write this View to hardware with full compression enabled.
-    Gfx9ColorTargetViewPm4Img  m_pm4CmdsCompressed;
-
-    // Image of PM4 commands used to write this View to hardware with compression disabled.
-    Gfx9ColorTargetViewPm4Img  m_pm4CmdsDecompressed;
+    // Image of PM4 commands used to write this View to hardware for buffer views or for image views with full
+    // compression enabled.
+    Gfx9ColorTargetViewPm4Img  m_pm4Cmds;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9ColorTargetView);
 };

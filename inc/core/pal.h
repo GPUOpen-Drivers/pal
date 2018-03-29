@@ -54,10 +54,20 @@ typedef Util::Result  Result;   ///< The PAL core and utility companion share th
 typedef Util::Rational Rational; ///< A ratio of two unsigned integers.
 
 typedef void*       OsDisplayHandle;  ///< The Display Handle for Linux except X11 platform
-typedef uint32      OsWindowHandle;   ///< OsWindowHandle corresponds to a Window on X-Windows.
 typedef uint32      OsExternalHandle; ///< OsExternalHandle corresponds to a generic handle on linux
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
+/// OsWindowHandle corresponds to a window on X-Windows or surface on Wayland.
+union OsWindowHandle
+{
+    void*  pSurface;  ///< Native surface handle in wayland is a pointer.
+    uint32 win;       ///< Native window handle in X is a 32-bit integer.
+};
+constexpr OsWindowHandle NullWindowHandle = {nullptr}; ///< Value representing a null or invalid window handle.
+#else
+typedef uint32 OsWindowHandle; ///< OsWindowHandle corresponds to a Window on X-Windows
 constexpr OsWindowHandle NullWindowHandle = 0u; ///< Value representing a null or invalid window handle.
+#endif
 
 constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot abstract a Windows VidPnSourceId, this
                                                  ///  represents an invalid value. (Note: zero is a valid value.)

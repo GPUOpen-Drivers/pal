@@ -42,7 +42,8 @@ GpuMemory::GpuMemory(
     m_hSurface(nullptr),
     m_hVaRange(nullptr),
     m_offset(0),
-    m_isVmAlwaysValid(false)
+    m_isVmAlwaysValid(false),
+    m_externalHandleType(amdgpu_bo_handle_type_dma_buf_fd)
 {
 }
 
@@ -72,7 +73,24 @@ GpuMemory::~GpuMemory()
         {
             pDevice->DiscardReservedPrtVaRange(m_desc.gpuVirtAddr, m_desc.size);
         }
-        pDevice->FreeVirtualAddress(this);
+        if (m_vaRange != VaRange::Svm)
+        {
+            pDevice->FreeVirtualAddress(this);
+        }
+    }
+
+    if ((m_vaRange == VaRange::Svm) && (IsGpuVaPreReserved() == false))
+    {
+        Result result;
+        if (IsSvmAlloc())
+        {
+            result = VirtualRelease(reinterpret_cast<void*>(m_desc.gpuVirtAddr), static_cast<size_t>(m_desc.size));
+        }
+        else
+        {
+            result = FreeSvmVirtualAddress();
+        }
+        PAL_ASSERT(result == Result::Success);
     }
 
     if (m_hSurface != nullptr)
@@ -119,13 +137,32 @@ Result GpuMemory::AllocateOrPinMemory(
 
     Result result = Result::Success;
 
-    if (IsGpuVaPreReserved())
+    if (IsSvmAlloc())
     {
-        // It's not expected to get here. Implement later if this feature is desired for Linux.
-        PAL_NOT_IMPLEMENTED();
-        result = Result::Unsupported;
+        PAL_ASSERT(baseVirtAddr == 0);
+        result = VirtualReserve(static_cast<size_t>(m_desc.size),
+                                reinterpret_cast<void**>(&m_desc.gpuVirtAddr),
+                                nullptr,
+                                static_cast<size_t>(m_desc.alignment));
+        if (result == Result::Success)
+        {
+            result = VirtualCommit(reinterpret_cast<void*>(m_desc.gpuVirtAddr),
+                                   static_cast<size_t>(m_desc.size),
+                                   IsExecutable());
+        }
+        if ((result == Result::Success) && IsUserQueue())
+        {
+            baseVirtAddr = m_desc.gpuVirtAddr;
+            memset(reinterpret_cast<void*>(baseVirtAddr), 0, static_cast<size_t>(m_desc.size));
+        }
     }
-    else
+    else if (IsGpuVaPreReserved())
+    {
+        PAL_ASSERT(IsPeer() == false);
+        PAL_ASSERT(baseVirtAddr != 0);
+        m_desc.gpuVirtAddr = baseVirtAddr;
+    }
+    else if (m_vaRange != VaRange::Svm)
     {
         result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
     }
@@ -142,7 +179,10 @@ Result GpuMemory::AllocateOrPinMemory(
                 // both supposed to be alinged to page boundary otherwise the pinned down operation
                 // will fail.
                 PAL_ASSERT(m_pPinnedMemory != nullptr);
-                result = pDevice->PinMemory(m_pPinnedMemory, m_desc.size, &m_offset, &bufferHandle);
+                result = pDevice->PinMemory(m_pPinnedMemory,
+                                            m_desc.size,
+                                            &m_offset,
+                                            &bufferHandle);
             }
             else
             {
@@ -236,7 +276,9 @@ Result GpuMemory::AllocateOrPinMemory(
                     (allocRequest.preferred_heap != AMDGPU_GEM_DOMAIN_DGMA) &&
                     (m_flags.isFlippable == 0)              && // Memory shared by multiple processes are not allowed
                     (m_flags.interprocess == 0)             && // Memory shared by multiple processes are not allowed
-                    (m_desc.flags.isExternal == 0))            // Memory shared by multiple processes are not allowed
+                    (m_desc.flags.isExternal == 0)          && // Memory shared by multiple processes are not allowed
+                    (m_flags.isShareable == 0)              && // Memory shared by multiple devices are not allowed
+                    (m_flags.peerWritable == 0))               // Memory can be writen by peer device are not allowed
                 {
                     // VM always valid guarantees VM addresses are always valid within local VM context.
                     allocRequest.flags |= AMDGPU_GEM_CREATE_VM_ALWAYS_VALID;
@@ -271,6 +313,11 @@ Result GpuMemory::Init(
     const GpuMemoryCreateInfo&         createInfo,
     const GpuMemoryInternalCreateInfo& internalInfo)
 {
+    if (internalInfo.flags.isExternal)
+    {
+        m_externalHandleType = static_cast<enum amdgpu_bo_handle_type>(internalInfo.externalHandleType);
+    }
+
     Result result = Pal::GpuMemory::Init(createInfo, internalInfo);
 
     if (createInfo.flags.sdiExternal)
@@ -285,35 +332,78 @@ Result GpuMemory::Init(
 }
 
 // =====================================================================================================================
+Result GpuMemory::AllocateSvmVirtualAddress(
+    gpusize baseVirtAddr,
+    gpusize size,
+    gpusize align,
+    bool    commitCpuVa)
+{
+    Device* pDevice = static_cast<Device*>(m_pDevice);
+    Result  result = Result::Success;
+
+    PAL_ASSERT(m_vaRange == VaRange::Svm);
+
+    if (baseVirtAddr == 0)
+    {
+        result = pDevice->GetSvmMgr()->AllocVa(size, static_cast<uint32>(align), &baseVirtAddr);
+        if ((result == Result::Success) && commitCpuVa)
+        {
+            result = VirtualCommit(reinterpret_cast<void*>(baseVirtAddr), static_cast<size_t>(size));
+        }
+    }
+    if (result == Result::Success)
+    {
+        m_desc.gpuVirtAddr = baseVirtAddr;
+        m_desc.size        = size;
+        m_desc.alignment   = align;
+        m_pPinnedMemory    = reinterpret_cast<const void*>(m_desc.gpuVirtAddr);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result GpuMemory::FreeSvmVirtualAddress()
+{
+    Result  result = Result::Success;
+    Device* pDevice = static_cast<Device*>(m_pDevice);
+
+    PAL_ASSERT(m_vaRange == VaRange::Svm);
+
+    if (m_pPinnedMemory != nullptr)
+    {
+        result = VirtualDecommit(reinterpret_cast<void*>(m_desc.gpuVirtAddr), static_cast<size_t>(m_desc.size));
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    if (result == Result::Success)
+    {
+        pDevice->GetSvmMgr()->FreeVa(m_desc.gpuVirtAddr);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Performs OS-specific initialization for allocating shared memory objects.
 // The "shared" memory object refers to
 // a:   GPU memory object residing in a non-local heap which can be accessed (shared between) two or more GPU's
 //      without requiring peer memory transfers.
 // b:   The memory may allocated from the same device but export/imported across driver stack or process boundary.
+// c:   The memory may be allocated from peer device and need to be imported to current device.
 Result GpuMemory::OpenSharedMemory()
 {
-    amdgpu_bo_import_result importResult = {};
     amdgpu_bo_info          bufferInfo   = {};
     Device*                 pDevice      = static_cast<Device*>(m_pDevice);
     gpusize                 baseVirtAddr = 0;
 
-    // hard code the amdgpu_bo_handle_type_dma_buf_fd.
-    // this can be extended later in case pal need to support more types.
-    Result result = pDevice->ImportBuffer(amdgpu_bo_handle_type_dma_buf_fd, m_hExternalResource, &importResult);
+    // open the external memory with virtual address assigned
+    Result result = OpenPeerMemory();
 
     if (result == Result::Success)
     {
-        m_hSurface  = importResult.buf_handle;
         result      = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
-    }
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(importResult.alloc_size == bufferInfo.alloc_size);
-
-        m_desc.size         = bufferInfo.alloc_size;
-        m_desc.alignment    = bufferInfo.phys_alignment;
-        m_heapCount         = 1;
+        m_heapCount = 1;
 
         if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)
         {
@@ -322,9 +412,6 @@ Result GpuMemory::OpenSharedMemory()
 
             if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
             {
-                // Check for any unexpected flags
-                PAL_ASSERT((bufferInfo.alloc_flags & ~AMDGPU_GEM_CREATE_CPU_GTT_USWC) == 0);
-
                 m_heaps[0] = GpuHeapGartUswc;
             }
             else
@@ -384,28 +471,6 @@ Result GpuMemory::OpenSharedMemory()
                 break;
         }
 
-        if (IsGpuVaPreReserved())
-        {
-            // It's not expected to get here. Implement later if this feature is desired for Linux.
-            PAL_NOT_IMPLEMENTED();
-            result = Result::Unsupported;
-        }
-        else
-        {
-            result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
-        }
-
-        if (result == Result::Success)
-        {
-            m_desc.gpuVirtAddr = baseVirtAddr;
-
-            result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
-
-            if (result != Result::Success)
-            {
-                pDevice->FreeVirtualAddress(this);
-            }
-        }
     }
 
     return result;
@@ -415,8 +480,56 @@ Result GpuMemory::OpenSharedMemory()
 // Performs OS-specific initialization for allocating peer memory objects.
 Result GpuMemory::OpenPeerMemory()
 {
-    PAL_NOT_IMPLEMENTED();  // MGPU on Linux is not yet supported in PAL!
-    return Result::ErrorUnavailable;
+    // Get the external resource handle from original memory object if it is not set before.
+    if ((m_hExternalResource == 0) && (m_pOriginalMem != nullptr))
+    {
+        m_hExternalResource = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandle();
+    }
+
+    amdgpu_bo_import_result importResult    = {};
+    Device* pDevice                         = static_cast<Device*>(m_pDevice);
+    gpusize baseVirtAddr                    = 0;
+
+    Result result = pDevice->ImportBuffer(m_externalHandleType, m_hExternalResource, &importResult);
+
+    if (result == Result::Success)
+    {
+        m_hSurface  = importResult.buf_handle;
+
+        if (IsGpuVaPreReserved())
+        {
+            // It's not expected to get here. Implement later if this feature is desired for Linux.
+            PAL_NOT_IMPLEMENTED();
+            result = Result::Unsupported;
+        }
+        else
+        {
+            amdgpu_bo_info bufferInfo   = {};
+            result = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
+
+            if (result == Result::Success)
+            {
+                m_desc.size         = bufferInfo.alloc_size;
+                m_desc.alignment    = bufferInfo.phys_alignment;
+
+                result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        m_desc.gpuVirtAddr = baseVirtAddr;
+
+        result = pDevice->MapVirtualAddress(m_hSurface, 0, importResult.alloc_size, m_desc.gpuVirtAddr, m_mtype);
+
+        if (result != Result::Success)
+        {
+            pDevice->FreeVirtualAddress(this);
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

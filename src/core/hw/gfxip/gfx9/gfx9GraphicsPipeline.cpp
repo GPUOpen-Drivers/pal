@@ -47,9 +47,10 @@ namespace Gfx9
 // User-data signature for an unbound graphics pipeline.
 const GraphicsPipelineSignature NullGfxSignature =
 {
-    { UserDataNotMapped, },     // User-data mapping for each shader stage
+    { 0, },                     // User-data mapping for each shader stage
     { UserDataNotMapped, },     // Indirect user-data table mapping
     UserDataNotMapped,          // Stream-out table mapping
+    UserDataNotMapped,          // Stream-out table user-SGPR address
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
     UserDataNotMapped,          // Start Index register address
@@ -59,6 +60,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
+    { 0, },                     // User-data mapping hashes per-stage
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
@@ -93,10 +95,10 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
 
             if (pDsView != nullptr)
             {
-                const bool isDepthWriteEnabled = (pDsView->GetDsViewCreateInfo().flags.readOnlyDepth == 0) &&
+                const bool isDepthWriteEnabled = (pDsView->ReadOnlyDepth() == false) &&
                                                  (pDepthStencilState->IsDepthWriteEnabled());
 
-                const bool isStencilWriteEnabled = (pDsView->GetDsViewCreateInfo().flags.readOnlyStencil == 0) &&
+                const bool isStencilWriteEnabled = (pDsView->ReadOnlyStencil() == false) &&
                                                    (pDepthStencilState->IsStencilWriteEnabled());
 
                 isDepthStencilWriteEnabled = (isDepthWriteEnabled || isStencilWriteEnabled);
@@ -1532,6 +1534,8 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     const AbiProcessor& abiProcessor,
     HwShaderStage       stage)
 {
+    uint16  entryToRegAddr[MaxUserDataEntries] = { };
+
     const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
     const uint16 lastRegAddr = (baseRegAddr + 31);
 
@@ -1545,7 +1549,17 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         {
             if (value < MaxUserDataEntries)
             {
-                pStage->regAddr[value] = offset;
+                if (pStage->firstUserSgprRegAddr == UserDataNotMapped)
+                {
+                    pStage->firstUserSgprRegAddr = offset;
+                }
+
+                PAL_ASSERT(offset >= pStage->firstUserSgprRegAddr);
+                const uint8 userSgprId = static_cast<uint8>(offset - pStage->firstUserSgprRegAddr);
+                entryToRegAddr[value]  = offset;
+
+                pStage->mappedEntry[userSgprId] = static_cast<uint8>(value);
+                pStage->userSgprCount = Max<uint8>(userSgprId + 1, pStage->userSgprCount);
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::GlobalTable))
             {
@@ -1630,13 +1644,24 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         } // If HasRegisterEntry()
     } // For each user-SGPR
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    constexpr uint64 HashedDataLength = (sizeof(pStage->regAddr) + sizeof(pStage->spillTableRegAddr));
+    for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
+    {
+        if (m_signature.indirectTableAddr[i] != UserDataNotMapped)
+        {
+            pStage->indirectTableRegAddr[i] = entryToRegAddr[m_signature.indirectTableAddr[i] - 1];
+        }
+    }
 
+    if ((stage == HwShaderStage::Vs) && (m_signature.streamOutTableAddr != UserDataNotMapped))
+    {
+        m_signature.streamOutTableRegAddr = entryToRegAddr[m_signature.streamOutTableAddr - 1];
+    }
+
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
     MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(pStage->regAddr),
-        HashedDataLength,
-        reinterpret_cast<uint8* const>(&pStage->userDataHash));
+        reinterpret_cast<const uint8*>(pStage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&m_signature.userDataHash[stageId]));
 }
 
 // =====================================================================================================================
@@ -1644,20 +1669,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 void GraphicsPipeline::SetupSignatureFromElf(
     const AbiProcessor& abiProcessor)
 {
-    if (IsTessEnabled())
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Hs);
-    }
-    if (IsGsEnabled() || IsNgg())
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Gs);
-    }
-    if (IsNgg() == false)
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Vs);
-    }
-    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ps);
-
     uint32 value = 0;
     if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::StreamOutTableEntry, &value))
     {
@@ -1685,6 +1696,20 @@ void GraphicsPipeline::SetupSignatureFromElf(
     {
         m_signature.userDataLimit = static_cast<uint16>(value);
     }
+
+    if (IsTessEnabled())
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Hs);
+    }
+    if (IsGsEnabled() || IsNgg())
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Gs);
+    }
+    if (IsNgg() == false)
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Vs);
+    }
+    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ps);
 
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.

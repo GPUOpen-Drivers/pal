@@ -283,33 +283,25 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::CopyTypedBuffer3d, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp9) &&
-        (result == Result::Success))
+    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRam, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp9) &&
-        (result == Result::Success))
+    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs2x, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp9) &&
-        (result == Result::Success))
+    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs4x, pDevice, pTable, pPipelineMem);
     }
 
-    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) &&
-        (properties.gfxLevel <= GfxIpLevel::GfxIp9) &&
-        (result == Result::Success))
+    if ((properties.gfxLevel >= GfxIpLevel::GfxIp8) && (result == Result::Success))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::ExpandMaskRamMs8x, pDevice, pTable, pPipelineMem);

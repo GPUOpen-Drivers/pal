@@ -261,6 +261,41 @@ static PAL_INLINE uint32 Type3Header(
 }
 
 // =====================================================================================================================
+// Returns a 32-bit quantity that corresponds to a ordinal 2 of packets that are similar to
+// typedef struct PM4_PFP_SET_CONTEXT_REG
+// {
+//     union
+//     {
+//         PM4_PFP_TYPE_3_HEADER   header;            ///header
+//         uint32_t            ordinal1;
+//     };
+//
+//     union
+//     {
+//         struct
+//         {
+//             uint32_t reg_offset:16;
+//             uint32_t reserved1:12;
+//             PFP_SET_CONTEXT_REG_index_enum index:4;
+//         } bitfields2;
+//         uint32_t ordinal2;
+//     };
+//
+// //  uint32_t reg_data[];  // N-DWords
+//
+// } PM4PFP_SET_CONTEXT_REG, *PPM4PFP_SET_CONTEXT_REG;
+// This is done with shifts to avoid a read-modify-write of the destination memory.
+static PAL_INLINE uint32 Type3Ordinal2(
+    uint32 regOffset,
+    uint32 index)
+{
+    const uint32 IndexShift = 28;
+
+    return regOffset |
+           (index << IndexShift);
+}
+
+// =====================================================================================================================
 // Note that this constructor is invoked before settings have been committed.
 CmdUtil::CmdUtil(
     const Device& device)
@@ -2548,10 +2583,8 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
 
     IT_OpCodeType opCode = IT_SET_UCONFIG_REG;
 
-    pPacket->header.u32All         = Type3Header(opCode, packetSize);
-    pPacket->ordinal2              = 0;
-    pPacket->bitfields2.reg_offset = startRegAddr - UCONFIG_SPACE_START;
-    pPacket->bitfields2.index      = index;
+    pPacket->header.u32All  = Type3Header(opCode, packetSize);
+    pPacket->ordinal2       = Type3Ordinal2((startRegAddr - UCONFIG_SPACE_START), index);
 
     return packetSize;
 }
@@ -2700,10 +2733,8 @@ size_t CmdUtil::BuildSetSeqContextRegs(
     const uint32 packetSize = ContextRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const   pPacket    = static_cast<PM4_PFP_SET_CONTEXT_REG*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_SET_CONTEXT_REG, packetSize);
-    pPacket->ordinal2              = 0;
-    pPacket->bitfields2.reg_offset = startRegAddr - CONTEXT_SPACE_START;
-    pPacket->bitfields2.index      = index;
+    pPacket->header.u32All  = Type3Header(IT_SET_CONTEXT_REG, packetSize);
+    pPacket->ordinal2       = Type3Ordinal2((startRegAddr - CONTEXT_SPACE_START), index);
 
     return packetSize;
 }

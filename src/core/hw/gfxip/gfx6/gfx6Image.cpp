@@ -305,13 +305,13 @@ Result Image::Finalize(
         useFmask = (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
-        if (useDcc && (sharedMetadata.fastClearMetaDataOffset != 0))
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset == 0))
         {
             useDcc = false;
             result = Result::ErrorNotShareable;
         }
 
-        if (useHtile && (sharedMetadata.fastClearMetaDataOffset != 0))
+        if (useHtile && (sharedMetadata.fastClearMetaDataOffset == 0))
         {
             useHtile = false;
             result = Result::ErrorNotShareable;
@@ -947,6 +947,9 @@ void Image::InitLayoutStateMasksOneMip(
         // texture fetches are not supported.
         if (isMsaa)
         {
+            // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
+            m_layoutToState[mip].color.compressed.usages |= LayoutResolveSrc;
+
             // Our copy path has been designed to allow color compressed MSAA copy sources.
             m_layoutToState[mip].color.fmaskDecompressed.usages = LayoutColorTarget | LayoutCopySrc;
 
@@ -1871,13 +1874,14 @@ bool Image::IsFastColorClearSupported(
     // restrictions which are implemented in IsFastDepthStencilClearSupported().
     PAL_ASSERT(m_pParent->IsDepthStencil() == false);
 
-    const SubresId& subResource = range.startSubres;
-    const SubResourceInfo*const pSubResInfo = m_pParent->SubresourceInfo(subResource);
+    const SubresId&             subResource   = range.startSubres;
+    const SubResourceInfo*const pSubResInfo   = m_pParent->SubresourceInfo(subResource);
+    const ColorLayoutToState&   layoutToState = m_layoutToState[subResource.mipLevel].color;
 
     // Fast clear is only possible if meta surfaces exist, the image is currently in a color-compressible
     // layout, and we are clearing all arrays at once.
     bool isFastClearSupported = (HasDccData() || HasCmaskData()) &&
-                                (LayoutToColorCompressionState(subResource, colorLayout) == ColorCompressed) &&
+                                (ImageLayoutToColorCompressionState(layoutToState, colorLayout) == ColorCompressed) &&
                                 (subResource.arraySlice == 0) &&
                                 (range.numSlices == m_createInfo.arraySize);
 
@@ -1958,7 +1962,8 @@ bool Image::IsFastDepthStencilClearSupported(
     const ImageLayout layout = (subResource.aspect == ImageAspect::Depth) ? depthLayout : stencilLayout;
 
     // Map from layout to supported compression state
-    const DepthStencilCompressionState state = LayoutToDepthCompressionState(subResource, layout);
+    const DepthStencilCompressionState state =
+        ImageLayoutToDepthCompressionState(LayoutToDepthCompressionState(subResource), layout);
 
     // Layouts that do not support depth-stencil compression can not be fast cleared
     if (state != DepthStencilCompressed)
@@ -2007,17 +2012,21 @@ bool Image::IsFormatReplaceable(
 
     if (Parent()->IsDepthStencil())
     {
+        const auto layoutToState = LayoutToDepthCompressionState(subresId);
+
         // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
         // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
         // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
         isFormatReplaceable = ((HasHtileData() == false) ||
-                               (LayoutToDepthCompressionState(subresId, layout) != DepthStencilCompressed));
+                               (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
     }
     else
     {
+        const auto layoutToState = LayoutToColorCompressionState(subresId);
+
         // DCC must either be disabled or we must be sure that it is decompressed.
         isFormatReplaceable = ((HasDccData() == false) ||
-                               (LayoutToColorCompressionState(subresId, layout) == ColorDecompressed));
+                               (ImageLayoutToColorCompressionState(layoutToState, layout) == ColorDecompressed));
     }
 
     return isFormatReplaceable;
@@ -2616,72 +2625,14 @@ bool Image::IsMacroTiled(
 }
 
 // =====================================================================================================================
-// Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
-// are always compressed if they are only used on the universal queue and only support the color target usage.
-// Otherwise, depending on the GFXIP support, additional usages may be available that avoid a full decompress.
-ColorCompressionState Image::LayoutToColorCompressionState(
-    const SubresId& subresId,
-    ImageLayout     imageLayout
+// Returns the layout-to-state mask for a depth/stencil Image.  This should only ever be called on a depth/stencil
+// Image.
+const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
+    const SubresId& subresId
     ) const
 {
-    // A color target view might also be created on a depth stencil image to perform a depth-stencil copy operation.
-    // So this function might also be accessed upon a depth-stencil image.
-
-    ColorCompressionState state = ColorDecompressed;
-
-    const auto& layoutToState = m_layoutToState[subresId.mipLevel];
-    if ((TestAnyFlagSet(imageLayout.usages, ~layoutToState.color.compressed.usages) == false) &&
-        (TestAnyFlagSet(imageLayout.engines, ~layoutToState.color.compressed.engines) == false))
-    {
-        state = ColorCompressed;
-    }
-    else if ((TestAnyFlagSet(imageLayout.usages, ~layoutToState.color.fmaskDecompressed.usages) == false) &&
-             (TestAnyFlagSet(imageLayout.engines, ~layoutToState.color.fmaskDecompressed.engines) == false))
-    {
-        PAL_ASSERT(m_createInfo.samples > 1);
-        state = ColorFmaskDecompressed;
-    }
-
-    return state;
-}
-
-// =====================================================================================================================
-// Returns the best hardware depth/stencil compression state for the specified subresource based on a set of allowed
-// usages and queues. Images with htile are always compressed if they are only used on the universal queue and only
-// support the depth/stencil target usage.  Otherwise, depending on the GFXIP support, additional usages may be
-// available whithout decompressing.
-DepthStencilCompressionState Image::LayoutToDepthCompressionState(
-    const SubresId& subresId,
-    ImageLayout     imageLayout
-    ) const
-{
-    PAL_ASSERT(Parent()->IsDepthStencil());
-
-    // Start with most aggressive decompression
-    DepthStencilCompressionState state = DepthStencilDecomprNoHiZ;
-
-    if ((imageLayout.engines != 0) && HasHtileData())
-    {
-        const uint32 index = GetDepthStencilStateIndex(subresId.aspect);
-
-        // If there is an htile, test if the given layout supports full compression.  Otherwise, try partial
-        // decompression that still uses HiZ.
-        const ImageLayout compressed     = m_layoutToState[subresId.mipLevel].depthStencil[index].compressed;
-        const ImageLayout decomprWithHiZ = m_layoutToState[subresId.mipLevel].depthStencil[index].decomprWithHiZ;
-
-        if ((TestAnyFlagSet(imageLayout.usages, ~compressed.usages) == false) &&
-            (TestAnyFlagSet(imageLayout.engines, ~compressed.engines) == false))
-        {
-            state = DepthStencilCompressed;
-        }
-        else if ((TestAnyFlagSet(imageLayout.usages, ~decomprWithHiZ.usages) == false) &&
-                 (TestAnyFlagSet(imageLayout.engines, ~decomprWithHiZ.engines) == false))
-        {
-            state = DepthStencilDecomprWithHiZ;
-        }
-    }
-
-    return state;
+    PAL_ASSERT(m_pParent->IsDepthStencil());
+    return m_layoutToState[subresId.mipLevel].depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 }
 
 // =====================================================================================================================

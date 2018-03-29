@@ -97,6 +97,9 @@ struct GpuMemoryInternalCreateInfo
     // it is only valid when flags.isExternal is set.
     OsExternalHandle hExternalResource;
 
+    // The type of hExternalResource(Linux) such as: GEM global name or dma-buf file descriptor.
+    uint32 externalHandleType;
+
     // Used to override the KMD's default MTYPE selection. Default to zero if it doesn't matter.
     MType mtype;
 };

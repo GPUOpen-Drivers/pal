@@ -223,10 +223,11 @@ bool Device::GetDepthStencilBltPerSubres(
     {
         subRes.mipLevel = mip;
 
-        const DepthStencilCompressionState oldState =
-            gfx6Image.LayoutToDepthCompressionState(subRes, transition.imageInfo.oldLayout);
-        const DepthStencilCompressionState newState =
-            gfx6Image.LayoutToDepthCompressionState(subRes, transition.imageInfo.newLayout);
+        const DepthStencilLayoutToState    layoutToState = gfx6Image.LayoutToDepthCompressionState(subRes);
+        const DepthStencilCompressionState oldState      =
+            ImageLayoutToDepthCompressionState(layoutToState, transition.imageInfo.oldLayout);
+        const DepthStencilCompressionState newState      =
+            ImageLayoutToDepthCompressionState(layoutToState, transition.imageInfo.newLayout);
 
         if ((oldState == DepthStencilCompressed) && (newState != DepthStencilCompressed))
         {
@@ -538,11 +539,12 @@ uint32 Device::GetColorBltPerSubres(
     {
         subRes.mipLevel = mip;
 
-        const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subRes);
-        const ColorCompressionState oldState    =
-            gfx6Image.LayoutToColorCompressionState(subRes, transition.imageInfo.oldLayout);
-        const ColorCompressionState newState    =
-            gfx6Image.LayoutToColorCompressionState(subRes, transition.imageInfo.newLayout);
+        const SubResourceInfo*const pSubresInfo   = image.SubresourceInfo(subRes);
+        const ColorLayoutToState    layoutToState = gfx6Image.LayoutToColorCompressionState(subRes);
+        const ColorCompressionState oldState      =
+            ImageLayoutToColorCompressionState(layoutToState, transition.imageInfo.oldLayout);
+        const ColorCompressionState newState      =
+            ImageLayoutToColorCompressionState(layoutToState, transition.imageInfo.newLayout);
 
         if ((oldState != ColorDecompressed) && (newState == ColorDecompressed))
         {

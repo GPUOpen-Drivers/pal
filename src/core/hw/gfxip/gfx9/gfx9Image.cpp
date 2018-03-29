@@ -343,13 +343,13 @@ Result Image::Finalize(
         useCmask = (sharedMetadata.cmaskOffset != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
-        if (useDcc && (sharedMetadata.fastClearMetaDataOffset != 0))
+        if (useDcc && (sharedMetadata.fastClearMetaDataOffset == 0))
         {
             useDcc = false;
             result = Result::ErrorNotShareable;
         }
 
-        if (useHtile && (sharedMetadata.fastClearMetaDataOffset != 0))
+        if (useHtile && (sharedMetadata.fastClearMetaDataOffset == 0))
         {
             useHtile = false;
             result = Result::ErrorNotShareable;
@@ -750,6 +750,27 @@ Result Image::Finalize(
 }
 
 // =====================================================================================================================
+// The CopyImageToMemory functions use the same format for the source and destination (i.e., image and buffer).
+// Not all image formats are supported as buffer formats.  If the format doesn't work for both, then we need
+// to force decompressions which will force image-replacement in the copy code.
+bool Image::DoesImageSupportCopySrcCompression() const
+{
+    const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
+    const ChNumFormat createFormat        = m_createInfo.swizzledFormat.format;
+    bool              supportsCompression = true;
+
+    if (gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel);
+        const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, createFormat);
+
+        supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
+    }
+
+    return supportsCompression;
+}
+
+// =====================================================================================================================
 // Initializes the layout-to-state masks which are used by Device::Barrier() to determine which operations are needed
 // when transitioning between different Image layouts.
 void Image::InitLayoutStateMasks()
@@ -792,8 +813,11 @@ void Image::InitLayoutStateMasks()
             }
             else
             {
-                // Our copy path has been designed to allow compressed copy sources.
-                m_layoutToState.color.compressed.usages |= LayoutCopySrc;
+                if (DoesImageSupportCopySrcCompression())
+                {
+                    // Our copy path has been designed to allow compressed copy sources.
+                    m_layoutToState.color.compressed.usages |= LayoutCopySrc;
+                }
 
                 // You can't raw copy to a compressed texture, you can only write to it using the image's format.
                 // Add in LayoutCopyDst if the client promises that all copies will only write using the image's
@@ -839,6 +863,9 @@ void Image::InitLayoutStateMasks()
         // texture fetches are not supported.
         if (isMsaa)
         {
+            // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
+            m_layoutToState.color.compressed.usages |= LayoutResolveSrc;
+
             // Our copy path has been designed to allow color compressed MSAA copy sources.
             m_layoutToState.color.fmaskDecompressed.usages = LayoutColorTarget | LayoutCopySrc;
 
@@ -1155,70 +1182,14 @@ Result Image::ComputePipeBankXor(
 }
 
 // =====================================================================================================================
-// Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
-// are always compressed if they are only used on the universal queue and only support the color target usage.
-// Otherwise, depending on the GFXIP support, additional usages may be available that avoid a full decompress.
-ColorCompressionState Image::LayoutToColorCompressionState(
-    ImageLayout imageLayout
-    ) const
-{
-    // A color target view might also be created on a depth stencil image to perform a depth-stencil copy operation.
-    // So this function might also be accessed upon a depth-stencil image.
-
-    ColorCompressionState state = ColorDecompressed;
-
-    if ((TestAnyFlagSet(imageLayout.usages, ~m_layoutToState.color.compressed.usages) == false) &&
-        (TestAnyFlagSet(imageLayout.engines, ~m_layoutToState.color.compressed.engines) == false))
-    {
-        state = ColorCompressed;
-    }
-    else if ((TestAnyFlagSet(imageLayout.usages, ~m_layoutToState.color.fmaskDecompressed.usages) == false) &&
-             (TestAnyFlagSet(imageLayout.engines, ~m_layoutToState.color.fmaskDecompressed.engines) == false))
-    {
-        PAL_ASSERT(m_createInfo.samples > 1);
-        state = ColorFmaskDecompressed;
-    }
-
-    return state;
-}
-
-// =====================================================================================================================
-// Returns the best hardware depth/stencil compression state for the specified subresource based on a set of allowed
-// usages and queues. Images with htile are always compressed if they are only used on the universal queue and only
-// support the depth/stencil target usage.  Otherwise, depending on the GFXIP support, additional usages may be
-// available whithout decompressing.
-DepthStencilCompressionState Image::LayoutToDepthCompressionState(
-    const SubresId& subresId,
-    ImageLayout     imageLayout
+// Returns the layout-to-state mask for a depth/stencil Image.  This should only ever be called on a depth/stencil
+// Image.
+const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
+    const SubresId& subresId
     ) const
 {
     PAL_ASSERT(m_pParent->IsDepthStencil());
-
-    // Start with most aggressive decompression
-    DepthStencilCompressionState state = DepthStencilDecomprNoHiZ;
-
-    if ((imageLayout.engines != 0) && HasHtileData())
-    {
-        const uint32 index = GetDepthStencilStateIndex(subresId.aspect);
-
-        // If there is an htile, test if the given layout supports full compression.  Otherwise, try partial
-        // decompression that still uses HiZ.
-        const ImageLayout compressed     = m_layoutToState.depthStencil[index].compressed;
-        const ImageLayout decomprWithHiZ = m_layoutToState.depthStencil[index].decomprWithHiZ;
-
-        if ((TestAnyFlagSet(imageLayout.usages, ~compressed.usages) == false) &&
-            (TestAnyFlagSet(imageLayout.engines, ~compressed.engines) == false))
-        {
-            state = DepthStencilCompressed;
-        }
-        else if ((TestAnyFlagSet(imageLayout.usages, ~decomprWithHiZ.usages) == false) &&
-                 (TestAnyFlagSet(imageLayout.engines, ~decomprWithHiZ.engines) == false))
-        {
-            state = DepthStencilDecomprWithHiZ;
-        }
-    }
-
-    return state;
+    return m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 }
 
 // =====================================================================================================================
@@ -1246,9 +1217,10 @@ bool Image::IsFastColorClearSupported(
     const SubresId& subResource = range.startSubres;
 
     // We can only fast clear all arrays at once.
-    bool  isFastClearSupported = (LayoutToColorCompressionState(colorLayout) == ColorCompressed) &&
-                                 (subResource.arraySlice == 0)                                   &&
-                                 (range.numSlices == m_createInfo.arraySize);
+    bool isFastClearSupported =
+        (ImageLayoutToColorCompressionState(m_layoutToState.color, colorLayout) == ColorCompressed) &&
+        (subResource.arraySlice == 0)                                                                &&
+        (range.numSlices == m_createInfo.arraySize);
 
     // GFX9 only supports fast color clears using DCC memory; having cMask does nothing for fast-clears.
     if (HasDccData() && isFastClearSupported)
@@ -1417,7 +1389,8 @@ bool Image::IsFastDepthStencilClearSupported(
         else
         {
             // Map from layout to supported compression state
-            const DepthStencilCompressionState state = LayoutToDepthCompressionState(subResource, layout);
+            const DepthStencilCompressionState state =
+                ImageLayoutToDepthCompressionState(LayoutToDepthCompressionState(subResource), layout);
 
             // Layouts that do not support depth-stencil compression can not be fast cleared
             if (state != DepthStencilCompressed)
@@ -1459,17 +1432,21 @@ bool Image::IsFormatReplaceable(
 
     if (Parent()->IsDepthStencil())
     {
+        const auto layoutToState = m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
+
         // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
         // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
         // Z-16 unorm is actually replaceable, but Z-32 float will be converted to unorm if replaced.
-        isFormatReplaceable = ((HasHtileData() == false) ||
-                               (LayoutToDepthCompressionState(subresId, layout) != DepthStencilCompressed));
+        isFormatReplaceable =
+            ((HasHtileData() == false) ||
+             (ImageLayoutToDepthCompressionState(layoutToState, layout) != DepthStencilCompressed));
     }
     else
     {
         // DCC must either be disabled or we must be sure that it is decompressed.
-        isFormatReplaceable = ((HasDccData() == false) ||
-                               (LayoutToColorCompressionState(layout) == ColorDecompressed));
+        isFormatReplaceable =
+            ((HasDccData() == false) ||
+             (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed));
     }
 
     return isFormatReplaceable;

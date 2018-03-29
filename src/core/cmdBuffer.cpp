@@ -801,10 +801,9 @@ void CmdBuffer::OpenCmdBufDumpFile(
     const auto& settings = m_device.Settings();
     static const char* const pSuffix[] =
     {
-        "",         // CmdBufDumpMode::CmdBufDumpModeDisabled
-        ".txt",     // CmdBufDumpMode::CmdBufDumpModeText
-        ".bin",     // CmdBufDumpMode::CmdBufDumpModeBinary
-        ".pm4"      // CmdBufDumpMode::CmdBufDumpModeBinaryHeaders
+        ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
+        ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
+        ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
     };
 
     const char* pLogDir = &settings.cmdBufDumpDirectory[0];

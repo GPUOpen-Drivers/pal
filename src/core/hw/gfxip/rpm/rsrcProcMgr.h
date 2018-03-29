@@ -541,6 +541,14 @@ private:
         ResolveMode   mode,
         ResolveMethod method) const;
 
+    void LateExpandResolveSrc(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        ResolveMethod             method) const;
+
     GfxDevice*const  m_pDevice;
     uint32           m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.
 

@@ -64,13 +64,20 @@ constexpr uint32 PredicationAlign = 16;
 // the number returned to the client.
 constexpr uint32 MaxUserDataEntries = 128;
 
+// Wide-bitmask of one flag for every user-data entry.
+constexpr uint32 UserDataEntriesPerMask = (sizeof(uint16) << 3);
+constexpr uint32 NumUserDataFlagsParts  = (MaxUserDataEntries / UserDataEntriesPerMask);
+typedef uint16 UserDataFlags[NumUserDataFlagsParts];
+
 // Represents the user data entries for a particular shader stage.
 struct UserDataEntries
 {
-    uint32  entries[MaxUserDataEntries];
+    uint32         entries[MaxUserDataEntries];
+    UserDataFlags  dirty;   // Bitmasks of which user data entries have been set since the last time the entries
+                            // were written to hardware.
     // Bitmasks of which user data entries have been ever set within this command buffer. If a bit is set, then the
     // corresponding user-data entry was set at least once in this command buffer.
-    uint16  touched[MaxUserDataEntries / (sizeof(uint16) << 3)];
+    UserDataFlags  touched;
 };
 
 // Represents GFXIP state which is currently active within a command buffer.
@@ -350,6 +357,8 @@ public:
         gpusize frameCountGpuAddr,
         uint32  frameCntReg) = 0;
 
+    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) = 0;
+
     bool IsComputeSupported() const
         { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Compute); }
 
@@ -471,13 +480,9 @@ private:
 
     GpuMemory*  m_pTimestampMem;       // Memory and offset used to hold a cache flush invalidate timestamp event.
     gpusize     m_timestampOffset;
-    bool        m_computeStateIsSaved; // If CmdSaveCompputeState was called without a matching restore.
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     uint32  m_computeStateFlags;       // The flags that CmdSaveCompputeState was called with.
-#endif
-
-    bool m_spmTraceEnabled;            // Used to indicate whether Spm Trace has been enabled through this command
+    bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
                                        // buffer so that appropriate submit-time operations can be done.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);

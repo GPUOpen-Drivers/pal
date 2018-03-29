@@ -65,7 +65,10 @@ public:
         uint32*                 pCmdSpace);
 
     uint32* SwitchToNggPipeline(
-        const GraphicsPipeline* pOldPipeline,
+        bool                    isFirstDraw,
+        bool                    prevPipelineIsNgg,
+        bool                    prevPipelineUsesTess,
+        bool                    prevPipelineUsesGs,
         bool                    usesOffchipPc,
         CmdStream*              pDeCmdStream,
         uint32*                 pCmdSpace) const;

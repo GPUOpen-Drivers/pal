@@ -3710,6 +3710,68 @@ void RsrcProcMgr::CmdClearImageView(
 }
 
 // =====================================================================================================================
+// Expand DCC/Fmask and sync before resolve image.
+void RsrcProcMgr::LateExpandResolveSrc(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const ImageResolveRegion* pRegions,
+    uint32                    regionCount,
+    ResolveMethod             method
+    ) const
+{
+    // the method is either shaderCsFmask or shaderCs
+    if (((method.shaderCsFmask == 1) &&
+          (TestAnyFlagSet(srcImageLayout.usages, Pal::LayoutShaderFmaskBasedRead) == false)) ||
+        ((method.shaderCs == 1) && (TestAnyFlagSet(srcImageLayout.usages, Pal::LayoutShaderRead) == false)))
+    {
+        BarrierInfo        barrierInfo  = {};
+        Pal::SubresRange   range        = {};
+        AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
+
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            range.startSubres.aspect     = pRegions[i].srcAspect;
+            range.startSubres.arraySlice = pRegions[i].srcSlice;
+            range.startSubres.mipLevel   = 0;
+            range.numMips                = 1;
+            range.numSlices              = pRegions[i].numSlices;
+
+            transition[i].imageInfo.pImage             = srcImage.GetGfxImage()->Parent();
+            transition[i].imageInfo.oldLayout.usages   = srcImageLayout.usages;
+            transition[i].imageInfo.oldLayout.engines  = srcImageLayout.engines;
+            if (method.shaderCsFmask == 1)
+            {
+                transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | Pal::LayoutShaderFmaskBasedRead;
+            }
+            else
+            {
+                transition[i].imageInfo.newLayout.usages   = srcImageLayout.usages | Pal::LayoutShaderRead;
+            }
+            transition[i].imageInfo.newLayout.engines  = srcImageLayout.engines;
+            transition[i].imageInfo.subresRange        = range;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
+            transition[i].imageInfo.samplePattern      = nullptr;
+#else
+            transition[i].imageInfo.pQuadSamplePattern = nullptr;
+#endif
+            transition[i].srcCacheMask                 = Pal::CoherResolve;
+            transition[i].dstCacheMask                 = Pal::CoherShader;
+        }
+
+        barrierInfo.pTransitions    = transition.Data();
+        barrierInfo.transitionCount = regionCount;
+        barrierInfo.waitPoint       = Pal::HwPipePreCs;
+
+        Pal::HwPipePoint releasePipePoint = Pal::HwPipeBottom;
+        barrierInfo.pipePointWaitCount    = 1;
+        barrierInfo.pPipePoints           = &releasePipePoint;
+
+        pCmdBuffer->CmdBarrier(barrierInfo);
+    }
+}
+
+// =====================================================================================================================
 // Resolves a multisampled source Image into the single-sampled destination Image using the Image's resolve method.
 void RsrcProcMgr::CmdResolveImage(
     GfxCmdBuffer*             pCmdBuffer,
@@ -4171,6 +4233,8 @@ void RsrcProcMgr::ResolveImageCompute(
     ) const
 {
     const auto& device = *m_pDevice->Parent();
+
+    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
 
     // Select a Resolve shader based on the source Image's sample-count and resolve method.
     const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage, resolveMode, method);
@@ -5854,7 +5918,11 @@ const ComputePipeline* RsrcProcMgr::GetComputeMaskRamExpandPipeline(
                                  (createInfo.samples == 8) ? RpmComputePipeline::ExpandMaskRamMs8x :
                                  RpmComputePipeline::ExpandMaskRam);
 
-    return GetPipeline(pipelineEnum);
+    const ComputePipeline*  pPipeline = GetPipeline(pipelineEnum);
+
+    PAL_ASSERT(pPipeline != nullptr);
+
+    return pPipeline;
 }
 
 // =====================================================================================================================

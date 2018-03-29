@@ -101,7 +101,8 @@ Result SettingsFileMgr<Allocator>::Init(
                 }
 
                 // all other lines are key, value pairs. Split at the comma and add them to our map
-                char* pToken = strtok(currLine, ", ");
+                char* pBuffer = NULL;
+                char* pToken = Strtok(currLine, ", ", &pBuffer);
                 if ((pToken != nullptr) && (strlen(pToken) > 0))
                 {
                     uint32 hashedName = 0;
@@ -117,7 +118,7 @@ Result SettingsFileMgr<Allocator>::Init(
                         // Otherwise, calculate the hashed value for the setting name
                         hashedName = HashString(pToken, strlen(pToken));
                     }
-                    pToken = strtok(nullptr, ", ");
+                    pToken = Strtok(nullptr, ", ", &pBuffer);
                     SettingValuePair pair = { hashedName, {0}};
                     PAL_ASSERT(strlen(pToken) < sizeof(pair.strValue));
                     strncpy(&pair.strValue[0], pToken, sizeof(pair.strValue));

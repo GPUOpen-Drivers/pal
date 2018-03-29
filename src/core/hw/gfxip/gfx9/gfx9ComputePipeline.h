@@ -110,6 +110,9 @@ private:
     void BuildPm4Headers();
     void UpdateRingSizes(const AbiProcessor& abiProcessor);
 
+    void SetupSignatureFromElf(
+        const AbiProcessor& abiProcessor);
+
     Device*const  m_pDevice;
 
     ComputePipelinePm4Img        m_pm4Commands;

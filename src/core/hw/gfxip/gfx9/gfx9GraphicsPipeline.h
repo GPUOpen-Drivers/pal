@@ -201,7 +201,7 @@ public:
     uint32 EsGsRingItemSize() const { return m_chunkGs.EsGsRingItemSize(); }
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_chunkGs.VgtGsOnchipCntl(); }
 
-    bool IsNgg() const {return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
+    bool IsNgg() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool IsNggFastLaunch() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.GS_FAST_LAUNCH != 0); }
 
     bool UsesInnerCoverage() const { return m_chunkPs.UsesInnerCoverage(); }
@@ -209,6 +209,7 @@ public:
     bool HwStereoRenderingEnabled() const;
     bool HwStereoRenderingUsesMultipleViewports() const;
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
+    bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
 
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,

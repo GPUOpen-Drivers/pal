@@ -315,6 +315,20 @@ struct PresentableImageCreateInfo
     OsDisplayHandle     hDisplay;       ///< Display handle of the local display system only for WSI.
     OsWindowHandle      hWindow;        ///< Window handle only for WSI.
     ISwapChain*         pSwapChain;     ///< SwapChain object which the presentable image belongs to.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
+    uint32              viewFormatCount;///< Number of additional image formats views of this image can be used with
+                                        ///  or the special value AllCompatibleFormats to indicate that all
+                                        ///  compatible formats can be used as a view format.
+    const SwizzledFormat* pViewFormats; ///< Array of viewFormatCount number of additional image formats views of
+                                        ///  this image can be used with. If viewFormatCount is AllCompatibleFormats,
+                                        ///  this must be nullptr. The array should not contain the base format of
+                                        ///  the image, as that's always assumed to be a supported view format,
+                                        ///  so if the image is only expected to be used with the base format of
+                                        ///  the image then viewFormatCount and pViewFormats should be left with
+                                        ///  the default values of zero and nullptr, respectively.
+                                        ///  Note that this array is consumed at image creation time and should
+                                        ///  not be accessed afterwards through GetImageCreateInfo().
+#endif
 };
 
 /// Specifies properties for private screen @ref IImage image creation.  Input structure to

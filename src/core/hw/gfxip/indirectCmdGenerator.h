@@ -165,7 +165,7 @@ public:
     const uint32* PropertiesSrd() const { return &m_propertiesSrd[0]; }
     const uint32* ParamBufferSrd() const { return &m_paramBufSrd[0]; }
 
-    const uint16* TouchedUserDataEntries() const { return &m_touchedUserData[0]; }
+    const UserDataFlags& TouchedUserDataEntries() const { return m_touchedUserData; }
 
 protected:
     IndirectCmdGenerator(
@@ -184,7 +184,7 @@ protected:
     uint32  m_paramBufSrd[4];   // Buffer SRD for the Indirect-Parameter array
 
     // Wide-bitfield of user-data entries touched by the generated commands which this generator creates.
-    uint16  m_touchedUserData[MaxUserDataEntries / (sizeof(uint16) << 3)];
+    UserDataFlags  m_touchedUserData;
 
 private:
     const GeneratorType  m_type;

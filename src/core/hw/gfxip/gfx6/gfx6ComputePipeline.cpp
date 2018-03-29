@@ -42,7 +42,7 @@ namespace Gfx6
 // User-data signature for an unbound compute pipeline.
 const ComputePipelineSignature NullCsSignature =
 {
-    { UserDataNotMapped, },     // User-data mapping for each shader stage
+    { 0, },                     // User-data mapping for each shader stage
     { UserDataNotMapped, },     // Indirect user-data table mapping
     UserDataNotMapped,          // Register address for numWorkGroups
     NoUserDataSpilling,         // Spill threshold
@@ -65,18 +65,25 @@ ComputePipeline::ComputePipeline(
 
 // =====================================================================================================================
 // Initializes the signature of a compute pipeline using a pipeline ELF.
-static void SetupSignatureFromElf(
-    const AbiProcessor&       abiProcessor,
-    ComputePipelineSignature* pSignature)
+void ComputePipeline::SetupSignatureFromElf(
+    const AbiProcessor& abiProcessor)
 {
-    for (uint32 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
+    uint16  entryToRegAddr[MaxUserDataEntries] = { };
+
+    m_signature.stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
+    for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {
         uint32 value = 0;
         if (abiProcessor.HasRegisterEntry(offset, &value))
         {
             if (value < MaxUserDataEntries)
             {
-                pSignature->stage.regAddr[value] = static_cast<uint16>(offset);
+                PAL_ASSERT(offset >= m_signature.stage.firstUserSgprRegAddr);
+                const uint8 userSgprId = static_cast<uint8>(offset - m_signature.stage.firstUserSgprRegAddr);
+                entryToRegAddr[value]  = offset;
+
+                m_signature.stage.mappedEntry[userSgprId] = static_cast<uint8>(value);
+                m_signature.stage.userSgprCount = Max<uint8>(userSgprId + 1, m_signature.stage.userSgprCount);
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::GlobalTable))
             {
@@ -88,11 +95,11 @@ static void SetupSignatureFromElf(
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::SpillTable))
             {
-                pSignature->stage.spillTableRegAddr = static_cast<uint16>(offset);
+                m_signature.stage.spillTableRegAddr = static_cast<uint16>(offset);
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::Workgroup))
             {
-                pSignature->numWorkGroupsRegAddr = static_cast<uint16>(offset);
+                m_signature.numWorkGroupsRegAddr = static_cast<uint16>(offset);
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
             {
@@ -119,15 +126,6 @@ static void SetupSignatureFromElf(
         } // If HasRegisterEntry()
     } // For each user-SGPR
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    constexpr uint64 HashedDataLength =
-        (sizeof(pSignature->stage.regAddr) + sizeof(pSignature->stage.spillTableRegAddr));
-
-    MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(pSignature->stage.regAddr),
-        HashedDataLength,
-        reinterpret_cast<uint8* const>(&pSignature->stage.userDataHash));
-
     // Indirect user-data table(s):
     uint32 value = 0;
     for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
@@ -135,9 +133,10 @@ static void SetupSignatureFromElf(
         const auto entryType = static_cast<Abi::PipelineMetadataType>(
                 static_cast<uint32>(Abi::PipelineMetadataType::IndirectTableEntryLow) + i);
 
-        if (abiProcessor.HasPipelineMetadataEntry(entryType, &value))
+        if (abiProcessor.HasPipelineMetadataEntry(entryType, &value) && (value != UserDataNotMapped))
         {
-            pSignature->indirectTableAddr[i] = static_cast<uint16>(value);
+            m_signature.indirectTableAddr[i]          = static_cast<uint16>(value);
+            m_signature.stage.indirectTableRegAddr[i] = entryToRegAddr[value - 1];
         }
     }
 
@@ -145,12 +144,12 @@ static void SetupSignatureFromElf(
 
     if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::SpillThreshold, &value))
     {
-        pSignature->spillThreshold = static_cast<uint16>(value);
+        m_signature.spillThreshold = static_cast<uint16>(value);
     }
 
     if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UserDataLimit, &value))
     {
-        pSignature->userDataLimit = static_cast<uint16>(value);
+        m_signature.userDataLimit = static_cast<uint16>(value);
     }
 }
 
@@ -255,7 +254,7 @@ Result ComputePipeline::HwlInit(
         }
 
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
-        SetupSignatureFromElf(abiProcessor, &m_signature);
+        SetupSignatureFromElf(abiProcessor);
     }
 
     return result;

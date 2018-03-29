@@ -353,7 +353,10 @@ static void ConvertPresentableImageCreateInfo(
     pOut->imageType             = ImageType::Tex2d;
     pOut->tiling                = ImageTiling::Optimal;
     pOut->usageFlags            = in.usage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
+    pOut->viewFormatCount       = in.viewFormatCount;
+    pOut->pViewFormats          = in.pViewFormats;
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     pOut->viewFormatCount       = AllCompatibleFormats;
 #else
     pOut->flags.formatChangeSrd = 1;

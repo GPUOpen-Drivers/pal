@@ -437,12 +437,12 @@ struct Rational
 };
 
 /// Inline function to determine if a Result enum is considered an error.
-PAL_INLINE bool IsErrorResult(Result result) { return (static_cast<int32>(result) < 0); }
+constexpr bool IsErrorResult(Result result) { return (static_cast<int32>(result) < 0); }
 
 /// Inline function to collapse two Result enums into the most useful Result code.  It considers errors to be more
 /// interesting than success codes and considers "Success" to be the least interesting success code. If both Results
 /// are errors, the first Result is returned.
-PAL_INLINE Result CollapseResults(Result lhs, Result rhs)
+constexpr Result CollapseResults(Result lhs, Result rhs)
     { return (IsErrorResult(lhs) || (static_cast<uint32>(lhs) > static_cast<uint32>(rhs))) ? lhs : rhs; }
 
 /**

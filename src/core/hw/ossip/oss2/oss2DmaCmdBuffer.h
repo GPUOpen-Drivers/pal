@@ -134,6 +134,9 @@ protected:
 
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const override;
 
+    virtual DmaMemImageCopyMethod GetMemImageCopyMethod(bool isLinearImg, const DmaImageInfo& imageInfo,
+        const MemoryImageCopyRegion& region) const override;
+
 private:
     // Note: SDMA_HW_BUG_395118 and SDMA_HW_BUG_444048
     // SDMA has 14 bits for dimension limit. Thus 16384 produces 0 and requires multiple transfers

@@ -278,7 +278,6 @@ public:
     const Gfx9PalSettings& Settings() const { return GetGfx9Settings(*m_pParent); }
 
     static uint32 CalcNumRecords(
-        ChNumFormat format,
         size_t      sizeInBytes,
         uint32      stride);
 

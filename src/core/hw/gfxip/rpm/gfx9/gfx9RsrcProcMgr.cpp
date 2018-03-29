@@ -399,24 +399,6 @@ void RsrcProcMgr::CmdCopyMemory(
     }
     else
     {
-        // We want to read and write through L2 because it's faster and expected by CoherCopy.
-        DmaDataInfo dmaDataInfo = {};
-        dmaDataInfo.dstSel    = dst_sel__pfp_dma_data__dst_addr_using_l2;
-        dmaDataInfo.srcSel    = src_sel__pfp_dma_data__src_addr_using_l2;
-        dmaDataInfo.sync      = false;
-        dmaDataInfo.usePfp    = false;
-        dmaDataInfo.predicate = static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
-
-        // Predicate doesn`t work on compute. If this is hit we need to use cond exec packet instead of setting the
-        // predicate bit in packet header.
-        if (dmaDataInfo.predicate == PredEnable)
-        {
-            PAL_ASSERT(pCmdBuffer->GetQueueType() != QueueTypeCompute);
-        }
-
-        auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
-        PAL_ASSERT(pCmdStream != nullptr);
-
         bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
 
         uint32 newRegionCount = 0;
@@ -461,16 +443,10 @@ void RsrcProcMgr::CmdCopyMemory(
                 pCmdBuffer->P2pBltWaCopyNextRegion(chunkAddrs[i]);
             }
 
-            dmaDataInfo.dstAddr  = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
-            dmaDataInfo.srcAddr  = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
-            dmaDataInfo.numBytes = static_cast<uint32>(pRegions[i].copySize);
+            const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
+            const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
 
-            uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
-            pCmdStream->CommitCommands(pCmdSpace);
-
-            pCmdBuffer->SetGfxCmdBufCpBltState(true);
-            pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
+            pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
         }
 
         if (p2pBltInfoRequired)
@@ -1947,11 +1923,12 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
             ClearColor clearColor = {};
 
+            DepthStencilLayoutToState layoutToState = gfx9Image.LayoutToDepthCompressionState(pRanges[idx].startSubres);
+
             if (isDepth)
             {
                 // Expand first if depth plane is not fully expanded.
-                if (gfx9Image.LayoutToDepthCompressionState(pRanges[idx].startSubres, depthLayout) !=
-                    DepthStencilDecomprNoHiZ)
+                if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
                     // No MSAA state is necessary here because this is a compute path.
                     ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
@@ -1966,8 +1943,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 PAL_ASSERT(aspect == ImageAspect::Stencil);
 
                 // Expand first if stencil plane is not fully expanded.
-                if (gfx9Image.LayoutToDepthCompressionState(pRanges[idx].startSubres, stencilLayout) !=
-                    DepthStencilDecomprNoHiZ)
+                if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
                     // No MSAA state is necessary here because this is a compute path.
                     ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
@@ -1990,13 +1966,13 @@ void RsrcProcMgr::HwlDepthStencilClear(
             }
 
             SlowClearCompute(pCmdBuffer,
-                *pParent,
-                isDepth ? depthLayout : stencilLayout,
-                format,
-                &clearColor,
-                pRanges[idx],
-                boxCnt,
-                pBox);
+                             *pParent,
+                             isDepth ? depthLayout : stencilLayout,
+                             format,
+                             &clearColor,
+                             pRanges[idx],
+                             boxCnt,
+                             pBox);
         }
     }
 

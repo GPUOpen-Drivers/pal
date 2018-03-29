@@ -69,7 +69,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_blendOpts[0],         0, sizeof(m_blendOpts));
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
 }
 
 // =====================================================================================================================
@@ -235,8 +235,6 @@ void UniversalCmdBuffer::ResetState()
     memset(&m_computeState,  0, sizeof(m_computeState));
     memset(&m_graphicsState, 0, sizeof(m_graphicsState));
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx);
-
     // Clear the pointer to the performance experiment object currently used by this command buffer.
     m_pCurrentExperiment = nullptr;
 
@@ -250,14 +248,23 @@ void UniversalCmdBuffer::ResetState()
 void UniversalCmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
-    auto*const pPipelineState = PipelineState(params.pipelineBindPoint);
-
-    pPipelineState->pPipeline = static_cast<const Pipeline*>(params.pPipeline);
-    pPipelineState->dirtyFlags.pipelineDirty = 1;
+    if (params.pipelineBindPoint == PipelineBindPoint::Compute)
+    {
+        m_computeState.dynamicCsInfo           = params.cs;
+        m_computeState.pipelineState.pPipeline = static_cast<const Pipeline*>(params.pPipeline);
+        m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
+    }
+    else
+    {
+        m_graphicsState.dynamicGraphicsInfo     = params.graphics;
+        m_graphicsState.pipelineState.pPipeline = static_cast<const Pipeline*>(params.pPipeline);
+        m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
+    }
 }
 
 // =====================================================================================================================
 // CmdSetUserData callback which updates the tracked user-data entries for the graphics state.
+template <bool filterRedundantUserData>
 void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
     ICmdBuffer*   pCmdBuffer,
     uint32        firstEntry,
@@ -266,48 +273,52 @@ void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
 {
     PAL_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
 
-    if (entryCount == 1)
+    auto*const pSelf    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*const pEntries = &pSelf->m_graphicsState.gfxUserDataEntries;
+
+    UserDataArgs userDataArgs;
+    userDataArgs.firstEntry   = firstEntry;
+    userDataArgs.entryCount   = entryCount;
+    userDataArgs.pEntryValues = pEntryValues;
+
+    if ((filterRedundantUserData == false) || pSelf->FilterSetUserDataGfx(&userDataArgs))
     {
-        CmdSetUserDataGfxOne(pCmdBuffer, firstEntry, pEntryValues);
-    }
-    else
-    {
-        CmdSetUserDataGfxMany(pCmdBuffer, firstEntry, entryCount, pEntryValues);
-    }
+        if (userDataArgs.entryCount == 1)
+        {
+            WideBitfieldSetBit(pEntries->touched, userDataArgs.firstEntry);
+            WideBitfieldSetBit(pEntries->dirty,   userDataArgs.firstEntry);
+
+            pEntries->entries[userDataArgs.firstEntry] = userDataArgs.pEntryValues[0];
+        }
+        else
+        {
+            const uint32 entryLimit = (userDataArgs.firstEntry + userDataArgs.entryCount);
+            for (uint32 e = userDataArgs.firstEntry; e < entryLimit ; ++e)
+            {
+                WideBitfieldSetBit(pEntries->touched, e);
+                WideBitfieldSetBit(pEntries->dirty,   e);
+            }
+
+            memcpy(&pEntries->entries[userDataArgs.firstEntry],
+                   userDataArgs.pEntryValues,
+                   (sizeof(uint32) * userDataArgs.entryCount));
+        }
+    } // if (filtering is disabled OR user data not redundant)
 }
 
-// =====================================================================================================================
-// CmdSetUserData callback which updates the tracked user-data entries for the graphics state.  Fast path for 1 entry.
-void  UniversalCmdBuffer::CmdSetUserDataGfxOne(
-    ICmdBuffer*   pCmdBuffer,
-    uint32        firstEntry,
-    const uint32* pEntryValues)
-{
-    auto*const pEntries = &static_cast<UniversalCmdBuffer*>(pCmdBuffer)->m_graphicsState.gfxUserDataEntries;
-
-    WideBitfieldSetBit(pEntries->touched, firstEntry);
-
-    pEntries->entries[firstEntry] = pEntryValues[0];
-}
-
-// =====================================================================================================================
-// CmdSetUserData callback which updates the tracked user-data entries for the graphics state.  Used for more than 1
-// entry.
-void  UniversalCmdBuffer::CmdSetUserDataGfxMany(
+// Instantiate templates for the linker.
+template
+void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx<false>(
     ICmdBuffer*   pCmdBuffer,
     uint32        firstEntry,
     uint32        entryCount,
-    const uint32* pEntryValues)
-{
-    auto*const pEntries = &static_cast<UniversalCmdBuffer*>(pCmdBuffer)->m_graphicsState.gfxUserDataEntries;
-
-    for (uint32 e = firstEntry; e < (firstEntry + entryCount); ++e)
-    {
-        WideBitfieldSetBit(pEntries->touched, e);
-    }
-
-    memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
-}
+    const uint32* pEntryValues);
+template
+void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx<true>(
+    ICmdBuffer*   pCmdBuffer,
+    uint32        firstEntry,
+    uint32        entryCount,
+    const uint32* pEntryValues);
 
 // =====================================================================================================================
 // Compares the client-specified user data update parameters against the current user data values, and filters any
@@ -462,6 +473,7 @@ void UniversalCmdBuffer::PushGraphicsState()
 #endif
 
     m_graphicsRestoreState = m_graphicsState;
+    memset(&m_graphicsState.gfxUserDataEntries.touched[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.touched));
 
 }
 
@@ -474,10 +486,10 @@ void UniversalCmdBuffer::PopGraphicsState()
     m_graphicsStateIsPushed = false;
 #endif
 
-    // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
-    // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
-    // root command buffer. (If Vulkan decides to support user-data inheritance in a later API version, we'll need
-    // to revisit this!)
+    // Note:  Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values
+    // from the caller.  Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is
+    // in a root command buffer.  (If Vulkan decides to support user-data inheritance in a later API version, we'll
+    // need to revisit this!)
 
     SetGraphicsState(m_graphicsRestoreState);
 
@@ -509,10 +521,7 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdBindBorderColorPalette(PipelineBindPoint::Graphics, pipelineState.pBorderColorPalette);
     }
 
-    CmdSetUserData(PipelineBindPoint::Graphics,
-                   0,
-                   m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries,
-                   &newGraphicsState.gfxUserDataEntries.entries[0]);
+    m_graphicsState.gfxUserDataEntries = newGraphicsState.gfxUserDataEntries;
 }
 
 // =====================================================================================================================

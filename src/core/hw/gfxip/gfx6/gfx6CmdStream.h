@@ -109,28 +109,15 @@ public:
         uint32*       pCmdSpace);
     uint32* WriteSetSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
 
-    uint32* WriteUserDataRegisters(
+    template <bool IgnoreDirtyFlags>
+    uint32* WriteUserDataEntriesToSgprsGfx(
         const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        PM4ShaderType           shaderType,
+        const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
-
-    uint32* WriteUserDataRegistersMany(
+    template <bool IgnoreDirtyFlags, bool Pm4OptImmediate>
+    uint32* WriteUserDataEntriesToSgprsGfx(
         const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        PM4ShaderType           shaderType,
-        uint32*                 pCmdSpace);
-
-    uint32* WriteUserDataRegistersOne(
-        const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
-        PM4ShaderType           shaderType,
-        uint32*                 pCmdSpace);
-
-    template <PM4ShaderType shaderType>
-    uint32* WriteUserDataRegisterOffset(
-        const UserDataEntryMap& entryMap,
-        const UserDataArgs*     pUserDataArgs,
+        const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
 
     uint32* WriteSetVgtPrimitiveType(regVGT_PRIMITIVE_TYPE vgtPrimitiveType, uint32* pCmdSpace);

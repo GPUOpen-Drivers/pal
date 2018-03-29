@@ -640,7 +640,10 @@ struct GpuChipProperties
                 uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
-                uint32 reserved                                 : 16;
+                uint32 placeholder0                             :  1; // Placeholder. Do not use.
+                uint32 placeholder1                             :  2; // Placeholder. Do not use.
+                uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
+                uint32 reserved                                 : 11;
             };
 
             struct

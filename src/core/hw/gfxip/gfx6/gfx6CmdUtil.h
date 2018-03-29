@@ -146,6 +146,7 @@ public:
 
     uint32 GetCondExecSizeInDwords() const;
     uint32 GetDmaDataWorstCaseSize() const;
+    uint32 GetDmaDataSizeInDwords(const DmaDataInfo& dmaData) const;
     uint32 GetMinNopSizeInDwords() const;
 
     // Returns the register information for registers which have differing addresses between hardware families.
