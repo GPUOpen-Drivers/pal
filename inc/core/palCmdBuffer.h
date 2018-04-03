@@ -411,11 +411,18 @@ union CmdBufferBuildFlags
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+        /// Indicates that the command buffer should not use the per-Device ring buffer for internal CE RAM dump
+        /// operations (e.g., spill table management, dumping indirect user-data tables, etc.).  Each command buffer
+        /// will allocate GPU memory from its command allocator for use with CE RAM dumps instead.
+        uint32 useLinearBufferForCeRamDumps :  1;
+#else
         /// Indicates that the command buffer should use embedded data for internal CE RAM dump operations (e.g., spill
         /// table management, dumping indirect user-data tables, etc.).  If this flag is not set, the tables will be
         /// dumped to a per-Device GPU ring buffer managed by PAL instead of embedded data.  This flag has no effect on
         /// Compute or Dma command buffers.
         uint32 useEmbeddedDataForCeRamDumps :  1;
+#endif
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
@@ -1646,6 +1653,7 @@ public:
         const UserClipPlane* pPlanes) = 0;
 
     /// Sets user defined MSAA quad-pixel sample pattern, should only be called on universal command buffers
+    /// This should be called before clearing, rendering, barriering and resolving of MSAA DepthStencil image.
     ///
     /// @param [in] numSamplesPerPixel Number of samples per pixel
     /// @param [in] quadSamplePattern  The input msaa sample pattern

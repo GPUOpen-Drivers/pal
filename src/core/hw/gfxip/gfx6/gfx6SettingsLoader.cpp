@@ -123,6 +123,11 @@ void SettingsLoader::HwlValidateSettings()
         m_gfx6Settings.commandBufferPreemptionFlags &= ~UniversalEnginePreemption;
     }
 
+    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    {
+        m_gfx6Settings.commandBufferPreemptionFlags = PreemptionDisabled;
+    }
+
     // The maximum GS LDS size must be aligned to the LDS granularity.
     m_gfx6Settings.gfx7GsMaxLdsSize = Pow2Align(m_gfx6Settings.gfx7GsMaxLdsSize, Gfx7LdsDwGranularity);
 

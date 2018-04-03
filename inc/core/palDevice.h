@@ -453,11 +453,13 @@ struct PalPublicSettings
     ///  Provides a hint to PAL that PAL should disable color compression on surfaces that are smaller than or equal to
     ///  this setting (setting * setting) in size.
     uint32 hintDisableSmallSurfColorCompressionSize;
-    ///  Disable Escape call to KMD. This is a temporary setting for experimentation that is expected to break features
+    ///  Disables Escape call to KMD. This is a temporary setting for experimentation that is expected to break features
     ///  that currently needs Escape call.
     bool disableEscapeCall;
     /// In Win7 requests an extended TDR timeout (6 seconds).
     bool longRunningSubmissions;
+    /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
+    bool disableCommandBufferPreemption;
 };
 
 /// Command Buffer Logger layer runtime settings

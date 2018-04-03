@@ -128,12 +128,14 @@ Result Image::ValidateCreateInfo(
 {
     Result ret = Result::Success;
 
-    const bool shaderReadUsage      = (imageInfo.usageFlags.shaderRead != 0);
-    const bool shaderWriteUsage     = (imageInfo.usageFlags.shaderWrite != 0);
-    const bool colorUsage           = (imageInfo.usageFlags.colorTarget != 0);
-    const bool depthStencilUsage    = (imageInfo.usageFlags.depthStencil != 0);
-    const bool windowedPresentUsage = ((internalCreateInfo.flags.presentable != 0) && (imageInfo.flags.flippable == 0));
-    const bool isYuvFormat          = IsYuv(imageInfo.swizzledFormat.format);
+    const auto& imageProperties      = pDevice->ChipProperties().imageProperties;
+    const bool  shaderReadUsage      = (imageInfo.usageFlags.shaderRead != 0);
+    const bool  shaderWriteUsage     = (imageInfo.usageFlags.shaderWrite != 0);
+    const bool  colorUsage           = (imageInfo.usageFlags.colorTarget != 0);
+    const bool  depthStencilUsage    = (imageInfo.usageFlags.depthStencil != 0);
+    const bool  windowedPresentUsage = ((internalCreateInfo.flags.presentable != 0) &&
+                                        (imageInfo.flags.flippable == 0));
+    const bool  isYuvFormat          = IsYuv(imageInfo.swizzledFormat.format);
 
     // An image's format cannot be undefined.
     if (IsUndefined(imageInfo.swizzledFormat.format))
@@ -232,7 +234,8 @@ Result Image::ValidateCreateInfo(
         {
             // For 1D and 2D images, the array size can't be zero or greater than max array size.
             // Client must specify an array size of one for a non-array image.
-            if ((imageInfo.arraySize == 0) || (imageInfo.arraySize > MaxArraySlices))
+            if ((imageInfo.arraySize == 0) ||
+                (imageInfo.arraySize > imageProperties.maxImageArraySize))
             {
                 ret = Result::ErrorInvalidImageArraySize;
             }
@@ -249,7 +252,7 @@ Result Image::ValidateCreateInfo(
                       "Image Type enum values are non-sequential");
 
         // The enum value will always be >= Tex1d
-        if ((imageInfo.extent.width <= 0) || (imageInfo.extent.width > MaxImageDimension))
+        if ((imageInfo.extent.width <= 0) || (imageInfo.extent.width > imageProperties.maxImageDimension.width))
         {
             // 1D images ignore height and depth parameters
             ret = Result::ErrorInvalidImageWidth;
@@ -262,7 +265,7 @@ Result Image::ValidateCreateInfo(
         if ((ret == Result::Success) &&
             (static_cast<uint32>(imageInfo.imageType) >= static_cast<uint32>(ImageType::Tex2d)))
         {
-            if ((imageInfo.extent.height <= 0) || (imageInfo.extent.height > MaxImageDimension))
+            if ((imageInfo.extent.height <= 0) || (imageInfo.extent.height > imageProperties.maxImageDimension.height))
             {
                 // 2D images ignore depth parameter
                 ret = Result::ErrorInvalidImageHeight;
@@ -275,7 +278,7 @@ Result Image::ValidateCreateInfo(
 
         if ((ret == Result::Success) && (imageInfo.imageType == ImageType::Tex3d))
         {
-            if ((imageInfo.extent.depth <= 0) || (imageInfo.extent.depth > MaxImageDimension))
+            if ((imageInfo.extent.depth <= 0) || (imageInfo.extent.depth > imageProperties.maxImageDimension.depth))
             {
                 // 3D images must have valid width / height / depth parameters
                 ret = Result::ErrorInvalidImageDepth;
@@ -579,17 +582,17 @@ Result Image::Init()
 
         if (result == Result::Success)
         {
-            // The extentTexels.height of subresource 0 is different with the extent in the image create info, and this will
-            // cause all sorts of problems because there are many places where PAL (and our clients) assume that the extent
-            // in the image create info matches the first subresource's extentTexels. So we set the create info's height to
-            // the extentTexels.height of subresource zero when we have a stereo image.
+            // The extentTexels.height of subresource 0 is different with the extent in the image create info, and
+            // this will cause all sorts of problems because there are many places where PAL (and our clients) assume
+            // that the extent in the image create info matches the first subresource's extentTexels. So we set the
+            // create info's height to the extentTexels.height of subresource zero when we have a stereo image.
             if (m_createInfo.flags.stereo == 1)
             {
                 const_cast<ImageCreateInfo&>(m_createInfo).extent.height = m_pSubResInfoList->extentTexels.height;
             }
 
-            // Finalize the GfxIp Image sub-object, which will set up data structures for things like compression metadata,
-            // as well as updating the GPU memory size and alignment requirements for this Image.
+            // Finalize the GfxIp Image sub-object, which will set up data structures for things like compression
+            // metadata, as well as updating the GPU memory size and alignment requirements for this Image.
             result = GetGfxImage()->Finalize(dccUnsupported,
                                              m_pSubResInfoList,
                                              m_pTileInfoList,
@@ -599,8 +602,8 @@ Result Image::Init()
 
             if (result == Result::ErrorNotShareable)
             {
-                // This image is going to be re-created without shared metadata info, so the creator needs to be notified
-                // that metadata should be fully expanded.
+                // This image is going to be re-created without shared metadata info, so the creator needs to be
+                // notified that metadata should be fully expanded.
                 SetOptimalSharingLevel(MetadataSharingLevel::FullExpand);
             }
         }

@@ -101,7 +101,7 @@ Result CmdStreamAllocation::Init(
         }
 
         // If this allocation is used as dummy allocation, grab the dummy memory allocation from Device
-        if ((result == Result::Success) && m_createInfo.dummyAllocation)
+        if ((result == Result::Success) && m_createInfo.flags.dummyAllocation)
         {
             m_pGpuMemory = pDevice->GetDummyChunkMem().Memory();
         }
@@ -115,12 +115,12 @@ Result CmdStreamAllocation::Init(
                                                               &m_pGpuMemory,
                                                               nullptr);
 
-        if (result == Result::Success)
+        if ((result == Result::Success) && CpuAccessible())
         {
             result = m_pGpuMemory->Map(reinterpret_cast<void**>(&m_pCpuAddr));
         }
 
-        if ((result == Result::Success) && m_createInfo.enableStagingBuffer)
+        if ((result == Result::Success) && m_createInfo.flags.enableStagingBuffer)
         {
             // For simplicitly this (usually disabled) large buffer is not put in the placement buffer.
             m_pStaging = static_cast<uint32*>(PAL_MALLOC(static_cast<size_t>(m_createInfo.memObjCreateInfo.size),
@@ -143,9 +143,12 @@ Result CmdStreamAllocation::Init(
     {
         PAL_PLACEMENT_NEW(m_pChunks + idx) CmdStreamChunk(*this, pChunkCpuAddr, pChunkWriteAddr, byteOffset);
 
-        pChunkCpuAddr   += m_createInfo.chunkSize / sizeof(uint32);
-        pChunkWriteAddr += m_createInfo.chunkSize / sizeof(uint32);
-        byteOffset      += m_createInfo.chunkSize;
+        if (CpuAccessible())
+        {
+            pChunkCpuAddr   += m_createInfo.chunkSize / sizeof(uint32);
+            pChunkWriteAddr += m_createInfo.chunkSize / sizeof(uint32);
+        }
+        byteOffset += m_createInfo.chunkSize;
     }
 
     return result;
@@ -163,7 +166,7 @@ void CmdStreamAllocation::Destroy(
 
     if (m_pGpuMemory != nullptr)
     {
-        if (m_createInfo.dummyAllocation == false)
+        if (m_createInfo.flags.dummyAllocation == 0)
         {
             if (m_pCpuAddr != nullptr)
             {

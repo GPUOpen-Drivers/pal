@@ -66,23 +66,7 @@ endif()
 # ADDR_LNX_KERNEL_ESX_BUILD
 
 ### Compiler Options ###################################################################################################
-if(WIN32)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        # CMAKE-TODO: These are /W4 (level 4) warnings
-        # Review what is acceptable and what is not.
-        target_compile_options(addrlib PRIVATE
-            /wd4100 # unreferenced formal parameter
-            /wd4127 # conditional expression is constant
-            /wd4189 # local variable is initialized but not referenced
-            /wd4201 # nonstandard extension used : nameless struct/union
-            /wd4701 # potentially uninitialized local variable
-        )
-
-        message(STATUS "Configured ${PROJECT_NAME} compiler options for MSVC.")
-    else()
-        message(FATAL_ERROR "Using unknown compiler")
-    endif()
-elseif(UNIX)
+if(UNIX)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         # SEE: https://gcc.gnu.org/onlinedocs/gcc-6.2.0/gcc/Option-Summary.html#Option-Summary
         # for a list of all options and documentation.

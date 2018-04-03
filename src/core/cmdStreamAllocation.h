@@ -48,9 +48,15 @@ struct CmdStreamAllocationCreateInfo
     GpuMemoryInternalCreateInfo memObjInternalInfo;  // The private create info for the allocation's GpuMemory object.
     uint32                      chunkSize;           // Ammount of GPU memory each chunk contains (in bytes).
     uint32                      numChunks;           // How many chunks will fit in this allocation.
-    bool                        enableStagingBuffer; // True if the allocation should use a staging buffer.
-    bool                        dummyAllocation;     // True if this is an dummy allocation which means it uses system
-                                                     // memory and get dummy GPU memory from Device
+    struct
+    {
+        uint32                  enableStagingBuffer :  1;   // True if the allocation should use a staging buffer.
+        uint32                  dummyAllocation     :  1;   // True if this is an dummy allocation which means it uses
+                                                            // system memory and get dummy GPU memory from Device
+        uint32                  cpuAccessible       :  1;   // True if this chunk should be CPU-accessible.  Only valid
+                                                            // for "real" GPU memory allocations.
+        uint32                  reserved            : 29;
+    } flags;
 };
 
 // =====================================================================================================================
@@ -86,6 +92,7 @@ public:
     uint32 ChunkSize() const { return m_createInfo.chunkSize; }
 
     bool UsesSystemMemory() const { return (m_createInfo.memObjCreateInfo.heapCount == 0); }
+    bool CpuAccessible() const { return (m_createInfo.flags.cpuAccessible != 0); }
 
 private:
     CmdStreamAllocation(const CmdStreamAllocationCreateInfo& createInfo);

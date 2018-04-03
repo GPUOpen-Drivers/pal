@@ -42,6 +42,8 @@ namespace Pal
 namespace NullDevice
 {
 
+#define PAL_UNDEFINED_NULL_DEVICE  FAMILY_UNKNOWN, 0, 0, CIASICIDGFXENGINE_UNKNOWN, 0
+
 // Identification table for all the GPUs that are supported in NULL device mode
 constexpr  NullIdLookup  NullIdLookupTable[]=
 {
@@ -59,13 +61,13 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
 #if PAL_BUILD_GFX9
     { FAMILY_AI,      AI_VEGA10_P_A0,    PRID_AI_VEGA10_C3,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA10_P_6860  },
 #else
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
 #endif
     { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0                           },
-    { FAMILY_UNKNOWN, 0,                 0,                         CIASICIDGFXENGINE_UNKNOWN,        0 },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
 };
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =

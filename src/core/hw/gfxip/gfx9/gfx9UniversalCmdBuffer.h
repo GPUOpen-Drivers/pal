@@ -327,15 +327,15 @@ struct LoadDataIndexPm4Img
 
 };
 
-// PM4 image for Rb+ registers
+// Represents an image of the PM4 commands necessary to write RB-plus related info to hardware.
 struct RbPlusPm4Img
 {
-    PM4_PFP_SET_CONTEXT_REG header;
-    regSX_PS_DOWNCONVERT    sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL sxBlendOptControl;
+    PM4_PFP_SET_CONTEXT_REG  header;
+    regSX_PS_DOWNCONVERT     sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL  sxBlendOptControl;
 
-    size_t                  spaceNeeded;
+    size_t  spaceNeeded;
 };
 
 // All NGG related state tracking.
@@ -1053,6 +1053,7 @@ private:
     regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
     uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                       m_drawIndexReg;        // Register where the draw index is written
+    RbPlusPm4Img                 m_rbPlusPm4Img;        // PM4 image for RB Plus register state
 
     const uint32                 m_log2NumSes;
     const uint32                 m_log2NumRbPerSe;

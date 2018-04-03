@@ -1618,11 +1618,13 @@ Result Device::GetSwapChainInfo(
         // targeting the surface.
         if (pSwapChainProperties->currentExtent.width == UINT32_MAX)
         {
+            const auto&  imageProperties = ChipProperties().imageProperties;
+
             // Allow any supported image size.
             pSwapChainProperties->minImageExtent.width  = 1;
             pSwapChainProperties->minImageExtent.height = 1;
-            pSwapChainProperties->maxImageExtent.width  = MaxImageDimension;
-            pSwapChainProperties->maxImageExtent.height = MaxImageDimension;
+            pSwapChainProperties->maxImageExtent.width  = imageProperties.maxImageDimension.width;
+            pSwapChainProperties->maxImageExtent.height = imageProperties.maxImageDimension.height;
         }
         else
         {
@@ -4245,6 +4247,9 @@ Result Device::GetExternalSharedImageSizes(
             {
                 memcpy(pImgCreateInfo, &createInfo, sizeof(createInfo));
             }
+
+            // We don't need to keep the reference to the BO anymore.
+            FreeBuffer(sharedInfo.importResult.buf_handle);
         }
     }
 
@@ -4281,6 +4286,9 @@ Result Device::OpenExternalSharedImage(
                                                       pMemCreateInfo,
                                                       ppImage,
                                                       ppGpuMemory);
+
+            // We don't need to keep the reference to the BO anymore.
+            FreeBuffer(sharedInfo.importResult.buf_handle);
         }
     }
 

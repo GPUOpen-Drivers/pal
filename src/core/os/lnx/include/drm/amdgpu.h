@@ -1750,6 +1750,34 @@ int amdgpu_cs_destroy_syncobj(amdgpu_device_handle dev,
 			      uint32_t syncobj);
 
 /**
+ * Reset kernel sync objects to unsignalled state.
+ *
+ * \param dev           - \c [in] device handle
+ * \param syncobjs      - \c [in] array of sync object handles
+ * \param syncobj_count - \c [in] number of handles in syncobjs
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_cs_syncobj_reset(amdgpu_device_handle dev,
+			    const uint32_t *syncobjs, uint32_t syncobj_count);
+
+/**
+ * Signal kernel sync objects.
+ *
+ * \param dev           - \c [in] device handle
+ * \param syncobjs      - \c [in] array of sync object handles
+ * \param syncobj_count - \c [in] number of handles in syncobjs
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_cs_syncobj_signal(amdgpu_device_handle dev,
+			     const uint32_t *syncobjs, uint32_t syncobj_count);
+
+/**
  *  Wait for one or all sync objects to signal.
  *
  * \param   dev	    - \c [in] self-explanatory

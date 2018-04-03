@@ -81,6 +81,11 @@ ColorTargetView::ColorTargetView(
         // Retain a pointer to the attached image.
         m_pImage = GetGfx6Image(createInfo.imageInfo.pImage);
 
+        // If this assert triggers the caller is probably trying to select z slices using the subresource range
+        // instead of the zRange as required by the PAL interface.
+        PAL_ASSERT((m_pImage->Parent()->GetImageCreateInfo().imageType != ImageType::Tex3d) ||
+                   ((createInfo.imageInfo.baseSubRes.arraySlice == 0) && (createInfo.imageInfo.arraySize == 1)));
+
         // Sets the base subresource for this mip.
         m_subresource.aspect     = createInfo.imageInfo.baseSubRes.aspect;
         m_subresource.mipLevel   = createInfo.imageInfo.baseSubRes.mipLevel;

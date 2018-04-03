@@ -273,13 +273,15 @@ GraphicsPipeline::GraphicsPipeline(
 {
     memset(&m_stateCommonPm4Cmds,  0, sizeof(m_stateCommonPm4Cmds));
     memset(&m_stateContextPm4Cmds, 0, sizeof(m_stateContextPm4Cmds));
-    memset(&m_rbPlusPm4Cmds,       0, sizeof(m_rbPlusPm4Cmds));
     memset(&m_iaMultiVgtParam[0],  0, sizeof(m_iaMultiVgtParam));
 
     memcpy(&m_signature, &NullGfxSignature, sizeof(m_signature));
 
-    m_vgtLsHsConfig.u32All = 0;
-    m_paScModeCntl1.u32All = 0;
+    m_sxPsDownconvert.u32All   = 0;
+    m_sxBlendOptEpsilon.u32All = 0;
+    m_sxBlendOptControl.u32All = 0;
+    m_vgtLsHsConfig.u32All     = 0;
+    m_paScModeCntl1.u32All     = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
     m_dbRenderOverride.u32All = 0;
@@ -396,25 +398,36 @@ const ShaderStageInfo* GraphicsPipeline::GetShaderStageInfo(
 }
 
 // =====================================================================================================================
-// Build the RbPlus related commands for the specified targetIndex target according to the new swizzledFormat for RPM.
-void GraphicsPipeline::BuildRbPlusRegistersForRpm(
-    SwizzledFormat                swizzledFormat,
-    uint32                        targetIndex,
-    GraphicsPipelineRbPlusPm4Img* pPm4Image
+// Overrides the RB+ register values for an RPM blit operation.  This is only valid to be called on GPU's which support
+// RB+.
+void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
+    SwizzledFormat               swizzledFormat,
+    uint32                       slot,
+    regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl
     ) const
 {
+    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfx6.rbPlus != 0);
+
     const SwizzledFormat*const pTargetFormats = TargetFormats();
 
-    if ((pTargetFormats[targetIndex].format != swizzledFormat.format) &&
-        (m_stateContextPm4Cmds.cbColorControl.bits.DISABLE_DUAL_QUAD__VI == 0) &&
-        (m_pDevice->Parent()->ChipProperties().gfx6.rbPlus))
+    if ((pTargetFormats[slot].format != swizzledFormat.format) &&
+        (m_stateContextPm4Cmds.cbColorControl.bits.DISABLE_DUAL_QUAD__VI == 0))
     {
-        SetupRbPlusShaderRegisters(false,
-                                   nullptr,
-                                   &swizzledFormat,
-                                   &targetIndex,
-                                   1,
-                                   pPm4Image);
+        regSX_PS_DOWNCONVERT__VI    sxPsDownconvert   = { };
+        regSX_BLEND_OPT_EPSILON__VI sxBlendOptEpsilon = { };
+        regSX_BLEND_OPT_CONTROL__VI sxBlendOptControl = { };
+        SetupRbPlusRegistersForSlot(slot,
+                                    static_cast<uint8>(Formats::ComponentMask(swizzledFormat.format)),
+                                    swizzledFormat,
+                                    &sxPsDownconvert,
+                                    &sxBlendOptEpsilon,
+                                    &sxBlendOptControl);
+
+        *pSxPsDownconvert   = sxPsDownconvert;
+        *pSxBlendOptEpsilon = sxBlendOptEpsilon;
+        *pSxBlendOptControl = sxBlendOptControl;
     }
 }
 
@@ -554,11 +567,6 @@ uint32* GraphicsPipeline::WriteShCommands(
         pCmdSpace = pCmdStream->WritePm4Image(m_stateCommonPm4Cmds.spaceNeeded, &m_stateCommonPm4Cmds, pCmdSpace);
     }
 
-    if (m_rbPlusPm4Cmds.spaceNeeded > 0)
-    {
-        pCmdSpace = pCmdStream->WritePm4Image(m_rbPlusPm4Cmds.spaceNeeded, &m_rbPlusPm4Cmds, pCmdSpace);
-    }
-
     return pCmdSpace;
 }
 
@@ -645,7 +653,6 @@ void GraphicsPipeline::BuildPm4Headers()
 {
     memset(&m_stateCommonPm4Cmds, 0, sizeof(m_stateCommonPm4Cmds));
     memset(&m_stateContextPm4Cmds, 0, sizeof(m_stateContextPm4Cmds));
-    memset(&m_rbPlusPm4Cmds, 0, sizeof(m_rbPlusPm4Cmds));
 
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
@@ -714,76 +721,33 @@ void GraphicsPipeline::BuildPm4Headers()
 }
 
 // =====================================================================================================================
-// Help method to sets-up RbPlus registers. Return true indicates the registers of Rb+ is set, so the the caller could
-// set DISABLE_DUAL_QUAD accordingly during initialization.
-bool GraphicsPipeline::SetupRbPlusShaderRegisters(
-    const bool                    dualBlendEnabled,
-    const uint8*                  pWriteMask,
-    const SwizzledFormat*         pSwizzledFormats,
-    const uint32*                 pTargetIndices,
-    const uint32                  targetIndexCount,
-    GraphicsPipelineRbPlusPm4Img* pPm4Image
+// Updates the RB+ register values for a single render target slot.  It is only expected that this will be called for
+// pipelines with RB+ enabled.
+void GraphicsPipeline::SetupRbPlusRegistersForSlot(
+    uint32                       slot,
+    uint8                        writeMask,
+    SwizzledFormat               swizzledFormat,
+    regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl
     ) const
 {
-    uint32 downConvert     = 0;
-    uint32 blendOptEpsilon = 0;
-    uint32 blendOptControl = 0;
-    bool   result          = false;
+    const uint32 bitShift = (4 * slot);
 
-    PAL_ASSERT((targetIndexCount > 0) &&
-               (pSwizzledFormats != nullptr) &&
-               (pTargetIndices != nullptr) &&
-               (pPm4Image != nullptr));
+    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat.format);
+    const uint32                blendOptControl   = Gfx6::SxBlendOptControl(writeMask);
+    const uint32                blendOptEpsilon   =
+        (downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ? 0 : Gfx6::SxBlendOptEpsilon(downConvertFormat);
 
-    if (m_pDevice->Settings().gfx8RbPlusEnable &&
-        (dualBlendEnabled == false) &&
-        (m_stateContextPm4Cmds.cbColorControl.bits.MODE != CB_RESOLVE))
-    {
-        downConvert     = m_rbPlusPm4Cmds.sxPsDownconvert.u32All;
-        blendOptEpsilon = m_rbPlusPm4Cmds.sxBlendOptEpsilon.u32All;
-        blendOptControl = m_rbPlusPm4Cmds.sxBlendOptControl.u32All;
+    pSxPsDownconvert->u32All &= ~(SX_PS_DOWNCONVERT__MRT0_MASK__VI << bitShift);
+    pSxPsDownconvert->u32All |= (downConvertFormat << bitShift);
 
-        for (uint32 i = 0; i < targetIndexCount; ++i)
-        {
-            const uint32                bitShift          = pTargetIndices[i] * 4;
-            const uint32                numComponents     = Formats::NumComponents(pSwizzledFormats[i].format);
-            const uint32                componentMask     = Formats::ComponentMask(pSwizzledFormats[i].format);
-            const uint8                 writeMask         = (pWriteMask != nullptr) ?
-                                                            pWriteMask[i] : static_cast<uint8>(componentMask);
-            const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(pSwizzledFormats[i].format);
-            const uint32                sxBlendOptControl = SxBlendOptControl(writeMask);
+    pSxBlendOptEpsilon->u32All &= ~(SX_BLEND_OPT_EPSILON__MRT0_EPSILON_MASK__VI << bitShift);
+    pSxBlendOptEpsilon->u32All |= (blendOptEpsilon << bitShift);
 
-            uint32 sxBlendOptEpsilon = 0;
-
-            if (downConvertFormat != SX_RT_EXPORT_NO_CONVERSION)
-            {
-                sxBlendOptEpsilon = SxBlendOptEpsilon(downConvertFormat);
-            }
-
-            const uint32 blendOptControlMask = SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK__VI |
-                                               SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK__VI;
-
-            downConvert = downConvert & (~(SX_PS_DOWNCONVERT__MRT0_MASK__VI << bitShift));
-            downConvert = downConvert | (downConvertFormat << bitShift);
-
-            blendOptEpsilon = blendOptEpsilon & (~(SX_BLEND_OPT_EPSILON__MRT0_EPSILON_MASK__VI << bitShift));
-            blendOptEpsilon = blendOptEpsilon | (sxBlendOptEpsilon << bitShift);
-
-            blendOptControl = blendOptControl & (~(blendOptControlMask << bitShift));
-            blendOptControl = blendOptControl | (sxBlendOptControl << bitShift);
-        }
-        result = true;
-    }
-
-    pPm4Image->sxPsDownconvert.u32All   = downConvert;
-    pPm4Image->sxBlendOptEpsilon.u32All = blendOptEpsilon;
-    pPm4Image->sxBlendOptControl.u32All = blendOptControl;
-
-    pPm4Image->spaceNeeded = m_pDevice->CmdUtil().BuildSetSeqContextRegs(mmSX_PS_DOWNCONVERT__VI,
-                                                                         mmSX_BLEND_OPT_CONTROL__VI,
-                                                                         &pPm4Image->header);
-
-    return result;
+    pSxBlendOptControl->u32All &= ~((SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK__VI |
+                                     SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK__VI) << bitShift);
+    pSxBlendOptControl->u32All |= (blendOptControl << bitShift);
 }
 
 // =====================================================================================================================
@@ -791,7 +755,8 @@ bool GraphicsPipeline::SetupRbPlusShaderRegisters(
 void GraphicsPipeline::SetupNonShaderRegisters(
     const GraphicsPipelineCreateInfo& createInfo)
 {
-    const Gfx6PalSettings& settings = m_pDevice->Settings();
+    const Gfx6PalSettings&   settings  = m_pDevice->Settings();
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     m_stateContextPm4Cmds.paScLineCntl.u32All = 0;
     m_stateContextPm4Cmds.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
@@ -882,30 +847,29 @@ void GraphicsPipeline::SetupNonShaderRegisters(
                                regValue.u32All,
                                &m_stateContextPm4Cmds.dbAlphaToMaskRmw);
 
-    // Handling Rb+ registers as long as Rb+ funcation is supported regardless of enabled/disabled.
-    if (m_pDevice->Parent()->ChipProperties().gfx6.rbPlus)
+    // Initialize RB+ registers for pipelines which are able to use the feature.
+    if (settings.gfx8RbPlusEnable &&
+        (createInfo.cbState.dualSourceBlendEnable == false) &&
+        (m_stateContextPm4Cmds.cbColorControl.bits.MODE != CB_RESOLVE))
     {
-        SwizzledFormat swizzledFormats[MaxColorTargets] = {};
-        uint32         targetIndices[MaxColorTargets]   = {};
-        uint8          writeMask[MaxColorTargets]       = {};
+        PAL_ASSERT(chipProps.gfx6.rbPlus);
 
-        for (uint32 i = 0; i < MaxColorTargets; ++i)
+        m_stateContextPm4Cmds.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 0;
+
+        for (uint32 slot = 0; slot < MaxColorTargets; ++slot)
         {
-            const auto& targetState = createInfo.cbState.target[i];
-
-            swizzledFormats[i] = targetState.swizzledFormat;
-            targetIndices[i]   = i;
-            writeMask[i]       = targetState.channelWriteMask;
+            SetupRbPlusRegistersForSlot(slot,
+                                        createInfo.cbState.target[slot].channelWriteMask,
+                                        createInfo.cbState.target[slot].swizzledFormat,
+                                        &m_sxPsDownconvert,
+                                        &m_sxBlendOptEpsilon,
+                                        &m_sxBlendOptControl);
         }
-
-        bool rbPlusIsSet = SetupRbPlusShaderRegisters(createInfo.cbState.dualSourceBlendEnable,
-                                                      writeMask,
-                                                      swizzledFormats,
-                                                      targetIndices,
-                                                      MaxColorTargets,
-                                                      &m_rbPlusPm4Cmds);
-
-        m_stateContextPm4Cmds.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = !rbPlusIsSet;
+    }
+    else if (chipProps.gfx6.rbPlus != 0)
+    {
+        // If RB+ is supported but not enabled, we need to set DISABLE_DUAL_QUAD.
+        m_stateContextPm4Cmds.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 1;
     }
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware

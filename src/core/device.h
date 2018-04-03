@@ -643,7 +643,8 @@ struct GpuChipProperties
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 placeholder1                             :  2; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
-                uint32 reserved                                 : 11;
+                uint32 placeholder2                             :  1; // Placeholder. Do not use.
+                uint32 reserved                                 : 10;
             };
 
             struct

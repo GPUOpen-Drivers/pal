@@ -139,7 +139,6 @@ protected:
 
     SubresId  m_subresource;
     uint32    m_arraySize;
-    Range     m_zRange;
 
     ColorLayoutToState  m_layoutToState;
 

@@ -2331,22 +2331,25 @@ typedef union _ADDR2_SURFACE_FLAGS
 {
     struct
     {
-        UINT_32 color         :  1; ///< This resource is a color buffer, can be used with RTV
-        UINT_32 depth         :  1; ///< Thie resource is a depth buffer, can be used with DSV
-        UINT_32 stencil       :  1; ///< Thie resource is a stencil buffer, can be used with DSV
-        UINT_32 fmask         :  1; ///< This is an fmask surface
-        UINT_32 overlay       :  1; ///< This is an overlay surface
-        UINT_32 display       :  1; ///< This resource is displable, can be used with DRV
-        UINT_32 prt           :  1; ///< This is a partially resident texture
-        UINT_32 qbStereo      :  1; ///< This is a quad buffer stereo surface
-        UINT_32 interleaved   :  1; ///< Special flag for interleaved YUV surface padding
-        UINT_32 texture       :  1; ///< This resource can be used with SRV
-        UINT_32 unordered     :  1; ///< This resource can be used with UAV
-        UINT_32 rotated       :  1; ///< This resource is rotated and displable
-        UINT_32 needEquation  :  1; ///< This resource needs equation to be generated if possible
-        UINT_32 opt4space     :  1; ///< This resource should be optimized for space
-        UINT_32 minimizeAlign :  1; ///< This resource should use minimum alignment
-        UINT_32 reserved      : 17; ///< Reserved bits
+        UINT_32 color             :  1; ///< This resource is a color buffer, can be used with RTV
+        UINT_32 depth             :  1; ///< Thie resource is a depth buffer, can be used with DSV
+        UINT_32 stencil           :  1; ///< Thie resource is a stencil buffer, can be used with DSV
+        UINT_32 fmask             :  1; ///< This is an fmask surface
+        UINT_32 overlay           :  1; ///< This is an overlay surface
+        UINT_32 display           :  1; ///< This resource is displable, can be used with DRV
+        UINT_32 prt               :  1; ///< This is a partially resident texture
+        UINT_32 qbStereo          :  1; ///< This is a quad buffer stereo surface
+        UINT_32 interleaved       :  1; ///< Special flag for interleaved YUV surface padding
+        UINT_32 texture           :  1; ///< This resource can be used with SRV
+        UINT_32 unordered         :  1; ///< This resource can be used with UAV
+        UINT_32 rotated           :  1; ///< This resource is rotated and displable
+        UINT_32 needEquation      :  1; ///< This resource needs equation to be generated if possible
+        UINT_32 opt4space         :  1; ///< This resource should be optimized for space
+        UINT_32 minimizeAlign     :  1; ///< This resource should use minimum alignment
+        UINT_32 noMetadata        :  1; ///< This resource has no metadata
+        UINT_32 metaRbUnaligned   :  1; ///< This resource has rb unaligned metadata
+        UINT_32 metaPipeUnaligned :  1; ///< This resource has pipe unaligned metadata
+        UINT_32 reserved          : 14; ///< Reserved bits
     };
 
     UINT_32 value;

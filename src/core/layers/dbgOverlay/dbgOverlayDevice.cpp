@@ -135,15 +135,22 @@ Result Device::Finalize(
         // We use about 4KB of embedded data for each present so 8KB suballocations are in order. If we ever switch to
         // byte-sized characters we could scale back to 4KB suballocations. 8 suballocations per allocation seems
         // reasonable; in almost all cases we wouldn't need more than one allocation for the whole overlay.
-        CmdAllocatorCreateInfo createInfo = {};
+        constexpr uint32 CommandDataSuballocSize   = (1024 * 8);
+        constexpr uint32 EmbeddedDataSuballocSize  = (1024 * 4);
+        constexpr uint32 GpuScratchMemSuballocSize = (1024 * 4);
+
+        CmdAllocatorCreateInfo createInfo = { };
         createInfo.flags.threadSafe      = 1;
         createInfo.flags.autoMemoryReuse = 1;
-        createInfo.allocInfo[CommandDataAlloc].allocHeap     = GpuHeapGartCacheable;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize  = 8 * 1024;
-        createInfo.allocInfo[CommandDataAlloc].allocSize     = 8 * createInfo.allocInfo[CommandDataAlloc].suballocSize;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap    = GpuHeapGartCacheable;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize = 4 * 1024;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize    = 8 * createInfo.allocInfo[EmbeddedDataAlloc].suballocSize;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartCacheable;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = CommandDataSuballocSize;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = (8 * CommandDataSuballocSize);
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartCacheable;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = EmbeddedDataSuballocSize;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = (8 * EmbeddedDataSuballocSize);
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = GpuScratchMemSuballocSize;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = (8 * GpuScratchMemSuballocSize);
 
         const size_t allocatorSize = GetCmdAllocatorSize(createInfo, &result);
 

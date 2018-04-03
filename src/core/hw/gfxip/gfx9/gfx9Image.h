@@ -235,7 +235,6 @@ public:
     void UpdateDccStateMetaData(
         Pal::CmdStream*     pCmdStream,
         const SubresRange&  range,
-        const Range*        pZRange,
         bool                isCompressed,
         EngineType          engineType,
         Pm4Predicate        predicate) const;
@@ -243,6 +242,7 @@ public:
         const GfxCmdBuffer*  pCmdBuffer,
         const SubresRange&   range,
         uint32               value,
+        Pm4Predicate         predicate,
         uint32*              pCmdSpace) const;
     uint32* UpdateWaTcCompatZRangeMetaData(
         const SubresRange&   range,

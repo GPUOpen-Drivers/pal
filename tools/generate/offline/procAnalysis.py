@@ -29,7 +29,7 @@ import os,sys
 FileHeaderCopyright = '/*\n\
  ***********************************************************************************************************************\n\
  *\n\
- *  Copyright (c) 2017 Advanced Micro Devices, Inc.\n\
+ *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.\n\
  *\n\
  *  Permission is hereby granted, free of charge, to any person obtaining a copy\n\
  *  of this software and associated documentation files (the "Software"), to deal\n\
@@ -84,7 +84,7 @@ def GetFmtType(ftype):
         return "%x"
 
 class EntryPoint:
-    def __init__(self, line):
+    def __init__(self, line, macroHead, macroTail):
         funcConst = re.compile('^.+(const [\w_]+ ?\*?) +([\w_]+) +\((.*)\)' )
         func = re.compile('^.+ ([\w_]+ ?\*?) +([\w_]+ ?) +\((.*)\)' )
         if funcConst.search(line):
@@ -97,6 +97,8 @@ class EntryPoint:
         self.ret = function[0].strip(' ')
         self.api = function[1].strip(' ')
         self.name = ''
+        self.macroHead = macroHead
+        self.macroTail = macroTail
         # record name that matches coding standard.
         if self.api.find('_'):
             apis = self.api.split('_')
@@ -105,7 +107,7 @@ class EntryPoint:
 
         self.params = []
         params = function[2].split(',')
-        # if params is void the params list is empty.
+        # when params is void the params list is empty.
         if len(params) > 0:
             for p in params:
                 p = p.strip(' ')
@@ -134,6 +136,10 @@ class EntryPoint:
         return self.ret
     def GetFunctionParams(self):
         return self.params
+    def GetFunctionMacroHead(self):
+        return self.macroHead
+    def GetFunctionMacroTail(self):
+        return self.macroTail
 class Variable:
     def __init__(self, line):
         line.rstrip()
@@ -163,7 +169,10 @@ class ProcMgr:
         self.libraries = {}
         self.var = []
         fp  = open(fileName)
-        for content in fp.readlines():
+        macroHead = ''
+        macroTail = ''
+        contents = fp.readlines()
+        for i, content in enumerate(contents):
             content.rstrip()
             if content.find('#') != -1:
                 pass
@@ -174,8 +183,14 @@ class ProcMgr:
                     self.var.append(var)
                 else:
                     library = content.split(' ')[0]
-                    ep = EntryPoint(content)
+                    if (i >= 1 and contents[i-1].find('#if') != -1):
+                        macroHead = contents[i-1]
+                    if (i+1 < len(contents) and contents[i+1].find('#endif') != -1):
+                        macroTail = contents[i+1];
+                    ep = EntryPoint(content, macroHead, macroTail)
                     self.add(ep, library)
+                    macroHead = ''
+                    macroTail = ''
     def add(self, entry, library):
         if self.libraries.has_key(library):
             self.libraries[library].append(entry)
@@ -198,6 +213,7 @@ class ProcMgr:
         for key in self.libraries.keys():
             fp.write("// symbols from " + key + "\n")
             for entry in self.libraries[key]:
+                fp.write(entry.GetFunctionMacroHead())
                 fp.write( "typedef " + entry.GetFunctionRetType() + " (*" + entry.GetFormattedName() + ")(")
                 params = entry.GetFunctionParams()
                 if len(params) == 0:
@@ -217,7 +233,7 @@ class ProcMgr:
                         else:
                             fp.write(",")
                         fp.write("\n            %s %*.s %s" %(pa.GetType(), length - len(pa.GetType()), ' ', pa.GetValue()))
-                    fp.write(");\n\n")
+                    fp.write(");\n" + entry.GetFunctionMacroTail() + "\n")
     def GetFormattedLibraryName(self, name):
         ret = ''
         if self.libraryDict.has_key(name):
@@ -266,6 +282,7 @@ class ProcMgr:
         fp.write("    void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }\n")
         fp.write("#endif\n")
         fp.write("    Result Init(Platform* pPlatform);\n\n")
+        fp.write("    void   SpecializedInit(Platform* pPlatform);\n\n")
         for var in self.var:
             fp.write("    " + var.GetVarType() + "* Get" + var.GetFormattedName() + "() const;\n\n")
         # add library handler
@@ -296,6 +313,7 @@ class ProcMgr:
         # adding stub function for each function pointer
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
+                fp.write(entry.GetFunctionMacroHead())
                 self.GenerateCommentLine(fp)
                 fp.write(entry.GetFunctionRetType() + " " +name + "FuncsProxy::pfn" + entry.GetFormattedName() + "(")
                 params = entry.GetFunctionParams()
@@ -365,7 +383,7 @@ class ProcMgr:
                         fp.write("\n    return pRet;\n")
                     else:
                         fp.write("\n    return ret;\n")
-                fp.write("}\n\n")
+                fp.write("}\n" + entry.GetFunctionMacroTail() + "\n")
         fp.write("#endif\n")
     def GenerateCommentLine(self, fp):
         fp.write("\n// =====================================================================================================================\n")
@@ -399,32 +417,11 @@ class ProcMgr:
         fp.write("{\n")
         fp.write("    Result result                   = Result::Success;\n")
         fp.write("    constexpr uint32_t LibNameSize  = 64;\n")
-        fp.write("    char LibNames[DrmLoaderLibrariesCount][LibNameSize] = {\n")
-        fp.write("        \"libdrm_amdgpu.so.1\",\n")
-        fp.write("        \"libdrm.so.2\"\n")
+        fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
+        for key in self.libraries.keys():
+            fp.write("        \"" + key + "\",\n")
         fp.write("    };\n\n")
-        fp.write("#if PAL_BUILD_DTIF\n")
-        fp.write("    if (pPlatform->IsDtifEnabled())\n")
-        fp.write("    {\n")
-        fp.write("        if (dlopen(\"libtcore2.so\", RTLD_LAZY | RTLD_GLOBAL) != nullptr)\n")
-        fp.write("        {\n")
-        fp.write("            m_libraryHandles[LibDrmAmdgpu] = dlopen(\"libdtif.so\", RTLD_LAZY | RTLD_GLOBAL);\n")
-        fp.write("            if (m_libraryHandles[LibDrmAmdgpu] != nullptr)\n")
-        fp.write("            {\n")
-        fp.write("                auto* pfnDtifCreate = reinterpret_cast<Dtif::DtifCreateFunc*>(dlsym(\n")
-        fp.write("                        m_libraryHandles[LibDrmAmdgpu],\n")
-        fp.write("                        \"CreateDtif\"));\n")
-        fp.write("                if (pfnDtifCreate != nullptr)\n")
-        fp.write("                {\n")
-        fp.write("                    if (pfnDtifCreate(\"Vulkan\") != nullptr)\n")
-        fp.write("                    {\n")
-        fp.write("                        strcpy(LibNames[LibDrmAmdgpu], \"libdtif.so\");\n")
-        fp.write("                    }\n")
-        fp.write("                }\n")
-        fp.write("            }\n")
-        fp.write("        }\n")
-        fp.write("    }\n")
-        fp.write("#endif // PAL_BUILD_DTIF\n\n")
+        fp.write("    SpecializedInit(pPlatform);\n")
         # load function point from libraries.
         fp.write("    if (m_initialized == false)\n")
         fp.write("    {\n")
@@ -439,7 +436,9 @@ class ProcMgr:
             fp.write("        else\n")
             fp.write("        {\n")
             for entry in self.libraries[key]:
+                fp.write(entry.GetFunctionMacroHead())
                 fp.write("            m_funcs.pfn" + entry.GetFormattedName() + " = " + "reinterpret_cast<" + entry.GetFormattedName() + ">(dlsym(\n                        m_libraryHandles[" + libraryEnum + "],\n                        \"" + entry.GetFunctionName() + "\"));\n")
+                fp.write(entry.GetFunctionMacroTail());
             fp.write("        }\n\n")
         for var in self.var:
             libraryEnum = self.GetFormattedLibraryName(var.GetLibrary())
@@ -477,11 +476,12 @@ class ProcMgr:
 
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
+                fp.write(entry.GetFunctionMacroHead())
                 fp.write("    %s %*.s pfn%s;\n" %(entry.GetFormattedName(), length - len(entry.GetFormattedName()), " ", entry.GetFormattedName()))
                 fp.write("    bool pfn" + entry.GetFormattedName() + "isValid() const\n")
                 fp.write("    {\n")
                 fp.write("        return (pfn" + entry.GetFormattedName() + " != nullptr);\n")
-                fp.write("    }\n\n")
+                fp.write("    }\n" + entry.GetFunctionMacroTail() + "\n")
         fp.write("};\n")
     def GenerateFuncProxy(self, fp, name):
         self.GenerateCommentLine(fp)
@@ -496,6 +496,7 @@ class ProcMgr:
         fp.write("    void Init(const char* pPath);\n\n")
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
+                fp.write(entry.GetFunctionMacroHead())
                 fp.write( "    " + entry.GetFunctionRetType() + " pfn" + entry.GetFormattedName() + "(")
                 params = entry.GetFunctionParams()
                 if len(params) == 0:
@@ -519,7 +520,7 @@ class ProcMgr:
                     fp.write("    bool pfn" + entry.GetFormattedName() + "isValid() const\n")
                     fp.write("    {\n")
                     fp.write("        return (m_pFuncs->pfn" + entry.GetFormattedName() + " != nullptr);\n")
-                    fp.write("    }\n\n")
+                    fp.write("    }\n" + entry.GetFunctionMacroTail() + "\n")
         fp.write("private:\n")
         fp.write("    Util::File  m_timeLogger;\n")
         fp.write("    Util::File  m_paramLogger;\n")

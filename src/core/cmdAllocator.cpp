@@ -66,7 +66,7 @@ size_t CmdAllocator::GetSize(
             // - The allocation heap is CPU-mappable (in other words, not invisible).
             if (IsPow2Aligned(allocInfo.suballocSize, PAL_PAGE_BYTES)                       &&
                 (allocInfo.allocSize % allocInfo.suballocSize == 0)                         &&
-                (allocInfo.allocHeap != GpuHeapInvisible))
+                ((i == GpuScratchMemAlloc) || (allocInfo.allocHeap != GpuHeapInvisible)))
             {
                 *pResult = Result::Success;
             }
@@ -111,22 +111,42 @@ CmdAllocator::CmdAllocator(
         m_pLinearAllocLock = PAL_PLACEMENT_NEW(m_pChunkLock + 1) Mutex();
     }
 
+    const uint32 residencyFlags = m_pDevice->GetPublicSettings()->cmdAllocResidency;
     for (uint32 i = 0; i < CmdAllocatorTypeCount; ++i)
     {
         memset(&m_gpuAllocInfo[i].allocCreateInfo, 0, sizeof(m_gpuAllocInfo[i].allocCreateInfo));
 
         m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.priority  = GpuMemPriority::Normal;
         m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange   = VaRange::Default;
-        m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
-        m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = createInfo.allocInfo[i].allocHeap;
-        m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1]  = GpuHeapGartCacheable;
+        if (i != GpuScratchMemAlloc)
+        {
+            m_gpuAllocInfo[i].allocCreateInfo.flags.cpuAccessible = 1;
+
+            m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
+            m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = createInfo.allocInfo[i].allocHeap;
+            m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1]  = GpuHeapGartCacheable;
+        }
+        else
+        {
+            if (m_pDevice->ChipProperties().gpuType == GpuType::Integrated)
+            {
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = GpuHeapGartUswc;
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1]  = GpuHeapGartCacheable;
+            }
+            else
+            {
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 1;
+                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = GpuHeapInvisible;
+            }
+        }
 
         m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.alwaysResident = 1;
         m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.isCmdAllocator = 1;
 
         // If wait-on-submit residency is enabled we must request a paging fence for each allocation. Otherwise we will
         // implicitly wait for each allocation to be resident at create-time.
-        if (TestAnyFlagSet(m_pDevice->GetPublicSettings()->cmdAllocResidency, 1 << i))
+        if (TestAnyFlagSet(residencyFlags, (1 << i)))
         {
             // Note: It is safe to give a pointer to this member directly, because either (A) the allocator is thread-
             // safe, or (B) the allocator is only allowed to be used by a single thread at any given time for recording
@@ -146,14 +166,14 @@ CmdAllocator::CmdAllocator(
                                                               createInfo.allocInfo[i].suballocSize);
 
         // Only enable staging buffers for command allocations.
-        m_gpuAllocInfo[i].allocCreateInfo.enableStagingBuffer =
+        m_gpuAllocInfo[i].allocCreateInfo.flags.enableStagingBuffer =
             (i == CommandDataAlloc) && pDevice->Settings().cmdBufChunkEnableStagingBuffer;
 
         if (i == CommandDataAlloc)
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.flags.udmaBuffer = 1;
         }
-        else if (i == EmbeddedDataAlloc)
+        else if ((i == EmbeddedDataAlloc) || (i == GpuScratchMemAlloc))
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange = VaRange::DescriptorTable;
         }
@@ -231,6 +251,7 @@ void CmdAllocator::FreeAllChunks()
     {
         &m_gpuAllocInfo[CommandDataAlloc],
         &m_gpuAllocInfo[EmbeddedDataAlloc],
+        &m_gpuAllocInfo[GpuScratchMemAlloc],
         &m_sysAllocInfo,
     };
     static_assert((sizeof(pAllocInfo) / sizeof(pAllocInfo[0])) == (CmdAllocatorTypeCount + 1),
@@ -578,13 +599,14 @@ Result CmdAllocator::CreateAllocation(
     CmdStreamChunk** ppChunk)
 {
     Result result = Result::Success;
+
     CmdStreamAllocation* pAlloc = nullptr;
-    CmdStreamChunk* pChunk      = nullptr;
+    CmdStreamChunk*      pChunk = nullptr;
 
     CmdStreamAllocationCreateInfo allocCreateInfo = pAllocInfo->allocCreateInfo;
     // dummyAlloc indicates that the new CmdStreamAllocation will get its GPU memory from device and will not own
     // that piece of memory
-    allocCreateInfo.dummyAllocation = dummyAlloc;
+    allocCreateInfo.flags.dummyAllocation = dummyAlloc;
 
     void*const pPlacementAddr = PAL_MALLOC(CmdStreamAllocation::GetSize(allocCreateInfo),
                                            m_pDevice->GetPlatform(),

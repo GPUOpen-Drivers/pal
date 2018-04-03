@@ -2173,7 +2173,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
         // generic fast-clear code.
         clearCode = Gfx9DccClearColor::ClearColorReg;
 
-        *pNeedFastClearElim = false;
+        // Even though it won't be texture feched, it is still safer to unconditionally do FCE to guarantee the base
+        // data is coherent with prior clears
+        *pNeedFastClearElim = true;
     }
 
     return static_cast<uint8>(clearCode);

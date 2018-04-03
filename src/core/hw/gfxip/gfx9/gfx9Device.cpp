@@ -2303,7 +2303,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             } // end check for image supporting meta-data tex fetches
         }
 
-        // Fill the unused 4 bits of word4 with sample pattern index
+        // Fill the unused 4 bits of word6 with sample pattern index
         SetImageViewSamplePatternIdx(&srd, viewInfo.samplePatternIdx);
 
         memcpy(&pSrds[i], &srd, sizeof(srd));

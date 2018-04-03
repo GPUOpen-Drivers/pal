@@ -1120,6 +1120,10 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
                 break;
         }
 
+        // Addr::V2::Lib::ComputePipeBankXor()/ComputeSlicePipeBankXor() requires pipe interleave to be exactly 8 bits,
+        // and any larger value requires a post-process (left shift) on the output pipeBankXor bits.
+        ADDR_ASSERT(m_pipeInterleaveBytes == ADDR_PIPEINTERLEAVE_256B);
+
         switch (gbAddrConfig.bits.NUM_BANKS)
         {
             case ADDR_CONFIG_1_BANK:
@@ -1216,6 +1220,18 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
         ADDR_ASSERT((m_blockVarSizeLog2 == 0) ||
                     ((m_blockVarSizeLog2 >= 17u) && (m_blockVarSizeLog2 <= 20u)));
         m_blockVarSizeLog2 = Min(Max(17u, m_blockVarSizeLog2), 20u);
+
+        if ((m_rbPerSeLog2 == 1) &&
+            (((m_pipesLog2 == 1) && ((m_seLog2 == 2) || (m_seLog2 == 3))) ||
+             ((m_pipesLog2 == 2) && ((m_seLog2 == 1) || (m_seLog2 == 2)))))
+        {
+            ADDR_ASSERT(m_settings.isVega10 == FALSE);
+
+#if ADDR_RAVEN1_BUILD
+            ADDR_ASSERT(m_settings.isRaven == FALSE);
+#endif
+
+        }
     }
     else
     {
@@ -3344,9 +3360,10 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
             addrPreferredSwSet.value = AddrSwSetZ;
             addrValidSwSet.value     = AddrSwSetZ;
 
-            if (pIn->flags.depth)
+            if (pIn->flags.noMetadata == FALSE)
             {
-                if (pIn->flags.texture &&
+                if (pIn->flags.depth &&
+                    pIn->flags.texture &&
                     (((bpp == 16) && (numFrags >= 4)) || ((bpp == 32) && (numFrags >= 2))))
                 {
                     // When _X/_T swizzle mode was used for MSAA depth texture, TC will get zplane
@@ -3355,9 +3372,14 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                     pOut->canXor = FALSE;
                     prtXor       = FALSE;
                 }
-                else if ((slice > 1) && (bpp == 32) && (numFrags == 1))
+
+                if (m_settings.htileCacheRbConflict &&
+                    (pIn->flags.depth || pIn->flags.stencil) &&
+                    (slice > 1) &&
+                    (pIn->flags.metaRbUnaligned == FALSE) &&
+                    (pIn->flags.metaPipeUnaligned == FALSE))
                 {
-                    // Z_X non-MSAA D32 2D array with Rb/Pipe aligned HTile won't have metadata cache coherency
+                    // Z_X 2D array with Rb/Pipe aligned HTile won't have metadata cache coherency
                     pOut->canXor = FALSE;
                 }
             }

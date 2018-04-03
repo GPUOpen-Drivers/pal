@@ -95,6 +95,8 @@ if __name__ == '__main__':
     fp.write("namespace Linux\n")
     fp.write("{\n")
     procMgr.GenerateCppFile(fp, "Dri3Loader")
+    fp.write("void\nDri3Loader::SpecializedInit(Platform* pPlatform)\n")
+    fp.write("{\n}\n\n")
     fp.write("} //namespace Linux\n")
     fp.write("} //namespace Pal\n")
     fp.close()

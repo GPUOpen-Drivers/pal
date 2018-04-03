@@ -582,7 +582,7 @@ uint32* ColorBlendState::WriteBlendOptimizations(
             }
 
             // Update blend optimizations if changed
-            if ((pBlendOpts[idx].dontRdDst != dontRdDst) && (pBlendOpts[idx].discardPixel != discardPixel))
+            if ((pBlendOpts[idx].dontRdDst != dontRdDst) || (pBlendOpts[idx].discardPixel != discardPixel))
             {
                 constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
                                                     CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);

@@ -715,10 +715,11 @@ bool Gfx6Cmask::SupportFastColorClear(
     AddrTileMode       tileMode,
     AddrTileType       tileType)
 {
-    const Gfx6PalSettings& settings = GetGfx6Settings(device);
+    const Gfx6PalSettings& settings   = GetGfx6Settings(device);
+    const ImageCreateInfo& createInfo = image.Parent()->GetImageCreateInfo();
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
-    const bool fastColorClearEnable = (image.Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d) ?
+    const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
                                       settings.fastColorClearEnable : settings.fastColorClearOn3dEnable;
 
     // Only enable CMask fast color clear iff:
@@ -734,7 +735,7 @@ bool Gfx6Cmask::SupportFastColorClear(
            (tileType != ADDR_THICK)                      &&
            (image.Parent()->IsShaderWritable() == false) &&
            (AddrMgr1::IsLinearTiled(tileMode)  == false) &&
-           (SupportsFastColorClear(image.Parent()->GetImageCreateInfo().swizzledFormat.format));
+           (SupportsFastColorClear(createInfo.swizzledFormat.format));
 }
 
 // =====================================================================================================================
@@ -1637,7 +1638,9 @@ uint32 Gfx6Dcc::GetFastClearCode(
         // generic fast-clear code.
         clearCode = Gfx8DccClearColor::ClearColorReg;
 
-        *pNeedFastClearElim = false;
+        // Even though it won't be texture feched, it is still safer to unconditionally do FCE to guarantee the base
+        // data is coherent with prior clears
+        *pNeedFastClearElim = true;
     }
 
     // DCC memory is organized in bytes from the HW perspective; however, the caller expects the clear code to be a

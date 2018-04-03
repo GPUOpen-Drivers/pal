@@ -445,7 +445,10 @@ Result GpuMemory::Init(
     {
         // The caller provided their own alignment value, make sure it's a multiple of the allocation granularity.
         PAL_ASSERT(IsPowerOfTwo(allocGranularity));
-        PAL_ASSERT(IsPow2Aligned(m_desc.alignment, allocGranularity));
+        if (createInfo.flags.sdiExternal == 0)
+        {
+            PAL_ASSERT(IsPow2Aligned(m_desc.alignment, allocGranularity));
+        }
     }
 
     Result result = Result::Success;

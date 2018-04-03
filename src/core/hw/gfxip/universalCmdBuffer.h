@@ -205,6 +205,13 @@ public:
         const StencilRefMaskParams& updatedRefMaskState,
         StencilRefMaskParams*       pStencilRefMaskState);
 
+    bool UseRingBufferForCeRamDumps() const
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+        { return (m_buildFlags.useLinearBufferForCeRamDumps == 0); }
+#else
+        { return (m_buildFlags.useEmbeddedDataForCeRamDumps == 0); }
+#endif
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Returns true if the graphics state is currently pushed.
     bool IsGraphicsStatePushed() const { return m_graphicsStateIsPushed; }

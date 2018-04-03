@@ -198,6 +198,10 @@ public:
         PAL_NEVER_CALLED();
     }
 
+    virtual void CmdUpdateBusAddressableMemoryMarker(
+        const IGpuMemory& dstGpuMemory,
+        uint32            value) override;
+
 protected:
     enum class DmaMemImageCopyMethod
     {

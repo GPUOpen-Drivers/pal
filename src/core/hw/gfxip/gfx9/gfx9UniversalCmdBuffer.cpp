@@ -327,7 +327,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     }
 
     const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+                             (TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     m_paScBinnerCntl0.u32All = 0;
@@ -336,6 +336,14 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_savedPaScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = settings.binningPersistentStatesPerBin - 1;
     m_savedPaScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
     m_savedPaScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+
+    memset(&m_rbPlusPm4Img, 0, sizeof(m_rbPlusPm4Img));
+    if (m_device.Parent()->ChipProperties().gfx9.rbPlus != 0)
+    {
+        m_rbPlusPm4Img.spaceNeeded = m_device.CmdUtil().BuildSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
+                                                                               mmSX_BLEND_OPT_CONTROL,
+                                                                               &m_rbPlusPm4Img.header);
+    }
 
     SwitchDrawFunctions(false, false);
 }
@@ -561,20 +569,7 @@ void UniversalCmdBuffer::ResetState()
 {
     Pal::UniversalCmdBuffer::ResetState();
 
-    if (UseEmbeddedDataForCeRamDumps())
-    {
-        if (m_cachedSettings.issueSqttMarkerEvent)
-        {
-            SetDispatchFunctions<true, false>();
-        }
-        else
-        {
-            SetDispatchFunctions<false, false>();
-        }
-
-        SetUserDataValidationFunctions<false>(false, false, false);
-    }
-    else
+    if (UseRingBufferForCeRamDumps())
     {
         if (m_cachedSettings.issueSqttMarkerEvent)
         {
@@ -586,6 +581,19 @@ void UniversalCmdBuffer::ResetState()
         }
 
         SetUserDataValidationFunctions<true>(false, false, false);
+    }
+    else
+    {
+        if (m_cachedSettings.issueSqttMarkerEvent)
+        {
+            SetDispatchFunctions<true, false>();
+        }
+        else
+        {
+            SetDispatchFunctions<false, false>();
+        }
+
+        SetUserDataValidationFunctions<false>(false, false, false);
     }
 
     m_vgtDmaIndexType.u32All = 0;
@@ -688,13 +696,13 @@ void UniversalCmdBuffer::CmdBindPipeline(
         const bool tessEnabled = (pNewPipeline != nullptr) && pNewPipeline->IsTessEnabled();
         const bool gsEnabled   = (pNewPipeline != nullptr) && pNewPipeline->IsGsEnabled();
 
-        if (UseEmbeddedDataForCeRamDumps())
+        if (UseRingBufferForCeRamDumps())
         {
-            SetUserDataValidationFunctions<false>(tessEnabled, gsEnabled, isNgg);
+            SetUserDataValidationFunctions<true>(tessEnabled, gsEnabled, isNgg);
         }
         else
         {
-            SetUserDataValidationFunctions<true>(tessEnabled, gsEnabled, isNgg);
+            SetUserDataValidationFunctions<false>(tessEnabled, gsEnabled, isNgg);
         }
 
         const bool newIsNggFastLaunch    = (pNewPipeline != nullptr) && pNewPipeline->IsNggFastLaunch();
@@ -707,6 +715,16 @@ void UniversalCmdBuffer::CmdBindPipeline(
         if ((oldIsNggFastLaunch != newIsNggFastLaunch) || (oldUsesViewInstancing != newUsesViewInstancing))
         {
             SwitchDrawFunctions(newUsesViewInstancing, newIsNggFastLaunch);
+        }
+
+        // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
+        // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
+        // for certain blit operations.
+        if ((m_rbPlusPm4Img.spaceNeeded != 0) && (pNewPipeline != nullptr))
+        {
+            m_rbPlusPm4Img.sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
+            m_rbPlusPm4Img.sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
+            m_rbPlusPm4Img.sxBlendOptControl = pNewPipeline->SxBlendOptControl();
         }
     }
 
@@ -735,6 +753,12 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_deCmdStream.SetContextRollDetected<true>();
 
         m_pipelineCtxPm4Hash = ctxPm4Hash;
+    }
+
+    if (m_rbPlusPm4Img.spaceNeeded != 0)
+    {
+        pDeCmdSpace = m_deCmdStream.WritePm4Image(m_rbPlusPm4Img.spaceNeeded, &m_rbPlusPm4Img, pDeCmdSpace);
+        m_deCmdStream.SetContextRollDetected<true>();
     }
 
     if (m_cachedSettings.batchBreakOnNewPs)
@@ -2727,6 +2751,42 @@ Result UniversalCmdBuffer::AddPreamble()
 
     const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
 
+    // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
+    // inherited state and the optimizations won't be cleared unless cleared in this command buffer.
+    BlendOpt dontRdDst    = FORCE_OPT_AUTO;
+    BlendOpt discardPixel = FORCE_OPT_AUTO;
+
+    if (m_cachedSettings.blendOptimizationsEnable == false)
+    {
+        dontRdDst    = FORCE_OPT_DISABLE;
+        discardPixel = FORCE_OPT_DISABLE;
+    }
+
+    for (uint32 idx = 0; idx < MaxColorTargets; idx++)
+    {
+        constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
+                                            CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
+
+        regCB_COLOR0_INFO regValue            = {};
+        regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
+        regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
+
+        if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
+        {
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                 BlendOptRegMask,
+                                                                 regValue.u32All,
+                                                                 pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<false>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                  BlendOptRegMask,
+                                                                  regValue.u32All,
+                                                                  pDeCmdSpace);
+        }
+    }
+
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
     }
@@ -2830,7 +2890,7 @@ Result UniversalCmdBuffer::AddPostamble()
         uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
         const bool ceTimestampNeeded = (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0);
-        if (ceTimestampNeeded || (UseEmbeddedDataForCeRamDumps() == false))
+        if (ceTimestampNeeded || UseRingBufferForCeRamDumps())
         {
             // The timestamps used for reclaiming command stream chunks are written when the DE stream has completed.
             // This ensures the CE stream completes before the DE stream completes, so that the timestamp can't return
@@ -2841,7 +2901,7 @@ Result UniversalCmdBuffer::AddPostamble()
             m_state.flags.deCounterDirty = 1;
         }
 
-        if (UseEmbeddedDataForCeRamDumps() == false)
+        if (UseRingBufferForCeRamDumps())
         {
             AcquireMemInfo acquireInfo = {};
             acquireInfo.flags.invSqI$ = 1;
@@ -6492,13 +6552,13 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         }
         else
         {
-            if (UseEmbeddedDataForCeRamDumps())
+            if (UseRingBufferForCeRamDumps())
             {
-                pDeCmdSpace = ValidateDispatch<false>(0uLL, 0, 0, 0, pDeCmdSpace);
+                pDeCmdSpace = ValidateDispatch<true>(0uLL, 0, 0, 0, pDeCmdSpace);
             }
             else
             {
-                pDeCmdSpace = ValidateDispatch<true>(0uLL, 0, 0, 0, pDeCmdSpace);
+                pDeCmdSpace = ValidateDispatch<false>(0uLL, 0, 0, 0, pDeCmdSpace);
             }
 
             CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
@@ -6678,6 +6738,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_funcTable.pfnCmdDrawIndexed              = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
         m_funcTable.pfnCmdDrawIndirectMulti        = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
         m_funcTable.pfnCmdDrawIndexedIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
+
+        if (m_rbPlusPm4Img.spaceNeeded != 0)
+        {
+            m_rbPlusPm4Img.sxPsDownconvert   = cmdBuffer.m_rbPlusPm4Img.sxPsDownconvert;
+            m_rbPlusPm4Img.sxBlendOptEpsilon = cmdBuffer.m_rbPlusPm4Img.sxBlendOptEpsilon;
+            m_rbPlusPm4Img.sxBlendOptControl = cmdBuffer.m_rbPlusPm4Img.sxBlendOptControl;
+        }
     }
 
     if (cmdBuffer.HasStreamOutBeenSet())
@@ -6860,15 +6927,15 @@ bool UniversalCmdBuffer::CheckNestedExecuteReference(
     const UniversalCmdBuffer* pCmdBuffer)
 {
     // A reference to nested command buffer may exist if it used embedded data for CE dumps
-    const bool mayExistRef = pCmdBuffer->UseEmbeddedDataForCeRamDumps()     &&
+    const bool mayExistRef = (pCmdBuffer->UseRingBufferForCeRamDumps() == false) &&
                              (pCmdBuffer->m_ceCmdStream.IsEmpty() == false) &&
-                             (pCmdBuffer->m_embeddedData.chunkList.IsEmpty() == false);
+                             (pCmdBuffer->m_gpuScratchMem.chunkList.IsEmpty() == false);
 
     bool existsRef = false;
     if (mayExistRef)
     {
         // Check for existing reference from nested execute
-        CmdStreamChunk* pChunk = pCmdBuffer->m_embeddedData.chunkList.Begin().Get();
+        CmdStreamChunk* pChunk = pCmdBuffer->m_gpuScratchMem.chunkList.Begin().Get();
         for (auto iter = m_nestedChunkRefList.Begin(); iter.IsValid(); iter.Next())
         {
             if (iter.Get() == pChunk)
@@ -7026,28 +7093,26 @@ void UniversalCmdBuffer::AddPerPresentCommands(
 }
 
 // =====================================================================================================================
-// When Rb+ is enabled, pipelines are created per shader export format, however, same export format possibly supports
-// several down convert formats. For example, FP16_ABGR supports 8_8_8_8, 5_6_5, 1_5_5_5, 4_4_4_4, etc. Need to build
-// the commands to overwrite the RbPlus related registers according to the format.
-// Please note that this method is supposed to be called right after the internal graphic pipelines are bound to command
-// buffer.
+// When RB+ is enabled, pipelines are created per shader export format.  However, same export format possibly supports
+// several down convert formats. For example, FP16_ABGR supports 8_8_8_8, 5_6_5, 1_5_5_5, 4_4_4_4, etc.  This updates
+// the current RB+ PM4 image with the overridden values.
+// NOTE: This is expected to be called immediately after RPM binds a graphics pipeline!
 void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     SwizzledFormat format,
     uint32         targetIndex)
 {
-    const Pal::PipelineState* pPipelineState = PipelineState(PipelineBindPoint::Graphics);
-    const GraphicsPipeline*   pPipeline      = static_cast<const GraphicsPipeline*>(pPipelineState->pPipeline);
-    RbPlusPm4Img              pm4Image       = {};
+    const auto*const pPipeline =
+        static_cast<const GraphicsPipeline*>(PipelineState(PipelineBindPoint::Graphics)->pPipeline);
+    PAL_ASSERT(pPipeline != nullptr);
 
-    pPipeline->BuildRbPlusRegistersForRpm(format, targetIndex, &pm4Image);
-
-    if (pm4Image.spaceNeeded)
+    // Just update our PM4 image for RB+.  It will be written at draw-time along with the other pipeline registers.
+    if (m_rbPlusPm4Img.spaceNeeded != 0)
     {
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-        pDeCmdSpace = m_deCmdStream.WritePm4Image(pm4Image.spaceNeeded, &pm4Image, pDeCmdSpace);
-
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
+        pPipeline->OverrideRbPlusRegistersForRpm(format,
+                                                 targetIndex,
+                                                 &m_rbPlusPm4Img.sxPsDownconvert,
+                                                 &m_rbPlusPm4Img.sxBlendOptEpsilon,
+                                                 &m_rbPlusPm4Img.sxBlendOptControl);
     }
 }
 

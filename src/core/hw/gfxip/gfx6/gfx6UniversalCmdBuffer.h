@@ -150,6 +150,17 @@ struct DrawTimeHwState
     regPA_SC_MODE_CNTL_1  paScModeCntl1;    // The current value of the PA_SC_MODE_CNTL1 register.
 };
 
+// Represents an image of the PM4 commands necessary to write RB-plus related info to hardware.
+struct RbPlusPm4Img
+{
+    PM4CMDSETDATA                header;
+    regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControl;
+
+    size_t  spaceNeeded;
+};
+
 struct ColorInfoReg
 {
     PM4CMDSETDATA     header;
@@ -904,6 +915,7 @@ private:
     regSPI_PS_IN_CONTROL       m_spiPsInControl;      // Register setting for PS_IN_CONTROL
     uint16                     m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                     m_drawIndexReg;        // Register where the draw index is written
+    RbPlusPm4Img               m_rbPlusPm4Img;        // PM4 image for RB Plus register state.
 
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.

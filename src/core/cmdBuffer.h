@@ -752,8 +752,6 @@ public:
 
     bool IsExclusiveSubmit() const { return (m_buildFlags.optimizeExclusiveSubmit != 0); }
     bool IsOneTimeSubmit() const { return (m_buildFlags.optimizeOneTimeSubmit != 0); }
-
-    bool UseEmbeddedDataForCeRamDumps() const { return (m_buildFlags.useEmbeddedDataForCeRamDumps != 0); }
     bool AllowLaunchViaIb2() const { return (m_buildFlags.disallowNestedLaunchViaIb2 == 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
@@ -783,6 +781,10 @@ public:
     const P2pBltWaInfoVector& GetP2pBltWaInfoVec() const { return m_p2pBltWaInfo; }
 
     bool HasAddressDependentCmdStream() const;
+
+    gpusize AllocateGpuScratchMem(
+        uint32 sizeInDwords,
+        uint32 alignmentInDwords);
 
 protected:
     CmdBuffer(const Device&              device,
@@ -885,6 +887,8 @@ protected:
     };
 
     ChunkData          m_embeddedData;
+    ChunkData          m_gpuScratchMem;
+    uint32             m_gpuScratchMemAllocLimit;
 
     // Latest GPU memory paging fence seen across this command buffer and all nested command buffers called by this
     // command buffer.
@@ -922,9 +926,9 @@ private:
     void ReturnDataChunks(ChunkData* pData, CmdAllocType type, bool returnGpuMemory);
     void ReturnLinearAllocator();
 
-    const Device&         m_device;
-    CmdBufferRecordState  m_recordState;
-    const CmdStream*const m_pVmRemapStream; // Command stream for virtual memory remapping.
+    const Device&          m_device;
+    CmdBufferRecordState   m_recordState;
+    const CmdStream*const  m_pVmRemapStream; // Command stream for virtual memory remapping.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // These member variables are only for command buffer dumping support.

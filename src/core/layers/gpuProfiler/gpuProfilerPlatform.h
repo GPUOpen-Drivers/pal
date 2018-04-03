@@ -36,10 +36,9 @@ namespace GpuProfiler
 
 enum CmdAllocResidencyFlags : uint32
 {
-    CmdAllocResWaitOnSubmitCommandData = 0x00000001,
-    CmdAllocResWaitOnSubmitEmbeddedData = 0x00000002,
-    CmdAllocResWaitOnSubmitMarkerData = 0x00000004,
-
+    CmdAllocResWaitOnSubmitCommandData   = (1 << CommandDataAlloc),
+    CmdAllocResWaitOnSubmitEmbeddedData  = (1 << EmbeddedDataAlloc),
+    CmdAllocResWaitOnSubmitGpuScratchMem = (1 << GpuScratchMemAlloc),
 };
 
 // =====================================================================================================================

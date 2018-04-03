@@ -698,7 +698,6 @@ Result Image::Finalize(
 
             if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
             {
-                const uint32 bpp = Formats::BitsPerPixel(m_createInfo.swizzledFormat.format);
                 // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
                 // surface.
                 if ((Parent()->IsEqaa() == false) || (m_createInfo.fragments > 1))
@@ -1009,6 +1008,12 @@ void Image::InitLayoutStateMasksOneMip(
 
         compressedLayouts.usages  = DbUsages;
         compressedLayouts.engines = LayoutUniversalEngine;
+
+        // Postpone decompresses for HTILE from Barrier-time to Resolve-time.
+        if (isMsaa)
+        {
+            compressedLayouts.usages |= LayoutResolveSrc;
+        }
 
         // On Gfxip8 with a TC-compatible htile, even the compressed layout is shader-readable
         // Moreover, either fixed-func depth-stencil copy resolve or pixel shader resolve could keep resolveSrc in

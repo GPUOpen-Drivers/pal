@@ -69,7 +69,15 @@ union CmdAllocatorCreateFlags
 enum CmdAllocType : uint32
 {
     CommandDataAlloc  = 0,  ///< Data allocated is for executable commands.
-    EmbeddedDataAlloc = 1,  ///< Data allocated is for embedded data.
+    EmbeddedDataAlloc,      ///< Data allocated is for embedded data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+    GpuScratchMemAlloc,     ///< Data allocated is GPU-only accessible at command buffer execution-time.  Possible
+                            ///  uses include CE RAM dumps and GPU events.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
+    GpuScratchMemAlloc,     ///< Data allocated is GPU-only accessible at command buffer execution-time.  Possible
+                            ///  uses include CE RAM dumps and GPU events.
+#endif
     CmdAllocatorTypeCount   ///< Number of allocation types for ICmdAllocator's.
 };
 
@@ -80,7 +88,9 @@ struct CmdAllocatorCreateInfo
 
     struct
     {
-        GpuHeap             allocHeap;    ///< Preferred allocation heap. Must be CPU-mappable.
+        GpuHeap             allocHeap;    ///< Preferred allocation heap.  For @ref GpuScratchMemAlloc, this field is
+                                          ///  ignored and the allocation will always be in GPU-invisible memory.  For
+                                          ///  all other allocation types, this must be CPU-mappable.
                                           ///  For best performance, command allocators that will be used by the
                                           ///  UVD engine should prefer the Local heap
         gpusize             allocSize;    ///< Size, in bytes, of the GPU memory allocations this allocator will create.

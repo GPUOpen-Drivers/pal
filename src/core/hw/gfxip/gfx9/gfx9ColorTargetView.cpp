@@ -57,7 +57,8 @@ ColorTargetView::ColorTargetView(
     const ColorTargetViewInternalCreateInfo& internalInfo)
     :
     m_pDevice(pDevice),
-    m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr)
+    m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr),
+    m_arraySize(0)
 {
     memset(&m_subresource, 0, sizeof(m_subresource));
 
@@ -71,29 +72,14 @@ ColorTargetView::ColorTargetView(
         PAL_ASSERT(m_pImage != nullptr);
         m_flags.usesLoadRegIndexPkt = pDevice->Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt;
 
-        // Sets the base subresource for this mip.
-        m_subresource.aspect      = createInfo.imageInfo.baseSubRes.aspect;
-        m_subresource.mipLevel    = createInfo.imageInfo.baseSubRes.mipLevel;
-        const ImageType imageType = m_pImage->GetOverrideImageType();
-        if (imageType == Pal::ImageType::Tex3d)
-        {
-            if (createInfo.flags.zRangeValid)
-            {
-                m_zRange = createInfo.zRange;
-            }
-            else
-            {
-                PAL_ASSERT(createInfo.imageInfo.arraySize != 0);
-                m_zRange.offset = createInfo.imageInfo.baseSubRes.arraySlice;
-                m_zRange.extent = createInfo.imageInfo.arraySize;
-            }
-        }
-        else
-        {
-            PAL_ASSERT(createInfo.imageInfo.arraySize != 0);
-            m_subresource.arraySlice = createInfo.imageInfo.baseSubRes.arraySlice;
-            m_arraySize              = createInfo.imageInfo.arraySize;
-        }
+        // If this assert triggers the caller is probably trying to select z slices using the subresource range
+        // instead of the zRange as required by the PAL interface.
+        PAL_ASSERT((m_pImage->Parent()->GetImageCreateInfo().imageType != ImageType::Tex3d) ||
+                   ((createInfo.imageInfo.baseSubRes.arraySlice == 0) && (createInfo.imageInfo.arraySize == 1)));
+
+        // Sets the base subresource for this mip. Note that this is not fixed to the first slice like in gfx6.
+        m_subresource = createInfo.imageInfo.baseSubRes;
+        m_arraySize   = createInfo.imageInfo.arraySize;
 
         if (m_pImage->CanMipSupportMetaData(m_subresource.mipLevel))
         {
@@ -174,7 +160,6 @@ void ColorTargetView::UpdateDccStateMetadata(
         const SubresRange range = {m_subresource, 1, m_arraySize};
         m_pImage->UpdateDccStateMetaData(pCmdStream,
                                          range,
-                                         &m_zRange,
                                          (m_flags.isDccDecompress == 0),
                                          pCmdStream->GetEngineType(),
                                          PredDisable);
@@ -369,7 +354,9 @@ void ColorTargetView::InitCommonImageView(
 
     if (m_flags.hasDcc != 0)
     {
-        pPm4Img->cbColorDccControl    = m_pImage->GetDcc()->GetControlReg();
+        regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc()->GetControlReg();
+        pPm4Img->cbColorDccControl = dccControl;
+
         pCbColorInfo->bits.DCC_ENABLE = 1;
     }
 

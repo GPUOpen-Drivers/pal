@@ -3276,11 +3276,15 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     else
     {
         // For 3d image, the start and end slice is based on the z offset and depth extend of the boxes.
+        // The slices must be specified using the zRange because the imageInfo "slice" refers to image subresources.
+        pColorViewInfo->flags.zRangeValid = 1;
+        pColorViewInfo->zRange.extent     = 1;
+
         for (uint32 i = 0; i < scissorCount; i++)
         {
             LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-            // Create and bind a color-target view for this mipmap level and slice.
+            // Create and bind a color-target view for this mipmap level and z offset.
             IColorTargetView* pColorView = nullptr;
             void* pColorViewMem =
                 PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
@@ -3291,17 +3295,17 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
             }
             else
             {
-                const Box*   pBox      = hasBoxes ? &pBoxes[i]         : nullptr;
-                const uint32 baseSlice = hasBoxes ? pBox->offset.z     : 0;
-                const uint32 maxDepth  = subResInfo.extentTexels.depth;
-                const uint32 numSlices = hasBoxes ? pBox->extent.depth : maxDepth;
-                const uint32 lastSlice = baseSlice + numSlices - 1;
+                const Box*   pBox     = hasBoxes ? &pBoxes[i]     : nullptr;
+                const uint32 baseZ    = hasBoxes ? pBox->offset.z : 0;
+                const uint32 maxDepth = subResInfo.extentTexels.depth;
+                const uint32 depth    = hasBoxes ? pBox->extent.depth : maxDepth;
+                const uint32 lastZ    = baseZ + depth - 1;
 
                 PAL_ASSERT((hasBoxes == false) || (pBox->extent.depth <= maxDepth));
 
-                for (uint32 arraySlice = baseSlice; arraySlice <= lastSlice; arraySlice++)
+                for (uint32 zOffset = baseZ; zOffset <= lastZ; zOffset++)
                 {
-                    pColorViewInfo->imageInfo.baseSubRes.arraySlice = arraySlice;
+                    pColorViewInfo->zRange.offset = zOffset;
                     Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
                                                                      colorViewInfoInternal,
                                                                      pColorViewMem,
@@ -3750,11 +3754,7 @@ void RsrcProcMgr::LateExpandResolveSrc(
             }
             transition[i].imageInfo.newLayout.engines  = srcImageLayout.engines;
             transition[i].imageInfo.subresRange        = range;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            transition[i].imageInfo.samplePattern      = nullptr;
-#else
             transition[i].imageInfo.pQuadSamplePattern = nullptr;
-#endif
             transition[i].srcCacheMask                 = Pal::CoherResolve;
             transition[i].dstCacheMask                 = Pal::CoherShader;
         }
@@ -3833,7 +3833,7 @@ void RsrcProcMgr::CmdResolveImage(
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
             // this only supports Depth/Stencil resolves.
-            ResolveImageGraphics(pCmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions);
+            ResolveImageGraphics(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
         }
         else if (pCmdBuffer->IsComputeSupported() &&
                  ((srcMethod.shaderCsFmask == 1) ||
@@ -4017,6 +4017,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 void RsrcProcMgr::ResolveImageGraphics(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
+    ImageLayout               srcImageLayout,
     const Image&              dstImage,
     ImageLayout               dstImageLayout,
     uint32                    regionCount,
@@ -4026,6 +4027,8 @@ void RsrcProcMgr::ResolveImageGraphics(
     const auto& device        = *m_pDevice->Parent();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+
+    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImage.GetImageInfo().resolveMethod);
 
     // This path only works on depth-stencil images.
     PAL_ASSERT((srcCreateInfo.usageFlags.depthStencil && dstCreateInfo.usageFlags.depthStencil) ||
@@ -4951,6 +4954,12 @@ void RsrcProcMgr::GenericColorBlit(
     colorViewInfo.imageInfo.arraySize = 1;
     colorViewInfo.imageInfo.baseSubRes.aspect = range.startSubres.aspect;
 
+    if (is3dImage)
+    {
+        colorViewInfo.zRange.extent     = 1;
+        colorViewInfo.flags.zRangeValid = 1;
+    }
+
     BindTargetParams bindTargetsInfo;
     bindTargetsInfo.colorTargets[0].pColorTargetView    = nullptr;
     bindTargetsInfo.colorTargets[0].imageLayout.usages  = LayoutColorTarget;
@@ -5063,7 +5072,15 @@ void RsrcProcMgr::GenericColorBlit(
                 }
                 else
                 {
-                    colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
+                    if (is3dImage)
+                    {
+                        colorViewInfo.zRange.offset = arraySlice;
+                    }
+                    else
+                    {
+                        colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
+                    }
+
                     colorViewInfo.imageInfo.baseSubRes.mipLevel   = mip;
 
                     Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
@@ -5171,9 +5188,15 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveFixedFunc), });
-    pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcImage.GetImageCreateInfo().samples,
-                                              srcImage.GetImageCreateInfo().fragments));
+    if (Formats::BitsPerPixel(srcCreateInfo.swizzledFormat.format) == 128)
+    {
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveFixedFunc128Bpp), });
+    }
+    else
+    {
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveFixedFunc), });
+    }
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcCreateInfo.samples, srcCreateInfo.fragments));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdSetDepthBiasState(depthBias);

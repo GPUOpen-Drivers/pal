@@ -468,6 +468,7 @@ private:
     void ResolveImageGraphics(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
+        ImageLayout               srcImageLayout,
         const Image&              dstImage,
         ImageLayout               dstImageLayout,
         uint32                    regionCount,

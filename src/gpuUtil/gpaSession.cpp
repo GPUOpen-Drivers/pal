@@ -3376,8 +3376,7 @@ void GpaSession::FreeSampleItemArray()
 
         if (pSample != nullptr)
         {
-            pSample->~PerfSample();
-            PAL_SAFE_FREE(pSample, m_pPlatform);
+            PAL_SAFE_DELETE(pSample, m_pPlatform);
         }
 
         PAL_SAFE_FREE(pSampleItem, m_pPlatform);

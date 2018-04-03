@@ -46,7 +46,7 @@ class IImage;
 struct ColorTargetViewCreateInfo
 {
     SwizzledFormat swizzledFormat;   ///< Color target view format and swizzle.
-    Range          zRange;           ///< Specifies the z offset and z range.
+    Range          zRange;           ///< Specifies the z offset and z range for 3D images.
     union
     {
         struct
@@ -69,7 +69,8 @@ struct ColorTargetViewCreateInfo
                                            ///  views will always use the Color aspect, except YUV Images.  Clients
                                            ///  must specify one of the YUV Image aspects for YUV Images.  The view
                                            ///  format must be compatible with the aspect being rendered-to.
-            uint32        arraySize;       ///< Number of slices in the view.
+                                           ///  The arraySlice must be 0 for 3D images.
+            uint32        arraySize;       ///< Number of slices in the view.  Must be one for 3D images.
         } imageInfo;                       ///< Information that describes a color target image view.
 
         struct

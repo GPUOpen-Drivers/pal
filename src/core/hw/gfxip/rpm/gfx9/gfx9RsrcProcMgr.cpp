@@ -1458,10 +1458,14 @@ void RsrcProcMgr::HwlFastColorClear(
 
     if (gfx9Image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
+        const Pm4Predicate packetPredicate =
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+
         // Update the image's FCE meta-data.
         pCmdSpace = gfx9Image.UpdateFastClearEliminateMetaData(pCmdBuffer,
                                                                clearRange,
                                                                fastClearElimRequired,
+                                                               packetPredicate,
                                                                pCmdSpace);
     }
 
@@ -2618,7 +2622,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     }
 
     // We have to mark this mip level as actually being DCC decompressed
-    image.UpdateDccStateMetaData(pCmdStream, range, nullptr, false, engineType, PredDisable);
+    image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
 
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
@@ -2695,10 +2699,10 @@ void RsrcProcMgr::DccDecompress(
         // because they must be slow cleared.
         if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
         {
-            const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>
-                                                 (pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+            const Pm4Predicate packetPredicate =
+                static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, packetPredicate, pCmdSpace);
+            pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
     }
@@ -2732,7 +2736,12 @@ void RsrcProcMgr::FastClearEliminate(
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, pCmdSpace);
+
+        const Pm4Predicate packetPredicate =
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+
+        pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -2943,7 +2952,12 @@ void RsrcProcMgr::FmaskDecompress(
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, pCmdSpace);
+
+        const Pm4Predicate packetPredicate =
+            static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
+
+        pCmdSpace = image.UpdateFastClearEliminateMetaData(pCmdBuffer, range, 0, packetPredicate, pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -3100,7 +3114,6 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     // Since we're using a compute shader we have to update the DCC state metadata manually.
     dstImage.UpdateDccStateMetaData(pCmdStream,
                                     clearRange,
-                                    nullptr,
                                     (clearPurpose == DccClearPurpose::FastClear),
                                     pCmdBuffer->GetEngineType(),
                                     packetPredicate);
