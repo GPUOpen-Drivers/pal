@@ -520,18 +520,17 @@ static_assert(sizeof(FirstUserDataRegAddr) / sizeof(FirstUserDataRegAddr[0]) == 
 // shader stage.
 struct UserDataEntryMap
 {
-    // Each entry in this array is the address of the SPI user-data register which the associated user-data entry is
-    // mapped to (e.g., mmSPI_SHADER_USER_DATA_LS_9). A value of 'UserDataNotMapped' indicates that the entry is not
-    // mapped to any user-data register. A particular entry could be not mapped in two scenarios:
-    //  1) The shader doesn't need to read this entry at all;
-    //  2) The shader reads the entry out of the spill table (GPU memory) instead of from a register.
-    uint16 regAddr[MaxUserDataEntries];
-    // Address of the first user-data register used for the spill table. Zero indicates no user-data entries are
-    // spilled to memory.
+    // Each element of this array is the entry ID which is mapped to the user-SGPR associated with that array element.
+    // The only elements in this array which are valid are ones whose index is less than userSgprCount.
+    uint8  mappedEntry[NumUserDataRegisters - FastUserDataStartReg];
+    uint8  userSgprCount;           // Number of valid entries in the mappedEntry array.
+    uint16 firstUserSgprRegAddr;    // Address of the first user-SGPR which is mapped to user-data entries.
+    // Address of the user-SGPR which is used for each indirect user-data table GPU virtual address.  Zero indicates
+    // that the indirect user-data table is not referenced by this stage.
+    uint16 indirectTableRegAddr[MaxIndirectUserDataTables];
+    // Address of the user-SGPR used for the spill table GPU virtual address for this stage.  Zero indicates that this
+    // stage does not read any entries from the spill table.
     uint16 spillTableRegAddr;
-    // This is a hash of the regAddr array and spillTableRegAddr used to speed up pipeline binds. In order to ensure
-    // that the hash does NOT include itself this variable must be the last member of this structure.
-    uint64 userDataHash;
 };
 
 // Special value indicating that a user-data entry is not mapped to a physical SPI register.
@@ -578,6 +577,7 @@ struct GraphicsPipelineSignature
     // First user-data entry (+1) containing the GPU virtual address of the stream-output SRD table used by this
     // pipeline. Zero indicates that stream-output is not used by this pipeline.
     uint16  streamOutTableAddr;
+    uint16  streamOutTableRegAddr; // User-SGPR address for the stream-out table.
 
     // Register address for the vertex ID offset of a draw. The instance ID offset is always the very next register.
     uint16  vertexOffsetRegAddr;
@@ -596,6 +596,9 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for view ID.  This is a compacted list, so it is not safe to assume
     // that each index of this array corresponds to the associated HW shader stage enum value.
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
+
+    // Hash of each stages user-data mapping, used to speed up pipeline binds.
+    uint64  userDataHash[NumHwShaderStagesGfx];
 };
 
 // User-data signature for an unbound graphics pipeline.

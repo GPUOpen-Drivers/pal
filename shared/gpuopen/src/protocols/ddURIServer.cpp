@@ -281,9 +281,8 @@ namespace DevDriver
             if (result == Result::Success)
             {
                 m_cacheMutex.Lock();
-                FixedString<kMaxUriServiceNameLength>* pServiceName = DD_NEW(FixedString<kMaxUriServiceNameLength>, m_pMsgChannel->GetAllocCb())(pService->GetName());
-                result = m_registeredServiceNamesCache.Remove(*pServiceName) ? Result::Success : Result::Error;
-                DD_DELETE(pServiceName, m_pMsgChannel->GetAllocCb());
+                FixedString<kMaxUriServiceNameLength> serviceName(pService->GetName());
+                result = m_registeredServiceNamesCache.Remove(serviceName) ? Result::Success : Result::Error;
                 m_cacheMutex.Unlock();
 
                 // To keep the cache consistent with the registered services list,

@@ -45,14 +45,6 @@ namespace Gfx9
 class DepthStencilView : public IDepthStencilView
 {
 public:
-    static const uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK |
-                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK |
-                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK |
-                                                  DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK |
-                                                  DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK |
-                                                  DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
-                                                  DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
-
     DepthStencilView(
         const Device*                             pDevice,
         const DepthStencilViewCreateInfo&         createInfo,
@@ -76,8 +68,10 @@ public:
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_depthSubresource.mipLevel; }
 
-    bool IsVaLocked() const { return m_createInfo.flags.imageVaLocked; }
+    bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
+    bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
+    bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
 
     static uint32* WriteUpdateFastClearDepthStencilValue(
         uint32     metaDataClearFlags,
@@ -87,11 +81,8 @@ public:
         uint32*    pCmdSpace);
 
     static uint32* HandleBoundTargetChanged(
-        const Device& device,
-        CmdStream*    pCmdStream,
-        uint32*       pCmdSpace);
-
-    const DepthStencilViewCreateInfo& GetDsViewCreateInfo() const { return m_createInfo; }
+        const CmdUtil& cmdUtil,
+        uint32*        pCmdSpace);
 
 protected:
     virtual ~DepthStencilView()
@@ -102,30 +93,26 @@ protected:
     }
 
     template <typename Pm4ImgType>
-    void CommonBuildPm4Headers(
-        DepthStencilCompressionState depthState,
-        DepthStencilCompressionState stencilState,
-        Pm4ImgType*                  pPm4Img) const;
+    void CommonBuildPm4Headers(Pm4ImgType* pPm4Img) const;
 
     template <typename Pm4ImgType, typename FmtInfoType>
     void InitCommonImageView(
-        const FmtInfoType*            pFmtInfo,
-        DepthStencilCompressionState  depthState,
-        DepthStencilCompressionState  stencilState,
-        Pm4ImgType*                   pPm4Img,
-        regDB_RENDER_OVERRIDE*        pDbRenderOverride) const;
+        const DepthStencilViewCreateInfo&         createInfo,
+        const DepthStencilViewInternalCreateInfo& internalInfo,
+        const FmtInfoType*                        pFmtInfo,
+        Pm4ImgType*                               pPm4Img,
+        regDB_RENDER_OVERRIDE*                    pDbRenderOverride);
 
     template <typename Pm4ImgType>
     void UpdateImageVa(Pm4ImgType* pPm4Img) const;
 
     template <typename Pm4ImgType>
     uint32* WriteCommandsInternal(
+        ImageLayout        depthLayout,
+        ImageLayout        stencilLayout,
         CmdStream*         pCmdStream,
         uint32*            pCmdSpace,
         const Pm4ImgType&  pm4Img) const;
-
-    SubresId     m_depthSubresource;               // Sub-resource associated with the Depth plane
-    SubresId     m_stencilSubresource;             // Sub-resource associated with the Stencil plane
 
     // Bitfield describing the metadata and settings that are supported by this view.
     union
@@ -135,27 +122,38 @@ protected:
             uint32 hTile                   :  1;
             uint32 depth                   :  1;
             uint32 stencil                 :  1;
+            uint32 readOnlyDepth           :  1; // Set if the depth aspect is present and is read-only
+            uint32 readOnlyStencil         :  1; // Set if the stencil aspect is present and is read-only
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
             uint32 usesLoadRegIndexPkt     :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
             uint32 waitOnMetadataMipTail   :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                  // view object.
-            uint32 reserved                : 23;
+            uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.
+            uint32 dbRenderOverrideLocked  :  1; // Set if DB_RENDER_OVERRIDE cannot change due to bind-time
+                                                 // compression state.
+            uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
+                                                 // compression state.
+            uint32 reserved                : 20;
         };
 
         uint32 u32All;
     } m_flags;
 
-    const Device&                            m_device;
-    const Image*                             m_pImage;
-    const DepthStencilViewCreateInfo         m_createInfo;
-    const DepthStencilViewInternalCreateInfo m_internalInfo;
+    const Device&      m_device;
+    const Image*const  m_pImage;
+
+    SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
+    SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane
+
+    DepthStencilLayoutToState  m_depthLayoutToState;
+    DepthStencilLayoutToState  m_stencilLayoutToState;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
     PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilView);
 
-    uint32 CalcDecompressOnZPlanesValue(ZFormat  hwZFmt) const;
+    uint32 CalcDecompressOnZPlanesValue(ZFormat hwZFmt) const;
 };
 
 // Represents an "image" of the PM4 commands necessary to write a DepthStencilView to GFX9 hardware. The required
@@ -210,16 +208,18 @@ struct Gfx9DepthStencilViewPm4Img
 
     PM4ME_CONTEXT_REG_RMW            dbRenderOverrideRmw;
 
-    // PM4 load context regs packet to load the Image's fast-clear meta-data.
+    // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
+    // image because it is either absent or present depending on compression state.
     union
     {
-        PM4PFP_LOAD_CONFIG_REG           loadMetaData;
-        PM4PFP_LOAD_CONTEXT_REG_INDEX    loadMetaDataIndex;
+        PM4PFP_LOAD_CONTEXT_REG       loadMetaData;
+        PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
     };
 
-    // Command space needed, in DWORDs. This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                           spaceNeeded;
+    // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
+    // in the structure to not interfere w/ the actual commands contained within.
+    size_t  spaceNeeded;
+    size_t  spaceNeededDecompressed;    // Used when nether depth nor stencil is compressed.
 };
 
 // =====================================================================================================================
@@ -252,11 +252,13 @@ protected:
     }
 
 private:
-    void BuildPm4Headers(DepthStencilCompressionState depthState, DepthStencilCompressionState stencilState);
-    void InitRegisters(DepthStencilCompressionState depthState, DepthStencilCompressionState stencilState);
+    void BuildPm4Headers();
+    void InitRegisters(
+        const DepthStencilViewCreateInfo&         createInfo,
+        const DepthStencilViewInternalCreateInfo& internalInfo);
 
-    // PM4 command images used to write this view to hardware, depending on the depth/stencil compression states.
-    Gfx9DepthStencilViewPm4Img m_pm4Images[DepthStencilCompressionStateCount][DepthStencilCompressionStateCount];
+    // Image of PM4 commands used to write this View to hardware for with full compression enabled.
+    Gfx9DepthStencilViewPm4Img  m_pm4Cmds;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9DepthStencilView);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9DepthStencilView);

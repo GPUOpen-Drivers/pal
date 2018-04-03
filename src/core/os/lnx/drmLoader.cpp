@@ -2083,9 +2083,10 @@ Result DrmLoader::Init(
     constexpr uint32_t LibNameSize  = 64;
     char LibNames[DrmLoaderLibrariesCount][LibNameSize] = {
         "libdrm_amdgpu.so.1",
-        "libdrm.so.2"
+        "libdrm.so.2",
     };
 
+    SpecializedInit(pPlatform);
     if (m_initialized == false)
     {
         // resolve symbols from libdrm_amdgpu.so.1
@@ -2348,6 +2349,11 @@ Result DrmLoader::Init(
         }
     }
     return result;
+}
+
+void
+DrmLoader::SpecializedInit(Platform* pPlatform)
+{
 }
 
 } //namespace Linux

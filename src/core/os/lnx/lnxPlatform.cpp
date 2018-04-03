@@ -89,6 +89,8 @@ Result Platform::ConnectToOsInterface()
     // NOTE: There is nothing to be done here.
     m_features.dtifEnabled = CheckDtifStatus();
 
+    m_features.suportHostMappedForeignMemory = 0;
+
 #if defined(PAL_DEBUG_PRINTS)
     char  executableNameBuffer[256];
     char* pExecutableName;

@@ -163,7 +163,12 @@ PAL_INLINE void RelocateUserDataTable(
     }
     else
     {
-        RelocateEmbeddedUserDataTable<UniversalCmdBuffer>(pSelf, pTable, offsetInDwords, dwordsNeeded);
+        PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
+
+        // Track that we have updated this table's GPU memory location. The GPU address will need to be rewritten
+        // prior to the next draw or dispatch in which the pipeline will attempt to read the table's contents.
+        pTable->gpuVirtAddr  = (pSelf->AllocateGpuScratchMem(dwordsNeeded, 1) - (sizeof(uint32) * offsetInDwords));
+        pTable->gpuAddrDirty = 1;
     }
 }
 

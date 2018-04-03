@@ -1375,5 +1375,13 @@ Result Queue::SubmitIbs(
     return result;
 }
 
+// =====================================================================================================================
+void Queue::AssociateFenceWithContext(
+    IFence*  pFence)
+{
+    PAL_ASSERT(pFence != nullptr);
+    static_cast<Fence*>(pFence)->AssociateWithContext(m_pSubmissionContext);
+}
+
 } // Linux
 } // Pal

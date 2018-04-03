@@ -85,13 +85,12 @@ protected:
     virtual Result OsMap(void** ppData) override;
     virtual Result OsUnmap() override;
 
-    // SVM is not supported on PAL Linux platform
     virtual Result AllocateSvmVirtualAddress(
         gpusize baseVirtAddr,
         gpusize size,
         gpusize align,
-        bool commitCpuVa) override { return Result::ErrorUnavailable; }
-    virtual Result FreeSvmVirtualAddress() override { return Result::ErrorUnavailable; }
+        bool commitCpuVa) override;
+    virtual Result FreeSvmVirtualAddress() override;
 
 private:
     amdgpu_bo_handle m_hSurface; // Handle of allocated memory.
@@ -103,6 +102,8 @@ private:
     uint64           m_offset;   // Offset in buffer object bound. It's only meaningful when it's a virtual gpu memroy.
 
     bool             m_isVmAlwaysValid; // If the virtual memory is always valid.
+
+    enum amdgpu_bo_handle_type m_externalHandleType; // Handle type such as GEM global names or dma-buf fd.
 
     PAL_DISALLOW_DEFAULT_CTOR(GpuMemory);
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemory);

@@ -115,7 +115,7 @@ private:
         const char* pFilename,
         uint32      lineNumber);
 
-    void* RemoveMemElement(const void* pMem, MemBlkType blockType);
+    void* RemoveMemElement(void* pMem, MemBlkType blockType);
 
     void MemoryReport();
     void FreeLeakedMemory();

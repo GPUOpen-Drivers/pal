@@ -157,7 +157,7 @@ void* MemTracker<Allocator>::AddMemElement(
 // See MemTracker::Free() which is used to free memory that is being tracked.
 template <typename Allocator>
 void* MemTracker<Allocator>::RemoveMemElement(
-    const void* pClientMem,  // Pointer to client usable memory.
+    void*       pClientMem,  // Pointer to client usable memory.
     MemBlkType  blockType)   // Block type based on calling deallocation routine.
 {
     bool  badFree  = false;

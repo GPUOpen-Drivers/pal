@@ -2109,6 +2109,32 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc128Bpp].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc128Bpp].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Float;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc128Bpp],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
         pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc].pBuffer;
         pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc].size;
 

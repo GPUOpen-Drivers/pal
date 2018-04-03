@@ -133,7 +133,10 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.mipLevels             = 1;
         imgCreateInfo.samples               = 1;
         imgCreateInfo.fragments             = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
+        imgCreateInfo.viewFormatCount       = createInfo.viewFormatCount;
+        imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
         imgCreateInfo.viewFormatCount       = AllCompatibleFormats;
 #else
         imgCreateInfo.flags.formatChangeSrd = 1;

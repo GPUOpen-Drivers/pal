@@ -362,6 +362,9 @@ Device::Device(
     m_useDedicatedVmid(false),
     m_pSettingsPath(pSettingsPath),
     m_settingsMgr(SettingsFileName, pPlatform),
+    m_pSvmMgr(nullptr),
+    m_mapAllocator(),
+    m_reservedVaMap(32, &m_mapAllocator),
     m_supportQuerySensorInfo(false),
     m_globalRefMap(MemoryRefMapElements, pPlatform),
     m_semType(SemaphoreType::Legacy),
@@ -384,8 +387,6 @@ Device::Device(
     m_chipProperties.gpuConnectedViaThunderbolt = false;
 
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
-    VamMgrSingleton::Init();
-
 }
 
 // =====================================================================================================================
@@ -402,7 +403,7 @@ Device::~Device()
         m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice);
     }
 
-    VamMgrSingleton::Cleanup();
+    VamMgrSingleton::Cleanup(this);
     if (m_hDevice != nullptr)
     {
         m_drmProcs.pfnAmdgpuDeviceDeinitialize(m_hDevice);
@@ -419,7 +420,20 @@ Device::~Device()
 // This must clean up all internal GPU memory allocations and all objects created after EarlyInit and OsEarlyInit.
 Result Device::Cleanup()
 {
-    Result result = Pal::Device::Cleanup();
+    Result result = Result::Success;
+
+    if (GetSvmMgr() != nullptr)
+    {
+        result = GetSvmMgr()->Cleanup();
+    }
+
+    if (result == Result::Success)
+    {
+        result = Pal::Device::Cleanup();
+    }
+
+    PAL_SAFE_DELETE(m_pSvmMgr, m_pPlatform);
+
     // Note: Pal::Device::Cleanup() uses m_memoryProperties.vaRanges to find VAM sections for memory release.
     // If ranges aren't provided, then VAM silently leaks virtual addresses.
     VamMgrSingleton::FreeReservedVaRange(GetPlatform()->GetDrmLoader().GetProcsTable(), m_hDevice);
@@ -498,7 +512,9 @@ Result Device::OsLateInit()
 
     // Start to support per-vm bo from drm 3.20, but bugs were not fixed
     // until drm 3.25 on pro dkms stack or kernel 4.16 on upstream stack.
-    if (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))
+    if ((Settings().enableVmAlwaysValid == VmAlwaysValidForceEnable) ||
+       ((Settings().enableVmAlwaysValid == VmAlwaysValidDefaultEnable) &&
+       (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))))
     {
         m_supportVmAlwaysValid = true;
     }
@@ -515,7 +531,23 @@ Result Device::OsLateInit()
 Result Device::Finalize(
     const DeviceFinalizeInfo& finalizeInfo)
 {
-    return Pal::Device::Finalize(finalizeInfo);
+    Result result = Pal::Device::Finalize(finalizeInfo);
+
+    if ((result == Result::Success) && m_pPlatform->SvmModeEnabled() &&
+        (MemoryProperties().flags.iommuv2Support == 0))
+    {
+        m_pSvmMgr = PAL_NEW(SvmMgr, GetPlatform(), AllocInternal)(this);
+        if (m_pSvmMgr != nullptr)
+        {
+            result = GetSvmMgr()->Init();
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -528,7 +560,12 @@ Result Device::EarlyInit(
     m_chipProperties.uvdLevel = ipLevels.uvd;
     m_chipProperties.vcnLevel = ipLevels.vcn;
 
-    Result result = InitGpuProperties();
+    Result result = VamMgrSingleton::Init();
+
+    if (result == Result::Success)
+    {
+        result = InitGpuProperties();
+    }
 
     if (result == Result::Success)
     {
@@ -641,6 +678,9 @@ Result Device::GetProperties(
         // Linux don't support changing the queue priority at the submission granularity.
         pInfo->osProperties.supportDynamicQueuePriority = false;
 #endif
+
+        pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
+            static_cast<Platform*>(m_pPlatform)->IsHostMappedForeignMemorySupported();
     }
 
     return result;
@@ -1129,17 +1169,27 @@ Result Device::InitMemQueueInfo()
             m_memoryProperties.virtualMemAllocGranularity = GpuPageSize;
             m_memoryProperties.virtualMemPageSize         = GpuPageSize;
 
+            if (m_pPlatform->SvmModeEnabled() && (MemoryProperties().flags.iommuv2Support == 0))
+            {
+                // Calculate SVM start VA
+                result = FixupUsableGpuVirtualAddressRange(m_chipProperties.gfxip.vaRangeNumBits);
+            }
+        }
+
+        if (result == Result::Success)
+        {
             result = VamMgrSingleton::InitVaRangesAndFinalizeVam(this);
         }
+
         if (result == Result::Success)
         {
             m_memoryProperties.flags.multipleVaRangeSupport  = 1;
             m_memoryProperties.flags.shadowDescVaSupport     = 1;
             m_memoryProperties.flags.virtualRemappingSupport = 1;
-            m_memoryProperties.flags.pinningSupport          = 0; // Not supported
+            m_memoryProperties.flags.pinningSupport          = 1; // Supported
             m_memoryProperties.flags.supportPerSubmitMemRefs = 1; // Supported
             m_memoryProperties.flags.globalGpuVaSupport      = 0; // Not supported
-            m_memoryProperties.flags.svmSupport              = 0; // Not supported
+            m_memoryProperties.flags.svmSupport              = 1; // Supported
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
 
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
@@ -1190,6 +1240,11 @@ Result Device::InitMemQueueInfo()
                     m_memoryProperties.busAddressableMemSize = cap.direct_gma_size * 1024 * 1024;
                 }
             }
+        }
+
+        if (result == Result::Success)
+        {
+            result = m_reservedVaMap.Init();
         }
     }
 
@@ -1558,11 +1613,27 @@ Result Device::GetSwapChainInfo(
 
     if (result == Result::Success)
     {
-        // Don't support scale of the presentation.
-        pSwapChainProperties->maxImageExtent.width  = pSwapChainProperties->currentExtent.width;
-        pSwapChainProperties->maxImageExtent.height = pSwapChainProperties->currentExtent.height;
-        pSwapChainProperties->minImageExtent.width  = pSwapChainProperties->currentExtent.width;
-        pSwapChainProperties->minImageExtent.height = pSwapChainProperties->currentExtent.height;
+        // In Vulkan spec, currentExtent is the current width and height of the surface, or the special value
+        // (0xFFFFFFFF, 0xFFFFFFFF) indicating that the surface size will be determined by the extent of a swapchain
+        // targeting the surface.
+        if (pSwapChainProperties->currentExtent.width == UINT32_MAX)
+        {
+            const auto&  imageProperties = ChipProperties().imageProperties;
+
+            // Allow any supported image size.
+            pSwapChainProperties->minImageExtent.width  = 1;
+            pSwapChainProperties->minImageExtent.height = 1;
+            pSwapChainProperties->maxImageExtent.width  = imageProperties.maxImageDimension.width;
+            pSwapChainProperties->maxImageExtent.height = imageProperties.maxImageDimension.height;
+        }
+        else
+        {
+            // Don't support presentation scaling.
+            pSwapChainProperties->maxImageExtent.width  = pSwapChainProperties->currentExtent.width;
+            pSwapChainProperties->maxImageExtent.height = pSwapChainProperties->currentExtent.height;
+            pSwapChainProperties->minImageExtent.width  = pSwapChainProperties->currentExtent.width;
+            pSwapChainProperties->minImageExtent.height = pSwapChainProperties->currentExtent.height;
+        }
 
         pSwapChainProperties->minImageCount = 2;    // This is frequently, how many images must be in a swap chain in
                                                     // order for App to acquire an image in finite time if App currently
@@ -3538,6 +3609,87 @@ void Device::FreeVirtualAddress(
 }
 
 // =====================================================================================================================
+// Reserve gpu va range.
+Result Device::ReserveGpuVirtualAddress(
+    VaRange                 vaRange,
+    gpusize                 baseVirtAddr,
+    gpusize                 size,
+    bool                    isVirtual,
+    VirtualGpuMemAccessMode virtualAccessMode,
+    gpusize*                pGpuVirtAddr)
+{
+    Result result = Result::Success;
+
+    // On Linux, these ranges are reserved by VamMgrSingleton
+    if ((vaRange != VaRange::Svm) &&
+        (vaRange != VaRange::DescriptorTable) &&
+        (vaRange != VaRange::ShadowDescriptorTable))
+    {
+        ReservedVaRangeInfo* pInfo = m_reservedVaMap.FindKey(baseVirtAddr);
+
+        if (pInfo == nullptr)
+        {
+            ReservedVaRangeInfo info = {};
+            gpusize baseAllocated;
+
+            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(
+                                                    m_hDevice,
+                                                    amdgpu_gpu_va_range_general,
+                                                    size,
+                                                    0u,
+                                                    baseVirtAddr,
+                                                    &baseAllocated,
+                                                    &info.vaHandle,
+                                                    0u),
+                                 Result::ErrorUnknown);
+            info.size = size;
+
+            if (result == Result::Success)
+            {
+                PAL_ASSERT(baseAllocated == baseVirtAddr);
+                m_reservedVaMap.Insert(baseVirtAddr, info);
+            }
+        }
+        // Reservations using the same base address are not allowed
+        else
+        {
+            result = Result::ErrorOutOfGpuMemory;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Free reserved gpu va range.
+Result Device::FreeGpuVirtualAddress(
+    gpusize vaStartAddress,
+    gpusize vaSize)
+{
+    Result result = Result::Success;
+
+    ReservedVaRangeInfo* pInfo = m_reservedVaMap.FindKey(vaStartAddress);
+
+    // ReserveGpuVirtualAddress doesn't allow for duplicate reservations, so we can safely free the address range
+    if (pInfo != nullptr)
+    {
+        if (pInfo->size != vaSize)
+        {
+            result = Result::ErrorInvalidMemorySize;
+        }
+
+        if (result == Result::Success)
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(pInfo->vaHandle),
+                                 Result::ErrorUnknown);
+            m_reservedVaMap.Erase(vaStartAddress);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Device::InitReservedVaRanges()
 {
     return VamMgrSingleton::GetReservedVaRange(
@@ -3570,7 +3722,8 @@ Result Device::OpenExternalSharedGpuMemory(
         GpuMemoryInternalCreateInfo internalInfo = {};
         internalInfo.flags.isExternal = 1;
 
-        internalInfo.hExternalResource = openInfo.resourceInfo.hExternalResource;
+        internalInfo.hExternalResource  = openInfo.resourceInfo.hExternalResource;
+        internalInfo.externalHandleType = amdgpu_bo_handle_type_dma_buf_fd;
 
         Pal::GpuMemory* pGpuMemory = ConstructGpuMemoryObject(pPlacementAddr);
         result = pGpuMemory->Init(createInfo, internalInfo);
@@ -3622,10 +3775,13 @@ Result Device::PinMemory(
     else
     {
         *pOffset = 0;
-        int32 retValue = m_drmProcs.pfnAmdgpuCreateBoFromUserMem(m_hDevice,
-                                                                 const_cast<void*>(pCpuAddress),
-                                                                 size,
-                                                                 pBufferHandle);
+        int32 retValue;
+        {
+            retValue = m_drmProcs.pfnAmdgpuCreateBoFromUserMem(m_hDevice,
+                                                               const_cast<void*>(pCpuAddress),
+                                                               size,
+                                                               pBufferHandle);
+        }
 
         // The amdgpu driver doesn't support multiple pinned buffer objects from the same system memory page.
         // If the request to pin memory above failed, we need to search for the existing pinned buffer object.
@@ -4091,6 +4247,9 @@ Result Device::GetExternalSharedImageSizes(
             {
                 memcpy(pImgCreateInfo, &createInfo, sizeof(createInfo));
             }
+
+            // We don't need to keep the reference to the BO anymore.
+            FreeBuffer(sharedInfo.importResult.buf_handle);
         }
     }
 
@@ -4127,6 +4286,9 @@ Result Device::OpenExternalSharedImage(
                                                       pMemCreateInfo,
                                                       ppImage,
                                                       ppGpuMemory);
+
+            // We don't need to keep the reference to the BO anymore.
+            FreeBuffer(sharedInfo.importResult.buf_handle);
         }
     }
 
@@ -4203,8 +4365,9 @@ Result Device::CreateGpuMemoryFromExternalShare(
     }
 
     GpuMemoryInternalCreateInfo internalInfo = {};
-    internalInfo.hExternalResource = sharedInfo.hExternalResource;
-    internalInfo.flags.isExternal = 1;
+    internalInfo.flags.isExternal   = 1;
+    internalInfo.hExternalResource  = sharedInfo.hExternalResource;
+    internalInfo.externalHandleType = amdgpu_bo_handle_type_dma_buf_fd;
 
     if (pTypedBufferCreateInfo != nullptr)
     {

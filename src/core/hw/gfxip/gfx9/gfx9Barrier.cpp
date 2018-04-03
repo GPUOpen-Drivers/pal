@@ -97,9 +97,9 @@ void Device::TransitionDepthStencil(
     bool       issuedBlt    = false;
     const bool noCacheFlags = ((transition.srcCacheMask == 0) && (transition.dstCacheMask == 0));
 
-    const auto& image     = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
-    const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(transition.imageInfo.subresRange.startSubres);
+    const auto& image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+    const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
+    const auto& subresRange = transition.imageInfo.subresRange;
 
     // The "earlyPhase" for decompress/resummarize BLTs is before any waits and/or cache flushes have been inserted.
     // It is safe to perform a depth expand or htile resummarize in the early phase if the client reports there is dirty
@@ -119,12 +119,12 @@ void Device::TransitionDepthStencil(
     {
         PAL_ASSERT(image.IsDepthStencil());
 
-        const DepthStencilCompressionState oldState = gfx9Image.LayoutToDepthCompressionState(
-                                                          transition.imageInfo.subresRange.startSubres,
-                                                          transition.imageInfo.oldLayout);
-        const DepthStencilCompressionState newState = gfx9Image.LayoutToDepthCompressionState(
-                                                          transition.imageInfo.subresRange.startSubres,
-                                                          transition.imageInfo.newLayout);
+        const DepthStencilLayoutToState    layoutToState =
+            gfx9Image.LayoutToDepthCompressionState(subresRange.startSubres);
+        const DepthStencilCompressionState oldState      =
+            ImageLayoutToDepthCompressionState(layoutToState, transition.imageInfo.oldLayout);
+        const DepthStencilCompressionState newState      =
+            ImageLayoutToDepthCompressionState(layoutToState, transition.imageInfo.newLayout);
 
         if ((oldState == DepthStencilCompressed) && (newState != DepthStencilCompressed))
         {
@@ -145,7 +145,7 @@ void Device::TransitionDepthStencil(
                                              image,
                                              pMsaaState,
                                              transition.imageInfo.pQuadSamplePattern,
-                                             transition.imageInfo.subresRange);
+                                             subresRange);
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -172,7 +172,7 @@ void Device::TransitionDepthStencil(
                                     pOperations);
 
                     // CS blit to open-up the HiZ range.
-                    RsrcProcMgr().HwlExpandHtileHiZRange(pCmdBuf, gfx9Image, transition.imageInfo.subresRange);
+                    RsrcProcMgr().HwlExpandHtileHiZRange(pCmdBuf, gfx9Image, subresRange);
 
                     // We need to wait for the compute shader to finish and also invalidate the texture L1 cache, TCC's
                     // meta cache before any further depth rendering can be done to this Image.
@@ -203,7 +203,7 @@ void Device::TransitionDepthStencil(
                                                           transition.imageInfo.newLayout,
                                                           pMsaaState,
                                                           transition.imageInfo.pQuadSamplePattern,
-                                                          transition.imageInfo.subresRange);
+                                                          subresRange);
 
                     pMsaaState->Destroy();
                     PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -268,15 +268,20 @@ void Device::TransitionDepthStencil(
             pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
             pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
 
-            //  We will need flush & inv L2 on MSAA Z, MSAA color, or any stencil.
+            //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
             //
-            // the driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
+            // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
             // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
-            // to the metadata being read by a shader.  The following case is for MSAA Z or Stencil.
-            if (gfx9Image.HasHtileData()                                                            &&
-                (pSubresInfo->flags.supportMetaDataTexFetch == 1)                                   &&
-                ((transition.imageInfo.subresRange.startSubres.aspect == Pal::ImageAspect::Stencil) ||
-                 (image.GetImageCreateInfo().samples > 1)))
+            // to the metadata being read by a shader.  The following case is for depth/stencil metadata.
+            const SubresId         firstSubresId        = subresRange.startSubres;
+            const SubResourceInfo& firstSubres          = *image.SubresourceInfo(firstSubresId);
+            const uint32           lastMipInRange       = (firstSubresId.mipLevel + (subresRange.numMips - 1));
+            const bool             hasTcCompatibleHtile = (gfx9Image.HasHtileData() &&
+                                                           (firstSubres.flags.supportMetaDataTexFetch == 1));
+            if (hasTcCompatibleHtile                                 &&
+                ((image.GetImageCreateInfo().samples > 1)            ||
+                 (firstSubresId.aspect == Pal::ImageAspect::Stencil) ||
+                 gfx9Image.IsInMetadataMipTail(lastMipInRange)))
             {
                 pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
             }
@@ -309,12 +314,16 @@ void Device::ExpandColor(
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto&                 gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
-    const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(transition.imageInfo.subresRange.startSubres);
+    const auto&                 subresRange = transition.imageInfo.subresRange;
+    const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
 
     PAL_ASSERT(image.IsDepthStencil() == false);
 
-    const ColorCompressionState oldState = gfx9Image.LayoutToColorCompressionState(transition.imageInfo.oldLayout);
-    const ColorCompressionState newState = gfx9Image.LayoutToColorCompressionState(transition.imageInfo.newLayout);
+    const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
+    const ColorCompressionState oldState      =
+        ImageLayoutToColorCompressionState(layoutToState, transition.imageInfo.oldLayout);
+    const ColorCompressionState newState      =
+        ImageLayoutToColorCompressionState(layoutToState, transition.imageInfo.newLayout);
 
     // Menu of available BLTs.
     bool fastClearEliminate  = false;  // Writes the last clear color values to the base image for any pixel blocks that
@@ -428,7 +437,7 @@ void Device::ExpandColor(
                                         gfx9Image,
                                         pMsaaState,
                                         transition.imageInfo.pQuadSamplePattern,
-                                        transition.imageInfo.subresRange);
+                                        subresRange);
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -469,7 +478,7 @@ void Device::ExpandColor(
                                           gfx9Image,
                                           pMsaaState,
                                           transition.imageInfo.pQuadSamplePattern,
-                                          transition.imageInfo.subresRange);
+                                          subresRange);
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -489,7 +498,7 @@ void Device::ExpandColor(
                                              gfx9Image,
                                              pMsaaState,
                                              transition.imageInfo.pQuadSamplePattern,
-                                             transition.imageInfo.subresRange);
+                                             subresRange);
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -526,7 +535,7 @@ void Device::ExpandColor(
                         &transition,
                         pOperations);
 
-        RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, transition.imageInfo.subresRange);
+        RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, subresRange);
     }
 
     // These CB decompress operations can only be performed on queues that support graphics
@@ -572,18 +581,25 @@ void Device::ExpandColor(
         }
     }
 
-    //  We will need flush & inv L2 on ... MSAA color
-    //
-    // the driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
-    // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
-    // to the metadata being read by a shader.  The following case is for MSAA color.
-    if ((earlyPhase == false)                                                    &&
-        gfx9Image.HasDccData()                                                   &&
-        (image.GetImageCreateInfo().samples > 1)                                 &&
-        (pSubresInfo->flags.supportMetaDataTexFetch == 1)                        &&
-        (didGfxBlt || TestAnyFlagSet(transition.srcCacheMask, CoherColorTarget | CoherClear)))
+    if ((earlyPhase == false) &&
+        (TestAnyFlagSet(transition.srcCacheMask, CoherColorTarget | CoherClear) || didGfxBlt))
     {
-        pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
+        //  We will need flush & inv L2 on MSAA Z, MSAA color, mips in the metadata tail, or any stencil.
+        //
+        // The driver assumes that all meta-data surfaces are pipe-aligned, but there are cases where the
+        // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
+        // to the metadata being read by a shader.  The following case is for color metadata.
+        const SubresId         firstSubresId      = subresRange.startSubres;
+        const SubResourceInfo& firstSubres        = *image.SubresourceInfo(firstSubresId);
+        const uint32           lastMipInRange     = (firstSubresId.mipLevel + (subresRange.numMips - 1));
+        const bool             hasTcCompatibleDcc = (gfx9Image.HasDccData() &&
+                                                     (firstSubres.flags.supportMetaDataTexFetch == 1));
+        if (hasTcCompatibleDcc                        &&
+            ((image.GetImageCreateInfo().samples > 1) ||
+             gfx9Image.IsInMetadataMipTail(lastMipInRange)))
+        {
+            pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
+        }
     }
 }
 

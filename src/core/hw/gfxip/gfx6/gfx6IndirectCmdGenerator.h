@@ -144,15 +144,15 @@ private:
 // =====================================================================================================================
 // Helper function for updating a command buffer's tracking of which user-data entries have known values after running
 // an indirect-command generator and executing the generated commands.
-template <typename TouchedMask, size_t MaskCount, typename Signature>
+template <typename Signature>
 static void PAL_INLINE CommandGeneratorTouchedUserData(
-    TouchedMask                 (&mask)[MaskCount],
+    UserDataFlags&              mask,
     const IndirectCmdGenerator& generator,
     const Signature&            signature)
 {
     // Mark any user-data entries which the command generator touched as "untouched" so that redundant user-data
     // filtering won't incorrectly reject subsequent user-data updates.
-    for (uint32 idx = 0; idx < MaskCount; ++idx)
+    for (uint32 idx = 0; idx < NumUserDataFlagsParts; ++idx)
     {
         mask[idx] &= ~(generator.TouchedUserDataEntries()[idx]);
     }
@@ -160,7 +160,7 @@ static void PAL_INLINE CommandGeneratorTouchedUserData(
     {
         if (signature.indirectTableAddr[idx] != UserDataNotMapped)
         {
-            Util::WideBitfieldClearBit<TouchedMask, MaskCount>(mask, (signature.indirectTableAddr[idx] - 1));
+            Util::WideBitfieldClearBit(mask, (signature.indirectTableAddr[idx] - 1));
         }
     }
 }

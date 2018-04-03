@@ -403,11 +403,6 @@ Result Device::EarlyInit(
 
     if (result == Result::Success)
     {
-        result = SetupPublicSettingDefaults();
-    }
-
-    if (result == Result::Success)
-    {
         result = OsEarlyInit();
     }
 
@@ -449,7 +444,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.forceHighClocks = false;
     m_publicSettings.numScratchWavesPerCu = 4;
     m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
-    m_publicSettings.cmdAllocResidency = 7;
+    m_publicSettings.cmdAllocResidency = 0xF;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 362
     m_publicSettings.maxQueuedFrames = 0;
 #endif
@@ -459,6 +454,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.disableEscapeCall = false;
     m_publicSettings.longRunningSubmissions = false;
     m_publicSettings.borderColorPaletteSizeLimit = 4096;
+    m_publicSettings.disableCommandBufferPreemption = false;
 
     return ret;
 }
@@ -680,7 +676,9 @@ void Device::InitMemoryHeapProperties()
 // Initializes the Pal setting structure
 Result Device::InitSettings()
 {
-    Result ret = Result::_Success;
+    Result ret = Result::Success;
+
+    // Make sure we only initialize settings once
     if (m_pSettingsLoader == nullptr)
     {
         switch (m_chipProperties.gfxLevel)
@@ -710,6 +708,12 @@ Result Device::InitSettings()
         else
         {
             ret = m_pSettingsLoader->Init();
+        }
+
+        // If the regular settings initialize successfully, then initialize the public settings too.
+        if (ret == Result::Success)
+        {
+            ret = SetupPublicSettingDefaults();
         }
     }
 
@@ -1188,12 +1192,15 @@ Result Device::LateInit()
     CmdAllocatorCreateInfo createInfo = {};
     createInfo.flags.threadSafe      = 1;
     createInfo.flags.autoMemoryReuse = 1;
-    createInfo.allocInfo[CommandDataAlloc].allocHeap     = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[CommandDataAlloc].allocSize     = CmdBufInternalAllocSize;
-    createInfo.allocInfo[CommandDataAlloc].suballocSize  = CmdBufInternalSuballocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap    = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocSize    = CmdBufInternalAllocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[CommandDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdBufInternalAllocSize;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdBufInternalAllocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdBufInternalAllocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdBufInternalSuballocSize;
 
     Result result = CreateInternalCmdAllocator(createInfo, &m_pTrackedCmdAllocator);
 
@@ -1783,6 +1790,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
+            pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
@@ -1813,14 +1821,6 @@ Result Device::GetProperties(
                 m_chipProperties.gfx9.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
                 m_chipProperties.gfx9.supportTrapezoidTessDistribution;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 339
-            // Sample pattern settings
-            pInfo->gfxipProperties.flags.supportDepthStencilSamplePatternMetadata =
-                gfx9Props.supportDepthStencilSamplePatternMetadata;
-            pInfo->gfxipProperties.depthStencilSampleLocationsMetaDataSize =
-                gfx9Props.depthStencilSampleLocationsMetaDataSize;
-#endif
 
             break;
         }
@@ -2177,7 +2177,21 @@ size_t Device::GetCmdAllocatorSize(
     Result*                       pResult
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
+    CmdAllocatorCreateInfo localInfo = createInfo;
+    if ((createInfo.allocInfo[GpuScratchMemAlloc].allocSize    == 0) ||
+        (createInfo.allocInfo[GpuScratchMemAlloc].suballocSize == 0))
+    {
+        // For backwards-compatibility, we will just use the client's EmbeddedData allocation options for the
+        // InvisibleData allocations to prevent issues with trying to allocate zero bytes.
+        localInfo.allocInfo[GpuScratchMemAlloc] = localInfo.allocInfo[EmbeddedDataAlloc];
+        localInfo.allocInfo[GpuScratchMemAlloc].allocHeap = GpuHeapInvisible;
+    }
+
+    return CmdAllocator::GetSize(localInfo, pResult);
+#else
     return CmdAllocator::GetSize(createInfo, pResult);
+#endif
 }
 
 // =====================================================================================================================
@@ -2192,9 +2206,23 @@ Result Device::CreateCmdAllocator(
 
     if ((pPlacementAddr != nullptr) && (ppCmdAllocator != nullptr))
     {
-        CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, createInfo);
-        result = pCmdAllocator->Init();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
+        CmdAllocatorCreateInfo localInfo = createInfo;
+        if ((createInfo.allocInfo[GpuScratchMemAlloc].allocSize    == 0) ||
+            (createInfo.allocInfo[GpuScratchMemAlloc].suballocSize == 0))
+        {
+            // For backwards-compatibility, we will just use the client's EmbeddedData allocation options for the
+            // InvisibleData allocations to prevent issues with trying to allocate zero bytes.
+            localInfo.allocInfo[GpuScratchMemAlloc] = localInfo.allocInfo[EmbeddedDataAlloc];
+            localInfo.allocInfo[GpuScratchMemAlloc].allocHeap = GpuHeapInvisible;
+        }
 
+        CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, localInfo);
+#else
+        CmdAllocator* pCmdAllocator = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(this, createInfo);
+#endif
+
+        result = pCmdAllocator->Init();
         if (result != Result::Success)
         {
             pCmdAllocator->Destroy();

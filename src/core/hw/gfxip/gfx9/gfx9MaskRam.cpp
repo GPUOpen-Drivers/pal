@@ -888,8 +888,12 @@ uint32  Gfx9MaskRam::GetPipeBankXor(
     PAL_ASSERT (m_firstUploadBit != 0);
 
     // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one aspect.
+    const auto*    pParent      = image.Parent();
     const SubresId baseSubResId = { aspect, 0, 0 };
-    return AddrMgr2::GetTileInfo(image.Parent(), baseSubResId)->pipeBankXor;
+
+    uint32  pipeBankXor = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
+
+    return pipeBankXor;
 }
 
 // =====================================================================================================================
@@ -1819,8 +1823,12 @@ uint32 Gfx9Dcc::GetMinCompressedBlockSize(
 void Gfx9Dcc::SetControlReg(
     const Image&  image)
 {
-    const SubresId         subResId    = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo* pSubResInfo = image.Parent()->SubresourceInfo(subResId);
+    const SubresId          subResId    = { ImageAspect::Color, 0, 0 };
+    const Pal::Image*       pParent     = image.Parent();
+    const SubResourceInfo*  pSubResInfo = pParent->SubresourceInfo(subResId);
+    const Pal::Device*      pDevice     = pParent->GetDevice();
+    const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
+    const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -1832,9 +1840,7 @@ void Gfx9Dcc::SetControlReg(
     // 128B (Set for 16bpp 2+ fragment surfaces needing HW resolves)
     // 256B (default)
     m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize256B);
-
-    const ImageCreateInfo&  createInfo = image.Parent()->GetImageCreateInfo();
-    if (createInfo.samples >= 2)
+    if ((gfxLevel == GfxIpLevel::GfxIp9) && (createInfo.samples >= 2))
     {
         const uint32 bitsPerPixel = BitsPerPixel(createInfo.swizzledFormat.format);
 
@@ -1856,10 +1862,12 @@ void Gfx9Dcc::SetControlReg(
     m_dccControl.bits.LOSSY_ALPHA_PRECISION     = 0;
 
     // If this DCC surface is potentially going to be used in texture fetches though, we need some special settings.
-    if (pSubResInfo->flags.supportMetaDataTexFetch)
+    if (pSubResInfo->flags.supportMetaDataTexFetch
+       )
     {
         m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize64B);
+
     }
     else
     {
@@ -2165,7 +2173,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
         // generic fast-clear code.
         clearCode = Gfx9DccClearColor::ClearColorReg;
 
-        *pNeedFastClearElim = false;
+        // Even though it won't be texture feched, it is still safer to unconditionally do FCE to guarantee the base
+        // data is coherent with prior clears
+        *pNeedFastClearElim = true;
     }
 
     return static_cast<uint8>(clearCode);

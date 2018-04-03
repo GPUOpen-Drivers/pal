@@ -117,75 +117,53 @@ bool Pipeline::OpenUniqueDumpFile(
     if (isDuplicate)
     {
         // The assembled filename already exists, so perform a binary search to find an unused filename formed
-        // by the original filename with a monotonically-increasing numeric suffix.  This idea was adapted from
-        // a snippet found online here:
-        // https://stackoverflow.com/questions/1078003/c-how-would-you-make-a-unique-filename-by-adding-a-number
+        // by the original filename with a monotonically-increasing numeric suffix.
 
         // The index into the string where ".txt" begins.
-        const size_t endOfName = (strlen(fileName) - 4);
-        const size_t suffixLen = (sizeof(fileName) - endOfName);
+        const size_t endOfName  = (strlen(fileName) - 4);
+        const size_t suffixLen  = (sizeof(fileName) - endOfName);
         char*const   pSuffixPos = &fileName[endOfName];
 
-        uint32 suffixMin = 0;
-        uint32 suffixMax = 1;
-        Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixMax);
+        uint32 suffixMin = 1;
+        uint32 suffixMax = 2;
 
-        // Keep doubling the maximum numeric suffix until we determine a range of numbers which are unused.
-        while (Util::File::Exists(&fileName[0]))
+        do
         {
-            suffixMin = suffixMax;
-            suffixMax *= 2;
+            uint32 suffixMid = (suffixMin + suffixMax) / 2;
+            Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixMid);
 
-            Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixMax);
-        }
-
-        // If that unused range contains more than one number in it, do a binary search to find the lowest one.
-        if (suffixMax != (suffixMin + 1))
-        {
-            while (suffixMax != (suffixMin + 1))
+            if (File::Exists(&fileName[0]))
             {
-                const uint32 suffixPivot = ((suffixMax + suffixMin) / 2);
-                Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixPivot);
-
-                if (Util::File::Exists(&fileName[0]))
-                {
-                    suffixMin = suffixPivot;
-                }
-                else
-                {
-                    suffixMax = suffixPivot;
-                }
+                suffixMin  = suffixMid;
+                suffixMax *= 2;
             }
-
-            // At this point, suffixMax is the number which represents the next available filename/suffix
-            // combination.
-            Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixMax);
-        }
+            else
+            {
+                suffixMax = suffixMid;
+            }
+        } while (suffixMin < (suffixMax - 1));
     }
 
-    if (isDuplicate == false)
-    {
-        // We've computed a unique file name, so open the text file for write access.
-        const Result result = dumpInfo.pFile->Open(&fileName[0], Util::FileAccessBinary | Util::FileAccessWrite);
-        PAL_ASSERT(result == Result::Success);
+    // We've computed a unique file name, so open the text file for write access.
+    const Result result = dumpInfo.pFile->Open(&fileName[0], Util::FileAccessBinary | Util::FileAccessWrite);
+    PAL_ASSERT(result == Result::Success);
 
-        if (result == Result::Success)
-        {
-            // Write the header out now. This will be overwritten later with more accurate data, but we want to
-            // account for it now.
-            ShaderPerfData::PerformanceDataHeader header = {};
-            header.version               = ShaderPerfData::HeaderVersion;
-            Util::Strncpy(&header.apiShaderType[0],
-                            ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
-                            sizeof(header.apiShaderType));
-            header.shaderHash.lower      = dumpInfo.hash.lower;
-            header.shaderHash.upper      = dumpInfo.hash.upper;
-            header.pipelineHash          = dumpInfo.pipelineHash;
-            header.compilerHash          = dumpInfo.compilerHash;
-            header.payloadSize           = 0;
-            header.numShaderChunks       = 0;
-            dumpInfo.pFile->Write(&header, sizeof(header));
-        }
+    if (result == Result::Success)
+    {
+        // Write the header out now. This will be overwritten later with more accurate data, but we want to
+        // account for it now.
+        ShaderPerfData::PerformanceDataHeader header = {};
+        header.version               = ShaderPerfData::HeaderVersion;
+        Util::Strncpy(&header.apiShaderType[0],
+                        ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
+                        sizeof(header.apiShaderType));
+        header.shaderHash.lower      = dumpInfo.hash.lower;
+        header.shaderHash.upper      = dumpInfo.hash.upper;
+        header.pipelineHash          = dumpInfo.pipelineHash;
+        header.compilerHash          = dumpInfo.compilerHash;
+        header.payloadSize           = 0;
+        header.numShaderChunks       = 0;
+        dumpInfo.pFile->Write(&header, sizeof(header));
     }
 
     return dumpInfo.pFile->IsOpen();

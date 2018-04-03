@@ -1902,6 +1902,20 @@ void LogContext::Struct(
     KeyAndStruct("extent", value.extent);
     KeyAndObject("screen", value.pScreen);
     KeyAndObject("swapChain", value.pSwapChain);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
+    KeyAndValue("viewFormatCount", value.viewFormatCount);
+    KeyAndBeginList("viewFormats", false);
+    if (value.viewFormatCount != AllCompatibleFormats)
+    {
+        for (uint32 idx = 0; idx < value.viewFormatCount; ++idx)
+        {
+            Struct(value.pViewFormats[idx]);
+        }
+    }
+    EndList();
+#endif
+
     EndMap();
 }
 

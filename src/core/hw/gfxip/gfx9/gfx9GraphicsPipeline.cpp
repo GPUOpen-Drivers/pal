@@ -47,9 +47,10 @@ namespace Gfx9
 // User-data signature for an unbound graphics pipeline.
 const GraphicsPipelineSignature NullGfxSignature =
 {
-    { UserDataNotMapped, },     // User-data mapping for each shader stage
+    { 0, },                     // User-data mapping for each shader stage
     { UserDataNotMapped, },     // Indirect user-data table mapping
     UserDataNotMapped,          // Stream-out table mapping
+    UserDataNotMapped,          // Stream-out table user-SGPR address
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
     UserDataNotMapped,          // Start Index register address
@@ -59,6 +60,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
+    { 0, },                     // User-data mapping hashes per-stage
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
@@ -93,10 +95,10 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
 
             if (pDsView != nullptr)
             {
-                const bool isDepthWriteEnabled = (pDsView->GetDsViewCreateInfo().flags.readOnlyDepth == 0) &&
+                const bool isDepthWriteEnabled = (pDsView->ReadOnlyDepth() == false) &&
                                                  (pDepthStencilState->IsDepthWriteEnabled());
 
-                const bool isStencilWriteEnabled = (pDsView->GetDsViewCreateInfo().flags.readOnlyStencil == 0) &&
+                const bool isStencilWriteEnabled = (pDsView->ReadOnlyStencil() == false) &&
                                                    (pDepthStencilState->IsStencilWriteEnabled());
 
                 isDepthStencilWriteEnabled = (isDepthWriteEnabled || isStencilWriteEnabled);
@@ -192,10 +194,13 @@ GraphicsPipeline::GraphicsPipeline(
 
     memcpy(&m_signature, &NullGfxSignature, sizeof(m_signature));
 
-    m_vgtLsHsConfig.u32All  = 0;
-    m_spiVsOutConfig.u32All = 0;
-    m_spiPsInControl.u32All = 0;
-    m_paScModeCntl1.u32All  = 0;
+    m_sxPsDownconvert.u32All   = 0;
+    m_sxBlendOptEpsilon.u32All = 0;
+    m_sxBlendOptControl.u32All = 0;
+    m_vgtLsHsConfig.u32All     = 0;
+    m_spiVsOutConfig.u32All    = 0;
+    m_spiPsInControl.u32All    = 0;
+    m_paScModeCntl1.u32All     = 0;
 }
 
 // =====================================================================================================================
@@ -672,77 +677,33 @@ void GraphicsPipeline::BuildPm4Headers(
 }
 
 // =====================================================================================================================
-// Help method to sets-up RbPlus registers. Return true indicates the registers of Rb+ is set, so the the caller could
-// set DISABLE_DUAL_QUAD accordingly during initialization.
-bool GraphicsPipeline::SetupRbPlusShaderRegisters(
-    const bool            dualBlendEnabled,
-    const uint8*          pWriteMask,
-    const SwizzledFormat* pSwizzledFormats,
-    const uint32*         pTargetIndices,
-    const uint32          targetIndexCount,
-    RbPlusPm4Img*         pPm4Image
+// Updates the RB+ register values for a single render target slot.  It is only expected that this will be called for
+// pipelines with RB+ enabled.
+void GraphicsPipeline::SetupRbPlusRegistersForSlot(
+    uint32                   slot,
+    uint8                    writeMask,
+    SwizzledFormat           swizzledFormat,
+    regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL* pSxBlendOptControl
     ) const
 {
-    uint32 downConvert     = 0;
-    uint32 blendOptEpsilon = 0;
-    uint32 blendOptControl = 0;
-    bool   result          = false;
+    const uint32 bitShift = (4 * slot);
 
-    PAL_ASSERT((targetIndexCount > 0) &&
-               (pSwizzledFormats != nullptr) &&
-               (pTargetIndices != nullptr) &&
-               (pPm4Image != nullptr));
+    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat.format);
+    const uint32                blendOptControl   = Gfx9::SxBlendOptControl(writeMask);
+    const uint32                blendOptEpsilon   =
+        (downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ? 0 : Gfx9::SxBlendOptEpsilon(downConvertFormat);
 
-    if (m_pDevice->Settings().gfx9RbPlusEnable &&
-        (dualBlendEnabled == false) &&
-        (m_statePm4CmdsContext.cbColorControl.bits.MODE != CB_RESOLVE))
-    {
-        downConvert     = m_statePm4CmdsContext.sxPsDownconvert.u32All;
-        blendOptEpsilon = m_statePm4CmdsContext.sxBlendOptEpsilon.u32All;
-        blendOptControl = m_statePm4CmdsContext.sxBlendOptControl.u32All;
+    pSxPsDownconvert->u32All &= ~(SX_PS_DOWNCONVERT__MRT0_MASK << bitShift);
+    pSxPsDownconvert->u32All |= (downConvertFormat << bitShift);
 
-        for (uint32 i = 0; i < targetIndexCount; ++i)
-        {
-            const uint32                bitShift          = pTargetIndices[i] * 4;
-            const uint32                numComponents     = Formats::NumComponents(pSwizzledFormats[i].format);
-            const uint32                componentMask     = Formats::ComponentMask(pSwizzledFormats[i].format);
-            const uint8                 writeMask         = (pWriteMask != nullptr) ?
-                                                            pWriteMask[i] : static_cast<uint8>(componentMask);
-            const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(pSwizzledFormats[i].format);
-            const uint32                sxBlendOptControl = SxBlendOptControl(writeMask);
+    pSxBlendOptEpsilon->u32All &= ~(SX_BLEND_OPT_EPSILON__MRT0_EPSILON_MASK << bitShift);
+    pSxBlendOptEpsilon->u32All |= (blendOptEpsilon << bitShift);
 
-            uint32 sxBlendOptEpsilon = 0;
-
-            if (downConvertFormat != SX_RT_EXPORT_NO_CONVERSION)
-            {
-                sxBlendOptEpsilon = SxBlendOptEpsilon(downConvertFormat);
-            }
-
-            const uint32 blendOptControlMask = SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK |
-                                               SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK;
-
-            downConvert = downConvert & (~(SX_PS_DOWNCONVERT__MRT0_MASK << bitShift));
-            downConvert = downConvert | (downConvertFormat << bitShift);
-
-            blendOptEpsilon = blendOptEpsilon & (~(SX_BLEND_OPT_EPSILON__MRT0_EPSILON_MASK << bitShift));
-            blendOptEpsilon = blendOptEpsilon | (sxBlendOptEpsilon << bitShift);
-
-            blendOptControl = blendOptControl & (~(blendOptControlMask << bitShift));
-            blendOptControl = blendOptControl | (sxBlendOptControl << bitShift);
-        }
-
-        result = true;
-    }
-
-    pPm4Image->sxPsDownconvert.u32All   = downConvert;
-    pPm4Image->sxBlendOptEpsilon.u32All = blendOptEpsilon;
-    pPm4Image->sxBlendOptControl.u32All = blendOptControl;
-
-    pPm4Image->spaceNeeded = m_pDevice->CmdUtil().BuildSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
-                                                                         mmSX_BLEND_OPT_CONTROL,
-                                                                         &pPm4Image->header);
-
-    return result;
+    pSxBlendOptControl->u32All &= ~((SX_BLEND_OPT_CONTROL__MRT0_COLOR_OPT_DISABLE_MASK |
+                                     SX_BLEND_OPT_CONTROL__MRT0_ALPHA_OPT_DISABLE_MASK) << bitShift);
+    pSxBlendOptControl->u32All |= (blendOptControl << bitShift);
 }
 
 // =====================================================================================================================
@@ -1079,7 +1040,8 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiProcessor&               abiProcessor)
 {
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
+    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
     m_statePm4CmdsContext.paScLineCntl.u32All                        = 0;
     m_statePm4CmdsContext.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
@@ -1224,38 +1186,29 @@ void GraphicsPipeline::SetupNonShaderRegisters(
                                dbRenderOverride.u32All,
                                &m_statePm4CmdsContext.dbRenderOverrideRmw);
 
-    // Handling Rb+ registers as long as Rb+ function is supported regardless of enabled/disabled.
-    if (m_pDevice->Parent()->ChipProperties().gfx9.rbPlus
-        )
+    // Initialize RB+ registers for pipelines which are able to use the feature.
+    if (settings.gfx9RbPlusEnable &&
+        (createInfo.cbState.dualSourceBlendEnable == false) &&
+        (m_statePm4CmdsContext.cbColorControl.bits.MODE != CB_RESOLVE))
     {
-        uint8          writeMask[MaxColorTargets]       = {};
-        SwizzledFormat swizzledFormats[MaxColorTargets] = {};
-        uint32         targetIndices[MaxColorTargets]   = {};
-        RbPlusPm4Img   pm4Image                         = {};
+        PAL_ASSERT(chipProps.gfx9.rbPlus);
 
-        for (uint32 i = 0; i < MaxColorTargets; ++i)
+        m_statePm4CmdsContext.cbColorControl.bits.DISABLE_DUAL_QUAD = 0;
+
+        for (uint32 slot = 0; slot < MaxColorTargets; ++slot)
         {
-            const auto& targetState = createInfo.cbState.target[i];
-
-            writeMask[i]       = targetState.channelWriteMask;
-            swizzledFormats[i] = targetState.swizzledFormat;
-            targetIndices[i]   = i;
+            SetupRbPlusRegistersForSlot(slot,
+                                        createInfo.cbState.target[slot].channelWriteMask,
+                                        createInfo.cbState.target[slot].swizzledFormat,
+                                        &m_sxPsDownconvert,
+                                        &m_sxBlendOptEpsilon,
+                                        &m_sxBlendOptControl);
         }
-
-        const bool rbPlusIsSet = SetupRbPlusShaderRegisters(createInfo.cbState.dualSourceBlendEnable,
-                                                            writeMask,
-                                                            swizzledFormats,
-                                                            targetIndices,
-                                                            MaxColorTargets,
-                                                            &pm4Image);
-
-        m_statePm4CmdsContext.cbColorControl.bits.DISABLE_DUAL_QUAD = !rbPlusIsSet;
-
-        m_statePm4CmdsContext.sxPsDownconvert.u32All   = pm4Image.sxPsDownconvert.u32All;
-        m_statePm4CmdsContext.sxBlendOptEpsilon.u32All = pm4Image.sxBlendOptEpsilon.u32All;
-        m_statePm4CmdsContext.sxBlendOptControl.u32All = pm4Image.sxBlendOptControl.u32All;
-        m_statePm4CmdsContext.header                   = pm4Image.header;
-        m_statePm4CmdsContext.spaceNeeded             += pm4Image.spaceNeeded;
+    }
+    else if (chipProps.gfx9.rbPlus != 0)
+    {
+        // If RB+ is supported but not enabled, we need to set DISABLE_DUAL_QUAD.
+        m_statePm4CmdsContext.cbColorControl.bits.DISABLE_DUAL_QUAD = 1;
     }
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
@@ -1532,6 +1485,8 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     const AbiProcessor& abiProcessor,
     HwShaderStage       stage)
 {
+    uint16  entryToRegAddr[MaxUserDataEntries] = { };
+
     const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
     const uint16 lastRegAddr = (baseRegAddr + 31);
 
@@ -1545,7 +1500,17 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         {
             if (value < MaxUserDataEntries)
             {
-                pStage->regAddr[value] = offset;
+                if (pStage->firstUserSgprRegAddr == UserDataNotMapped)
+                {
+                    pStage->firstUserSgprRegAddr = offset;
+                }
+
+                PAL_ASSERT(offset >= pStage->firstUserSgprRegAddr);
+                const uint8 userSgprId = static_cast<uint8>(offset - pStage->firstUserSgprRegAddr);
+                entryToRegAddr[value]  = offset;
+
+                pStage->mappedEntry[userSgprId] = static_cast<uint8>(value);
+                pStage->userSgprCount = Max<uint8>(userSgprId + 1, pStage->userSgprCount);
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::GlobalTable))
             {
@@ -1630,13 +1595,24 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         } // If HasRegisterEntry()
     } // For each user-SGPR
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    constexpr uint64 HashedDataLength = (sizeof(pStage->regAddr) + sizeof(pStage->spillTableRegAddr));
+    for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
+    {
+        if (m_signature.indirectTableAddr[i] != UserDataNotMapped)
+        {
+            pStage->indirectTableRegAddr[i] = entryToRegAddr[m_signature.indirectTableAddr[i] - 1];
+        }
+    }
 
+    if ((stage == HwShaderStage::Vs) && (m_signature.streamOutTableAddr != UserDataNotMapped))
+    {
+        m_signature.streamOutTableRegAddr = entryToRegAddr[m_signature.streamOutTableAddr - 1];
+    }
+
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
     MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(pStage->regAddr),
-        HashedDataLength,
-        reinterpret_cast<uint8* const>(&pStage->userDataHash));
+        reinterpret_cast<const uint8*>(pStage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&m_signature.userDataHash[stageId]));
 }
 
 // =====================================================================================================================
@@ -1644,20 +1620,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 void GraphicsPipeline::SetupSignatureFromElf(
     const AbiProcessor& abiProcessor)
 {
-    if (IsTessEnabled())
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Hs);
-    }
-    if (IsGsEnabled() || IsNgg())
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Gs);
-    }
-    if (IsNgg() == false)
-    {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Vs);
-    }
-    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ps);
-
     uint32 value = 0;
     if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::StreamOutTableEntry, &value))
     {
@@ -1685,6 +1647,20 @@ void GraphicsPipeline::SetupSignatureFromElf(
     {
         m_signature.userDataLimit = static_cast<uint16>(value);
     }
+
+    if (IsTessEnabled())
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Hs);
+    }
+    if (IsGsEnabled() || IsNgg())
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Gs);
+    }
+    if (IsNgg() == false)
+    {
+        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Vs);
+    }
+    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ps);
 
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.
@@ -1917,26 +1893,36 @@ void GraphicsPipeline::UpdateNggPrimCb(
 }
 
 // =====================================================================================================================
-// Build the RbPlus related commands for the specified targetIndex target according to the new swizzledFormat.
-void GraphicsPipeline::BuildRbPlusRegistersForRpm(
-    SwizzledFormat swizzledFormat,
-    uint32         targetIndex,
-    RbPlusPm4Img*  pPm4Image
+// Overrides the RB+ register values for an RPM blit operation.  This is only valid to be called on GPU's which support
+// RB+.
+void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
+    SwizzledFormat           swizzledFormat,
+    uint32                   slot,
+    regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL* pSxBlendOptControl
     ) const
 {
+    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfx9.rbPlus != 0);
+
     const SwizzledFormat*const pTargetFormats = TargetFormats();
 
-    if ((pTargetFormats[targetIndex].format != swizzledFormat.format) &&
-        (m_statePm4CmdsContext.cbColorControl.bits.DISABLE_DUAL_QUAD == 0) &&
-        m_pDevice->Parent()->ChipProperties().gfx9.rbPlus)
+    if ((pTargetFormats[slot].format != swizzledFormat.format) &&
+        (m_statePm4CmdsContext.cbColorControl.bits.DISABLE_DUAL_QUAD == 0))
     {
-        SetupRbPlusShaderRegisters(false,
-                                   nullptr,
-                                   &swizzledFormat,
-                                   &targetIndex,
-                                   1,
-                                   pPm4Image);
+        regSX_PS_DOWNCONVERT    sxPsDownconvert   = { };
+        regSX_BLEND_OPT_EPSILON sxBlendOptEpsilon = { };
+        regSX_BLEND_OPT_CONTROL sxBlendOptControl = { };
+        SetupRbPlusRegistersForSlot(slot,
+                                    static_cast<uint8>(Formats::ComponentMask(swizzledFormat.format)),
+                                    swizzledFormat,
+                                    &sxPsDownconvert,
+                                    &sxBlendOptEpsilon,
+                                    &sxBlendOptControl);
 
+        *pSxPsDownconvert   = sxPsDownconvert;
+        *pSxBlendOptEpsilon = sxBlendOptEpsilon;
+        *pSxBlendOptControl = sxBlendOptControl;
     }
 }
 

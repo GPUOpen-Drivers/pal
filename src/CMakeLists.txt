@@ -49,6 +49,9 @@ if(UNIX)
     else()
         message(FATAL_ERROR "Using unknown compiler.")
     endif()
+
+    set(PAL_USE_PTHREAD TRUE)
+    set(JEMALLOC_USE_PTHREAD TRUE)
 endif()
 
 # CMAKE-TODO: Where is this used?
@@ -180,6 +183,7 @@ if(UNIX)
 
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/2d)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/drm)
+    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/wsa)
 endif()
 
 # Other Includes
@@ -305,6 +309,13 @@ if(PAL_BUILD_CORE)
             core/os/lnx/dri3/dri3Loader.cpp
             core/os/lnx/lnxWindowSystem.cpp
         )
+        if(PAL_BUILD_WAYLAND)
+            message(STATUS "PAL build with Wayland support")
+            target_sources(pal PRIVATE
+            core/os/lnx/wayland/waylandWindowSystem.cpp
+            )
+            target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
+        endif()
     endif()
 
 ### PAL core/hw ################################################################
@@ -735,7 +746,7 @@ if(PAL_BUILD_CORE)
 endif()
 
 ### Link Libraries #####################################################################################################
-if(UNIX)
+if(PAL_USE_PTHREAD)
     target_link_libraries(pal INTERFACE pthread)
 endif()
 

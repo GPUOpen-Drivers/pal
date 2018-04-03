@@ -1253,18 +1253,10 @@ Result Device::CreateColorTargetView(
     IColorTargetView**                       ppColorTargetView
     ) const
 {
-    ColorTargetView* pView = nullptr;
-
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        pView = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9ColorTargetView(this, createInfo, internalInfo);
+        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9ColorTargetView(this, createInfo, internalInfo);
     }
-
-    PAL_ASSERT(pView != nullptr);
-
-    pView->Init();
-
-    *ppColorTargetView = pView;
 
     return Result::Success;
 }
@@ -1342,7 +1334,6 @@ Result Device::CreateCmdUploadRingInternal(
 // =====================================================================================================================
 // Calculates the value of a buffer SRD's NUM_RECORDS field.
 uint32 Device::CalcNumRecords(
-    ChNumFormat format,
     size_t      sizeInBytes,
     uint32      stride)
 {
@@ -1357,16 +1348,12 @@ uint32 Device::CalcNumRecords(
     //    We can simplify NUM_RECORDS to actually be:
     //    Bytes if: Buffer SRD is for raw buffer access (which we define as Undefined format and Stride of 1).
     //    Otherwise, in units of "stride".
+    // Which can be simplified to divide by stride if the stride is greater than 1
     uint32 numRecords = static_cast<uint32>(sizeInBytes);
 
-    if ((Formats::IsUndefined(format) == false) || (stride != 1))
+    if (stride > 1)
     {
-        if (stride != 0)
-        {
-            PAL_ASSERT((numRecords % stride) == 0);
-
-            numRecords /= stride;
-        }
+        numRecords /= stride;
     }
 
     return numRecords;
@@ -1666,8 +1653,7 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
         srd.word0.bits.BASE_ADDRESS    = LowPart(view.gpuAddr);
         srd.word1.bits.BASE_ADDRESS_HI = HighPart(view.gpuAddr);
         srd.word1.bits.STRIDE          = view.stride;
-        srd.word2.bits.NUM_RECORDS     = pGfxDevice->CalcNumRecords(view.swizzledFormat.format,
-                                                                    static_cast<size_t>(view.range),
+        srd.word2.bits.NUM_RECORDS     = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
                                                                     srd.word1.bits.STRIDE);
         srd.word3.bits.TYPE            = SQ_RSRC_BUF;
 
@@ -1680,6 +1666,9 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
         srd.word3.bits.DST_SEL_W   = Formats::Gfx9::HwSwizzle(view.swizzledFormat.swizzle.a);
         srd.word3.bits.DATA_FORMAT = Formats::Gfx9::HwBufDataFmt(pFmtInfo, view.swizzledFormat.format);
         srd.word3.bits.NUM_FORMAT  = Formats::Gfx9::HwBufNumFmt(pFmtInfo, view.swizzledFormat.format);
+
+        // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
+        PAL_ASSERT(srd.word3.bits.DATA_FORMAT != BUF_DATA_FORMAT_INVALID);
 
         memcpy(pOut, &srd, sizeof(srd));
         pOut = VoidPtrInc(pOut, sizeof(srd));
@@ -1709,8 +1698,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
         pOutSrd->word1.u32All = ((HighPart(view.gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT__GFX09) |
                                  (static_cast<uint32>(view.stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT__GFX09));
 
-        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(view.swizzledFormat.format,
-                                                                     static_cast<size_t>(view.range),
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
                                                                      static_cast<uint32>(view.stride));
 
         PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
@@ -2315,7 +2303,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             } // end check for image supporting meta-data tex fetches
         }
 
-        // Fill the unused 4 bits of word4 with sample pattern index
+        // Fill the unused 4 bits of word6 with sample pattern index
         SetImageViewSamplePatternIdx(&srd, viewInfo.samplePatternIdx);
 
         memcpy(&pSrds[i], &srd, sizeof(srd));
@@ -2769,9 +2757,10 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision = AsicRevision::Raven;
             pInfo->gfxStepping = 2;
-            pInfo->gfx9.numTccBlocks    = 4;
-            pInfo->gfx9.maxNumCuPerSh   = 11;
-            pInfo->gfx9.maxNumRbPerSe   = 2;
+            pInfo->gfx9.numTccBlocks         = 4;
+            pInfo->gfx9.maxNumCuPerSh        = 11;
+            pInfo->gfx9.maxNumRbPerSe        = 2;
+            pInfo->gfx9.timestampResetOnIdle = 1;
         }
         else
         {
@@ -2792,6 +2781,10 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numTccBlocks    = 16;
             pInfo->gfx9.maxNumCuPerSh   = 16;
             pInfo->gfx9.maxNumRbPerSe   = 4;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
         }
         break;
 

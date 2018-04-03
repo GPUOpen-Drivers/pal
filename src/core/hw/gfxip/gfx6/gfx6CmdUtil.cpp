@@ -375,7 +375,7 @@ uint32 CmdUtil::GetCondExecSizeInDwords() const
 }
 
 // =====================================================================================================================
-// Gets the number of DWORDs that are required for a cond exec packet.
+// Gets the worst case number of DWORDs that are required for a CP DMA packet.
 uint32 CmdUtil::GetDmaDataWorstCaseSize() const
 {
     // If the CP DMA alignment workaround is enabled we might issue up to three DMA packets.
@@ -383,6 +383,47 @@ uint32 CmdUtil::GetDmaDataWorstCaseSize() const
     const uint32 packetSize  = (m_chipFamily == GfxIpLevel::GfxIp6) ? PM4_CMD_CP_DMA_DWORDS : PM4_CMD_DMA_DATA_DWORDS;
 
     return packetCount * packetSize;
+}
+
+// =====================================================================================================================
+// Gets the number of DWORDs that are required for a CP DMA packet.
+uint32 CmdUtil::GetDmaDataSizeInDwords(
+    const DmaDataInfo& dmaData
+    ) const
+{
+    uint32 dmaCount = 0;
+
+    const uint32 alignment = GetGfx6Settings(m_device).cpDmaSrcAlignment;
+
+    // See BuildDmaData() for details on the alignment workaround logic.
+    if ((alignment != CpDmaAlignmentDefault) && (dmaData.srcSel != CPDMA_SRC_SEL_DATA))
+    {
+        const uint32 addrAlignUp = static_cast<uint32>(Pow2Align(dmaData.srcAddr, alignment) - dmaData.srcAddr);
+
+        if ((addrAlignUp > 0) && (dmaData.numBytes >= 512) && (dmaData.srcSel != CPDMA_SRC_SEL_GDS))
+        {
+            dmaCount = 2;
+        }
+        else
+        {
+            dmaCount = 1;
+        }
+
+        const uint32 sizeAlignUp = Pow2Align(dmaData.numBytes, alignment) - dmaData.numBytes;
+
+        if (sizeAlignUp > 0)
+        {
+            dmaCount++;
+        }
+    }
+    else
+    {
+        dmaCount = 1;
+    }
+
+    const uint32 packetSize  = (m_chipFamily == GfxIpLevel::GfxIp6) ? PM4_CMD_CP_DMA_DWORDS : PM4_CMD_DMA_DATA_DWORDS;
+
+    return dmaCount * packetSize;
 }
 
 // =====================================================================================================================

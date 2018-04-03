@@ -125,9 +125,10 @@ enum RpmGfxPipeline : uint32
     SlowColorClear7_UNORM16 = 86,
     ResolveDepth            = 87,
     ResolveDepthCopy        = 88,
-    ResolveFixedFunc        = 89,
-    ResolveStencil          = 90,
-    ResolveStencilCopy      = 91,
+    ResolveFixedFunc128Bpp  = 89,
+    ResolveFixedFunc        = 90,
+    ResolveStencil          = 91,
+    ResolveStencilCopy      = 92,
     RpmGfxPipelineCount
 };
 

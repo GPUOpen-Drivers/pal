@@ -150,6 +150,17 @@ struct DrawTimeHwState
     regPA_SC_MODE_CNTL_1  paScModeCntl1;    // The current value of the PA_SC_MODE_CNTL1 register.
 };
 
+// Represents an image of the PM4 commands necessary to write RB-plus related info to hardware.
+struct RbPlusPm4Img
+{
+    PM4CMDSETDATA                header;
+    regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControl;
+
+    size_t  spaceNeeded;
+};
+
 struct ColorInfoReg
 {
     PM4CMDSETDATA     header;
@@ -273,10 +284,6 @@ struct ScissorRectPm4Img
     regPA_SC_VPORT_SCISSOR_0_BR br;
 };
 
-// Shorthand for a function pointer type which handles Draw- or Dispatch-time validation of indirect user-data,
-// stream-out and spill tables.
-typedef uint32* (PAL_STDCALL *ValidateUserDataTablesFunc)(UniversalCmdBuffer*, uint32*);
-
 // Register state for a single plane's x y z w coordinates.
 struct UserClipPlaneStateReg
 {
@@ -312,6 +319,9 @@ struct LoadDataIndexPm4Img
 // GFX6 universal command buffer class: implements GFX6 specific functionality for the UniversalCmdBuffer class.
 class UniversalCmdBuffer : public Pal::UniversalCmdBuffer
 {
+    // Shorthand for function pointers which validate graphics user-data at draw-time.
+    typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
+
 public:
     static size_t GetSize(const Device& device);
 
@@ -321,10 +331,6 @@ public:
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
-
-    void SwitchGraphicsPipeline(
-        const GraphicsPipeline* pOldPipeline,
-        const GraphicsPipeline* pNewPipeline);
 
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override;
@@ -623,6 +629,8 @@ public:
         uint32      compValue,
         bool        enable) override;
 
+    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+
 protected:
     virtual ~UniversalCmdBuffer() {}
 
@@ -638,10 +646,6 @@ protected:
     virtual void SetGraphicsState(const GraphicsState& graphicsState) override;
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
-
-    uint32* ValidateDispatch(
-        gpusize gpuVirtAddrNumTgs,
-        uint32* pDeCmdSpace);
 
     template <bool indexed, bool indirect>
     uint32* ValidateDraw(
@@ -674,16 +678,6 @@ protected:
 
     void ValidateExecuteNestedCmdBuffers(const UniversalCmdBuffer& cmdBuffer);
 
-    template <bool useRingBufferForCe>
-    static uint32* PAL_STDCALL ValidateComputeUserDataTables(
-        UniversalCmdBuffer* pSelf,
-        uint32*             pDeCmdSpace);
-
-    template <bool useRingBufferForCe>
-    static uint32* PAL_STDCALL ValidateGraphicsUserDataTables(
-        UniversalCmdBuffer* pSelf,
-        uint32*             pDeCmdSpace);
-
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
 
@@ -691,25 +685,6 @@ protected:
     uint16 GetInstanceOffsetRegAddr() const { return m_vertexOffsetReg + 1; }
 
 private:
-    static void PAL_STDCALL CmdSetUserDataCs(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
-    template <bool tessEnabled, bool gsEnabled, bool filterRedundantSets>
-    static void PAL_STDCALL CmdSetUserDataNoSpillTableGfx(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-    template <bool tessEnabled, bool gsEnabled>
-    static void PAL_STDCALL CmdSetUserDataWithSpillTableGfx(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
     static void PAL_STDCALL CmdDraw(
         ICmdBuffer* pCmdBuffer,
@@ -741,18 +716,19 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
-    template <bool issueSqttMarkerEvent>
+
+    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool issueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool issueSqttMarkerEvent>
+    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -802,37 +778,67 @@ private:
 
     PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.packetPredicate); }
 
+    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    void SetDispatchFunctions();
+
+    template <bool UseRingBufferForCe>
+    void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled);
+
+    template <bool UseRingBufferForCe>
+    uint32* ValidateDispatch(
+        gpusize indirectGpuVirtAddr,
+        uint32  xDim,
+        uint32  yDim,
+        uint32  zDim,
+        uint32* pDeCmdSpace);
+
+    uint32* SwitchGraphicsPipeline(
+        const GraphicsPipelineSignature* pPrevSignature,
+        const GraphicsPipeline*          pCurrPipeline,
+        uint32*                          pDeCmdSpace);
+
+    template <bool HasPipelineChanged, bool UseRingBufferForCe, bool TessEnabled, bool GsEnabled>
+    uint32* ValidateGraphicsUserData(
+        const GraphicsPipelineSignature* pPrevSignature,
+        uint32*                          pDeCmdSpace);
+
+    template <bool HasPipelineChanged, bool UseRingBufferForCe>
+    uint32* ValidateComputeUserData(
+        const ComputePipelineSignature* pPrevSignature,
+        uint32*                         pDeCmdSpace);
+
+    template <bool TessEnabled, bool GsEnabled>
+    uint32* WriteDirtyUserDataEntriesToSgprsGfx(
+        const GraphicsPipelineSignature* pPrevSignature,
+        uint8                            alreadyWrittenStageMask,
+        uint32*                          pDeCmdSpace);
+
+    uint32* WriteDirtyUserDataEntriesToUserSgprsCs(
+        uint32* pDeCmdSpace);
+
     template <typename PipelineSignature>
-    uint32* FixupUserDataEntriesInCeRam(
-        const UserDataEntries&   entries,
-        const PipelineSignature& oldSignature,
-        const PipelineSignature& newSignature,
+    uint32* WriteDirtyUserDataEntriesToCeRam(
+        const PipelineSignature* pPrevSignature,
+        const PipelineSignature* pCurrSignature,
         uint32*                  pCeCmdSpace);
 
-    void FixupUserDataEntriesInRegisters(
-        const UserDataEntries&           entries,
-        const GraphicsPipelineSignature& signature);
+    template <bool TessEnabled, bool GsEnabled>
+    uint8 FixupUserSgprsOnPipelineSwitch(
+        const GraphicsPipelineSignature* pPrevSignature,
+        uint32**                         ppDeCmdSpace);
+
+    template <typename PipelineSignature>
+    void FixupSpillTableOnPipelineSwitch(
+        const PipelineSignature* pPrevSignature,
+        const PipelineSignature* pCurrSignature);
 
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
 
+    uint8 CheckStreamOutBufferStridesOnPipelineSwitch();
     uint32* UploadStreamOutBufferStridesToCeRam(
-        const GraphicsPipeline& pipeline,
-        uint32*                 pCeCmdSpace);
-
-    void UpdateCeRingAddressCs(
-        UserDataTableState* pTable,
-        uint16              firstEntry,
-        uint32**            ppCeCmdSpace,
-        uint32**            ppDeCmdSpace);
-
-    void UpdateCeRingAddressGfx(
-        UserDataTableState* pTable,
-        uint16              firstEntry,
-        uint32              firstStage,
-        uint32              lastStage,
-        uint32**            ppCeCmdSpace,
-        uint32**            ppDeCmdSpace);
+        uint8   dirtyStrideMask,
+        uint32* pCeCmdSpace);
 
     bool CheckNestedExecuteReference(const UniversalCmdBuffer* pCmdBuffer);
 
@@ -847,29 +853,32 @@ private:
     void SwitchDrawFunctions(
         bool viewInstancingEnable);
 
-    static constexpr size_t SizeDispatchIndirectArgs    = sizeof(DispatchIndirectArgs);
-    static constexpr size_t SizeDrawIndirectArgs        = sizeof(DrawIndirectArgs);
-    static constexpr size_t SizeDrawIndexedIndirectArgs = sizeof(DrawIndexedIndirectArgs);
-
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
 
-    PrefetchMgr    m_prefetchMgr;
-    CmdStream      m_deCmdStream;
-    CmdStream      m_ceCmdStream;
+    PrefetchMgr  m_prefetchMgr;
+    CmdStream    m_deCmdStream;
+    CmdStream    m_ceCmdStream;
 
     // Tracks the user-data signature of the currently active compute & graphics pipelines.
     const ComputePipelineSignature*   m_pSignatureCs;
     const GraphicsPipelineSignature*  m_pSignatureGfx;
 
+    uint64  m_pipelineCtxPm4Hash; // Hash of current pipeline's PM4 image for context registers.
+
+    // Function pointers which validate all graphics user-data at Draw-time for the cases where the pipeline is
+    // changing and cases where it is not.
+    ValidateUserDataGfxFunc  m_pfnValidateUserDataGfx;
+    ValidateUserDataGfxFunc  m_pfnValidateUserDataGfxPipelineSwitch;
+
     struct
     {
         // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
         // is dumped from CE RAM to memory before a draw or dispatch.
-        uint32  watermark : 31;
+        uint32              watermark : 31;
         // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
-        uint32  modified  :  1;
-        uint32* pData;  // Tracks the contents of each indirect user-data table.
+        uint32              modified  :  1;
+        uint32*             pData;  // Tracks the contents of each indirect user-data table.
 
         UserDataTableState  state;  // Tracks the state for the indirect user-data table
         UserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
@@ -906,6 +915,7 @@ private:
     regSPI_PS_IN_CONTROL       m_spiPsInControl;      // Register setting for PS_IN_CONTROL
     uint16                     m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                     m_drawIndexReg;        // Register where the draw index is written
+    RbPlusPm4Img               m_rbPlusPm4Img;        // PM4 image for RB Plus register state.
 
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
@@ -930,10 +940,6 @@ private:
         };
         uint32 u32All;
     } m_cachedSettings;
-
-    // Function pointers for handling draw- or dispatch-time validation of CS/GFX user-data tables.
-    ValidateUserDataTablesFunc  m_pfnValidateUserDataTablesGfx;
-    ValidateUserDataTablesFunc  m_pfnValidateUserDataTablesCs;
 
     // All state required by the dynamic primitive group size optimization. This optimization will track the number
     // of primitives per draw over a given window and issue a new IA_MULTI_VGT_PARAM with an optimal primgroup size

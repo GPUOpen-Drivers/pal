@@ -106,10 +106,6 @@ Result Device::CommitSettingsAndInit()
     // Update the public settings before we commit them.
     PalPublicSettings*const pInitialSettings = GetPublicSettings();
 
-    // The residency flags must map to the command allocator types.
-    static_assert((1 << CommandDataAlloc)  == CmdAllocResWaitOnSubmitCommandData,  "CmdAllocRes enum mismatch.");
-    static_assert((1 << EmbeddedDataAlloc) == CmdAllocResWaitOnSubmitEmbeddedData, "CmdAllocRes enum mismatch.");
-
     // Force off the command allocator wait-on-submit optimization for embedded data. The profiler permits the client
     // to read and write to client embedded data in the replayed command buffers which breaks this optimization.
     //

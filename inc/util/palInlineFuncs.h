@@ -51,6 +51,47 @@ enum class ValueType : uint32
     Str,      ///< String type.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 390
+/// Increments a const pointer by nBytes by first casting it to a const uint8*.
+///
+/// @returns Incremented pointer.
+constexpr const void* VoidPtrInc(
+    const void* p,         ///< [in] Pointer to be incremented.
+    size_t      numBytes)  ///< Number of bytes to increment the pointer by.
+{
+    return (static_cast<const uint8*>(p) + numBytes);
+}
+
+/// Increments a pointer by nBytes by first casting it to a uint8*.
+///
+/// @returns Incremented pointer.
+constexpr void* VoidPtrInc(
+    void*  p,         ///< [in] Pointer to be incremented.
+    size_t numBytes)  ///< Number of bytes to increment the pointer by.
+{
+    return (static_cast<uint8*>(p) + numBytes);
+}
+
+/// Decrements a const pointer by nBytes by first casting it to a const uint8*.
+///
+/// @returns Decremented pointer.
+constexpr const void* VoidPtrDec(
+    const void* p,         ///< [in] Pointer to be decremented.
+    size_t      numBytes)  ///< Number of bytes to decrement the pointer by.
+{
+    return (static_cast<const uint8*>(p) - numBytes);
+}
+
+/// Decrements a pointer by nBytes by first casting it to a uint8*.
+///
+/// @returns Decremented pointer.
+constexpr void* VoidPtrDec(
+    void*  p,         ///< [in] Pointer to be decremented.
+    size_t numBytes)  ///< Number of bytes to decrement the pointer by.
+{
+    return (static_cast<uint8*>(p) - numBytes);
+}
+#else
 /// Increments a pointer by nBytes by first casting it to a uint8*.
 ///
 /// @returns Incremented pointer.
@@ -72,6 +113,7 @@ PAL_INLINE void* VoidPtrDec(
     void* ptr = const_cast<void*>(p);
     return (static_cast<uint8*>(ptr) - numBytes);
 }
+#endif
 
 /// Finds the number of bytes between two pointers by first casting them to uint8*.
 ///
@@ -89,7 +131,7 @@ PAL_INLINE size_t VoidPtrDiff(
 /// Determines if any of the bits set in "test" are also set in "src".
 ///
 /// @returns True if any bits in "test" are set in "src", false otherwise.
-PAL_INLINE bool TestAnyFlagSet(
+constexpr bool TestAnyFlagSet(
     uint32 src,   ///< Source pattern.
     uint32 test)  ///< Test pattern.
 {
@@ -99,7 +141,7 @@ PAL_INLINE bool TestAnyFlagSet(
 /// Determines if all of the bits set in "test" are also set in "src".
 ///
 /// @returns True if all bits set in "test" are also set in "src", false otherwise.
-PAL_INLINE bool TestAllFlagsSet(
+constexpr bool TestAllFlagsSet(
     uint32 src,   ///< Source pattern.
     uint32 test)  ///< Test pattern.
 {
@@ -115,8 +157,8 @@ PAL_INLINE bool TestAllFlagsSet(
 /// @returns True if the flag is set.
 template <typename T, size_t N>
 PAL_INLINE bool WideBitfieldIsSet(
-    T      (&bitfield)[N],
-    uint32 bit)
+    const T (&bitfield)[N],
+    uint32  bit)
 {
     const uint32 index = (bit / (sizeof(T) << 3));
     const uint32 mask  = (1 << (bit & ((sizeof(T) << 3) - 1)));
@@ -195,7 +237,7 @@ PAL_INLINE void WideBitfieldAndBits(
 /// Determines if a value is a power of two.
 ///
 /// @returns True if it is a power of two, false otherwise.
-PAL_INLINE bool IsPowerOfTwo(
+constexpr bool IsPowerOfTwo(
     uint64 value)  ///< Value to check.
 {
     return (value == 0) ? false : ((value & (value - 1)) == 0);
@@ -229,7 +271,7 @@ PAL_INLINE T Pow2Align(
 ///
 /// @returns The rounded quotient.
 template<typename T>
-constexpr PAL_INLINE T RoundUpQuotient(
+constexpr T RoundUpQuotient(
     T dividend, ///< Value to divide.
     T divisor)  ///< Value to divide by.
 {
@@ -240,7 +282,7 @@ constexpr PAL_INLINE T RoundUpQuotient(
 ///
 /// @returns Rounded value.
 template<typename T>
-PAL_INLINE T RoundUpToMultiple(
+constexpr T RoundUpToMultiple(
     T operand,   ///< Value to be aligned.
     T alignment) ///< Alignment desired.
 {
@@ -251,7 +293,7 @@ PAL_INLINE T RoundUpToMultiple(
 ///
 /// @returns Rounded value.
 template<typename T>
-PAL_INLINE T RoundDownToMultiple(
+constexpr T RoundDownToMultiple(
     T operand,    ///< Value to be aligned.
     T alignment)  ///< Alignment desired.
 {
@@ -298,13 +340,14 @@ PAL_INLINE T Pow2Pad(
 ///
 /// @returns The larger of the two inputs.
 template<typename T>
-PAL_INLINE T Max(
+constexpr T Max(
     T value1,  ///< First value to check.
     T value2)  ///< Second value to check.
 {
     return ((value1 > value2) ? value1 : value2);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 390
 template<typename T>
 constexpr PAL_INLINE T ConstexprMax(
     T value1,  ///< First value to check.
@@ -312,12 +355,13 @@ constexpr PAL_INLINE T ConstexprMax(
 {
     return ((value1 > value2) ? value1 : value2);
 }
+#endif
 
 /// Determines the minimum of two numbers.
 ///
 /// @returns The smaller of the two inputs.
 template<typename T>
-PAL_INLINE T Min(
+constexpr T Min(
     T value1,  ///< First value to check.
     T value2)  ///< Second value to check.
 {
@@ -328,23 +372,13 @@ PAL_INLINE T Min(
 ///
 /// @returns Clamped input number.
 template<typename T>
-PAL_INLINE T Clamp(
+constexpr T Clamp(
     T input,      ///< Input number to clamp.
     T lowBound,   ///< Lower-bound to clamp to.
     T highBound)  ///< Upper-bound to clamp to.
 {
-    if (input < lowBound)
-    {
-        return lowBound;
-    }
-    else if (input > highBound)
-    {
-        return highBound;
-    }
-    else
-    {
-        return input;
-    }
+    return ((input <= lowBound)  ? lowBound  :
+            (input >= highBound) ? highBound : input);
 }
 
 /// Computes the base-2 logarithm of an unsigned 64-bit integer.
@@ -460,7 +494,7 @@ PAL_INLINE bool WideBitMaskScanForward(
 /// Returns the high 32 bits of a 64-bit integer.
 ///
 /// @returns Returns the high 32 bits of a 64-bit integer.
-PAL_INLINE uint32 HighPart(
+constexpr uint32 HighPart(
     uint64 value)  ///< 64-bit input value.
 {
     return (value & 0xFFFFFFFF00000000) >> 32;
@@ -469,7 +503,7 @@ PAL_INLINE uint32 HighPart(
 /// Returns the low 32 bits of a 64-bit integer.
 ///
 /// @returns Returns the low 32 bits of a 64-bit integer.
-PAL_INLINE uint32 LowPart(
+constexpr uint32 LowPart(
     uint64 value)  ///< 64-bit input value.
 {
     return (value & 0x00000000FFFFFFFF);
@@ -509,6 +543,21 @@ PAL_INLINE void Strncat(
     // Compute the length of the destination string to prevent buffer overruns.
     const size_t dstLength = strlen(pDst);
     strncat(pDst, pSrc, (sizeDst - dstLength - 1));
+}
+
+/// Simple wrapper for strtok_s or strtok_r which provides a safe version of strtok.
+PAL_INLINE char* Strtok(
+    char*       str,    ///< [in] Token string.
+    const char* delim,  ///< [in] Token delimit.
+    char**      buf)    ///< [in,out] Buffer to store the rest of the string.
+{
+    PAL_ASSERT((delim != nullptr) && (buf != nullptr));
+
+    char* pToken = NULL;
+
+    pToken = strtok_r(str, delim, buf);
+
+    return pToken;
 }
 
 /// Rounds the specified pointer up to the nearest value meeting the specified 'alignment'.  Only power of 2 alignments

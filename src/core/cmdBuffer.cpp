@@ -107,6 +107,8 @@ CmdBuffer::CmdBuffer(
     m_pMemAllocator(nullptr),
     m_pMemAllocatorStartPos(nullptr),
     m_embeddedData(device.GetPlatform()),
+    m_gpuScratchMem(device.GetPlatform()),
+    m_gpuScratchMemAllocLimit(0),
     m_lastPagingFence(0),
     m_p2pBltWaInfo(device.GetPlatform()),
     m_p2pBltWaLastChunkAddr(0),
@@ -139,6 +141,7 @@ CmdBuffer::~CmdBuffer()
 {
     ReturnLinearAllocator();
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
+    ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
 }
 
 // =====================================================================================================================
@@ -155,6 +158,11 @@ Result CmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
     m_internalInfo.flags.u32all = internalInfo.flags.u32all;
+
+    if (m_pCmdAllocator != nullptr)
+    {
+        m_gpuScratchMemAllocLimit = (m_pCmdAllocator->ChunkSize(GpuScratchMemAlloc) / sizeof(uint32));
+    }
 
     Result result = Reset(nullptr, true);
 
@@ -287,6 +295,7 @@ Result CmdBuffer::BeginCommandStreams(
     {
         // NOTE: PAL does not currently support retaining command buffer chunks when doing an implicit reset
         ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
+        ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
     }
 
     return Result::Success;
@@ -313,14 +322,20 @@ Result CmdBuffer::End()
         // NOTE: The root chunk comes from the last command stream in this command buffer because for universal command
         // buffers, the order of command streams is CE, DE. We always want the "DE" to be the root since the CE may not
         // have any commands, depending on what operations get recorded to the command buffer.
-        const Pal::CmdStream* pCmdStream = GetCmdStream(NumCmdStreams() - 1);
+        const Pal::CmdStream*const pCmdStream = GetCmdStream(NumCmdStreams() - 1);
 
         if (pCmdStream->GetNumChunks() > 0)
         {
-            CmdStreamChunk* pRootChunk = pCmdStream->GetFirstChunk();
+            CmdStreamChunk*const pRootChunk = pCmdStream->GetFirstChunk();
 
             // Update the embedded data chunks with the correct root chunk reference.
             for (auto iter = m_embeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
+            {
+                iter.Get()->UpdateRootInfo(pRootChunk);
+            }
+
+            // Update the GPU scratch-memory chunks with the correct root chunk reference.
+            for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
             {
                 iter.Get()->UpdateRootInfo(pRootChunk);
             }
@@ -359,6 +374,7 @@ Result CmdBuffer::Reset(
     ReturnLinearAllocator();
 
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, returnGpuMemory);
+    ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, returnGpuMemory);
 
     Result ret = Result::Success;
     if ((pCmdAllocator != nullptr) && (pCmdAllocator != m_pCmdAllocator))
@@ -371,7 +387,8 @@ Result CmdBuffer::Reset(
         }
         else
         {
-            m_pCmdAllocator = static_cast<CmdAllocator*>(pCmdAllocator);
+            m_pCmdAllocator           = static_cast<CmdAllocator*>(pCmdAllocator);
+            m_gpuScratchMemAllocLimit = (m_pCmdAllocator->ChunkSize(GpuScratchMemAlloc) / sizeof(uint32));
 
         }
     }
@@ -526,6 +543,52 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     uint32* pSpace  = pNewChunk->GetSpace(alignedSizeInDwords, &gpuAddress) + alignmentOffset;
 
     return pSpace;
+}
+
+// =====================================================================================================================
+// Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as CE RAM dumps, etc.  This
+// will result in pulling a new chunk from the command allocator if necessary.  This memory has the same lifetime as the
+// embedded data allocations and the command buffer itself.
+// Returns: GPU virtual address of the memory.
+gpusize CmdBuffer::AllocateGpuScratchMem(
+    uint32 sizeInDwords,
+    uint32 alignmentInDwords)
+{
+    // The size of an aligned data allocation can change per chunk.  We may need to compute the size twice if this
+    // call results in pulling a new chunk from the allocator.
+    CmdStreamChunk*const pOldChunk = m_gpuScratchMem.chunkList.IsEmpty()
+        ? GetDataChunk(GpuScratchMemAlloc, &m_gpuScratchMem, 1)
+        : m_gpuScratchMem.chunkList.Back();
+
+    // Caller to this function should make sure the requested size is not larger than the limit.
+    PAL_ASSERT(sizeInDwords <= m_gpuScratchMemAllocLimit);
+
+    uint32 alignedSizeInDwords = pOldChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
+    // If aligning the requested size bumps us up over the allocation limit, just use the limit itself as the
+    // requested size.  This works because it will force the chunk list to pull a new chunk from the allocator
+    // and that will be guaranteed to fit since the beginning of each chunk is larger than the maximum expected
+    // alignment.
+    if (alignedSizeInDwords > m_gpuScratchMemAllocLimit)
+    {
+        alignedSizeInDwords = m_gpuScratchMemAllocLimit;
+    }
+
+    CmdStreamChunk*const pNewChunk = GetDataChunk(GpuScratchMemAlloc, &m_gpuScratchMem, alignedSizeInDwords);
+    if (pNewChunk != pOldChunk)
+    {
+        // The previously active chunk didn't have enough space left, compute the size again using the new chunk.
+        alignedSizeInDwords = pNewChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
+    }
+    PAL_ASSERT(alignedSizeInDwords <= m_gpuScratchMem.chunkDwordsAvailable);
+
+    // Record that the tail object in our chunk list has less space available than it did before.
+    m_gpuScratchMem.chunkDwordsAvailable -= alignedSizeInDwords;
+
+    gpusize gpuVirtAddr  = 0;
+    uint32*const pUnused = pNewChunk->GetSpace(alignedSizeInDwords, &gpuVirtAddr);
+
+    // Compute aligned GPU virtual address for caller.
+    return (gpuVirtAddr + alignedSizeInDwords - sizeInDwords);
 }
 
 // =====================================================================================================================
@@ -801,10 +864,9 @@ void CmdBuffer::OpenCmdBufDumpFile(
     const auto& settings = m_device.Settings();
     static const char* const pSuffix[] =
     {
-        "",         // CmdBufDumpMode::CmdBufDumpModeDisabled
-        ".txt",     // CmdBufDumpMode::CmdBufDumpModeText
-        ".bin",     // CmdBufDumpMode::CmdBufDumpModeBinary
-        ".pm4"      // CmdBufDumpMode::CmdBufDumpModeBinaryHeaders
+        ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
+        ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
+        ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
     };
 
     const char* pLogDir = &settings.cmdBufDumpDirectory[0];

@@ -103,8 +103,10 @@ private:
     uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
 
     void BuildPm4Headers();
-
     void UpdateRingSizes(const AbiProcessor& abiProcessor);
+
+    void SetupSignatureFromElf(
+        const AbiProcessor& abiProcessor);
 
     Device*const  m_pDevice;
 

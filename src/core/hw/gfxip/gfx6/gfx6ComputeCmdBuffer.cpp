@@ -78,9 +78,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    // Because Compute pipelines use a fixed user-data entry mapping, the CS CmdSetUserData callback never changes.
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &ComputeCmdBuffer::CmdSetUserDataCs);
-
     const bool sqttEnabled = (device.Settings().gpuProfilerMode > GpuProfilerSqttOff) &&
                              (Util::TestAnyFlagSet(device.Settings().gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
@@ -139,7 +136,6 @@ void ComputeCmdBuffer::ResetState()
     Pal::ComputeCmdBuffer::ResetState();
 
     m_pSignatureCs = &NullCsSignature;
-
     ResetUserDataTable(&m_spillTableCs);
 
     for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
@@ -151,108 +147,6 @@ void ComputeCmdBuffer::ResetState()
     {
         // Non-DX12 clients and root command buffers start without a valid predicate GPU address.
         m_predGpuAddr = 0;
-    }
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdBindPipeline(
-    const PipelineBindParams& params)
-{
-    Pal::ComputeCmdBuffer::CmdBindPipeline(params);
-
-    if (params.pPipeline != nullptr)
-    {
-        auto*const pNewPipeline = static_cast<const ComputePipeline*>(params.pPipeline);
-        auto&      signature    = pNewPipeline->Signature();
-
-        if (signature.spillThreshold != NoUserDataSpilling)
-        {
-            if ((signature.spillThreshold < m_pSignatureCs->spillThreshold) ||
-                (signature.userDataLimit  > m_pSignatureCs->userDataLimit))
-            {
-                // The new pipeline has a lower spill threshold than the previous one, or has a higher user-data entry
-                // count than the previous one. In either case, we mark the spill table's contents as dirty (indicating
-                // that the command buffer's CPU copy of user-data is more up-to-date than the GPU spill table's). The
-                // contents will be uploaded to the GPU in time for the next Dispatch.
-                m_spillTableCs.contentsDirty = 1;
-            }
-            else if (m_pSignatureCs->spillThreshold == NoUserDataSpilling)
-            {
-                // Compute pipelines always use the same registers for the spill table address, but if the old pipeline
-                // wasn't spilling anything, then the previous Dispatch would not have written the spill address to the
-                // proper registers.
-                m_spillTableCs.gpuAddrDirty = 1;
-            }
-        }
-
-        for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-        {
-            if ((signature.indirectTableAddr[id] != UserDataNotMapped) &&
-                (signature.indirectTableAddr[id] != m_pSignatureCs->indirectTableAddr[id]))
-            {
-                // If this indirect user-data table's GPU address is mapped to a different user-data entry than it was
-                // with the previous pipeline, we need to rewrite the user-data entries at Dispatch time.
-                m_indirectUserDataInfo[id].state.gpuAddrDirty = 1;
-            }
-        }
-
-        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream, pCmdSpace, params.cs, *m_pPrefetchMgr);
-
-        // NOTE: Compute pipelines always use a fixed user-data mapping from virtualized entries to physical SPI
-        // registers, so we do not need to rewrite any bound user-data entries to the correct registers. Entries
-        // which don't fall beyond the spill threshold are always written to registers in CmdSetUserDataCs().
-        //
-        // Additionally, if this is a nested command buffer, then we have no way of knowing the register values to
-        // inherit from our caller because compute queues do not support LOAD_SH_REG packets.
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-
-        m_pSignatureCs = &signature;
-    }
-    else
-    {
-        m_pSignatureCs = &NullCsSignature;
-    }
-}
-
-// =====================================================================================================================
-// CmdSetUserData callback which writes user-data registers and dirties the spill table (for compute).
-void PAL_STDCALL ComputeCmdBuffer::CmdSetUserDataCs(
-    Pal::ICmdBuffer*  pCmdBuffer,
-    uint32            firstEntry,
-    uint32            entryCount,
-    const uint32*     pEntryValues)
-{
-    Pal::GfxCmdBuffer::CmdSetUserDataCs(pCmdBuffer, firstEntry, entryCount, pEntryValues);
-
-    const uint32 lastEntry = (firstEntry + entryCount - 1);
-
-    auto*const pSelf = static_cast<Gfx6::ComputeCmdBuffer*>(pCmdBuffer);
-    PAL_ASSERT(lastEntry < pSelf->m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries);
-
-    if (firstEntry < MaxFastUserDataEntriesCs)
-    {
-        constexpr uint16 BaseRegister = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
-        const     uint32 lastRegister = (Min(lastEntry, (MaxFastUserDataEntriesCs - 1)) + BaseRegister);
-
-        uint32* pCmdSpace = pSelf->m_cmdStream.ReserveCommands();
-        pCmdSpace = pSelf->m_cmdStream.WriteSetSeqShRegs((BaseRegister + firstEntry),
-                                                         lastRegister,
-                                                         ShaderCompute,
-                                                         pEntryValues,
-                                                         pCmdSpace);
-        pSelf->m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
-    if ((static_cast<uint32>(pSelf->m_pSignatureCs->spillThreshold) <= lastEntry) &&
-        (static_cast<uint32>(pSelf->m_pSignatureCs->userDataLimit)   > firstEntry))
-    {
-        // If one or more of the entries being set are spilled to memory by the active pipeline, then we need to
-        // mark the spill table's contents as dirty (so that the contents are uploaded to GPU memory before the
-        // next Dispatch).
-        pSelf->m_spillTableCs.contentsDirty = 1;
     }
 }
 
@@ -328,25 +222,15 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
 
-    gpusize gpuVirtAddrNumTgs = 0uLL;
-    if (pThis->m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
-    {
-        // Reserve embedded user data for the number of launched thread groups if the active pipeline needs to access
-        // the number of thread groups...
-        uint32*const pData = pThis->CmdAllocateEmbeddedData(3, 4, &gpuVirtAddrNumTgs);
-        pData[0] = x;
-        pData[1] = y;
-        pData[2] = z;
-    }
-    pThis->ValidateDispatch(gpuVirtAddrNumTgs);
+    uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
+
+    pCmdSpace = pThis->ValidateDispatch(0uLL, x, y, z, pCmdSpace);
 
     const bool dimInThreads = pThis->NeedFixupMoreThan4096ThreadGroups();
     if (dimInThreads)
     {
         pThis->ConvertThreadGroupsToThreads(&x, &y, &z);
     }
-
-    uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     if (pThis->m_gfxCmdBufState.packetPredicate != 0)
     {
@@ -381,12 +265,12 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     }
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
-    PAL_ASSERT(offset + SizeDispatchIndirectArgs <= gpuMemory.Desc().size);
-
-    const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
-    pThis->ValidateDispatch(gpuVirtAddr);
+    PAL_ASSERT(offset + sizeof(DispatchIndirectArgs) <= gpuMemory.Desc().size);
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
+
+    const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
+    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0, 0, 0, pCmdSpace);
 
     if (pThis->m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
     {
@@ -445,34 +329,26 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
-    gpusize gpuVirtAddrNumTgs = 0uLL;
-    if (pThis->m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
-    {
-        // Reserve embedded user data for the number of launched thread groups if the active pipeline needs to access
-        // the number of thread groups...
-        uint32*const pData = pThis->CmdAllocateEmbeddedData(3, 4, &gpuVirtAddrNumTgs);
-        pData[0] = xDim;
-        pData[1] = yDim;
-        pData[2] = zDim;
-    }
-    pThis->ValidateDispatch(gpuVirtAddrNumTgs);
-
-    const uint32  starts[3] = { xOffset, yOffset, zOffset };
-    uint32          ends[3] = { xOffset + xDim, yOffset + yDim, zOffset + zDim };
-
-    const bool dimInThreads = pThis->NeedFixupMoreThan4096ThreadGroups();
-    if (dimInThreads)
-    {
-        pThis->ConvertThreadGroupsToThreads(&ends[0], &ends[1], &ends[2]);
-    }
-
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
+    pCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pCmdSpace);
+
+    const uint32 starts[3] = { xOffset, yOffset, zOffset };
     pCmdSpace  = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                       mmCOMPUTE_START_Z,
                                                       ShaderCompute,
                                                       starts,
                                                       pCmdSpace);
+
+    xDim += xOffset;
+    yDim += yOffset;
+    zDim += zOffset;
+
+    const bool dimInThreads = pThis->NeedFixupMoreThan4096ThreadGroups();
+    if (dimInThreads)
+    {
+        pThis->ConvertThreadGroupsToThreads(&xDim, &yDim, &zDim);
+    }
 
     if (pThis->m_gfxCmdBufState.packetPredicate != 0)
     {
@@ -482,9 +358,9 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     // The DIM_X/Y/Z in DISPATCH_DIRECT packet are used to program COMPUTE_DIM_X/Y/Z registers, which are actually the
     // end block positions instead of execution block dimensions. So we need to use the dimensions plus offsets.
     constexpr bool ForceStartAt000 = false;
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(ends[0],
-                                                      ends[1],
-                                                      ends[2],
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(xDim,
+                                                      yDim,
+                                                      zDim,
                                                       dimInThreads,
                                                       ForceStartAt000,
                                                       PredDisable,
@@ -671,23 +547,28 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
 }
 
 // =====================================================================================================================
-// Performs dispatch-time validation.
-void ComputeCmdBuffer::ValidateDispatch(
-    gpusize gpuVirtAddrNumTgs) // GPU virtual address of a buffer containing the number of thread groups to launch in
-                               // each dimension (x/y/z)
+// Helper function which is responsible for making sure all user-data entries are written to either the spill table or
+// to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
+// Dispatch-time validation.
+template <bool HasPipelineChanged>
+uint32* ComputeCmdBuffer::ValidateUserData(
+    const ComputePipelineSignature* pPrevSignature, // In: Signature of pipeline bound for previous Dispatch. Will be
+                                                    // nullptr if the pipeline is not changing.
+    uint32*                         pCmdSpace)
 {
-    m_computeState.pipelineState.dirtyFlags.u32All = 0;
+    PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
+               (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
-    // Step (1):
-    // <> Perform early validation for the indirect user-data tables:
+    // Step #1:
+    // If any indirect user-data tables were updated since the previous Dispatch, and are referenced by the current
+    // pipeline, they must be relocated to a new location in GPU memory, and re-uploaded.  This will result in the
+    // user-data entry associated with those tables also being updated with the new address.
     for (uint16 tableId = 0; tableId < MaxIndirectUserDataTables; ++tableId)
     {
-        if (m_pSignatureCs->indirectTableAddr[tableId] != UserDataNotMapped)
+        const uint16 entryPlusOne = m_pSignatureCs->indirectTableAddr[tableId];
+        if ((entryPlusOne != UserDataNotMapped) && (m_indirectUserDataInfo[tableId].watermark > 0))
         {
-            // Step (1a):
-            // <> If any of the indirect user-data tables were dirtied since the previous Dispatch, those tables
-            //    need to be relocated to a new embedded-data location.
-            if (m_indirectUserDataInfo[tableId].state.contentsDirty != 0)
+            if (m_indirectUserDataInfo[tableId].state.contentsDirty)
             {
                 RelocateEmbeddedUserDataTable(this,
                                               &m_indirectUserDataInfo[tableId].state,
@@ -698,70 +579,207 @@ void ComputeCmdBuffer::ValidateDispatch(
                                          m_indirectUserDataInfo[tableId].watermark,
                                          m_indirectUserDataInfo[tableId].pData);
             }
-
-            // Step (1b):
-            // <> If any of the indirect user-data tables' GPU addresses were dirtied since the previous Dispatch,
-            //    their GPU addresses need to be uploaded to the correct user-data entries.
-            if ((m_indirectUserDataInfo[tableId].state.gpuAddrDirty != 0) &&
-                ((m_pSignatureCs->indirectTableAddr[tableId] - 1) >= m_pSignatureCs->spillThreshold))
+            // The GPU virtual address for the indirect table needs to be updated if either the table was relocated,
+            // or if the pipeline has changed and the previous pipeline's mapping for this table doesn't match the
+            // new mapping.
+            if ((HasPipelineChanged && (pPrevSignature->indirectTableAddr[tableId] != entryPlusOne)) ||
+                m_indirectUserDataInfo[tableId].state.gpuAddrDirty)
             {
-                // The spill table needs to be updated if the indirect user-data tables' GPU virtual address is
-                // beyond the spill threshold.
-                m_spillTableCs.contentsDirty = 1;
+                const uint32 gpuVirtAddrLo = LowPart(m_indirectUserDataInfo[tableId].state.gpuVirtAddr);
+                const uint16 entry         = (entryPlusOne - 1);
+
+                WideBitfieldSetBit(m_computeState.csUserDataEntries.touched, entry);
+                WideBitfieldSetBit(m_computeState.csUserDataEntries.dirty,   entry);
+                m_computeState.csUserDataEntries.entries[entry]    = gpuVirtAddrLo;
+                m_indirectUserDataInfo[tableId].state.gpuAddrDirty = 0;
             }
         }
-    }
+    } // for each indirect user-data table
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    // Step #2:
+    // All indirect user-data tables are now up-to-date in GPU memory, and their GPU virtual addresses are now stored
+    // in the associated user-data entries.  It is now safe to write all dirty user-data entries to their mapped user
+    // SGPR's (including any which were dirtied in step #1), and to check if the spill table needs updating.
+    pCmdSpace = WriteDirtyUserDataEntries(pCmdSpace);
 
-    // Step (2):
-    // <> If any of the indirect user-data tables' GPU addresses were dirtied and mapped to user-data entries not
-    //    in the spill table, we need to re-write the appropriate SPI registers.
-    pCmdSpace = UpdateUserDataTableAddressses(pCmdSpace);
-
-    // Step (3):
-    // <> If the spill table was dirtied prior to this Dispatch, we need to relocate it so that we can properly
-    //    upload its contents. To avoid unnecessary embedded-data memory usage, we'll only upload the window of
-    //    the spill table which the active pipeline will actually read from.
-    if ((m_pSignatureCs->spillThreshold != NoUserDataSpilling) && (m_spillTableCs.contentsDirty != 0))
+    if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
     {
-        const uint32 sizeInDwords = (m_pSignatureCs->userDataLimit - m_pSignatureCs->spillThreshold);
+        PAL_ASSERT(m_pSignatureCs->userDataLimit > 0);
 
-        RelocateEmbeddedUserDataTable(this, &m_spillTableCs, m_pSignatureCs->spillThreshold, sizeInDwords);
-        UploadToUserDataTableCpu(&m_spillTableCs,
-                                 m_pSignatureCs->spillThreshold,
-                                 sizeInDwords,
-                                 &m_computeState.csUserDataEntries.entries[0]);
-    }
+        // Step #3:
+        // The spill table will be marked dirty if the checks during step #2 above found that any dirty user-data falls
+        // within the spilled region for the active pipeline.  Also, if the pipeline is changing, it is possible that
+        // the region of the spill table which was relevant to that pipeline doesn't match the important region for the
+        // new pipeline.  In that case, the spill table contents must also be updated.
+        if ((HasPipelineChanged && ((m_pSignatureCs->spillThreshold < pPrevSignature->spillThreshold) ||
+                                    (m_pSignatureCs->userDataLimit  > pPrevSignature->userDataLimit)))
+            || m_spillTableCs.contentsDirty)
+        {
+            const uint32 sizeInDwords = (m_pSignatureCs->userDataLimit - m_pSignatureCs->spillThreshold);
 
-    // Step (4):
-    // <> If the spill table's GPU address was dirtied, we need to re-write the SPI user-data register(s) which
-    //    contain the table's GPU address.
-    if ((m_spillTableCs.gpuAddrDirty != 0) && (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped))
+            RelocateEmbeddedUserDataTable(this, &m_spillTableCs, m_pSignatureCs->spillThreshold, sizeInDwords);
+            UploadToUserDataTableCpu(&m_spillTableCs,
+                                     m_pSignatureCs->spillThreshold,
+                                     sizeInDwords,
+                                     &m_computeState.csUserDataEntries.entries[0]);
+        }
+
+        // Step #4:
+        // If the spill table was relocated during step #3, or if the pipeline is changing and the previous pipeline
+        // did not spill any user-data to memory, we need to re-write the spill table GPU address to its user-SGPR.
+        if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling))
+            || m_spillTableCs.gpuAddrDirty)
+        {
+            pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
+                                                                    LowPart(m_spillTableCs.gpuVirtAddr),
+                                                                    pCmdSpace);
+            m_spillTableCs.gpuAddrDirty = 0;
+        }
+    } // if current pipeline uses the spill table
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Performs Dispatch-time validation of pipeline state and user-data entries.
+uint32* ComputeCmdBuffer::ValidateDispatch(
+    gpusize indirectGpuVirtAddr,
+    uint32  xDim,
+    uint32  yDim,
+    uint32  zDim,
+    uint32* pCmdSpace)
+{
+    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
     {
-        pCmdSpace =  m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
-                                                                 LowPart(m_spillTableCs.gpuVirtAddr),
-                                                                 pCmdSpace);
-        m_spillTableCs.gpuAddrDirty = 0;
+        const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+
+        pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream,
+                                                pCmdSpace,
+                                                m_computeState.dynamicCsInfo,
+                                                *m_pPrefetchMgr);
+
+        const auto*const pPrevSignature = m_pSignatureCs;
+        m_pSignatureCs                  = &pNewPipeline->Signature();
+
+        pCmdSpace = ValidateUserData<true>(pPrevSignature, pCmdSpace);
     }
+    else
+    {
+        pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
+    }
+
+    m_computeState.pipelineState.dirtyFlags.u32All = 0;
 
     if (m_pSignatureCs->numWorkGroupsRegAddr != UserDataNotMapped)
     {
-        // Write the GPU virtual address of the table containing the dispatch dimensions to the appropriate SPI
-        // registers if the active pipeline needs to access the number of thread groups...
+        // Indirect Dispatches by definition have the number of thread-groups to launch stored in GPU memory at the
+        // specified address.  However, for direct Dispatches, we must allocate some embedded memory to store this
+        // information.
+        if (indirectGpuVirtAddr == 0uLL) // This is a direct Dispatch.
+        {
+            uint32*const pData = CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr);
+            pData[0] = xDim;
+            pData[1] = yDim;
+            pData[2] = zDim;
+        }
+
         pCmdSpace = m_cmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
                                                   (m_pSignatureCs->numWorkGroupsRegAddr + 1),
                                                   ShaderCompute,
-                                                  &gpuVirtAddrNumTgs,
+                                                  &indirectGpuVirtAddr,
                                                   pCmdSpace);
     }
 
-    const auto*const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+    return pCmdSpace;
+}
 
-    // We better have a pipeline bound if we're doing pre-dispatch workarounds.
-    PAL_ASSERT(pPipeline != nullptr);
+// =====================================================================================================================
+// Helper function responsible for writing all dirty user-data entries to their respective user-SGPR's.  Also checks if
+// any dirty user-data entries fall into the spill-table region and marks the spill table dirty accordingly.
+uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
+    uint32* pCmdSpace)
+{
+    // Compute pipelines all use a fixed user-data mapping of entries to user-SGPR's, because compute command buffers
+    // are not able to use LOAD_SH_REG packets, which are used for inheriting user-data entries in a nested command
+    // buffer.  The only way to correctly handle user-data inheritance is by using a fixed mapping.  This has the side
+    // effect of allowing us to know that only the first few entries ever need to be written to user-SGPR's, which lets
+    // us get away with only checking the first sub-mask of the user-data entries' wide-bitfield of dirty flags.
+    static_assert(MaxFastUserDataEntriesCs <= UserDataEntriesPerMask,
+                  "The CS user-data entries mapped to user-SGPR's spans multiple wide-bitfield elements!");
+    constexpr uint32 AllFastUserDataEntriesMask = ((1 << MaxFastUserDataEntriesCs) - 1);
+    const uint16 userSgprDirtyMask = (m_computeState.csUserDataEntries.dirty[0] & AllFastUserDataEntriesMask);
 
-    m_cmdStream.CommitCommands(pCmdSpace);
+    // Additionally, dirty compute user-data is always written to user-SGPR's if it could be mapped by a pipeline,
+    // which lets us avoid any complex logic when switching pipelines.
+    constexpr uint16 BaseUserSgpr = FirstUserDataRegAddr[static_cast<uint32>(HwShaderStage::Cs)];
+
+    uint16 lastEntry = 0;
+    uint16 count     = 0;
+    for (uint16 e = 0; e < MaxFastUserDataEntriesCs; ++e)
+    {
+        while ((e < MaxFastUserDataEntriesCs) && ((userSgprDirtyMask & (1 << e)) != 0))
+        {
+            PAL_ASSERT((lastEntry == 0) || (lastEntry == (e - 1)));
+            lastEntry = e;
+            ++count;
+            ++e;
+        }
+
+        if (count > 0)
+        {
+            const uint16 firstEntry = (lastEntry - count + 1);
+            pCmdSpace = m_cmdStream.WriteSetSeqShRegs((BaseUserSgpr + firstEntry),
+                                                      (BaseUserSgpr + lastEntry),
+                                                      ShaderCompute,
+                                                      &m_computeState.csUserDataEntries.entries[firstEntry],
+                                                      pCmdSpace);
+
+            // Reset accumulators for the next packet.
+            lastEntry = 0;
+            count     = 0;
+        }
+    }
+
+    // If the currently active pipeline spills any entries to GPU memory, we need to check if any of the dirty
+    // user-data entries fall within the spilled region for the current pipeline.
+    if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
+    {
+        PAL_ASSERT(m_pSignatureCs->userDataLimit != 0);
+
+        // Since the spill table is managed by the CPU in embedded memory, it needs to be fully "re-uploaded" for
+        // each Dispatch whenever any contents change.  Therefore, the following loop just needs to check the
+        // relevant dirty flags and mark the spill table dirty if any were set.
+        const uint32 firstMaskId = (m_pSignatureCs->spillThreshold / UserDataEntriesPerMask);
+        const uint32 lastMaskId  = ((m_pSignatureCs->userDataLimit - 1) / UserDataEntriesPerMask);
+        for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
+        {
+            uint16 dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+            if (maskId == firstMaskId)
+            {
+                // Ignore the dirty bits for any entries below the spill threshold.
+                const uint16 firstEntryInMask = (m_pSignatureCs->spillThreshold & (UserDataEntriesPerMask - 1));
+                dirtyMask &= ~((1 << firstEntryInMask) - 1);
+            }
+            if (maskId == lastMaskId)
+            {
+                // Ignore the dirty bits for any entries beyond the user-data limit.
+                const uint16 lastEntryInMask = ((m_pSignatureCs->userDataLimit - 1) & (UserDataEntriesPerMask - 1));
+                dirtyMask &= ((1 << (lastEntryInMask + 1)) - 1);
+            }
+
+            if (dirtyMask != 0)
+            {
+                m_spillTableCs.contentsDirty = 1;
+                m_computeState.csUserDataEntries.dirty[maskId] &= ~dirtyMask;
+            }
+        } // for each wide-bitfield sub-mask
+    } // if current pipeline spills user-data
+
+    // Clear all dirty bits for user-data entries which were written to user-SGPR's.  These are cleared last because
+    // some entries may be simultaneously spilled to GPU memory and mapped to a user-SGPR.
+    m_computeState.csUserDataEntries.dirty[0] &= ~AllFastUserDataEntriesMask;
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -1027,20 +1045,21 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
 {
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
-        auto*const pCmdBuffer = static_cast<Gfx6::ComputeCmdBuffer*>(ppCmdBuffers[buf]);
+        auto*const pCallee = static_cast<Gfx6::ComputeCmdBuffer*>(ppCmdBuffers[buf]);
+        PAL_ASSERT(pCallee != nullptr);
 
         // Track the most recent OS paging fence value across all nested command buffers called from this one.
-        m_lastPagingFence = Max(m_lastPagingFence, pCmdBuffer->LastPagingFence());
+        m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
 
         // All user-data entries have been uploaded into the GPU memory the callee expects to receive them in, so we
         // can safely "call" the nested command buffer's command stream.
-        m_cmdStream.TrackNestedEmbeddedData(pCmdBuffer->m_embeddedData.chunkList);
-        m_cmdStream.TrackNestedCommands(pCmdBuffer->m_cmdStream);
-        m_cmdStream.Call(pCmdBuffer->m_cmdStream, pCmdBuffer->IsExclusiveSubmit(), false);
+        m_cmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
+        m_cmdStream.TrackNestedCommands(pCallee->m_cmdStream);
+        m_cmdStream.Call(pCallee->m_cmdStream, pCallee->IsExclusiveSubmit(), false);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.
-        LeakNestedCmdBufferState(*pCmdBuffer);
+        LeakNestedCmdBufferState(*pCallee);
     }
 }
 
@@ -1125,11 +1144,10 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
         pCmdSpace += m_cmdUtil.BuildRewind(false, true, pCmdSpace);
     }
 
-    m_cmdStream.CommitCommands(pCmdSpace);
-
     // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the
     // generated command chunks.
-    ValidateDispatch(0uLL);
+    pCmdSpace = ValidateDispatch(0uLL, 0, 0, 0, pCmdSpace);
+    m_cmdStream.CommitCommands(pCmdSpace);
 
     CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx6Generator, *m_pSignatureCs);
 
@@ -1145,7 +1163,7 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
     const Pal::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
     uint32                           maxCommands,
-    uint32*                          pCommandsInChunk, // [out] How many commands can safely fit into the command chunk
+    uint32*                          pCommandsInChunk, // Out: How many commands can safely fit into the command chunk
     gpusize*                         pEmbeddedDataAddr,
     uint32*                          pEmbeddedDataSize)
 {
@@ -1234,11 +1252,6 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
     const ComputeCmdBuffer& cmdBuffer)
 {
     Pal::ComputeCmdBuffer::LeakNestedCmdBufferState(cmdBuffer);
-
-    if (cmdBuffer.m_computeState.pipelineState.pPipeline != nullptr)
-    {
-        m_pSignatureCs = cmdBuffer.m_pSignatureCs;
-    }
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -1421,45 +1434,6 @@ void ComputeCmdBuffer::WriteEventCmd(
 }
 
 // =====================================================================================================================
-// Helper function which updates the GPU virtual address for each indirect user-data table for the currently bound
-// pipeline. The addresses are written to either SPI user-data registers or the compute spill table.
-uint32* ComputeCmdBuffer::UpdateUserDataTableAddressses(
-    uint32* pCmdSpace)
-{
-    for (uint16 tableId = 0; tableId < MaxIndirectUserDataTables; ++tableId)
-    {
-        if ((m_pSignatureCs->indirectTableAddr[tableId] != UserDataNotMapped) &&
-            (m_indirectUserDataInfo[tableId].state.gpuAddrDirty != 0))
-        {
-            const uint16 mappedEntry   = (m_pSignatureCs->indirectTableAddr[tableId] - 1);
-            const uint32 gpuVirtAddrLo = LowPart(m_indirectUserDataInfo[tableId].state.gpuVirtAddr);
-
-            if (mappedEntry >= m_pSignatureCs->spillThreshold)
-            {
-                // NOTE: This function is only ever called during Dispatch-time validation, before all contents of the
-                // spill table are uploaded to GPU memory. Therefore, we only need to mark the spill table's contents
-                // as dirty, and it will be updated later on during the validation process.
-                m_spillTableCs.contentsDirty = 1;
-            }
-            else
-            {
-                PAL_ASSERT(m_pSignatureCs->stage.regAddr[mappedEntry] != UserDataNotMapped);
-                pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.regAddr[mappedEntry],
-                                                                        gpuVirtAddrLo,
-                                                                        pCmdSpace);
-            }
-
-            WideBitfieldSetBit(m_computeState.csUserDataEntries.touched, mappedEntry);
-            m_computeState.csUserDataEntries.entries[mappedEntry] = gpuVirtAddrLo;
-
-            m_indirectUserDataInfo[tableId].state.gpuAddrDirty = 0;
-        }
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
 // Enables or disables a flexible predication check which the CP uses to determine if a draw or dispatch can be skipped
 // based on the results of prior GPU work.
 // SEE: CmdUtil::BuildSetPredication(...) for more details on the meaning of this method's parameters.
@@ -1595,6 +1569,48 @@ void ComputeCmdBuffer::InheritStateFromCmdBuf(
         {
             CmdSetIndirectUserData(i, 0, numEntries, pData);
         }
+    }
+}
+
+// =====================================================================================================================
+// Copy memory using the CP's DMA engine
+void ComputeCmdBuffer::CpCopyMemory(
+    gpusize dstAddr,
+    gpusize srcAddr,
+    gpusize numBytes)
+{
+    // We want to read and write through L2 because it's faster and expected by CoherCopy but if it isn't supported
+    // we need to fall back to a memory-to-memory copy.
+    const bool supportsL2 = (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6);
+
+    PAL_ASSERT(numBytes < (1ull << 32));
+
+    DmaDataInfo dmaDataInfo = {};
+    dmaDataInfo.dstSel      = supportsL2 ? CPDMA_DST_SEL_DST_ADDR_USING_L2 : CPDMA_DST_SEL_DST_ADDR;
+    dmaDataInfo.srcSel      = supportsL2 ? CPDMA_SRC_SEL_SRC_ADDR_USING_L2 : CPDMA_SRC_SEL_SRC_ADDR;
+    dmaDataInfo.sync        = false;
+    dmaDataInfo.usePfp      = false;
+    dmaDataInfo.dstAddr     = dstAddr;
+    dmaDataInfo.srcAddr     = srcAddr;
+    dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    if (m_gfxCmdBufState.packetPredicate != 0)
+    {
+        pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, m_cmdUtil.GetDmaDataSizeInDwords(dmaDataInfo), pCmdSpace);
+    }
+    pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
+    m_cmdStream.CommitCommands(pCmdSpace);
+
+    SetGfxCmdBufCpBltState(true);
+
+    if (supportsL2)
+    {
+        SetGfxCmdBufCpBltWriteCacheState(true);
+    }
+    else
+    {
+        SetGfxCmdBufCpMemoryWriteL2CacheStaleState(true);
     }
 }
 

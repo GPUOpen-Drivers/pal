@@ -427,6 +427,11 @@ float UFixedToFloat(
     }
     else
     {
+        // Soft assert here if the fixed point representation cannot be converted to a float32. This will cause precision
+        // loss
+        PAL_ALERT(fracBits > 23);
+        PAL_ALERT((fracBits + intBits) > 24);
+
         // Calculate the scaling factor.
         const uint32 factor = (1 << fracBits);
 

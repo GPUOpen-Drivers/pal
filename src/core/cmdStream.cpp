@@ -714,7 +714,7 @@ void CmdStream::DumpCommands(
 
     // Don't bother returning an error if the command stream wasn't dumped correctly as we don't want this to affect
     // operation of the "important" stuff...  but still make it apparent that the dump file isn't accurate.
-    PAL_ALERT(result == Result::Success);
+    PAL_ALERT(result != Result::Success);
 }
 #endif
 

@@ -461,6 +461,25 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
 }
 
 // =====================================================================================================================
+DmaCmdBuffer::DmaMemImageCopyMethod DmaCmdBuffer::GetMemImageCopyMethod(
+    bool                         isLinearImg,
+    const DmaImageInfo&          imageInfo,
+    const MemoryImageCopyRegion& region
+    ) const
+{
+    DmaMemImageCopyMethod copyMethod = DmaMemImageCopyMethod::Native;
+
+    // On OSS 1.0, the x, rect_x, src/dst_pitch and src/dst_slice_pitch must be dword-aligned when
+    // expressed in units of bytes for both L2L and L2T copies.
+    if (AreMemImageXParamsDwordAligned(imageInfo, region) == false)
+    {
+        copyMethod = DmaMemImageCopyMethod::DwordUnaligned;
+    }
+
+    return copyMethod;
+}
+
+// =====================================================================================================================
 // Tiled image to tiled image copy.
 //
 void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(

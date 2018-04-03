@@ -65,10 +65,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_device(device),
     m_pTimestampMem(nullptr),
     m_timestampOffset(0),
-    m_computeStateIsSaved(false),
-#if PAL_ENABLE_PRINTS_ASSERTS
     m_computeStateFlags(0),
-#endif
     m_spmTraceEnabled(false)
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
@@ -560,7 +557,7 @@ void GfxCmdBuffer::CmdFillMemory(
     uint32            data)
 {
     m_device.RsrcProcMgr().CmdFillMemory(this,
-                                         (m_computeStateIsSaved == false),
+                                         (m_computeStateFlags == 0),
                                          static_cast<const GpuMemory&>(dstGpuMemory),
                                          dstOffset,
                                          fillSize,
@@ -729,12 +726,8 @@ void GfxCmdBuffer::CmdResolveImage(
 void GfxCmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
-    PAL_ASSERT(m_computeStateIsSaved == false);
-    m_computeStateIsSaved = true;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_computeStateFlags   = stateFlags;
-#endif
+    PAL_ASSERT(m_computeStateFlags == 0);
+    m_computeStateFlags = stateFlags;
 
     if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
     {
@@ -756,13 +749,8 @@ void GfxCmdBuffer::CmdSaveComputeState(
 void GfxCmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
-    PAL_ASSERT(m_computeStateIsSaved);
-    m_computeStateIsSaved = false;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
     PAL_ASSERT(TestAllFlagsSet(m_computeStateFlags, stateFlags));
-    m_computeStateFlags   = 0;
-#endif
+    m_computeStateFlags = 0;
 
     // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
     // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
@@ -849,9 +837,12 @@ void PAL_STDCALL GfxCmdBuffer::CmdSetUserDataCs(
 
     auto*const pEntries = &static_cast<GfxCmdBuffer*>(pCmdBuffer)->m_computeState.csUserDataEntries;
 
+    // NOTE: Compute operations are expected to be far rarer than graphics ones, so at the moment it is not expected
+    // that filtering-out redundant compute user-data updates is worthwhile.
     for (uint32 e = firstEntry; e < (firstEntry + entryCount); ++e)
     {
         WideBitfieldSetBit(pEntries->touched, e);
+        WideBitfieldSetBit(pEntries->dirty,   e);
     }
     memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
 }
@@ -877,12 +868,22 @@ void GfxCmdBuffer::LeakPerPipelineStateChanges(
         pDestPipelineState->dirtyFlags.pipelineDirty = 1;
     }
 
-    for (uint32 e = 0; e < m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries; ++e)
+    for (uint32 index = 0; index < NumUserDataFlagsParts; ++index)
     {
-        if (WideBitfieldIsSet(leakedUserDataEntries.touched, e))
+        pDestUserDataEntries->dirty[index]   |= leakedUserDataEntries.dirty[index];
+        pDestUserDataEntries->touched[index] |= leakedUserDataEntries.touched[index];
+
+        auto mask = leakedUserDataEntries.touched[index];
+        while (mask != 0)
         {
-            WideBitfieldSetBit(pDestUserDataEntries->touched, e);
-            pDestUserDataEntries->entries[e] = leakedUserDataEntries.entries[e];
+            // There is no need to check if the bit-scan found a set bit because the loop condition already does that.
+            uint32 bit;
+            BitMaskScanForward(&bit, mask);
+
+            const uint32 entry = (bit + (UserDataEntriesPerMask * index));
+            pDestUserDataEntries->entries[entry] = leakedUserDataEntries.entries[entry];
+
+            mask &= ~(1 << bit);
         }
     }
 }

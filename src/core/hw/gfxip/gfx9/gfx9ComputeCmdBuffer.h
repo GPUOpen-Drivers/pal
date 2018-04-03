@@ -49,9 +49,6 @@ public:
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
-    virtual void CmdBindPipeline(
-        const PipelineBindParams& params) override;
-
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
     virtual void CmdSetIndirectUserData(
@@ -59,7 +56,6 @@ public:
         uint32      dwordOffset,
         uint32      dwordSize,
         const void* pSrcData) override;
-
     virtual void CmdSetIndirectUserDataWatermark(
         uint16 tableId,
         uint32 dwordLimit) override;
@@ -69,7 +65,6 @@ public:
         const IGpuMemory&       dstGpuMemory,
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) override;
-
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset,
@@ -87,7 +82,6 @@ public:
         AtomicOp          atomicOp) override;
 
     virtual void CmdWriteTimestamp(HwPipePoint pipePoint, const IGpuMemory& dstGpuMemory, gpusize dstOffset) override;
-
     virtual void CmdWriteImmediate(
         HwPipePoint        pipePoint,
         uint64             value,
@@ -106,9 +100,7 @@ public:
         QueryType         queryType,
         uint32            slot,
         QueryControlFlags flags) override;
-
     virtual void CmdEndQuery(const IQueryPool& queryPool, QueryType queryType, uint32 slot) override;
-
     virtual void CmdResetQueryPool(
         const IQueryPool& queryPool,
         uint32            startQuery,
@@ -120,9 +112,7 @@ public:
         uint64            data,
         uint64            mask,
         CompareFunc       compareFunc) override;
-
     virtual void CmdElse() override;
-
     virtual void CmdEndIf() override;
 
     virtual void CmdWhile(
@@ -131,7 +121,6 @@ public:
         uint64            data,
         uint64            mask,
         CompareFunc       compareFunc) override;
-
     virtual void CmdEndWhile() override;
 
     virtual void CmdLoadGds(
@@ -140,7 +129,6 @@ public:
         const IGpuMemory& srcGpuMemory,
         gpusize           srcMemOffset,
         uint32            size) override;
-
     virtual void CmdStoreGds(
         HwPipePoint       pipePoint,
         uint32            srcGdsOffset,
@@ -148,13 +136,11 @@ public:
         gpusize           dstMemOffset,
         uint32            size,
         bool              waitForWC) override;
-
     virtual void CmdUpdateGds(
         HwPipePoint       pipePoint,
         uint32            gdsOffset,
         uint32            dataSize,
         const uint32*     pData) override;
-
     virtual void CmdFillGds(
         HwPipePoint       pipePoint,
         uint32            gdsOffset,
@@ -165,13 +151,11 @@ public:
         uint32            srcRegisterOffset,
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override;
-
     virtual void CmdWaitRegisterValue(
         uint32      registerOffset,
         uint32      data,
         uint32      mask,
         CompareFunc compareFunc) override;
-
     virtual void CmdWaitMemoryValue(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -188,16 +172,15 @@ public:
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
-
-    virtual void CmdCommentString(
-        const char* pComment) override;
-
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
         const IGpuMemory&            gpuMemory,
         gpusize                      offset,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
+
+    virtual void CmdCommentString(
+        const char* pComment) override;
 
     virtual CmdStreamChunk* GetChunkForCmdGeneration(
         const Pal::IndirectCmdGenerator& generator,
@@ -225,6 +208,8 @@ public:
         gpusize frameCountGpuAddr,
         uint32  frameCntReg) override;
 
+    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+
 protected:
     virtual ~ComputeCmdBuffer() {}
 
@@ -237,15 +222,7 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
-    void ValidateDispatch(gpusize gpuVirtAddrNumTgs);
-
 private:
-    static void PAL_STDCALL CmdSetUserDataCs(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
     template <bool issueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
@@ -270,41 +247,39 @@ private:
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
+    uint32* ValidateDispatch(
+        gpusize indirectGpuVirtAddr,
+        uint32  xDim,
+        uint32  yDim,
+        uint32  zDim,
+        uint32* pCmdSpace);
+
+    template <bool HasPipelineChanged>
+    uint32* ValidateUserData(
+        const ComputePipelineSignature* pPrevSignature,
+        uint32*                         pCmdSpace);
+
+    uint32* WriteDirtyUserDataEntries(
+        uint32* pCmdSpace);
+
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
 
-    /* Helper methods for managing generic embedded-data user-data tables: */
+    const Device&   m_device;
+    const CmdUtil&  m_cmdUtil;
 
-    uint32* UpdateUserDataTableAddressses(
-        uint32* pCmdSpace);
-
-    const Device&  m_device;
-    const CmdUtil& m_cmdUtil;
-
-    // Prefetch manager is for pre-loading / warming L2 caches on behalf of the command buffer
-    PrefetchMgr    m_prefetchMgr;
-    CmdStream      m_cmdStream;
+    PrefetchMgr  m_prefetchMgr;
+    CmdStream    m_cmdStream;
 
     // Tracks the user-data signature of the currently active compute pipeline.
     const ComputePipelineSignature*  m_pSignatureCs;
-
-    union
-    {
-        struct
-        {
-            uint32  reserved : 32;
-        } bits;
-
-        uint32   u32All;
-    } m_flags;
 
     struct
     {
         // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
         // is dumped from CE RAM to memory before a draw or dispatch.
-        uint32  watermark;
-        uint32* pData;  // Tracks the contents of each indirect user-data table.
-
+        uint32              watermark;
+        uint32*             pData;  // Tracks the contents of each indirect user-data table.
         UserDataTableState  state;  // Tracks the state for the indirect user-data table
 
     }  m_indirectUserDataInfo[MaxIndirectUserDataTables];

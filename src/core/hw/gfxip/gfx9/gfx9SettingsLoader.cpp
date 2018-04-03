@@ -105,6 +105,11 @@ void SettingsLoader::HwlValidateSettings()
         m_gfx9Settings.commandBufferPreemptionFlags &= ~UniversalEnginePreemption;
     }
 
+    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    {
+        m_gfx9Settings.commandBufferPreemptionFlags = PreemptionDisabled;
+    }
+
     // Validate the number of offchip LDS buffers used for tessellation.
     if (m_gfx9Settings.numOffchipLdsBuffers > 0)
     {
@@ -233,7 +238,11 @@ void SettingsLoader::OverrideGfx9Defaults()
         m_gfx9Settings.waDisableDfsmWithEqaa = true;
 
         m_gfx9Settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
+    }
 
+    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice)
+        )
+    {
         m_gfx9Settings.waMetaAliasingFixEnabled = false;
     }
 

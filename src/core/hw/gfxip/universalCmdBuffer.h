@@ -205,6 +205,13 @@ public:
         const StencilRefMaskParams& updatedRefMaskState,
         StencilRefMaskParams*       pStencilRefMaskState);
 
+    bool UseRingBufferForCeRamDumps() const
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+        { return (m_buildFlags.useLinearBufferForCeRamDumps == 0); }
+#else
+        { return (m_buildFlags.useEmbeddedDataForCeRamDumps == 0); }
+#endif
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Returns true if the graphics state is currently pushed.
     bool IsGraphicsStatePushed() const { return m_graphicsStateIsPushed; }
@@ -234,18 +241,8 @@ protected:
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
 
+    template <bool filterRedundantUserData>
     static void PAL_STDCALL CmdSetUserDataGfx(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
-    static void CmdSetUserDataGfxOne(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        const uint32* pEntryValues);
-
-    static void CmdSetUserDataGfxMany(
         ICmdBuffer*   pCmdBuffer,
         uint32        firstEntry,
         uint32        entryCount,
@@ -255,8 +252,8 @@ protected:
 
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
 
-    GraphicsState         m_graphicsState;        // Currently bound graphics command buffer state.
-    GraphicsState         m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
+    GraphicsState  m_graphicsState;        // Currently bound graphics command buffer state.
+    GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
 
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets]; // Current blend optimization state
 

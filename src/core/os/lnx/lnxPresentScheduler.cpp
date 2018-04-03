@@ -274,7 +274,7 @@ Result PresentScheduler::SignalOnAcquire(
 
             if (pFence != nullptr)
             {
-                submitInfo.pFence = pFence;
+                static_cast<Queue*>(m_pSignalQueue)->AssociateFenceWithContext(pFence);
             }
 
             result = static_cast<Queue*>(m_pSignalQueue)->OsSubmit(submitInfo, internalSubmitInfo);

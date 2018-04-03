@@ -43,12 +43,15 @@ DmaCmdBuffer::DmaCmdBuffer(
     Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(pDevice->Parent(), createInfo, false)
+    Pal::DmaCmdBuffer(pDevice->Parent(), createInfo, true)
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   While SDMA 4.0 may execute sequences of small copies/writes asynchronously, the hardware should
     //   have automatic detection of hazards between these copies based on VA range comparison, so the
     //   driver does not itself need to do any manual synchronization.
+
+    // Temporary note: The above description is not correct at the moment: there is a likely HW bug with the
+    // the copy overlap feature and it is temporarily disabled while a ucode fix is investigated.
 }
 
 // =====================================================================================================================
@@ -425,7 +428,7 @@ void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
     packet.DW_4_UNION.src_z     = GetImageZ(imageCopyInfo.src);
 
     // Setup the source surface dimensions.
-    packet.DW_4_UNION.src_pitch       = GetLinearRowPitch(imageCopyInfo.src);
+    packet.DW_4_UNION.src_pitch       = GetLinearRowPitchForLinearCopy(imageCopyInfo.src);
     packet.DW_5_UNION.DW_5_DATA       = 0;
     packet.DW_5_UNION.src_slice_pitch = GetLinearDepthPitch(imageCopyInfo.src);
 
@@ -441,7 +444,7 @@ void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
     packet.DW_9_UNION.dst_z     = GetImageZ(imageCopyInfo.dst);
 
     // Setup the destination surface dimensions.
-    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitch(imageCopyInfo.dst);
+    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitchForLinearCopy(imageCopyInfo.dst);
     packet.DW_10_UNION.DW_10_DATA      = 0;
     packet.DW_10_UNION.dst_slice_pitch = GetLinearDepthPitch(imageCopyInfo.dst);
 
@@ -683,7 +686,7 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.DW_4_UNION.DW_4_DATA = 0;
 
     // Setup the source surface dimensions.
-    packet.DW_4_UNION.src_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, dstImage.bytesPerPixel);
+    packet.DW_4_UNION.src_pitch       = GetLinearRowPitchForLinearCopy(rgn.gpuMemoryRowPitch, dstImage.bytesPerPixel);
     packet.DW_5_UNION.DW_5_DATA       = 0;
     packet.DW_5_UNION.src_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, dstImage.bytesPerPixel);
 
@@ -699,7 +702,7 @@ uint32* DmaCmdBuffer::WriteCopyMemToLinearImageCmd(
     packet.DW_9_UNION.dst_z     = GetImageZ(dstImage, rgn.imageOffset.z);
 
     // Setup the destination surface dimensions.
-    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitch(dstImage);
+    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitchForLinearCopy(dstImage);
     packet.DW_10_UNION.DW_10_DATA      = 0;
     packet.DW_10_UNION.dst_slice_pitch = GetLinearDepthPitch(dstImage);
 
@@ -747,7 +750,7 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     packet.DW_4_UNION.src_z     = GetImageZ(srcImage, rgn.imageOffset.z);
 
     // Setup the source surface dimensions.
-    packet.DW_4_UNION.src_pitch       = GetLinearRowPitch(srcImage);
+    packet.DW_4_UNION.src_pitch       = GetLinearRowPitchForLinearCopy(srcImage);
     packet.DW_5_UNION.DW_5_DATA       = 0;
     packet.DW_5_UNION.src_slice_pitch = GetLinearDepthPitch(srcImage);
 
@@ -761,7 +764,7 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
     packet.DW_9_UNION.DW_9_DATA = 0;
 
     // Setup the destination surface dimensions.
-    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitch(rgn.gpuMemoryRowPitch, srcImage.bytesPerPixel);
+    packet.DW_9_UNION.dst_pitch        = GetLinearRowPitchForLinearCopy(rgn.gpuMemoryRowPitch, srcImage.bytesPerPixel);
     packet.DW_10_UNION.DW_10_DATA      = 0;
     packet.DW_10_UNION.dst_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, srcImage.bytesPerPixel);
 
@@ -984,7 +987,7 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
     packet.DW_10_UNION.linear_z   = GetImageZ(linearImg);
 
     // Linear is the source.
-    packet.DW_10_UNION.linear_pitch       = GetLinearRowPitch(linearImg);
+    packet.DW_10_UNION.linear_pitch       = GetLinearRowPitchForTiledCopy(linearImg);
     packet.DW_11_UNION.DW_11_DATA         = 0;
     packet.DW_11_UNION.linear_slice_pitch = GetLinearDepthPitch(linearImg);
 
@@ -1057,7 +1060,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
     packet.DW_10_UNION.DW_10_DATA = 0;
 
     // Setup the linear surface dimensions.
-    packet.DW_10_UNION.linear_pitch       = GetLinearRowPitch(rgn.gpuMemoryRowPitch, image.bytesPerPixel);
+    packet.DW_10_UNION.linear_pitch       = GetLinearRowPitchForTiledCopy(rgn.gpuMemoryRowPitch, image.bytesPerPixel);
     packet.DW_11_UNION.DW_11_DATA         = 0;
     packet.DW_11_UNION.linear_slice_pitch = GetLinearDepthPitch(rgn.gpuMemoryDepthPitch, image.bytesPerPixel);
 
@@ -1098,13 +1101,15 @@ uint32 DmaCmdBuffer::GetHwDimension(
 }
 
 // =====================================================================================================================
-uint32 DmaCmdBuffer::GetLinearRowPitch(
+// Returns the linear row pitch for copies involving tiled images (i.e. L2T/T2L)
+uint32 DmaCmdBuffer::GetLinearRowPitchForTiledCopy(
     gpusize  rowPitchInBytes,
     uint32   bytesPerPixel
     ) const
 {
     PAL_ASSERT((rowPitchInBytes % bytesPerPixel) == 0);
 
+#if PAL_ENABLE_PRINTS_ASSERTS
     const uint32  rowPitchInPixels = static_cast<uint32>(rowPitchInBytes / bytesPerPixel);
 
     //  The alignment restriction of linear pitch (which no longer applies to Raven) is:
@@ -1112,9 +1117,40 @@ uint32 DmaCmdBuffer::GetLinearRowPitch(
     //    Multiple of 2 for 16bpp
     //    Multiple of 1 for 32bpp
     PAL_ASSERT(IsRaven(*m_pDevice) || ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
+#endif
+
+    return GetLinearRowPitchForLinearCopy(rowPitchInBytes, bytesPerPixel);
+}
+
+// =====================================================================================================================
+// Returns the linear row pitch for copies with linear-only images (i.e. L2L)
+uint32 DmaCmdBuffer::GetLinearRowPitchForLinearCopy(
+    gpusize  rowPitchInBytes,
+    uint32   bytesPerPixel
+    ) const
+{
+    PAL_ASSERT((rowPitchInBytes % bytesPerPixel) == 0);
+
+    const uint32 rowPitchInPixels = static_cast<uint32>(rowPitchInBytes / bytesPerPixel);
 
     // The unit of linear pitch ... is pixel number minus 1
     return rowPitchInPixels - 1;
+}
+
+// =====================================================================================================================
+PAL_INLINE uint32 DmaCmdBuffer::GetLinearRowPitchForLinearCopy(
+    const DmaImageInfo& imageInfo
+    ) const
+{
+    return GetLinearRowPitchForLinearCopy(imageInfo.pSubresInfo->rowPitch, imageInfo.bytesPerPixel);
+}
+
+// =====================================================================================================================
+PAL_INLINE uint32 DmaCmdBuffer::GetLinearRowPitchForTiledCopy(
+    const DmaImageInfo& imageInfo
+    ) const
+{
+    return GetLinearRowPitchForTiledCopy(imageInfo.pSubresInfo->rowPitch, imageInfo.bytesPerPixel);
 }
 
 // =====================================================================================================================
@@ -1207,6 +1243,25 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
         pImageInfo->extent       = pBaseSubResInfo->extentTexels;
         pImageInfo->actualExtent = pBaseSubResInfo->actualExtentTexels;
     }
+}
+
+// =====================================================================================================================
+DmaCmdBuffer::DmaMemImageCopyMethod DmaCmdBuffer::GetMemImageCopyMethod(
+    bool                         isLinearImg,
+    const DmaImageInfo&          imageInfo,
+    const MemoryImageCopyRegion& region
+    ) const
+{
+    DmaMemImageCopyMethod copyMethod = DmaMemImageCopyMethod::Native;
+
+    // On OSS-4.0, the x, rect_x, src/dst_pitch and src/dst_slice_pitch must be dword-aligned when
+    // expressed in units of bytes on L2T copies only.
+    if ((isLinearImg == false) && AreMemImageXParamsDwordAligned(imageInfo, region) == false)
+    {
+        copyMethod = DmaMemImageCopyMethod::DwordUnaligned;
+    }
+
+    return copyMethod;
 }
 
 } // Oss4

@@ -726,9 +726,9 @@ struct drm_amdgpu_cs_chunk_data {
 	/* Subquery id: Query graphics voltage */
 	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
 	/* Subquery id: Query GPU stable pstate shader clock */
-	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK               0x8
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK		0x8
 	/* Subquery id: Query GPU stable pstate memory clock */
-	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK               0x9
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK		0x9
 /* Number of VRAM page faults on CPU access. */
 #define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F
@@ -952,6 +952,10 @@ struct drm_amdgpu_info_device {
 	__u32 _pad1;
 	/* always on cu bitmap */
 	__u32 cu_ao_bitmap[4][4];
+	/** Starting high virtual address for UMDs. */
+	__u64 high_va_offset;
+	/** The maximum high virtual address */
+	__u64 high_va_max;
 };
 
 struct drm_amdgpu_info_hw_ip {

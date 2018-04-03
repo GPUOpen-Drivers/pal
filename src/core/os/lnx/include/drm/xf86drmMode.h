@@ -507,6 +507,28 @@ extern int drmModeCreatePropertyBlob(int fd, const void *data, size_t size,
 				     uint32_t *id);
 extern int drmModeDestroyPropertyBlob(int fd, uint32_t id);
 
+/*
+ * DRM mode lease APIs. These create and manage new drm_masters with
+ * access to a subset of the available DRM resources
+ */
+
+extern int drmModeCreateLease(int fd, const uint32_t *objects, int num_objects, int flags, uint32_t *lessee_id);
+
+typedef struct drmModeLesseeList {
+	uint32_t count;
+	uint32_t lessees[0];
+} drmModeLesseeListRes, *drmModeLesseeListPtr;
+
+extern drmModeLesseeListPtr drmModeListLessees(int fd);
+
+typedef struct drmModeObjectList {
+	uint32_t count;
+	uint32_t objects[0];
+} drmModeObjectListRes, *drmModeObjectListPtr;
+
+extern drmModeObjectListPtr drmModeGetLease(int fd);
+
+extern int drmModeRevokeLease(int fd, uint32_t lessee_id);
 
 #if defined(__cplusplus)
 }

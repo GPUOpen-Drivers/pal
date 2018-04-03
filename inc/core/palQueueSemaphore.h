@@ -120,10 +120,6 @@ public:
     /// @returns An OS-specific handle which can be used to access the semaphore object across processes.
     virtual OsExternalHandle ExportExternalHandle() const = 0;
 
-    /// Returns an OS-specific handle which can be used by another device to access the semaphore object.
-    /// This interface is used to share semaphore between mantle and d3d in same process.
-    ///
-    /// @returns An OS-specific handle which can be used by another device to access the semaphore object.
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

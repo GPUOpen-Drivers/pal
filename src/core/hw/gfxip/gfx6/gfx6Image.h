@@ -70,6 +70,77 @@ enum DepthStencilCompressionState : uint32
     DepthStencilCompressionStateCount
 };
 
+// Information used to determine the color compression state for an Image layout.
+struct ColorLayoutToState
+{
+    ImageLayout compressed;        // Mask of layouts compatible with the ColorCompressed state.
+    ImageLayout fmaskDecompressed; // Mask of layouts compatible with the ColorFmaskDecompressed state.
+};
+
+// =====================================================================================================================
+// Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
+// are always compressed if they are only used on the universal queue and only support the color target usage.
+// Otherwise, depending on the GFXIP support, additional usages may be available that avoid a full decompress.
+PAL_INLINE ColorCompressionState ImageLayoutToColorCompressionState(
+    const ColorLayoutToState& layoutToState,
+    ImageLayout               imageLayout)
+{
+    // A color target view might also be created on a depth stencil image to perform a depth-stencil copy operation.
+    // So this function might also be accessed upon a depth-stencil image.
+    ColorCompressionState state = ColorDecompressed;
+
+    if ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressed.usages) == false) &&
+        (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressed.engines) == false))
+    {
+        state = ColorCompressed;
+    }
+    else if ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.fmaskDecompressed.usages) == false) &&
+             (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.fmaskDecompressed.engines) == false))
+    {
+        state = ColorFmaskDecompressed;
+    }
+
+    return state;
+}
+
+// Information used to determine the depth or stencil compression state for an Image layout.
+struct DepthStencilLayoutToState
+{
+    ImageLayout compressed;      // Mask of layouts compatible with DepthStencilCompressed state.
+    ImageLayout decomprWithHiZ;  // Mask of layouts compatible with DepthStencilDecomprWithHtile state.
+};
+
+// =====================================================================================================================
+// Returns the best hardware depth/stencil compression state for the specified subresource based on a set of allowed
+// usages and queues. Images with htile are always compressed if they are only used on the universal queue and only
+// support the depth/stencil target usage.  Otherwise, depending on the GFXIP support, additional usages may be
+// available whithout decompressing.
+PAL_INLINE DepthStencilCompressionState ImageLayoutToDepthCompressionState(
+    const DepthStencilLayoutToState& layoutToState,
+    ImageLayout                      imageLayout)
+{
+    // Start with most aggressive decompression
+    DepthStencilCompressionState state = DepthStencilDecomprNoHiZ;
+
+    if (imageLayout.engines != 0)
+    {
+        // If there is an htile, test if the given layout supports full compression.  Otherwise, try partial
+        // decompression that still uses HiZ.
+        if ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressed.usages) == false) &&
+            (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressed.engines) == false))
+        {
+            state = DepthStencilCompressed;
+        }
+        else if ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.decomprWithHiZ.usages) == false) &&
+                 (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.decomprWithHiZ.engines) == false))
+        {
+            state = DepthStencilDecomprWithHiZ;
+        }
+    }
+
+    return state;
+}
+
 // =====================================================================================================================
 // This is the Gfx6 Image class which is derived from GfxImage.  It is responsible for hardware specific Image
 // functionality such as setting up mask ram, metadata, tile info, etc.
@@ -230,8 +301,9 @@ public:
         PM4Predicate       predicate,
         uint32*            pCmdSpace) const;
 
-    ColorCompressionState LayoutToColorCompressionState(const SubresId& subresId, ImageLayout imageLayout) const;
-    DepthStencilCompressionState LayoutToDepthCompressionState(const SubresId& subresId, ImageLayout imageLayout) const;
+    const ColorLayoutToState& LayoutToColorCompressionState(const SubresId& subresId) const
+        { return m_layoutToState[subresId.mipLevel].color; }
+    const DepthStencilLayoutToState& LayoutToDepthCompressionState(const SubresId& subresId) const;
 
     // Returns true if this Image has associated Cmask, Fmask, or DCC data.
     virtual bool HasColorMetaData() const
@@ -302,18 +374,10 @@ private:
     union
     {
         // For color images and their compression states
-        struct
-        {
-            ImageLayout compressed;        // Layouts compatible with the ColorCompressed state.
-            ImageLayout fmaskDecompressed; // Layouts compatible with the ColorFmaskDecompressed state.
-        } color;
+       ColorLayoutToState  color;
 
-        // For depth-stencil images and their compression states
-        struct
-        {
-            ImageLayout compressed;        // Depth/stencil layouts compatible with DepthStencilCompressed state.
-            ImageLayout decomprWithHiZ;    // Depth/stencil layouts compatible with DepthStencilDecomprWithHtile state.
-        } depthStencil[2]; // Compress masks for depth and stencil aspects respectively
+        // For depth-stencil images and their compression states (one each for depth and stencil aspects).
+        DepthStencilLayoutToState  depthStencil[2];
     }  m_layoutToState[MaxImageMipLevels];
 
     void InitDccStateMetaData(

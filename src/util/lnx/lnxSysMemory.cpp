@@ -108,7 +108,7 @@ Result VirtualReserve(
 
     if (result == Result::Success)
     {
-        void* pMemory = mmap(nullptr, sizeInBytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        void* pMemory = mmap(pMem, sizeInBytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if ((pMemory != nullptr) && (pMemory != MAP_FAILED))
         {

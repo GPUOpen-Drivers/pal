@@ -535,22 +535,20 @@ void Pm4Optimizer::HandlePm4LoadRegIndex(
     //       16 bits wide. This means we need to perform some special logic when traversing the dwords that follow the
     //       packet header to avoid reading the reserved bits by accident.
 
-    const void* pRegisterGroup =
-        ((&loadDataIndex.ordinal1) + Util::NumBytesToNumDwords(sizeof(LoadDataIndexPacket)) - 2);
-    const void* pNextHeader =
-        ((&loadDataIndex.ordinal1) + loadDataIndex.header.count + 2);
+    const void* pRegisterGroup = ((&loadDataIndex.ordinal1) + NumBytesToNumDwords(sizeof(LoadDataIndexPacket)) - 2);
+    const void* pNextHeader    = ((&loadDataIndex.ordinal1) + loadDataIndex.header.count + 2);
 
     while (pRegisterGroup != pNextHeader)
     {
-        const uint32 startRegOffset = static_cast<uint32>(*reinterpret_cast<const uint16*>(pRegisterGroup));
-        const uint32 numRegs        = *reinterpret_cast<uint32*>(Util::VoidPtrInc(pRegisterGroup, sizeof(uint32)));
-        const uint32  endRegOffset  = (startRegOffset + numRegs - 1);
+        const uint32 startRegOffset = *static_cast<const uint16*>(pRegisterGroup);
+        const uint32 numRegs        = *static_cast<const uint32*>(VoidPtrInc(pRegisterGroup, sizeof(uint32)));
+        const uint32 endRegOffset   = (startRegOffset + numRegs - 1);
         for (uint32 reg = startRegOffset; reg <= endRegOffset; ++reg)
         {
             pRegStateBase[reg].flags.valid = 0;
         }
 
-        pRegisterGroup = Util::VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
+        pRegisterGroup = VoidPtrInc(pRegisterGroup, sizeof(uint32) * 2);
     }
 }
 

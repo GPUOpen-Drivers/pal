@@ -441,27 +441,6 @@ void RsrcProcMgr::CmdCopyMemory(
         // Prepare some state up-front which will be reused each time we build a DMA DATA packet.
         const gpusize maxCpDmaSize = m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes;
 
-        // We want to read and write through L2 because it's faster and expected by CoherCopy but if it isn't supported
-        // we need to fall back to a memory-to-memory copy.
-        const bool supportsL2 = (m_pDevice->Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6);
-
-        DmaDataInfo dmaDataInfo = {};
-        dmaDataInfo.dstSel    = supportsL2 ? CPDMA_DST_SEL_DST_ADDR_USING_L2 : CPDMA_DST_SEL_DST_ADDR;
-        dmaDataInfo.srcSel    = supportsL2 ? CPDMA_SRC_SEL_SRC_ADDR_USING_L2 : CPDMA_SRC_SEL_SRC_ADDR;
-        dmaDataInfo.sync      = false;
-        dmaDataInfo.usePfp    = false;
-        dmaDataInfo.predicate = static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().packetPredicate);
-
-        // Predicate doesn`t work on compute. If this is hit we need to use cond exec packet instead of setting the
-        // predicate bit in packet header.
-        if (dmaDataInfo.predicate == PredEnable)
-        {
-            PAL_ASSERT(pCmdBuffer->GetQueueType() != QueueTypeCompute);
-        }
-
-        auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
-        PAL_ASSERT(pCmdStream != nullptr);
-
         // If the caller gives us any ranges bigger than maxCpDmaSize we must copy them using CopyMemoryCs later on.
         bool hasBigCopyRegions = false;
 
@@ -474,24 +453,10 @@ void RsrcProcMgr::CmdCopyMemory(
             }
             else
             {
-                dmaDataInfo.dstAddr  = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
-                dmaDataInfo.srcAddr  = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
-                dmaDataInfo.numBytes = static_cast<uint32>(pRegions[i].copySize);
+                const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
+                const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
 
-                uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
-                pCmdStream->CommitCommands(pCmdSpace);
-
-                pCmdBuffer->SetGfxCmdBufCpBltState(true);
-
-                if (supportsL2)
-                {
-                    pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
-                }
-                else
-                {
-                    pCmdBuffer->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(true);
-                }
+                pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
             }
         }
 
@@ -1687,11 +1652,12 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
             ClearColor clearColor = {};
 
+            DepthStencilLayoutToState layoutToState = gfx6Image.LayoutToDepthCompressionState(pRanges[idx].startSubres);
+
             if (isDepth)
             {
                 // Expand first if depth plane is not fully expanded.
-                if (gfx6Image.LayoutToDepthCompressionState(pRanges[idx].startSubres, depthLayout) !=
-                    DepthStencilDecomprNoHiZ)
+                if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
                     // MSAA state is unnecessary because this is a compute expand.
                     ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);
@@ -1706,8 +1672,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 PAL_ASSERT(aspect == ImageAspect::Stencil);
 
                 // Expand first if stencil plane is not fully expanded.
-                if (gfx6Image.LayoutToDepthCompressionState(pRanges[idx].startSubres, stencilLayout) !=
-                    DepthStencilDecomprNoHiZ)
+                if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
                     // MSAA state is unnecessary because this is a compute expand.
                     ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, nullptr, pRanges[idx]);

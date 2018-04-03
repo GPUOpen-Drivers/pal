@@ -109,21 +109,6 @@ struct GfxPipelineStateContextPm4Img
     size_t                              spaceNeeded;
 };
 
-// Represents an "image" of the PM4 commands necessary to write RB-plus related info to hardware.
-struct GraphicsPipelineRbPlusPm4Img
-{
-    // Note: This packet is only used on VI hardware with the RB+ feature, and should be last in the PM4 image to
-    // eliminate any gaps on non-RB+ hardware.
-    PM4CMDSETDATA               header;
-    regSX_PS_DOWNCONVERT__VI    sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON__VI sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL__VI sxBlendOptControl;
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                      spaceNeeded;
-};
-
 // Contains graphics stage information calculated at pipeline bind time.
 struct DynamicStageInfos
 {
@@ -181,7 +166,13 @@ public:
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_chunkVsPs.SpiVsOutConfig(); }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_chunkVsPs.SpiPsInControl(); }
 
+    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_sxPsDownconvert; }
+    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
+    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_sxBlendOptControl; }
+
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
+
+    bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
 
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
@@ -190,12 +181,14 @@ public:
 
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    void BuildRbPlusRegistersForRpm(
-        SwizzledFormat                 swizzleFormat,
-        uint32                         targetIndex,
-        GraphicsPipelineRbPlusPm4Img*  pPm4Image) const;
-
     uint64 GetContextPm4ImgHash() const { return m_contextPm4ImgHash; }
+
+    void OverrideRbPlusRegistersForRpm(
+        SwizzledFormat               swizzledFormat,
+        uint32                       slot,
+        regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
 
     uint32 GetVsUserDataBaseOffset() const;
 
@@ -250,13 +243,13 @@ private:
         const GraphicsPipelineCreateInfo& createInfo);
     void SetupLateAllocVs(
         const AbiProcessor& abiProcessor);
-    bool SetupRbPlusShaderRegisters(
-        const bool                    dualBlendEnabled,
-        const uint8*                  pWriteMask,
-        const SwizzledFormat*         pSwizzledFormats,
-        const uint32*                 pTargetIndices,
-        const uint32                  targetIndexCount,
-        GraphicsPipelineRbPlusPm4Img* pPm4Image) const;
+    void SetupRbPlusRegistersForSlot(
+        uint32                       slot,
+        uint8                        writeMask,
+        SwizzledFormat               swizzledFormat,
+        regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
 
     Device*const  m_pDevice;
 
@@ -264,7 +257,6 @@ private:
     // graphics pipelines: render state, MSAA state.
     GfxPipelineStateCommonPm4Img   m_stateCommonPm4Cmds;
     GfxPipelineStateContextPm4Img  m_stateContextPm4Cmds;
-    GraphicsPipelineRbPlusPm4Img   m_rbPlusPm4Cmds;
     uint64                         m_contextPm4ImgHash;
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
@@ -272,8 +264,11 @@ private:
     static constexpr uint32  NumIaMultiVgtParam = 2;
     regIA_MULTI_VGT_PARAM  m_iaMultiVgtParam[NumIaMultiVgtParam];
 
-    regVGT_LS_HS_CONFIG    m_vgtLsHsConfig;
-    regPA_SC_MODE_CNTL_1   m_paScModeCntl1;
+    regSX_PS_DOWNCONVERT__VI     m_sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON__VI  m_sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL__VI  m_sxBlendOptControl;
+    regVGT_LS_HS_CONFIG          m_vgtLsHsConfig;
+    regPA_SC_MODE_CNTL_1         m_paScModeCntl1;
 
     PipelineChunkLsHs  m_chunkLsHs;
     PipelineChunkEsGs  m_chunkEsGs;
@@ -292,9 +287,11 @@ private:
     {
         GfxPipelineStateCommonPm4Img  renderStateCommonPm4Img;
         GfxPipelineStateContextPm4Img renderStateContextPm4Img;
-        GraphicsPipelineRbPlusPm4Img  rbPlusPm4Img;
         GraphicsPipelineSignature     signature;
         regIA_MULTI_VGT_PARAM         iaMultiVgtParam[NumIaMultiVgtParam];
+        regSX_PS_DOWNCONVERT__VI      sxPsDownconvert;
+        regSX_BLEND_OPT_EPSILON__VI   sxBlendOptEpsilon;
+        regSX_BLEND_OPT_CONTROL__VI   sxBlendOptControl;
         regVGT_LS_HS_CONFIG           vgtLsHsConfig;
         regPA_SC_MODE_CNTL_1          paScModeCntl1;
         uint64                        contextPm4ImgHash;

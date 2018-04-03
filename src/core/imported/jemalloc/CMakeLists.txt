@@ -111,7 +111,7 @@ endif()
 #    target_sources(jemalloc PRIVATE ${PROJECT_SOURCE_DIR}/core/zone.c)
 
 ### Link Libraries #####################################################################################################
-if(UNIX)
+if(JEMALLOC_USE_PTHREAD)
     target_link_libraries(jemalloc INTERFACE pthread)
 endif()
 

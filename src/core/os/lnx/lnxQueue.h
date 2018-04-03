@@ -143,6 +143,9 @@ public:
         const SubmitInfo&         submitInfo,
         const InternalSubmitInfo& internalSubmitInfo) override;
 
+    void  AssociateFenceWithContext(
+        IFence* pFence);
+
 protected:
     virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
 

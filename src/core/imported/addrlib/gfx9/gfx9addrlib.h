@@ -72,7 +72,8 @@ struct Gfx9ChipSettings
         UINT_32 depthPipeXorDisable : 1;
         UINT_32 htileAlignFix       : 1;
         UINT_32 applyAliasFix       : 1;
-        UINT_32 reserved2           : 28;
+        UINT_32 htileCacheRbConflict: 1;
+        UINT_32 reserved2           : 27;
     };
 };
 

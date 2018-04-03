@@ -223,9 +223,6 @@ struct ImageInfo
     DccFormatEncoding       dccFormatEncoding;     // Indicates how possible view formats will be encoded
 };
 
-constexpr uint32 MaxArraySlices    = 2048;
-constexpr int32  MaxImageDimension = 16384;
-
 // =====================================================================================================================
 // Base class for Image resources. Contains sub-objects for each hardware IP block which has HW-specific behavior
 // related to Images. Also owns the lists of SubResourceInfo and AddrMgr-specific tiling info structures.

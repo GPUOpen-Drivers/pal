@@ -539,10 +539,13 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
 
     for (uint32 stage = 0; stage < stageCount; ++stage)
     {
-        for (uint32 e = 0; e < (dwordsPerStage - 1); ++e)
+        uint32 entryMap[MaxUserDataEntries] = { };
+        for (uint32 i = 0; i < pStage->userSgprCount; ++i)
         {
-            pData[e] = pStage->regAddr[e];
+            entryMap[pStage->mappedEntry[i]] = (pStage->firstUserSgprRegAddr + i);
         }
+
+        memcpy(pData, &entryMap[0], sizeof(uint32) * (dwordsPerStage - 1));
         pData[dwordsPerStage - 1] = pStage->spillTableRegAddr;
 
         ++pStage;

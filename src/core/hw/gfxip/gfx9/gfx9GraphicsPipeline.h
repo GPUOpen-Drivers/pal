@@ -112,12 +112,6 @@ struct GfxPipelineStateCommonPm4ImgContext
 
     PM4ME_NON_SAMPLE_EVENT_WRITE        flushDfsm;
 
-    // This should be last in the PM4 image to eliminate any gaps on non-RB+ hardware.
-    PM4_PFP_SET_CONTEXT_REG             header;
-    regSX_PS_DOWNCONVERT                sxPsDownconvert;
-    regSX_BLEND_OPT_EPSILON             sxBlendOptEpsilon;
-    regSX_BLEND_OPT_CONTROL             sxBlendOptControl;
-
     // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
     // commands contained within.
     size_t                              spaceNeeded;
@@ -178,6 +172,11 @@ public:
     regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_vgtLsHsConfig;  }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_spiPsInControl; }
+
+    regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_sxPsDownconvert; }
+    regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_sxBlendOptEpsilon; }
+    regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_sxBlendOptControl; }
+
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
                                 const ColorBlendState*   pBlendState,
@@ -201,7 +200,7 @@ public:
     uint32 EsGsRingItemSize() const { return m_chunkGs.EsGsRingItemSize(); }
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_chunkGs.VgtGsOnchipCntl(); }
 
-    bool IsNgg() const {return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
+    bool IsNgg() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool IsNggFastLaunch() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.GS_FAST_LAUNCH != 0); }
 
     bool UsesInnerCoverage() const { return m_chunkPs.UsesInnerCoverage(); }
@@ -209,6 +208,7 @@ public:
     bool HwStereoRenderingEnabled() const;
     bool HwStereoRenderingUsesMultipleViewports() const;
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
+    bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
 
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
@@ -219,10 +219,12 @@ public:
 
     uint64 GetContextPm4ImgHash() const { return m_contextPm4ImgHash; }
 
-    void BuildRbPlusRegistersForRpm(
-        SwizzledFormat swizzledFormat,
-        uint32         targetIndex,
-        RbPlusPm4Img*  pPm4Image) const;
+    void OverrideRbPlusRegistersForRpm(
+        SwizzledFormat           swizzledFormat,
+        uint32                   slot,
+        regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
     uint32 GetVsUserDataBaseOffset() const;
 
@@ -280,13 +282,13 @@ private:
         const AbiProcessor&               abiProcessor);
     void SetupLateAllocVs(
         const AbiProcessor& abiProcessor);
-    bool SetupRbPlusShaderRegisters(
-         const bool            dualBlendEnabled,
-         const uint8*          pWriteMask,
-         const SwizzledFormat* pSwizzledFormats,
-         const uint32*         pTargetIndices,
-         const uint32          targetIndexCount,
-         RbPlusPm4Img*         pPm4Image) const;
+    void SetupRbPlusRegistersForSlot(
+        uint32                   slot,
+        uint8                    writeMask,
+        SwizzledFormat           swizzledFormat,
+        regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
     const GfxIpLevel  m_gfxLevel;
     Device*const      m_pDevice;
@@ -303,6 +305,9 @@ private:
     static constexpr uint32  NumIaMultiVgtParam = 2;
     regIA_MULTI_VGT_PARAM    m_iaMultiVgtParam[NumIaMultiVgtParam];
 
+    regSX_PS_DOWNCONVERT     m_sxPsDownconvert;
+    regSX_BLEND_OPT_EPSILON  m_sxBlendOptEpsilon;
+    regSX_BLEND_OPT_CONTROL  m_sxBlendOptControl;
     regVGT_LS_HS_CONFIG      m_vgtLsHsConfig;
     regSPI_VS_OUT_CONFIG     m_spiVsOutConfig;
     regSPI_PS_IN_CONTROL     m_spiPsInControl;
@@ -327,6 +332,9 @@ private:
         uint32                              scratchSize;
         GraphicsPipelineSignature           signature;
         regIA_MULTI_VGT_PARAM               iaMultiVgtParam[NumIaMultiVgtParam];
+        regSX_PS_DOWNCONVERT                sxPsDownconvert;
+        regSX_BLEND_OPT_EPSILON             sxBlendOptEpsilon;
+        regSX_BLEND_OPT_CONTROL             sxBlendOptControl;
         regVGT_LS_HS_CONFIG                 vgtLsHsConfig;
         regSPI_PS_IN_CONTROL                spiPsInControl;
         regSPI_VS_OUT_CONFIG                spiVsOutConfig;

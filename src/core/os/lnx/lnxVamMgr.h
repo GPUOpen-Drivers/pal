@@ -58,9 +58,6 @@ public:
     virtual Result LateInit(
         Pal::Device*const pDevice) override;
 
-    virtual Result Finalize(
-        Pal::Device*const pDevice) override;
-
     virtual Result AssignVirtualAddress(
         Pal::Device*const         pDevice,
         const VirtAddrAssignInfo& vaInfo,
@@ -69,11 +66,6 @@ public:
     virtual void FreeVirtualAddress(
         Pal::Device*const     pDevice,
         const Pal::GpuMemory& gpuMemory) override;
-
-    virtual Result Cleanup(
-        Pal::Device*const pDevice) override;
-
-    bool IsAllocated() const { return m_allocated; }
 
 protected:
     void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr) override;
@@ -92,9 +84,6 @@ protected:
     static VAM_RETURNCODE    VAM_STDCALL ReclaimVidMemCb(VAM_CLIENT_HANDLE hPal, VAM_VIDMEM_HANDLE hVidMem);
     static VAM_RETURNCODE    VAM_STDCALL NeedPtbCb();
 
-private:
-    bool    m_allocated;
-
     PAL_DISALLOW_COPY_AND_ASSIGN(VamMgr);
 };
 
@@ -109,6 +98,15 @@ struct ReservedVaRangeInfo
 };
 
 // =====================================================================================================================
+//VamMgrInfo holds information of VamMgr on the physical GPU device.
+//The virtual address management should be per physical device.
+struct VamMgrInfo
+{
+    VamMgr* pVamMgr;                      //handle of va manager
+    uint32  deviceRefCount;               //Number of logical devices
+};
+
+// =====================================================================================================================
 // VamMgrSingleton is a global container of VamMgr.
 // All Pal devices must share VAs, otherwise the VAs will be used up in the beginning
 // since each device will allocate two dedicated VAs for descriptor and shadow descriptor.
@@ -116,19 +114,21 @@ struct ReservedVaRangeInfo
 class VamMgrSingleton
 {
 public:
-    static void Cleanup();
-    static void Init();
+    static Result Init();
+
+    static void Cleanup(
+        Device* pDevice);
 
     static Result InitVaRangesAndFinalizeVam(
-        Pal::Linux::Device* pDevice);
+        Device* pDevice);
 
     static Result AssignVirtualAddress(
-        Pal::Device*              pDevice,
+        Device*                   pDevice,
         const VirtAddrAssignInfo& vaInfo,
         gpusize*                  pGpuVirtAddr);
 
     static void FreeVirtualAddress(
-        Pal::Device*          pDevice,
+        Device*               pDevice,
         const Pal::GpuMemory& gpuMemory);
 
     static Result GetReservedVaRange(
@@ -143,13 +143,12 @@ public:
 
 private:
     typedef Util::HashMap<amdgpu_device_handle, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
-    static constexpr uint32     InitialGpuNumber = 32;
+    typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, GenericAllocatorAuto> VamMgrMap;
     static GenericAllocatorAuto s_mapAllocator;
     static ReservedVaMap        s_reservedVaMap;
     static Util::Mutex          s_vaMapLock;
+    static VamMgrMap            s_vamMgrMap;
     static Util::Mutex          s_mutex;
-    static volatile uint32      s_refCount;
-    static VamMgr               s_vammgr;
 };
 
 } // Linux
