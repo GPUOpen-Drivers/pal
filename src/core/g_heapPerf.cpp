@@ -30,7 +30,7 @@
 //
 // When changes are needed, modify the tools generating this module in the tools\generate directory
 // OR the perf logs in the
-// /home/felix/Documents/AMDVLK/drivers/pal/src/core/hw/heapPerf directory.
+// /home/felix/Documents/Git/AMDVLK-FelixBellaby/pal/src/core/hw/heapPerf directory.
 //
 // WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!
 ///////////////////////////////////////////////////////////////////////////////////////////////////
