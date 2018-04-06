@@ -250,7 +250,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
     int32          sharedBufferFd,
     uint32*        pPresentImage)
 {
-    PAL_ASSERT(s_pWsaInterface);
+    PAL_ASSERT(s_pWsaInterface != nullptr);
 
     Result result = Result::Success;
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
