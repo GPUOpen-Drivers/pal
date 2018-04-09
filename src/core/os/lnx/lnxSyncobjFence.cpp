@@ -125,21 +125,13 @@ Result SyncobjFence::WaitForFences(
                     break;
                 }
             }
-            else if (ppFenceList[fence]->WasNeverSubmitted())
+            else if ((ppFenceList[fence]->WasNeverSubmitted()) && (ppFenceList[fence]->IsOpened() == false))
             {
                 result = Result::ErrorFenceNeverSubmitted;
                 break;
             }
 
             const auto*const pSyncobjFence = static_cast<const SyncobjFence*>(ppFenceList[fence]);
-            const auto*const pContext = static_cast<Linux::SubmissionContext*>(pSyncobjFence->m_pContext);
-
-            if (pContext == nullptr)
-            {
-                // If the fence is not associated with a submission context, return unavailable.
-                result = Result::ErrorUnavailable;
-                break;
-            }
 
             // We currently have no way to wait for a batched fence on Linux. This is OK for now because Vulkan (the
             // only Linux client) doesn't permit the application to trigger queue batching. A solution must be found
@@ -203,8 +195,27 @@ Result SyncobjFence::OpenHandle(
 {
     Result result = Result::Success;
 
-    result = m_device.SyncObjImportSyncFile(openInfo.externalFence, m_fenceSyncObject);
+    if (openInfo.flags.isReference)
+    {
+        result = m_device.ImportSyncObject(openInfo.externalFence, &m_fenceSyncObject);
+    }
+    else
+    {
+        result = m_device.SyncObjImportSyncFile(openInfo.externalFence, m_fenceSyncObject);
+    }
+
+    // For external fence, set the external opened flag.
+    m_fenceState.isOpened = 1;
+
     return result;
+}
+
+// =====================================================================================================================
+// Export the sync object handle of SyncobjFence with handle type: OPAQUE_FD.
+// For type SYNC_FD, will implement later.
+OsExternalHandle SyncobjFence::GetHandle() const
+{
+    return m_device.ExportSyncObject(m_fenceSyncObject);
 }
 
 // =====================================================================================================================

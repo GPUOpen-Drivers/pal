@@ -33,7 +33,7 @@
 
 #include "palUtil.h"
 
-#include "../../src/core/imported/metrohash/src/metrohash.h"
+#include "../../src/util/imported/metrohash/src/metrohash.h"
 
 namespace Util
 {

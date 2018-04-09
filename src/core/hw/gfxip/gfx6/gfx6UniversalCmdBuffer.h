@@ -422,6 +422,7 @@ public:
 
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) override;
 
     virtual void CmdMemoryAtomic(
@@ -648,14 +649,10 @@ protected:
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
     template <bool indexed, bool indirect>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+    void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+    void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty>
     uint32* ValidateDraw(

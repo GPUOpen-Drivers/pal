@@ -370,13 +370,14 @@ void ComputeCmdBuffer::CmdUpdateMemory(
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                          pGpuMemory->GetBusAddrMarkerVa(),
+                                          pGpuMemory->GetBusAddrMarkerVa() + offset,
                                           1,
                                           engine_sel__me_write_data__micro_engine,
                                           dst_sel__mec_write_data__memory,

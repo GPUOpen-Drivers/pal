@@ -337,7 +337,7 @@ namespace DevDriver
         // Note: This function should probably be marked const, but it calls IsTraceRunning which takes the RGPServer
         // mutex to check trace state which is not a const operation.  A read/write lock might solve the problem.
         RGPProtocol::RGPServer* pRgpServer = GetServer<Protocol::RGP>();
-        static const char* const pRenderDocAppName = "qrenderdoc.exe";
+        static const char* const pRenderDocAppName = "qrenderdoc";
         char clientName[128] = {};
         Platform::GetProcessName(&clientName[0], sizeof(clientName));
         bool traceInProgress = ((pRgpServer != nullptr) && pRgpServer->IsTraceRunning());

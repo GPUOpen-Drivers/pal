@@ -1710,7 +1710,7 @@ public:
 #endif
     Result Init(Platform* pPlatform);
 
-    void   SpecializedInit(Platform* pPlatform);
+    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);
 
 private:
     void* m_libraryHandles[DrmLoaderLibrariesCount];

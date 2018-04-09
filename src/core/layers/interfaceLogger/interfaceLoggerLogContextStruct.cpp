@@ -530,10 +530,17 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+    if (value.flags.useLinearBufferForCeRamDumps)
+    {
+        Value("useLinearBufferForCeRamDumps");
+    }
+#else
     if (value.flags.useEmbeddedDataForCeRamDumps)
     {
         Value("useEmbeddedDataForCeRamDumps");
     }
+#endif
 
     if (value.flags.disallowNestedLaunchViaIb2)
     {

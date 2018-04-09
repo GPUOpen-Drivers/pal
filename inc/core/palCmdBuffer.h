@@ -2165,10 +2165,19 @@ public:
     /// Updates marker surface with a DWORD value to indicate an event completion.
     ///
     /// @param [in] dstGpuMemory  GPU memory object to be updated.
+    /// @param [in] offset        Byte offset into marker address
     /// @param [in] value         Marker DWORD value to be copied to the bus addressable or external physical memory.
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) = 0;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 397)
+    PAL_INLINE virtual void CmdUpdateBusAddressableMemoryMarker(
+        const IGpuMemory& dstGpuMemory,
+        uint32            value)
+        { CmdUpdateBusAddressableMemoryMarker(dstGpuMemory, 0, value); }
+#endif
 
     /// Fills a range of GPU memory with the provided 32-bit data.
     ///

@@ -27,14 +27,17 @@
 #include "msgChannel.h"
 #include "ddTransferManager.h"
 #include "protocols/ddURIProtocol.h"
+#include "util/vector.h"
 
 #define URI_SERVER_MIN_MAJOR_VERSION URI_INITIAL_VERSION
-#define URI_SERVER_MAX_MAJOR_VERSION URI_RESPONSE_FORMATS_VERSION
+#define URI_SERVER_MAX_MAJOR_VERSION URI_POST_PROTOCOL_VERSION
 
 namespace DevDriver
 {
     namespace URIProtocol
     {
+        using TransferProtocol::kInvalidBlockId;
+
         static constexpr ResponseDataFormat UriFormatToResponseFormat(URIDataFormat format)
         {
             static_assert(static_cast<uint32>(ResponseDataFormat::Unknown) == static_cast<uint32>(URIDataFormat::Unknown),
@@ -48,21 +51,6 @@ namespace DevDriver
             return static_cast<ResponseDataFormat>(format);
         }
 
-        struct URISession
-        {
-            Version version;
-            SharedPointer<TransferProtocol::ServerBlock> pBlock;
-            URIPayload payload;
-            bool hasQueuedPayload;
-
-            explicit URISession()
-                : version(0)
-                , hasQueuedPayload(false)
-            {
-                memset(&payload, 0, sizeof(payload));
-            }
-        };
-
         // =====================================================================================================================
         // Parses out the parameters from a request string. (Ex. service://service-args)
         bool ExtractRequestParameters(char* pRequestString, char** ppServiceName, char** ppServiceArguments)
@@ -73,7 +61,7 @@ namespace DevDriver
 
             bool result = false;
 
-            // Iterate through the null terminated string until we find "://" or the end of the string.
+            // Iterate through the null terminated string until we find the ":" character or the end of the string.
             char* pCurrentChar = strstr(pRequestString, "://");
 
             // If we haven't reached the end of the string then we've found the ":" character.
@@ -93,6 +81,304 @@ namespace DevDriver
 
             return result;
         }
+
+        using TransferManager = TransferProtocol::TransferManager;
+
+        class URIServer::URISession
+        {
+        public:
+            explicit URISession(URIServer* pServer,
+                                TransferManager* pTransferManager,
+                                const SharedPointer<ISession>& pSession)
+                : m_pServer(pServer)
+                , m_pTransferManager(pTransferManager)
+                , m_pSession(pSession)
+                , m_pResponseBlock()
+                , m_hasQueuedPayload(false)
+                , m_context()
+                , m_payload()
+                , m_pendingPostRequest()
+            {
+            }
+
+            ~URISession()
+            {
+                // Release the session's server block before destroying it.
+                if (!m_pResponseBlock.IsNull())
+                {
+                    m_pTransferManager->CloseServerBlock(m_pResponseBlock);
+                }
+
+                ClosePendingPostRequest();
+            }
+
+            // Helper functions for working with SizedPayloadContainers and managing back-compat.
+
+            // ========================================================================================================
+            Result SendPayload(const SizedPayloadContainer& payload, uint32 timeoutInMs)
+            {
+                // If we're running an older transfer version, always write the fixed container size.
+                // Otherwise, write the real size.
+                const uint32 payloadSize =
+                    (m_pSession->GetVersion() >= URI_POST_PROTOCOL_VERSION) ? payload.payloadSize : kLegacyMaxSize;
+
+                return m_pSession->Send(payloadSize, payload.payload, timeoutInMs);
+            }
+
+            // ========================================================================================================
+            Result ReceivePayload(SizedPayloadContainer* pPayload, uint32 timeoutInMs)
+            {
+                DD_ASSERT(pPayload != nullptr);
+                return m_pSession->Receive(sizeof(pPayload->payload), pPayload->payload, &pPayload->payloadSize, timeoutInMs);
+            }
+
+            // ========================================================================================================
+            void Update()
+            {
+                // Attempt to send the session's queued payload if it has one.
+                if (m_hasQueuedPayload)
+                {
+                    Result result = SendPayload(m_payload, kNoWait);
+                    if (result == Result::Success)
+                    {
+                        // We successfully sent the payload. The session can now handle new requests.
+                        m_hasQueuedPayload = false;
+                    }
+                }
+
+                // We can only receive new messages if we don't currently have a queued payload.
+                if (!m_hasQueuedPayload)
+                {
+                    // Receive and handle any new requests.
+                    Result result = ReceivePayload(&m_payload, kNoWait);
+
+                    if (result == Result::Success)
+                    {
+                        URIHeader& header = m_payload.GetPayload<URIHeader>();
+                        if (header.command == URIMessage::URIPostRequest)
+                        {
+                            char* pServiceName = nullptr;
+                            char* pServiceArguments = nullptr;
+                            URIPostRequestPayload& payload = m_payload.GetPayload<URIPostRequestPayload>();
+
+                            result = ExtractRequestParameters(payload.uriString, &pServiceName, &pServiceArguments) ?
+                                Result::Success : Result::UriStringParseError;
+
+                            // Then query the service to see if this is a valid request
+                            if (result == Result::Success)
+                            {
+                                result = m_pServer->ValidatePostRequest(pServiceName, pServiceArguments, payload.dataSize);
+                            }
+
+                            if (result == Result::Success)
+                            {
+                                auto pBlock = m_pTransferManager->OpenServerBlock();
+
+                                if (pBlock.IsNull())
+                                {
+                                    result = Result::UriFailedToOpenResponseBlock;
+                                }
+                                else
+                                {
+                                    // We should never get to this point with a valid block still stored in m_pendingPostRequest
+                                    DD_ASSERT(m_pendingPostRequest.pPostDataBlock.IsNull());
+                                    m_pendingPostRequest.pPostDataBlock = pBlock;
+                                    m_pendingPostRequest.requestedSize = payload.dataSize;
+                                    // Assemble the response payload.
+                                    m_payload.CreatePayload<URIPostResponsePayload>(result, m_pendingPostRequest.pPostDataBlock->GetBlockId());
+                                }
+                            }
+
+                            if (result != Result::Success)
+                            {
+                                // If there's an error, just send back the result and Invalid block ID
+                                m_payload.CreatePayload<URIPostResponsePayload>(result, kInvalidBlockId);
+                            }
+                        }
+                        else if (header.command == URIMessage::URIRequest)
+                        {
+                            URIRequestPayload& payload = m_payload.GetPayload<URIRequestPayload>();
+                            // Declare the post data block here so the shared pointer will live through the handling of the
+                            // request
+                            SharedPointer<TransferProtocol::ServerBlock> postDataBlock;
+
+                            // Older URI clients don't know about the post data fields, fill in default values
+                            if (m_pSession->GetVersion() < URI_POST_PROTOCOL_VERSION)
+                            {
+                                payload.blockId = kInvalidBlockId;
+                                payload.dataFormat = TransferDataFormat::Unknown;
+                                payload.dataSize = 0;
+                            }
+
+                            // Attempt to extract the request string.
+                            char* pServiceName = nullptr;
+                            char* pServiceArguments = nullptr;
+                            result = ExtractRequestParameters(payload.uriString, &pServiceName, &pServiceArguments) ?
+                                Result::Success : Result::UriStringParseError;
+
+                            // Setup the context to point at any post data provided with the request
+                            if ((result == Result::Success) && (payload.dataSize > 0))
+                            {
+                                // An invalid BlockId indicates inline data
+                                if (payload.blockId == kInvalidBlockId)
+                                {
+                                    // Make sure there is not a pending post request
+                                    if (m_pendingPostRequest.pPostDataBlock.IsNull())
+                                    {
+                                        // Sanity check to make sure we don't read data past the end of the packet payload if
+                                        // the client passes bogus data
+                                        if (payload.dataSize <= kMaxInlineDataSize)
+                                        {
+                                            // Request data was sent inline in a single packet, setup the context to point at
+                                            // the packet offset after the request payload struct
+                                            m_context.pPostData = GetInlineDataPtr(&m_payload);
+                                            m_context.postDataSize = payload.dataSize;
+                                            m_context.postDataFormat = TransferFmtToURIDataFmt(payload.dataFormat);
+                                        }
+                                        else
+                                        {
+                                            // We should never have a dataSize > 0 and an invalid BlockId
+                                            result = Result::UriInvalidParamters;
+                                            DD_ASSERT_ALWAYS();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Another request came in while a post request was pending, return an error and clean up
+                                        result = Result::UriPendingRequestError;
+                                        ClosePendingPostRequest();
+                                    }
+                                }
+                                else
+                                {
+                                    // If there's a post block associated with the request, we should have the same block
+                                    // stored in m_pendingPostRequest
+                                    if ((m_pendingPostRequest.pPostDataBlock.IsNull() == false) &&
+                                        (m_pendingPostRequest.pPostDataBlock->GetBlockId() == payload.blockId) &&
+                                        (m_pendingPostRequest.pPostDataBlock->GetBlockData() != nullptr) &&
+                                        (payload.dataSize == m_pendingPostRequest.pPostDataBlock->GetBlockDataSize()))
+                                    {
+                                        // The request data was sent via the provided blockId, setup the context to point at the block.
+                                        m_context.pPostData = m_pendingPostRequest.pPostDataBlock->GetBlockData();
+                                        m_context.postDataSize = static_cast<uint32>(m_pendingPostRequest.pPostDataBlock->GetBlockDataSize());
+                                        m_context.postDataFormat = TransferFmtToURIDataFmt(payload.dataFormat);
+                                    }
+                                    else
+                                    {
+                                        result = Result::UriInvalidPostDataBlock;
+                                        ClosePendingPostRequest();
+                                    }
+                                }
+                            }
+
+                            if (result == Result::Success)
+                            {
+                                m_pResponseBlock = m_pTransferManager->OpenServerBlock();
+
+                                if (m_pResponseBlock.IsNull())
+                                {
+                                    result = Result::UriFailedToOpenResponseBlock;
+                                }
+                                else
+                                {
+                                    // Handle the request using the appropriate service.
+                                    m_context.pRequestArguments = pServiceArguments;
+                                    m_context.pResponseBlock = m_pResponseBlock;
+                                    m_context.responseDataFormat = URIDataFormat::Unknown;
+
+                                    // We've successfully extracted the request parameters.
+                                    result = m_pServer->ServiceRequest(pServiceName, &m_context);
+
+                                    // Close the post data block, if necessary
+                                    ClosePendingPostRequest();
+
+                                    // Close the response block.
+                                    m_pResponseBlock->Close();
+                                }
+                            }
+
+                            // Assemble the response payload.
+                            if ((result == Result::Success))
+                            {
+                                // Assemble the response payload.
+
+                                // We send this data back regardless of protocol version, but it will only
+                                // be read in a v2 or higher session.
+                                const TransferDataFormat format =
+                                    UriFormatToResponseFormat(m_context.responseDataFormat);
+                                m_payload.CreatePayload<URIResponsePayload>(result,
+                                                                            m_pResponseBlock->GetBlockId(),
+                                                                            format);
+                            }
+                            else
+                            {
+                                // Failed to parse request parameters.
+
+                                // Assemble the response payload.
+                                m_payload.CreatePayload<URIResponsePayload>(result);
+                            }
+                        }
+                        else
+                        {
+                            // We shouldn't expect any other commands on the server side, so just assert
+                            DD_ASSERT_ALWAYS();
+                        }
+
+                        // Mark the session as having a queued payload if we fail to send the response.
+                        if (SendPayload(m_payload, kNoWait) != Result::Success)
+                        {
+                            m_hasQueuedPayload = true;
+                        }
+                    }
+                }
+            }
+
+        private:
+            URIDataFormat TransferFmtToURIDataFmt(TransferDataFormat transferFormat)
+            {
+                // These enum deinitions are the same (for now) and both exist to keep the public and private
+                // interfaces separate.  Do a compile time check to make sure there have been no changes then
+                // just cast one to the other.
+                static_assert((static_cast<uint32>(URIDataFormat::Unknown) == static_cast<uint32>(TransferDataFormat::Unknown)) &&
+                              (static_cast<uint32>(URIDataFormat::Binary)  == static_cast<uint32>(TransferDataFormat::Binary)) &&
+                              (static_cast<uint32>(URIDataFormat::Text)    == static_cast<uint32>(TransferDataFormat::Text)) &&
+                              (static_cast<uint32>(URIDataFormat::Count)   == static_cast<uint32>(TransferDataFormat::Count)),
+                              "TransferDataFormat doesn't match URIDataFormat");
+                return static_cast<URIDataFormat>(transferFormat);
+            }
+
+            void ClosePendingPostRequest()
+            {
+                if (m_pendingPostRequest.pPostDataBlock.IsNull() == false)
+                {
+                    m_pTransferManager->CloseServerBlock(m_pendingPostRequest.pPostDataBlock);
+                }
+                m_pendingPostRequest.pPostDataBlock.Clear();
+                m_pendingPostRequest.requestedSize = 0;
+            }
+
+            URIServer*                                   m_pServer;
+            TransferManager*                             m_pTransferManager;
+            SharedPointer<ISession>                      m_pSession;
+            SharedPointer<TransferProtocol::ServerBlock> m_pResponseBlock;
+            bool                                         m_hasQueuedPayload;
+            URIRequestContext                            m_context;
+            SizedPayloadContainer                        m_payload;
+
+            struct PostDataRequest
+            {
+                SharedPointer<TransferProtocol::ServerBlock>  pPostDataBlock;
+                uint32                                        requestedSize;
+
+                PostDataRequest() :
+                    pPostDataBlock(),
+                    requestedSize(0)
+                {
+                }
+            };
+
+            PostDataRequest m_pendingPostRequest;
+        };
 
         // =====================================================================================================================
         URIServer::URIServer(IMsgChannel* pMsgChannel)
@@ -127,11 +413,11 @@ namespace DevDriver
         {
             DD_UNUSED(pSession);
 
-            // Allocate session data for the newly established session
-            URISession* pSessionData = DD_NEW(URISession, m_pMsgChannel->GetAllocCb())();
-
             // Allocate a server block for use by the session.
-            pSessionData->pBlock = m_pMsgChannel->GetTransferManager().OpenServerBlock();
+            TransferManager* pTransferManager = &m_pMsgChannel->GetTransferManager();
+
+            // Allocate session data for the newly established session
+            URISession* pSessionData = DD_NEW(URISession, m_pMsgChannel->GetAllocCb())(this, pTransferManager, pSession);
 
             pSession->SetUserData(pSessionData);
         }
@@ -140,89 +426,7 @@ namespace DevDriver
         void URIServer::UpdateSession(const SharedPointer<ISession>& pSession)
         {
             URISession* pSessionData = reinterpret_cast<URISession*>(pSession->GetUserData());
-
-            // Attempt to send the session's queued payload if it has one.
-            if (pSessionData->hasQueuedPayload)
-            {
-                Result result = pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait);
-                if (result == Result::Success)
-                {
-                    // We successfully sent the payload. The session can now handle new requests.
-                    pSessionData->hasQueuedPayload = false;
-                }
-            }
-
-            // We can only receive new messages if we don't currently have a queued payload.
-            if (!pSessionData->hasQueuedPayload)
-            {
-                // Receive and handle any new requests.
-                uint32 bytesReceived = 0;
-                Result result = pSession->Receive(sizeof(pSessionData->payload), &pSessionData->payload, &bytesReceived, kNoWait);
-
-                if (result == Result::Success)
-                {
-                    // Make sure we receive a correctly sized payload.
-                    DD_ASSERT(sizeof(pSessionData->payload) == bytesReceived);
-
-                    // Make sure the payload is a uri request since it's the only payload type we should ever receive.
-                    DD_ASSERT(pSessionData->payload.command == URIMessage::URIRequest);
-
-                    // Reset the block associated with the session so we can write new data into it.
-                    pSessionData->pBlock->Reset();
-
-                    // Attempt to extract the request string.
-                    char* pRequestString = pSessionData->payload.uriRequest.uriString;
-                    char* pServiceName = nullptr;
-                    char* pServiceArguments = nullptr;
-                    result = ExtractRequestParameters(pRequestString, &pServiceName, &pServiceArguments) ? Result::Success : Result::Error;
-
-                    if (result == Result::Success)
-                    {
-                            // Handle the request using the appropriate service.
-                            URIRequestContext context = {};
-                            context.pRequestArguments = pServiceArguments;
-                            context.pResponseBlock = pSessionData->pBlock;
-                            context.responseDataFormat = URIDataFormat::Unknown;
-
-                            result = ServiceRequest(pServiceName, &context);
-
-                            // Close the response block.
-                            pSessionData->pBlock->Close();
-
-                            // Assemble the response payload.
-                            pSessionData->payload.command = URIMessage::URIResponse;
-                            // Return the block id and associate the block with the session if we successfully handled the request.
-                            pSessionData->payload.uriResponse.result = result;
-                            pSessionData->payload.uriResponse.blockId = ((result == Result::Success) ? pSessionData->pBlock->GetBlockId()
-                                                                         : TransferProtocol::kInvalidBlockId);
-                            // We send this data back regardless of protocol version, but it will only be read
-                            // in a v2 session.
-                            pSessionData->payload.uriResponse.format = UriFormatToResponseFormat(context.responseDataFormat);
-
-                            // Mark the session as having a queued payload if we fail to send the response.
-                            if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
-                            {
-                                pSessionData->hasQueuedPayload = true;
-                            }
-                    }
-                    else
-                    {
-                        // Failed to parse request parameters.
-
-                        // Assemble the response payload.
-                        pSessionData->payload.command = URIMessage::URIResponse;
-                        pSessionData->payload.uriResponse.result = Result::Error;
-                        pSessionData->payload.uriResponse.blockId = TransferProtocol::kInvalidBlockId;
-                        pSessionData->payload.uriResponse.format = ResponseDataFormat::Unknown;
-
-                        // Mark the session as having a queued payload if we fail to send the response.
-                        if (pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait) != Result::Success)
-                        {
-                            pSessionData->hasQueuedPayload = true;
-                        }
-                    }
-                }
-            }
+            pSessionData->Update();
         }
 
         // =====================================================================================================================
@@ -234,12 +438,6 @@ namespace DevDriver
             // Free the session data
             if (pURISession != nullptr)
             {
-                // Release the session's server block before destroying it.
-                if (!pURISession->pBlock.IsNull())
-                {
-                    m_pMsgChannel->GetTransferManager().CloseServerBlock(pURISession->pBlock);
-                }
-
                 DD_DELETE(pURISession, m_pMsgChannel->GetAllocCb());
             }
         }
@@ -248,13 +446,13 @@ namespace DevDriver
         Result URIServer::RegisterService(IService* pService)
         {
             m_mutex.Lock();
-            Result result = m_registeredServices.PushBack(pService) ? Result::Success : Result::Error;
+            Result result = m_registeredServices.PushBack(pService) ? Result::Success : Result::UriServiceRegistrationError;
             m_mutex.Unlock();
 
             if (result == Result::Success)
             {
                 m_cacheMutex.Lock();
-                result = m_registeredServiceNamesCache.PushBack(pService->GetName()) ? Result::Success : Result::Error;
+                result = m_registeredServiceNamesCache.PushBack(pService->GetName()) ? Result::Success : Result::UriServiceRegistrationError;
                 m_cacheMutex.Unlock();
 
                 // To keep the cache consistent with the registered services list,
@@ -263,7 +461,7 @@ namespace DevDriver
                 if (result != Result::Success)
                 {
                     m_mutex.Lock();
-                    result = m_registeredServices.Remove(pService) ? Result::Success : Result::Error;
+                    result = m_registeredServices.Remove(pService) ? Result::Success : Result::UriServiceRegistrationError;
                     m_mutex.Unlock();
                 }
             }
@@ -275,14 +473,14 @@ namespace DevDriver
         Result URIServer::UnregisterService(IService* pService)
         {
             m_mutex.Lock();
-            Result result = m_registeredServices.Remove(pService) ? Result::Success : Result::Error;
+            Result result = m_registeredServices.Remove(pService) ? Result::Success : Result::UriServiceRegistrationError;
             m_mutex.Unlock();
 
             if (result == Result::Success)
             {
                 m_cacheMutex.Lock();
                 FixedString<kMaxUriServiceNameLength> serviceName(pService->GetName());
-                result = m_registeredServiceNamesCache.Remove(serviceName) ? Result::Success : Result::Error;
+                result = m_registeredServiceNamesCache.Remove(serviceName) ? Result::Success : Result::UriServiceRegistrationError;
                 m_cacheMutex.Unlock();
 
                 // To keep the cache consistent with the registered services list,
@@ -335,7 +533,6 @@ namespace DevDriver
             // Lock the mutex
             Platform::LockGuard<Platform::Mutex> lock(m_mutex);
 
-            // Look up the requested service to see if it's available.
             IService* pService = FindService(pServiceName);
 
             // Check if the requested service was successfully located.
@@ -343,6 +540,38 @@ namespace DevDriver
             {
                 result = pService->HandleRequest(pRequestContext);
             }
+
+            return result;
+        }
+
+        // =====================================================================================================================
+        Result URIServer::ValidatePostRequest(const char* pServiceName, char* pRequestArguments, uint32 sizeRequested)
+        {
+            Result result = Result::Unavailable;
+
+            if (pServiceName != nullptr)
+            {
+                // Lock the mutex and look up the requested service if it's available.
+                m_mutex.Lock();
+
+                IService* pService = FindService(pServiceName);
+
+                // Check if the requested service was successfully located.
+                if (pService != nullptr)
+                {
+                    if (pService->QueryPostSizeLimit(pRequestArguments) >= sizeRequested)
+                    {
+                        result = Result::Success;
+                    }
+                    else
+                    {
+                        result = Result::UriInvalidPostDataSize;
+                    }
+                }
+
+                m_mutex.Unlock();
+            }
+
             return result;
         }
     }

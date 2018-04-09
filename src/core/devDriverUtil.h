@@ -29,7 +29,7 @@
 #include "core/platform.h"
 #include "palHashMap.h"
 #include "palMutex.h"
-#include "protocols/ddURIService.h"
+#include "../../shared/gpuopen/inc/ddUriInterface.h"
 
 // Forward declarations.
 namespace DevDriver
@@ -70,10 +70,11 @@ void DevDriverFree(
     void* pUserdata,
     void* pMemory);
 
+static const char* pPipelineDumpServiceName = "pipelinedump";
 // =====================================================================================================================
 // PAL Pipeline Dump Service
 // Used to allow clients on the developer driver bus to remotely dump pipelines from the driver.
-class PipelineDumpService : public DevDriver::URIProtocol::URIService
+class PipelineDumpService : public DevDriver::IService
 {
 public:
     explicit PipelineDumpService(Platform* pPlatform);
@@ -82,11 +83,13 @@ public:
     Result Init();
 
     // Handles a request from a developer driver client.
-    DevDriver::Result HandleRequest(char* pArguments,
-                                    DevDriver::SharedPointer<DevDriver::TransferProtocol::LocalBlock> pBlock) override;
+    DevDriver::Result HandleRequest(DevDriver::URIRequestContext* pContext) override;
 
     // Registers a pipeline hash / binary pair with the dump service.
     void RegisterPipeline(void* pPipelineBinary, uint32 pipelineBinaryLength, uint64 pipelineHash);
+
+    // Returns the name of the service
+    const char* GetName() const override final { return pPipelineDumpServiceName; }
 
 private:
     // Struct for keeping track of pipeline binary data.

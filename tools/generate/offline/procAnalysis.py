@@ -282,7 +282,7 @@ class ProcMgr:
         fp.write("    void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }\n")
         fp.write("#endif\n")
         fp.write("    Result Init(Platform* pPlatform);\n\n")
-        fp.write("    void   SpecializedInit(Platform* pPlatform);\n\n")
+        fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n\n")
         for var in self.var:
             fp.write("    " + var.GetVarType() + "* Get" + var.GetFormattedName() + "() const;\n\n")
         # add library handler
@@ -421,7 +421,7 @@ class ProcMgr:
         for key in self.libraries.keys():
             fp.write("        \"" + key + "\",\n")
         fp.write("    };\n\n")
-        fp.write("    SpecializedInit(pPlatform);\n")
+        fp.write("    SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);\n")
         # load function point from libraries.
         fp.write("    if (m_initialized == false)\n")
         fp.write("    {\n")

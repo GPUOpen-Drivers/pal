@@ -259,6 +259,38 @@ namespace DevDriver
         }
     }
 
+    // Increments a const pointer by numBytes by first casting it to a const uint8*.
+    constexpr const void* VoidPtrInc(
+        const void* pPtr,
+        size_t      numBytes)
+    {
+        return (static_cast<const uint8*>(pPtr) + numBytes);
+    }
+
+    // Increments a pointer by numBytes by first casting it to a uint8*.
+    constexpr void* VoidPtrInc(
+        void*  pPtr,
+        size_t numBytes)
+    {
+        return (static_cast<uint8*>(pPtr) + numBytes);
+    }
+
+    // Decrements a const pointer by numBytes by first casting it to a const uint8*.
+    constexpr const void* VoidPtrDec(
+        const void* pPtr,
+        size_t      numBytes)
+    {
+        return (static_cast<const uint8*>(pPtr) - numBytes);
+    }
+
+    // Decrements a pointer by numBytes by first casting it to a uint8*.
+    constexpr void* VoidPtrDec(
+        void*  pPtr,
+        size_t numBytes)
+    {
+        return (static_cast<uint8*>(pPtr) - numBytes);
+    }
+
     //---------------------------------------------------------------------
     // CRC32
     //

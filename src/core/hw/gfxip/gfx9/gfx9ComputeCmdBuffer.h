@@ -73,6 +73,7 @@ public:
 
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) override;
 
     virtual void CmdMemoryAtomic(

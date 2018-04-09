@@ -1135,10 +1135,12 @@ void CmdBuffer::ReplayCmdUpdateMemory(
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     InsertToken(CmdBufCallId::CmdUpdateBusAddressableMemoryMarker);
     InsertToken(&dstGpuMemory);
+    InsertToken(offset);
     InsertToken(value);
 }
 
@@ -1148,12 +1150,13 @@ void CmdBuffer::ReplayCmdUpdateBusAddressableMemoryMarker(
     TargetCmdBuffer* pTgtCmdBuffer)
 {
     auto          pDstGpuMemory = ReadTokenVal<IGpuMemory*>();
+    auto          offset = ReadTokenVal<uint32>();
     auto          value = ReadTokenVal<uint32>();
 
     LogItem logItem = {};
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdUpdateBusAddressableMemoryMarker);
-    pTgtCmdBuffer->CmdUpdateBusAddressableMemoryMarker(*pDstGpuMemory, value);
+    pTgtCmdBuffer->CmdUpdateBusAddressableMemoryMarker(*pDstGpuMemory, offset, value);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 

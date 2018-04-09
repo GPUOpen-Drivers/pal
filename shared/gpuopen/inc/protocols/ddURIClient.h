@@ -55,7 +55,10 @@ namespace DevDriver
             ~URIClient();
 
             // Sends a URI request to the connected server.
-            Result RequestURI(const char* pRequestString, ResponseHeader* pResponseHeader = nullptr);
+            Result RequestURI(const char*     pRequestString,
+                              ResponseHeader* pResponseHeader = nullptr,
+                              const void*     pPostData = nullptr,
+                              size_t          postDataSize = 0);
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
             // Sends a URI request to the connected server.
@@ -71,6 +74,19 @@ namespace DevDriver
 
         private:
             void ResetState() override;
+
+            // Helper method to send a payload, handling backwards compatibility and retrying.
+            Result SendURIPayload(const SizedPayloadContainer& container,
+                                  uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                  uint32                       retryInMs = kDefaultRetryTimeoutInMs);
+            // Helper method to handle receiving a payload from a SizedPayloadContainer, including retrying if busy.
+            Result ReceiveURIPayload(SizedPayloadContainer* pContainer,
+                                     uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                     uint32                 retryInMs = kDefaultRetryTimeoutInMs);
+            // Helper method to send and then receive using a SizedPayloadContainer object.
+            Result TransactURIPayload(SizedPayloadContainer* pContainer,
+                                      uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                      uint32                 retryInMs = kDefaultRetryTimeoutInMs);
 
             enum class State : uint32
             {

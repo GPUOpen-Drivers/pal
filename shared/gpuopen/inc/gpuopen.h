@@ -245,7 +245,24 @@ namespace DevDriver
         Rejected = 5,
         EndOfStream = 6,
         Aborted = 7,
-        InsufficientMemory = 8
+        InsufficientMemory = 8,
+
+        //// URI PROTOCOL  ////
+        UriServiceRegistrationError = 1000,
+        UriStringParseError = 1001,
+        UriInvalidParamters = 1002,
+        UriInvalidPostDataBlock = 1003,
+        UriInvalidPostDataSize = 1004,
+        UriFailedToAcquirePostBlock = 1005,
+        UriFailedToOpenResponseBlock = 1006,
+        UriRequestFailed = 1007,
+        UriPendingRequestError = 1008,
+
+        //// Settings URI Service  ////
+        SettingsUriInvalidComponent = 2000,
+        SettingsUriInvalidSettingName = 2001,
+        SettingsUriInvalidSettingValue = 2002,
+        SettingsUriInvalidSettingValueSize = 2003,
     };
 
     ////////////////////////////

@@ -3230,11 +3230,13 @@ void RsrcProcMgr::SlowClearGraphicsOneMip(
     {
         // We need to clear each array slice individually because we cannot select which array slice to render to
         // without a Geometry Shader.
-        const uint32 baseSlice = clearRange.startSubres.arraySlice;
-        const uint32 numSlices = clearRange.numSlices;
-        const uint32 lastSlice = baseSlice + numSlices - 1;
+        const uint32 baseSlice        = clearRange.startSubres.arraySlice;
+        const uint32 numSlices        = clearRange.numSlices;
+        const uint32 finalSliceAddOne = baseSlice + numSlices;
 
-        for (uint32 arraySlice = baseSlice; arraySlice <= lastSlice; arraySlice++)
+        PAL_ASSERT((numSlices > 0) && (finalSliceAddOne <= createInfo.arraySize));
+
+        for (uint32 arraySlice = baseSlice; arraySlice < finalSliceAddOne; arraySlice++)
         {
             LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 

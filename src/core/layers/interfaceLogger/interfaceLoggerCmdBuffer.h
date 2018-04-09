@@ -172,6 +172,7 @@ public:
         const uint32*     pData) override;
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) override;
     virtual void CmdFillMemory(
         const IGpuMemory& dstGpuMemory,

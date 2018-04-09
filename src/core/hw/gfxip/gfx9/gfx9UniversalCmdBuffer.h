@@ -479,6 +479,7 @@ public:
 
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) override;
 
     virtual void CmdMemoryAtomic(
@@ -688,7 +689,9 @@ public:
     void SetPrimShaderWorkload() { m_nggState.flags.state.hasPrimShaderWorkload = 1; }
     virtual bool HasPrimShaderWorkload() const override { return m_nggState.flags.state.hasPrimShaderWorkload; }
 
-    uint32 BuildScissorRectImage(ScissorRectPm4Img* pScissorRectImg) const;
+    uint32 BuildScissorRectImage(
+        bool               multipleViewports,
+        ScissorRectPm4Img* pScissorRectImg) const;
 
     template <bool pm4OptImmediate>
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
@@ -729,14 +732,10 @@ protected:
         const MsaaState*         pMsaaState) const;
 
     template <bool indexed, bool indirect>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+    void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate>
-    uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+    void ValidateDraw(const ValidateDrawInfo& drawInfopDeCmdSpace);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty>
     uint32* ValidateDraw(

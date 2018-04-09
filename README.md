@@ -20,9 +20,9 @@ PAL is a relatively thick abstraction layer, typically accounting for the majori
 
 PAL uses a C++ interface. The public interface is defined in .../pal/inc, and clients must only include headers from that directory. The interface is spread over many header files - typically one per class - in order to clarify dependencies and reduce build times. There are three sub-directories in .../pal/inc:
 
-* .../pal/inc/core - Defines the [PAL Core](#PAL-Core)
-* .../pal/inc/util - Defines the [PAL Utility Collection](#Utility-Collection)
-* .../pal/inc/gpuUtil - Defines the [PAL GPU Utility Collection](#GPU-Utility-Collection)
+* [inc/core](inc/core) - Defines the [PAL Core](#PAL-Core)
+* [inc/util](inc/util) - Defines the [PAL Utility Collection](#Utility-Collection)
+* [inc/gpuUtil](inc/gpuUtil) - Defines the [PAL GPU Utility Collection](#GPU-Utility-Collection)
 
 ## PAL Core
 PAL's core interface is defined in the `Pal` namespace.  It defines an object-oriented model for interacting with the GPU and OS. The interface closely resembles the Mantle, Vulkan, and DX12 APIs. Some common features of these APIs that are central to the PAL interface:
@@ -107,6 +107,6 @@ In addition to the generic, OS-abstracted software utilities, PAL provides GPU-s
 
 ## Third Party Software
 PAL contains code written by third parties. Such libraries have their own individual LICENSE files in the directory they appear:
-* jemalloc: see src/core/imported/jemalloc/jemalloc-license
-* Metrohash: see src/core/imported/metrohash/metrohash-license
+* jemalloc: see src/util/imported/jemalloc/jemalloc-license
+* Metrohash: see src/util/imported/metrohash/metrohash-license
 

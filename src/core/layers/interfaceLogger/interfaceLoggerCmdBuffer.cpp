@@ -1149,13 +1149,14 @@ void CmdBuffer::CmdUpdateMemory(
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), value);
+    m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -1163,6 +1164,7 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
+        pLogContext->KeyAndValue("offset", offset);
         pLogContext->KeyAndValue("value", value);
         pLogContext->EndInput();
 

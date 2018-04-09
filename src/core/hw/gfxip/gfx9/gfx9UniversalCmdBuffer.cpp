@@ -1842,9 +1842,9 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
 
-    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
+    pThis->ValidateDraw<false, false>(drawInfo);
 
-    pDeCmdSpace = pThis->ValidateDraw<false, false>(drawInfo, pDeCmdSpace);
+    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     if (viewInstancingEnable)
     {
@@ -1917,9 +1917,9 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = firstIndex;
 
-    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
+    pThis->ValidateDraw<true, false>(drawInfo);
 
-    pDeCmdSpace = pThis->ValidateDraw<true, false>(drawInfo, pDeCmdSpace);
+    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     const uint32 validIndexCount = pThis->m_graphicsState.iaState.indexCount - firstIndex;
 
@@ -2051,9 +2051,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
 
+    pThis->ValidateDraw<false, true>(drawInfo);
+
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDraw<false, true>(drawInfo, pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(gpuMemory.Desc().gpuVirtAddr,
                                                  base_index__pfp_set_base__patch_table_base,
                                                  ShaderGraphics,
@@ -2153,9 +2154,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
 
+    pThis->ValidateDraw<true, true>(drawInfo);
+
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDraw<true, true>(drawInfo, pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(gpuMemory.Desc().gpuVirtAddr,
                                                  base_index__pfp_set_base__patch_table_base,
                                                  ShaderGraphics,
@@ -2414,13 +2416,14 @@ void UniversalCmdBuffer::CmdUpdateMemory(
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     const GpuMemory* pGpuMemory = static_cast<const GpuMemory*>(&dstGpuMemory);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace += m_cmdUtil.BuildWriteData(GetEngineType(),
-                                            pGpuMemory->GetBusAddrMarkerVa(),
+                                            pGpuMemory->GetBusAddrMarkerVa() + offset,
                                             1,
                                             engine_sel__me_write_data__micro_engine,
                                             dst_sel__me_write_data__memory,
@@ -3811,32 +3814,30 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
 // Performs draw-time dirty state validation. Returns the next unused DWORD in pDeCmdSpace.  Wrapper to determine
 // if immediate mode pm4 optimization is enabled before calling the real ValidateDraw() function.
 template <bool indexed, bool indirect>
-uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,      // Draw info
-    uint32* pDeCmdSpace)                   // Write new draw-engine commands here.
+void UniversalCmdBuffer::ValidateDraw(
+    const ValidateDrawInfo& drawInfo)      // Draw info
 {
     if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
     {
-        pDeCmdSpace = ValidateDraw<indexed, indirect, true>(drawInfo, pDeCmdSpace);
+        ValidateDraw<indexed, indirect, true>(drawInfo);
     }
     else
     {
-        pDeCmdSpace = ValidateDraw<indexed, indirect, false>(drawInfo, pDeCmdSpace);
+        ValidateDraw<indexed, indirect, false>(drawInfo);
     }
-
-    return pDeCmdSpace;
 }
 
 // =====================================================================================================================
 // Performs draw-time dirty state validation. Returns the next unused DWORD in pDeCmdSpace.  Wrapper to determine
 // if the pipeline is dirty before calling the real ValidateDraw() function.
 template <bool indexed, bool indirect, bool pm4OptImmediate>
-uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,
-    uint32*                 pDeCmdSpace)
+void UniversalCmdBuffer::ValidateDraw(
+    const ValidateDrawInfo& drawInfo)
 {
     if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
         const auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
         pDeCmdSpace = pNewPipeline->WriteShCommands(&m_deCmdStream, pDeCmdSpace, m_graphicsState.dynamicGraphicsInfo);
@@ -3854,14 +3855,18 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
         pDeCmdSpace = ValidateDraw<indexed, indirect, pm4OptImmediate, true>(drawInfo, pDeCmdSpace);
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
     else
     {
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
         pDeCmdSpace = ValidateDraw<indexed, indirect, pm4OptImmediate, false>(drawInfo, pDeCmdSpace);
-    }
 
-    return pDeCmdSpace;
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
 }
 
 // =====================================================================================================================
@@ -4977,13 +4982,14 @@ bool UniversalCmdBuffer::NeedsToValidateScissorRects(
 // =====================================================================================================================
 // Fillout the Scissor Rects Register.
 uint32 UniversalCmdBuffer::BuildScissorRectImage(
+    bool               multipleViewports,
     ScissorRectPm4Img* pScissorRectImg
     ) const
 {
     const auto& viewportState = m_graphicsState.viewportState;
     const auto& scissorState  = m_graphicsState.scissorRectState;
 
-    const uint32 scissorCount       = (m_graphicsState.enableMultiViewport) ? scissorState.count : 1;
+    const uint32 scissorCount       = (multipleViewports ? scissorState.count : 1);
     const uint32 numScissorRectRegs = ((sizeof(ScissorRectPm4Img) >> 2) * scissorCount);
 
     // Number of rects need cross validation
@@ -5055,8 +5061,8 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
     uint32*    pDeCmdSpace)
 {
     ScissorRectPm4Img scissorRectImg[MaxViewports];
-    const uint32      numScissorRectRegs = BuildScissorRectImage(scissorRectImg);
-    auto*             pNggScissorCntls   = &m_state.primShaderCbLayout.scissorStateCb.scissorControls[0];
+    const uint32 numScissorRectRegs = BuildScissorRectImage((m_graphicsState.enableMultiViewport != 0), scissorRectImg);
+    auto*        pNggScissorCntls   = &m_state.primShaderCbLayout.scissorStateCb.scissorControls[0];
 
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(
                                     mmPA_SC_VPORT_SCISSOR_0_TL,
@@ -6523,6 +6529,8 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         pDeCmdSpace += m_cmdUtil.BuildPfpSyncMe(pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<false>();
 
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+
         // Just like a normal direct/indirect draw/dispatch, we need to perform state validation before executing the
         // generated command chunks.
         if (bindPoint == PipelineBindPoint::Graphics)
@@ -6539,11 +6547,11 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             drawInfo.firstIndex    = 0;
             if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
             {
-                pDeCmdSpace = ValidateDraw<false, true>(drawInfo, pDeCmdSpace);
+                ValidateDraw<false, true>(drawInfo);
             }
             else
             {
-                pDeCmdSpace = ValidateDraw<true, true>(drawInfo, pDeCmdSpace);
+                ValidateDraw<true, true>(drawInfo);
             }
 
             CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched,
@@ -6552,6 +6560,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         }
         else
         {
+            pDeCmdSpace = m_deCmdStream.ReserveCommands();
             if (UseRingBufferForCeRamDumps())
             {
                 pDeCmdSpace = ValidateDispatch<true>(0uLL, 0, 0, 0, pDeCmdSpace);
@@ -6560,6 +6569,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             {
                 pDeCmdSpace = ValidateDispatch<false>(0uLL, 0, 0, 0, pDeCmdSpace);
             }
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
 
             CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
         }
@@ -6568,10 +6578,10 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         {
             const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
 
+            pDeCmdSpace = m_deCmdStream.ReserveCommands();
             pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
-
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
 
         // NOTE: The command stream expects an iterator to the first chunk to execute, but this iterator points to the
         // place in the list before the first generated chunk (see comments above).

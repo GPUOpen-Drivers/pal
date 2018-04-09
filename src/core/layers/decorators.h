@@ -1382,8 +1382,9 @@ public:
 
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
+        gpusize           offset,
         uint32            value) override
-        { m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), value); }
+        { m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value); }
 
     virtual void CmdFillMemory(
         const IGpuMemory& dstGpuMemory,

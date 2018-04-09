@@ -27,10 +27,11 @@
 
 #include "core/cmdStreamAllocation.h"
 #include "core/platform.h"
+#include "core/g_palSettings.h"
+
 #include "palHashMap.h"
 #include "palIntrusiveList.h"
 #include "palVector.h"
-#include "g_palSettings.h"
 
 namespace Util { class File; }
 namespace Util { class VirtualLinearAllocator; }

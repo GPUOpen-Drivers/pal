@@ -59,6 +59,37 @@ namespace DevDriver
         // Mutable arguments passed to the request
         char* pRequestArguments;
 
+        // Data provided by the client along with the request
+        const void* pPostData;
+
+        // Size of the post data pointed to by pPostData
+        uint32 postDataSize;
+
+        // The format of the data sent along with the request
+        URIDataFormat postDataFormat;
+
+        // A server block to write the response data into.
+        SharedPointer<TransferProtocol::ServerBlock> pResponseBlock;
+
+        // The format of the data written into the response block.
+        URIDataFormat responseDataFormat;
+    };
+
+    // A struct that represents a unique URI request
+    struct URIPostContext
+    {
+        // Mutable arguments passed to the request
+        char* pRequestArguments;
+
+        // A server block for post data.
+        SharedPointer<TransferProtocol::ServerBlock> pPostData;
+
+        // The format of the post data
+        URIDataFormat responseDataFormat;
+    };
+
+    struct URIResponseContext
+    {
         // A server block to write the response data into.
         SharedPointer<TransferProtocol::ServerBlock> pResponseBlock;
 
@@ -84,7 +115,10 @@ namespace DevDriver
         // Returns the name of the service
         virtual const char* GetName() const = 0;
 
-#if !DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
+#if DD_VERSION_SUPPORTS(GPUOPEN_URI_RESPONSE_FORMATS_VERSION)
+        // Attempts to handle a request from a client
+        virtual Result HandleRequest(URIRequestContext* pContext) = 0;
+#else
         // Attempts to handle a request from a client
         // Deprecated
         virtual Result HandleRequest(char*                                        pArguments,
@@ -110,10 +144,17 @@ namespace DevDriver
 
             return result;
         }
-#else
-        // Attempts to handle a request from a client
-        virtual Result HandleRequest(URIRequestContext* pContext) = 0;
 #endif
+
+        // Determines the size limit for post data requests for the client request.  By default services
+        // will not accept any post data.  The pArguments paramter must remain non-const because the
+        // service may need to manipulate it for further processing.
+        virtual size_t QueryPostSizeLimit(char* pArguments) const
+        {
+            DD_UNUSED(pArguments);
+            return 0;
+        }
+
     protected:
         IService() {};
     };

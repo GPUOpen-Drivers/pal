@@ -74,6 +74,8 @@ public:
 
     amdgpu_syncobj_handle GetFenceSyncObject() const { return m_fenceSyncObject; }
 
+    virtual OsExternalHandle GetHandle() const override;
+
 private:
     bool IsSyncobjSignaled(
         amdgpu_syncobj_handle    syncObj) const;

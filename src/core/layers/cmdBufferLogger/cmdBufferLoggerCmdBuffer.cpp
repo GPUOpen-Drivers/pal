@@ -2312,6 +2312,7 @@ void CmdBuffer::CmdUpdateMemory(
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     if (m_flags.logCmdBlts)
@@ -2322,7 +2323,7 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), value);
+    GetNextLayer()->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
 }
 
 // =====================================================================================================================

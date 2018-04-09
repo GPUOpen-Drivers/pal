@@ -2086,7 +2086,7 @@ Result DrmLoader::Init(
         "libdrm.so.2",
     };
 
-    SpecializedInit(pPlatform);
+    SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);
     if (m_initialized == false)
     {
         // resolve symbols from libdrm_amdgpu.so.1
@@ -2352,7 +2352,7 @@ Result DrmLoader::Init(
 }
 
 void
-DrmLoader::SpecializedInit(Platform* pPlatform)
+DrmLoader::SpecializedInit(Platform* pPlatform, char* pDtifLibName)
 {
 }
 

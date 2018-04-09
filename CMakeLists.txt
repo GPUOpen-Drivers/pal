@@ -114,7 +114,7 @@ endif()
 
 # JEMALLOC
 if(PAL_BUILD_JEMALLOC)
-    set(PAL_JEMALLOC_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/jemalloc CACHE PATH "Specify the path to the jemalloc project.")
+    set(PAL_JEMALLOC_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/jemalloc CACHE PATH "Specify the path to the jemalloc project.")
     set(JEMALLOC_OPTIONS_MARK_ADVANCED ON)
 
     set(JEMALLOC_STATS ${PAL_JEMALLOC_STATS} CACHE BOOL "PAL override." FORCE)
@@ -122,7 +122,7 @@ if(PAL_BUILD_JEMALLOC)
 endif()
 
 # METROHASH
-set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/metrohash CACHE PATH "Specify the path to the MetroHash project.")
+set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash CACHE PATH "Specify the path to the MetroHash project.")
 
 # VAM
 set(PAL_VAM_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/vam CACHE PATH "Specify the path to the VAM project.")

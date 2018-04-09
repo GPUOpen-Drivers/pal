@@ -48,12 +48,12 @@ namespace DevDriver
             explicit URIServer(IMsgChannel* pMsgChannel);
             ~URIServer();
 
-            void Finalize() override;
+            void Finalize() override final;
 
-            bool AcceptSession(const SharedPointer<ISession>& pSession) override;
-            void SessionEstablished(const SharedPointer<ISession>& pSession) override;
-            void UpdateSession(const SharedPointer<ISession>& pSession) override;
-            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
+            bool AcceptSession(const SharedPointer<ISession>& pSession) override final;
+            void SessionEstablished(const SharedPointer<ISession>& pSession) override final;
+            void UpdateSession(const SharedPointer<ISession>& pSession) override final;
+            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override final;
 
             // Adds a service to the list of registered server.
             Result RegisterService(IService* pService);
@@ -64,13 +64,16 @@ namespace DevDriver
             // Get the names of all currently registered services
             void GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& pServiceNames);
 
+            // Looks up the service to validate the block size requested by a client for a specific URI request.
+            Result ValidatePostRequest(const char* pServiceName, char* pRequestArguments, uint32 sizeRequested);
+
         private:
             // Returns a pointer to a service that was registered with a name that matches pServiceName.
             // Returns nullptr if there is no service registered with a matching name.
             IService* FindService(const char* pServiceName);
 
             // Looks up and services the request provided.
-            Result ServiceRequest(const char*        pServiceName,
+            Result ServiceRequest(const char* pServiceName,
                                   URIRequestContext* pRequestContext);
 
             // Mutex used for synchronizing the registered services list.
@@ -88,6 +91,8 @@ namespace DevDriver
             // e.g. If service "Foo" is at index 2 in m_registeredServices,
             //      there is no guarentee that m_registeredServiceNamesCache[2] == "Foo";
             Vector<FixedString<kMaxUriServiceNameLength>, 8> m_registeredServiceNamesCache;
+
+            class URISession;
         };
     }
 } // DevDriver

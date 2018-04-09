@@ -253,7 +253,7 @@ void DevDriverFree(
 PipelineDumpService::PipelineDumpService(
     Platform* pPlatform)
     :
-    DevDriver::URIProtocol::URIService("pipelinedump"),
+    DevDriver::IService(),
     m_pPlatform(pPlatform),
     m_pipelineRecords(0x4000, pPlatform),
     m_maxPipelineBinarySize(0)
@@ -289,16 +289,15 @@ Result PipelineDumpService::Init()
 // =====================================================================================================================
 // Handles pipeline dump requests from the developer driver bus
 DevDriver::Result PipelineDumpService::HandleRequest(
-    char*                                                             pArguments,
-    DevDriver::SharedPointer<DevDriver::TransferProtocol::LocalBlock> pBlock)
+    DevDriver::URIRequestContext* pContext)
 {
     DevDriver::Result result = DevDriver::Result::Error;
 
-    if (strcmp(pArguments, "index") == 0)
+    if (strcmp(pContext->pRequestArguments, "index") == 0)
     {
         // The client requested an index of all available pipeline dumps.
 
-        BlockJsonStream jsonStream(pBlock.Get());
+        BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
         JsonWriter jsonWriter(&jsonStream);
         jsonWriter.BeginList(false);
 
@@ -321,7 +320,7 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 
         result = DevDriver::Result::Success;
     }
-    else if (strcmp(pArguments, "all") == 0)
+    else if (strcmp(pContext->pRequestArguments, "all") == 0)
     {
         // The client requested all pipeline dumps.
 
@@ -338,7 +337,7 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 
         if (pScratchMemory != nullptr)
         {
-            BlockJsonStream jsonStream(pBlock.Get());
+            BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
             JsonWriter jsonWriter(&jsonStream);
             jsonWriter.BeginList(false);
 
@@ -389,7 +388,7 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 
         m_mutex.Lock();
 
-        const uint64 pipelineHash = strtoull(pArguments, nullptr, 16);
+        const uint64 pipelineHash = strtoull(pContext->pRequestArguments, nullptr, 16);
         const PipelineRecord* pRecord = m_pipelineRecords.FindKey(pipelineHash);
         if (pRecord != nullptr)
         {
@@ -405,7 +404,7 @@ DevDriver::Result PipelineDumpService::HandleRequest(
                                               AllocInternalTemp);
             if (pScratchMemory != nullptr)
             {
-                BlockJsonStream jsonStream(pBlock.Get());
+                BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
                 JsonWriter jsonWriter(&jsonStream);
 
                 jsonWriter.BeginMap(false);

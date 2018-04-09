@@ -27,7 +27,8 @@
 
 #include "core/fence.h"
 #include "core/gpuMemory.h"
-#include "g_palSettings.h"
+#include "core/g_palSettings.h"
+
 #include "palIntrusiveList.h"
 #include "palMutex.h"
 #include "palVector.h"

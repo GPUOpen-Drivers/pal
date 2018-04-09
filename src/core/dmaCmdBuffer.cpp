@@ -1667,12 +1667,13 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 // =====================================================================================================================
 void DmaCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     const IGpuMemory& dstGpuMemory,
+    gpusize           offset,
     uint32            value)
 {
     CmdWriteImmediate(Pal::HwPipePoint::HwPipeBottom,
                       value,
                       Pal::ImmediateDataWidth::ImmediateData32Bit,
-                      static_cast<const GpuMemory*>(&dstGpuMemory)->GetBusAddrMarkerVa());
+                      static_cast<const GpuMemory*>(&dstGpuMemory)->GetBusAddrMarkerVa() + offset);
 }
 
 } // Pal
