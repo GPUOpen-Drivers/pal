@@ -123,6 +123,7 @@ private:
 
     Result Init();
 
+    const SwizzledFormat m_format;           // format for presentable image
     const Device&        m_device;
     void*                m_pDisplay;         // wayland display created by App
     void*                m_pSurface;         // wayland surface created by App

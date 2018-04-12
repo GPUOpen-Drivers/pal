@@ -513,9 +513,7 @@ public:
     Result DestroyResourceList(
         amdgpu_bo_list_handle handle) const;
 
-    Result IsSameGpu(
-        int32 presentDeviceFd,
-        bool* pIsSame) const;
+    uint32 GetGpuNumber() const;
 
     Result CreateSyncObject(
         uint32                    flags,

@@ -29,6 +29,7 @@
 #include "core/os/lnx/lnxPlatform.h"
 #include "palSwapChain.h"
 #include "util/lnx/lnxTimeout.h"
+#include "sys/stat.h"
 extern "C"
 {
 #include <X11/xshmfence.h>
@@ -335,15 +336,13 @@ Result Dri3WindowSystem::Init()
 
         if (result == Result::Success)
         {
-            bool isSameGpu = false;
-            result = m_device.IsSameGpu(fd, &isSameGpu);
+            struct stat statBuffer;
+            fstat(fd, &statBuffer);
+            uint32 gpuNumber = (statBuffer.st_rdev & 0x7f);
 
-            if (result == Result::Success)
+            if (m_device.GetGpuNumber() != gpuNumber)
             {
-                if (isSameGpu == false)
-                {
-                    result = Result::ErrorInitializationFailed;
-                }
+                result = Result::ErrorInitializationFailed;
             }
 
             // The X Server's file descriptor is closed here. For KMD interface access,

@@ -57,6 +57,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>
 
 using namespace Util;
 using namespace Pal::AddrMgr1;
@@ -104,7 +105,8 @@ constexpr uint32 GpuPageSize = 4096;
 
 constexpr char SettingsFileName[] = "amdPalSettings.cfg";
 
-// Maybe the format supported by presentable image should be got from Xserver, so far we just use a fixed format list.
+// These are the formats currently working with KHR_wayland_surface
+// NB THEY ARE NOT FULLY TESTED ON X11 AND SOME MIGHT NEED TO BE DISABLED FOR NOW
 constexpr SwizzledFormat PresentableImageFormats[] =
 {
     {   ChNumFormat::X8Y8Z8W8_Srgb,
@@ -112,6 +114,12 @@ constexpr SwizzledFormat PresentableImageFormats[] =
     },
     {   ChNumFormat::X8Y8Z8W8_Unorm,
         { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W },
+    },
+    {   ChNumFormat::X10Y10Z10W2_Unorm,
+        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W },
+    },
+    {   ChNumFormat::X5Y6Z5_Unorm,
+        { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
     },
 };
 
@@ -2412,35 +2420,13 @@ Result Device::DestroyResourceList(
 }
 
 // =====================================================================================================================
-// Check if the GPU presentFd point to is same with the devices'. The caller must ensure the presentDeviceFd is valid.
-// Every GPU has three device node on Linux. card0 is a super node which require authentication and it can be used to do
-// anything, including buffer management, KMS (kernel mode setting), rendering. controlD64 is used for KMS access only.
-// renderD128 is used for rendering, and authentication is not required. X Server is usually open the card0, and PAL
-// open the renderD128. So need to get the bus ID and check if they are same. If X server opens the render node too,
-// compare the node name to check if they are the same one.
-Result Device::IsSameGpu(
-    int32 presentDeviceFd,
-    bool* pIsSame
-    ) const
+// get GPU number (minor type of primary node)
+uint32 Device::GetGpuNumber() const
 {
-    Result result = Result::Success;
+    struct stat statBuffer;
+    stat(m_renderNodeName, &statBuffer);
 
-    *pIsSame = false;
-
-    // both the render node and master node can use this interface to get the device name.
-    const char* pDeviceName = m_drmProcs.pfnDrmGetRenderDeviceNameFromFd(presentDeviceFd);
-
-    if (pDeviceName == nullptr)
-    {
-        result = Result::ErrorUnknown;
-    }
-
-    if (result == Result::Success)
-    {
-        *pIsSame = (strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
-    }
-
-    return result;
+    return (statBuffer.st_rdev & 0x7f);
 }
 
 // =====================================================================================================================

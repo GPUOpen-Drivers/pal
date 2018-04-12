@@ -61,11 +61,26 @@ typedef enum wsaError
     UnknownFailure        = 3,
 }WsaError;
 
-// image format type, values are from wayland-drm-client-protocol.h.
+// Method used to composite an alpha format swapchain image onto the display
+typedef enum wsaCompositeAlpha
+{
+    WsaCompositeAlphaOpaque = 1,
+    WsaCompositeAlphaPreMultiplied = 2,
+    WsaCompositeAlphaPostMultiplied = 4,
+    WsaCompositeAlphaInherit = 8,
+}WsaCompositeAlpha;
+
+// Pal presentable image formats, using names from vulkan_core.h in CamelCase
 typedef enum wsaFormat
 {
-    WsaFormatARGB8888     = 0x34325241, //WL_DRM_FORMAT_ARGB8888
-    WsaFormatXRGB8888     = 0x34325258, //WL_DRM_FORMAT_XRGB8888
+    WsaFormatR5G6B5UnormPack16,
+    WsaFormatB8G8R8A8Unorm,
+    WsaFormatR8G8B8A8Unorm,
+    WsaFormatA2R10G10B10UnormPack32,
+    WsaFormatA2B10G10R10UnormPack32,
+    WsaFormatB8G8R8A8Srgb,
+    WsaFormatR8G8B8A8Srgb,
+    WsaFormatR16G16B16A16SFloat,
 }WsaFormat;
 
 // region
@@ -92,14 +107,24 @@ typedef uint32 (*QueryVersion)(void);
 typedef WsaError (*CreateWsa)(int32* pWsa);
 
 // Initialize window system agent.
-typedef WsaError (*Initialize)(int32 hWsa, void* pDisplay, void* pSurface);
+typedef WsaError (*Initialize)(int32 hWsa,
+                               WsaFormat format,
+                               WsaCompositeAlpha compositeAlpha,
+                               void* pDisplay,
+                               void* pSurface);
 
 // Destroy WSA.
 typedef void (*DestroyWsa)(int32 hWsa);
 
 // Create a presentable image.
 // Image handle is returned by pImage.
-typedef WsaError (*CreateImage)(int32 hWsa, int32 fd, uint32 width, uint32 height, WsaFormat format, uint32 stride, int32* pImage);
+typedef WsaError (*CreateImage)(int32 hWsa,
+                                int32 fd,
+                                uint32 width,
+                                uint32 height,
+                                WsaFormat format,
+                                uint32 stride,
+                                int32* pImage);
 
 // Destroy an image.
 typedef void (*DestroyImage)(int32 hImage);
@@ -113,11 +138,15 @@ typedef WsaError (*WaitForLastImagePresented)(int32 hWsa);
 // Check whether the image is avaiable (not used by the server side).
 typedef WsaError (*ImageAvailable)(int32 hWsa, int32 hImage);
 
+// Get GPU number (minor type of primary node)
+typedef uint32 (*GetGpuNumber)(int32 hWsa);
+
 // Get window size, helper function, don't need an instance.
 typedef WsaError (*GetWindowGeometry)(void* pDisplay, void* pSurface, uint32* pWidth, uint32* pHeight);
 
 // Check whether the presentation is supported, helper function, don't need an instance.
 typedef WsaError (*PresentationSupported)(void* pDisplay, void* pData);
+
 
 typedef struct wsaInterface
 {
@@ -130,7 +159,7 @@ typedef struct wsaInterface
     Present                     pfnPresent;
     WaitForLastImagePresented   pfnWaitForLastImagePresented;
     ImageAvailable              pfnImageAvailable;
+    GetGpuNumber                pfnGetGpuNumber;
     GetWindowGeometry           pfnGetWindowGeometry;
     PresentationSupported       pfnPresentationSupported;
 }WsaInterface;
-

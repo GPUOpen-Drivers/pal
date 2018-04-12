@@ -30,6 +30,10 @@
 #include "util/lnx/lnxTimeout.h"
 #include "dlfcn.h"
 
+// Match each WsaFormat with its SwizzledFormat
+#define INCLUDE_PAL_FORMATS 1
+#include "wsa_presentable_formats.h"
+
 using namespace Util;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
@@ -39,23 +43,21 @@ namespace Linux
 {
 
 // =====================================================================================================================
-// translate ChNumFormat into WsaFormat
-static WsaFormat WlDrmFormat(
-    ChNumFormat  format,
-    bool         alpha)
+// translate SwizzledFormat into WsaFormat
+static WsaFormat PalToWsaFormat(
+    SwizzledFormat swizzledFormat)
 {
-    WsaFormat wsaFormat = WsaFormatXRGB8888;
-    switch (format)
-    {
-    case ChNumFormat::X8Y8Z8W8_Unorm:
-    case ChNumFormat::X8Y8Z8W8_Srgb:
-        wsaFormat = alpha ? WsaFormatARGB8888 : WsaFormatXRGB8888;
-        break;
-    default:
-        PAL_ASSERT(!"Not supported format!");
-        break;
+    WsaFormat wsaFormat = WsaFormatB8G8R8A8Unorm;
+
+    for (int i = 0; i < sizeof(presentableFormats)/sizeof(presentableFormats[0]); i++)
+     {
+        if (!memcmp(&swizzledFormat, &presentableFormats[i].palFormat, sizeof(swizzledFormat)))
+        {
+            return presentableFormats[i].wsaFormat;
+        }
     }
-    return wsaFormat;
+
+    PAL_ASSERT(!"Not supported format!");
 }
 
 // =====================================================================================================================
@@ -191,6 +193,7 @@ WaylandWindowSystem::WaylandWindowSystem(
     :
     WindowSystem(createInfo.platform),
     m_device(device),
+    m_format(createInfo.format),
     m_pDisplay(static_cast<void*>(createInfo.hDisplay)),
     m_pSurface(createInfo.hWindow.pSurface)
 {
@@ -232,9 +235,23 @@ Result WaylandWindowSystem::Init()
 
     if (result == Result::Success)
     {
-        WsaError ret = s_pWsaInterface->pfnInitialize(m_hWsa, m_pDisplay, m_pSurface);
+        // Pal has no mechanism to request a compositeAlpha type at present, so hardcode opaque
+        WsaCompositeAlpha compositeAlpha = WsaCompositeAlphaOpaque;
+        WsaFormat format = PalToWsaFormat(m_format);
+
+        WsaError ret = s_pWsaInterface->pfnInitialize(m_hWsa, format, compositeAlpha, m_pDisplay, m_pSurface);
 
         if (ret != Success)
+        {
+            result = Result::ErrorInitializationFailed;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        uint32 gpuNumber = s_pWsaInterface->pfnGetGpuNumber(m_hWsa);
+
+        if (m_device.GetGpuNumber() != gpuNumber)
         {
             result = Result::ErrorInitializationFailed;
         }
@@ -261,8 +278,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
     const uint32 stride = pSubResInfo->rowPitch;
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
 
-    //we should get alpha from create info, now just hard code it temporarily.
-    WsaFormat format = WlDrmFormat(pSubResInfo->format.format, false);
+    WsaFormat format = PalToWsaFormat(m_format);
 
     if ((width == 0) || (height == 0) || (stride == 0) || (bpp == 0) || (sharedBufferFd == InvalidFd))
     {
