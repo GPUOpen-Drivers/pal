@@ -46,12 +46,11 @@ union UploadedStreamFlags
 {
     struct
     {
-        uint32 chainedToPostamble       :  1; // If the stream chains to the caller's postamble stream.
         uint32 isConstantEngine         :  1; // If the stream is for the constant engine.
         uint32 isConstantEnginePreamble :  1; // If the stream is a constant engine preamble.
         uint32 isPreemptionEnabled      :  1; // If the stream can be preempted.
         uint32 dropIfSameContext        :  1; // If the stream can be dropped if the prior submit was PAL's.
-        uint32 reserved                 : 27;
+        uint32 reserved                 : 28;
     };
     uint32 u32All;
 };
@@ -100,8 +99,6 @@ public:
     Result UploadCmdBuffers(
         uint32                  cmdBufferCount,
         const ICmdBuffer*const* ppCmdBuffers,
-        uint32                  numPostambleCmdStreams,
-        const CmdStream*const*  ppPostambleCmdStreams,
         UploadedCmdBufferInfo*  pUploadInfo);
 
     const IQueue* UploadQueue() const { return m_pQueue; }

@@ -27,7 +27,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Pm4Optimizer.h"
-#include "core/hw/gfxip/gfx9/gfx9UserDataTableImpl.h"
+#include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "palLinearAllocator.h"
 
 using namespace Util;

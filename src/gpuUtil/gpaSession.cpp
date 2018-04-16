@@ -436,12 +436,17 @@ Result GpaSession::Init()
         constexpr size_t CmdAllocSize = 2 * 1024 * 1024;
         constexpr size_t CmdSubAllocSize = 64 * 1024;
 
-        createInfo.allocInfo[CommandDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize     = CmdAllocSize;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize  = CmdSubAllocSize;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize    = CmdAllocSize;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize = CmdSubAllocSize;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdAllocSize;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdSubAllocSize;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdAllocSize;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdSubAllocSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdAllocSize;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdSubAllocSize;
+#endif
 
         const size_t cmdAllocatorSize = m_pDevice->GetCmdAllocatorSize(createInfo, &result);
         if (result == Result::Success)

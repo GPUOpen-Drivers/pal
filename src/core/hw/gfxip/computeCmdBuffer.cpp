@@ -37,6 +37,17 @@ namespace Pal
 {
 
 // =====================================================================================================================
+// Helper function for resetting a user-data table which is managed using embdedded data at the beginning of a command
+// buffer.
+static void PAL_INLINE ResetUserDataTable(
+    EmbeddedUserDataTableState* pTable)
+{
+    pTable->pCpuVirtAddr = nullptr;
+    pTable->gpuVirtAddr  = 0;
+    pTable->dirty        = 0;
+}
+
+// =====================================================================================================================
 // Dummy function for catching illegal attempts to set graphics user-data entries on a Compute command buffer.
 static void PAL_STDCALL DummyCmdSetUserDataGfx(
     ICmdBuffer*   pCmdBuffer,
@@ -63,8 +74,38 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     memset(&m_computeState,        0, sizeof(m_computeState));
     memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
 
+    memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
+    memset(&m_spillTableCs,            0, sizeof(m_spillTableCs));
+
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
+}
+
+// =====================================================================================================================
+Result ComputeCmdBuffer::Init(
+    const CmdBufferInternalCreateInfo& internalInfo)
+{
+    Result result = GfxCmdBuffer::Init(internalInfo);
+
+    // Initialize the states for the embedded-data GPU memory tables for spilling and indirect user-data tables.
+    if (result == Result::Success)
+    {
+        const auto& chipProps = m_device.Parent()->ChipProperties();
+
+        m_spillTableCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+
+        uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(this + 1);
+        for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+        {
+            m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
+            pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
+
+            m_indirectUserDataInfo[id].state.sizeInDwords =
+                    static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -187,6 +228,14 @@ void ComputeCmdBuffer::ResetState()
 
     memset(&m_computeState,        0, sizeof(m_computeState));
     memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
+
+    ResetUserDataTable(&m_spillTableCs);
+
+    for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        ResetUserDataTable(&m_indirectUserDataInfo[id].state);
+        m_indirectUserDataInfo[id].watermark = m_indirectUserDataInfo[id].state.sizeInDwords;
+    }
 }
 
 // =====================================================================================================================
@@ -199,6 +248,53 @@ void ComputeCmdBuffer::CmdBindPipeline(
     m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
 
     m_computeState.dynamicCsInfo = params.cs;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdSetIndirectUserData(
+    uint16      tableId,
+    uint32      dwordOffset,
+    uint32      dwordSize,
+    const void* pSrcData)
+{
+    PAL_ASSERT(dwordSize > 0);
+    PAL_ASSERT((dwordOffset + dwordSize) <= m_indirectUserDataInfo[tableId].state.sizeInDwords);
+
+    // All this method needs to do is to update the CPU-side copy of the indirect user-data table and mark the table
+    // contents as dirty, so it will be validated at Dispatch-time.
+    uint32* pDst = (m_indirectUserDataInfo[tableId].pData + dwordOffset);
+    auto*   pSrc = static_cast<const uint32*>(pSrcData);
+    for (uint32 i = 0; i < dwordSize; ++i)
+    {
+        *pDst = *pSrc;
+        ++pDst;
+        ++pSrc;
+    }
+
+    if (dwordOffset < m_indirectUserDataInfo[tableId].watermark)
+    {
+        // Only mark the contents as dirty if the updated user-data falls within the current high watermark. This
+        // will help avoid redundant validation for data which the client doesn't care about at the moment.
+        m_indirectUserDataInfo[tableId].state.dirty = 1;
+    }
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdSetIndirectUserDataWatermark(
+    uint16 tableId,
+    uint32 dwordLimit)
+{
+    PAL_ASSERT(tableId < MaxIndirectUserDataTables);
+
+    dwordLimit = Min(dwordLimit, m_indirectUserDataInfo[tableId].state.sizeInDwords);
+    if (dwordLimit > m_indirectUserDataInfo[tableId].watermark)
+    {
+        // If the current high watermark is increasing, we need to mark the contents as dirty because data beyond
+        // the old watermark wouldn't have been uploaded to embedded command space before the previous dispatch.
+        m_indirectUserDataInfo[tableId].state.dirty = 1;
+    }
+
+    m_indirectUserDataInfo[tableId].watermark = dwordLimit;
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -218,6 +314,36 @@ CmdStream* ComputeCmdBuffer::GetCmdStreamByEngine(
     uint32 engineType)
 {
     return TestAnyFlagSet(m_engineSupport, engineType) ? m_pCmdStream : nullptr;
+}
+
+// =====================================================================================================================
+// Updates a user-data table managed by embedded data.  This is done during dispatch-time validation of user-data.
+void ComputeCmdBuffer::UpdateUserDataTable(
+    EmbeddedUserDataTableState* pTable,
+    uint32                      dwordsNeeded,
+    uint32                      offsetInDwords,
+    const uint32*               pSrcData)
+{
+    // The dwordsNeeded and offsetInDwords parameters together specify a "window" of the table which is relevant to
+    // the active pipeline.  To save memory as well as cycles spent copying data, this will only allocate and populate
+    // the portion of the user-data table inside that window.
+    PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
+
+    gpusize gpuVirtAddr  = 0uLL;
+    pTable->pCpuVirtAddr = (CmdAllocateEmbeddedData(dwordsNeeded, 1, &gpuVirtAddr) - offsetInDwords);
+    pTable->gpuVirtAddr  = (gpuVirtAddr - (sizeof(uint32) * offsetInDwords));
+
+    uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
+    pSrcData += offsetInDwords;
+    for (uint32 i = 0; i < dwordsNeeded; ++i)
+    {
+        *pDstData = *pSrcData;
+        ++pDstData;
+        ++pSrcData;
+    }
+
+    // Mark that the latest contents of the user-data table have been uploaded to the current embedded data chunk.
+    pTable->dirty = 0;
 }
 
 // =====================================================================================================================

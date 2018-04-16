@@ -31,17 +31,44 @@
 namespace Pal
 {
 
+// Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
+// and the CPU.
+struct EmbeddedUserDataTableState
+{
+    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
+    // CPU address of the embedded-data allocation storing the current copy of the table data.  This can be null if
+    // the table has not yet been uploaded to embedded data.
+    uint32*  pCpuVirtAddr;
+    struct
+    {
+        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
+        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
+                                   // copy currently in GPU memory and should be updated before the next dispatch.
+    };
+};
+
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all compute command buffers.
 class ComputeCmdBuffer : public GfxCmdBuffer
 {
 public:
+    virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
+
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
     virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
+
+    virtual void CmdSetIndirectUserData(
+        uint16      tableId,
+        uint32      dwordOffset,
+        uint32      dwordSize,
+        const void* pSrcData) override;
+    virtual void CmdSetIndirectUserDataWatermark(
+        uint16 tableId,
+        uint32 dwordLimit) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
@@ -96,6 +123,12 @@ protected:
 
     virtual void ResetState() override;
 
+    void UpdateUserDataTable(
+        EmbeddedUserDataTableState* pTable,
+        uint32                      dwordsNeeded,
+        uint32                      offsetInDwords,
+        const uint32*               pSrcData);
+
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
 
@@ -104,13 +137,23 @@ protected:
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 
+    struct
+    {
+        // Client-specified high-watermark for each indirect user-data table.  This indicates how much of each
+        // table is uploaded to embedded data before a dispatch.
+        uint32                      watermark;
+        uint32*                     pData; // Tracks the contents of each indirect user-data table.
+        EmbeddedUserDataTableState  state; // Tracks the state of the indirect user-date table in GPU memory.
+    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
+
+    EmbeddedUserDataTableState  m_spillTableCs; // Tracks the state of the compute user-data spill table.
+
 private:
-    const GfxDevice&   m_device;
-    GfxCmdStream*const m_pCmdStream;
+    const GfxDevice&    m_device;
+    GfxCmdStream*const  m_pCmdStream;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
-
 };
 
 } // Pal

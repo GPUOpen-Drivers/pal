@@ -1052,7 +1052,6 @@ void Device::Barrier(
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTcp;
             globalSyncReqs.cacheFlags |= CacheSyncInvSqK$;
-            globalSyncReqs.cacheFlags |= CacheSyncFlushSqK$;
         }
 
         if (TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&

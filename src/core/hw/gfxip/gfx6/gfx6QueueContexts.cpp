@@ -213,6 +213,7 @@ ComputeQueueContext::ComputeQueueContext(
     Engine* pEngine,
     uint32  queueId)
     :
+    QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
     m_pQueue(pQueue),
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
@@ -227,7 +228,12 @@ ComputeQueueContext::ComputeQueueContext(
                          pDevice->Parent()->InternalUntrackedCmdAllocator(), EngineTypeCompute,
                          SubQueueType::Primary,
                          false,
-                         true)      // Preambles cannot be preemptible.
+                         true),     // Preambles cannot be preemptible.
+    m_postambleCmdStream(*pDevice,
+                         pDevice->Parent()->InternalUntrackedCmdAllocator(), EngineTypeCompute,
+                         SubQueueType::Primary,
+                         false,
+                         true)      // Postambles cannot be preemptible.
 {
 }
 
@@ -240,6 +246,16 @@ Result ComputeQueueContext::Init()
     if (result == Result::Success)
     {
         result = m_perSubmitCmdStream.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_postambleCmdStream.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateTimestampMem();
     }
 
     if (result == Result::Success)
@@ -269,11 +285,12 @@ Result ComputeQueueContext::PreProcessSubmit(
         RebuildCommandStream();
     }
 
-    pSubmitInfo->pPreambleCmdStream[0] = &m_perSubmitCmdStream;
-    pSubmitInfo->pPreambleCmdStream[1] = &m_cmdStream;
+    pSubmitInfo->pPreambleCmdStream[0]  = &m_perSubmitCmdStream;
+    pSubmitInfo->pPreambleCmdStream[1]  = &m_cmdStream;
+    pSubmitInfo->pPostambleCmdStream[0] = &m_postambleCmdStream;
 
     pSubmitInfo->numPreambleCmdStreams  = 2;
-    pSubmitInfo->numPostambleCmdStreams = 0;
+    pSubmitInfo->numPostambleCmdStreams = 1;
 
     pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
 
@@ -297,7 +314,28 @@ void ComputeQueueContext::PostProcessSubmit()
 // Regenerates the contents of this context's internal command stream.
 void ComputeQueueContext::RebuildCommandStream()
 {
+    /*
+     * There are two preambles which PAL submits with every set of command buffers: one which executes as a preamble
+     * to each submission, and another which only executes when the previous submission on the GPU belonged to this
+     * Queue. There is also a postamble which executes after every submission.
+     *
+     * The queue preamble sets up shader rings, GDS, and some global register state.
+     *
+     * The per-submit preamble and postamble implements a two step acquire-release on queue execution. They flush
+     * and invalidate all GPU caches and prevent command buffers from different submits from overlapping. This is
+     * required for some PAL clients and some PAL features.
+     *
+     * It is implemented using a 32-bit timestamp in local memory that is initialized to zero. The preamble waits for
+     * the timestamp to be equal to zero before allowing execution to continue. It then sets the timestamp to some
+     * other value (e.g., one) to indicate that the queue is busy and invalidates all read caches. The postamble issues
+     * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
+     */
+
     constexpr CmdStreamBeginFlags beginFlags = {};
+    const CmdUtil&                cmdUtil    = m_pDevice->CmdUtil();
+
+    // The drop-if-same-context queue preamble.
+    //==================================================================================================================
 
     m_cmdStream.Reset(nullptr, true);
     m_cmdStream.Begin(beginFlags, nullptr);
@@ -308,7 +346,7 @@ void ComputeQueueContext::RebuildCommandStream()
     // the hardware requires a CS partial flush to operate properly.
     pCmdSpace = m_pEngine->RingSet()->WriteCommands(&m_cmdStream, pCmdSpace);
 
-    pCmdSpace += m_pDevice->CmdUtil().BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildEventWrite(CS_PARTIAL_FLUSH, pCmdSpace);
 
     // Copy the common preamble commands and compute-specific preamble commands.
     pCmdSpace = m_cmdStream.WritePm4Image(m_commonPreamble.spaceNeeded,  &m_commonPreamble,  pCmdSpace);
@@ -319,24 +357,95 @@ void ComputeQueueContext::RebuildCommandStream()
     m_cmdStream.CommitCommands(pCmdSpace);
     m_cmdStream.End();
 
+    // The per-submit preamble.
+    //==================================================================================================================
+
     m_perSubmitCmdStream.Reset(nullptr, true);
     m_perSubmitCmdStream.Begin(beginFlags, nullptr);
 
     pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
-    pCmdSpace = m_perSubmitCmdStream.WritePm4Image(m_perSubmitPreamble.spaceNeeded, &m_perSubmitPreamble, pCmdSpace);
+
+    // The following wait, write data, and surface sync must be at the beginning of the per-submit preamble.
+    //
+    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
+    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
+    pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                         WAIT_REG_MEM_FUNC_EQUAL,
+                                         WAIT_REG_MEM_ENGINE_PFP,
+                                         m_timestampMem.GpuVirtAddr(),
+                                         0,
+                                         0xFFFFFFFF,
+                                         false,
+                                         pCmdSpace);
+
+    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+    constexpr uint32 BusyTimestamp = 1;
+    pCmdSpace += cmdUtil.BuildWriteData(m_timestampMem.GpuVirtAddr(),
+                                        1,
+                                        WRITE_DATA_ENGINE_PFP,
+                                        WRITE_DATA_DST_SEL_MEMORY_ASYNC,
+                                        true,
+                                        &BusyTimestamp,
+                                        PredDisable,
+                                        pCmdSpace);
+
+    // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
+    //
+    // Our postamble stream flushes and invalidates the L2 with an EOP event at the conclusion of each user mode
+    // submission, but the L1 shader caches (SQC/TCP) are not invalidated. We waited for that event just above this
+    // packet so the L2 cannot contain stale data. However, a well behaving app could read stale L1 data unless we
+    // invalidate those caches here.
+    regCP_COHER_CNTL invalidateL1Cache = {};
+    invalidateL1Cache.bits.SH_ICACHE_ACTION_ENA = 1;
+    invalidateL1Cache.bits.SH_KCACHE_ACTION_ENA = 1;
+    invalidateL1Cache.bits.TCL1_ACTION_ENA      = 1;
+
+    pCmdSpace += cmdUtil.BuildGenericSync(invalidateL1Cache,
+                                          SURFACE_SYNC_ENGINE_ME,
+                                          FullSyncBaseAddr,
+                                          FullSyncSize,
+                                          true,
+                                          pCmdSpace);
 
     m_perSubmitCmdStream.CommitCommands(pCmdSpace);
     m_perSubmitCmdStream.End();
 
+    // The per-submit postamble.
+    //==================================================================================================================
+
+    m_postambleCmdStream.Reset(nullptr, true);
+    m_postambleCmdStream.Begin(beginFlags, nullptr);
+
+    pCmdSpace = m_postambleCmdStream.ReserveCommands();
+
+    // This EOP event packet must be at the end of the per-submit postamble.
+    //
+    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+    // We also use this pipelined event to flush and invalidate the shader L2 cache as described above.
+    pCmdSpace += cmdUtil.BuildGenericEopEvent(BOTTOM_OF_PIPE_TS,
+                                              m_timestampMem.GpuVirtAddr(),
+                                              EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                              0,
+                                              true,
+                                              true,
+                                              pCmdSpace);
+
+    m_postambleCmdStream.CommitCommands(pCmdSpace);
+    m_postambleCmdStream.End();
+
     // If this assert is hit, CmdBufInternalSuballocSize should be increased.
-    PAL_ASSERT((m_cmdStream.GetNumChunks() == 1) && (m_perSubmitCmdStream.GetNumChunks() == 1));
+    PAL_ASSERT((m_cmdStream.GetNumChunks() == 1)          &&
+               (m_perSubmitCmdStream.GetNumChunks() == 1) &&
+               (m_postambleCmdStream.GetNumChunks() == 1));
 
     // Since the contents of the command stream have changed since last time, we need to force this stream to execute
     // by not allowing the KMD to optimize-away this command stream the next time around.
     m_cmdStream.EnableDropIfSameContext(false);
 
-    // The per-submit command stream must always execute. We cannot allow KMD to optimize-away this command stream.
+    // The per-submit command stream and postamble command stream must always execute. We cannot allow KMD to
+    // optimize-away this command stream.
     m_perSubmitCmdStream.EnableDropIfSameContext(false);
+    m_postambleCmdStream.EnableDropIfSameContext(false);
 }
 
 // =====================================================================================================================
@@ -344,38 +453,8 @@ void ComputeQueueContext::RebuildCommandStream()
 void ComputeQueueContext::BuildComputePreambleHeaders()
 {
     memset(&m_computePreamble, 0, sizeof(m_computePreamble));
-    memset(&m_perSubmitPreamble, 0, sizeof(m_perSubmitPreamble));
 
     m_computePreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
-
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
-
-    // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).  KMD
-    // automatically flushes all write caches with an EOP event at the conclusion of each user mode submission,
-    // including the shader L2 cache (TCC), but the L1 shader caches (SQC/TCC) are not invalidated.  An application is
-    // responsible for waiting for all previous work to be complete before reusing a memory object, which thanks to KMD,
-    // ensures all L2 reads/writes are flushed and invalidated.  However, a well behaving app could read stale L1 data
-    // unless we invalidate the L1 caches here.
-    regCP_COHER_CNTL invalidateL1Cache = {};
-    invalidateL1Cache.bits.SH_ICACHE_ACTION_ENA = 1;
-    invalidateL1Cache.bits.SH_KCACHE_ACTION_ENA = 1;
-    invalidateL1Cache.bits.TCL1_ACTION_ENA      = 1;
-
-    if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
-    {
-        m_perSubmitPreamble.spaceNeeded += cmdUtil.BuildSurfaceSync(invalidateL1Cache,
-                                                                    SURFACE_SYNC_ENGINE_ME,
-                                                                    FullSyncBaseAddr,
-                                                                    FullSyncSize,
-                                                                    &m_perSubmitPreamble.surfaceSync);
-    }
-    else
-    {
-        m_perSubmitPreamble.spaceNeeded += cmdUtil.BuildAcquireMem(invalidateL1Cache,
-                                                                   FullSyncBaseAddr,
-                                                                   FullSyncSize,
-                                                                   &m_perSubmitPreamble.acquireMem);
-    }
 }
 
 // =====================================================================================================================
@@ -392,6 +471,7 @@ UniversalQueueContext::UniversalQueueContext(
     Engine* pEngine,
     uint32  queueId)
     :
+    QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
     m_pQueue(pQueue),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
@@ -470,6 +550,11 @@ Result UniversalQueueContext::Init()
     if (result == Result::Success)
     {
         m_dePostambleCmdStream.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateTimestampMem();
     }
 
     if (result == Result::Success)
@@ -597,22 +682,18 @@ Result UniversalQueueContext::PreProcessSubmit(
         ++preambleCount;
     }
 
+    pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
+    ++preambleCount;
+
     uint32 postambleCount = 0;
     if (m_cePostambleCmdStream.IsEmpty() == false)
     {
         pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
         ++postambleCount;
     }
-    if (m_dePostambleCmdStream.IsEmpty() == false)
-    {
-        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
-        ++postambleCount;
-    }
 
-    pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
-    ++preambleCount;
-    pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
-    ++preambleCount;
+    pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
+    ++postambleCount;
 
     pSubmitInfo->numPreambleCmdStreams  = preambleCount;
     pSubmitInfo->numPostambleCmdStreams = postambleCount;
@@ -660,15 +741,27 @@ void UniversalQueueContext::RebuildCommandStreams()
      * command buffers. These postambles ensure that CE RAM contents are saved to memory so that they can be restored
      * when a command buffer is resumed after preemption, or restored during the next submission if the client is using
      * "persistent CE RAM".
+     *
+     * The per-submit preamble and postamble also implement a two step acquire-release on queue execution. They flush
+     * and invalidate all GPU caches and prevent command buffers from different submits from overlapping. This is
+     * required for some PAL clients and some PAL features.
+     *
+     * It is implemented using a 32-bit timestamp in local memory that is initialized to zero. The preamble waits for
+     * the timestamp to be equal to zero before allowing execution to continue. It then sets the timestamp to some
+     * other value (e.g., one) to indicate that the queue is busy and invalidates all read caches. The postamble issues
+     * an end-of-pipe event that flushes all write caches and clears the timestamp back to zero.
      */
 
     constexpr CmdStreamBeginFlags beginFlags = {};
+    const     CmdUtil&            cmdUtil    = m_pDevice->CmdUtil();
+
+    // The drop-if-same-context DE preamble.
+    //==================================================================================================================
 
     m_deCmdStream.Reset(nullptr, true);
     m_deCmdStream.Begin(beginFlags, nullptr);
 
-    const CmdUtil& cmdUtil   = m_pDevice->CmdUtil();
-    uint32*        pCmdSpace = m_deCmdStream.ReserveCommands();
+    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
 
     // Copy the common preamble commands and the universal-specific preamble commands.
     pCmdSpace = m_deCmdStream.WritePm4Image(m_universalPreamble.spaceNeeded, &m_universalPreamble, pCmdSpace);
@@ -739,13 +832,65 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_deCmdStream.CommitCommands(pCmdSpace);
     m_deCmdStream.End();
 
-    // Rebuild the command stream for per-submit:
+    // The per-submit DE preamble.
+    //==================================================================================================================
 
     m_perSubmitCmdStream.Reset(nullptr, true);
     m_perSubmitCmdStream.Begin(beginFlags, nullptr);
 
     pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
 
+    // The following wait, write data, and surface sync must be at the beginning of the per-submit DE preamble.
+    //
+    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
+    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
+    pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                         WAIT_REG_MEM_FUNC_EQUAL,
+                                         WAIT_REG_MEM_ENGINE_PFP,
+                                         m_timestampMem.GpuVirtAddr(),
+                                         0,
+                                         0xFFFFFFFF,
+                                         false,
+                                         pCmdSpace);
+
+    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+    constexpr uint32 BusyTimestamp = 1;
+    pCmdSpace += cmdUtil.BuildWriteData(m_timestampMem.GpuVirtAddr(),
+                                        1,
+                                        WRITE_DATA_ENGINE_PFP,
+                                        WRITE_DATA_DST_SEL_MEMORY_ASYNC,
+                                        true,
+                                        &BusyTimestamp,
+                                        PredDisable,
+                                        pCmdSpace);
+
+    // Issue a surface_sync or acquire mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache).
+    //
+    // Our postamble stream flushes and invalidates the L2 and RB caches with an EOP event at the conclusion of each
+    // user mode submission, but the L1 shader caches (SQC/TCP) are not invalidated. We waited for that event just
+    // above this packet so the L2 cannot contain stale data. However, a well behaving app could read stale L1 data
+    // unless we invalidate those caches here.
+    regCP_COHER_CNTL cpCoherCntl = {};
+    cpCoherCntl.bits.SH_ICACHE_ACTION_ENA = 1;
+    cpCoherCntl.bits.SH_KCACHE_ACTION_ENA = 1;
+    cpCoherCntl.bits.TCL1_ACTION_ENA      = 1;
+
+    if (m_pDevice->WaDbTcCompatFlush() != Gfx8TcCompatDbFlushWaNever)
+    {
+        // There is a clear-state packet in the state shadow preamble which is next in the command stream. That packet
+        // writes the DB_HTILE_SURFACE register, which can trigger the "tcCompatFlush" HW bug -- i.e., if that register
+        // (actually, the TC_COMPAT bit in that register) changes between draws without a flush, then very bad things
+        // happen. Assume the state is changing and flush out the DB.
+        cpCoherCntl.bits.DB_ACTION_ENA = 1;
+    }
+
+    pCmdSpace += cmdUtil.BuildSurfaceSync(cpCoherCntl,
+                                          SURFACE_SYNC_ENGINE_ME,
+                                          FullSyncBaseAddr,
+                                          FullSyncSize,
+                                          pCmdSpace);
+
+    // Set up state shadowing.
     pCmdSpace = m_perSubmitCmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
                                                    &m_stateShadowPreamble,
                                                    pCmdSpace);
@@ -753,8 +898,8 @@ void UniversalQueueContext::RebuildCommandStreams()
     // If the preemption is enabled, we need to initialize the shadow copy of this register.
     if (m_useShadowing)
     {
-// Only DX9P calls ICmdBuffer::CmdSetGlobalScissor, which writes both mmPA_SC_WINDOW_SCISSOR_TL|BR.
-// Until all other clients call this function, we'll have to initialize the register.
+        // Only DX9P calls ICmdBuffer::CmdSetGlobalScissor, which writes both mmPA_SC_WINDOW_SCISSOR_TL|BR.
+        // Until all other clients call this function, we'll have to initialize the register.
         regPA_SC_WINDOW_SCISSOR_BR paScWindowScissorBr = {};
         paScWindowScissorBr.bitfields.BR_X = 0x4000;
         paScWindowScissorBr.bitfields.BR_Y = 0x4000;
@@ -904,6 +1049,15 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_perSubmitCmdStream.CommitCommands(pCmdSpace);
     m_perSubmitCmdStream.End();
 
+    m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
+
+    // The per-submit CE premable, CE postamble, and DE postamble.
+    //==================================================================================================================
+
+    // The DE postamble is always built. The CE preamble and postamble may not be needed.
+    m_dePostambleCmdStream.Reset(nullptr, true);
+    m_dePostambleCmdStream.Begin(beginFlags, nullptr);
+
     // If the client has requested that this Queue maintain persistent CE RAM contents, or if the Queue supports mid
     // command buffer preemption, we need to rebuild the CE preamble, as well as the CE & DE postambles.
     if ((m_pQueue->PersistentCeRamSize() != 0) || m_useShadowing)
@@ -947,15 +1101,10 @@ void UniversalQueueContext::RebuildCommandStreams()
 
             m_cePostambleCmdStream.End();
 
-            m_dePostambleCmdStream.Reset(nullptr, true);
-            m_dePostambleCmdStream.Begin(beginFlags, nullptr);
-
             pCmdSpace  = m_dePostambleCmdStream.ReserveCommands();
             pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
             pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
             m_dePostambleCmdStream.CommitCommands(pCmdSpace);
-
-            m_dePostambleCmdStream.End();
         }
     }
     // Otherwise, we just need the CE preamble to issue a dummy LOAD_CONST_RAM packet because the KMD requires each
@@ -972,6 +1121,22 @@ void UniversalQueueContext::RebuildCommandStreams()
 
         m_cePreambleCmdStream.End();
     }
+
+    pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
+
+    // This EOP event packet must be at the end of the per-submit DE postamble.
+    //
+    // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
+    // We also use this pipelined event to flush and invalidate the shader L2 cache and RB caches as described above.
+    pCmdSpace += cmdUtil.BuildEventWriteEop(CACHE_FLUSH_AND_INV_TS_EVENT,
+                                            m_timestampMem.GpuVirtAddr(),
+                                            EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
+                                            0,
+                                            true,
+                                            pCmdSpace);
+
+    m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+    m_dePostambleCmdStream.End();
 
     // Since the contents of the command stream have changed since last time, we need to force this stream to execute
     // by not allowing the KMD to optimize-away this command stream the next time around.
@@ -1111,32 +1276,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
 
     m_stateShadowPreamble.spaceNeeded +=
         cmdUtil.BuildContextControl(loadBits, shadowBits, &m_stateShadowPreamble.contextControl);
-
-    // Issue a surface_sync mem packet to invalidate all L1 caches (TCP, SQ I-cache, SQ K-cache). KMD automatically
-    // flushes all write caches with an EOP event at the conclusion of each user mode submission, including the shader
-    // L2 cache (TCC), but the L1 shader caches (SQC/TCC) are not invalidated.  An application is responsible for
-    // waiting for all previous work to be complete before reusing a memory object, which thanks to KMD, ensures all L2
-    // reads/writes are flushed and invalidated.  However, a well behaving app could read stale L1 data unless we
-    // invalidate the L1 caches here.
-    regCP_COHER_CNTL cpCoherCntl = {};
-    cpCoherCntl.bits.SH_ICACHE_ACTION_ENA = 1;
-    cpCoherCntl.bits.SH_KCACHE_ACTION_ENA = 1;
-    cpCoherCntl.bits.TCL1_ACTION_ENA      = 1;
-    cpCoherCntl.bits.TC_ACTION_ENA        = 1;
-
-    if (m_pDevice->WaDbTcCompatFlush() != Gfx8TcCompatDbFlushWaNever)
-    {
-        // The packet after this surf-sync is a clear-state. The clear-state packet writes the DB_HTILE_SURFACE
-        // register, which can trigger the "tcCompatFlush" HW bug -- i.e., if that register (actually, the TC_COMPAT
-        // bit in that register) changes between draws without a flush, then very bad things happen. Assume the state
-        // is changing and flush out the DB.
-        cpCoherCntl.bits.DB_ACTION_ENA    = 1;
-        cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-    }
-
-    m_stateShadowPreamble.spaceNeeded +=
-        cmdUtil.BuildSurfaceSync(cpCoherCntl, SURFACE_SYNC_ENGINE_ME, FullSyncBaseAddr, FullSyncSize,
-                                 &m_stateShadowPreamble.surfSync);
 
     m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildClearState(&m_stateShadowPreamble.clearState);
 }

@@ -172,8 +172,6 @@ class CmdBuffer : public ICmdBuffer
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
 public:
-    static constexpr bool CommandBufferAllowChainedPostamble = true;
-
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override
     {

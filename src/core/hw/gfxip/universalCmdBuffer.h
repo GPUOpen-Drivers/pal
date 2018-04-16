@@ -154,6 +154,30 @@ struct ValidateDrawInfo
     uint32 firstIndex;    // First index
 };
 
+// Tracks the state of a user-data table stored in GPU memory.  The tables contents are managed using CE RAM.
+struct CeRamUserDataTableState
+{
+    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
+    // Offset into CE RAM (in bytes!) where the staging area is located. This can be zero if the table is being
+    // managed using CPU updates instead of the constant engine.
+    uint32   ceRamOffset;
+    struct
+    {
+        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
+        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
+                                   // copy currently in GPU memory and should be updated before the next dispatch.
+    };
+};
+
+// Tracks the state of a ring buffer used for receiving CE RAM dumps.
+struct CeRamUserDataRingBuffer
+{
+    gpusize  baseGpuVirtAddr;   // Base GPU virtual address of the ring buffer memory
+    uint32   instanceBytes;     // Size of each table instance contained in the ring buffer, in bytes
+    uint32   numInstances;      // Number of table instances in the entire ring
+    uint32   currRingPos;       // Currently active instance within the ring buffer
+};
+
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all universal command buffers.
 class UniversalCmdBuffer : public GfxCmdBuffer
@@ -172,6 +196,10 @@ public:
         IndexType indexType) override;
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
+
+    virtual void CmdSetIndirectUserDataWatermark(
+        uint16 tableId,
+        uint32 dwordLimit) override;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
@@ -232,6 +260,12 @@ protected:
 
     virtual ~UniversalCmdBuffer() {}
 
+    void InitReservedCeRamPartitions(
+        uint32*  pIndirectUserDataTableMem,
+        uint32   reservedCeRamBytes,
+        gpusize* pGpuVirtAddr,
+        uint32*  pCeRamOffset);
+
     virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) override;
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
@@ -262,6 +296,27 @@ protected:
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
 
+    struct
+    {
+        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
+        // is dumped from CE RAM to memory before a draw or dispatch.
+        uint32   watermark : 31;
+        // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
+        uint32   modified  :  1;
+        uint32*  pData;  // Tracks the contents of each indirect user-data table.
+
+        CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
+        CeRamUserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
+
+    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
+
+    struct
+    {
+        CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
+        CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
+        CeRamUserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
+    }  m_spillTable;
+
 private:
     const GfxDevice&   m_device;
     GfxCmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.
@@ -269,11 +324,28 @@ private:
     const bool         m_blendOptEnable;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool             m_graphicsStateIsPushed; // If PushGraphicsState was called without a matching PopGraphicsState.
+    bool  m_graphicsStateIsPushed; // If PushGraphicsState was called without a matching PopGraphicsState.
 #endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
 };
+
+// =====================================================================================================================
+// Helper function for resetting a user-data table which is managed using CE RAM at the beginning of a command buffer.
+void PAL_INLINE ResetUserDataTable(
+    CeRamUserDataTableState* pTable)
+{
+    pTable->gpuVirtAddr = 0;
+    pTable->dirty       = 0;
+}
+
+// =====================================================================================================================
+// Helper function for resetting a user-data ring buffer at the beginning of a command buffer.
+void PAL_INLINE ResetUserDataRingBuffer(
+    CeRamUserDataRingBuffer* pRing)
+{
+    pRing->currRingPos = 0;
+}
 
 } // Pal

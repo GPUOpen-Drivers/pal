@@ -249,7 +249,7 @@ Result Queue::Init(
             }
             break;
         case QueueTypeTimer:
-            m_pQueueContext = PAL_PLACEMENT_NEW(pContextPlacementAddr) QueueContext();
+            m_pQueueContext = PAL_PLACEMENT_NEW(pContextPlacementAddr) QueueContext(m_pDevice);
             break;
 
         default:

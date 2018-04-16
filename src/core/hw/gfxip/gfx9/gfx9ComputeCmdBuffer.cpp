@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
-#include "core/hw/gfxip/gfx9/gfx9UserDataTableImpl.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "core/settingsLoader.h"
@@ -74,17 +73,13 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_pSignatureCs(&NullCsSignature),
     m_predGpuAddr(0)
 {
-    memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
-    memset(&m_spillTableCs,            0, sizeof(m_spillTableCs));
 
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    const PalSettings& settings = m_device.Parent()->Settings();
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
-    const bool issueSqttMarkerEvent = (sqttEnabled ||
-                                      m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
+    const bool sqttEnabled = (device.Settings().gpuProfilerMode > GpuProfilerSqttOff) &&
+                              TestAnyFlagSet(device.Settings().gpuProfilerTraceModeMask, GpuProfilerTraceSqtt);
+    const bool issueSqttMarkerEvent = (sqttEnabled || m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     if (issueSqttMarkerEvent)
     {
@@ -112,25 +107,6 @@ Result ComputeCmdBuffer::Init(
         result = m_cmdStream.Init();
     }
 
-    // Initialize the states for the embedded-data GPU memory tables for spilling and indirect user-data tables.
-    if (result == Result::Success)
-    {
-        const auto& chipProps = m_device.Parent()->ChipProperties();
-
-        m_spillTableCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
-
-        uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(this + 1);
-        for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-        {
-            m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
-            pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
-
-            m_indirectUserDataInfo[id].state.sizeInDwords =
-                    static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
-        }
-
-    }
-
     return result;
 }
 
@@ -140,14 +116,6 @@ void ComputeCmdBuffer::ResetState()
     Pal::ComputeCmdBuffer::ResetState();
 
     m_pSignatureCs = &NullCsSignature;
-
-    ResetUserDataTable(&m_spillTableCs);
-
-    for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
-    {
-        ResetUserDataTable(&m_indirectUserDataInfo[id].state);
-        m_indirectUserDataInfo[id].watermark = m_indirectUserDataInfo[id].state.sizeInDwords;
-    }
 
     {
         // Non-DX12 clients and root command buffers start without a valid predicate GPU address.
@@ -166,46 +134,6 @@ void ComputeCmdBuffer::CmdBarrier(
     m_device.Barrier(this, &m_cmdStream, barrierInfo);
 
     m_gfxCmdBufState.packetPredicate = packetPredicate;
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    PAL_ASSERT(dwordSize > 0);
-    PAL_ASSERT((dwordOffset + dwordSize) <= m_indirectUserDataInfo[tableId].state.sizeInDwords);
-
-    // All this method needs to do is to update the CPU-side copy of the indirect user-data table and mark the table
-    // contents as dirty, so it will be validated at Dispatch-time.
-    memcpy((m_indirectUserDataInfo[tableId].pData + dwordOffset), pSrcData, (sizeof(uint32) * dwordSize));
-
-    if (dwordOffset < m_indirectUserDataInfo[tableId].watermark)
-    {
-        // Only mark the contents as dirty if the updated user-data falls within the current high watermark. This
-        // will help avoid redundant validation for data which the client doesn't care about at the moment.
-        m_indirectUserDataInfo[tableId].state.contentsDirty = 1;
-    }
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    PAL_ASSERT(tableId < MaxIndirectUserDataTables);
-
-    dwordLimit = Min(dwordLimit, m_indirectUserDataInfo[tableId].state.sizeInDwords);
-    if (dwordLimit > m_indirectUserDataInfo[tableId].watermark)
-    {
-        // If the current high watermark is increasing, we need to mark the contents as dirty because data beyond
-        // the old watermark wouldn't have been uploaded to embedded command space before the previous dispatch.
-        m_indirectUserDataInfo[tableId].state.contentsDirty = 1;
-    }
-
-    m_indirectUserDataInfo[tableId].watermark = dwordLimit;
 }
 
 // =====================================================================================================================
@@ -535,30 +463,26 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         const uint16 entryPlusOne = m_pSignatureCs->indirectTableAddr[tableId];
         if ((entryPlusOne != UserDataNotMapped) && (m_indirectUserDataInfo[tableId].watermark > 0))
         {
-            if (m_indirectUserDataInfo[tableId].state.contentsDirty)
+            bool relocated = false;
+            if (m_indirectUserDataInfo[tableId].state.dirty)
             {
-                RelocateEmbeddedUserDataTable(this,
-                                              &m_indirectUserDataInfo[tableId].state,
-                                              0,
-                                              m_indirectUserDataInfo[tableId].watermark);
-                UploadToUserDataTableCpu(&m_indirectUserDataInfo[tableId].state,
-                                         0,
-                                         m_indirectUserDataInfo[tableId].watermark,
-                                         m_indirectUserDataInfo[tableId].pData);
+                UpdateUserDataTable(&m_indirectUserDataInfo[tableId].state,
+                                    m_indirectUserDataInfo[tableId].watermark,
+                                    0,
+                                    m_indirectUserDataInfo[tableId].pData);
+                relocated = true;
             }
             // The GPU virtual address for the indirect table needs to be updated if either the table was relocated,
             // or if the pipeline has changed and the previous pipeline's mapping for this table doesn't match the
             // new mapping.
-            if ((HasPipelineChanged && (pPrevSignature->indirectTableAddr[tableId] != entryPlusOne)) ||
-                m_indirectUserDataInfo[tableId].state.gpuAddrDirty)
+            if ((HasPipelineChanged && (pPrevSignature->indirectTableAddr[tableId] != entryPlusOne)) || relocated)
             {
                 const uint32 gpuVirtAddrLo = LowPart(m_indirectUserDataInfo[tableId].state.gpuVirtAddr);
                 const uint16 entry         = (entryPlusOne - 1);
 
                 WideBitfieldSetBit(m_computeState.csUserDataEntries.touched, entry);
                 WideBitfieldSetBit(m_computeState.csUserDataEntries.dirty,   entry);
-                m_computeState.csUserDataEntries.entries[entry]    = gpuVirtAddrLo;
-                m_indirectUserDataInfo[tableId].state.gpuAddrDirty = 0;
+                m_computeState.csUserDataEntries.entries[entry] = gpuVirtAddrLo;
             }
         }
     } // for each indirect user-data table
@@ -571,6 +495,9 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
     {
+        PAL_ASSERT(m_pSignatureCs->userDataLimit > 0);
+        bool relocated = false;
+
         // Step #3:
         // The spill table will be marked dirty if the checks during step #2 above found that any dirty user-data falls
         // within the spilled region for the active pipeline.  Also, if the pipeline is changing, it is possible that
@@ -578,27 +505,25 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         // new pipeline.  In that case, the spill table contents must also be updated.
         if ((HasPipelineChanged && ((m_pSignatureCs->spillThreshold < pPrevSignature->spillThreshold) ||
                                     (m_pSignatureCs->userDataLimit  > pPrevSignature->userDataLimit)))
-            || m_spillTableCs.contentsDirty)
+            || m_spillTableCs.dirty)
         {
             const uint32 sizeInDwords = (m_pSignatureCs->userDataLimit - m_pSignatureCs->spillThreshold);
+            UpdateUserDataTable(&m_spillTableCs,
+                                sizeInDwords,
+                                m_pSignatureCs->spillThreshold,
+                                &m_computeState.csUserDataEntries.entries[0]);
+            relocated = true;
 
-            RelocateEmbeddedUserDataTable(this, &m_spillTableCs, m_pSignatureCs->spillThreshold, sizeInDwords);
-            UploadToUserDataTableCpu(&m_spillTableCs,
-                                     m_pSignatureCs->spillThreshold,
-                                     sizeInDwords,
-                                     &m_computeState.csUserDataEntries.entries[0]);
         }
 
         // Step #4:
         // If the spill table was relocated during step #3, or if the pipeline is changing and the previous pipeline
         // did not spill any user-data to memory, we need to re-write the spill table GPU address to its user-SGPR.
-        if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling))
-            || m_spillTableCs.gpuAddrDirty)
+        if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling)) || relocated)
         {
             pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
                                                                     LowPart(m_spillTableCs.gpuVirtAddr),
                                                                     pCmdSpace);
-            m_spillTableCs.gpuAddrDirty = 0;
         }
     } // if current pipeline spills user-data
 
@@ -734,7 +659,7 @@ uint32* ComputeCmdBuffer::WriteDirtyUserDataEntries(
 
             if (dirtyMask != 0)
             {
-                m_spillTableCs.contentsDirty = 1;
+                m_spillTableCs.dirty = 1;
                 m_computeState.csUserDataEntries.dirty[maskId] &= ~dirtyMask;
             }
         } // for each wide-bitfield sub-mask

@@ -25,12 +25,15 @@
 
 #pragma once
 
-#include "pal.h"
+#include "core/gpuMemory.h"
 
 namespace Pal
 {
 
-class CmdStream;
+class  CmdStream;
+class  Device;
+struct InternalSubmitInfo;
+struct SubmitInfo;
 
 // =====================================================================================================================
 // A "QueueContext" is responsible for managing any Device or hardware-layer state which needs to potentially be updated
@@ -41,7 +44,7 @@ class CmdStream;
 class QueueContext
 {
 public:
-    QueueContext() { }
+    QueueContext(Device* pDevice) : m_pDevice(pDevice) { }
 
     // Queue contexts should only be created in placed memory and must always be destroyed explicitly.
     void Destroy() { this->~QueueContext(); }
@@ -55,7 +58,12 @@ public:
     virtual void PostProcessSubmit() { }
 
 protected:
-    virtual ~QueueContext() { }
+    virtual ~QueueContext();
+
+    Result CreateTimestampMem();
+
+    Device*const   m_pDevice;
+    BoundGpuMemory m_timestampMem; // All QueueContext subclasses require a 32-bit timestamp in local GPU memory.
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(QueueContext);

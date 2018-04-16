@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9Gds.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
-#include "core/hw/gfxip/gfx9/gfx9UserDataTable.h"
 
 namespace Pal
 {
@@ -50,15 +49,6 @@ public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
-
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override;
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
 
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
@@ -274,18 +264,6 @@ private:
 
     // Tracks the user-data signature of the currently active compute pipeline.
     const ComputePipelineSignature*  m_pSignatureCs;
-
-    struct
-    {
-        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
-        // is dumped from CE RAM to memory before a draw or dispatch.
-        uint32              watermark;
-        uint32*             pData;  // Tracks the contents of each indirect user-data table.
-        UserDataTableState  state;  // Tracks the state for the indirect user-data table
-
-    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
-
-    UserDataTableState  m_spillTableCs;  // Tracks the sate for the compute spill table
 
     // SET_PREDICATION is not supported on compute queue so what we work out here is an emulation using cond exec
     // Note m_gfxCmdBuff.clientPredicate and m_gfxCmdBuff.packetPredicate bits are 0 when:

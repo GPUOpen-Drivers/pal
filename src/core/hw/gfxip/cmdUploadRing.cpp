@@ -314,11 +314,9 @@ uint32 CmdUploadRing::PredictBatchSize(
 Result CmdUploadRing::UploadCmdBuffers(
     uint32                  cmdBufferCount,
     const ICmdBuffer*const* ppCmdBuffers,
-    uint32                  numPostambleCmdStreams,
-    const CmdStream*const*  ppPostambleCmdStreams,
     UploadedCmdBufferInfo*  pUploadInfo)
 {
-    PAL_ASSERT((ppCmdBuffers != nullptr) && (ppPostambleCmdStreams != nullptr));
+    PAL_ASSERT(ppCmdBuffers != nullptr);
 
     // Uploading nothing doesn't make sense, we assume we always have at least one command buffer.
     PAL_ASSERT(cmdBufferCount > 0);
@@ -499,42 +497,15 @@ Result CmdUploadRing::UploadCmdBuffers(
             {
                 EndCurrentIb(*pRaft->pGpuMemory[idx], pCopy->pCmdBuffer, pState);
 
-                // We need to put something in the final IB's postamble even if it's an empty chain. We can use this to
-                // optimize the caller's postamble command stream by chaining directly to it.
-                if (CmdBuffer::CommandBufferAllowChainedPostamble  &&
-                    (idx < numPostambleCmdStreams)                 &&
-                    (ppPostambleCmdStreams[idx] != nullptr)        &&
-                    (ppPostambleCmdStreams[idx]->IsEmpty() == false))
-                {
-                    // We assume a direct mapping between uploaded streams and postamble streams.
-                    PAL_ASSERT(ppPostambleCmdStreams[idx]->IsConstantEngine() == (pState->flags.isConstantEngine == 1));
-
-                    const CmdStreamChunk*const pPostambleChunk = ppPostambleCmdStreams[idx]->GetFirstChunk();
-
-                    UploadChainPostamble(*pRaft->pGpuMemory[idx],
-                                         pCopy->pCmdBuffer,
-                                         pState->prevIbPostambleOffset,
-                                         pState->prevIbPostambleSize,
-                                         pPostambleChunk->GpuVirtAddr(),
-                                         pPostambleChunk->CmdDwordsToExecute() * sizeof(uint32),
-                                         pState->flags.isConstantEngine,
-                                         ppPostambleCmdStreams[idx]->IsPreemptionEnabled());
-
-                    // The caller shouldn't launch this postamble.
-                    pState->flags.chainedToPostamble = true;
-                }
-                else
-                {
-                    // Write a NOP-filled postamble to prevent the CP from hanging.
-                    UploadChainPostamble(*pRaft->pGpuMemory[idx],
-                                         pCopy->pCmdBuffer,
-                                         pState->prevIbPostambleOffset,
-                                         pState->prevIbPostambleSize,
-                                         0,
-                                         0,
-                                         pState->flags.isConstantEngine,
-                                         pState->flags.isPreemptionEnabled);
-                }
+                // Write a NOP-filled postamble to prevent the CP from hanging.
+                UploadChainPostamble(*pRaft->pGpuMemory[idx],
+                                     pCopy->pCmdBuffer,
+                                     pState->prevIbPostambleOffset,
+                                     pState->prevIbPostambleSize,
+                                     0,
+                                     0,
+                                     pState->flags.isConstantEngine,
+                                     pState->flags.isPreemptionEnabled);
             }
         }
     }

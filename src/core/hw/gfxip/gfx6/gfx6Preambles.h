@@ -61,21 +61,6 @@ struct CommonPreamblePm4Img
     size_t                                    spaceNeeded;
 };
 
-// Contains a subset of commands necessary to write a Compute Queue preamble to hardware.
-struct PerSubmitComputePreamblePm4Img
-{
-    // The Gfx6 and Gfx7+ hardware commands are different for invalidating L1 caches, surface sync must be used on Gfx6
-    // and acquire mem must be used on Gfx7+. This must be last in the structure before spaceNeeded to prevent gaps in
-    // the PM4 image.
-    union
-    {
-        PM4CMDSURFACESYNC surfaceSync;
-        PM4ACQUIREMEM     acquireMem;
-    };
-
-    size_t                spaceNeeded;
-};
-
 // Describes the GDS User Data register value.
 struct GdsData
 {
@@ -120,11 +105,10 @@ struct ComputePreamblePm4Img
 };
 
 // Contains the commands necessary to set-up state shadowing of GPU registers. Unless mid command buffer preemption
-// is enabled, only the context control, surf sync and clear state packets will be populated.
+// is enabled, only the context control and clear state packets will be populated.
 struct StateShadowPreamblePm4Img
 {
     PM4CMDCONTEXTCONTROL  contextControl;
-    PM4CMDSURFACESYNC     surfSync;
     PM4CMDCLEARSTATE      clearState;
 
     PM4CMDLOADDATA        loadUserCfgRegs;

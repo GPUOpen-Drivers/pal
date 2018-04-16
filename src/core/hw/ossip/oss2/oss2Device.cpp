@@ -124,7 +124,7 @@ Result Device::CreateQueueContext(
     switch (pQueue->Type())
     {
     case QueueTypeDma:
-        (*ppQueueContext) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueContext();
+        (*ppQueueContext) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueContext(Parent());
         break;
     default:
         result = Result::ErrorUnavailable;

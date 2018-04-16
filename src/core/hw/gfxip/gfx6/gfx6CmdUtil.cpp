@@ -1566,7 +1566,6 @@ size_t CmdUtil::BuildEventWriteEop(
     pkt.eventIndex    = EventIndexFromEventType(eventType);
     if (flushInvL2)
     {
-        PAL_ASSERT(dataSel == EVENTWRITEEOP_DATA_SEL_DISCARD);
         if (m_chipFamily == GfxIpLevel::GfxIp6)
         {
             pkt.invalidateL2__SI  = 1;

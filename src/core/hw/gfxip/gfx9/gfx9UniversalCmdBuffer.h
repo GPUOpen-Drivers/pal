@@ -30,7 +30,6 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
-#include "core/hw/gfxip/gfx9/gfx9UserDataTable.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palIntervalTree.h"
@@ -448,10 +447,6 @@ public:
         uint32      dwordOffset,
         uint32      dwordSize,
         const void* pSrcData) override;
-
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
 
     void CmdBindTargetsMetadata(const BindTargetParams& params);
 
@@ -899,6 +894,26 @@ private:
         const GraphicsPipeline*          pCurrPipeline,
         uint32*                          pDeCmdSpace);
 
+    template <bool UseRingBufferForCe>
+    void RelocateUserDataTable(
+        CeRamUserDataTableState* pTable,
+        CeRamUserDataRingBuffer* pRing,
+        CeRamUserDataRingBuffer* pNestedIndirectRing,
+        uint32                   offsetInDwords,
+        uint32                   dwordsNeeded);
+    uint32* UploadToUserDataTable(
+        CeRamUserDataTableState* pTable,
+        uint32                   offsetInDwords,
+        uint32                   dwordsNeeded,
+        const uint32*            pSrcData,
+        uint32                   highWatermark,
+        uint32*                  pCeCmdSpace);
+    uint32* DumpUserDataTable(
+        CeRamUserDataTableState* pTable,
+        uint32                   offsetInDwords,
+        uint32                   dwordsNeeded,
+        uint32*                  pCeCmdSpace);
+
     template <bool HasPipelineChanged, bool UseRingBufferForCe, bool TessEnabled, bool GsEnabled, bool VsEnabled>
     uint32* ValidateGraphicsUserData(
         const GraphicsPipelineSignature* pPrevSignature,
@@ -1001,48 +1016,24 @@ private:
 
     struct
     {
-        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
-        // is dumped from CE RAM to memory before a draw or dispatch.
-        uint32              watermark : 31;
-        // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
-        uint32              modified  :  1;
-        uint32*             pData;  // Tracks the contents of each indirect user-data table.
-
-        UserDataTableState  state;  // Tracks the state for the indirect user-data table
-        UserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
-
-    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
-
-    struct
-    {
-        UserDataTableState  state; // Tracks the state of the NGG state table
-        UserDataRingBuffer  ring;  // Tracks the state of the NGG tables' shared GPU memory ring buffer
+        CeRamUserDataTableState  state; // Tracks the state of the NGG state table
+        CeRamUserDataRingBuffer  ring;  // Tracks the state of the NGG tables' shared GPU memory ring buffer
     }  m_nggTable;
 
     struct
     {
-        UserDataTableState  stateCs;  // Tracks the state of the compute spill table
-        UserDataTableState  stateGfx; // Tracks the state of the graphics spill table
-        UserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
-    }  m_spillTable;
-
-    struct
-    {
-        UserDataTableState  state;  // Tracks the state of the stream-out SRD table
-        UserDataRingBuffer  ring;   // Tracks the state of the stream-out table's GPU memory ring buffer
+        CeRamUserDataTableState  state;  // Tracks the state of the stream-out SRD table
+        CeRamUserDataRingBuffer  ring;   // Tracks the state of the stream-out table's GPU memory ring buffer
 
         BufferSrd  srd[MaxStreamOutTargets];    // Current stream-out target SRD's
     }  m_streamOut;
 
     struct
     {
-        UserDataTableState state;   // Tracks the state of nested indirect CE dump table
-        UserDataRingBuffer ring;    // GPU memory ring buffer shared between nested command buffer
-                                    // executes when UniversalCmdBufferState.flags.useIndirectAddrForCe
-                                    // is true.
+        CeRamUserDataTableState state;  // Tracks the state of nested indirect CE dump table
+        CeRamUserDataRingBuffer ring;   // GPU memory ring buffer shared between nested command buffer executes
+                                        // when UniversalCmdBufferState.flags.useIndirectAddrForCe is true.
     } m_nestedIndirectCeDumpTable;
-
-    uint32 m_nggCbCeRamOffset;      // Location in CERAM where the PrimShaderCbLayout struct can be found.
 
     WorkaroundState              m_workaroundState;
     UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations

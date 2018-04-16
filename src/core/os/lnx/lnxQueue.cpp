@@ -665,8 +665,8 @@ Result Queue::SubmitPm4(
     // Preamble  CE IB (always)
     // Preamble  DE IB (always)
     // Preamble  DE IB (if context switch)
-    // Postamble CE IB (if it's not chained to CE workload)
-    // Postamble DE IB (if it's not chained to DE workload)
+    // Postamble CE IB
+    // Postamble DE IB
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams + internalSubmitInfo.numPostambleCmdStreams) <= 5);
 
     // Determine which optimization modes should be enabled for this submit.
@@ -768,7 +768,7 @@ Result Queue::SubmitPm4(
 
 // =====================================================================================================================
 // The GFX IP engines all support IB chaining, so we can submit multiple command buffers together as one. This function
-// will add command streams for the preambles, chained command streams, and the postambles (unless chained).
+// will add command streams for the preambles, chained command streams, and the postambles.
 Result Queue::PrepareChainedCommandBuffers(
     const InternalSubmitInfo& internalSubmitInfo,
     uint32                    cmdBufferCount,
@@ -798,7 +798,7 @@ Result Queue::PrepareChainedCommandBuffers(
         result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx]);
     }
 
-    // The command buffer streams and postamble streams are grouped by stream index.
+    // The command buffer streams are grouped by stream index.
     const uint32 numStreams = static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreams();
 
     for (uint32 streamIdx = 0; (result == Result::Success) && (streamIdx < numStreams); ++streamIdx)
@@ -837,42 +837,28 @@ Result Queue::PrepareChainedCommandBuffers(
             }
         }
 
-        if (result == Result::Success)
+        // Clobber any previous tail chaining commands from the end of the final command stream in this batch to
+        // overwrite anything which might be there from the last time this command buffer was submitted. This must
+        // only be done if the command buffer has exclusive submit enabled.
+        if ((pPrevCmdBuf != nullptr)           &&
+            (pPrevCmdBuf->IsExclusiveSubmit()) &&
+            (pPrevCmdStream != nullptr)        &&
+            (pPrevCmdStream->IsEmpty() == false))
         {
-            // Note that we assume the postambles are in the same order as the command buffer streams.
-            const CmdStream*const pPostamble      = internalSubmitInfo.pPostambleCmdStream[streamIdx];
-            bool                  launchPostamble = (pPostamble != nullptr);
-
-            PAL_ASSERT((pPostamble == nullptr)     ||
-                       (pPrevCmdStream == nullptr) ||
-                       (pPostamble->IsConstantEngine() == pPrevCmdStream->IsConstantEngine()));
-
-            // Clobber any previous tail chaining commands from the end of the final command stream in this batch to
-            // overwrite anything which might be there from the last time this command buffer was submitted. This must
-            // only be done if the command buffer has exclusive submit enabled.
-            if ((pPrevCmdBuf != nullptr)           &&
-                (pPrevCmdBuf->IsExclusiveSubmit()) &&
-                (pPrevCmdStream != nullptr)        &&
-                (pPrevCmdStream->IsEmpty() == false))
-            {
-                if (CmdBuffer::CommandBufferAllowChainedPostamble && launchPostamble)
-                {
-                    // This is a good opportunity to optimize our postamble command stream by chaining to it.
-                    pPrevCmdStream->PatchTailChain(pPostamble);
-                    launchPostamble = false;
-                }
-                else
-                {
-                    // There is no postamble command stream, so add a null tail-chain (which equates to a no-op).
-                    pPrevCmdStream->PatchTailChain(nullptr);
-                }
-            }
-
-            if (launchPostamble)
-            {
-                result = AddCmdStream(*pPostamble);
-            }
+            // Add a null tail-chain (which equates to a no-op).
+            pPrevCmdStream->PatchTailChain(nullptr);
         }
+    }
+
+    // The postamble command streams must be added to the end of each kernel submission and are not chained.
+    // In some situations it may be technically possible to chain the last command buffer stream to a postamble but
+    // detecting those cases and properly managing the chaining logic is difficult. MCBP further complicates things
+    // because chained postamble streams would not be executed at the end of a preempted frame but non-chained
+    // postambles will always be executed.
+    for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
+    {
+        PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx]);
     }
 
     if (result == Result::Success)
@@ -885,7 +871,7 @@ Result Queue::PrepareChainedCommandBuffers(
 
 // =====================================================================================================================
 // The GFX IP engines all support IB chaining, so we can submit multiple command buffers together as one. This function
-// will add command streams for the preambles, chained command streams, and the postambles (unless chained).
+// will add command streams for the preambles, chained command streams, and the postambles.
 Result Queue::PrepareUploadedCommandBuffers(
     const InternalSubmitInfo& internalSubmitInfo,
     uint32                    cmdBufferCount,
@@ -895,11 +881,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     IQueueSemaphore**         ppSignalAfterLaunch)
 {
     UploadedCmdBufferInfo uploadInfo = {};
-    Result result = m_pCmdUploadRing->UploadCmdBuffers(cmdBufferCount,
-                                                       ppCmdBuffers,
-                                                       internalSubmitInfo.numPostambleCmdStreams,
-                                                       internalSubmitInfo.pPostambleCmdStream,
-                                                       &uploadInfo);
+    Result result = m_pCmdUploadRing->UploadCmdBuffers(cmdBufferCount, ppCmdBuffers, &uploadInfo);
 
     // The preamble command streams must be added to beginning of each kernel submission and cannot be uploaded because
     // they must not be preempted.
@@ -926,16 +908,15 @@ Result Queue::PrepareUploadedCommandBuffers(
         }
     }
 
-    // We must end with all postamble streams that were not handled by the command upload ring. There should be one
-    // uploaded stream for each possible postamble stream but we bounds-check the index anyway.
+    // The postamble command streams must be added to the end of each kernel submission and are not chained.
+    // In some situations it may be technically possible to chain the last command buffer stream to a postamble but
+    // detecting those cases and properly managing the chaining logic is difficult. MCBP further complicates things
+    // because chained postamble streams would not be executed at the end of a preempted frame but non-chained
+    // postambles will always be executed.
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
-        if ((internalSubmitInfo.pPostambleCmdStream[idx] != nullptr)          &&
-            (internalSubmitInfo.pPostambleCmdStream[idx]->IsEmpty() == false) &&
-            ((idx >= MaxUploadedCmdStreams) || (uploadInfo.streamInfo[idx].flags.chainedToPostamble == false)))
-        {
-            result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx]);
-        }
+        PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx]);
     }
 
     if (result == Result::Success)

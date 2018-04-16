@@ -130,9 +130,8 @@ public:
 #if PAL_BUILD_INTERFACE_LOGGER
     bool IsInterfaceLoggerEnabled() const;
 #endif
-    virtual bool IsViceEnabled()      const { return false; }
     virtual bool IsDtifEnabled()      const { return false; }
-            bool IsEmulationEnabled() const { return IsViceEnabled() || IsDtifEnabled(); }
+            bool IsEmulationEnabled() const { return IsDtifEnabled(); }
 
     void DeveloperCb(
         uint32                  deviceIndex,

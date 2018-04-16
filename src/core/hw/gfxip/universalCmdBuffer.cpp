@@ -68,8 +68,82 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_graphicsRestoreState, 0, sizeof(m_graphicsRestoreState));
     memset(&m_blendOpts[0],         0, sizeof(m_blendOpts));
 
+    memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
+    memset(&m_spillTable,              0, sizeof(m_spillTable));
+
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
+}
+
+// =====================================================================================================================
+// Initializes the partitioning scheme for CE RAM and for the ring buffer used for receiving CE RAM dumps.
+void UniversalCmdBuffer::InitReservedCeRamPartitions(
+    uint32*  pIndirectUserDataTableMem, // CPU storage location for indirect user-data table contents
+    uint32   reservedCeRamBytes,        // Reserved CE RAM space for the spill tables (and other HWL-specific things).
+                                        // The indirect user-data tables are not stored in reserved CE RAM.  The client
+                                        // is responsible for using its own CE RAM for these.
+    gpusize* pGpuVirtAddr,  // In: GPU address to the beginning of the ring buffer memory.
+                            // Out: GPU address to the remaining portion of the ring buffer memory.
+    uint32*  pCeRamOffset)  // Out: Offset to the remaining portion of reserved CE RAM
+{
+    const auto&      chipProps       = m_device.Parent()->ChipProperties();
+    const auto*const pPublicSettings = m_device.Parent()->GetPublicSettings();
+
+    // Partition the ring buffer memory:
+    // Handle partitioning for the spill table and indirect user-data table storage within the ring buffer.
+
+    PAL_ASSERT(pGpuVirtAddr != nullptr);
+    gpusize baseGpuVirtAddr = *pGpuVirtAddr;
+
+    m_spillTable.ring.instanceBytes   = (sizeof(uint32) * chipProps.gfxip.maxUserDataEntries);
+    m_spillTable.ring.numInstances    = pPublicSettings->userDataSpillTableRingSize;
+    m_spillTable.ring.baseGpuVirtAddr = baseGpuVirtAddr;
+    baseGpuVirtAddr += (m_spillTable.ring.instanceBytes * m_spillTable.ring.numInstances);
+
+    PAL_ASSERT(pIndirectUserDataTableMem != nullptr);
+    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        m_indirectUserDataInfo[id].pData = pIndirectUserDataTableMem;
+        pIndirectUserDataTableMem        += m_device.Parent()->IndirectUserDataTableSize(id);
+
+        m_indirectUserDataInfo[id].state.sizeInDwords =
+            static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
+
+        m_indirectUserDataInfo[id].ring.instanceBytes =
+            (sizeof(uint32) * m_indirectUserDataInfo[id].state.sizeInDwords);
+        m_indirectUserDataInfo[id].ring.numInstances =
+            static_cast<uint32>(m_device.Parent()->IndirectUserDataTableRingSize(id));
+        m_indirectUserDataInfo[id].ring.baseGpuVirtAddr = baseGpuVirtAddr;
+        baseGpuVirtAddr += (m_indirectUserDataInfo[id].ring.instanceBytes *
+                            m_indirectUserDataInfo[id].ring.numInstances);
+    }
+
+    *pGpuVirtAddr = baseGpuVirtAddr; // Report the remaining portion of reserved ring memory to the caller.
+
+    // Partition CE RAM:
+    // Handle partitioning for the CE RAM storage for the CS & GFX spill tables and for the indirect user-data tables.
+
+    uint32 ceRamOffset = 0;
+
+    m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+    m_spillTable.stateCs.ceRamOffset  = ceRamOffset;
+    ceRamOffset += m_spillTable.ring.instanceBytes;
+
+    m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+    m_spillTable.stateGfx.ceRamOffset  = ceRamOffset;
+    ceRamOffset += m_spillTable.ring.instanceBytes;
+
+    PAL_ASSERT(ceRamOffset <= reservedCeRamBytes);
+    PAL_ASSERT(pCeRamOffset != nullptr);
+    *pCeRamOffset = ceRamOffset; // Report the remaining portion of reserved CE RAM to the caller.
+
+    // Reserve CE RAM for indirect user-data tables from the client portion of CE RAM.
+    ceRamOffset = reservedCeRamBytes;
+    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        m_indirectUserDataInfo[id].state.ceRamOffset = ceRamOffset;
+        ceRamOffset += m_indirectUserDataInfo[id].ring.instanceBytes;
+    }
 }
 
 // =====================================================================================================================
@@ -235,6 +309,18 @@ void UniversalCmdBuffer::ResetState()
     memset(&m_computeState,  0, sizeof(m_computeState));
     memset(&m_graphicsState, 0, sizeof(m_graphicsState));
 
+    ResetUserDataRingBuffer(&m_spillTable.ring);
+    ResetUserDataTable(&m_spillTable.stateCs);
+    ResetUserDataTable(&m_spillTable.stateGfx);
+
+    for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        ResetUserDataRingBuffer(&m_indirectUserDataInfo[id].ring);
+        ResetUserDataTable(&m_indirectUserDataInfo[id].state);
+        m_indirectUserDataInfo[id].watermark = m_indirectUserDataInfo[id].state.sizeInDwords;
+        m_indirectUserDataInfo[id].modified  = 0;
+    }
+
     // Clear the pointer to the performance experiment object currently used by this command buffer.
     m_pCurrentExperiment = nullptr;
 
@@ -260,6 +346,24 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.pPipeline = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
     }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetIndirectUserDataWatermark(
+    uint16 tableId,
+    uint32 dwordLimit)
+{
+    PAL_ASSERT(tableId < MaxIndirectUserDataTables);
+
+    dwordLimit = Min(dwordLimit, m_indirectUserDataInfo[tableId].state.sizeInDwords);
+    if (dwordLimit > m_indirectUserDataInfo[tableId].watermark)
+    {
+        // If the current high watermark is increasing, we need to mark the contents as dirty because data which was
+        // previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous draw or dispatch.
+        m_indirectUserDataInfo[tableId].state.dirty = 1;
+    }
+
+    m_indirectUserDataInfo[tableId].watermark = dwordLimit;
 }
 
 // =====================================================================================================================
@@ -653,6 +757,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     // It is not expected that nested command buffers will use performance experiments.
     PAL_ASSERT(cmdBuffer.m_pCurrentExperiment == nullptr);
+
+    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        m_indirectUserDataInfo[id].state.dirty |= cmdBuffer.m_indirectUserDataInfo[id].modified;
+    }
+
+    m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
+    m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 }
 
 // =====================================================================================================================

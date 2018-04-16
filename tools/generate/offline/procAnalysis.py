@@ -84,7 +84,10 @@ def GetFmtType(ftype):
         return "%x"
 
 class EntryPoint:
-    def __init__(self, line, macroHead, macroTail):
+    def __init__(
+    self,
+    line,
+    ):
         funcConst = re.compile('^.+(const [\w_]+ ?\*?) +([\w_]+) +\((.*)\)' )
         func = re.compile('^.+ ([\w_]+ ?\*?) +([\w_]+ ?) +\((.*)\)' )
         if funcConst.search(line):
@@ -97,8 +100,6 @@ class EntryPoint:
         self.ret = function[0].strip(' ')
         self.api = function[1].strip(' ')
         self.name = ''
-        self.macroHead = macroHead
-        self.macroTail = macroTail
         # record name that matches coding standard.
         if self.api.find('_'):
             apis = self.api.split('_')
@@ -136,10 +137,6 @@ class EntryPoint:
         return self.ret
     def GetFunctionParams(self):
         return self.params
-    def GetFunctionMacroHead(self):
-        return self.macroHead
-    def GetFunctionMacroTail(self):
-        return self.macroTail
 class Variable:
     def __init__(self, line):
         line.rstrip()
@@ -169,8 +166,6 @@ class ProcMgr:
         self.libraries = {}
         self.var = []
         fp  = open(fileName)
-        macroHead = ''
-        macroTail = ''
         contents = fp.readlines()
         for i, content in enumerate(contents):
             content.rstrip()
@@ -183,14 +178,10 @@ class ProcMgr:
                     self.var.append(var)
                 else:
                     library = content.split(' ')[0]
-                    if (i >= 1 and contents[i-1].find('#if') != -1):
-                        macroHead = contents[i-1]
-                    if (i+1 < len(contents) and contents[i+1].find('#endif') != -1):
-                        macroTail = contents[i+1];
-                    ep = EntryPoint(content, macroHead, macroTail)
+                    ep = EntryPoint(
+                    content,
+                    )
                     self.add(ep, library)
-                    macroHead = ''
-                    macroTail = ''
     def add(self, entry, library):
         if self.libraries.has_key(library):
             self.libraries[library].append(entry)
@@ -213,7 +204,6 @@ class ProcMgr:
         for key in self.libraries.keys():
             fp.write("// symbols from " + key + "\n")
             for entry in self.libraries[key]:
-                fp.write(entry.GetFunctionMacroHead())
                 fp.write( "typedef " + entry.GetFunctionRetType() + " (*" + entry.GetFormattedName() + ")(")
                 params = entry.GetFunctionParams()
                 if len(params) == 0:
@@ -233,7 +223,8 @@ class ProcMgr:
                         else:
                             fp.write(",")
                         fp.write("\n            %s %*.s %s" %(pa.GetType(), length - len(pa.GetType()), ' ', pa.GetValue()))
-                    fp.write(");\n" + entry.GetFunctionMacroTail() + "\n")
+                    fp.write(");\n")
+                    fp.write("\n")
     def GetFormattedLibraryName(self, name):
         ret = ''
         if self.libraryDict.has_key(name):
@@ -313,7 +304,6 @@ class ProcMgr:
         # adding stub function for each function pointer
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
-                fp.write(entry.GetFunctionMacroHead())
                 self.GenerateCommentLine(fp)
                 fp.write(entry.GetFunctionRetType() + " " +name + "FuncsProxy::pfn" + entry.GetFormattedName() + "(")
                 params = entry.GetFunctionParams()
@@ -383,7 +373,8 @@ class ProcMgr:
                         fp.write("\n    return pRet;\n")
                     else:
                         fp.write("\n    return ret;\n")
-                fp.write("}\n" + entry.GetFunctionMacroTail() + "\n")
+                fp.write("}\n");
+                fp.write("\n")
         fp.write("#endif\n")
     def GenerateCommentLine(self, fp):
         fp.write("\n// =====================================================================================================================\n")
@@ -436,9 +427,7 @@ class ProcMgr:
             fp.write("        else\n")
             fp.write("        {\n")
             for entry in self.libraries[key]:
-                fp.write(entry.GetFunctionMacroHead())
                 fp.write("            m_funcs.pfn" + entry.GetFormattedName() + " = " + "reinterpret_cast<" + entry.GetFormattedName() + ">(dlsym(\n                        m_libraryHandles[" + libraryEnum + "],\n                        \"" + entry.GetFunctionName() + "\"));\n")
-                fp.write(entry.GetFunctionMacroTail());
             fp.write("        }\n\n")
         for var in self.var:
             libraryEnum = self.GetFormattedLibraryName(var.GetLibrary())
@@ -476,12 +465,12 @@ class ProcMgr:
 
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
-                fp.write(entry.GetFunctionMacroHead())
                 fp.write("    %s %*.s pfn%s;\n" %(entry.GetFormattedName(), length - len(entry.GetFormattedName()), " ", entry.GetFormattedName()))
                 fp.write("    bool pfn" + entry.GetFormattedName() + "isValid() const\n")
                 fp.write("    {\n")
                 fp.write("        return (pfn" + entry.GetFormattedName() + " != nullptr);\n")
-                fp.write("    }\n" + entry.GetFunctionMacroTail() + "\n")
+                fp.write("    }\n")
+                fp.write("\n")
         fp.write("};\n")
     def GenerateFuncProxy(self, fp, name):
         self.GenerateCommentLine(fp)
@@ -496,7 +485,6 @@ class ProcMgr:
         fp.write("    void Init(const char* pPath);\n\n")
         for key in self.libraries.keys():
             for entry in self.libraries[key]:
-                fp.write(entry.GetFunctionMacroHead())
                 fp.write( "    " + entry.GetFunctionRetType() + " pfn" + entry.GetFormattedName() + "(")
                 params = entry.GetFunctionParams()
                 if len(params) == 0:
@@ -520,7 +508,8 @@ class ProcMgr:
                     fp.write("    bool pfn" + entry.GetFormattedName() + "isValid() const\n")
                     fp.write("    {\n")
                     fp.write("        return (m_pFuncs->pfn" + entry.GetFormattedName() + " != nullptr);\n")
-                    fp.write("    }\n" + entry.GetFunctionMacroTail() + "\n")
+                    fp.write("    }\n")
+                    fp.write("\n")
         fp.write("private:\n")
         fp.write("    Util::File  m_timeLogger;\n")
         fp.write("    Util::File  m_paramLogger;\n")

@@ -60,18 +60,16 @@ private:
     Queue*const         m_pQueue;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
-
-    uint32         m_currentUpdateCounter;  // Current watermark for the device-initiated context updates that have been
-                                            // processed by this queue context.
+    uint32              m_currentUpdateCounter; // Current watermark for the device-initiated context updates that
+                                                // have been processed by this queue context.
 
     // Command stream which restores hardware to a known state before launching command buffers.
-    CmdStream      m_cmdStream;
-    CmdStream      m_perSubmitCmdStream;
+    CmdStream           m_cmdStream;
+    CmdStream           m_perSubmitCmdStream;
+    CmdStream           m_postambleCmdStream;
 
-    CommonPreamblePm4Img            m_commonPreamble;    // Image of PM4 commands for common state.
-    ComputePreamblePm4Img           m_computePreamble;   // Image of PM4 commands for compute-only state.
-    PerSubmitComputePreamblePm4Img  m_perSubmitPreamble; // Image of PM4 commands for compute-queue-only state
-                                                         // that is executed once per submit.
+    CommonPreamblePm4Img  m_commonPreamble;  // Image of PM4 commands for common state.
+    ComputePreamblePm4Img m_computePreamble; // Image of PM4 commands for compute-only state.
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeQueueContext);
@@ -121,11 +119,9 @@ private:
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
 
-    CommonPreamblePm4Img              m_commonPreamble;      // Image of PM4 commands for common state.
-    UniversalPreamblePm4Img           m_universalPreamble;   // Image of PM4 commands for universal-only state.
-    PerSubmitUniversalPreamblePm4Img  m_perSubmitPreamble;   // Image of PM4 commands for universal-queue-only state
-                                                             // which is executed once per submit.
-    StateShadowPreamblePm4Img         m_stateShadowPreamble; // Image of PM4 commands for GPU state-shadowing.
+    CommonPreamblePm4Img      m_commonPreamble;      // Image of PM4 commands for common state.
+    UniversalPreamblePm4Img   m_universalPreamble;   // Image of PM4 commands for universal-only state.
+    StateShadowPreamblePm4Img m_stateShadowPreamble; // Image of PM4 commands for GPU state-shadowing.
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalQueueContext);

@@ -26,7 +26,6 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6Pm4Optimizer.h"
-#include "core/hw/gfxip/gfx6/gfx6UserDataTableImpl.h"
 #include "palDequeImpl.h"
 #include "palLinearAllocator.h"
 

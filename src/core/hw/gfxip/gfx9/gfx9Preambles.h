@@ -69,17 +69,6 @@ struct CommonPreamblePm4Img
     size_t                                    spaceNeeded;
 };
 
-// Contains a subset of commands necessary to write a Compute Queue preamble to hardware.
-struct PerSubmitComputePreamblePm4Img
-{
-    union
-    {
-        PM4MEC_ACQUIRE_MEM__GFX09 gfx9;
-    } acquireMem;
-
-    size_t                        spaceNeeded;
-};
-
 // Describes the GDS User Data register value.
 struct GdsData
 {
@@ -122,17 +111,6 @@ struct StateShadowPreamblePm4Img
     RegisterRange             csShRegs[MaxNumCsShRanges - 1];
 
     size_t                    spaceNeeded;
-};
-
-// Contains a subset commands necessary to write a Universal Queue preamble to hardware.
-struct PerSubmitUniversalPreamblePm4Img
-{
-    union
-    {
-        PM4_PFP_ACQUIRE_MEM__GFX09  gfx9;
-    } acquireMem;
-
-    size_t                        spaceNeeded;
 };
 
 // Contains a subset of commands necessary to the universal preamble command stream.

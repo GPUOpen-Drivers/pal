@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/device.h"
 #include "core/queue.h"
 #include "core/queueContext.h"
 #include "palAssert.h"
@@ -31,6 +32,16 @@ using namespace Util;
 
 namespace Pal
 {
+
+// =====================================================================================================================
+QueueContext::~QueueContext()
+{
+    if (m_timestampMem.IsBound())
+    {
+        m_pDevice->MemMgr()->FreeGpuMem(m_timestampMem.Memory(), m_timestampMem.Offset());
+        m_timestampMem.Update(nullptr, 0);
+    }
+}
 
 // =====================================================================================================================
 // Initializes the queue context submission info describing the submission preamble, postamble and paging fence value.
@@ -43,6 +54,43 @@ Result QueueContext::PreProcessSubmit(
     pSubmitInfo->pagingFence            = 0;
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+// Suballocates a 32 bits of local GPU memory for our subclasses to use. The memory is mapped and initialized to zero.
+Result QueueContext::CreateTimestampMem()
+{
+    GpuMemoryCreateInfo createInfo = { };
+    createInfo.alignment = sizeof(uint32);
+    createInfo.size      = sizeof(uint32);
+    createInfo.priority  = GpuMemPriority::Normal;
+    createInfo.vaRange   = VaRange::Default;
+    createInfo.heaps[0]  = GpuHeap::GpuHeapLocal;
+    createInfo.heaps[1]  = GpuHeap::GpuHeapGartUswc;
+    createInfo.heapCount = 2;
+
+    GpuMemoryInternalCreateInfo internalInfo = { };
+    internalInfo.flags.alwaysResident = 1;
+
+    GpuMemory* pGpuMemory = nullptr;
+    gpusize    offset     = 0;
+    Result     result     = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &pGpuMemory, &offset);
+
+    if (result == Result::Success)
+    {
+        m_timestampMem.Update(pGpuMemory, offset);
+
+        void* pPtr = nullptr;
+        result     = m_timestampMem.Map(&pPtr);
+
+        if (result == Result::Success)
+        {
+            *static_cast<uint32*>(pPtr) = 0;
+            result = m_timestampMem.Unmap();
+        }
+    }
+
+    return result;
 }
 
 } // Pal

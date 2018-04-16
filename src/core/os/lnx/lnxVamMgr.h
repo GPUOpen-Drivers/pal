@@ -141,14 +141,19 @@ public:
         const DrmLoaderFuncs& drmFuncs,
         amdgpu_device_handle  devHandle);
 
-private:
+ private:
+    VamMgrSingleton();
+    ~VamMgrSingleton();
+
     typedef Util::HashMap<amdgpu_device_handle, ReservedVaRangeInfo, GenericAllocatorAuto> ReservedVaMap;
     typedef Util::HashMap<amdgpu_device_handle, VamMgrInfo, GenericAllocatorAuto> VamMgrMap;
-    static GenericAllocatorAuto s_mapAllocator;
-    static ReservedVaMap        s_reservedVaMap;
-    static Util::Mutex          s_vaMapLock;
-    static VamMgrMap            s_vamMgrMap;
-    static Util::Mutex          s_mutex;
+    GenericAllocatorAuto m_mapAllocator;
+    ReservedVaMap        m_reservedVaMap;
+    Util::Mutex          m_vaMapLock;
+    VamMgrMap            m_vamMgrMap;
+    Util::Mutex          m_mutex;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(VamMgrSingleton);
 };
 
 } // Linux

@@ -476,11 +476,20 @@ void LogContext::Struct(
 
     for (uint32 idx = 0; idx < CmdAllocatorTypeCount; ++idx)
     {
-        const char*const DataAllocNames[CmdAllocatorTypeCount] =
+        const char*const DataAllocNames[] =
         {
-            "CommandData",  // CommandDataAlloc  = 0,
-            "EmbeddedData", // EmbeddedDataAlloc = 1,
+            "CommandData",        // CommandDataAlloc  = 0,
+            "EmbeddedData",       // EmbeddedDataAlloc = 1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
+            "GpuScratchMemAlloc", // GpuScratchMemAlloc
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 395
+            "GpuScratchMemAlloc", // GpuScratchMemAlloc
+#endif
         };
+
+        static_assert(sizeof(DataAllocNames) / sizeof(DataAllocNames[0]) == static_cast<uint32>(CmdAllocatorTypeCount),
+                      "The DataAllocNames string table needs to be updated.");
 
         KeyAndBeginMap(DataAllocNames[idx], false);
         KeyAndEnum("allocHeap", value.allocInfo[idx].allocHeap);
@@ -1821,6 +1830,9 @@ void LogContext::Struct(
 void LogContext::Struct(
     PipelineCreateFlags value)
 {
+    BeginList(false);
+
+    EndList();
 }
 
 // =====================================================================================================================
