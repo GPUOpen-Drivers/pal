@@ -51,7 +51,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     GfxCmdStream*              pCeCmdStream,
     bool                       blendOptEnable)
     :
-    GfxCmdBuffer(device, createInfo, pPrefetchMgr, pDeCmdStream),
+    GfxCmdBuffer(device, createInfo, pPrefetchMgr),
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
     m_pCeCmdStream(pCeCmdStream),

@@ -738,9 +738,6 @@ public:
     // Returns a pointer to the command stream specified by "cmdStreamIdx".
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const = 0;
 
-    // Returns a pointer to the command stream that should be used for virtual memory remapping.
-    const CmdStream* GetVmRemapCmdStream() const { return m_pVmRemapStream; }
-
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
     QueueType GetQueueType() const   { return m_createInfo.queueType; }
@@ -787,8 +784,7 @@ public:
 
 protected:
     CmdBuffer(const Device&              device,
-              const CmdBufferCreateInfo& createInfo,
-              const CmdStream*           pVmRemapStream);
+              const CmdBufferCreateInfo& createInfo);
     virtual ~CmdBuffer();
 
     // Responsible for adding all the commands needed by the preamble
@@ -927,7 +923,6 @@ private:
 
     const Device&          m_device;
     CmdBufferRecordState   m_recordState;
-    const CmdStream*const  m_pVmRemapStream; // Command stream for virtual memory remapping.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // These member variables are only for command buffer dumping support.

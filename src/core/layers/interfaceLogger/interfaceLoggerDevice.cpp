@@ -1277,7 +1277,7 @@ Result Device::CreateColorTargetView(
 
         const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::ColorTargetView);
 
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, this, objectId);
+        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, createInfo, this, objectId);
     }
 
     LogContext* pLogContext = nullptr;

@@ -92,12 +92,15 @@ Queue::Queue(
     // All nested allocations are set the the minimum size (4KB) because applications that submit hundreds of nested
     // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
     // This will have a small performance impact on large nested command buffers but we have little choice for now.
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocHeap     = GpuHeapGartUswc;
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocSize     = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].suballocSize  = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocSize    = 4 * 1024;
-    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].suballocSize = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
+    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
+    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
+    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
+    m_nestedAllocatorCreateInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
 }
 
 // =====================================================================================================================
@@ -204,13 +207,16 @@ Result Queue::Init()
     if (result == Result::Success)
     {
         CmdAllocatorCreateInfo createInfo = { };
-        createInfo.flags.autoMemoryReuse                     = 1;
-        createInfo.allocInfo[CommandDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize     = 2 * 1024 * 1024;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize  = 64 * 1024;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize    = 2 * 1024 * 1024;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize = 64 * 1024;
+        createInfo.flags.autoMemoryReuse                      = 1;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = 2 * 1024 * 1024;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 64 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 2 * 1024 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 64 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 2 * 1024 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 64 * 1024;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),

@@ -65,7 +65,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     PrefetchMgr*               pPrefetchMgr,
     GfxCmdStream*              pCmdStream)
     :
-    GfxCmdBuffer(device, createInfo, pPrefetchMgr, pCmdStream),
+    GfxCmdBuffer(device, createInfo, pPrefetchMgr),
     m_device(device),
     m_pCmdStream(pCmdStream)
 {

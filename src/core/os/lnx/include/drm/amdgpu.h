@@ -1727,6 +1727,21 @@ const char *amdgpu_get_marketing_name(amdgpu_device_handle dev);
 /**
  *  Create kernel sync object
  *
+ * \param   dev         - \c [in]  device handle
+ * \param   flags       - \c [in]  flags that affect creation
+ * \param   syncobj     - \c [out] sync object handle
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
+ *
+*/
+int amdgpu_cs_create_syncobj2(amdgpu_device_handle dev,
+			      uint32_t  flags,
+			      uint32_t *syncobj);
+
+/**
+ *  Create kernel sync object
+ *
  * \param   dev	      - \c [in]  device handle
  * \param   syncobj   - \c [out] sync object handle
  *

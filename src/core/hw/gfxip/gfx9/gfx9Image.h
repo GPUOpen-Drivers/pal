@@ -443,7 +443,7 @@ private:
     static uint32 s_txSwizzleIdx;
     static uint32 s_fMaskSwizzleIdx;
 
-    bool m_needToSetFirstPixel;
+    bool m_useCompToSingleForFastClears;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

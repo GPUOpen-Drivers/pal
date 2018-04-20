@@ -123,13 +123,15 @@ extern "C" {
 #define DRM_MODE_DITHERING_OFF  0
 #define DRM_MODE_DITHERING_ON   1
 
-#define DRM_MODE_ENCODER_NONE   0
-#define DRM_MODE_ENCODER_DAC    1
-#define DRM_MODE_ENCODER_TMDS   2
-#define DRM_MODE_ENCODER_LVDS   3
-#define DRM_MODE_ENCODER_TVDAC  4
+#define DRM_MODE_ENCODER_NONE    0
+#define DRM_MODE_ENCODER_DAC     1
+#define DRM_MODE_ENCODER_TMDS    2
+#define DRM_MODE_ENCODER_LVDS    3
+#define DRM_MODE_ENCODER_TVDAC   4
 #define DRM_MODE_ENCODER_VIRTUAL 5
-#define DRM_MODE_ENCODER_DSI	6
+#define DRM_MODE_ENCODER_DSI     6
+#define DRM_MODE_ENCODER_DPMST   7
+#define DRM_MODE_ENCODER_DPI     8
 
 #define DRM_MODE_SUBCONNECTOR_Automatic 0
 #define DRM_MODE_SUBCONNECTOR_Unknown   0
@@ -153,10 +155,11 @@ extern "C" {
 #define DRM_MODE_CONNECTOR_DisplayPort  10
 #define DRM_MODE_CONNECTOR_HDMIA        11
 #define DRM_MODE_CONNECTOR_HDMIB        12
-#define DRM_MODE_CONNECTOR_TV		13
-#define DRM_MODE_CONNECTOR_eDP		14
+#define DRM_MODE_CONNECTOR_TV           13
+#define DRM_MODE_CONNECTOR_eDP          14
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
 #define DRM_MODE_CONNECTOR_DSI          16
+#define DRM_MODE_CONNECTOR_DPI          17
 
 #define DRM_MODE_PROP_PENDING   (1<<0)
 #define DRM_MODE_PROP_RANGE     (1<<1)
@@ -366,9 +369,17 @@ extern int drmModeAddFB(int fd, uint32_t width, uint32_t height, uint8_t depth,
 			uint32_t *buf_id);
 /* ...with a specific pixel format */
 extern int drmModeAddFB2(int fd, uint32_t width, uint32_t height,
-			 uint32_t pixel_format, uint32_t bo_handles[4],
-			 uint32_t pitches[4], uint32_t offsets[4],
+			 uint32_t pixel_format, const uint32_t bo_handles[4],
+			 const uint32_t pitches[4], const uint32_t offsets[4],
 			 uint32_t *buf_id, uint32_t flags);
+
+/* ...with format modifiers */
+int drmModeAddFB2WithModifiers(int fd, uint32_t width, uint32_t height,
+			       uint32_t pixel_format, const uint32_t bo_handles[4],
+			       const uint32_t pitches[4], const uint32_t offsets[4],
+			       const uint64_t modifier[4], uint32_t *buf_id,
+				   uint32_t flags);
+
 /**
  * Destroies the given framebuffer.
  */
@@ -466,6 +477,9 @@ extern int drmModeCrtcGetGamma(int fd, uint32_t crtc_id, uint32_t size,
 			       uint16_t *red, uint16_t *green, uint16_t *blue);
 extern int drmModePageFlip(int fd, uint32_t crtc_id, uint32_t fb_id,
 			   uint32_t flags, void *user_data);
+extern int drmModePageFlipTarget(int fd, uint32_t crtc_id, uint32_t fb_id,
+				 uint32_t flags, void *user_data,
+				 uint32_t target_vblank);
 
 extern drmModePlaneResPtr drmModeGetPlaneResources(int fd);
 extern drmModePlanePtr drmModeGetPlane(int fd, uint32_t plane_id);

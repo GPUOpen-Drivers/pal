@@ -201,7 +201,15 @@ Result SyncobjFence::OpenHandle(
     }
     else
     {
-        result = m_device.SyncObjImportSyncFile(openInfo.externalFence, m_fenceSyncObject);
+        result = m_device.CreateSyncObject(0, &m_fenceSyncObject);
+        if (result == Result::Success)
+        {
+            result = m_device.SyncObjImportSyncFile(openInfo.externalFence, m_fenceSyncObject);
+        }
+        if (result == Result::Success)
+        {
+            close(openInfo.externalFence);
+        }
     }
 
     // For external fence, set the external opened flag.
@@ -211,11 +219,22 @@ Result SyncobjFence::OpenHandle(
 }
 
 // =====================================================================================================================
-// Export the sync object handle of SyncobjFence with handle type: OPAQUE_FD.
-// For type SYNC_FD, will implement later.
-OsExternalHandle SyncobjFence::GetHandle() const
+// Export the sync object handle of SyncobjFence.
+OsExternalHandle SyncobjFence::ExportExternalHandle(
+    const FenceExportInfo& exportInfo) const
 {
-    return m_device.ExportSyncObject(m_fenceSyncObject);
+    OsExternalHandle handle = 0;
+
+    if (exportInfo.flags.isReference)
+    {
+        handle = m_device.ExportSyncObject(m_fenceSyncObject);
+    }
+    else
+    {
+        m_device.SyncObjExportSyncFile(m_fenceSyncObject, reinterpret_cast<int32*>(&handle));
+    }
+
+    return handle;
 }
 
 // =====================================================================================================================

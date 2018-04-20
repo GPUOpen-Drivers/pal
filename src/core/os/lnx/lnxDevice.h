@@ -557,11 +557,13 @@ public:
         amdgpu_semaphore_handle hSemaphore) const;
 
     OsExternalHandle ExportSemaphore(
-        amdgpu_semaphore_handle hSemaphore) const;
+        amdgpu_semaphore_handle hSemaphore,
+        bool                    isReference) const;
 
     Result ImportSemaphore(
         OsExternalHandle         fd,
-        amdgpu_semaphore_handle* pSemaphoreHandle) const;
+        amdgpu_semaphore_handle* pSemaphoreHandle,
+        bool                     isReference) const;
 
     Result AssignVirtualAddress(
         Pal::GpuMemory*         pGpuMemory,

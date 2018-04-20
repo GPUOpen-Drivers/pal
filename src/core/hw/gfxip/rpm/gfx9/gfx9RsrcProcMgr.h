@@ -143,6 +143,11 @@ protected:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}
 
+    virtual void CreateDccDecompressSafeImageViewSrds(
+        uint32                numSrds,
+        const ImageViewInfo*  pImageView,
+        void*                 pSrdTable) const;
+
     virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,
         uint32         targetIndex,

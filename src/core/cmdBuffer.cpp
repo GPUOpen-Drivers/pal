@@ -98,8 +98,7 @@ uint32 CmdBuffer::s_numCreated[QueueTypeCount] = {};
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
     const Device&              device,
-    const CmdBufferCreateInfo& createInfo,
-    const CmdStream*           pVmRemapStream)
+    const CmdBufferCreateInfo& createInfo)
     :
     m_createInfo(createInfo),
     m_engineType(createInfo.engineType),
@@ -113,8 +112,7 @@ CmdBuffer::CmdBuffer(
     m_p2pBltWaInfo(device.GetPlatform()),
     m_p2pBltWaLastChunkAddr(0),
     m_device(device),
-    m_recordState(CmdBufferRecordState::Reset),
-    m_pVmRemapStream(pVmRemapStream)
+    m_recordState(CmdBufferRecordState::Reset)
 #if PAL_ENABLE_PRINTS_ASSERTS
     ,
     m_uniqueId(0),

@@ -1102,7 +1102,10 @@ struct DeviceProperties
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
 #else
-        bool   supportProSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
+        bool   supportProSemaphore;      ///< Support export/import semaphore as opaque fd in linux KMD.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
+        bool   supportSyncFileFence;     ///< Support export/import fence as sync file in linux KMD.
 #endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364

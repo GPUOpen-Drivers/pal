@@ -861,7 +861,7 @@ Result DeviceDecorator::CreateColorTargetView(
         PAL_ASSERT(pNextView != nullptr);
         pNextView->SetClientData(pPlacementAddr);
 
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetViewDecorator(pNextView, this);
+        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetViewDecorator(pNextView, createInfo, this);
     }
 
     return result;

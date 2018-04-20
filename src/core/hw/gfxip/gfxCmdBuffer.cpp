@@ -52,10 +52,9 @@ namespace Pal
 GfxCmdBuffer::GfxCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    PrefetchMgr*               pPrefetchMgr,
-    const CmdStream*           pVmRemapStream)
+    PrefetchMgr*               pPrefetchMgr)
     :
-    CmdBuffer(*device.Parent(), createInfo, pVmRemapStream),
+    CmdBuffer(*device.Parent(), createInfo),
     m_pPrefetchMgr(pPrefetchMgr),
     m_engineSupport(0),
     m_generatedChunkList(device.GetPlatform()),

@@ -140,8 +140,14 @@ void* MemTracker<Allocator>::AddMemElement(
         pNewElement->allocNum = m_nextAllocNum;
         ++m_nextAllocNum;
 
-        pNewElement->pNext    = m_pMemListHead->pNext;
-        m_pMemListHead->pNext = pNewElement;
+        pNewElement->pNext     = m_pMemListHead->pNext;
+        pNewElement->pNextNext = m_pMemListHead->pNextNext;
+
+        m_pMemListHead->pNextNext = m_pMemListHead->pNext;
+        m_pMemListHead->pNext     = pNewElement;
+
+        // Sanity check to make sure we've updated both pointers properly.
+        PAL_ASSERT(m_pMemListHead->pNextNext != m_pMemListHead->pNext);
     }
 
     return pClientMem;
@@ -166,11 +172,19 @@ void* MemTracker<Allocator>::RemoveMemElement(
     m_mutex.Lock();
 
     MemTrackerElem* pCurrent  = m_pMemListHead->pNext;
+    MemTrackerElem* pCurNext  = m_pMemListHead->pNextNext;
     MemTrackerElem* pPrevious = m_pMemListHead;
+    MemTrackerElem* pPrevPrev = nullptr;
 
     while ((pCurrent != nullptr) && (pCurrent->pClientMem != pClientMem))
     {
+        // We will hit this assert if someone has corrupted the current tracker's pNext.
+        // That probably means that someone is writing into random heap memory they don't own.
+        PAL_ASSERT(pCurNext == pCurrent->pNext);
+
+        pPrevPrev = pPrevious;
         pPrevious = pCurrent;
+        pCurNext  = pCurrent->pNextNext;
         pCurrent  = pCurrent->pNext;
     }
 
@@ -195,8 +209,20 @@ void* MemTracker<Allocator>::RemoveMemElement(
     else
     {
         // Update the linked list to no longer contain the element we are removing.
-        pPrevious->pNext = pCurrent->pNext;
-        pOrigPtr         = pCurrent->pOrigMem;
+        if (pPrevPrev != nullptr)
+        {
+            pPrevPrev->pNextNext = pCurrent->pNext;
+
+            // Sanity check to make sure we've updated both pointers properly.
+            PAL_ASSERT((pPrevPrev->pNextNext == nullptr) || (pPrevPrev->pNextNext != pPrevPrev->pNext));
+        }
+
+        pPrevious->pNextNext = pCurrent->pNextNext;
+        pPrevious->pNext     = pCurrent->pNext;
+        pOrigPtr             = pCurrent->pOrigMem;
+
+        // Sanity check to make sure we've updated both pointers properly.
+        PAL_ASSERT((pPrevious->pNextNext == nullptr) || (pPrevious->pNextNext != pPrevious->pNext));
     }
 
     m_mutex.Unlock();

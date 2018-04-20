@@ -61,6 +61,7 @@ enum class MemBlkType : uint32
 struct MemTrackerElem
 {
     MemTrackerElem* pNext;       ///< Pointer to next element in the linked list.
+    MemTrackerElem* pNextNext;   ///< Pointer to next element's next element; detects if the next tracker is corrupted.
     size_t          size;        ///< Size of allocation request.
     MemBlkType      blockType;   ///< Memory block type (malloc, new, new array).
     const char*     pFilename;   ///< File that requested allocation.

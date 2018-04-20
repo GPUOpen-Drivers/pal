@@ -53,8 +53,9 @@ typedef Util::Result  Result;   ///< The PAL core and utility companion share th
 
 typedef Util::Rational Rational; ///< A ratio of two unsigned integers.
 
-typedef void*       OsDisplayHandle;  ///< The Display Handle for Linux except X11 platform
-typedef uint32      OsExternalHandle; ///< OsExternalHandle corresponds to a generic handle on linux
+typedef void*   OsDisplayHandle;        ///< The Display Handle for Linux except X11 platform
+typedef uint32  OsExternalHandle;       ///< OsExternalHandle corresponds to a generic handle on linux
+typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on linux.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
 /// OsWindowHandle corresponds to a window on X-Windows or surface on Wayland.

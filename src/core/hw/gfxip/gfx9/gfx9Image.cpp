@@ -68,7 +68,7 @@ Image::Image(
     m_fastClearEliminateMetaDataSize(0),
     m_waTcCompatZRangeMetaDataOffset(0),
     m_waTcCompatZRangeMetaDataSizePerMip(0),
-    m_needToSetFirstPixel(false)
+    m_useCompToSingleForFastClears(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
     memset(m_addrSurfOutput,      0, sizeof(m_addrSurfOutput));
@@ -480,6 +480,7 @@ Result Image::Finalize(
             }
             else
             {
+
                 result = m_pDcc->Init(*this, pGpuMemSize, true);
             }
 
@@ -539,7 +540,6 @@ Result Image::Finalize(
 
                 // Get the constant data for clears based on DCC meta equation
                 GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataDcc], metaBlkFastClearSize);
-
             }
         }
         else

@@ -685,6 +685,13 @@ Result UniversalQueueContext::PreProcessSubmit(
     pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
     ++preambleCount;
 
+    if (m_pDevice->Settings().commandBufferCombineDePreambles == false)
+    {
+        // Submit the per-context preamble independently.
+        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
+        ++preambleCount;
+    }
+
     uint32 postambleCount = 0;
     if (m_cePostambleCmdStream.IsEmpty() == false)
     {
@@ -753,6 +760,7 @@ void UniversalQueueContext::RebuildCommandStreams()
      */
 
     constexpr CmdStreamBeginFlags beginFlags = {};
+    const     GpuChipProperties&  chipProps  = m_pDevice->Parent()->ChipProperties();
     const     CmdUtil&            cmdUtil    = m_pDevice->CmdUtil();
 
     // The drop-if-same-context DE preamble.
@@ -1004,9 +1012,9 @@ void UniversalQueueContext::RebuildCommandStreams()
         gpuVirtAddr += (sizeof(uint32) * ShRegCount);
 
         m_perSubmitCmdStream.CommitCommands(pCmdSpace);
+
         // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
         // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
-        const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
         {
             InitializeContextRegistersGfx8(&m_perSubmitCmdStream);
@@ -1049,7 +1057,11 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_perSubmitCmdStream.CommitCommands(pCmdSpace);
     m_perSubmitCmdStream.End();
 
-    m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
+    if (m_pDevice->Settings().commandBufferCombineDePreambles)
+    {
+        // Combine the preambles by chaining from the per-submit preamble to the per-context preamble.
+        m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
+    }
 
     // The per-submit CE premable, CE postamble, and DE postamble.
     //==================================================================================================================
@@ -1084,27 +1096,42 @@ void UniversalQueueContext::RebuildCommandStreams()
 
         m_cePreambleCmdStream.End();
 
-        // The postamble command streams which dump CE RAM at the end of the submission and synchronize the CE/DE
-        // counters are only necessary if (1) the client requested that this Queue maintains persistent CE RAM
-        // contents, or (2) this Queue supports mid command buffer preemption and the panel setting to force the
-        // dump CE RAM postamble is set.
+        // The postamble command streams which dump CE RAM at the end of the submission are only necessary if (1) the
+        // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
+        // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
         if ((m_pQueue->PersistentCeRamSize() != 0) ||
             (m_pDevice->Settings().commandBufferForceCeRamDumpInPostamble != false))
         {
+            // On gfx6-7 we need to synchronize the CE/DE counters after the dump CE RAM because the dump writes to L2
+            // and the load reads from memory. The DE postamble's EOP event will flush L2 but we still need to use the
+            // CE/DE counters to stall the DE until the dump is complete.
+            const bool syncCounters = (chipProps.gfxLevel <= GfxIpLevel::GfxIp7);
+
+            // Note that it's illegal to touch the CE/DE counters in postamble streams if MCBP is enabled. In practice
+            // we don't expect these two conditions to be enabled at the same time.
+            PAL_ASSERT((syncCounters == false) || (m_useShadowing == false));
+
             m_cePostambleCmdStream.Reset(nullptr, true);
             m_cePostambleCmdStream.Begin(beginFlags, nullptr);
 
             pCmdSpace  = m_cePostambleCmdStream.ReserveCommands();
             pCmdSpace += cmdUtil.BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-            pCmdSpace += cmdUtil.BuildIncrementCeCounter(pCmdSpace);
-            m_cePostambleCmdStream.CommitCommands(pCmdSpace);
 
+            if (syncCounters)
+            {
+                pCmdSpace += cmdUtil.BuildIncrementCeCounter(pCmdSpace);
+            }
+
+            m_cePostambleCmdStream.CommitCommands(pCmdSpace);
             m_cePostambleCmdStream.End();
 
-            pCmdSpace  = m_dePostambleCmdStream.ReserveCommands();
-            pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
-            pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
-            m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+            if (syncCounters)
+            {
+                pCmdSpace  = m_dePostambleCmdStream.ReserveCommands();
+                pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
+                pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
+                m_dePostambleCmdStream.CommitCommands(pCmdSpace);
+            }
         }
     }
     // Otherwise, we just need the CE preamble to issue a dummy LOAD_CONST_RAM packet because the KMD requires each

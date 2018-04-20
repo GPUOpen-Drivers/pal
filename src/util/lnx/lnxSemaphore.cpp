@@ -62,28 +62,39 @@ Result Semaphore::Wait(
     constexpr uint32 Infinite = 0xFFFFFFFF;
 
     int result = 0;
-    switch (milliseconds)
+
+    // Retry the wait if EAGAIN happens when waiting.
+    int retry = 1;
+
+    // Calculate the abs time before the loop.
+    timespec timeout = { };
+    ComputeTimeoutExpiration(&timeout, milliseconds * 1000 * 1000);
+
+    do
     {
-    case Infinite:
-        // Wait on the semaphore indefinitely.
-        result = sem_wait(&m_osSemaphore);
-        break;
-
-    case 0:
-        // Decrement the semaphore if it can be done so immediately, but don't wait.
-        result = sem_trywait(&m_osSemaphore);
-        break;
-
-    default:
+        switch (milliseconds)
         {
-            timespec timeout = { };
-            ComputeTimeoutExpiration(&timeout, milliseconds * 1000 * 1000);
+            case Infinite:
+                // Wait on the semaphore indefinitely.
+                result = sem_wait(&m_osSemaphore);
+                break;
 
-            // Wait on the semaphore until a timeout occurs.
-            result = sem_timedwait(&m_osSemaphore, &timeout);
+            case 0:
+                // Decrement the semaphore if it can be done so immediately, but don't wait.
+                result = sem_trywait(&m_osSemaphore);
+                break;
+
+            default:
+                {
+                    // Wait on the semaphore until a timeout occurs.
+                    // the timeout is the absolute time thus don't need to be adjusted
+                    result = sem_timedwait(&m_osSemaphore, &timeout);
+                }
+                break;
         }
-        break;
-    }
+    // Sometime, the wait would be interrupted and the caller supposed to trigger the wait again.
+    // The retry times has been limited to 1 for now.
+    }while (((result == -1) && (errno == EAGAIN)) && (retry --));
 
     if (result == -1)
     {

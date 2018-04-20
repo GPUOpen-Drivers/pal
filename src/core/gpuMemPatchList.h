@@ -48,6 +48,7 @@ enum class GpuMemoryPatchOp : uint32
     VceSessionId,
     UvdSurfAddrLo,
     UvdSurfAddrHi,
+    VideoSessionId,
     Count,
 };
 

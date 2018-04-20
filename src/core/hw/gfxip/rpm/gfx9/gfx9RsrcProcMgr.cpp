@@ -2541,6 +2541,18 @@ bool RsrcProcMgr::ClearDcc(
 }
 
 // =====================================================================================================================
+void RsrcProcMgr::CreateDccDecompressSafeImageViewSrds(
+    uint32                numSrds,
+    const ImageViewInfo*  pImageView,
+    void*                 pSrdTable
+    ) const
+{
+    const auto&  device = *m_pDevice->Parent();
+
+    device.CreateImageViewSrds(numSrds, pImageView, pSrdTable);
+}
+
+// =====================================================================================================================
 // Performs a DCC decompress blt using the compute engine on the provided Image.  It is the caller's responsibility
 // to verify that the specified "range" supports texture compatability.
 void RsrcProcMgr::DccDecompressOnCompute(
@@ -2611,7 +2623,8 @@ void RsrcProcMgr::DccDecompressOnCompute(
                 &imageView[0], parentImg, viewRange, createInfo.swizzledFormat, false, device.TexOptLevel()); // src
             RpmUtil::BuildImageViewInfo(
                 &imageView[1], parentImg, viewRange, createInfo.swizzledFormat, true, device.TexOptLevel());  // dst
-            device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
+
+            CreateDccDecompressSafeImageViewSrds(2, &imageView[0], pSrdTable);
 
             pSrdTable += 2 * SrdDwordAlignment();
             memcpy(pSrdTable, constData, sizeof(constData));

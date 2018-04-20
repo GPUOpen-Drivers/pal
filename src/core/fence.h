@@ -65,7 +65,8 @@ public:
 
     virtual Result OpenHandle(const FenceOpenInfo& openInfo);
 
-    virtual OsExternalHandle GetHandle() const override
+    virtual OsExternalHandle ExportExternalHandle(
+        const FenceExportInfo& exportInfo) const override
     {
         return -1;
     }

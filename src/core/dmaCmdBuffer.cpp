@@ -52,7 +52,7 @@ DmaCmdBuffer::DmaCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
     bool                       copyOverlapHazardSyncs)
     :
-    CmdBuffer(*pDevice, createInfo, &m_cmdStream),
+    CmdBuffer(*pDevice, createInfo),
     m_pDevice(pDevice),
     m_cmdStream(pDevice, createInfo.pCmdAllocator, EngineTypeDma, SubQueueType::Primary, 0, 0, IsNested(), false),
     m_predMemEnabled(false),

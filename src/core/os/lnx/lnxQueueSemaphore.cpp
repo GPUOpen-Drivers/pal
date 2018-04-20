@@ -79,11 +79,9 @@ Result QueueSemaphore::Open(
 
 // =====================================================================================================================
 OsExternalHandle QueueSemaphore::ExportExternalHandle(
-    ) const
+    const QueueSemaphoreExportInfo& exportInfo) const
 {
-    OsExternalHandle handle = static_cast<Linux::Device*>(m_pDevice)->ExportSemaphore(m_hSemaphore);
-
-    return handle;
+    return static_cast<Linux::Device*>(m_pDevice)->ExportSemaphore(m_hSemaphore, exportInfo.flags.isReference);
 }
 
 // =====================================================================================================================
@@ -95,7 +93,15 @@ Result QueueSemaphore::OpenExternal(
     m_flags.shared         = 1;
     m_flags.externalOpened = 1;
 
-    Result result = static_cast<Linux::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore, &m_hSemaphore);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
+    Result result = static_cast<Linux::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore,
+                                                                            &m_hSemaphore,
+                                                                            openInfo.flags.isReference);
+#else
+    Result result = static_cast<Linux::Device*>(m_pDevice)->ImportSemaphore(openInfo.externalSemaphore,
+                                                                            &m_hSemaphore,
+                                                                            true);
+#endif
 
     return result;
 }

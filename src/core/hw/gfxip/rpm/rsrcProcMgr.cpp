@@ -6294,14 +6294,13 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
     Pal::PackedPixelType   packPixelType
     ) const
 {
-    const auto&     device        = *m_pDevice->Parent();
-    const auto&     dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto&     srcCreateInfo = srcImage.GetImageCreateInfo();
-    const bool      isCompressed  = (Formats::IsBlockCompressed(srcCreateInfo.swizzledFormat.format) ||
-                                     Formats::IsBlockCompressed(dstCreateInfo.swizzledFormat.format));
-    const bool      useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
-
-    const BltMonitorDesc* pMonDesc = GetMonitorDesc(packPixelType);
+    const auto&           device        = *m_pDevice->Parent();
+    const auto&           dstCreateInfo = dstImage.GetImageCreateInfo();
+    const auto&           srcCreateInfo = srcImage.GetImageCreateInfo();
+    const bool            isCompressed  = (Formats::IsBlockCompressed(srcCreateInfo.swizzledFormat.format) ||
+                                           Formats::IsBlockCompressed(dstCreateInfo.swizzledFormat.format));
+    const bool            useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
+    const BltMonitorDesc* pMonDesc      = GetMonitorDesc(packPixelType);
 
     // Get the appropriate pipeline object.
     const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::PackedPixelComposite);
@@ -6314,21 +6313,11 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
 
-    PAL_ASSERT((pRegions->numSlices == 1) || (pRegions->extent.depth == 1));
-
-    SwizzledFormat srcFormat = srcImage.SubresourceInfo(pRegions->srcSubres)->format;
-    SwizzledFormat dstFormat = dstImage.SubresourceInfo(pRegions->dstSubres)->format;
-
     // ALU constants assignment
     PackPixelConstant constantData    = {};
     const uint32      aluConstantSize = sizeof(constantData.aluConstant0);
+    constexpr uint32 DataDwords = (sizeof(constantData) / sizeof(uint32));
 
-    // set up c0/c1 sample scaling and offset
-    const BltMonitorDesc&  monDesc = *pMonDesc;
-    const ImageCopyRegion& regions = *pRegions;
-    ProcessPackPixelCopyConstants(monDesc, pMonDesc->numPixels,
-                                  regions,
-                                  reinterpret_cast<float*>(&constantData.aluConstant0[0]));
     // c2 shader flow control
     constantData.aluConstant2[0] = pMonDesc->isColorType;
     constantData.aluConstant2[1] = ((pMonDesc->numPixels > 1) ? 1 : 0);
@@ -6378,71 +6367,84 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
     // c12 pixel scaling (2^N-1, 1/(2^N-1), unused, unused)
     memcpy(&constantData.aluConstant12[0], &pMonDesc->scalingParams[0], sizeof(pMonDesc->scalingParams[0]) * 4);
 
-    // c13 -> region.width*1.0, region.height*1.0, region.width, region.height
-    constantData.aluConstant13[2] = pRegions->dstOffset.x + pRegions->extent.width;
-    constantData.aluConstant13[3] = pRegions->dstOffset.y + pRegions->extent.height;
-
-    constexpr uint32 DataDwords = (sizeof(constantData) / sizeof(uint32));
-
-    // there are 2 resources and 1 sampler
-    const uint8 rsNum = 3;
-    uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                               SrdDwordAlignment() * rsNum + DataDwords,
-                                                               SrdDwordAlignment(),
-                                                               PipelineBindPoint::Compute,
-                                                               0);
-    ImageViewInfo imageView[2] = {};
-    SubresRange   viewRange    = { pRegions->dstSubres, 1, 1};
-    RpmUtil::BuildImageViewInfo(&imageView[0],
-                                dstImage,
-                                viewRange,
-                                dstFormat,
-                                true,
-                                Pal::ImageTexOptLevel::Default);
-
-    viewRange.startSubres = pRegions->srcSubres;
-    RpmUtil::BuildImageViewInfo(&imageView[1],
-                                srcImage,
-                                viewRange,
-                                srcFormat,
-                                false,
-                                Pal::ImageTexOptLevel::Default);
-
-    if (useMipInSrd == false)
+    // Now begin processing the list of copy regions.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        // The miplevel as specified in the shader instruction is actually an offset from the mip-level
-        // as specified in the SRD.
-        imageView[0].subresRange.startSubres.mipLevel = 0;  // dst
-        imageView[1].subresRange.startSubres.mipLevel = 0;  // src
+        const ImageCopyRegion& region = pRegions[idx];
 
-        // The mip-level from the instruction is also clamped to the "last level" as specified in the SRD.
-        imageView[0].subresRange.numMips = pRegions->dstSubres.mipLevel + viewRange.numMips;
-        imageView[1].subresRange.numMips = pRegions->srcSubres.mipLevel + viewRange.numMips;
+        PAL_ASSERT((region.numSlices == 1) || (region.extent.depth == 1));
+
+        SwizzledFormat srcFormat = srcImage.SubresourceInfo(region.srcSubres)->format;
+        SwizzledFormat dstFormat = dstImage.SubresourceInfo(region.dstSubres)->format;
+
+        // set up c0/c1 sample scaling and offset
+        ProcessPackPixelCopyConstants(*pMonDesc, pMonDesc->numPixels,
+                                      region,
+                                      reinterpret_cast<float*>(&constantData.aluConstant0[0]));
+
+        // c13 -> region.width*1.0, region.height*1.0, region.width, region.height
+        constantData.aluConstant13[2] = region.dstOffset.x + region.extent.width;
+        constantData.aluConstant13[3] = region.dstOffset.y + region.extent.height;
+
+        // there are 2 resources and 1 sampler
+        const uint8 rsNum = 3;
+        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * rsNum + DataDwords,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
+        ImageViewInfo imageView[2] = {};
+        SubresRange   viewRange    = { region.dstSubres, 1, 1};
+        RpmUtil::BuildImageViewInfo(&imageView[0],
+                                    dstImage,
+                                    viewRange,
+                                    dstFormat,
+                                    true,
+                                    Pal::ImageTexOptLevel::Default);
+
+        viewRange.startSubres = region.srcSubres;
+        RpmUtil::BuildImageViewInfo(&imageView[1],
+                                    srcImage,
+                                    viewRange,
+                                    srcFormat,
+                                    false,
+                                    Pal::ImageTexOptLevel::Default);
+
+        if (useMipInSrd == false)
+        {
+            // The miplevel as specified in the shader instruction is actually an offset from the mip-level
+            // as specified in the SRD.
+            imageView[0].subresRange.startSubres.mipLevel = 0;  // dst
+            imageView[1].subresRange.startSubres.mipLevel = 0;  // src
+
+            // The mip-level from the instruction is also clamped to the "last level" as specified in the SRD.
+            imageView[0].subresRange.numMips = region.dstSubres.mipLevel + viewRange.numMips;
+            imageView[1].subresRange.numMips = region.srcSubres.mipLevel + viewRange.numMips;
+        }
+
+        // Turn our image views into HW SRDs here
+        device.CreateImageViewSrds(2, &imageView[0], pUserData);
+        pUserData += SrdDwordAlignment() * 2;
+
+        Pal::SamplerInfo samplerInfo = {};
+
+        samplerInfo.filter.magnification = Pal::XyFilterPoint;
+        samplerInfo.filter.minification  = Pal::XyFilterPoint;
+        samplerInfo.filter.mipFilter     = Pal::MipFilterNone;
+        samplerInfo.addressU             = Pal::TexAddressMode::Clamp;
+        samplerInfo.addressV             = Pal::TexAddressMode::Clamp;
+        samplerInfo.addressW             = Pal::TexAddressMode::Clamp;
+
+        device.CreateSamplerSrds(1, &samplerInfo, pUserData);
+        pUserData += SrdDwordAlignment();
+        // Copy the copy parameters into the embedded user-data space
+        memcpy(pUserData, &constantData, sizeof(constantData));
+
+        // Execute the dispatch, we need one thread per texel.
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(region.extent.width,  threadsPerGroup[0]),
+                                RpmUtil::MinThreadGroups(region.extent.height, threadsPerGroup[1]),
+                                RpmUtil::MinThreadGroups(1,  threadsPerGroup[2]));
     }
-
-    // Turn our image views into HW SRDs here
-    device.CreateImageViewSrds(2, &imageView[0], pUserData);
-    pUserData += SrdDwordAlignment() * 2;
-
-    Pal::SamplerInfo samplerInfo = {};
-
-    samplerInfo.filter.magnification = Pal::XyFilterPoint;
-    samplerInfo.filter.minification  = Pal::XyFilterPoint;
-    samplerInfo.filter.mipFilter     = Pal::MipFilterNone;
-    samplerInfo.addressU             = Pal::TexAddressMode::Clamp;
-    samplerInfo.addressV             = Pal::TexAddressMode::Clamp;
-    samplerInfo.addressW             = Pal::TexAddressMode::Clamp;
-
-    device.CreateSamplerSrds(1, &samplerInfo, pUserData);
-    pUserData += SrdDwordAlignment();
-    // Copy the copy parameters into the embedded user-data space
-    memcpy(pUserData, &constantData, sizeof(constantData));
-
-    // Execute the dispatch, we need one thread per texel.
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(pRegions->extent.width,  threadsPerGroup[0]),
-                            RpmUtil::MinThreadGroups(pRegions->extent.height, threadsPerGroup[1]),
-                            RpmUtil::MinThreadGroups(1,  threadsPerGroup[2]));
-
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 } // Pal

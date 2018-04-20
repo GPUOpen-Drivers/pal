@@ -287,14 +287,14 @@ enum class DccClearPurpose : uint32
     FastClear = 0x1,  // This indicates a fast-clear based on DCC clear.
 };
 
-// UBM_DCC_DEFAULT_CLEAR_COLOR enum.
+// These values correspond to the various fast-clear codes for DCC memory
 enum class Gfx9DccClearColor : uint8
 {
-    ClearColor0000  = 0x00,
-    ClearColor0001  = 0x40,
-    ClearColor1110  = 0x80,
-    ClearColor1111  = 0xC0,
-    ClearColorReg   = 0x20,
+    ClearColor0000         = 0x00,
+    ClearColor0001         = 0x40,
+    ClearColor1110         = 0x80,
+    ClearColor1111         = 0xC0,
+    ClearColorReg          = 0x20,
 };
 
 // Represents an "image" of the fast-clear metadata used by Color Target Images.

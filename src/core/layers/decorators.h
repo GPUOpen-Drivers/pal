@@ -2008,19 +2008,26 @@ private:
 class ColorTargetViewDecorator : public IColorTargetView
 {
 public:
-    ColorTargetViewDecorator(IColorTargetView* pNextView, const DeviceDecorator* pNextDevice)
+    ColorTargetViewDecorator(
+        IColorTargetView*                pNextView,
+        const ColorTargetViewCreateInfo& createInfo,
+        const DeviceDecorator*           pNextDevice)
         :
-        m_pNextLayer(pNextView), m_pDevice(pNextDevice)
+        m_pNextLayer(pNextView),
+        m_createInfo(createInfo),
+        m_pDevice(pNextDevice)
     {}
 
-    const IDevice*    GetDevice() const { return m_pDevice; }
-    IColorTargetView* GetNextLayer() const { return m_pNextLayer; }
+    const IDevice*                    GetDevice()     const { return m_pDevice;    }
+    const ColorTargetViewCreateInfo&  GetCreateInfo() const { return m_createInfo; }
+    IColorTargetView*                 GetNextLayer()  const { return m_pNextLayer; }
 
 protected:
     virtual ~ColorTargetViewDecorator() {}
 
-    IColorTargetView*const      m_pNextLayer;
-    const DeviceDecorator*const m_pDevice;
+    IColorTargetView*const           m_pNextLayer;
+    const ColorTargetViewCreateInfo  m_createInfo;
+    const DeviceDecorator*const      m_pDevice;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(ColorTargetViewDecorator);
@@ -2098,8 +2105,9 @@ public:
     virtual Result GetStatus() const override
         { return m_pNextLayer->GetStatus(); }
 
-    virtual OsExternalHandle GetHandle() const override
-        { return m_pNextLayer->GetHandle(); }
+    virtual OsExternalHandle ExportExternalHandle(
+        const FenceExportInfo& exportInfo) const override
+        { return m_pNextLayer->ExportExternalHandle(exportInfo); }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -2638,8 +2646,9 @@ public:
     virtual bool HasStalledQueues() override
         { return m_pNextLayer->HasStalledQueues(); }
 
-    virtual OsExternalHandle ExportExternalHandle() const override
-        { return m_pNextLayer->ExportExternalHandle(); }
+    virtual OsExternalHandle ExportExternalHandle(
+        const QueueSemaphoreExportInfo& exportInfo) const override
+        { return m_pNextLayer->ExportExternalHandle(exportInfo); }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

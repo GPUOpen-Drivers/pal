@@ -379,8 +379,7 @@ protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        PrefetchMgr*               pPrefetchMgr,
-        const CmdStream*           pVmRemapStream);
+        PrefetchMgr*               pPrefetchMgr);
     virtual ~GfxCmdBuffer();
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;

@@ -610,6 +610,13 @@ Result UniversalQueueContext::PreProcessSubmit(
     pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
     ++preambleCount;
 
+    if (m_pDevice->Settings().commandBufferCombineDePreambles == false)
+    {
+        // Submit the per-context preamble independently.
+        pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
+        ++preambleCount;
+    }
+
     uint32 postambleCount = 0;
     if (m_cePostambleCmdStream.IsEmpty() == false)
     {
@@ -905,17 +912,17 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_perSubmitCmdStream.CommitCommands(pCmdSpace);
     m_perSubmitCmdStream.End();
 
-    m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
+    if (m_pDevice->Settings().commandBufferCombineDePreambles)
+    {
+        // Combine the preambles by chaining from the per-submit preamble to the per-context preamble.
+        m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
+    }
 
-    // The per-submit CE premable, CE postamble, and DE postamble.
+    // The per-submit CE premable and CE postamble.
     //==================================================================================================================
 
-    // The DE postamble is always built. The CE preamble and postamble may not be needed.
-    m_dePostambleCmdStream.Reset(nullptr, true);
-    m_dePostambleCmdStream.Begin(beginFlags, nullptr);
-
     // If the client has requested that this Queue maintain persistent CE RAM contents, we need to rebuild the CE
-    // preamble, as well as the CE & DE postambles.
+    // preamble and postamble.
     if ((m_pQueue->PersistentCeRamSize() != 0) || m_useShadowing)
     {
         PAL_ASSERT(m_shadowGpuMem.IsBound());
@@ -940,10 +947,9 @@ void UniversalQueueContext::RebuildCommandStreams()
 
         m_cePreambleCmdStream.End();
 
-        // The postamble command streams which dump CE RAM at the end of the submission and synchronize the CE/DE
-        // counters are only necessary if (1) the client requested that this Queue maintains persistent CE RAM
-        // contents, or (2) this Queue supports mid command buffer preemption and the panel setting to force the
-        // dump CE RAM postamble is set.
+        // The postamble command stream which dumps CE RAM at the end of the submission are only necessary if (1) the
+        // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
+        // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
         if ((m_pQueue->PersistentCeRamSize() != 0) ||
             (m_pDevice->Settings().commandBufferForceCeRamDumpInPostamble != false))
         {
@@ -952,15 +958,9 @@ void UniversalQueueContext::RebuildCommandStreams()
 
             pCmdSpace  = m_cePostambleCmdStream.ReserveCommands();
             pCmdSpace += cmdUtil.BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-            pCmdSpace += cmdUtil.BuildIncrementCeCounter(pCmdSpace);
             m_cePostambleCmdStream.CommitCommands(pCmdSpace);
 
             m_cePostambleCmdStream.End();
-
-            pCmdSpace  = m_dePostambleCmdStream.ReserveCommands();
-            pCmdSpace += cmdUtil.BuildWaitOnCeCounter(false, pCmdSpace);
-            pCmdSpace += cmdUtil.BuildIncrementDeCounter(pCmdSpace);
-            m_dePostambleCmdStream.CommitCommands(pCmdSpace);
         }
     }
     // Otherwise, we just need the CE preamble to issue a dummy LOAD_CONST_RAM packet because the KMD requires each
@@ -977,6 +977,12 @@ void UniversalQueueContext::RebuildCommandStreams()
 
         m_cePreambleCmdStream.End();
     }
+
+    // The per-submit DE postamble.
+    //==================================================================================================================
+
+    m_dePostambleCmdStream.Reset(nullptr, true);
+    m_dePostambleCmdStream.Begin(beginFlags, nullptr);
 
     pCmdSpace = m_dePostambleCmdStream.ReserveCommands();
 

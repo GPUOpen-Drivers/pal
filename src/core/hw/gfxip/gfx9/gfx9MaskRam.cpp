@@ -1829,6 +1829,7 @@ void Gfx9Dcc::SetControlReg(
     const Pal::Device*      pDevice     = pParent->GetDevice();
     const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
+    const auto&             settings    = GetGfx9Settings(*image.Parent()->GetDevice());
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -1877,6 +1878,7 @@ void Gfx9Dcc::SetControlReg(
         // Set MAX_COMPRESSED_BLOCK_SIZE as big as possible for better compression ratio
         m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     }
+
 }
 
 // =====================================================================================================================

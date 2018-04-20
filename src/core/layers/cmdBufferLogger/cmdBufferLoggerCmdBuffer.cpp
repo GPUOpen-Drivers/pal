@@ -1149,6 +1149,71 @@ void CmdBuffer::CmdBindIndexData(
 }
 
 // =====================================================================================================================
+void DumpColorTargetViewInfo(
+    CmdBuffer*                       pCmdBuffer,
+    const ColorTargetViewDecorator*  pView)
+{
+    if (pView != nullptr)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+        char*       pString        = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+        ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+        const auto& viewCreateInfo = pView->GetCreateInfo();
+
+        Snprintf(pString,
+                 StringLength,
+                 "\t\t\tView Format      = %s",
+                 FormatToString(viewCreateInfo.swizzledFormat.format));
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t\t\tImage Swizzle    = ");
+        SwizzleToString(viewCreateInfo.swizzledFormat.swizzle, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        if (viewCreateInfo.flags.isBufferView)
+        {
+            const auto&  bufferInfo = viewCreateInfo.bufferInfo;
+            const auto*  pMemory    = bufferInfo.pGpuMemory;
+
+            DumpGpuMemoryInfo(pCmdBuffer, pMemory, "", "\t\t");
+            Snprintf(pString, StringLength, "\t\t\t\t{ offset = %d, extent = %d }",
+                     bufferInfo.offset,
+                     bufferInfo.extent);
+            pNextCmdBuffer->CmdCommentString(pString);
+        }
+        else
+        {
+            const auto* pImage = viewCreateInfo.imageInfo.pImage;
+            char        string[StringLength];
+
+            Snprintf(pString, StringLength, "%s\t\t\tImage Pointer    = 0x%016" PRIXPTR, "", pImage);
+            pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+            Snprintf(pString, StringLength, "");
+            SubresIdToString(viewCreateInfo.imageInfo.baseSubRes, pString);
+            Snprintf(&string[0], StringLength, "\t\t\t\t{ startSubres: %s, numSlices: 0x%x }",
+                     pString, viewCreateInfo.imageInfo.arraySize);
+            pNextCmdBuffer->CmdCommentString(&string[0]);
+
+            if (pImage != nullptr)
+            {
+                const auto&  imageCreateInfo = pImage->GetImageCreateInfo();
+
+                if ((imageCreateInfo.imageType == ImageType::Tex3d) &&
+                    viewCreateInfo.flags.zRangeValid)
+                {
+                    // If this trips, the reported start subres and numSlice is inaccurate.  It should really reflect
+                    // the parameters in the "zRange" portion of the viewCreateInfo structure.
+                    PAL_NOT_IMPLEMENTED();
+                }
+            }
+        }
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+}
+
+// =====================================================================================================================
 void DumpBindTargetParams(
     CmdBuffer*              pCmdBuffer,
     const BindTargetParams& params)
@@ -1172,13 +1237,16 @@ void DumpBindTargetParams(
         pNextCmdBuffer->CmdCommentString(pString);
 
         const auto& colorTarget = params.colorTargets[i];
+        const auto* pView       = static_cast<const ColorTargetViewDecorator*>(colorTarget.pColorTargetView);
 
-        Snprintf(pString, StringLength, "\t\t\tpColorTargetView = 0x%016" PRIXPTR, colorTarget.pColorTargetView);
+        Snprintf(pString, StringLength, "\t\t\tpColorTargetView = 0x%016" PRIXPTR, pView);
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t\t\timageLayout      = ");
         ImageLayoutToString(colorTarget.imageLayout, pString);
         pNextCmdBuffer->CmdCommentString(pString);
+
+        DumpColorTargetViewInfo(pCmdBuffer, pView);
 
         Snprintf(pString, StringLength, "\t\t] // ColorTarget #%d", i);
         pNextCmdBuffer->CmdCommentString(pString);

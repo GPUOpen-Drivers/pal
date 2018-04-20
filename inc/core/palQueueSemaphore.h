@@ -82,12 +82,35 @@ struct ExternalQueueSemaphoreOpenInfo
         {
             uint32 crossProcess       :  1;   ///< This semaphore is created in another process.
             uint32 sharedViaNtHandle  :  1;   ///< The shared semaphore handle is NT handle.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
+            uint32 isReference        :  1;   ///< If set, then the opened semaphore will reference the same sync
+                                              ///< object in the kernel.  Otherwise, the object is copied to the
+                                              ///< new Semaphore.
+            uint32 reserved           : 29;   ///< Resevered for future use.
+#else
             uint32 reserved           : 30;   ///< Resevered for future use.
+#endif
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< External queue semaphore open flags.
 
     OsExternalHandle externalSemaphore; ///< External shared semaphore handle.
+};
+
+/// Specifies parameters for exporting a queue semaphore. Input structure to IQueueSemaphore::ExportExternalHandle().
+struct QueueSemaphoreExportInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 isReference        :  1;   ///< If set, then the semaphore exporting a handle that reference the
+                                              ///< same sync object in the kernel.  Otherwise, the object is copied
+                                              ///< to the new Semaphore.
+            uint32 reserved           : 31;   ///< Resevered for future use.
+        };
+        uint32 u32All;                  ///< Flags packed as 32-bit uint.
+    } flags;                            ///< External queue semaphore export flags.
 };
 
 /**
@@ -115,10 +138,22 @@ public:
     /// Returns an OS-specific handle which can be used to refer to this semaphore object across processes. This will
     /// return a null or invalid handle if the object was not created with the external create flag set.
     ///
+    /// @param  [in] exportInfo    Information describing how the Semamphore handle should be exported.
     /// @note This function is only available for Linux builds.
     ///
     /// @returns An OS-specific handle which can be used to access the semaphore object across processes.
-    virtual OsExternalHandle ExportExternalHandle() const = 0;
+    virtual OsExternalHandle ExportExternalHandle(
+        const QueueSemaphoreExportInfo& exportInfo) const = 0;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 398)
+    PAL_INLINE virtual OsExternalHandle ExportExternalHandle() const
+    {
+        QueueSemaphoreExportInfo exportInfo = {};
+        exportInfo.flags.isReference = 1;
+
+        return ExportExternalHandle(exportInfo);
+    }
+#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

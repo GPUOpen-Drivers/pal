@@ -36,8 +36,12 @@ namespace InterfaceLogger
 class ColorTargetView : public ColorTargetViewDecorator
 {
 public:
-    ColorTargetView(IColorTargetView* pNextView, const DeviceDecorator* pDevice, uint32 objectId)
-        : ColorTargetViewDecorator(pNextView, pDevice), m_objectId(objectId) { }
+    ColorTargetView(
+        IColorTargetView*                 pNextView,
+        const ColorTargetViewCreateInfo&  createInfo,
+        const DeviceDecorator*            pDevice,
+        uint32                            objectId)
+        : ColorTargetViewDecorator(pNextView, createInfo, pDevice), m_objectId(objectId) { }
 
     // Returns this object's unique ID.
     uint32 ObjectId() const { return m_objectId; }

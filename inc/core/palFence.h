@@ -59,13 +59,29 @@ struct FenceOpenInfo
     {
         struct
         {
-            uint32 isReference  : 1;    ///< If ture, duplicate the event handle, otherwise reference the event handle.
+            uint32 isReference  : 1;    ///< If set, then the opened fence will reference the same sync object
+                                        ///< in the kernel.  Otherwise, the object is copied to the new Fence.
             uint32 reserved     : 31;   ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;
 
     OsExternalHandle externalFence;     ///< External shared fence handle.
+};
+
+/// Specifies properties for fence exporting. Input structure to IFence::ExportExternalHandle().
+struct FenceExportInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 isReference  : 1;    ///< If set, then the fence exporting a handle that reference the same sync
+                                        ///< object in the kernel.  Otherwise, the object is copied to the new Fence.
+            uint32 reserved     : 31;   ///< Reserved for future use.
+        };
+        uint32 u32All;                  ///< Flags packed as 32-bit uint.
+    } flags;
 };
 
 /**
@@ -97,9 +113,22 @@ public:
     ///            initialSignaled set to true.
     virtual Result GetStatus() const = 0;
 
-    /// Get the event handle of the fence.
+    /// Export the event handle or sync object handle of the fence for external usage.
+    ///
+    /// @param  [in] exportInfo    Information describing how the Fence handle should be exported.
     /// @returns the handle in the type OsExternalHandle
-    virtual OsExternalHandle GetHandle() const = 0;
+    virtual OsExternalHandle ExportExternalHandle(
+        const FenceExportInfo& exportInfo) const = 0;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 398)
+    PAL_INLINE virtual OsExternalHandle GetHandle() const
+    {
+        FenceExportInfo exportInfo = {};
+        exportInfo.flags.isReference = 1;
+
+        return ExportExternalHandle(exportInfo);
+    }
+#endif
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

@@ -108,6 +108,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -126,6 +128,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -143,6 +147,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy2xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
@@ -167,6 +173,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -185,6 +193,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -202,6 +212,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy4xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
@@ -226,6 +238,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -244,6 +258,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -261,6 +277,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy8xMsaaStencil].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
@@ -284,6 +302,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[DccDecompress].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -311,6 +331,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -328,6 +350,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[DepthResummarize].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
@@ -347,6 +371,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -364,6 +390,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[FastClearElim].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -391,6 +419,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -417,6 +447,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -439,6 +471,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -463,6 +497,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -485,6 +521,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -509,6 +547,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -531,6 +571,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -555,6 +597,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -577,6 +621,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[Copy_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -601,6 +647,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -623,6 +671,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -647,6 +697,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -669,6 +721,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -693,6 +747,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -715,6 +771,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -739,6 +797,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -761,6 +821,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear0_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -785,6 +847,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
@@ -807,6 +871,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[1].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -831,6 +897,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[1].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
@@ -853,6 +921,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -877,6 +947,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
@@ -899,6 +971,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -923,6 +997,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[1].swizzledFormat.swizzle =
@@ -945,6 +1021,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear1_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[1].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[1].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -969,6 +1047,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
@@ -991,6 +1071,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[2].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1015,6 +1097,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[2].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
@@ -1037,6 +1121,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1061,6 +1147,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
@@ -1083,6 +1171,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -1107,6 +1197,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[2].swizzledFormat.swizzle =
@@ -1129,6 +1221,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear2_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[2].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[2].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -1153,6 +1247,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
@@ -1175,6 +1271,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[3].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1199,6 +1297,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[3].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
@@ -1221,6 +1321,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1245,6 +1347,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
@@ -1267,6 +1371,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -1291,6 +1397,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[3].swizzledFormat.swizzle =
@@ -1313,6 +1421,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear3_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[3].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[3].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -1337,6 +1447,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
@@ -1359,6 +1471,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[4].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1383,6 +1497,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[4].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
@@ -1405,6 +1521,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1429,6 +1547,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
@@ -1451,6 +1571,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -1475,6 +1597,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[4].swizzledFormat.swizzle =
@@ -1497,6 +1621,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear4_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[4].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[4].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -1521,6 +1647,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
@@ -1543,6 +1671,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[5].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1567,6 +1697,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[5].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
@@ -1589,6 +1721,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1613,6 +1747,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
@@ -1635,6 +1771,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -1659,6 +1797,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[5].swizzledFormat.swizzle =
@@ -1681,6 +1821,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear5_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[5].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[5].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -1705,6 +1847,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
@@ -1727,6 +1871,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[6].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1751,6 +1897,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[6].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
@@ -1773,6 +1921,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1797,6 +1947,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
@@ -1819,6 +1971,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -1843,6 +1997,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[6].swizzledFormat.swizzle =
@@ -1865,6 +2021,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear6_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[6].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[6].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -1889,6 +2047,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
@@ -1911,6 +2071,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_32GR].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[7].channelWriteMask       = 0x3;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
@@ -1935,6 +2097,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[7].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X32_Uint;
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
@@ -1957,6 +2121,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_FP16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
@@ -1981,6 +2147,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
@@ -2003,6 +2171,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_SNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
@@ -2027,6 +2197,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
         pipeInfo.cbState.target[7].swizzledFormat.swizzle =
@@ -2049,6 +2221,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[SlowColorClear7_UNORM16].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[7].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[7].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
@@ -2073,6 +2247,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -2090,6 +2266,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[ResolveDepthCopy].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Float;
@@ -2113,6 +2291,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc128Bpp].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Float;
@@ -2140,6 +2320,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
         pipeInfo.cbState.target[0].swizzledFormat.swizzle =
@@ -2166,6 +2348,8 @@ Result CreateRpmGraphicsPipelines(
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
         pipeInfo.cbState.logicOp         = LogicOp::Copy;
         pipeInfo.rsState.binningOverride = BinningOverride::Disable;
 
@@ -2183,6 +2367,8 @@ Result CreateRpmGraphicsPipelines(
         pipeInfo.pipelineBinarySize = pTable[ResolveStencilCopy].size;
 
         PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
 
         pipeInfo.cbState.target[0].channelWriteMask       = 0x2;
         pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8_Uint;

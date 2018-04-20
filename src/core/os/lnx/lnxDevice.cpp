@@ -669,8 +669,13 @@ Result Device::GetProperties(
         // Todo: Implement the sync file import/export upon sync object.
         pInfo->osProperties.supportSyncFileSemaphore = false;
 #else
-        pInfo->osProperties.supportProSemaphore = ((m_semType == SemaphoreType::ProOnly) ||
-                                                   (m_semType == SemaphoreType::SyncObj));
+        pInfo->osProperties.supportProSemaphore      = ((m_semType == SemaphoreType::ProOnly) ||
+                                                        (m_semType == SemaphoreType::SyncObj));
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
+        pInfo->osProperties.supportSyncFileSemaphore = (m_semType == SemaphoreType::SyncObj);
+        pInfo->osProperties.supportSyncFileFence     = (m_fenceType == FenceType::SyncObj);
 #endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
@@ -3297,7 +3302,8 @@ Result Device::SignalSemaphore(
 
 // =====================================================================================================================
 OsExternalHandle  Device::ExportSemaphore(
-    amdgpu_semaphore_handle hSemaphore
+    amdgpu_semaphore_handle hSemaphore,
+    bool                    isReference
     ) const
 {
     OsExternalHandle handle;
@@ -3312,7 +3318,14 @@ OsExternalHandle  Device::ExportSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        handle = ExportSyncObject(reinterpret_cast<uintptr_t>(hSemaphore));
+        if (isReference)
+        {
+            handle = ExportSyncObject(reinterpret_cast<uintptr_t>(hSemaphore));
+        }
+        else
+        {
+            SyncObjExportSyncFile(reinterpret_cast<uintptr_t>(hSemaphore), reinterpret_cast<int32*>(&handle));
+        }
     }
     else
     {
@@ -3325,7 +3338,8 @@ OsExternalHandle  Device::ExportSemaphore(
 // =====================================================================================================================
 Result Device::ImportSemaphore(
     OsExternalHandle         fd,
-    amdgpu_semaphore_handle* pSemaphoreHandle
+    amdgpu_semaphore_handle* pSemaphoreHandle,
+    bool                     isReference
     ) const
 {
     Result result = Result::Success;
@@ -3344,7 +3358,22 @@ Result Device::ImportSemaphore(
     }
     else if (m_semType == SemaphoreType::SyncObj)
     {
-        result = ImportSyncObject(fd, &hSem);
+        if (isReference)
+        {
+            result = ImportSyncObject(fd, &hSem);
+        }
+        else
+        {
+            result = CreateSyncObject(0, &hSem);
+            if (result == Result::Success)
+            {
+                result = SyncObjImportSyncFile(fd, hSem);
+            }
+            if (result == Result::Success)
+            {
+                close(fd);
+            }
+        }
         if (result == Result::Success)
         {
             *pSemaphoreHandle = reinterpret_cast<amdgpu_semaphore_handle>(hSem);
