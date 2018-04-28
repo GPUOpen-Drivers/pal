@@ -25,6 +25,7 @@
 
 #include "core/os/lnx/lnxPlatform.h"
 #include "core/os/lnx/lnxDevice.h"
+#include "core/os/lnx/lnxScreen.h"
 #include "palSysUtil.h"
 #include "palFile.h"
 #include "core/hw/amdgpu_asic.h"
@@ -79,7 +80,7 @@ size_t Platform::GetScreenObjectSize() const
 {
     // Screen objects are not implemented for Linux. Return a nonzero dummy memory size to prevent asserts from firing
     // during initialization.
-    return 1;
+    return sizeof(Screen);
 }
 
 // =====================================================================================================================
@@ -234,8 +235,32 @@ Result Platform::ReQueryScreens(
     void*    pStorage[MaxScreens],
     IScreen* pScreens[MaxScreens])
 {
-    //TODO: implement it in phase 2.
-    return Result::Success;
+    uint32 screens = 0;
+    Result result = Result::Success;
+
+    for (uint32 i = 0; i < m_deviceCount; i++)
+    {
+        uint32 screenCount = 0;
+
+        result = static_cast<Device*>(m_pDevice[i])->GetScreens(&screenCount,
+                                                                pStorage ? &pStorage[screens] : nullptr,
+                                                                pScreens ? &pScreens[screens] : nullptr);
+        if (result == Result::Success)
+        {
+            screens += screenCount;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        *pScreenCount = screens;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

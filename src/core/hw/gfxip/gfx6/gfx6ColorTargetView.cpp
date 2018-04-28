@@ -250,7 +250,8 @@ void ColorTargetView::InitRegisters(
         const SubResourceInfo*const    pSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_subresource);
         const AddrMgr1::TileInfo*const pTileInfo       = AddrMgr1::GetTileInfo(m_pImage->Parent(), m_subresource);
         const ImageCreateInfo&         imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
-        const bool                     imgIsBc         = Formats::IsBlockCompressed(imageCreateInfo.swizzledFormat.format);
+        const auto&                    swizzledFmt     = imageCreateInfo.swizzledFormat;
+        const bool                     imgIsBc         = Formats::IsBlockCompressed(swizzledFmt.format);
 
         // Check if we can keep fmask in a compressed state and avoid corresponding fmask decompression
         fMaskTexFetchAllowed = m_pImage->IsComprFmaskShaderReadable(pSubResInfo);
@@ -287,8 +288,8 @@ void ColorTargetView::InitRegisters(
             (Formats::IsYuvPacked(createInfo.swizzledFormat.format) == false) &&
             ((pSubResInfo->bitsPerTexel << 1) == Formats::BitsPerPixel(createInfo.swizzledFormat.format)))
         {
-            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle pattern
-            // used. This will only work for linear-tiled Images.
+            // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
+            // pattern used. This will only work for linear-tiled Images.
             PAL_ASSERT(m_pImage->IsSubResourceLinear(m_subresource));
 
             extent.width       >>= 1;
@@ -437,7 +438,7 @@ void ColorTargetView::InitRegisters(
 
             cbColorInfo.bits.FMASK_COMPRESSION_DISABLE__CI__VI = !pFmask->UseCompression();
 
-            if (fMaskTexFetchAllowed && !internalInfo.flags.dccDecompress && !internalInfo.flags.fmaskDecompess)
+            if (fMaskTexFetchAllowed && !internalInfo.flags.dccDecompress && !internalInfo.flags.fmaskDecompress)
             {
                 // Setting this bit means two things:
                 //    1) The texture block can read fmask data directly without needing
@@ -590,8 +591,8 @@ uint32* ColorTargetView::WriteCommands(
 
     const ColorTargetViewPm4Img* pPm4Commands = &m_pm4Cmds;
     // Spawn a local copy of the PM4 image, since some register values and/or offsets may need to be updated in this
-    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The contents
-    // of the local copy will depend on which Image state is specified.
+    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The
+    // contents of the local copy will depend on which Image state is specified.
     ColorTargetViewPm4Img patchedPm4Commands;
 
     if (slot != 0)

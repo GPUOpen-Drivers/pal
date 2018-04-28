@@ -240,6 +240,7 @@ enum ImageLayoutUsageFlags : uint32
     LayoutPresentFullscreen       = 0x00000800,  ///< Fullscreen (flip) present.  Layout must be supported by the
                                                  ///  display engine.
     LayoutUncompressed            = 0x00001000,  ///< Metadata fully decompressed/expanded layout
+    LayoutAllUsages               = 0x00001FFF
 };
 
 /// Bitmask values that can be ORed together to specify all potential engines an image might be used on.  Such a
@@ -276,6 +277,7 @@ enum CacheCoherencyUsageFlags : uint32
     CoherCeDump             = 0x00001000,  ///< Destination of CmdDumpCeRam() call.
     CoherStreamOut          = 0x00002000,  ///< Data written as stream output.
     CoherMemory             = 0x00004000,  ///< Data read or written directly from/to memory
+    CoherAllUsages          = 0x00007FFF
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().

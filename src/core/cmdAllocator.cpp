@@ -90,7 +90,8 @@ CmdAllocator::CmdAllocator(
     m_pDevice(pDevice),
     m_pChunkLock(nullptr),
     m_lastPagingFence(0),
-    m_pLinearAllocLock(nullptr)
+    m_pLinearAllocLock(nullptr),
+    m_pDummyChunkAllocation(nullptr)
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     memset(m_pHistograms, 0, sizeof(m_pHistograms));
@@ -205,6 +206,13 @@ CmdAllocator::~CmdAllocator()
 
     FreeAllChunks();
     FreeAllLinearAllocators();
+
+    // Free the dummy chunk.
+    if (m_pDummyChunkAllocation != nullptr)
+    {
+        m_pDummyChunkAllocation->Destroy(m_pDevice);
+        PAL_SAFE_FREE(m_pDummyChunkAllocation, m_pDevice->GetPlatform());
+    }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     if (m_pDevice->Settings().logCmdBufCommitSizes)
@@ -357,6 +365,12 @@ Result CmdAllocator::Init()
         }
     }
 #endif
+
+    // Initialize the dummy chunk
+    if (result == Result::Success)
+    {
+        result = CreateDummyChunkAllocation();
+    }
 
     return result;
 }
@@ -512,28 +526,6 @@ Result CmdAllocator::GetNewChunk(
 }
 
 // =====================================================================================================================
-// Obtains a dummy CmdStreamChunk for when we failed to CreateAllocation from GPU memory.
-CmdStreamChunk* CmdAllocator::GetDummyChunk()
-{
-    if (m_pChunkLock != nullptr)
-    {
-        m_pChunkLock->Lock();
-    }
-
-    // A dummy CmdStreamChunk is a combination of system memory Chunk + device owned dummy GPU memory.
-    CmdStreamChunk* pChunk = nullptr;
-    Result result = CreateAllocation(&m_sysAllocInfo, true, &pChunk);
-    PAL_ASSERT((result == Result::Success) &&  (pChunk != nullptr));
-
-    if (m_pChunkLock != nullptr)
-    {
-        m_pChunkLock->Unlock();
-    }
-
-    return pChunk;
-}
-
-// =====================================================================================================================
 // Searches the free and busy lists for a free chunk. A new CmdStreamAllocation will be created if needed.
 Result CmdAllocator::FindFreeChunk(
     CmdAllocInfo*    pAllocInfo,
@@ -598,7 +590,7 @@ Result CmdAllocator::CreateAllocation(
     bool             dummyAlloc,
     CmdStreamChunk** ppChunk)
 {
-    Result result = Result::Success;
+    Result result = Result::ErrorOutOfMemory;
 
     CmdStreamAllocation* pAlloc = nullptr;
     CmdStreamChunk*      pChunk = nullptr;
@@ -617,6 +609,12 @@ Result CmdAllocator::CreateAllocation(
     if (pPlacementAddr != nullptr)
     {
         result = CmdStreamAllocation::Create(allocCreateInfo, m_pDevice, pPlacementAddr, &pAlloc);
+
+        if (result != Result::Success)
+        {
+            // Free the memory we allocated for the command stream since it failed to initialize.
+            PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
+        }
     }
 
     if (pAlloc != nullptr)
@@ -635,6 +633,46 @@ Result CmdAllocator::CreateAllocation(
     }
 
     *ppChunk = pChunk;
+    return result;
+}
+
+// =====================================================================================================================
+// Creates a new command stream allocation used to handle the dummy chunk. This chunk is used to prevent crashes in
+// cases where we run out of GPU memory.
+Result CmdAllocator::CreateDummyChunkAllocation()
+{
+    Result result = Result::ErrorOutOfMemory;
+
+    CmdStreamAllocationCreateInfo createInfo = {};
+    createInfo.memObjCreateInfo.priority     = GpuMemPriority::Normal;
+    createInfo.memObjCreateInfo.vaRange      = VaRange::Default;
+    createInfo.memObjCreateInfo.alignment    = 4096;
+    createInfo.memObjCreateInfo.size         = 4096;
+
+    createInfo.memObjInternalInfo.pPagingFence         = &m_lastPagingFence;
+    createInfo.memObjInternalInfo.flags.isCmdAllocator = 1;
+
+    createInfo.chunkSize             = 4096;
+    createInfo.numChunks             = 1;
+    createInfo.flags.dummyAllocation = true;
+
+    void*const pPlacementAddr = PAL_MALLOC(CmdStreamAllocation::GetSize(createInfo),
+                                           m_pDevice->GetPlatform(),
+                                           AllocInternal);
+
+    if (pPlacementAddr != nullptr)
+    {
+        Util::MutexAuto allocatorLock(m_pDevice->MemMgr()->GetAllocatorLock());
+
+        result = CmdStreamAllocation::Create(createInfo, m_pDevice, pPlacementAddr, &m_pDummyChunkAllocation);
+
+        if (result != Result::Success)
+        {
+            // Free the memory we allocated for the command stream since it failed to initialize.
+            PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
+        }
+    }
+
     return result;
 }
 

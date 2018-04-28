@@ -70,7 +70,7 @@ constexpr uint32 DefaultSqSelectClientMask = 0xF;
 // [0, MaxEvent) is valid.
 
 // Gfx9 Specific
-constexpr uint32 Gfx9PerfCtrCbMaxEvent     = (CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD__GFX09 + 1);
+constexpr uint32 Gfx9PerfCtrCbMaxEvent     = (CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD + 1);
 constexpr uint32 Gfx9PerfCtrCpcMaxEvent    = (CPC_PERF_SEL_ME2_DC1_SPI_BUSY + 1);
 constexpr uint32 Gfx9PerfCtrCpfMaxEvent    = (CPF_PERF_SEL_CPF_UTCL2IU_STALL__GFX09 + 1);
 constexpr uint32 Gfx9PerfCtrCpgMaxEvent    = (CPG_PERF_SEL_CPG_UTCL2IU_STALL + 1);

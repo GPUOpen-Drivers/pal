@@ -448,6 +448,10 @@ public:
         uint32      dwordSize,
         const void* pSrcData) override;
 
+    virtual void CmdSetIndirectUserDataWatermark(
+        uint16 tableId,
+        uint32 dwordLimit) override;
+
     void CmdBindTargetsMetadata(const BindTargetParams& params);
 
     virtual void CmdBindTargets(const BindTargetParams& params) override;
@@ -1016,9 +1020,30 @@ private:
 
     struct
     {
+        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
+        // is dumped from CE RAM to memory before a draw or dispatch.
+        uint32              watermark : 31;
+        // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
+        uint32              modified  :  1;
+        uint32*             pData;  // Tracks the contents of each indirect user-data table.
+
+        CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
+        CeRamUserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
+
+    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
+
+    struct
+    {
         CeRamUserDataTableState  state; // Tracks the state of the NGG state table
         CeRamUserDataRingBuffer  ring;  // Tracks the state of the NGG tables' shared GPU memory ring buffer
     }  m_nggTable;
+
+    struct
+    {
+        CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
+        CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
+        CeRamUserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
+    }  m_spillTable;
 
     struct
     {

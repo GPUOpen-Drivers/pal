@@ -33,7 +33,7 @@ if __name__ == '__main__':
     libraryDict = {"libdrm.so.2"    : "LibDrm",
                    "libdrm_amdgpu.so.1" : "LibDrmAmdgpu"}
 
-    procMgr  = proc.ProcMgr(fileName, libraryDict)
+    procMgr  = proc.ProcMgr(fileName, libraryDict, 1)
 
     intro = "Modify the procsAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead"
 

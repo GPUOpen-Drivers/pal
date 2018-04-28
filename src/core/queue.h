@@ -242,9 +242,9 @@ public:
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override;
 
-    // This must be called right after initialization to register the queue with all objects that must track it using
-    // internal lists.
-    Result AddToQueueLists();
+    // This must be called right after initialization to allow the queue to perform any initialization work which
+    // requires a fully initialized queue.
+    Result LateInit();
 
     Result ReleaseFromStalledState();
 

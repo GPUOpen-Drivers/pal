@@ -63,7 +63,10 @@ public:
 
     // CmdBuffers and CmdStreams will use these public functions to interact with the CmdAllocator.
     Result GetNewChunk(CmdAllocType allocType, bool systemMemory, CmdStreamChunk** ppChunk);
-    CmdStreamChunk* GetDummyChunk();
+
+    // Returns the dummy chunk.
+    // The dummy chunk allocation always has exactly one chunk so we just return the Chunks() pointer here.
+    CmdStreamChunk* GetDummyChunk() const { return m_pDummyChunkAllocation->Chunks(); }
 
     // CmdStreamChunk(s) are returned back to the allocator for use with the reuse-list.
     void ReuseChunks(CmdAllocType allocType, bool systemMemory, VectorIter iter);
@@ -106,6 +109,7 @@ private:
     // These internal functions are used to manage all types of chunks.
     Result FindFreeChunk(CmdAllocInfo* pAllocInfo, CmdStreamChunk** ppChunk);
     Result CreateAllocation(CmdAllocInfo* pAllocInfo, bool dummyAlloc, CmdStreamChunk** ppChunk);
+    Result CreateDummyChunkAllocation();
 
     void TransferChunks(ChunkList* pFreeList, ChunkList* pSrcList);
     void FreeAllChunks();
@@ -153,6 +157,9 @@ private:
     uint64* m_pHistograms[HistogramCount];
     uint32  m_numHistogramBins;
 #endif
+
+    // Dummy chunk used to handle cases where we've run out of GPU memory.
+    CmdStreamAllocation* m_pDummyChunkAllocation;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdAllocator);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdAllocator);

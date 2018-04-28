@@ -265,11 +265,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const Gfx6PalSettings& settings        = m_device.Settings();
     const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
 
-    memset(&m_streamOut,       0, sizeof(m_streamOut));
-    memset(&m_state,           0, sizeof(m_state));
-    memset(&m_drawTimeHwState, 0, sizeof(m_drawTimeHwState));
-    memset(&m_cachedSettings,  0, sizeof(m_cachedSettings));
-    memset(&m_primGroupOpt,    0, sizeof(m_primGroupOpt));
+    memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
+    memset(&m_spillTable,              0, sizeof(m_spillTable));
+    memset(&m_streamOut,               0, sizeof(m_streamOut));
+    memset(&m_state,                   0, sizeof(m_state));
+    memset(&m_drawTimeHwState,         0, sizeof(m_drawTimeHwState));
+    memset(&m_cachedSettings,          0, sizeof(m_cachedSettings));
+    memset(&m_primGroupOpt,            0, sizeof(m_primGroupOpt));
 
     m_vgtDmaIndexType.u32All = 0;
 
@@ -344,25 +346,36 @@ Result UniversalCmdBuffer::Init(
         const BoundGpuMemory& ceRingGpuMem = m_device.CeRingBufferGpuMem(IsNested());
         if (ceRingGpuMem.IsBound())
         {
-            uint32  ceRamOffset = 0;
+            // Partition the CE ring GPU memory allocation to each of the ring buffer(s):
             gpusize baseGpuVirtAddr = ceRingGpuMem.GpuVirtAddr();
-            InitReservedCeRamPartitions(reinterpret_cast<uint32*>(this + 1),
-                                        ReservedCeRamBytes,
-                                        &baseGpuVirtAddr,
-                                        &ceRamOffset);
 
-            // The independent layer didn't handle stream-out partition, so we must manage that.
+            m_spillTable.ring.instanceBytes   = (sizeof(uint32) * chipProps.gfxip.maxUserDataEntries);
+            m_spillTable.ring.numInstances    = pPublicSettings->userDataSpillTableRingSize;
+            m_spillTable.ring.baseGpuVirtAddr = baseGpuVirtAddr;
+            baseGpuVirtAddr += (m_spillTable.ring.instanceBytes * m_spillTable.ring.numInstances);
 
             m_streamOut.ring.instanceBytes   = sizeof(m_streamOut.srd);
             m_streamOut.ring.numInstances    = pPublicSettings->streamOutTableRingSize;
             m_streamOut.ring.baseGpuVirtAddr = baseGpuVirtAddr;
             baseGpuVirtAddr += (m_streamOut.ring.instanceBytes * m_streamOut.ring.numInstances);
 
-            m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
-            m_streamOut.state.ceRamOffset  = ceRamOffset;
-            ceRamOffset += m_streamOut.ring.instanceBytes;
+            uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(this + 1);
+            for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+            {
+                m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
+                pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
 
-            PAL_ASSERT(ceRamOffset <= ReservedCeRamBytes);
+                m_indirectUserDataInfo[id].state.sizeInDwords =
+                        static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
+
+                m_indirectUserDataInfo[id].ring.instanceBytes   =
+                        (sizeof(uint32) * m_indirectUserDataInfo[id].state.sizeInDwords);
+                m_indirectUserDataInfo[id].ring.numInstances    =
+                        static_cast<uint32>(m_device.Parent()->IndirectUserDataTableRingSize(id));
+                m_indirectUserDataInfo[id].ring.baseGpuVirtAddr = baseGpuVirtAddr;
+                baseGpuVirtAddr += (m_indirectUserDataInfo[id].ring.instanceBytes *
+                                    m_indirectUserDataInfo[id].ring.numInstances);
+            }
 
             const BoundGpuMemory& nestedCeRingGpuMem = m_device.CeRingBufferGpuMem(true);
 
@@ -388,6 +401,30 @@ Result UniversalCmdBuffer::Init(
                 const uint32 ceRingSize = static_cast<uint32>(nestedCeRingGpuMem.Memory()->Desc().size);
                 m_nestedIndirectCeDumpTable.ring.numInstances =
                     ceRingSize / m_nestedIndirectCeDumpTable.ring.instanceBytes;
+            }
+
+            // Partition CE RAM to each of the ring table(s):
+            // NOTE: The spill tables and stream-output table are taken from PAL-reserved CE RAM space, while the
+            // indirect user-data tables are not.
+
+            uint32 ceRamOffset = 0;
+            m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+            m_spillTable.stateCs.ceRamOffset  = ceRamOffset;
+            ceRamOffset += m_spillTable.ring.instanceBytes;
+
+            m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+            m_spillTable.stateGfx.ceRamOffset  = ceRamOffset;
+            ceRamOffset += m_spillTable.ring.instanceBytes;
+
+            m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
+            m_streamOut.state.ceRamOffset  = ceRamOffset;
+            PAL_ASSERT((ceRamOffset + m_streamOut.ring.instanceBytes) <= ReservedCeRamBytes);
+
+            ceRamOffset = ReservedCeRamBytes;
+            for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+            {
+                m_indirectUserDataInfo[id].state.ceRamOffset = ceRamOffset;
+                ceRamOffset += m_indirectUserDataInfo[id].ring.instanceBytes;
             }
         }
         else
@@ -552,6 +589,18 @@ void UniversalCmdBuffer::ResetState()
     m_pSignatureCs       = &NullCsSignature;
     m_pSignatureGfx      = &NullGfxSignature;
     m_pipelineCtxPm4Hash = 0;
+
+    ResetUserDataRingBuffer(&m_spillTable.ring);
+    ResetUserDataTable(&m_spillTable.stateCs);
+    ResetUserDataTable(&m_spillTable.stateGfx);
+
+    for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        ResetUserDataRingBuffer(&m_indirectUserDataInfo[id].ring);
+        ResetUserDataTable(&m_indirectUserDataInfo[id].state);
+        m_indirectUserDataInfo[id].watermark = m_indirectUserDataInfo[id].state.sizeInDwords;
+        m_indirectUserDataInfo[id].modified  = 0;
+    }
 
     // Reset nested indirect CE state
     m_state.flags.useIndirectAddrForCe =
@@ -1161,6 +1210,24 @@ void UniversalCmdBuffer::CmdSetIndirectUserData(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdSetIndirectUserDataWatermark(
+    uint16 tableId,
+    uint32 dwordLimit)
+{
+    PAL_ASSERT(tableId < MaxIndirectUserDataTables);
+
+    dwordLimit = Min(dwordLimit, m_indirectUserDataInfo[tableId].state.sizeInDwords);
+    if (dwordLimit > m_indirectUserDataInfo[tableId].watermark)
+    {
+        // If the current high watermark is increasing, we need to mark the contents as dirty because data which was
+        // previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous draw or dispatch.
+        m_indirectUserDataInfo[tableId].state.dirty = 1;
+    }
+
+    m_indirectUserDataInfo[tableId].watermark = dwordLimit;
+}
+
+// =====================================================================================================================
 void UniversalCmdBuffer::CmdBindTargets(
     const BindTargetParams& params)
 {
@@ -1610,11 +1677,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     {
         auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-        if (issueSqttMarkerEvent)
-        {
-            pThis->DescribeDraw(Developer::DrawDispatchType::CmdDraw);
-        }
-
         ValidateDrawInfo drawInfo;
         drawInfo.vtxIdxCount   = vertexCount;
         drawInfo.instanceCount = instanceCount;
@@ -1623,6 +1685,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
         drawInfo.firstIndex    = 0;
 
         pThis->ValidateDraw<false, false>(drawInfo);
+
+        // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
+        // required for computations in DescribeDraw.
+        if (issueSqttMarkerEvent)
+        {
+            pThis->DescribeDraw(Developer::DrawDispatchType::CmdDraw);
+        }
 
         uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -1693,11 +1762,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     {
         auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-        if (issueSqttMarkerEvent)
-        {
-            pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexed);
-        }
-
         PAL_ASSERT(firstIndex <= pThis->m_graphicsState.iaState.indexCount);
 
         ValidateDrawInfo drawInfo;
@@ -1708,6 +1772,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
         drawInfo.firstIndex    = firstIndex;
 
         pThis->ValidateDraw<true, false>(drawInfo);
+
+        // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
+        // required for computations in DescribeDraw.
+        if (issueSqttMarkerEvent)
+        {
+            pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexed);
+        }
 
         uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -1814,11 +1885,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (issueSqttMarkerEvent)
-    {
-        pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndirectMulti);
-    }
-
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = 0;
     drawInfo.instanceCount = 0;
@@ -1827,6 +1893,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     drawInfo.firstIndex    = 0;
 
     pThis->ValidateDraw<false, true>(drawInfo);
+
+    // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
+    // required for computations in DescribeDraw.
+    if (issueSqttMarkerEvent)
+    {
+        pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndirectMulti);
+    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -1919,11 +1992,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    if (issueSqttMarkerEvent)
-    {
-        pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
-    }
-
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = 0;
     drawInfo.instanceCount = 0;
@@ -1932,6 +2000,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     drawInfo.firstIndex    = 0;
 
     pThis->ValidateDraw<true, true>(drawInfo);
+
+    // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
+    // required for computations in DescribeDraw.
+    if (issueSqttMarkerEvent)
+    {
+        pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawIndexedIndirectMulti);
+    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -5754,6 +5829,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_drawTimeHwState.valid.u32All = 0;
 
     m_workaroundState.LeakNestedCmdBufferState(cmdBuffer.m_workaroundState);
+
+    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        m_indirectUserDataInfo[id].state.dirty |= cmdBuffer.m_indirectUserDataInfo[id].modified;
+    }
+
+    m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
+    m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
     m_pipelineCtxPm4Hash = cmdBuffer.m_pipelineCtxPm4Hash;
     m_spiPsInControl     = cmdBuffer.m_spiPsInControl;

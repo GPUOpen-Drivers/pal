@@ -954,11 +954,13 @@ void GraphicsPipeline::InitCommonStateRegisters(
     m_stateContextPm4Cmds.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     regDB_SHADER_CONTROL dbShaderControl;
     dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+                                                      (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
                                                       (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
 #endif
 

@@ -1060,8 +1060,6 @@ public:
 #endif
     Result Init(Platform* pPlatform);
 
-    void   SpecializedInit(Platform* pPlatform);
-
     xcb_extension_t* GetXcbDri3Id() const;
 
     xcb_extension_t* GetXcbPresentId() const;

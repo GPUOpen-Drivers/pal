@@ -39,7 +39,7 @@ if __name__ == '__main__':
         "libX11-xcb.so"       : "LibX11Xcb",
         "libX11.so"           : "LibX11"}
 
-    procMgr  = proc.ProcMgr(fileName, libraryDict)
+    procMgr  = proc.ProcMgr(fileName, libraryDict, 0)
     intro = "Modify the procsAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead"
 
     # let procMgr generate the class named as Dri3Loader
@@ -95,8 +95,6 @@ if __name__ == '__main__':
     fp.write("namespace Linux\n")
     fp.write("{\n")
     procMgr.GenerateCppFile(fp, "Dri3Loader")
-    fp.write("void\nDri3Loader::SpecializedInit(Platform* pPlatform)\n")
-    fp.write("{\n}\n\n")
     fp.write("} //namespace Linux\n")
     fp.write("} //namespace Pal\n")
     fp.close()

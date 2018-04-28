@@ -86,10 +86,13 @@ public:
 
     virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, const SubmitInfo& submitInfo) override;
     virtual void PostProcessSubmit() override;
+    virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
 private:
     void RebuildCommandStreams();
     Result AllocateShadowMemory();
+    void BuildShadowPreamble();
+    void BuildPerSubmitCommandStream(CmdStream& cmdStream, bool initShadowMemory);
 
     void BuildUniversalPreambleHeaders();
     void SetupUniversalPreambleRegisters();
@@ -107,14 +110,11 @@ private:
     BoundGpuMemory  m_shadowGpuMem;
     gpusize         m_shadowGpuMemSizeInBytes;
     uint32          m_shadowedRegCount; // Number of state registers shadowed using state-shadowing.
-    uint32          m_submitCounter;    // How many times have we submitted. For the first submit, we need to include
-                                        // the set packets in m_perSubmitCmdStream after the load packets to initialize
-                                        // the register and shadow memory. On the second submit, we need to rebuild the
-                                        // command stream because the set should only be done once.
 
     // Command streams which restore hardware to a known state before launching command buffers.
     CmdStream  m_deCmdStream;
     CmdStream  m_perSubmitCmdStream;
+    CmdStream  m_shadowInitCmdStream;
     CmdStream  m_cePreambleCmdStream;
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;

@@ -1161,12 +1161,21 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
     regDB_SHADER_CONTROL dbShaderControl;
     dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
-
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (dbShaderControl.bits.Z_ORDER == RE_Z);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     // Configure depth clamping
     dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
+                                                    (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
+
+    // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or
+    // FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update these three bitfields.
+    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
+                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
+                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+    // Configure depth clamping
+    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
                                                     (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
 
     // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or

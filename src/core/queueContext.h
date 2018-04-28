@@ -57,6 +57,10 @@ public:
     // buffers from the client. The base implementation is intentionally a no-op.
     virtual void PostProcessSubmit() { }
 
+    // Performs any required processing on the first submission to the queue.
+    // Returns Success if the submission is required, and Unsupported otherwise.
+    virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) { return Result::Unsupported; }
+
 protected:
     virtual ~QueueContext();
 

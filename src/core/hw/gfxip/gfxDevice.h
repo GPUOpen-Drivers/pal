@@ -110,11 +110,11 @@ struct ColorTargetViewInternalCreateInfo
     {
         struct
         {
-            uint32 dccDecompress    : 1;  // Indicates this color target view is for a DCC decompress
-            uint32 fastClearElim    : 1;  // Indicates this color target view is for a fast-clear-eliminate
-            uint32 fmaskDecompess   : 1;  // Indicates this color target view is for a fmask decompress
-            uint32 depthStencilCopy : 1;  // Indicates this color target view is for a depth/stencil copy
-            uint32 reserved         : 28; // Reserved for future use
+            uint32 dccDecompress     : 1;  // Indicates this color target view is for a DCC decompress
+            uint32 fastClearElim     : 1;  // Indicates this color target view is for a fast-clear-eliminate
+            uint32 fmaskDecompress   : 1;  // Indicates this color target view is for a fmask decompress
+            uint32 depthStencilCopy  : 1;  // Indicates this color target view is for a depth/stencil copy
+            uint32 reserved          : 28; // Reserved for future use
         };
         uint32 u32All;
     } flags;

@@ -965,12 +965,36 @@ Result Queue::DoAssociateFenceWithLastSubmit(
 }
 
 // =====================================================================================================================
-// This must be called right after initialization to register the queue with all objects that must track it using
-// internal lists. We can't do this during initialization because some device subclasses will call queue functions
-// which rely on having a fully initialized queue.
-Result Queue::AddToQueueLists()
+// This must be called right after initialization to allow the queue to perform any initialization work which
+// requires a fully initialized queue.
+Result Queue::LateInit()
 {
-    Result result = m_pDevice->AddQueue(this);
+    Result result = Result::Success;
+
+    // We won't have a dummy command buffer available if we're on a timer queue so we need to check first.
+    if (m_pDummyCmdBuffer != nullptr)
+    {
+        // If ProcessInitialSubmit returns Success, we need to perform a dummy submit with special preambles
+        // to initialize the queue. Otherwise, it's not required for this queue.
+        InternalSubmitInfo internalSubmitInfo = {};
+        if (m_pQueueContext->ProcessInitialSubmit(&internalSubmitInfo) == Result::Success)
+        {
+            ICmdBuffer*const pCmdBuffer = m_pDummyCmdBuffer;
+            SubmitInfo submitInfo       = {};
+            submitInfo.cmdBufferCount   = 1;
+            submitInfo.ppCmdBuffers     = &pCmdBuffer;
+
+            if (result == Result::Success)
+            {
+                result = OsSubmit(submitInfo, internalSubmitInfo);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_pDevice->AddQueue(this);
+    }
 
     if ((result == Result::Success) && (m_pEngine != nullptr))
     {

@@ -197,10 +197,6 @@ public:
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
 
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
-
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
@@ -260,12 +256,6 @@ protected:
 
     virtual ~UniversalCmdBuffer() {}
 
-    void InitReservedCeRamPartitions(
-        uint32*  pIndirectUserDataTableMem,
-        uint32   reservedCeRamBytes,
-        gpusize* pGpuVirtAddr,
-        uint32*  pCeRamOffset);
-
     virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) override;
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
@@ -295,27 +285,6 @@ protected:
         { CmdBuffer::P2pBltWaCopyNextRegion(m_pDeCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
-
-    struct
-    {
-        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
-        // is dumped from CE RAM to memory before a draw or dispatch.
-        uint32   watermark : 31;
-        // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
-        uint32   modified  :  1;
-        uint32*  pData;  // Tracks the contents of each indirect user-data table.
-
-        CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
-        CeRamUserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
-
-    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
-
-    struct
-    {
-        CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
-        CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
-        CeRamUserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
-    }  m_spillTable;
 
 private:
     const GfxDevice&   m_device;

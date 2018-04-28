@@ -307,9 +307,9 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         // root.
         m_status = m_pCmdAllocator->GetNewChunk(CommandDataAlloc, (m_flags.buildInSysMem != 0), &pChunk);
 
-        // When GetNewChunk failed either because GPU reset or out of GPU memory, to make driver go on running without seqfault,
-        // we should create a dummy memory for the command buffer, and meanwhile set m_status to clarify that the command
-        // stream's content is undefined.
+        // When GetNewChunk failed either because GPU reset or out of GPU memory, to make driver go on running without
+        // seqfault, we should create a dummy memory for the command buffer, and meanwhile set m_status to clarify
+        // that the command stream's content is undefined.
         if (m_status != Result::Success)
         {
             pChunk = m_pCmdAllocator->GetDummyChunk();
@@ -704,6 +704,11 @@ void CmdStream::DumpCommands(
     if (IsConstantEnginePreamble())
     {
         subEngineId = 2; // CE preamble subengine ID
+    }
+
+    if (GetEngineType() == EngineType::EngineTypeDma)
+    {
+        subEngineId = 4; // SDMA engine ID
     }
 
     // Next, walk through all the chunks that make up this command stream and write their command to the file.

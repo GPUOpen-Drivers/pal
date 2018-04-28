@@ -869,9 +869,10 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
             {
                 LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-                // Create an embedded user-data table and bind it to user data 1. We only need one image view.
+                // Create an embedded user-data table and bind it to user data 1. We need an image view for each aspect.
+                const uint32 numSrds = isDepthStencil ? 2 : 1;
                 uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                           SrdDwordAlignment(),
+                                                                           SrdDwordAlignment() * numSrds,
                                                                            SrdDwordAlignment(),
                                                                            PipelineBindPoint::Graphics,
                                                                            1);
@@ -884,7 +885,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
                     RpmUtil::BuildImageViewInfo(&imageView[0], srcImage, viewRange, srcFormat, false, texOptLevel);
 
-                    srcFormat.format = ChNumFormat::X16_Unorm;
+                    srcFormat.format = ChNumFormat::X8_Uint;
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
 
                     RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, false, texOptLevel);
@@ -4029,8 +4030,9 @@ void RsrcProcMgr::ResolveImageGraphics(
     const auto& device        = *m_pDevice->Parent();
     const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
     const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto& srcImageInfo  = srcImage.GetImageInfo();
 
-    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImage.GetImageInfo().resolveMethod);
+    LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, srcImageInfo.resolveMethod);
 
     // This path only works on depth-stencil images.
     PAL_ASSERT((srcCreateInfo.usageFlags.depthStencil && dstCreateInfo.usageFlags.depthStencil) ||
@@ -4946,9 +4948,9 @@ void RsrcProcMgr::GenericColorBlit(
     scissorInfo.scissors[0].offset.y   = 0;
 
     ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
-    colorViewInfoInternal.flags.dccDecompress  = (pipeline == RpmGfxPipeline::DccDecompress);
-    colorViewInfoInternal.flags.fastClearElim  = (pipeline == RpmGfxPipeline::FastClearElim);
-    colorViewInfoInternal.flags.fmaskDecompess = (pipeline == RpmGfxPipeline::FmaskDecompress);
+    colorViewInfoInternal.flags.dccDecompress   = (pipeline == RpmGfxPipeline::DccDecompress);
+    colorViewInfoInternal.flags.fastClearElim   = (pipeline == RpmGfxPipeline::FastClearElim);
+    colorViewInfoInternal.flags.fmaskDecompress = (pipeline == RpmGfxPipeline::FmaskDecompress);
 
     ColorTargetViewCreateInfo colorViewInfo = { };
     colorViewInfo.swizzledFormat      = imageCreateInfo.swizzledFormat;

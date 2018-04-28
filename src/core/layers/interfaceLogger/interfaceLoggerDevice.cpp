@@ -1223,7 +1223,14 @@ Result Device::OpenExternalSharedImage(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdImageObj", *ppImage);
         pLogContext->KeyAndObject("createdGpuMemoryObj", *ppGpuMemory);
-        pLogContext->KeyAndStruct("memCreateInfo", *pMemCreateInfo);
+        if (pMemCreateInfo != nullptr)
+        {
+            pLogContext->KeyAndStruct("memCreateInfo", *pMemCreateInfo);
+        }
+        else
+        {
+            pLogContext->KeyAndNullValue("memCreateInfo");
+        }
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);

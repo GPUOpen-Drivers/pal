@@ -160,10 +160,11 @@ class Variable:
     def GetLibrary(self):
         return self.library
 class ProcMgr:
-    def __init__(self, fileName, libraryDict):
+    def __init__(self, fileName, libraryDict, needSpecializedInit):
         self.fileName = fileName
         self.libraryDict = libraryDict
         self.libraries = {}
+        self.needSpecializedInit = needSpecializedInit
         self.var = []
         fp  = open(fileName)
         contents = fp.readlines()
@@ -273,7 +274,8 @@ class ProcMgr:
         fp.write("    void SetLogPath(const char* pPath) { m_proxy.Init(pPath); }\n")
         fp.write("#endif\n")
         fp.write("    Result Init(Platform* pPlatform);\n\n")
-        fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n\n")
+        if self.needSpecializedInit:
+            fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n\n")
         for var in self.var:
             fp.write("    " + var.GetVarType() + "* Get" + var.GetFormattedName() + "() const;\n\n")
         # add library handler
@@ -321,14 +323,14 @@ class ProcMgr:
                         dot = ','
                     fp.write("\n    ) const\n")
                 fp.write("{\n")
-                fp.write("    int64 begin = Util::GetPerfCpuTime();\n")
+                fp.write("    const int64 begin = Util::GetPerfCpuTime();\n")
                 paramIndent = 0
                 if entry.GetFunctionRetType() != "void":
                     if entry.GetFunctionRetType().find('*') != -1:
-                        fp.write("    " + entry.GetFunctionRetType() + " pRet = ")
+                        fp.write("    const " + entry.GetFunctionRetType() + " pRet = ")
                         paramIndent += 4 + len(entry.GetFunctionRetType()) + 8
                     else:
-                        fp.write("    " + entry.GetFunctionRetType() + " ret = ")
+                        fp.write("    const " + entry.GetFunctionRetType() + " ret = ")
                         paramIndent += 4 + len(entry.GetFunctionRetType()) + 7
                     fp.write("m_pFuncs->pfn")
                     paramIndent += 13
@@ -349,8 +351,8 @@ class ProcMgr:
                     strfmt = ', '
                 else:
                     fp.write("%s);\n" %(argument[:-2]))
-                fp.write("    int64 end = Util::GetPerfCpuTime();\n")
-                fp.write("    int64 elapse = end - begin;\n")
+                fp.write("    const int64 end = Util::GetPerfCpuTime();\n")
+                fp.write("    const int64 elapse = end - begin;\n")
                 fp.write("    m_timeLogger.Printf(\"" + entry.GetFormattedName() + ",%ld,%ld,%ld\\n\", begin, end, elapse);\n")
                 fp.write("    m_timeLogger.Flush();\n\n")
 
@@ -412,7 +414,8 @@ class ProcMgr:
         for key in self.libraries.keys():
             fp.write("        \"" + key + "\",\n")
         fp.write("    };\n\n")
-        fp.write("    SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);\n")
+        if (self.needSpecializedInit):
+            fp.write("    SpecializedInit(pPlatform, &LibNames[LibDrmAmdgpu][0]);\n")
         # load function point from libraries.
         fp.write("    if (m_initialized == false)\n")
         fp.write("    {\n")

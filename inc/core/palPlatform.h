@@ -58,6 +58,7 @@ constexpr uint32 MaxDevices = 16;
 constexpr uint32 MaxScreensPerDevice = 6;
 /// Maximum number of Screens possibly attached to a system.
 constexpr uint32 MaxScreens = (MaxScreensPerDevice * MaxDevices);
+constexpr uint32 MaxModePerScreen = 64;
 
 /// 32-bit PAL version identifier.
 ///

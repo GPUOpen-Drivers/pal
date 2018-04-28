@@ -180,6 +180,11 @@ struct ScreenProperties
     } gammaRampCaps;                   ///< Gamma ramp capabilities.
 
     uint32          vidPnSourceId;     ///< Video present source identifier for Windows
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 402
+    Extent2d        physicalDimension; ///< The physical dimension of screen in millimeters
+    Extent2d        physicalResolution;///< The preferred or native resolution of screen
+#endif
 };
 
 /// Reports properties of a particular screen mode including resolution, pixel format, and other capabilities.  Output

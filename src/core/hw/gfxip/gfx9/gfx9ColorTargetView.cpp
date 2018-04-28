@@ -369,9 +369,9 @@ void ColorTargetView::InitCommonImageView(
         pCbColorInfo->bits.COMPRESSION               = 1;
         pCbColorInfo->bits.FMASK_COMPRESSION_DISABLE = settings.fmaskCompressDisable;
 
-        if (fMaskTexFetchAllowed                     &&
-            (internalInfo.flags.dccDecompress  == 0) &&
-            (internalInfo.flags.fmaskDecompess == 0))
+        if (fMaskTexFetchAllowed                      &&
+            (internalInfo.flags.dccDecompress   == 0) &&
+            (internalInfo.flags.fmaskDecompress == 0))
         {
             // Setting this bit means two things:
             //    1) The texture block can read fmask data directly without needing
@@ -627,8 +627,8 @@ uint32* Gfx9ColorTargetView::WriteCommands(
 
     const Gfx9ColorTargetViewPm4Img* pPm4Commands = &m_pm4Cmds;
     // Spawn a local copy of the PM4 image, since some register values and/or offsets may need to be updated in this
-    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The contents
-    // of the local copy will depend on which Image state is specified.
+    // method.  For some clients, the base address, Fmask address and Cmask address also need to be updated.  The
+    // contents of the local copy will depend on which Image state is specified.
     Gfx9ColorTargetViewPm4Img patchedPm4Commands;
 
     if (slot != 0)

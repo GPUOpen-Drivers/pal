@@ -530,11 +530,7 @@ Result Queue::SignalSemaphore(
 
     if ((m_pendingWait == true) || (context.LastTimestamp() == 0))
     {
-        SubmitInfo localSubmitInfo;
-        InternalSubmitInfo internalSubmitInfo;
-        memset(&internalSubmitInfo, 0, sizeof(internalSubmitInfo));
-        memset(&localSubmitInfo, 0, sizeof(localSubmitInfo));
-        result = OsSubmit(localSubmitInfo, internalSubmitInfo);
+        result = DummySubmit();
     }
 
     if (result == Result::Success)

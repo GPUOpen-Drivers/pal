@@ -407,7 +407,6 @@ UniversalQueueContext::UniversalQueueContext(
                    m_pQueue->IsPreemptionSupported()),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
-    m_submitCounter(0),
     m_deCmdStream(*pDevice,
                   pDevice->Parent()->InternalUntrackedCmdAllocator(),
                   pEngine->Type(),
@@ -420,6 +419,12 @@ UniversalQueueContext::UniversalQueueContext(
                          SubQueueType::Primary,
                          false,
                          true),         // Preambles cannot be preemptible.
+    m_shadowInitCmdStream(*pDevice,
+                          pDevice->Parent()->InternalUntrackedCmdAllocator(),
+                          EngineTypeUniversal,
+                          SubQueueType::Primary,
+                          false,
+                          true),           // Preambles cannot be preemptible.
     m_cePreambleCmdStream(*pDevice,
                           pDevice->Parent()->InternalUntrackedCmdAllocator(),
                           pEngine->Type(),
@@ -462,6 +467,11 @@ Result UniversalQueueContext::Init()
         result = m_perSubmitCmdStream.Init();
     }
 
+    if ((result == Result::Success) && m_useShadowing)
+    {
+        result = m_shadowInitCmdStream.Init();
+    }
+
     if (result == Result::Success)
     {
         m_cePreambleCmdStream.Init();
@@ -492,6 +502,12 @@ Result UniversalQueueContext::Init()
         SetupCommonPreamble(m_pDevice, m_pEngine->Type(), &m_commonPreamble);
         BuildUniversalPreambleHeaders();
         SetupUniversalPreambleRegisters();
+
+        // The shadow preamble should only be constructed for queues that need it.
+        if (m_useShadowing)
+        {
+            BuildShadowPreamble();
+        }
 
         RebuildCommandStreams();
     }
@@ -567,6 +583,145 @@ Result UniversalQueueContext::AllocateShadowMemory()
 }
 
 // =====================================================================================================================
+// Constructs the shadow memory initialization preamble command stream.
+void UniversalQueueContext::BuildShadowPreamble()
+{
+    // This should only be called when state shadowing is being used.
+    PAL_ASSERT(m_useShadowing);
+
+    constexpr CmdStreamBeginFlags beginFlags = {};
+
+    m_shadowInitCmdStream.Reset(nullptr, true);
+    m_shadowInitCmdStream.Begin(beginFlags, nullptr);
+
+    // Generate a version of the per submit preamble that initializes shadow memory.
+    BuildPerSubmitCommandStream(m_shadowInitCmdStream, true);
+
+    m_shadowInitCmdStream.End();
+}
+
+// =====================================================================================================================
+// Builds a per-submit command stream for the DE. Conditionally adds shadow memory initialization commands.
+void UniversalQueueContext::BuildPerSubmitCommandStream(
+    CmdStream& cmdStream,
+    bool       initShadowMemory)
+{
+    // Shadow memory should only be initialized when state shadowing is being used.
+    PAL_ASSERT(m_useShadowing || (initShadowMemory == false));
+
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    uint32* pCmdSpace      = cmdStream.ReserveCommands();
+
+    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
+    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
+    pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__pfp_wait_reg_mem__memory_space,
+                                         function__pfp_wait_reg_mem__equal_to_the_reference_value,
+                                         engine_sel__pfp_wait_reg_mem__prefetch_parser,
+                                         m_timestampMem.GpuVirtAddr(),
+                                         0,
+                                         UINT_MAX,
+                                         pCmdSpace);
+
+    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
+    constexpr uint32 IsActive = 1;
+    pCmdSpace += cmdUtil.BuildWriteData(EngineTypeUniversal,
+                                        m_timestampMem.GpuVirtAddr(),
+                                        1,
+                                        engine_sel__pfp_write_data__prefetch_parser,
+                                        dst_sel__pfp_write_data__memory,
+                                        wr_confirm__pfp_write_data__wait_for_write_confirmation,
+                                        &IsActive,
+                                        PredDisable,
+                                        pCmdSpace);
+
+    // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
+    //
+    // Our postamble stream flushes and invalidates the L1, L2, and RB caches with an EOP event at the conclusion of
+    // each user mode submission, but the SQC caches are not invalidated. We waited for that event just above this
+    // packet so the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless
+    // we invalidate those caches here.
+    AcquireMemInfo acquireInfo = {};
+    acquireInfo.flags.invSqI$ = 1;
+    acquireInfo.flags.invSqK$ = 1;
+    acquireInfo.tcCacheOp     = TcCacheOp::Nop;
+    acquireInfo.engineType    = EngineTypeUniversal;
+    acquireInfo.baseAddress   = FullSyncBaseAddr;
+    acquireInfo.sizeBytes     = FullSyncSize;
+
+    pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+
+    pCmdSpace = cmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
+                                        &m_stateShadowPreamble,
+                                        pCmdSpace);
+
+    cmdStream.CommitCommands(pCmdSpace);
+
+    if (initShadowMemory)
+    {
+        pCmdSpace = cmdStream.ReserveCommands();
+
+        // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
+        DmaDataInfo dmaData  = {};
+        dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+        dmaData.dstAddr      = m_shadowGpuMem.GpuVirtAddr();
+        dmaData.dstAddrSpace = das__pfp_dma_data__memory;
+        dmaData.srcSel       = src_sel__pfp_dma_data__data;
+        dmaData.srcData      = 0;
+        dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
+        dmaData.sync         = true;
+        dmaData.usePfp       = true;
+        pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+
+        // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
+        // might contain invalid value. We don't need to load context register again because in the
+        // InitializeContextRegisters() we will set the contexts that we can load.
+        const uint32 RegRangeDwordSize = sizeof(RegisterRange) / sizeof(uint32);
+        gpusize     gpuVirtAddr        = m_shadowGpuMem.GpuVirtAddr();
+        uint32      numEntries         = 0;
+        const auto* pRegRange          = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
+                                                     pRegRange,
+                                                     numEntries,
+                                                     MaxNumUserConfigRanges,
+                                                     pCmdSpace);
+        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
+
+        gpuVirtAddr += (sizeof(uint32) * CntxRegCount);
+
+        pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
+                                             pRegRange,
+                                             numEntries,
+                                             MaxNumShRanges,
+                                             ShaderGraphics,
+                                             pCmdSpace);
+
+        pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
+                                             pRegRange,
+                                             numEntries,
+                                             MaxNumCsShRanges,
+                                             ShaderCompute,
+                                             pCmdSpace);
+        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
+
+        cmdStream.CommitCommands(pCmdSpace);
+
+        // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
+        // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
+        const auto& chipProps = m_pDevice->Parent()->ChipProperties();
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            InitializeContextRegistersGfx9(&cmdStream);
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED();
+        }
+    }
+}
+
+// =====================================================================================================================
 // Checks if the queue context preamble needs to be rebuilt, possibly due to the client creating new pipelines that
 // require a bigger scratch ring, or due the client binding a new trap handler/buffer.  If so, the the compute shader
 // rings are re-validated and our context command stream is rebuilt.
@@ -585,19 +740,10 @@ Result UniversalQueueContext::PreProcessSubmit(
     {
         result = m_pEngine->UpdateRingSet(&m_currentUpdateCounter, &hasUpdated);
 
-        const bool mcbpForceUpdate = m_useShadowing && (m_submitCounter <= 1);
-
-        // Like UpdateRingSet, we need to idle the queue before we need to RebuildCommandStreams.
-        if (mcbpForceUpdate && (hasUpdated == false))
-        {
-            result = m_pQueue->WaitIdle();
-        }
-
-        if ((result == Result::Success) && (hasUpdated || mcbpForceUpdate))
+        if ((result == Result::Success) && hasUpdated)
         {
             RebuildCommandStreams();
         }
-        m_submitCounter++;
     }
 
     uint32 preambleCount  = 0;
@@ -647,7 +793,39 @@ void UniversalQueueContext::PostProcessSubmit()
         m_deCmdStream.EnableDropIfSameContext(true);
         // NOTE: The per-submit command stream cannot receive this optimization because it must be executed for every
         // submit.
+
+        // We can skip the CE preamble if our context runs back-to-back because the CE preamble is used to implement
+        // persistent CE RAM and no other context has come in and dirtied CE RAM.
+        m_cePreambleCmdStream.EnableDropIfSameContext(true);
     }
+}
+
+// =====================================================================================================================
+// Processes the initial submit for a queue. Returns Success if the processing was required and needs to be submitted.
+// Returns Unsupported otherwise.
+Result UniversalQueueContext::ProcessInitialSubmit(
+    InternalSubmitInfo* pSubmitInfo)
+{
+    Result result = Result::Unsupported;
+
+    // We only need to perform an initial submit if we're using state shadowing.
+    if (m_useShadowing)
+    {
+        // Submit a special version of the per submit preamble that initializes shadow memory.
+        pSubmitInfo->pPreambleCmdStream[0] = &m_shadowInitCmdStream;
+
+        // The DE postamble is always required to satisfy the acquire/release model.
+        pSubmitInfo->pPostambleCmdStream[0] = &m_dePostambleCmdStream;
+
+        pSubmitInfo->numPreambleCmdStreams  = 1;
+        pSubmitInfo->numPostambleCmdStreams = 1;
+
+        pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
+
+        result = Result::Success;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -715,201 +893,9 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_perSubmitCmdStream.Reset(nullptr, true);
     m_perSubmitCmdStream.Begin(beginFlags, nullptr);
 
-    pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
+    // Generate a version of the per submit preamble that does not initialize shadow memory.
+    BuildPerSubmitCommandStream(m_perSubmitCmdStream, false);
 
-    // Wait for a prior submission on this context to be idle before executing the command buffer streams.
-    // The timestamp memory is initialized to zero so the first submission on this context will not wait.
-    pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__pfp_wait_reg_mem__memory_space,
-                                         function__pfp_wait_reg_mem__equal_to_the_reference_value,
-                                         engine_sel__pfp_wait_reg_mem__prefetch_parser,
-                                         m_timestampMem.GpuVirtAddr(),
-                                         0,
-                                         0xFFFFFFFF,
-                                         pCmdSpace);
-
-    // Then rewrite the timestamp to some other value so that the next submission will wait until this one is done.
-    constexpr uint32 IsActive = 1;
-    pCmdSpace += cmdUtil.BuildWriteData(EngineTypeUniversal,
-                                        m_timestampMem.GpuVirtAddr(),
-                                        1,
-                                        engine_sel__pfp_write_data__prefetch_parser,
-                                        dst_sel__pfp_write_data__memory,
-                                        wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                        &IsActive,
-                                        PredDisable,
-                                        pCmdSpace);
-
-    // Issue an acquire mem packet to invalidate all SQ caches (SQ I-cache and SQ K-cache).
-    //
-    // Our postamble stream flushes and invalidates the L1, L2, and RB caches with an EOP event at the conclusion of
-    // each user mode submission, but the SQC caches are not invalidated. We waited for that event just above this
-    // packet so the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless
-    // we invalidate those caches here.
-    AcquireMemInfo acquireInfo = {};
-    acquireInfo.flags.invSqI$ = 1;
-    acquireInfo.flags.invSqK$ = 1;
-    acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-    acquireInfo.engineType    = EngineTypeUniversal;
-    acquireInfo.baseAddress   = FullSyncBaseAddr;
-    acquireInfo.sizeBytes     = FullSyncSize;
-
-    pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
-
-    pCmdSpace = m_perSubmitCmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
-                                                   &m_stateShadowPreamble,
-                                                   pCmdSpace);
-
-    // If the preemption is enabled, we need to initialize the shadow copy of this register.
-    if (m_useShadowing)
-    {
-        // Only DX9P calls ICmdBuffer::CmdSetGlobalScissor, which writes both mmPA_SC_WINDOW_SCISSOR_TL|BR.
-        // Until all other clients call this function, we'll have to initialize the register.
-        regPA_SC_WINDOW_SCISSOR_BR paScWindowScissorBr = {};
-        paScWindowScissorBr.bitfields.BR_X = 0x4000;
-        paScWindowScissorBr.bitfields.BR_Y = 0x4000;
-        pCmdSpace = m_perSubmitCmdStream.WriteSetOneContextReg(mmPA_SC_WINDOW_SCISSOR_BR,
-                                                               paScWindowScissorBr.u32All,
-                                                               pCmdSpace);
-    }
-
-    if (m_useShadowing && (m_submitCounter == 0))
-    {
-        // The following call to InitializeContextRegistersGfx8() will initialize our shadow memory for MCBP in a way
-        // that matches the clear state.  The (m_submitCounter == 0) check above should ensure that these commands are
-        // only inserted during the first submit on this queue.
-        //
-        // Unfortunately, there is a possibility that the first submit could be preempted.  In that case, the
-        // initialization commands will be replayed on resume since this queue context command stream will be marked
-        // as non-preemptable.  If that happens, those commands would end up overwriting the shadowed context
-        // registers that will be loaded before resuming the app's command buffer.  To prevent this issue, we surround
-        // the commands written by InitializeContextRegistersGfx*() with a COND_EXEC packet that can skip the
-        // initialization commands once they have been executed a single time.
-        //
-        // We use the following packets to make sure the SETs are done once:
-        //
-        // 1. COND_EXEC:  Initially programmed to skip just the NOP.  The WRITE_DATA will patch this command so that if
-        //                this command stream is executed again on a MCBP resume, it will skip the NOP, SETs, and
-        //                WRITE_DATA.
-        //
-        // 2. NOP:        Just used to hide a control dword for the COND_EXEC command.  The control word will always be
-        //                programmed to 0 so that the COND_EXEC always skips execution.
-        //
-        // 3. DMA:        Use DMA packet to initialize the shadow memory to 0. Load the user config and sh registers
-        //                after this to initialize them.
-        //
-        // 4. SETs:       Commands written by InitializeContextRegistersGfx*(). DMA_DATA packet is used before SETs
-        //                to initialize the shadow memory to 0, also needs to be done once.
-        //
-        // 5. WRITE_DATA: Updates the size field of the COND_EXEC to a larger value so that the COND_EXEC will now
-        //                skip the NOP, SETs, and WRITE_DATA, as soon as the GPU has executed the
-        //                InitializeContextRegistersGfx*() commands once.
-        //
-        // The COND_EXEC is technically not needed, this approach could be accomplished with just a NOP, SETs, and
-        // WRITE_DATA where the WRITE_DATA updates the NOP to skip the SETs and WRITE_DATA.  However, that approach
-        // would make dumping this queue context command stream useless, since all of the commands would end up as
-        // the body of a NOP that would not be parsed.  The COND_EXEC approach is no slower, and will let the
-        // disabled commands be parsed nicely when debugging.
-
-        m_perSubmitCmdStream.CommitCommands(pCmdSpace);
-        // Record the chunk index when we begin the commands. We expect the commands will fit in one chunk.
-        const uint32  chunkIndexBegin = m_perSubmitCmdStream.GetNumChunks();
-
-        // Record the GPU address of NOP so we can calculate how many dwords to skip for cond_exec packet.
-        const gpusize nopStartGpuAddr = m_perSubmitCmdStream.GetCurrentGpuVa() +
-                                        CmdUtil::CondExecSizeDwords * sizeof(uint32);
-        const gpusize skipFlagGpuAddr = nopStartGpuAddr + CmdUtil::MinNopSizeInDwords * sizeof(uint32);
-
-        // We'll update the size later.
-        const gpusize skipSizeGpuAddr = nopStartGpuAddr - sizeof(uint32);
-
-        pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
-        // We only skip the NOP for the first time.
-        pCmdSpace += cmdUtil.BuildCondExec(skipFlagGpuAddr, CmdUtil::MinNopSizeInDwords + 1, pCmdSpace);
-        pCmdSpace += cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords + 1, pCmdSpace);
-        // Cond_Exec will always skip.
-        *(pCmdSpace - 1) = 0;
-
-        // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
-        DmaDataInfo dmaData  = {};
-        dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
-        dmaData.dstAddr      = m_shadowGpuMem.GpuVirtAddr();
-        dmaData.dstAddrSpace = das__pfp_dma_data__memory;
-        dmaData.srcSel       = src_sel__pfp_dma_data__data;
-        dmaData.srcData      = 0;
-        dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
-        dmaData.sync         = true;
-        dmaData.usePfp       = true;
-        pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
-
-        // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
-        // might contain invalid value. We don't need to load context register again because in the
-        // InitializeContextRegisters() we will set the contexts that we can load.
-        const uint32 RegRangeDwordSize = sizeof(RegisterRange) / sizeof(uint32);
-        gpusize     gpuVirtAddr = m_shadowGpuMem.GpuVirtAddr();
-        uint32      numEntries  = 0;
-        const auto* pRegRange   = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
-                                                     pRegRange,
-                                                     numEntries,
-                                                     MaxNumUserConfigRanges,
-                                                     pCmdSpace);
-        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
-
-        gpuVirtAddr += (sizeof(uint32) * CntxRegCount);
-
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                             pRegRange,
-                                             numEntries,
-                                             MaxNumShRanges,
-                                             ShaderGraphics,
-                                             pCmdSpace);
-
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                             pRegRange,
-                                             numEntries,
-                                             MaxNumCsShRanges,
-                                             ShaderCompute,
-                                             pCmdSpace);
-        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
-
-        m_perSubmitCmdStream.CommitCommands(pCmdSpace);
-        // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
-        // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
-        const auto& chipProps = m_pDevice->Parent()->ChipProperties();
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            InitializeContextRegistersGfx9(&m_perSubmitCmdStream);
-        }
-        else
-        {
-            PAL_NOT_IMPLEMENTED();
-        }
-
-        const gpusize endOfSetsGpuAddr = m_perSubmitCmdStream.GetCurrentGpuVa();
-        // Skip the NOP, DMA_DATA, all the SETs + writeData header size and 1 dword it writes.
-        const uint32  condSizeDw       = static_cast<uint32>(endOfSetsGpuAddr - nopStartGpuAddr) / sizeof(uint32)
-                                         + CmdUtil::WriteDataSizeDwords + 1;
-
-        pCmdSpace = m_perSubmitCmdStream.ReserveCommands();
-        pCmdSpace += cmdUtil.BuildWriteData(EngineTypeUniversal,
-                                            skipSizeGpuAddr,
-                                            1,
-                                            engine_sel__pfp_write_data__prefetch_parser,
-                                            dst_sel__pfp_write_data__memory,
-                                            wr_confirm__pfp_write_data__wait_for_write_confirmation,
-                                            &condSizeDw,
-                                            PredDisable,
-                                            pCmdSpace);
-
-        const uint32 chunkIndexEnd = m_perSubmitCmdStream.GetNumChunks();
-        // We assume all the SET packets will fit in one chunk. So we only build one skip logic. If the sets are in
-        // different chunks, the code is broken and we need to modify it.
-        PAL_ASSERT(chunkIndexBegin == chunkIndexEnd);
-    }
-
-    m_perSubmitCmdStream.CommitCommands(pCmdSpace);
     m_perSubmitCmdStream.End();
 
     if (m_pDevice->Settings().commandBufferCombineDePreambles)
@@ -1003,14 +989,14 @@ void UniversalQueueContext::RebuildCommandStreams()
     m_dePostambleCmdStream.CommitCommands(pCmdSpace);
     m_dePostambleCmdStream.End();
 
-    // Since the contents of the command stream have changed since last time, we need to force this stream to execute
-    // by not allowing the KMD to optimize-away this command stream the next time around.
+    // Since the contents of these command streams have changed since last time, we need to force these streams to
+    // execute by not allowing the KMD to optimize-away these command stream the next time around.
     m_deCmdStream.EnableDropIfSameContext(false);
-
-    // The per-submit command stream, CE preamble and CE/DE postambles must always execute. We cannot allow KMD to
-    // optimize-away these command streams.
-    m_perSubmitCmdStream.EnableDropIfSameContext(false);
     m_cePreambleCmdStream.EnableDropIfSameContext(false);
+
+    // The per-submit command stream and CE/DE postambles must always execute. We cannot allow KMD to optimize-away
+    // these command streams.
+    m_perSubmitCmdStream.EnableDropIfSameContext(false);
     m_cePostambleCmdStream.EnableDropIfSameContext(false);
     m_dePostambleCmdStream.EnableDropIfSameContext(false);
 

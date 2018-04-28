@@ -43,306 +43,306 @@ namespace Pal
 namespace Linux
 {
 // symbols from libdrm_amdgpu.so.1
-typedef int (*AmdgpuQueryHwIpInfo)(
+typedef int32 (*AmdgpuQueryHwIpInfo)(
             amdgpu_device_handle              hDevice,
-            unsigned                          type,
-            unsigned                          ipInstance,
+            uint32                            type,
+            uint32                            ipInstance,
             struct drm_amdgpu_info_hw_ip*     pInfo);
 
-typedef int (*AmdgpuBoVaOp)(
+typedef int32 (*AmdgpuBoVaOp)(
             amdgpu_bo_handle  hBuffer,
-            uint64_t          offset,
-            uint64_t          size,
-            uint64_t          address,
-            uint64_t          flags,
-            uint32_t          ops);
+            uint64            offset,
+            uint64            size,
+            uint64            address,
+            uint64            flags,
+            uint32            ops);
 
-typedef int (*AmdgpuBoVaOpRaw)(
+typedef int32 (*AmdgpuBoVaOpRaw)(
             amdgpu_device_handle  hDevice,
             amdgpu_bo_handle      hBuffer,
-            uint64_t              offset,
-            uint64_t              size,
-            uint64_t              address,
-            uint64_t              flags,
-            uint32_t              ops);
+            uint64                offset,
+            uint64                size,
+            uint64                address,
+            uint64                flags,
+            uint32                ops);
 
-typedef int (*AmdgpuCsCreateSemaphore)(
+typedef int32 (*AmdgpuCsCreateSemaphore)(
             amdgpu_semaphore_handle*  pSemaphore);
 
-typedef int (*AmdgpuCsSignalSemaphore)(
+typedef int32 (*AmdgpuCsSignalSemaphore)(
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_semaphore_handle   hSemaphore);
 
-typedef int (*AmdgpuCsWaitSemaphore)(
+typedef int32 (*AmdgpuCsWaitSemaphore)(
             amdgpu_context_handle     hConext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_semaphore_handle   hSemaphore);
 
-typedef int (*AmdgpuCsDestroySemaphore)(
+typedef int32 (*AmdgpuCsDestroySemaphore)(
             amdgpu_semaphore_handle   hSemaphore);
 
-typedef int (*AmdgpuCsCreateSem)(
+typedef int32 (*AmdgpuCsCreateSem)(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle*    pSemaphore);
 
-typedef int (*AmdgpuCsSignalSem)(
+typedef int32 (*AmdgpuCsSignalSem)(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_sem_handle         hSemaphore);
 
-typedef int (*AmdgpuCsWaitSem)(
+typedef int32 (*AmdgpuCsWaitSem)(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_sem_handle         hSemaphore);
 
-typedef int (*AmdgpuCsExportSem)(
+typedef int32 (*AmdgpuCsExportSem)(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle     hSemaphore,
-            int*                  pSharedFd);
+            int32*                pSharedFd);
 
-typedef int (*AmdgpuCsImportSem)(
+typedef int32 (*AmdgpuCsImportSem)(
             amdgpu_device_handle  hDevice,
-            int                   fd,
+            int32                 fd,
             amdgpu_sem_handle*    pSemaphore);
 
-typedef int (*AmdgpuCsDestroySem)(
+typedef int32 (*AmdgpuCsDestroySem)(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle     hSemaphore);
 
 typedef const char* (*AmdgpuGetMarketingName)(
             amdgpu_device_handle  hDevice);
 
-typedef int (*AmdgpuVaRangeFree)(
+typedef int32 (*AmdgpuVaRangeFree)(
             amdgpu_va_handle  hVaRange);
 
-typedef int (*AmdgpuVaRangeQuery)(
+typedef int32 (*AmdgpuVaRangeQuery)(
             amdgpu_device_handle      hDevice,
             enum amdgpu_gpu_va_range  type,
-            uint64_t*                 pStart,
-            uint64_t*                 pEnd);
+            uint64*                   pStart,
+            uint64*                   pEnd);
 
-typedef int (*AmdgpuVaRangeAlloc)(
+typedef int32 (*AmdgpuVaRangeAlloc)(
             amdgpu_device_handle      hDevice,
             enum amdgpu_gpu_va_range  vaRangeType,
-            uint64_t                  size,
-            uint64_t                  vaBaseAlignment,
-            uint64_t                  vaBaseRequired,
-            uint64_t*                 pVaAllocated,
+            uint64                    size,
+            uint64                    vaBaseAlignment,
+            uint64                    vaBaseRequired,
+            uint64*                   pVaAllocated,
             amdgpu_va_handle*         pVaRange,
-            uint64_t                  flags);
+            uint64                    flags);
 
-typedef int (*AmdgpuReadMmRegisters)(
+typedef int32 (*AmdgpuReadMmRegisters)(
             amdgpu_device_handle  hDevice,
-            unsigned              dwordOffset,
-            unsigned              count,
-            uint32_t              instance,
-            uint32_t              flags,
-            uint32_t*             pValues);
+            uint32                dwordOffset,
+            uint32                count,
+            uint32                instance,
+            uint32                flags,
+            uint32*               pValues);
 
-typedef int (*AmdgpuDeviceInitialize)(
+typedef int32 (*AmdgpuDeviceInitialize)(
             int                       fd,
-            uint32_t*                 pMajorVersion,
-            uint32_t*                 pMinorVersion,
+            uint32*                   pMajorVersion,
+            uint32*                   pMinorVersion,
             amdgpu_device_handle*     pDeviceHandle);
 
-typedef int (*AmdgpuDeviceDeinitialize)(
+typedef int32 (*AmdgpuDeviceDeinitialize)(
             amdgpu_device_handle  hDevice);
 
-typedef int (*AmdgpuBoAlloc)(
+typedef int32 (*AmdgpuBoAlloc)(
             amdgpu_device_handle              hDevice,
             struct amdgpu_bo_alloc_request*   pAllocBuffer,
             amdgpu_bo_handle*                 pBufferHandle);
 
-typedef int (*AmdgpuBoSetMetadata)(
+typedef int32 (*AmdgpuBoSetMetadata)(
             amdgpu_bo_handle              hBuffer,
             struct amdgpu_bo_metadata*    pInfo);
 
-typedef int (*AmdgpuBoQueryInfo)(
+typedef int32 (*AmdgpuBoQueryInfo)(
             amdgpu_bo_handle          hBuffer,
             struct amdgpu_bo_info*    pInfo);
 
-typedef int (*AmdgpuBoExport)(
+typedef int32 (*AmdgpuBoExport)(
             amdgpu_bo_handle              hBuffer,
             enum amdgpu_bo_handle_type    type,
-            uint32_t*                     pFd);
+            uint32*                       pFd);
 
-typedef int (*AmdgpuBoImport)(
+typedef int32 (*AmdgpuBoImport)(
             amdgpu_device_handle              hDevice,
             enum amdgpu_bo_handle_type        type,
-            uint32_t                          fd,
+            uint32                            fd,
             struct amdgpu_bo_import_result*   pOutput);
 
-typedef int (*AmdgpuCreateBoFromUserMem)(
+typedef int32 (*AmdgpuCreateBoFromUserMem)(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
-            uint64_t              size,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle);
 
-typedef int (*AmdgpuCreateBoFromPhysMem)(
+typedef int32 (*AmdgpuCreateBoFromPhysMem)(
             amdgpu_device_handle  hDevice,
-            uint64_t              physAddress,
-            uint64_t              size,
+            uint64                physAddress,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle);
 
-typedef int (*AmdgpuFindBoByCpuMapping)(
+typedef int32 (*AmdgpuFindBoByCpuMapping)(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
-            uint64_t              size,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle,
-            uint64_t*             pOffsetInBuffer);
+            uint64*               pOffsetInBuffer);
 
-typedef int (*AmdgpuBoFree)(
+typedef int32 (*AmdgpuBoFree)(
             amdgpu_bo_handle  hBuffer);
 
-typedef int (*AmdgpuBoCpuMap)(
+typedef int32 (*AmdgpuBoCpuMap)(
             amdgpu_bo_handle  hBuffer,
             void**            ppCpuAddress);
 
-typedef int (*AmdgpuBoCpuUnmap)(
+typedef int32 (*AmdgpuBoCpuUnmap)(
             amdgpu_bo_handle  hBuffer);
 
-typedef int (*AmdgpuBoWaitForIdle)(
+typedef int32 (*AmdgpuBoWaitForIdle)(
             amdgpu_bo_handle  hBuffer,
-            uint64_t          timeoutInNs,
+            uint64            timeoutInNs,
             bool*             pBufferBusy);
 
-typedef int (*AmdgpuBoListCreate)(
+typedef int32 (*AmdgpuBoListCreate)(
             amdgpu_device_handle      hDevice,
-            uint32_t                  numberOfResources,
+            uint32                    numberOfResources,
             amdgpu_bo_handle*         pResources,
-            uint8_t*                  pResourcePriorities,
+            uint8*                    pResourcePriorities,
             amdgpu_bo_list_handle*    pBoListHandle);
 
-typedef int (*AmdgpuBoListDestroy)(
+typedef int32 (*AmdgpuBoListDestroy)(
             amdgpu_bo_list_handle     hBoList);
 
-typedef int (*AmdgpuCsCtxCreate)(
+typedef int32 (*AmdgpuCsCtxCreate)(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle*    pContextHandle);
 
-typedef int (*AmdgpuCsCtxFree)(
+typedef int32 (*AmdgpuCsCtxFree)(
             amdgpu_context_handle     hContext);
 
-typedef int (*AmdgpuCsSubmit)(
+typedef int32 (*AmdgpuCsSubmit)(
             amdgpu_context_handle         hContext,
-            uint64_t                      flags,
+            uint64                        flags,
             struct amdgpu_cs_request*     pIbsRequest,
-            uint32_t                      numberOfRequests);
+            uint32                        numberOfRequests);
 
-typedef int (*AmdgpuCsQueryFenceStatus)(
+typedef int32 (*AmdgpuCsQueryFenceStatus)(
             struct amdgpu_cs_fence*   pFence,
-            uint64_t                  timeoutInNs,
-            uint64_t                  flags,
-            uint32_t*                 pExpired);
+            uint64                    timeoutInNs,
+            uint64                    flags,
+            uint32*                   pExpired);
 
-typedef int (*AmdgpuCsWaitFences)(
+typedef int32 (*AmdgpuCsWaitFences)(
             struct amdgpu_cs_fence*   pFences,
-            uint32_t                  fenceCount,
+            uint32                    fenceCount,
             bool                      waitAll,
-            uint64_t                  timeoutInNs,
-            uint32_t*                 pStatus,
-            uint32_t*                 pFirst);
+            uint64                    timeoutInNs,
+            uint32*                   pStatus,
+            uint32*                   pFirst);
 
-typedef int (*AmdgpuQueryBufferSizeAlignment)(
+typedef int32 (*AmdgpuQueryBufferSizeAlignment)(
             amdgpu_device_handle                      hDevice,
             struct amdgpu_buffer_size_alignments*     pInfo);
 
-typedef int (*AmdgpuQueryFirmwareVersion)(
+typedef int32 (*AmdgpuQueryFirmwareVersion)(
             amdgpu_device_handle  hDevice,
-            unsigned              fwType,
-            unsigned              ipInstance,
-            unsigned              index,
-            uint32_t*             pVersion,
-            uint32_t*             pFeature);
+            uint32                fwType,
+            uint32                ipInstance,
+            uint32                index,
+            uint32*               pVersion,
+            uint32*               pFeature);
 
-typedef int (*AmdgpuQueryHwIpCount)(
+typedef int32 (*AmdgpuQueryHwIpCount)(
             amdgpu_device_handle  hDevice,
-            unsigned              type,
-            uint32_t*             pCount);
+            uint32                type,
+            uint32*               pCount);
 
-typedef int (*AmdgpuQueryHeapInfo)(
+typedef int32 (*AmdgpuQueryHeapInfo)(
             amdgpu_device_handle      hDevice,
-            uint32_t                  heap,
-            uint32_t                  flags,
+            uint32                    heap,
+            uint32                    flags,
             struct amdgpu_heap_info*  pInfo);
 
-typedef int (*AmdgpuQueryGpuInfo)(
+typedef int32 (*AmdgpuQueryGpuInfo)(
             amdgpu_device_handle      hDevice,
             struct amdgpu_gpu_info*   pInfo);
 
-typedef int (*AmdgpuQuerySensorInfo)(
+typedef int32 (*AmdgpuQuerySensorInfo)(
             amdgpu_device_handle  hDevice,
-            unsigned              sensor_type,
-            unsigned              size,
+            uint32                sensor_type,
+            uint32                size,
             void*                 value);
 
-typedef int (*AmdgpuQueryInfo)(
+typedef int32 (*AmdgpuQueryInfo)(
             amdgpu_device_handle  hDevice,
-            unsigned              infoId,
-            unsigned              size,
+            uint32                infoId,
+            uint32                size,
             void*                 pValue);
 
-typedef int (*AmdgpuQueryPrivateAperture)(
+typedef int32 (*AmdgpuQueryPrivateAperture)(
             amdgpu_device_handle  hDevice,
-            uint64_t*             pStartVa,
-            uint64_t*             pEndVa);
+            uint64*               pStartVa,
+            uint64*               pEndVa);
 
-typedef int (*AmdgpuQuerySharedAperture)(
+typedef int32 (*AmdgpuQuerySharedAperture)(
             amdgpu_device_handle  hDevice,
-            uint64_t*             pStartVa,
-            uint64_t*             pEndVa);
+            uint64*               pStartVa,
+            uint64*               pEndVa);
 
-typedef int (*AmdgpuBoGetPhysAddress)(
+typedef int32 (*AmdgpuBoGetPhysAddress)(
             amdgpu_bo_handle  hBuffer,
-            uint64_t*         pPhysAddress);
+            uint64*           pPhysAddress);
 
-typedef int (*AmdgpuCsReservedVmid)(
+typedef int32 (*AmdgpuCsReservedVmid)(
             amdgpu_device_handle  hDevice);
 
-typedef int (*AmdgpuCsUnreservedVmid)(
+typedef int32 (*AmdgpuCsUnreservedVmid)(
             amdgpu_device_handle  hDevice);
 
-typedef int (*AmdgpuCsCreateSyncobj)(
+typedef int32 (*AmdgpuCsCreateSyncobj)(
             amdgpu_device_handle  hDevice,
-            uint32_t*             pSyncObj);
+            uint32*               pSyncObj);
 
-typedef int (*AmdgpuCsCreateSyncobj2)(
+typedef int32 (*AmdgpuCsCreateSyncobj2)(
             amdgpu_device_handle  hDevice,
-            uint32_t              flags,
-            uint32_t*             pSyncObj);
+            uint32                flags,
+            uint32*               pSyncObj);
 
-typedef int (*AmdgpuCsDestroySyncobj)(
+typedef int32 (*AmdgpuCsDestroySyncobj)(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj);
+            uint32                syncObj);
 
-typedef int (*AmdgpuCsExportSyncobj)(
+typedef int32 (*AmdgpuCsExportSyncobj)(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int*                  pSharedFd);
+            uint32                syncObj,
+            int32*                pSharedFd);
 
-typedef int (*AmdgpuCsImportSyncobj)(
+typedef int32 (*AmdgpuCsImportSyncobj)(
             amdgpu_device_handle  hDevice,
-            int                   sharedFd,
-            uint32_t*             pSyncObj);
+            int32                 sharedFd,
+            uint32*               pSyncObj);
 
-typedef int (*AmdgpuCsSubmitRaw)(
+typedef int32 (*AmdgpuCsSubmitRaw)(
             amdgpu_device_handle          hDevice,
             amdgpu_context_handle         hContext,
             amdgpu_bo_list_handle         hBuffer,
-            int                           numChunks,
+            int32                         numChunks,
             struct drm_amdgpu_cs_chunk*   pChunks,
-            uint64_t*                     pSeqNo);
+            uint64*                       pSeqNo);
 
 typedef void (*AmdgpuCsChunkFenceToDep)(
             struct amdgpu_cs_fence*           pFence,
@@ -352,53 +352,53 @@ typedef void (*AmdgpuCsChunkFenceInfoToData)(
             struct amdgpu_cs_fence_info       fenceInfo,
             struct drm_amdgpu_cs_chunk_data*  pData);
 
-typedef int (*AmdgpuCsSyncobjImportSyncFile)(
+typedef int32 (*AmdgpuCsSyncobjImportSyncFile)(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int                   syncFileFd);
+            uint32                syncObj,
+            int32                 syncFileFd);
 
-typedef int (*AmdgpuCsSyncobjExportSyncFile)(
+typedef int32 (*AmdgpuCsSyncobjExportSyncFile)(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int*                  pSyncFileFd);
+            uint32                syncObj,
+            int32*                pSyncFileFd);
 
-typedef int (*AmdgpuCsSyncobjWait)(
+typedef int32 (*AmdgpuCsSyncobjWait)(
             amdgpu_device_handle  hDevice,
-            uint32_t*             pHandles,
-            unsigned              numHandles,
-            int64_t               timeoutInNs,
-            unsigned              flags,
-            uint32_t*             pFirstSignaled);
+            uint32*               pHandles,
+            uint32                numHandles,
+            int64                 timeoutInNs,
+            uint32                flags,
+            uint32*               pFirstSignaled);
 
-typedef int (*AmdgpuCsSyncobjReset)(
+typedef int32 (*AmdgpuCsSyncobjReset)(
             amdgpu_device_handle  hDevice,
-            const uint32_t*       pHandles,
-            uint32_t              numHandles);
+            const uint32*         pHandles,
+            uint32                numHandles);
 
-typedef int (*AmdgpuCsSyncobjSignal)(
+typedef int32 (*AmdgpuCsSyncobjSignal)(
             amdgpu_device_handle  hDevice,
-            const uint32_t*       pHandles,
-            uint32_t              numHandles);
+            const uint32*         pHandles,
+            uint32                numHandles);
 
-typedef int (*AmdgpuCsCtxCreate2)(
+typedef int32 (*AmdgpuCsCtxCreate2)(
             amdgpu_device_handle      hDevice,
-            uint32_t                  priority,
+            uint32                    priority,
             amdgpu_context_handle*    pContextHandle);
 
 // symbols from libdrm.so.2
-typedef int (*DrmGetNodeTypeFromFd)(
+typedef int32 (*DrmGetNodeTypeFromFd)(
             int   fd);
 
 typedef char* (*DrmGetRenderDeviceNameFromFd)(
             int   fd);
 
-typedef int (*DrmGetDevices)(
+typedef int32 (*DrmGetDevices)(
             drmDevicePtr*     pDevices,
-            int               maxDevices);
+            int32             maxDevices);
 
 typedef void (*DrmFreeDevices)(
             drmDevicePtr*     pDevices,
-            int               count);
+            int32             count);
 
 typedef char* (*DrmGetBusid)(
             int   fd);
@@ -414,20 +414,36 @@ typedef void (*DrmModeFreeResources)(
 
 typedef drmModeConnectorPtr (*DrmModeGetConnector)(
             int       fd,
-            uint32_t  connectorId);
+            uint32    connectorId);
 
 typedef void (*DrmModeFreeConnector)(
             drmModeConnectorPtr   ptr);
 
-typedef int (*DrmGetCap)(
-            int           fd,
-            uint64_t      capability,
-            uint64_t*     pValue);
+typedef int32 (*DrmGetCap)(
+            int       fd,
+            uint64    capability,
+            uint64*   pValue);
 
-typedef int (*DrmSyncobjCreate)(
-            int           fd,
-            uint32_t      flags,
-            uint32_t*     pHandle);
+typedef int32 (*DrmSyncobjCreate)(
+            int       fd,
+            uint32    flags,
+            uint32*   pHandle);
+
+typedef void (*DrmModeFreePlane)(
+            drmModePlanePtr   pPlanePtr);
+
+typedef void (*DrmModeFreePlaneResources)(
+            drmModePlaneResPtr    pPlaneResPtr);
+
+typedef drmModePlaneResPtr (*DrmModeGetPlaneResources)(
+            int32     fd);
+
+typedef drmModePlanePtr (*DrmModeGetPlane)(
+            int32     fd,
+            uint32    planeId);
+
+typedef int32 (*DrmDropMaster)(
+            int32     fd);
 
 enum DrmLoaderLibraries : uint32
 {
@@ -900,6 +916,36 @@ struct DrmLoaderFuncs
         return (pfnDrmSyncobjCreate != nullptr);
     }
 
+    DrmModeFreePlane                  pfnDrmModeFreePlane;
+    bool pfnDrmModeFreePlaneisValid() const
+    {
+        return (pfnDrmModeFreePlane != nullptr);
+    }
+
+    DrmModeFreePlaneResources         pfnDrmModeFreePlaneResources;
+    bool pfnDrmModeFreePlaneResourcesisValid() const
+    {
+        return (pfnDrmModeFreePlaneResources != nullptr);
+    }
+
+    DrmModeGetPlaneResources          pfnDrmModeGetPlaneResources;
+    bool pfnDrmModeGetPlaneResourcesisValid() const
+    {
+        return (pfnDrmModeGetPlaneResources != nullptr);
+    }
+
+    DrmModeGetPlane                   pfnDrmModeGetPlane;
+    bool pfnDrmModeGetPlaneisValid() const
+    {
+        return (pfnDrmModeGetPlane != nullptr);
+    }
+
+    DrmDropMaster                     pfnDrmDropMaster;
+    bool pfnDrmDropMasterisValid() const
+    {
+        return (pfnDrmDropMaster != nullptr);
+    }
+
 };
 
 // =====================================================================================================================
@@ -915,10 +961,10 @@ public:
 
     void Init(const char* pPath);
 
-    int pfnAmdgpuQueryHwIpInfo(
+    int32 pfnAmdgpuQueryHwIpInfo(
             amdgpu_device_handle              hDevice,
-            unsigned                          type,
-            unsigned                          ipInstance,
+            uint32                            type,
+            uint32                            ipInstance,
             struct drm_amdgpu_info_hw_ip*     pInfo) const;
 
     bool pfnAmdgpuQueryHwIpInfoisValid() const
@@ -926,34 +972,34 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryHwIpInfo != nullptr);
     }
 
-    int pfnAmdgpuBoVaOp(
+    int32 pfnAmdgpuBoVaOp(
             amdgpu_bo_handle  hBuffer,
-            uint64_t          offset,
-            uint64_t          size,
-            uint64_t          address,
-            uint64_t          flags,
-            uint32_t          ops) const;
+            uint64            offset,
+            uint64            size,
+            uint64            address,
+            uint64            flags,
+            uint32            ops) const;
 
     bool pfnAmdgpuBoVaOpisValid() const
     {
         return (m_pFuncs->pfnAmdgpuBoVaOp != nullptr);
     }
 
-    int pfnAmdgpuBoVaOpRaw(
+    int32 pfnAmdgpuBoVaOpRaw(
             amdgpu_device_handle  hDevice,
             amdgpu_bo_handle      hBuffer,
-            uint64_t              offset,
-            uint64_t              size,
-            uint64_t              address,
-            uint64_t              flags,
-            uint32_t              ops) const;
+            uint64                offset,
+            uint64                size,
+            uint64                address,
+            uint64                flags,
+            uint32                ops) const;
 
     bool pfnAmdgpuBoVaOpRawisValid() const
     {
         return (m_pFuncs->pfnAmdgpuBoVaOpRaw != nullptr);
     }
 
-    int pfnAmdgpuCsCreateSemaphore(
+    int32 pfnAmdgpuCsCreateSemaphore(
             amdgpu_semaphore_handle*  pSemaphore) const;
 
     bool pfnAmdgpuCsCreateSemaphoreisValid() const
@@ -961,11 +1007,11 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCreateSemaphore != nullptr);
     }
 
-    int pfnAmdgpuCsSignalSemaphore(
+    int32 pfnAmdgpuCsSignalSemaphore(
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_semaphore_handle   hSemaphore) const;
 
     bool pfnAmdgpuCsSignalSemaphoreisValid() const
@@ -973,11 +1019,11 @@ public:
         return (m_pFuncs->pfnAmdgpuCsSignalSemaphore != nullptr);
     }
 
-    int pfnAmdgpuCsWaitSemaphore(
+    int32 pfnAmdgpuCsWaitSemaphore(
             amdgpu_context_handle     hConext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_semaphore_handle   hSemaphore) const;
 
     bool pfnAmdgpuCsWaitSemaphoreisValid() const
@@ -985,7 +1031,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsWaitSemaphore != nullptr);
     }
 
-    int pfnAmdgpuCsDestroySemaphore(
+    int32 pfnAmdgpuCsDestroySemaphore(
             amdgpu_semaphore_handle   hSemaphore) const;
 
     bool pfnAmdgpuCsDestroySemaphoreisValid() const
@@ -993,7 +1039,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsDestroySemaphore != nullptr);
     }
 
-    int pfnAmdgpuCsCreateSem(
+    int32 pfnAmdgpuCsCreateSem(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle*    pSemaphore) const;
 
@@ -1002,12 +1048,12 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCreateSem != nullptr);
     }
 
-    int pfnAmdgpuCsSignalSem(
+    int32 pfnAmdgpuCsSignalSem(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_sem_handle         hSemaphore) const;
 
     bool pfnAmdgpuCsSignalSemisValid() const
@@ -1015,12 +1061,12 @@ public:
         return (m_pFuncs->pfnAmdgpuCsSignalSem != nullptr);
     }
 
-    int pfnAmdgpuCsWaitSem(
+    int32 pfnAmdgpuCsWaitSem(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle     hContext,
-            uint32_t                  ipType,
-            uint32_t                  ipInstance,
-            uint32_t                  ring,
+            uint32                    ipType,
+            uint32                    ipInstance,
+            uint32                    ring,
             amdgpu_sem_handle         hSemaphore) const;
 
     bool pfnAmdgpuCsWaitSemisValid() const
@@ -1028,19 +1074,19 @@ public:
         return (m_pFuncs->pfnAmdgpuCsWaitSem != nullptr);
     }
 
-    int pfnAmdgpuCsExportSem(
+    int32 pfnAmdgpuCsExportSem(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle     hSemaphore,
-            int*                  pSharedFd) const;
+            int32*                pSharedFd) const;
 
     bool pfnAmdgpuCsExportSemisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsExportSem != nullptr);
     }
 
-    int pfnAmdgpuCsImportSem(
+    int32 pfnAmdgpuCsImportSem(
             amdgpu_device_handle  hDevice,
-            int                   fd,
+            int32                 fd,
             amdgpu_sem_handle*    pSemaphore) const;
 
     bool pfnAmdgpuCsImportSemisValid() const
@@ -1048,7 +1094,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsImportSem != nullptr);
     }
 
-    int pfnAmdgpuCsDestroySem(
+    int32 pfnAmdgpuCsDestroySem(
             amdgpu_device_handle  hDevice,
             amdgpu_sem_handle     hSemaphore) const;
 
@@ -1065,7 +1111,7 @@ public:
         return (m_pFuncs->pfnAmdgpuGetMarketingName != nullptr);
     }
 
-    int pfnAmdgpuVaRangeFree(
+    int32 pfnAmdgpuVaRangeFree(
             amdgpu_va_handle  hVaRange) const;
 
     bool pfnAmdgpuVaRangeFreeisValid() const
@@ -1073,49 +1119,49 @@ public:
         return (m_pFuncs->pfnAmdgpuVaRangeFree != nullptr);
     }
 
-    int pfnAmdgpuVaRangeQuery(
+    int32 pfnAmdgpuVaRangeQuery(
             amdgpu_device_handle      hDevice,
             enum amdgpu_gpu_va_range  type,
-            uint64_t*                 pStart,
-            uint64_t*                 pEnd) const;
+            uint64*                   pStart,
+            uint64*                   pEnd) const;
 
     bool pfnAmdgpuVaRangeQueryisValid() const
     {
         return (m_pFuncs->pfnAmdgpuVaRangeQuery != nullptr);
     }
 
-    int pfnAmdgpuVaRangeAlloc(
+    int32 pfnAmdgpuVaRangeAlloc(
             amdgpu_device_handle      hDevice,
             enum amdgpu_gpu_va_range  vaRangeType,
-            uint64_t                  size,
-            uint64_t                  vaBaseAlignment,
-            uint64_t                  vaBaseRequired,
-            uint64_t*                 pVaAllocated,
+            uint64                    size,
+            uint64                    vaBaseAlignment,
+            uint64                    vaBaseRequired,
+            uint64*                   pVaAllocated,
             amdgpu_va_handle*         pVaRange,
-            uint64_t                  flags) const;
+            uint64                    flags) const;
 
     bool pfnAmdgpuVaRangeAllocisValid() const
     {
         return (m_pFuncs->pfnAmdgpuVaRangeAlloc != nullptr);
     }
 
-    int pfnAmdgpuReadMmRegisters(
+    int32 pfnAmdgpuReadMmRegisters(
             amdgpu_device_handle  hDevice,
-            unsigned              dwordOffset,
-            unsigned              count,
-            uint32_t              instance,
-            uint32_t              flags,
-            uint32_t*             pValues) const;
+            uint32                dwordOffset,
+            uint32                count,
+            uint32                instance,
+            uint32                flags,
+            uint32*               pValues) const;
 
     bool pfnAmdgpuReadMmRegistersisValid() const
     {
         return (m_pFuncs->pfnAmdgpuReadMmRegisters != nullptr);
     }
 
-    int pfnAmdgpuDeviceInitialize(
+    int32 pfnAmdgpuDeviceInitialize(
             int                       fd,
-            uint32_t*                 pMajorVersion,
-            uint32_t*                 pMinorVersion,
+            uint32*                   pMajorVersion,
+            uint32*                   pMinorVersion,
             amdgpu_device_handle*     pDeviceHandle) const;
 
     bool pfnAmdgpuDeviceInitializeisValid() const
@@ -1123,7 +1169,7 @@ public:
         return (m_pFuncs->pfnAmdgpuDeviceInitialize != nullptr);
     }
 
-    int pfnAmdgpuDeviceDeinitialize(
+    int32 pfnAmdgpuDeviceDeinitialize(
             amdgpu_device_handle  hDevice) const;
 
     bool pfnAmdgpuDeviceDeinitializeisValid() const
@@ -1131,7 +1177,7 @@ public:
         return (m_pFuncs->pfnAmdgpuDeviceDeinitialize != nullptr);
     }
 
-    int pfnAmdgpuBoAlloc(
+    int32 pfnAmdgpuBoAlloc(
             amdgpu_device_handle              hDevice,
             struct amdgpu_bo_alloc_request*   pAllocBuffer,
             amdgpu_bo_handle*                 pBufferHandle) const;
@@ -1141,7 +1187,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoAlloc != nullptr);
     }
 
-    int pfnAmdgpuBoSetMetadata(
+    int32 pfnAmdgpuBoSetMetadata(
             amdgpu_bo_handle              hBuffer,
             struct amdgpu_bo_metadata*    pInfo) const;
 
@@ -1150,7 +1196,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoSetMetadata != nullptr);
     }
 
-    int pfnAmdgpuBoQueryInfo(
+    int32 pfnAmdgpuBoQueryInfo(
             amdgpu_bo_handle          hBuffer,
             struct amdgpu_bo_info*    pInfo) const;
 
@@ -1159,20 +1205,20 @@ public:
         return (m_pFuncs->pfnAmdgpuBoQueryInfo != nullptr);
     }
 
-    int pfnAmdgpuBoExport(
+    int32 pfnAmdgpuBoExport(
             amdgpu_bo_handle              hBuffer,
             enum amdgpu_bo_handle_type    type,
-            uint32_t*                     pFd) const;
+            uint32*                       pFd) const;
 
     bool pfnAmdgpuBoExportisValid() const
     {
         return (m_pFuncs->pfnAmdgpuBoExport != nullptr);
     }
 
-    int pfnAmdgpuBoImport(
+    int32 pfnAmdgpuBoImport(
             amdgpu_device_handle              hDevice,
             enum amdgpu_bo_handle_type        type,
-            uint32_t                          fd,
+            uint32                            fd,
             struct amdgpu_bo_import_result*   pOutput) const;
 
     bool pfnAmdgpuBoImportisValid() const
@@ -1180,10 +1226,10 @@ public:
         return (m_pFuncs->pfnAmdgpuBoImport != nullptr);
     }
 
-    int pfnAmdgpuCreateBoFromUserMem(
+    int32 pfnAmdgpuCreateBoFromUserMem(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
-            uint64_t              size,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle) const;
 
     bool pfnAmdgpuCreateBoFromUserMemisValid() const
@@ -1191,10 +1237,10 @@ public:
         return (m_pFuncs->pfnAmdgpuCreateBoFromUserMem != nullptr);
     }
 
-    int pfnAmdgpuCreateBoFromPhysMem(
+    int32 pfnAmdgpuCreateBoFromPhysMem(
             amdgpu_device_handle  hDevice,
-            uint64_t              physAddress,
-            uint64_t              size,
+            uint64                physAddress,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle) const;
 
     bool pfnAmdgpuCreateBoFromPhysMemisValid() const
@@ -1202,19 +1248,19 @@ public:
         return (m_pFuncs->pfnAmdgpuCreateBoFromPhysMem != nullptr);
     }
 
-    int pfnAmdgpuFindBoByCpuMapping(
+    int32 pfnAmdgpuFindBoByCpuMapping(
             amdgpu_device_handle  hDevice,
             void*                 pCpuAddress,
-            uint64_t              size,
+            uint64                size,
             amdgpu_bo_handle*     pBufferHandle,
-            uint64_t*             pOffsetInBuffer) const;
+            uint64*               pOffsetInBuffer) const;
 
     bool pfnAmdgpuFindBoByCpuMappingisValid() const
     {
         return (m_pFuncs->pfnAmdgpuFindBoByCpuMapping != nullptr);
     }
 
-    int pfnAmdgpuBoFree(
+    int32 pfnAmdgpuBoFree(
             amdgpu_bo_handle  hBuffer) const;
 
     bool pfnAmdgpuBoFreeisValid() const
@@ -1222,7 +1268,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoFree != nullptr);
     }
 
-    int pfnAmdgpuBoCpuMap(
+    int32 pfnAmdgpuBoCpuMap(
             amdgpu_bo_handle  hBuffer,
             void**            ppCpuAddress) const;
 
@@ -1231,7 +1277,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoCpuMap != nullptr);
     }
 
-    int pfnAmdgpuBoCpuUnmap(
+    int32 pfnAmdgpuBoCpuUnmap(
             amdgpu_bo_handle  hBuffer) const;
 
     bool pfnAmdgpuBoCpuUnmapisValid() const
@@ -1239,9 +1285,9 @@ public:
         return (m_pFuncs->pfnAmdgpuBoCpuUnmap != nullptr);
     }
 
-    int pfnAmdgpuBoWaitForIdle(
+    int32 pfnAmdgpuBoWaitForIdle(
             amdgpu_bo_handle  hBuffer,
-            uint64_t          timeoutInNs,
+            uint64            timeoutInNs,
             bool*             pBufferBusy) const;
 
     bool pfnAmdgpuBoWaitForIdleisValid() const
@@ -1249,11 +1295,11 @@ public:
         return (m_pFuncs->pfnAmdgpuBoWaitForIdle != nullptr);
     }
 
-    int pfnAmdgpuBoListCreate(
+    int32 pfnAmdgpuBoListCreate(
             amdgpu_device_handle      hDevice,
-            uint32_t                  numberOfResources,
+            uint32                    numberOfResources,
             amdgpu_bo_handle*         pResources,
-            uint8_t*                  pResourcePriorities,
+            uint8*                    pResourcePriorities,
             amdgpu_bo_list_handle*    pBoListHandle) const;
 
     bool pfnAmdgpuBoListCreateisValid() const
@@ -1261,7 +1307,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoListCreate != nullptr);
     }
 
-    int pfnAmdgpuBoListDestroy(
+    int32 pfnAmdgpuBoListDestroy(
             amdgpu_bo_list_handle     hBoList) const;
 
     bool pfnAmdgpuBoListDestroyisValid() const
@@ -1269,7 +1315,7 @@ public:
         return (m_pFuncs->pfnAmdgpuBoListDestroy != nullptr);
     }
 
-    int pfnAmdgpuCsCtxCreate(
+    int32 pfnAmdgpuCsCtxCreate(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle*    pContextHandle) const;
 
@@ -1278,7 +1324,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCtxCreate != nullptr);
     }
 
-    int pfnAmdgpuCsCtxFree(
+    int32 pfnAmdgpuCsCtxFree(
             amdgpu_context_handle     hContext) const;
 
     bool pfnAmdgpuCsCtxFreeisValid() const
@@ -1286,42 +1332,42 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCtxFree != nullptr);
     }
 
-    int pfnAmdgpuCsSubmit(
+    int32 pfnAmdgpuCsSubmit(
             amdgpu_context_handle         hContext,
-            uint64_t                      flags,
+            uint64                        flags,
             struct amdgpu_cs_request*     pIbsRequest,
-            uint32_t                      numberOfRequests) const;
+            uint32                        numberOfRequests) const;
 
     bool pfnAmdgpuCsSubmitisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSubmit != nullptr);
     }
 
-    int pfnAmdgpuCsQueryFenceStatus(
+    int32 pfnAmdgpuCsQueryFenceStatus(
             struct amdgpu_cs_fence*   pFence,
-            uint64_t                  timeoutInNs,
-            uint64_t                  flags,
-            uint32_t*                 pExpired) const;
+            uint64                    timeoutInNs,
+            uint64                    flags,
+            uint32*                   pExpired) const;
 
     bool pfnAmdgpuCsQueryFenceStatusisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsQueryFenceStatus != nullptr);
     }
 
-    int pfnAmdgpuCsWaitFences(
+    int32 pfnAmdgpuCsWaitFences(
             struct amdgpu_cs_fence*   pFences,
-            uint32_t                  fenceCount,
+            uint32                    fenceCount,
             bool                      waitAll,
-            uint64_t                  timeoutInNs,
-            uint32_t*                 pStatus,
-            uint32_t*                 pFirst) const;
+            uint64                    timeoutInNs,
+            uint32*                   pStatus,
+            uint32*                   pFirst) const;
 
     bool pfnAmdgpuCsWaitFencesisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsWaitFences != nullptr);
     }
 
-    int pfnAmdgpuQueryBufferSizeAlignment(
+    int32 pfnAmdgpuQueryBufferSizeAlignment(
             amdgpu_device_handle                      hDevice,
             struct amdgpu_buffer_size_alignments*     pInfo) const;
 
@@ -1330,33 +1376,33 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryBufferSizeAlignment != nullptr);
     }
 
-    int pfnAmdgpuQueryFirmwareVersion(
+    int32 pfnAmdgpuQueryFirmwareVersion(
             amdgpu_device_handle  hDevice,
-            unsigned              fwType,
-            unsigned              ipInstance,
-            unsigned              index,
-            uint32_t*             pVersion,
-            uint32_t*             pFeature) const;
+            uint32                fwType,
+            uint32                ipInstance,
+            uint32                index,
+            uint32*               pVersion,
+            uint32*               pFeature) const;
 
     bool pfnAmdgpuQueryFirmwareVersionisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQueryFirmwareVersion != nullptr);
     }
 
-    int pfnAmdgpuQueryHwIpCount(
+    int32 pfnAmdgpuQueryHwIpCount(
             amdgpu_device_handle  hDevice,
-            unsigned              type,
-            uint32_t*             pCount) const;
+            uint32                type,
+            uint32*               pCount) const;
 
     bool pfnAmdgpuQueryHwIpCountisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQueryHwIpCount != nullptr);
     }
 
-    int pfnAmdgpuQueryHeapInfo(
+    int32 pfnAmdgpuQueryHeapInfo(
             amdgpu_device_handle      hDevice,
-            uint32_t                  heap,
-            uint32_t                  flags,
+            uint32                    heap,
+            uint32                    flags,
             struct amdgpu_heap_info*  pInfo) const;
 
     bool pfnAmdgpuQueryHeapInfoisValid() const
@@ -1364,7 +1410,7 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryHeapInfo != nullptr);
     }
 
-    int pfnAmdgpuQueryGpuInfo(
+    int32 pfnAmdgpuQueryGpuInfo(
             amdgpu_device_handle      hDevice,
             struct amdgpu_gpu_info*   pInfo) const;
 
@@ -1373,10 +1419,10 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryGpuInfo != nullptr);
     }
 
-    int pfnAmdgpuQuerySensorInfo(
+    int32 pfnAmdgpuQuerySensorInfo(
             amdgpu_device_handle  hDevice,
-            unsigned              sensor_type,
-            unsigned              size,
+            uint32                sensor_type,
+            uint32                size,
             void*                 value) const;
 
     bool pfnAmdgpuQuerySensorInfoisValid() const
@@ -1384,10 +1430,10 @@ public:
         return (m_pFuncs->pfnAmdgpuQuerySensorInfo != nullptr);
     }
 
-    int pfnAmdgpuQueryInfo(
+    int32 pfnAmdgpuQueryInfo(
             amdgpu_device_handle  hDevice,
-            unsigned              infoId,
-            unsigned              size,
+            uint32                infoId,
+            uint32                size,
             void*                 pValue) const;
 
     bool pfnAmdgpuQueryInfoisValid() const
@@ -1395,36 +1441,36 @@ public:
         return (m_pFuncs->pfnAmdgpuQueryInfo != nullptr);
     }
 
-    int pfnAmdgpuQueryPrivateAperture(
+    int32 pfnAmdgpuQueryPrivateAperture(
             amdgpu_device_handle  hDevice,
-            uint64_t*             pStartVa,
-            uint64_t*             pEndVa) const;
+            uint64*               pStartVa,
+            uint64*               pEndVa) const;
 
     bool pfnAmdgpuQueryPrivateApertureisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQueryPrivateAperture != nullptr);
     }
 
-    int pfnAmdgpuQuerySharedAperture(
+    int32 pfnAmdgpuQuerySharedAperture(
             amdgpu_device_handle  hDevice,
-            uint64_t*             pStartVa,
-            uint64_t*             pEndVa) const;
+            uint64*               pStartVa,
+            uint64*               pEndVa) const;
 
     bool pfnAmdgpuQuerySharedApertureisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQuerySharedAperture != nullptr);
     }
 
-    int pfnAmdgpuBoGetPhysAddress(
+    int32 pfnAmdgpuBoGetPhysAddress(
             amdgpu_bo_handle  hBuffer,
-            uint64_t*         pPhysAddress) const;
+            uint64*           pPhysAddress) const;
 
     bool pfnAmdgpuBoGetPhysAddressisValid() const
     {
         return (m_pFuncs->pfnAmdgpuBoGetPhysAddress != nullptr);
     }
 
-    int pfnAmdgpuCsReservedVmid(
+    int32 pfnAmdgpuCsReservedVmid(
             amdgpu_device_handle  hDevice) const;
 
     bool pfnAmdgpuCsReservedVmidisValid() const
@@ -1432,7 +1478,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsReservedVmid != nullptr);
     }
 
-    int pfnAmdgpuCsUnreservedVmid(
+    int32 pfnAmdgpuCsUnreservedVmid(
             amdgpu_device_handle  hDevice) const;
 
     bool pfnAmdgpuCsUnreservedVmidisValid() const
@@ -1440,61 +1486,61 @@ public:
         return (m_pFuncs->pfnAmdgpuCsUnreservedVmid != nullptr);
     }
 
-    int pfnAmdgpuCsCreateSyncobj(
+    int32 pfnAmdgpuCsCreateSyncobj(
             amdgpu_device_handle  hDevice,
-            uint32_t*             pSyncObj) const;
+            uint32*               pSyncObj) const;
 
     bool pfnAmdgpuCsCreateSyncobjisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsCreateSyncobj != nullptr);
     }
 
-    int pfnAmdgpuCsCreateSyncobj2(
+    int32 pfnAmdgpuCsCreateSyncobj2(
             amdgpu_device_handle  hDevice,
-            uint32_t              flags,
-            uint32_t*             pSyncObj) const;
+            uint32                flags,
+            uint32*               pSyncObj) const;
 
     bool pfnAmdgpuCsCreateSyncobj2isValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsCreateSyncobj2 != nullptr);
     }
 
-    int pfnAmdgpuCsDestroySyncobj(
+    int32 pfnAmdgpuCsDestroySyncobj(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj) const;
+            uint32                syncObj) const;
 
     bool pfnAmdgpuCsDestroySyncobjisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsDestroySyncobj != nullptr);
     }
 
-    int pfnAmdgpuCsExportSyncobj(
+    int32 pfnAmdgpuCsExportSyncobj(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int*                  pSharedFd) const;
+            uint32                syncObj,
+            int32*                pSharedFd) const;
 
     bool pfnAmdgpuCsExportSyncobjisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsExportSyncobj != nullptr);
     }
 
-    int pfnAmdgpuCsImportSyncobj(
+    int32 pfnAmdgpuCsImportSyncobj(
             amdgpu_device_handle  hDevice,
-            int                   sharedFd,
-            uint32_t*             pSyncObj) const;
+            int32                 sharedFd,
+            uint32*               pSyncObj) const;
 
     bool pfnAmdgpuCsImportSyncobjisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsImportSyncobj != nullptr);
     }
 
-    int pfnAmdgpuCsSubmitRaw(
+    int32 pfnAmdgpuCsSubmitRaw(
             amdgpu_device_handle          hDevice,
             amdgpu_context_handle         hContext,
             amdgpu_bo_list_handle         hBuffer,
-            int                           numChunks,
+            int32                         numChunks,
             struct drm_amdgpu_cs_chunk*   pChunks,
-            uint64_t*                     pSeqNo) const;
+            uint64*                       pSeqNo) const;
 
     bool pfnAmdgpuCsSubmitRawisValid() const
     {
@@ -1519,62 +1565,62 @@ public:
         return (m_pFuncs->pfnAmdgpuCsChunkFenceInfoToData != nullptr);
     }
 
-    int pfnAmdgpuCsSyncobjImportSyncFile(
+    int32 pfnAmdgpuCsSyncobjImportSyncFile(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int                   syncFileFd) const;
+            uint32                syncObj,
+            int32                 syncFileFd) const;
 
     bool pfnAmdgpuCsSyncobjImportSyncFileisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjImportSyncFile != nullptr);
     }
 
-    int pfnAmdgpuCsSyncobjExportSyncFile(
+    int32 pfnAmdgpuCsSyncobjExportSyncFile(
             amdgpu_device_handle  hDevice,
-            uint32_t              syncObj,
-            int*                  pSyncFileFd) const;
+            uint32                syncObj,
+            int32*                pSyncFileFd) const;
 
     bool pfnAmdgpuCsSyncobjExportSyncFileisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjExportSyncFile != nullptr);
     }
 
-    int pfnAmdgpuCsSyncobjWait(
+    int32 pfnAmdgpuCsSyncobjWait(
             amdgpu_device_handle  hDevice,
-            uint32_t*             pHandles,
-            unsigned              numHandles,
-            int64_t               timeoutInNs,
-            unsigned              flags,
-            uint32_t*             pFirstSignaled) const;
+            uint32*               pHandles,
+            uint32                numHandles,
+            int64                 timeoutInNs,
+            uint32                flags,
+            uint32*               pFirstSignaled) const;
 
     bool pfnAmdgpuCsSyncobjWaitisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjWait != nullptr);
     }
 
-    int pfnAmdgpuCsSyncobjReset(
+    int32 pfnAmdgpuCsSyncobjReset(
             amdgpu_device_handle  hDevice,
-            const uint32_t*       pHandles,
-            uint32_t              numHandles) const;
+            const uint32*         pHandles,
+            uint32                numHandles) const;
 
     bool pfnAmdgpuCsSyncobjResetisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjReset != nullptr);
     }
 
-    int pfnAmdgpuCsSyncobjSignal(
+    int32 pfnAmdgpuCsSyncobjSignal(
             amdgpu_device_handle  hDevice,
-            const uint32_t*       pHandles,
-            uint32_t              numHandles) const;
+            const uint32*         pHandles,
+            uint32                numHandles) const;
 
     bool pfnAmdgpuCsSyncobjSignalisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsSyncobjSignal != nullptr);
     }
 
-    int pfnAmdgpuCsCtxCreate2(
+    int32 pfnAmdgpuCsCtxCreate2(
             amdgpu_device_handle      hDevice,
-            uint32_t                  priority,
+            uint32                    priority,
             amdgpu_context_handle*    pContextHandle) const;
 
     bool pfnAmdgpuCsCtxCreate2isValid() const
@@ -1582,7 +1628,7 @@ public:
         return (m_pFuncs->pfnAmdgpuCsCtxCreate2 != nullptr);
     }
 
-    int pfnDrmGetNodeTypeFromFd(
+    int32 pfnDrmGetNodeTypeFromFd(
             int   fd) const;
 
     bool pfnDrmGetNodeTypeFromFdisValid() const
@@ -1598,9 +1644,9 @@ public:
         return (m_pFuncs->pfnDrmGetRenderDeviceNameFromFd != nullptr);
     }
 
-    int pfnDrmGetDevices(
+    int32 pfnDrmGetDevices(
             drmDevicePtr*     pDevices,
-            int               maxDevices) const;
+            int32             maxDevices) const;
 
     bool pfnDrmGetDevicesisValid() const
     {
@@ -1609,7 +1655,7 @@ public:
 
     void pfnDrmFreeDevices(
             drmDevicePtr*     pDevices,
-            int               count) const;
+            int32             count) const;
 
     bool pfnDrmFreeDevicesisValid() const
     {
@@ -1650,7 +1696,7 @@ public:
 
     drmModeConnectorPtr pfnDrmModeGetConnector(
             int       fd,
-            uint32_t  connectorId) const;
+            uint32    connectorId) const;
 
     bool pfnDrmModeGetConnectorisValid() const
     {
@@ -1665,24 +1711,65 @@ public:
         return (m_pFuncs->pfnDrmModeFreeConnector != nullptr);
     }
 
-    int pfnDrmGetCap(
-            int           fd,
-            uint64_t      capability,
-            uint64_t*     pValue) const;
+    int32 pfnDrmGetCap(
+            int       fd,
+            uint64    capability,
+            uint64*   pValue) const;
 
     bool pfnDrmGetCapisValid() const
     {
         return (m_pFuncs->pfnDrmGetCap != nullptr);
     }
 
-    int pfnDrmSyncobjCreate(
-            int           fd,
-            uint32_t      flags,
-            uint32_t*     pHandle) const;
+    int32 pfnDrmSyncobjCreate(
+            int       fd,
+            uint32    flags,
+            uint32*   pHandle) const;
 
     bool pfnDrmSyncobjCreateisValid() const
     {
         return (m_pFuncs->pfnDrmSyncobjCreate != nullptr);
+    }
+
+    void pfnDrmModeFreePlane(
+            drmModePlanePtr   pPlanePtr) const;
+
+    bool pfnDrmModeFreePlaneisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreePlane != nullptr);
+    }
+
+    void pfnDrmModeFreePlaneResources(
+            drmModePlaneResPtr    pPlaneResPtr) const;
+
+    bool pfnDrmModeFreePlaneResourcesisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreePlaneResources != nullptr);
+    }
+
+    drmModePlaneResPtr pfnDrmModeGetPlaneResources(
+            int32     fd) const;
+
+    bool pfnDrmModeGetPlaneResourcesisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetPlaneResources != nullptr);
+    }
+
+    drmModePlanePtr pfnDrmModeGetPlane(
+            int32     fd,
+            uint32    planeId) const;
+
+    bool pfnDrmModeGetPlaneisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetPlane != nullptr);
+    }
+
+    int32 pfnDrmDropMaster(
+            int32     fd) const;
+
+    bool pfnDrmDropMasterisValid() const
+    {
+        return (m_pFuncs->pfnDrmDropMaster != nullptr);
     }
 
 private:

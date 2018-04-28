@@ -29,9 +29,11 @@
 #include "core/os/lnx/lnxHeaders.h"
 #include "palSettingsFileMgr.h"
 #include "palHashMap.h"
+#include "palIntrusiveList.h"
 #include "core/os/lnx/drmLoader.h"
 #include "core/os/lnx/lnxPlatform.h"
 #include "core/os/lnx/lnxGpuMemory.h"
+#include "core/os/lnx/lnxScreen.h"
 #include "core/svmMgr.h"
 namespace Pal
 {
@@ -40,7 +42,6 @@ namespace Linux
 
 class Image;
 class WindowSystem;
-
 static constexpr size_t MaxBusIdStringLen         = 20;
 static constexpr size_t MaxNodeNameLen            = 32;
 static constexpr size_t MaxClockInfoCount         = 16;
@@ -89,6 +90,7 @@ public:
         const char*                 pSettingsPath,
         const char*                 pBusId,
         const char*                 pRenderNode,
+        const char*                 pPrimaryNode,
         uint32                      fileDescriptor,
         amdgpu_device_handle        hDevice,
         uint32                      drmMajorVer,
@@ -109,6 +111,16 @@ public:
     // NOTE: Part of the public IDevice interface.
     virtual Result GetProperties(
         DeviceProperties* pInfo) const override;
+
+    Result QueryScreenModesForConnector(
+        uint32      connectorId,
+        uint32*     pModeCount,
+        ScreenMode* pScreenModeList);
+
+    Result GetScreens(
+        uint32*  pScreenCount,
+        void*    pStorage[MaxScreens],
+        IScreen* pScreens[MaxScreens]);
 
     // NOTE: Part of the public IDevice interface.
     virtual Result AllocateGds(
@@ -721,6 +733,7 @@ private:
     Result InitGpuProperties();
     Result InitMemQueueInfo();
 
+    Result InitScreen();
 #if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();
     void InitGfx6CuMask();
@@ -748,6 +761,7 @@ private:
         amdgpu_va_handle        hVaRange);
 
     int32                 m_fileDescriptor;         // File descriptor used for communicating with the kernel driver
+    int32                 m_masterFileDescriptor;   // primary node file descriptor used for display subsystem.
     amdgpu_device_handle  m_hDevice;                // Device handle of the amdgpu
     amdgpu_context_handle m_hContext;               // Context handle of the amdgpu device
     const uint32          m_deviceNodeIndex;        // The device node index in the system, with this node, driver could

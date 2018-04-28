@@ -1118,29 +1118,29 @@ bool Gfx9MaskRam::SupportFastColorClear(
     const Pal::Image*const pParent    = image.Parent();
     const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
     const Gfx9PalSettings& settings   = GetGfx9Settings(device);
+    const GfxIpLevel       gfxLevel   = pParent->GetDevice()->ChipProperties().gfxLevel;
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
     const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
                                        settings.fastColorClearEnable : settings.fastColorClearOn3dEnable;
 
-    // Enable Fast Clear Support if some mips are not shader writable.
-    const bool allMipsShaderWritable = (pParent->IsShaderWritable() && (pParent->FirstShaderWritableMip() == 0));
-
-    // Enable Fast Clear if we are running Gfx10 even if it's shader writable. Also we need the panel to turn on
-    // DCC-on-UAV feature.
-    const bool enableDccForShaderWritable =
-        false;
+    // Sometimes shader-writeable surfaces still allow fast-clears...  check that status here
+    const bool allowShaderWriteableSurfaces =
+            // If ths image isn't shader-writeable at all, then there isn't a problem
+            ((pParent->IsShaderWritable() == false) ||
+            // Enable Fast Clear Support if some mips are not shader writable.
+             (pParent->FirstShaderWritableMip() != 0));
 
     // Only enable fast color clear iff:
     // - The Image's format supports it.
     // - The Image is a Color Target - (ensured by caller)
-    // - The Image is not usable for Shader Write Access
+    // - If the image is shader write-able, it's shader-writeable in a good way
     // - The Image is not linear tiled.
     PAL_ASSERT(pParent->IsRenderTarget());
 
-    return (fastColorClearEnable                       == true)             &&
-           ((allMipsShaderWritable == false) || enableDccForShaderWritable) &&
-           (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false)            &&
+    return (fastColorClearEnable                       == true)  &&
+           allowShaderWriteableSurfaces                          &&
+           (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false) &&
            (SupportsFastColorClear(createInfo.swizzledFormat.format));
 }
 

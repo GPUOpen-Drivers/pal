@@ -2007,7 +2007,7 @@ Result Device::CreateQueue(
 
     if (result == Result::Success)
     {
-        result = pQueue->AddToQueueLists();
+        result = pQueue->LateInit();
     }
 
     if (result == Result::Success)

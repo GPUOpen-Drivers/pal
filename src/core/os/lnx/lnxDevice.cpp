@@ -31,6 +31,7 @@
 #include "core/os/lnx/lnxGpuMemory.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxPlatform.h"
+#include "core/os/lnx/lnxScreen.h"
 #include "core/os/lnx/lnxSwapChain.h"
 #include "core/os/lnx/lnxWindowSystem.h"
 #include "core/os/lnx/lnxVamMgr.h"
@@ -41,6 +42,7 @@
 #include "palSysMemory.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
+#include "palIntrusiveListImpl.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
 #if PAL_BUILD_GFX9
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
@@ -128,7 +130,6 @@ static Result OpenAndInitializeDrmDevice(
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
-    uint32*                 pAttachedScreenCount,
     struct amdgpu_gpu_info* pGpuInfo,
     uint32*                 pCpVersion);
 
@@ -162,7 +163,6 @@ Result Device::Create(
                                                &hDevice,
                                                &drmMajorVer,
                                                &drmMinorVer,
-                                               &attachedScreenCount,
                                                &gpuInfo,
                                                &cpVersion);
 
@@ -198,6 +198,7 @@ Result Device::Create(
                                                                pSettingsPath,
                                                                pBusId,
                                                                pRenderNode,
+                                                               pPrimaryNode,
                                                                fileDescriptor,
                                                                hDevice,
                                                                drmMajorVer,
@@ -239,7 +240,6 @@ static Result OpenAndInitializeDrmDevice(
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
-    uint32*                 pAttachedScreenCount,
     struct amdgpu_gpu_info* pGpuInfo,
     uint32*                 pCpVersion)
 {
@@ -302,35 +302,6 @@ static Result OpenAndInitializeDrmDevice(
         }
     }
 
-    if (result == Result::Success)
-    {
-        fd = open(pPrimaryNode, O_RDWR | O_CLOEXEC | O_NONBLOCK);
-
-        if (fd >= 0)
-        {
-            drmModeRes *pResources = procs.pfnDrmModeGetResources(fd);
-            if (pResources != nullptr)
-            {
-                for (int i = 0; i < pResources->count_connectors; i++)
-                {
-                    drmModeConnector *pConnector = procs.pfnDrmModeGetConnector(fd, pResources->connectors[i]);
-                    if (pConnector == nullptr)
-                    {
-                        continue;
-                    }
-
-                    if ((pConnector->connection == DRM_MODE_CONNECTED) && (pConnector->count_modes > 0))
-                    {
-                        (*pAttachedScreenCount) ++;
-                    }
-                    procs.pfnDrmModeFreeConnector(pConnector);
-                }
-                procs.pfnDrmModeFreeResources(pResources);
-            }
-            close(fd);
-        }
-    }
-
     return result;
 }
 
@@ -340,6 +311,7 @@ Device::Device(
     const char*                 pSettingsPath,
     const char*                 pBusId,
     const char*                 pRenderNode,
+    const char*                 pPrimaryNode,
     uint32                      fileDescriptor,
     amdgpu_device_handle        hDevice,
     uint32                      drmMajorVer,
@@ -354,6 +326,7 @@ Device::Device(
     :
     Pal::Device(pPlatform, deviceIndex, attachedScreenCount, deviceSize, hwDeviceSizes, MaxSemaphoreCount),
     m_fileDescriptor(fileDescriptor),
+    m_masterFileDescriptor(0),
     m_hDevice(hDevice),
     m_hContext(nullptr),
     m_deviceNodeIndex(deviceNodeIndex),
@@ -372,13 +345,15 @@ Device::Device(
     m_supportQueuePriority(false),
     m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
-    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy())
+    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy()),
 #else
     m_drmProcs(pPlatform->GetDrmLoader().GetProcsTable())
 #endif
 {
     Util::Strncpy(m_busId, pBusId, MaxBusIdStringLen);
     Util::Strncpy(m_renderNodeName, pRenderNode, MaxNodeNameLen);
+    Util::Strncpy(m_primaryNodeName, pPrimaryNode, MaxNodeNameLen);
+
     memcpy(&m_gpuInfo, &gpuInfo, sizeof(gpuInfo));
 
     m_chipProperties.pciBusNumber      = pciBusInfo.bus;
@@ -413,6 +388,12 @@ Device::~Device()
     {
         close(m_fileDescriptor);
         m_fileDescriptor = 0;
+    }
+
+    if (m_masterFileDescriptor > 0)
+    {
+        close(m_masterFileDescriptor);
+        m_masterFileDescriptor = 0;
     }
 }
 
@@ -595,6 +576,9 @@ Result Device::EarlyInit(
     // internally unless we disable this swap chain optimization. In the long-term we should fix this to improve Linux
     // performance in applications that acquire their swap chain images early.
     m_disableSwapChainAcquireBeforeSignaling = true;
+
+    // get the attached screen count
+    GetScreens(&m_attachedScreenCount, nullptr, nullptr);
 
     return result;
 }
@@ -4583,6 +4567,145 @@ Result Device::UnmapSdiMemory(
                              Result::ErrorInvalidValue);
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::QueryScreenModesForConnector(
+    uint32      connectorId,
+    uint32*     pModeCount,
+    ScreenMode* pScreenModeList)
+{
+    Result result = Result::Success;
+
+    if (!m_masterFileDescriptor)
+    {
+        m_masterFileDescriptor = open(m_primaryNodeName, O_RDWR | O_CLOEXEC | O_NONBLOCK);
+        m_drmProcs.pfnDrmDropMaster(m_masterFileDescriptor);
+    }
+
+    drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_masterFileDescriptor, connectorId);
+    if (pConnector == nullptr)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        PAL_ASSERT((pConnector->connection == DRM_MODE_CONNECTED) && (pConnector->count_modes > -1));
+
+        if (pScreenModeList != nullptr)
+        {
+            uint32 loopCount = pConnector->count_modes;
+
+            if (*pModeCount < static_cast<uint32>(pConnector->count_modes))
+            {
+                result = Result::ErrorInvalidMemorySize;
+                loopCount = *pModeCount;
+            }
+
+            for (uint32 j = 0; j < loopCount; j++)
+            {
+                struct drm_mode_modeinfo* pMode =
+                    reinterpret_cast<struct drm_mode_modeinfo *>(&pConnector->modes[j]);
+
+                pScreenModeList[j].extent.width   = pMode->hdisplay;
+                pScreenModeList[j].extent.height  = pMode->vdisplay;
+                pScreenModeList[j].refreshRate    = pMode->vrefresh;
+                pScreenModeList[j].flags.u32All   = 0;
+            }
+
+            *pModeCount = loopCount;
+        }
+        else
+        {
+            *pModeCount = pConnector->count_modes;
+        }
+    }
+
+    m_drmProcs.pfnDrmModeFreeConnector(pConnector);
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::GetScreens(
+    uint32*  pScreenCount,
+    void*    pStorage[MaxScreens],
+    IScreen* pScreens[MaxScreens])
+
+{
+    Result result = Result::Success;
+
+    if (!m_masterFileDescriptor)
+    {
+        m_masterFileDescriptor = open(m_primaryNodeName, O_RDWR | O_CLOEXEC | O_NONBLOCK);
+        m_drmProcs.pfnDrmDropMaster(m_masterFileDescriptor);
+    }
+
+    PAL_ASSERT(m_masterFileDescriptor >= 0);
+    PAL_ASSERT(pScreenCount != nullptr);
+
+    // Enumerate connector and construct IScreen for any connected connector.
+    drmModeRes *pResources = m_drmProcs.pfnDrmModeGetResources(m_masterFileDescriptor);
+
+    if (pResources != nullptr)
+    {
+        uint32 screenCount = 0;
+
+        for (int32 i = 0; i < pResources->count_connectors; i++)
+        {
+            drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_masterFileDescriptor,
+                                                                             pResources->connectors[i]);
+            if (pConnector == nullptr)
+            {
+                continue;
+            }
+
+            if ((pConnector->connection == DRM_MODE_CONNECTED) && (pConnector->count_modes > 0))
+            {
+                if (pStorage != nullptr)
+                {
+                    // Find out the preferred mode
+                    uint32 preferredWidth  = 0;
+                    uint32 preferredHeight = 0;
+                    for (int32 j = 0; j < pConnector->count_modes; j++)
+                    {
+                        auto*const pMode = reinterpret_cast<drm_mode_modeinfo *>(&pConnector->modes[j]);
+
+                        if ((preferredWidth  < pMode->hdisplay) &&
+                            (preferredHeight < pMode->vdisplay))
+                        {
+                            preferredWidth  = pMode->hdisplay;
+                            preferredHeight = pMode->vdisplay;
+                        }
+                    }
+
+                    Extent2d physicalDimension = {pConnector->mmWidth, pConnector->mmHeight};
+                    Extent2d physicalResolution = {preferredWidth, preferredHeight};
+
+                    Screen* pScreen = PAL_PLACEMENT_NEW(pStorage[screenCount]) Screen(this,
+                            physicalDimension,
+                            physicalResolution,
+                            pResources->connectors[i]);
+
+                    result = pScreen->Init();
+
+                    if (result == Result::Success)
+                    {
+                        pScreens[screenCount] = pScreen;
+                    }
+                }
+                screenCount ++;
+            }
+            m_drmProcs.pfnDrmModeFreeConnector(pConnector);
+        }
+        m_drmProcs.pfnDrmModeFreeResources(pResources);
+
+        if (result == Result::Success)
+        {
+            *pScreenCount = screenCount;
+        }
+    }
     return result;
 }
 

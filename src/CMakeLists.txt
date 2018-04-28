@@ -308,6 +308,7 @@ if(PAL_BUILD_CORE)
             core/os/lnx/dri3/dri3WindowSystem.cpp
             core/os/lnx/dri3/dri3Loader.cpp
             core/os/lnx/lnxWindowSystem.cpp
+            core/os/lnx/lnxScreen.cpp
         )
         if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland support")

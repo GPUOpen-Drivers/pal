@@ -84,7 +84,7 @@ Result SettingsFileMgr<Allocator>::Init(
                                                  &lineLength);
             currLine[lineLength] = '\0';
 
-            if (lineLength > 0)
+            if ((readResult == Result::Success) && (lineLength > 0))
             {
                 // Now parse the line
                 uint32 idx = 0;

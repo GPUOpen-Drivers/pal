@@ -65,10 +65,10 @@ xcb_connection_t* Dri3LoaderFuncsProxy::pfnXGetXCBConnection(
     Display*  pDisplay
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_connection_t* pRet = m_pFuncs->pfnXGetXCBConnection(pDisplay);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_connection_t* pRet = m_pFuncs->pfnXGetXCBConnection(pDisplay);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XGetXCBConnection,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -85,10 +85,10 @@ uint32 Dri3LoaderFuncsProxy::pfnXcbGenerateId(
     xcb_connection_t*  pConnection
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    uint32 ret = m_pFuncs->pfnXcbGenerateId(pConnection);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const uint32 ret = m_pFuncs->pfnXcbGenerateId(pConnection);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGenerateId,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -108,13 +108,13 @@ xcb_special_event_t* Dri3LoaderFuncsProxy::pfnXcbRegisterForSpecialXge(
     uint32*            pStamp
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_special_event_t* pRet = m_pFuncs->pfnXcbRegisterForSpecialXge(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_special_event_t* pRet = m_pFuncs->pfnXcbRegisterForSpecialXge(pConnection,
                                                                       pExtensions,
                                                                       eventId,
                                                                       pStamp);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbRegisterForSpecialXge,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -135,11 +135,11 @@ void Dri3LoaderFuncsProxy::pfnXcbUnregisterForSpecialEvent(
     xcb_special_event_t*  pEvent
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXcbUnregisterForSpecialEvent(pConnection,
                                               pEvent);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbUnregisterForSpecialEvent,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -156,11 +156,11 @@ xcb_generic_event_t* Dri3LoaderFuncsProxy::pfnXcbWaitForSpecialEvent(
     xcb_special_event*  pEvent
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_generic_event_t* pRet = m_pFuncs->pfnXcbWaitForSpecialEvent(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_generic_event_t* pRet = m_pFuncs->pfnXcbWaitForSpecialEvent(pConnection,
                                                                     pEvent);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbWaitForSpecialEvent,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -179,11 +179,11 @@ const xcb_query_extension_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetExtensionData(
     xcb_extension_t*   pExtension
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    const xcb_query_extension_reply_t* pRet = m_pFuncs->pfnXcbGetExtensionData(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const const xcb_query_extension_reply_t* pRet = m_pFuncs->pfnXcbGetExtensionData(pConnection,
                                                                                pExtension);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGetExtensionData,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -202,11 +202,11 @@ void Dri3LoaderFuncsProxy::pfnXcbPrefetchExtensionData(
     xcb_extension_t*   pExtension
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXcbPrefetchExtensionData(pConnection,
                                           pExtension);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbPrefetchExtensionData,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -223,11 +223,11 @@ xcb_generic_error_t* Dri3LoaderFuncsProxy::pfnXcbRequestCheck(
     xcb_void_cookie_t  cookie
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_generic_error_t* pRet = m_pFuncs->pfnXcbRequestCheck(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_generic_error_t* pRet = m_pFuncs->pfnXcbRequestCheck(pConnection,
                                                              cookie);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbRequestCheck,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -246,11 +246,11 @@ xcb_get_geometry_cookie_t Dri3LoaderFuncsProxy::pfnXcbGetGeometry(
     xcb_drawable_t     drawable
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_get_geometry_cookie_t ret = m_pFuncs->pfnXcbGetGeometry(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_get_geometry_cookie_t ret = m_pFuncs->pfnXcbGetGeometry(pConnection,
                                                                 drawable);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGetGeometry,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -270,12 +270,12 @@ xcb_get_geometry_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetGeometryReply(
     xcb_generic_error_t**      ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_get_geometry_reply_t* pRet = m_pFuncs->pfnXcbGetGeometryReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_get_geometry_reply_t* pRet = m_pFuncs->pfnXcbGetGeometryReply(pConnection,
                                                                       cookie,
                                                                       ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGetGeometryReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -295,11 +295,11 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbFreePixmapChecked(
     xcb_pixmap_t       pixmap
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbFreePixmapChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbFreePixmapChecked(pConnection,
                                                               pixmap);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbFreePixmapChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -319,12 +319,12 @@ xcb_intern_atom_reply_t* Dri3LoaderFuncsProxy::pfnXcbInternAtomReply(
     xcb_generic_error_t**     ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_intern_atom_reply_t* pRet = m_pFuncs->pfnXcbInternAtomReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_intern_atom_reply_t* pRet = m_pFuncs->pfnXcbInternAtomReply(pConnection,
                                                                     cookie,
                                                                     ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbInternAtomReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -346,13 +346,13 @@ xcb_intern_atom_cookie_t Dri3LoaderFuncsProxy::pfnXcbInternAtom(
     const char*        pName
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_intern_atom_cookie_t ret = m_pFuncs->pfnXcbInternAtom(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_intern_atom_cookie_t ret = m_pFuncs->pfnXcbInternAtom(pConnection,
                                                               onlyIfExists,
                                                               nameLen,
                                                               pName);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbInternAtom,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -372,10 +372,10 @@ xcb_depth_iterator_t Dri3LoaderFuncsProxy::pfnXcbScreenAllowedDepthsIterator(
     const xcb_screen_t*  pScreen
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_depth_iterator_t ret = m_pFuncs->pfnXcbScreenAllowedDepthsIterator(pScreen);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_depth_iterator_t ret = m_pFuncs->pfnXcbScreenAllowedDepthsIterator(pScreen);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbScreenAllowedDepthsIterator,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -392,10 +392,10 @@ void Dri3LoaderFuncsProxy::pfnXcbDepthNext(
     xcb_depth_iterator_t*  pDepthIter
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXcbDepthNext(pDepthIter);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDepthNext,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -410,10 +410,10 @@ void Dri3LoaderFuncsProxy::pfnXcbVisualtypeNext(
     xcb_visualtype_iterator_t*  pVisualTypeIter
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXcbVisualtypeNext(pVisualTypeIter);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbVisualtypeNext,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -428,10 +428,10 @@ xcb_screen_iterator_t Dri3LoaderFuncsProxy::pfnXcbSetupRootsIterator(
     const xcb_setup_t*  pSetup
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_screen_iterator_t ret = m_pFuncs->pfnXcbSetupRootsIterator(pSetup);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_screen_iterator_t ret = m_pFuncs->pfnXcbSetupRootsIterator(pSetup);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbSetupRootsIterator,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -448,10 +448,10 @@ void Dri3LoaderFuncsProxy::pfnXcbScreenNext(
     xcb_screen_iterator_t*  pScreenIter
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXcbScreenNext(pScreenIter);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbScreenNext,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -466,10 +466,10 @@ xcb_visualtype_iterator_t Dri3LoaderFuncsProxy::pfnXcbDepthVisualsIterator(
     const xcb_depth_t*  pDepth
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_visualtype_iterator_t ret = m_pFuncs->pfnXcbDepthVisualsIterator(pDepth);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_visualtype_iterator_t ret = m_pFuncs->pfnXcbDepthVisualsIterator(pDepth);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDepthVisualsIterator,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -486,10 +486,10 @@ const xcb_setup_t* Dri3LoaderFuncsProxy::pfnXcbGetSetup(
     xcb_connection_t*  pConnection
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    const xcb_setup_t* pRet = m_pFuncs->pfnXcbGetSetup(pConnection);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const const xcb_setup_t* pRet = m_pFuncs->pfnXcbGetSetup(pConnection);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbGetSetup,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -506,10 +506,10 @@ const xcb_setup_t* Dri3LoaderFuncsProxy::pfnXcbFlush(
     xcb_connection_t*  pConnection
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    const xcb_setup_t* pRet = m_pFuncs->pfnXcbFlush(pConnection);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const const xcb_setup_t* pRet = m_pFuncs->pfnXcbFlush(pConnection);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbFlush,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -526,10 +526,10 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceUnmapShm(
     struct xshmfence*  pFence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXshmfenceUnmapShm(pFence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXshmfenceUnmapShm(pFence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceUnmapShm,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -546,10 +546,10 @@ xshmfence* Dri3LoaderFuncsProxy::pfnXshmfenceMapShm(
     int32  fence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xshmfence* pRet = m_pFuncs->pfnXshmfenceMapShm(fence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const xshmfence* pRet = m_pFuncs->pfnXshmfenceMapShm(fence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceMapShm,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -566,10 +566,10 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceQuery(
     struct xshmfence*  pFence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXshmfenceQuery(pFence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXshmfenceQuery(pFence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceQuery,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -586,10 +586,10 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceAwait(
     struct xshmfence*  pFence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXshmfenceAwait(pFence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXshmfenceAwait(pFence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceAwait,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -604,10 +604,10 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceAwait(
 // =====================================================================================================================
 int32 Dri3LoaderFuncsProxy::pfnXshmfenceAllocShm(    ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXshmfenceAllocShm();
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXshmfenceAllocShm();
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceAllocShm,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -622,10 +622,10 @@ int32 Dri3LoaderFuncsProxy::pfnXshmfenceTrigger(
     struct xshmfence*  pFence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXshmfenceTrigger(pFence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXshmfenceTrigger(pFence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceTrigger,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -642,10 +642,10 @@ void Dri3LoaderFuncsProxy::pfnXshmfenceReset(
     struct xshmfence*  pFence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
+    const int64 begin = Util::GetPerfCpuTime();
     m_pFuncs->pfnXshmfenceReset(pFence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XshmfenceReset,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -662,12 +662,12 @@ xcb_dri3_open_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3Open(
     uint32             provider
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_open_cookie_t ret = m_pFuncs->pfnXcbDri3Open(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri3_open_cookie_t ret = m_pFuncs->pfnXcbDri3Open(pConnection,
                                                           drawable,
                                                           provider);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3Open,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -688,12 +688,12 @@ xcb_dri3_open_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReply(
     xcb_generic_error_t**   ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_open_reply_t* pRet = m_pFuncs->pfnXcbDri3OpenReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri3_open_reply_t* pRet = m_pFuncs->pfnXcbDri3OpenReply(pConnection,
                                                                 cookie,
                                                                 ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3OpenReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -713,11 +713,11 @@ int32* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReplyFds(
     xcb_dri3_open_reply_t*  pReply
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32* pRet = m_pFuncs->pfnXcbDri3OpenReplyFds(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32* pRet = m_pFuncs->pfnXcbDri3OpenReplyFds(pConnection,
                                                    pReply);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3OpenReplyFds,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -739,14 +739,14 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3FenceFromFdChecked(
     int32              fenceFd
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3FenceFromFdChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3FenceFromFdChecked(pConnection,
                                                                    drawable,
                                                                    fence,
                                                                    initiallyTriggered,
                                                                    fenceFd);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3FenceFromFdChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -776,8 +776,8 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3PixmapFromBufferChecked(
     int32              pixmapFd
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3PixmapFromBufferChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3PixmapFromBufferChecked(pConnection,
                                                                         pixmap,
                                                                         drawable,
                                                                         size,
@@ -787,8 +787,8 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3PixmapFromBufferChecked(
                                                                         depth,
                                                                         bpp,
                                                                         pixmapFd);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3PixmapFromBufferChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -816,12 +816,12 @@ xcb_dri3_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersion(
     uint32             minorVersion
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_query_version_cookie_t ret = m_pFuncs->pfnXcbDri3QueryVersion(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri3_query_version_cookie_t ret = m_pFuncs->pfnXcbDri3QueryVersion(pConnection,
                                                                            majorVersion,
                                                                            minorVersion);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3QueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -842,12 +842,12 @@ xcb_dri3_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersionRepl
     xcb_generic_error_t**            ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_query_version_reply_t* pRet = m_pFuncs->pfnXcbDri3QueryVersionReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri3_query_version_reply_t* pRet = m_pFuncs->pfnXcbDri3QueryVersionReply(pConnection,
                                                                                  cookie,
                                                                                  ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri3QueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -868,12 +868,12 @@ xcb_dri2_connect_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri2Connect(
     uint32             driver_type
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri2_connect_cookie_t ret = m_pFuncs->pfnXcbDri2Connect(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri2_connect_cookie_t ret = m_pFuncs->pfnXcbDri2Connect(pConnection,
                                                                 window,
                                                                 driver_type);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri2Connect,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -892,10 +892,10 @@ int Dri3LoaderFuncsProxy::pfnXcbDri2ConnectDriverNameLength(
     const xcb_dri2_connect_reply_t*  pReplay
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int ret = m_pFuncs->pfnXcbDri2ConnectDriverNameLength(pReplay);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int ret = m_pFuncs->pfnXcbDri2ConnectDriverNameLength(pReplay);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri2ConnectDriverNameLength,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -912,10 +912,10 @@ char* Dri3LoaderFuncsProxy::pfnXcbDri2ConnectDriverName(
     const xcb_dri2_connect_reply_t*  pReplay
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    char* pRet = m_pFuncs->pfnXcbDri2ConnectDriverName(pReplay);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const char* pRet = m_pFuncs->pfnXcbDri2ConnectDriverName(pReplay);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri2ConnectDriverName,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -934,12 +934,12 @@ xcb_dri2_connect_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri2ConnectReply(
     xcb_generic_error_t**      ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_dri2_connect_reply_t* pRet = m_pFuncs->pfnXcbDri2ConnectReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_dri2_connect_reply_t* pRet = m_pFuncs->pfnXcbDri2ConnectReply(pConnection,
                                                                       cookie,
                                                                       ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbDri2ConnectReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -959,11 +959,11 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
     xcb_sync_fence_t   fence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncTriggerFenceChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncTriggerFenceChecked(pConnection,
                                                                     fence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbSyncTriggerFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -982,11 +982,11 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncDestroyFenceChecked(
     xcb_sync_fence_t   fence
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncDestroyFenceChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncDestroyFenceChecked(pConnection,
                                                                     fence);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbSyncDestroyFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1007,13 +1007,13 @@ XVisualInfo* Dri3LoaderFuncsProxy::pfnXGetVisualInfo(
     int32*        count
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    XVisualInfo* pRet = m_pFuncs->pfnXGetVisualInfo(pDisplay,
+    const int64 begin = Util::GetPerfCpuTime();
+    const XVisualInfo* pRet = m_pFuncs->pfnXGetVisualInfo(pDisplay,
                                                     visualMask,
                                                     pVisualInfoList,
                                                     count);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XGetVisualInfo,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1033,10 +1033,10 @@ int32 Dri3LoaderFuncsProxy::pfnXFree(
     void*  pAddress
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXFree(pAddress);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 begin = Util::GetPerfCpuTime();
+    const int32 ret = m_pFuncs->pfnXFree(pAddress);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XFree,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1055,12 +1055,12 @@ xcb_present_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersi
     uint32             minorVersion
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_present_query_version_cookie_t ret = m_pFuncs->pfnXcbPresentQueryVersion(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_present_query_version_cookie_t ret = m_pFuncs->pfnXcbPresentQueryVersion(pConnection,
                                                                                  majorVersion,
                                                                                  minorVersion);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbPresentQueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1081,12 +1081,12 @@ xcb_present_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersi
     xcb_generic_error_t**               ppError
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_present_query_version_reply_t* pRet = m_pFuncs->pfnXcbPresentQueryVersionReply(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_present_query_version_reply_t* pRet = m_pFuncs->pfnXcbPresentQueryVersionReply(pConnection,
                                                                                        cookie,
                                                                                        ppError);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbPresentQueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1108,13 +1108,13 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentSelectInputChecked(
     uint32               eventMask
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentSelectInputChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentSelectInputChecked(pConnection,
                                                                       eventId,
                                                                       window,
                                                                       eventMask);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbPresentSelectInputChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1150,8 +1150,8 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
     const xcb_present_notify_t*  pNotifies
     ) const
 {
-    int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentPixmapChecked(pConnection,
+    const int64 begin = Util::GetPerfCpuTime();
+    const xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentPixmapChecked(pConnection,
                                                                  window,
                                                                  pixmap,
                                                                  serial,
@@ -1168,8 +1168,8 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
                                                                  remainder,
                                                                  notifiesLen,
                                                                  pNotifies);
-    int64 end = Util::GetPerfCpuTime();
-    int64 elapse = end - begin;
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbPresentPixmapChecked,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
@@ -1283,7 +1283,6 @@ Result Dri3Loader::Init(
         "libxcb-present.so.0",
     };
 
-    SpecializedInit(pPlatform);
     if (m_initialized == false)
     {
         // resolve symbols from libX11-xcb.so.1
@@ -1542,11 +1541,5 @@ Result Dri3Loader::Init(
     return result;
 }
 
-void
-Dri3Loader::SpecializedInit(Platform* pPlatform)
-{
-}
-
 } //namespace Linux
 } //namespace Pal
-

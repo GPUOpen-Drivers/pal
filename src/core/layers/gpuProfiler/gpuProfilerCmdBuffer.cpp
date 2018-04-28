@@ -53,7 +53,7 @@ CmdBuffer::CmdBuffer(
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
 #if (PAL_COMPILE_TYPE == 32)
-    m_tokenAllocator(1 * 1024 * 1024),
+    m_tokenAllocator(4 * 1024 * 1024),
 #else
     m_tokenAllocator(16 * 1024 * 1024),
 #endif
