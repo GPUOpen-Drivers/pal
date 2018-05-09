@@ -164,62 +164,6 @@ Result GfxDevice::Finalize()
 }
 
 // =====================================================================================================================
-// Allocates GPU memory which backs the ring buffers used for dumping CE RAM before draws and/or dispatches.
-Result GfxDevice::AllocateCeRingBufferGpuMem(
-    gpusize sizeInBytes,  // required size, in bytes, for any HWL-specific data (all ring entries)
-    gpusize alignment)
-{
-    const PalSettings&       settings  = m_pParent->Settings();
-    const GpuChipProperties& chipProps = m_pParent->ChipProperties();
-
-    GpuMemoryCreateInfo memCreateInfo = { };
-    memCreateInfo.alignment = alignment;
-    memCreateInfo.priority  = GpuMemPriority::Normal;
-    memCreateInfo.vaRange   = VaRange::DescriptorTable;
-
-    if (chipProps.gpuType == GpuType::Integrated)
-    {
-        memCreateInfo.heapCount = 2;
-        memCreateInfo.heaps[0]  = GpuHeap::GpuHeapGartUswc;
-        memCreateInfo.heaps[1]  = GpuHeap::GpuHeapGartCacheable;
-    }
-    else
-    {
-        memCreateInfo.heapCount = 1;
-        memCreateInfo.heaps[0]  = GpuHeap::GpuHeapInvisible;
-    }
-
-    // User-data spill table and stream-output table sizes:
-    memCreateInfo.size = sizeInBytes;
-
-    Result result = Result::Success;
-    if (memCreateInfo.size > 0)
-    {
-        GpuMemoryInternalCreateInfo memInternalInfo = { };
-        memInternalInfo.flags.alwaysResident = 1;
-
-        // We need enough space to store two independent copies of these ring buffers: one each for root-level and
-        // for nested command buffers.
-        for (uint32 i = 0; i < 2; ++i)
-        {
-            GpuMemory* pGpuMemory = nullptr;
-            gpusize    offset     = 0uLL;
-            result = m_pParent->MemMgr()->AllocateGpuMem(memCreateInfo,
-                                                         memInternalInfo,
-                                                         false,
-                                                         &pGpuMemory,
-                                                         &offset);
-            if (result == Result::Success)
-            {
-                m_ceRingBufferGpuMem[i].Update(pGpuMemory, offset);
-            }
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Creates an internal compute pipeline object by allocating memory then calling the usual create method.
 Result GfxDevice::CreateComputePipelineInternal(
     const ComputePipelineCreateInfo& createInfo,

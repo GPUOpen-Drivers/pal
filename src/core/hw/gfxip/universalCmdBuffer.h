@@ -169,15 +169,6 @@ struct CeRamUserDataTableState
     };
 };
 
-// Tracks the state of a ring buffer used for receiving CE RAM dumps.
-struct CeRamUserDataRingBuffer
-{
-    gpusize  baseGpuVirtAddr;   // Base GPU virtual address of the ring buffer memory
-    uint32   instanceBytes;     // Size of each table instance contained in the ring buffer, in bytes
-    uint32   numInstances;      // Number of table instances in the entire ring
-    uint32   currRingPos;       // Currently active instance within the ring buffer
-};
-
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all universal command buffers.
 class UniversalCmdBuffer : public GfxCmdBuffer
@@ -228,13 +219,6 @@ public:
     static void SetStencilRefMasksState(
         const StencilRefMaskParams& updatedRefMaskState,
         StencilRefMaskParams*       pStencilRefMaskState);
-
-    bool UseRingBufferForCeRamDumps() const
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
-        { return (m_buildFlags.useLinearBufferForCeRamDumps == 0); }
-#else
-        { return (m_buildFlags.useEmbeddedDataForCeRamDumps == 0); }
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Returns true if the graphics state is currently pushed.
@@ -305,16 +289,8 @@ private:
 void PAL_INLINE ResetUserDataTable(
     CeRamUserDataTableState* pTable)
 {
-    pTable->gpuVirtAddr = 0;
-    pTable->dirty       = 0;
-}
-
-// =====================================================================================================================
-// Helper function for resetting a user-data ring buffer at the beginning of a command buffer.
-void PAL_INLINE ResetUserDataRingBuffer(
-    CeRamUserDataRingBuffer* pRing)
-{
-    pRing->currRingPos = 0;
+    pTable->gpuVirtAddr  = 0;
+    pTable->dirty        = 0;
 }
 
 } // Pal

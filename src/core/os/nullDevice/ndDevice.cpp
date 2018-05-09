@@ -600,7 +600,7 @@ void Device::InitGfx6ChipProperties()
 
     pChipInfo->backendDisableMask      = 0; // everything is enabled!
     pChipInfo->numActiveRbs            = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
-
+    pChipInfo->gbTileMode[TILEINDEX_LINEAR_ALIGNED] = ADDR_TM_LINEAR_ALIGNED << 2;
     PAL_ASSERT(m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp6);
     const uint32  activeCuMask = (1 << pChipInfo->numCuPerSh) - 1;
 
@@ -638,14 +638,14 @@ void Device::InitGfx9ChipProperties()
     auto*const  pChipInfo  = &m_chipProperties.gfx9;
 
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(&m_chipProperties);
+    Gfx9::InitializeGpuChipProperties(UINT_MAX, &m_chipProperties);
 
     if (AMDGPU_IS_VEGA10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         // NOTE: KMD only gives us a flag indicating whether the Off-chip LDS buffers are "large" or not. The HWL will
         // need to determine the actual LDS buffer size based on this flag.
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x2A110012;
+        pChipInfo->gbAddrConfig            = 0x2A110002;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
@@ -660,7 +660,7 @@ void Device::InitGfx9ChipProperties()
     else if (AMDGPU_IS_RAVEN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26010011;
+        pChipInfo->gbAddrConfig            = 0x26010001;
         pChipInfo->numShaderEngines        =    1;  // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;

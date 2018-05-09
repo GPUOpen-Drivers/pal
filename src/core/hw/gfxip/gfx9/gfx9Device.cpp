@@ -70,6 +70,9 @@ BufferSrd                nullBufferView = {};
 ImageSrd                 nullImageView  = {};
 static const SamplerSrd  NullSampler    = {};
 
+// Microcode version for CE dump offset support
+static constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
+
 static PAL_INLINE uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
     const ImageInfo&       imageInfo,
@@ -344,34 +347,6 @@ Result Device::Finalize()
     if (result == Result::Success)
     {
         result = InitOcclusionResetMem();
-    }
-
-    if (result == Result::Success)
-    {
-        const GpuChipProperties& chipProps = m_pParent->ChipProperties();
-
-        gpusize ceRingBufferSizeInBytes =
-            (pPalSettings->userDataSpillTableRingSize * sizeof(uint32)    * chipProps.gfxip.maxUserDataEntries) +
-            (pPalSettings->streamOutTableRingSize     * sizeof(BufferSrd) * MaxStreamOutTargets);
-
-        // Calculate the size of the ring buffer required to hold NGG shader specific data.  If there's no chance
-        // that NGG mode will be utilized for any shaders, then none of this is required.
-        // NOTE: NGG constant buffers must be aligned to 256 bytes.
-        if (settings.nggMode != Gfx9NggDisabled)
-        {
-            const gpusize nggTotalRingSize = settings.nggRingSize * Pow2Align(sizeof(Abi::PrimShaderCbLayout), 256U);
-            ceRingBufferSizeInBytes = Pow2Align(ceRingBufferSizeInBytes, 256U) + nggTotalRingSize;
-        }
-        // Client-specified indirect user-data table size(s):
-        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
-        {
-            ceRingBufferSizeInBytes += (sizeof(uint32) * Parent()->IndirectUserDataTableSize(i) *
-                                       Parent()->IndirectUserDataTableRingSize(i));
-        }
-
-        // The CP spec recommends 8-DW alignment for CE RAM dumps for performance reasons.
-        constexpr gpusize Alignment = (sizeof(uint32) * 8);
-        result = AllocateCeRingBufferGpuMem(ceRingBufferSizeInBytes, Alignment);
     }
 
     return result;
@@ -2670,6 +2645,7 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
 // Initializes the GPU chip properties for a Device object, specifically for the GFX9 hardware layer. Returns an error
 // if an unsupported chip revision is detected.
 void InitializeGpuChipProperties(
+    uint32             cpUcodeVersion,
     GpuChipProperties* pInfo)
 {
     pInfo->imageProperties.flags.u32All = 0;
@@ -2718,6 +2694,12 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportFp16Fetch                         = 1;
     pInfo->gfx9.support16BitInstructions                 = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions       = 1;
+
+    if (
+        (cpUcodeVersion  >= UcodeVersionWithDumpOffsetSupport))
+    {
+        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
+    }
 
     pInfo->gfx9.numShaderArrays         = 1;
     pInfo->gfx9.numSimdPerCu            = NumSimdPerCu;

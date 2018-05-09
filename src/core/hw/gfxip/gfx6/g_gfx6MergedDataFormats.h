@@ -96,10 +96,12 @@ constexpr FormatFeatureFlags IrXsIa                   = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIaIfl                = static_cast<FormatFeatureFlags>(IrXs | Ia | Ifl);
 constexpr FormatFeatureFlags IrXsIaIflIfmm            = static_cast<FormatFeatureFlags>(IrXsIaIfl | Ifmm);
 constexpr FormatFeatureFlags TrTw                     = static_cast<FormatFeatureFlags>(Tr | Tw);
+constexpr FormatFeatureFlags TrTa                     = static_cast<FormatFeatureFlags>(Tr | Ta);
 constexpr FormatFeatureFlags IrXsTr                   = static_cast<FormatFeatureFlags>(IrXs | Tr);
 constexpr FormatFeatureFlags IrXsIflTr                = static_cast<FormatFeatureFlags>(IrXs | Ifl | Tr);
 constexpr FormatFeatureFlags IrXsTrTw                 = static_cast<FormatFeatureFlags>(IrXs | TrTw);
 constexpr FormatFeatureFlags IrXsIfmmTrTw             = static_cast<FormatFeatureFlags>(IrXsTrTw | Ifmm);
+constexpr FormatFeatureFlags IrXsIflTrTa              = static_cast<FormatFeatureFlags>(IrXsIfl | TrTa);
 constexpr FormatFeatureFlags IrXsIflTrTw              = static_cast<FormatFeatureFlags>(IrXsIfl | TrTw);
 constexpr FormatFeatureFlags IrXsIflIfmmTrTw          = static_cast<FormatFeatureFlags>(IrXsIflTrTw | Ifmm);
 constexpr FormatFeatureFlags IrXsIwTrTw               = static_cast<FormatFeatureFlags>(IrXsIw | TrTw);
@@ -108,6 +110,7 @@ constexpr FormatFeatureFlags IrXsIaTrTa               = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIaIflTrTa            = static_cast<FormatFeatureFlags>(IrXsIaIfl | Tr | Ta);
 constexpr FormatFeatureFlags IrXsIwIaTrTwTa           = static_cast<FormatFeatureFlags>(IrXsIaTrTa | Iw | Tw);
 constexpr FormatFeatureFlags IrXsIwIaIfmmTrTwTa       = static_cast<FormatFeatureFlags>(IrXsIwIaTrTwTa | Ifmm);
+constexpr FormatFeatureFlags IrXsIflTrTaM             = static_cast<FormatFeatureFlags>(IrXsIflTrTa | FormatFeatureMsaaTarget);
 constexpr FormatFeatureFlags IrXsIwIaTrTwTaM          = static_cast<FormatFeatureFlags>(IrXsIwIaTrTwTa | FormatFeatureMsaaTarget);
 constexpr FormatFeatureFlags IrXsIwIaIfmmTrTwTaM      = static_cast<FormatFeatureFlags>(IrXsIwIaTrTwTaM | Ifmm);
 constexpr FormatFeatureFlags IrXsIwIaIflTrTwTa        = static_cast<FormatFeatureFlags>(IrXsIaIflTrTa | Iw | Tw);
@@ -123,6 +126,7 @@ constexpr FormatFeatureFlags IrXsIflCBX               = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsXdIflCBX             = static_cast<FormatFeatureFlags>(IrXsIflCBX | FormatFeatureFormatConversionDst);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBX         = static_cast<FormatFeatureFlags>(IrXsXdIflCBX | Ifmm);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBXP        = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBX | FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsXdIflIfmmTaCBXP      = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBXP | Ta);
 constexpr FormatFeatureFlags IrXsCBP                  = static_cast<FormatFeatureFlags>(IrXsCB | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsM                    = static_cast<FormatFeatureFlags>(IrXs | FormatFeatureMsaaTarget);
 constexpr FormatFeatureFlags IrXsIflM                 = static_cast<FormatFeatureFlags>(IrXsIfl | FormatFeatureMsaaTarget);
@@ -141,6 +145,7 @@ constexpr FormatFeatureFlags IrXsIflCBMX              = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsXdIflCBMX            = static_cast<FormatFeatureFlags>(IrXsIflCBMX | FormatFeatureFormatConversionDst);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBMX        = static_cast<FormatFeatureFlags>(IrXsXdIflCBMX | Ifmm);
 constexpr FormatFeatureFlags IrXsXdIflIfmmCBMXP       = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBMX | FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsXdIflIfmmTaCBMXP     = static_cast<FormatFeatureFlags>(IrXsXdIflIfmmCBMXP | Ta);
 constexpr FormatFeatureFlags IrXsCBMP                 = static_cast<FormatFeatureFlags>(IrXsCBM | FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsIaTaCBP              = static_cast<FormatFeatureFlags>(IrXs | Ia | Ta | CBP);
 constexpr FormatFeatureFlags IrXsIaIflTaCBP           = static_cast<FormatFeatureFlags>(IrXs | Ia | Ifl | Ta | CBP);
@@ -217,12 +222,17 @@ constexpr FormatFeatureFlags IrXsIwXdTrTwCBX          = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBX       = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCX |
                                                                                         FormatFeatureColorTargetBlend);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBX   = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBX | Ifmm);
+constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBX = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwCBX | Ta);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBXP  = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwCBX |
                                                                                         FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsIwXdIaTrTwTaCBXP     = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCBX | Ia | Ta |
                                                                                         FormatFeatureWindowedPresent);
 constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBXP  = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBX | Ia | Ta |
                                                                                         FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwTaCBX |
+                                                                                         FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwTaCBXP |
+                                                                                         FormatFeatureMsaaTarget);
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBXP = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBXP | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdTrTwCBMX         = static_cast<FormatFeatureFlags>(IrXsIwXdTrTwCMX |
                                                                                         FormatFeatureColorTargetBlend);
@@ -231,6 +241,7 @@ constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBMX      = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBMX  = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBMX | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwCBMX |
                                                                                         FormatFeatureWindowedPresent);
+constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwTaCBMX = static_cast<FormatFeatureFlags>(IrXsIwXdIflIfmmTrTwCBMX | Ta);
 constexpr FormatFeatureFlags IrXsIwXdIflTrTwCBDMX     = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBMX |
                                                                                         FormatFeatureDepthTarget);
 constexpr FormatFeatureFlags IrXsIwXdIflIfmmTrTwCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIflTrTwCBDMX | Ifmm);
@@ -280,24 +291,24 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X8Y8_Sint
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X8Y8_Srgb
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8A8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Sint
-        { IrXsXdIaIflIfmmTaCBXP,          IrXsXdIaIflIfmmTaCBMXP         }, // ChNumFormat::X8Y8Z8W8_Srgb
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+        { IrXsXdIflIfmmTaCBXP,            IrXsXdIflIfmmTaCBMXP           }, // ChNumFormat::X8Y8Z8W8_Srgb
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y11Z11_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X11Y11Z10_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2_Unorm
         { Ifmm,                           Ifmm                           }, // ChNumFormat::X10Y10Z10W2_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X10Y10Z10W2_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X10Y10Z10W2_Uscaled
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X10Y10Z10W2_Uint
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sint
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
         { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
@@ -306,17 +317,17 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X16_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Float
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Float
@@ -6392,24 +6403,24 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X8Y8_Sint
         { IrXsXdIflIfmmCBX,               IrXsXdIflIfmmCBMX              }, // ChNumFormat::X8Y8_Srgb
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8A8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Sint
-        { IrXsXdIaIflIfmmTaCBXP,          IrXsXdIaIflIfmmTaCBMXP         }, // ChNumFormat::X8Y8Z8W8_Srgb
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+        { IrXsXdIflIfmmTaCBXP,            IrXsXdIflIfmmTaCBMXP           }, // ChNumFormat::X8Y8Z8W8_Srgb
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y11Z11_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X11Y11Z10_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2_Unorm
         { Ifmm,                           Ifmm                           }, // ChNumFormat::X10Y10Z10W2_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X10Y10Z10W2_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X10Y10Z10W2_Uscaled
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X10Y10Z10W2_Uint
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sint
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
         { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
@@ -6418,17 +6429,17 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X16_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Float
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Float
@@ -12504,24 +12515,24 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X8Y8_Sint
         { IrXsXdIflIfmmCBX,               IrXsXdIflIfmmCBMX              }, // ChNumFormat::X8Y8_Srgb
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8A8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Sint
-        { IrXsXdIaIflIfmmTaCBXP,          IrXsXdIaIflIfmmTaCBMXP         }, // ChNumFormat::X8Y8Z8W8_Srgb
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+        { IrXsXdIflIfmmTaCBXP,            IrXsXdIflIfmmTaCBMXP           }, // ChNumFormat::X8Y8Z8W8_Srgb
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y11Z11_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X11Y11Z10_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2_Unorm
         { Ifmm,                           Ifmm                           }, // ChNumFormat::X10Y10Z10W2_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X10Y10Z10W2_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X10Y10Z10W2_Uscaled
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X10Y10Z10W2_Uint
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sint
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
         { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
@@ -12530,17 +12541,17 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X16_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Float
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16Z16W16_Float
@@ -18616,24 +18627,24 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X8Y8_Sint
         { IrXsXdIflIfmmCBX,               IrXsXdIflIfmmCBMX              }, // ChNumFormat::X8Y8_Srgb
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L8A8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X8Y8Z8W8_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X8Y8Z8W8_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X8Y8Z8W8_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X8Y8Z8W8_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X8Y8Z8W8_Sint
-        { IrXsXdIaIflIfmmTaCBXP,          IrXsXdIaIflIfmmTaCBMXP         }, // ChNumFormat::X8Y8Z8W8_Srgb
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
+        { IrXsXdIflIfmmTaCBXP,            IrXsXdIflIfmmTaCBMXP           }, // ChNumFormat::X8Y8Z8W8_Srgb
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U8V8_Snorm_L8W8_Unorm
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X10Y11Z11_Float
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X11Y11Z10_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2_Unorm
         { Ifmm,                           Ifmm                           }, // ChNumFormat::X10Y10Z10W2_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X10Y10Z10W2_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X10Y10Z10W2_Uscaled
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X10Y10Z10W2_Uint
         { None,                           None                           }, // ChNumFormat::X10Y10Z10W2_Sint
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X10Y10Z10W2Bias_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::U10V10W10_Snorm_A2_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBDMX       }, // ChNumFormat::X16_Unorm
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Snorm
         { IrXsIflTr,                      IrXsIflTrM                     }, // ChNumFormat::X16_Uscaled
@@ -18642,17 +18653,17 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { IrXsIwXdTrTwCX,                 IrXsIwXdTrTwCMX                }, // ChNumFormat::X16_Sint
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::X16_Float
         { IrXsIwXdIflIfmmTrTwCBX,         IrXsIwXdIflIfmmTrTwCBMX        }, // ChNumFormat::L16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBX,       IrXsIwXdIflIfmmTrTwTaCBMX      }, // ChNumFormat::X16Y16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16_Float
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Unorm
-        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Snorm
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Uscaled
-        { IrXsIaIflTrTa,                  IrXsIaIflTrTaM                 }, // ChNumFormat::X16Y16Z16W16_Sscaled
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Unorm
+        { IrXsIwXdIflIfmmTrTwTaCBXP,      IrXsIwXdIflIfmmTrTwTaCBMXP     }, // ChNumFormat::X16Y16Z16W16_Snorm
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Uscaled
+        { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Float

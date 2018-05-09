@@ -413,6 +413,7 @@ union CmdBufferBuildFlags
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
         /// Indicates that the command buffer should not use the per-Device ring buffer for internal CE RAM dump
         /// operations (e.g., spill table management, dumping indirect user-data tables, etc.).  Each command buffer
@@ -424,6 +425,7 @@ union CmdBufferBuildFlags
         /// dumped to a per-Device GPU ring buffer managed by PAL instead of embedded data.  This flag has no effect on
         /// Compute or Dma command buffers.
         uint32 useEmbeddedDataForCeRamDumps :  1;
+#endif
 #endif
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
@@ -466,6 +468,7 @@ struct CmdBufferBuildInfo
     ///   wishes to allocate temporary storage that lasts between command building function calls they must allocate it
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
+
 };
 
 /// Specifies info on how a compute shader should use resources.

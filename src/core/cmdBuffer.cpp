@@ -586,7 +586,7 @@ gpusize CmdBuffer::AllocateGpuScratchMem(
     uint32*const pUnused = pNewChunk->GetSpace(alignedSizeInDwords, &gpuVirtAddr);
 
     // Compute aligned GPU virtual address for caller.
-    return (gpuVirtAddr + alignedSizeInDwords - sizeInDwords);
+    return (gpuVirtAddr + (sizeof(uint32) * (alignedSizeInDwords - sizeInDwords)));
 }
 
 // =====================================================================================================================

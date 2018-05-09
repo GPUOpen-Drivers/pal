@@ -416,9 +416,6 @@ public:
 
     const RsrcProcMgr& RsrcProcMgr() const { return *m_pRsrcProcMgr; }
 
-    const BoundGpuMemory& CeRingBufferGpuMem(bool isNested) const
-        { return m_ceRingBufferGpuMem[static_cast<uint32>(isNested)]; }
-
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) = 0;
 
     virtual uint32 GetValidFormatFeatureFlags(
@@ -532,10 +529,6 @@ protected:
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
     virtual ~GfxDevice();
 
-    Result AllocateCeRingBufferGpuMem(
-        gpusize sizeInBytes,
-        gpusize alignment);
-
     Device*const            m_pParent;
     Pal::RsrcProcMgr*       m_pRsrcProcMgr;
     FlglRegSeq              m_flglRegSeq[FlglRegSeqMax]; // Holder for FLGL sync register sequences
@@ -557,18 +550,14 @@ protected:
     // Offset of the register to write frame count. Will be 0 if the register is not supported.
     const uint32  m_frameCntReg;
 
-    bool m_useFixedLateAllocVsLimit;
-    uint32 m_lateAllocVsLimit;
-    uint32 m_smallPrimFilter;
-    bool m_waEnableDccCacheFlushAndInvalidate;
-    bool m_waTcCompatZRange;
-    bool m_degeneratePrimFilter;
+    bool    m_useFixedLateAllocVsLimit;
+    uint32  m_lateAllocVsLimit;
+    uint32  m_smallPrimFilter;
+    bool    m_waEnableDccCacheFlushAndInvalidate;
+    bool    m_waTcCompatZRange;
+    bool    m_degeneratePrimFilter;
 
 private:
-    // GPU memory which backs the ring buffer used by the CE for dumping CE RAM before draws and dispatches. There are
-    // two copies of the ring, one for root-level command buffers and another for nested command buffers.
-    BoundGpuMemory  m_ceRingBufferGpuMem[2];
-
     PAL_DISALLOW_DEFAULT_CTOR(GfxDevice);
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxDevice);
 };

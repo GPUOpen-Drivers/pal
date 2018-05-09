@@ -67,8 +67,7 @@ struct UniversalCmdBufferState
             uint32 deCounterDirty       :  1;
             uint32 containsDrawIndirect :  1;
             uint32 optimizeLinearGfxCpy :  1;
-            uint32 useIndirectAddrForCe :  1;
-            uint32 reserved             : 23;
+            uint32 reserved             : 24;
         };
         uint32 u32All;
     } flags;
@@ -79,8 +78,6 @@ struct UniversalCmdBufferState
     // asked to wait for a DE counter diff at the next Draw or Dispatch.
     uint32  minCounterDiff;
 
-    // Number of ring buffer instances used by nested command buffer for indirect dumps
-    uint32  nestedIndirectRingInstances;
 };
 
 // Represents an "image" of the PM4 headers necessary to write NULL depth-stencil state to hardware. The required
@@ -713,18 +710,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -774,13 +771,10 @@ private:
 
     PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.packetPredicate); }
 
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     void SetDispatchFunctions();
-
-    template <bool UseRingBufferForCe>
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled);
 
-    template <bool UseRingBufferForCe>
     uint32* ValidateDispatch(
         gpusize indirectGpuVirtAddr,
         uint32  xDim,
@@ -793,11 +787,8 @@ private:
         const GraphicsPipeline*          pCurrPipeline,
         uint32*                          pDeCmdSpace);
 
-    template <bool UseRingBufferForCe>
     void RelocateUserDataTable(
         CeRamUserDataTableState* pTable,
-        CeRamUserDataRingBuffer* pRing,
-        CeRamUserDataRingBuffer* pNestedIndirectRing,
         uint32                   offsetInDwords,
         uint32                   dwordsNeeded);
     uint32* UploadToUserDataTable(
@@ -813,12 +804,12 @@ private:
         uint32                   dwordsNeeded,
         uint32*                  pCeCmdSpace);
 
-    template <bool HasPipelineChanged, bool UseRingBufferForCe, bool TessEnabled, bool GsEnabled>
+    template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled>
     uint32* ValidateGraphicsUserData(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32*                          pDeCmdSpace);
 
-    template <bool HasPipelineChanged, bool UseRingBufferForCe>
+    template <bool HasPipelineChanged>
     uint32* ValidateComputeUserData(
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pDeCmdSpace);
@@ -855,8 +846,6 @@ private:
     uint32* UploadStreamOutBufferStridesToCeRam(
         uint8   dirtyStrideMask,
         uint32* pCeCmdSpace);
-
-    bool CheckNestedExecuteReference(const UniversalCmdBuffer* pCmdBuffer);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 
@@ -897,7 +886,6 @@ private:
         uint32*             pData;  // Tracks the contents of each indirect user-data table.
 
         CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
-        CeRamUserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
 
     }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
 
@@ -905,23 +893,14 @@ private:
     {
         CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
         CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
-        CeRamUserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
     }  m_spillTable;
 
     struct
     {
         CeRamUserDataTableState  state;  // Tracks the state of the stream-out SRD table
-        CeRamUserDataRingBuffer  ring;   // Tracks the state of the stream-out table's GPU memory ring buffer
 
         BufferSrd  srd[MaxStreamOutTargets];    // Current stream-out target SRD's
     }  m_streamOut;
-
-    struct
-    {
-        CeRamUserDataTableState state;  // Tracks the state of nested indirect CE dump table
-        CeRamUserDataRingBuffer ring;   // GPU memory ring buffer shared between nested command buffer executes
-                                        // when UniversalCmdBufferState.flags.useIndirectAddrForCe is true.
-    } m_nestedIndirectCeDumpTable;
 
     UniversalCmdBufferState  m_state; // State tracking for internal cmd buffer operations
 
@@ -978,8 +957,7 @@ private:
     // insert an idle before performing the Reset().  This has a high performance penalty.  This structure is used
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
-    Util::IntervalTree<gpusize, bool, Platform> m_activeOcclusionQueryWriteRanges;
-    Util::Vector<CmdStreamChunk*, 16, Platform> m_nestedChunkRefList;
+    Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

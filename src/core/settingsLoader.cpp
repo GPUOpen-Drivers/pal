@@ -259,6 +259,7 @@ void SettingsLoader::ValidateSettings()
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
     const auto pPalSettings = m_pDevice->GetPublicSettings();
     if (pPalSettings->userDataSpillTableRingSize != 0)
     {
@@ -271,6 +272,7 @@ void SettingsLoader::ValidateSettings()
         // If the number of instances is zero, then the forced spill threshold shouldn't be set at all!
         m_pSettings->forcedUserDataSpillThreshold = USHRT_MAX;
     }
+#endif
 
     // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command
     // buffer preemption support.

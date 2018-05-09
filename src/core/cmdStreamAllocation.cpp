@@ -89,7 +89,18 @@ Result CmdStreamAllocation::Init(
 {
     Result result = Result::ErrorOutOfMemory;
 
-    if (UsesSystemMemory())
+    if (IsDummyAllocation())
+    {
+        // Dummy allocations should always be created with system memory.
+        PAL_ASSERT(UsesSystemMemory());
+
+        // Dummy allocations all use the same memory which is preallocated by the device.
+        m_pGpuMemory = pDevice->GetDummyChunkMem().Memory();
+        PAL_ASSERT(m_pGpuMemory != nullptr);
+
+        result = m_pGpuMemory->Map(reinterpret_cast<void**>(&m_pCpuAddr));
+    }
+    else if (UsesSystemMemory())
     {
         PAL_ASSERT(IsPow2Aligned(ChunkSize(), VirtualPageSize()));
 
@@ -98,12 +109,6 @@ Result CmdStreamAllocation::Init(
         if (result == Result::Success)
         {
             result = VirtualCommit(m_pCpuAddr, static_cast<size_t>(m_createInfo.memObjCreateInfo.size));
-        }
-
-        // If this allocation is used as dummy allocation, grab the dummy memory allocation from Device
-        if ((result == Result::Success) && m_createInfo.flags.dummyAllocation)
-        {
-            m_pGpuMemory = pDevice->GetDummyChunkMem().Memory();
         }
     }
     else
@@ -166,17 +171,20 @@ void CmdStreamAllocation::Destroy(
 
     if (m_pGpuMemory != nullptr)
     {
-        if (m_createInfo.flags.dummyAllocation == 0)
+        if (m_pCpuAddr != nullptr)
         {
-            if (m_pCpuAddr != nullptr)
-            {
-                Result result = m_pGpuMemory->Unmap();
-                PAL_ASSERT(result == Result::Success);
+            Result result = m_pGpuMemory->Unmap();
+            PAL_ASSERT(result == Result::Success);
 
-                m_pCpuAddr = nullptr;
-            }
+            m_pCpuAddr = nullptr;
+        }
+
+        // Only free the GPU memory for real allocations. The device manages the gpu memory for dummy allocations.
+        if (IsDummyAllocation() == false)
+        {
             pDevice->MemMgr()->FreeGpuMem(m_pGpuMemory, 0);
         }
+
         m_pGpuMemory = nullptr;
     }
     else if (m_pCpuAddr != nullptr)

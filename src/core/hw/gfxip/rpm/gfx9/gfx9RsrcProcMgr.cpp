@@ -2644,10 +2644,12 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
-    // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
-    // they don't need to be written here. Change from init to fastclear.
-    ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+    {
+        // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
+        // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
+        // they don't need to be written here. Change from init to fastclear.
+        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+    }
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();

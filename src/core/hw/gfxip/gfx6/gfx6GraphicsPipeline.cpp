@@ -1143,18 +1143,18 @@ void GraphicsPipeline::FixupIaMultiVgtParamOnGfx7Plus(
             if (IsGsEnabled())
             {
                 pIaMultiVgtParam->bits.PARTIAL_ES_WAVE_ON = 1;
-
-                // NOTE: HW engineers suggested that PARTIAL_VS_WAVE_ON should be programmed to 1 for both on-chip
-                // and off-chip GS to work around an issue of system hang.
-                if (m_pDevice->WaShaderOffChipGsHang() != false)
-                {
-                    pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
-                }
             }
             else
             {
                 pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
             }
+        }
+
+        // NOTE: HW engineers suggested that PARTIAL_VS_WAVE_ON should be programmed to 1 for both on-chip
+        // and off-chip GS to work around an issue of system hang.
+        if (IsGsEnabled() && (m_pDevice->WaShaderOffChipGsHang() != false))
+        {
+            pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
         }
     }
     else

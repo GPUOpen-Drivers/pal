@@ -386,6 +386,10 @@ constexpr uint32 CpCoherCntlStallMask = CP_COHER_CNTL__CB0_DEST_BASE_ENA_MASK |
                                         CP_COHER_CNTL__DEST_BASE_2_ENA_MASK   |
                                         CP_COHER_CNTL__DEST_BASE_3_ENA_MASK;
 
+// Cacheline size.
+constexpr uint32 CacheLineBytes  = 64;
+constexpr uint32 CacheLineDwords = (CacheLineBytes / sizeof(uint32));
+
 // Base GPU virtual address for full-range surface sync.
 constexpr gpusize FullSyncBaseAddr = 0;
 

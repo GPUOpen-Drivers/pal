@@ -414,6 +414,7 @@ struct PalPublicSettings
     ///  number of user-data registers in hardware, the rest of the entries will be spilled to GPU memory. The default is the
     ///  maximum number of supported user-data entries based on client type.
     uint32 maxUserDataEntries;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
     ///  Controls how many instances of the user-data spill table will be contained in the ring buffer managed by
     ///  Universal Command Buffers. At most, the constant engine will be able to get that many draws or dispatches ahead of the
     ///  draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires spilling will fail
@@ -424,6 +425,7 @@ struct PalPublicSettings
     ///  of the draw engine. This must be eitehr zero, or divisible by four. If zero, any pipeline which requires stream
     ///  output will fail to compile because no SRD table is present.
     uint32 streamOutTableRingSize;
+#endif
     ///  Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
     ///  lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
@@ -1273,10 +1275,12 @@ struct DeviceFinalizeInfo
         size_t  offsetInDwords;     ///< CE RAM offset of this indirect user-data table.  PAL may or may not always use
                                     ///  CE RAM to support these tables, but to be safe, these offsets should be chosen
                                     ///  such that multiple tables won't overlap in CE RAM.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
         uint32  ringSize;           ///< PAL manages the GPU memory for the indirect user-data tables with a ring
                                     ///  buffer.  This tells PAL the preferred number of 'instances' of the table which
                                     ///  the GPU ring buffer will have space for.  Typically, larger numbers will yield
                                     ///  improved performance at the expense of a larger GPU memory footprint.
+#endif
     } indirectUserDataTable[MaxIndirectUserDataTables];
 
     /// @see PrivateScreenNotifyInfo

@@ -153,6 +153,7 @@ bool Device::DetermineGpuIpLevels(
         break;
     }
 
+#if PAL_BUILD_OSS
     switch (familyId)
     {
 #if PAL_BUILD_OSS1
@@ -181,6 +182,7 @@ bool Device::DetermineGpuIpLevels(
     default:
         break;
     }
+#endif
 
     // A GPU is considered supported by PAL if at least one of its hardware IP blocks is recognized.
     return ((pIpLevels->gfx != GfxIpLevel::None) || (pIpLevels->oss != OssIpLevel::None) ||
@@ -438,8 +440,10 @@ Result Device::SetupPublicSettingDefaults()
 #endif
     m_publicSettings.tcCompatibleMetaData = 0x7F;
     m_publicSettings.maxUserDataEntries = 0xFFFFFFFF;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
     m_publicSettings.userDataSpillTableRingSize = 256;
     m_publicSettings.streamOutTableRingSize = 32;
+#endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
     m_publicSettings.numScratchWavesPerCu = 4;
@@ -498,6 +502,7 @@ Result Device::HwlEarlyInit()
     }
 #endif
 
+#if PAL_BUILD_OSS
     if (result == Result::Success)
     {
         switch (ChipProperties().ossLevel)
@@ -527,6 +532,7 @@ Result Device::HwlEarlyInit()
             break;
         }
     }
+#endif
 
     if (result == Result::Success)
     {
@@ -754,6 +760,7 @@ void Device::GetHwIpDeviceSizes(
         break;
     }
 
+#if PAL_BUILD_OSS
     switch (ipLevels.oss)
     {
 #if PAL_BUILD_OSS1
@@ -783,6 +790,7 @@ void Device::GetHwIpDeviceSizes(
     default:
         break;
     }
+#endif
 
     maxAddrMgrSize = Max(gfxAddrMgrSize, ossAddrMgrSize);
 
@@ -1182,39 +1190,7 @@ static void PAL_STDCALL ScpcFreeFunc(
 // Performs any late-stage initialization that can only be done after settings have been committed.
 Result Device::LateInit()
 {
-    // We need a thread-safe, per-device, internal CmdAllocator to service our internal command buffers. It will be
-    // primarily used by queue contexts and presentation techniques which have small workloads. Ideally the sizes below
-    // will be small to reduce waste but not so small that we see chaining or many CmdStreamAllocations.
-    //
-    // Note that we create a fully tracked auto-reuse m_allocator and an untracked auto-reuse m_allocator. Ideally we'd
-    // use the tracked m_allocator for all internal command buffers but some engines do not currently support tracking.
-    // It is PAL's responsibility to only reset or destroy the untracked command buffers when it is safe to do so.
-    CmdAllocatorCreateInfo createInfo = {};
-    createInfo.flags.threadSafe      = 1;
-    createInfo.flags.autoMemoryReuse = 1;
-    createInfo.allocInfo[CommandDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdBufInternalAllocSize;
-    createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdBufInternalSuballocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdBufInternalAllocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdBufInternalSuballocSize;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdBufInternalAllocSize;
-    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdBufInternalSuballocSize;
-
-    Result result = CreateInternalCmdAllocator(createInfo, &m_pTrackedCmdAllocator);
-
-    if (result == Result::Success)
-    {
-        createInfo.flags.disableBusyChunkTracking = 1;
-
-        result = CreateInternalCmdAllocator(createInfo, &m_pUntrackedCmdAllocator);
-    }
-
-    if (result == Result::Success)
-    {
-        result = OsLateInit();
-    }
+    Result result = OsLateInit();
 
 #if PAL_BUILD_GFX
     if ((m_pGfxDevice != nullptr) && (result == Result::Success))
@@ -1325,6 +1301,41 @@ Result Device::InitDummyChunkMem()
 }
 
 // =====================================================================================================================
+Result Device::CreateInternalCmdAllocators()
+{
+    // We need a thread-safe, per-device, internal CmdAllocator to service our internal command buffers. It will be
+    // primarily used by queue contexts and presentation techniques which have small workloads. Ideally the sizes below
+    // will be small to reduce waste but not so small that we see chaining or many CmdStreamAllocations.
+    //
+    // Note that we create a fully tracked auto-reuse m_allocator and an untracked auto-reuse m_allocator. Ideally we'd
+    // use the tracked m_allocator for all internal command buffers but some engines do not currently support tracking.
+    // It is PAL's responsibility to only reset or destroy the untracked command buffers when it is safe to do so.
+    CmdAllocatorCreateInfo createInfo = {};
+    createInfo.flags.threadSafe      = 1;
+    createInfo.flags.autoMemoryReuse = 1;
+    createInfo.allocInfo[CommandDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdBufInternalAllocSize;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdBufInternalAllocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdBufInternalAllocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdBufInternalSuballocSize;
+
+    Result result = CreateInternalCmdAllocator(createInfo, &m_pTrackedCmdAllocator);
+
+    if (result == Result::Success)
+    {
+        createInfo.flags.disableBusyChunkTracking = 1;
+
+        result = CreateInternalCmdAllocator(createInfo, &m_pUntrackedCmdAllocator);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Fully initializes this Device object by creating each HWIP block's Device objects and all of the client-requested
 // Queues.
 Result Device::Finalize(
@@ -1389,9 +1400,16 @@ Result Device::Finalize(
             // Initialize an srd that's used to help debug unbound one dword descriptors.
             InitPageFaultDebugSrd();
 
+            // Create the dummy command allocator chunk memory. This needs to be done before any command
+            // allocators are created.
             if (result == Result::Success)
             {
                 result = InitDummyChunkMem();
+            }
+
+            if (result == Result::Success)
+            {
+                result = CreateInternalCmdAllocators();
             }
 
             if (result == Result::Success)

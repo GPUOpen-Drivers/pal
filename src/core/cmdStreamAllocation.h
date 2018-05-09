@@ -93,6 +93,7 @@ public:
     uint32 ChunkSize() const { return m_createInfo.chunkSize; }
 
     bool UsesSystemMemory() const { return (m_createInfo.memObjCreateInfo.heapCount == 0); }
+    bool IsDummyAllocation() const { return (m_createInfo.flags.dummyAllocation != 0); }
     bool CpuAccessible() const { return (m_createInfo.flags.cpuAccessible != 0); }
 
 private:

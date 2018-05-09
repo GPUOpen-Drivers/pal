@@ -97,10 +97,13 @@ endif()
 ### Build Defines ######################################################################################################
 target_compile_definitions(gpuopen PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
 
+# Add NDEBUG flag in release builds since several code files depend on it.
+target_compile_definitions(gpuopen PRIVATE $<$<CONFIG:Release>:NDEBUG>)
+
 # Enable features with debug builds
 target_compile_definitions(gpuopen PRIVATE
-        $<$<CONFIG:DEBUG>:DEVDRIVER_FORCE_ASSERT>      # Force asserts on
-        $<$<CONFIG:DEBUG>:DEVDRIVER_HARD_ASSERT>)      # Always throw a hard assert
+        $<$<CONFIG:Debug>:DEVDRIVER_FORCE_ASSERT>      # Force asserts on
+        $<$<CONFIG:Debug>:DEVDRIVER_HARD_ASSERT>)      # Always throw a hard assert
 
 if (GPUOPEN_PRINT_TO_CONSOLE)
     target_compile_definitions(gpuopen PRIVATE DEVDRIVER_PRINT_TO_CONSOLE)
@@ -128,7 +131,27 @@ target_sources(gpuopen PRIVATE
     src/protocols/ddTransferClient.cpp
     src/ddClientURIService.cpp
     src/protocols/ddURIServer.cpp
+    src/protocols/ddSettingsService.cpp
 )
+
+# If the client doesn't specify, default to building internal metrohash library
+if (NOT DEFINED GPUOPEN_BUILD_METROHASH)
+    set(GPUOPEN_BUILD_METROHASH ON)
+endif()
+
+# If a MetroHash path is not specified then we fall back to compiling our internal copy
+if (NOT DEFINED METROHASH_PATH)
+    set(GPUOPEN_BUILD_METROHASH ON)
+endif()
+
+if (GPUOPEN_BUILD_METROHASH)
+    set(METROHASH_PATH "src/imported/metrohash/src")
+    target_sources(gpuopen PRIVATE
+        ${METROHASH_PATH}/metrohash64.cpp
+        ${METROHASH_PATH}/metrohash128.cpp)
+endif()
+
+target_include_directories(gpuopen PRIVATE ${METROHASH_PATH})
 
 ### Platform ###
 if(UNIX)

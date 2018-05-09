@@ -132,6 +132,11 @@ namespace DevDriver
         class ETWClient;
     }
 
+    namespace SettingsURIService
+    {
+        class SettingsService;
+    }
+
     template <>
     struct ProtocolServerMap<Protocol::ETW>
     {

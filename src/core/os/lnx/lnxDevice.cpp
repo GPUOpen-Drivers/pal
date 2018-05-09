@@ -912,7 +912,7 @@ void Device::InitGfx9ChipProperties()
 
     InitGfx9CuMask();
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(&m_chipProperties);
+    Gfx9::InitializeGpuChipProperties(m_engineProperties.cpUcodeVersion, &m_chipProperties);
 
     if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
     {

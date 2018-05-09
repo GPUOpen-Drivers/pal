@@ -2048,30 +2048,38 @@ bool Image::IsComprFmaskShaderReadable(
     const SubresId& subresource
     ) const
 {
-    bool  isComprFmaskShaderReadable        = false;
+    const auto* pSettings                   = m_device.GetPublicSettings();
     const SubResourceInfo*const pSubResInfo = Parent()->SubresourceInfo(subresource);
+    bool  isComprFmaskShaderReadable        = false;
 
     if (m_pImageInfo->internalCreateInfo.flags.useSharedMetadata)
     {
         isComprFmaskShaderReadable = m_pImageInfo->internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask;
     }
     // If this device doesn't allow any tex fetches of fmask meta data, then don't bother continuing
-    else if (TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, Pal::TexFetchMetaDataCapsFmask) &&
+    else if ((TestAnyFlagSet(pSettings->tcCompatibleMetaData, Pal::TexFetchMetaDataCapsFmask)) &&
              // MSAA surfaces on GFX9 must have fMask and must have cMask data as well.
-             (m_createInfo.samples > 1) &&
-             // Either image is tc-compatible or if not it has no dcc and hence we can keep famsk surface
-             // in tccompatible state
-             ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
-              ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false))) &&
-             // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
-             // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
-             // resolve is not preferred, the image will be readable by a shader.
-             (m_pParent->IsShaderReadable() ||
-              (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
-             // Since TC block can't write to compressed images
-             (m_pParent->IsShaderWritable() == false))
+             (m_createInfo.samples > 1))
     {
-        isComprFmaskShaderReadable = true;
+        // Either image is tc-compatible or if not it has no dcc and hence we can keep famsk surface
+        // in tccompatible state
+        const bool  supportsMetaFetches =
+               ((pSubResInfo->flags.supportMetaDataTexFetch == 1) ||
+                ((pSubResInfo->flags.supportMetaDataTexFetch == 0) && (HasDccData() == false)));
+
+        // If this image isn't readable by a shader then no shader is going to be performing texture fetches from
+        // it... Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function
+        // resolve is not preferred, the image will be readable by a shader.
+        const bool  isShaderReadable    =
+                (m_pParent->IsShaderReadable() ||
+                 (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false)));
+
+        isComprFmaskShaderReadable = supportsMetaFetches &&
+                                     isShaderReadable    &&
+
+                                     (
+                                        (m_pParent->IsShaderWritable() == false)
+                                     );
     }
 
     return isComprFmaskShaderReadable;

@@ -68,9 +68,8 @@ struct UniversalCmdBufferState
             uint32 paScAaConfigUpdated   :  1;
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
-            uint32 useIndirectAddrForCe  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 reserved              : 21;
+            uint32 reserved              : 22;
         };
         uint32 u32All;
     } flags;
@@ -78,12 +77,9 @@ struct UniversalCmdBufferState
     // should ask the CE to wait for is 1/4 the minimum size (in entries!) of all pieces of memory being ringed.
     // Thus we only need to track this minimum diff amount. If ceWaitOnDeCounterDiff flag is also set, the CE will
     // be asked to wait for a DE counter diff at the next Draw or Dispatch.
-    uint32 minCounterDiff;
+    uint32  minCounterDiff;
 
-    // Number of ring buffer instances used by nested command buffer for indirect dumps
-    uint32  nestedIndirectRingInstances;
-
-    // Copy of what will be written into CERAM.
+    // Copy of what will be written into CE RAM for NGG pipelines.
     Util::Abi::PrimShaderCbLayout  primShaderCbLayout;
 };
 
@@ -826,18 +822,18 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
         uint32      y,
         uint32      z);
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -879,13 +875,10 @@ private:
 
     Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.packetPredicate); }
 
-    template <bool IssueSqttMarkerEvent, bool UseRingBufferForCe>
+    template <bool IssueSqttMarkerEvent>
     void SetDispatchFunctions();
-
-    template <bool UseRingBufferForCe>
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled, bool isNgg);
 
-    template <bool UseRingBufferForCe>
     uint32* ValidateDispatch(
         gpusize indirectGpuVirtAddr,
         uint32  xDim,
@@ -898,11 +891,9 @@ private:
         const GraphicsPipeline*          pCurrPipeline,
         uint32*                          pDeCmdSpace);
 
-    template <bool UseRingBufferForCe>
+    template <uint32 AlignmentInDwords>
     void RelocateUserDataTable(
         CeRamUserDataTableState* pTable,
-        CeRamUserDataRingBuffer* pRing,
-        CeRamUserDataRingBuffer* pNestedIndirectRing,
         uint32                   offsetInDwords,
         uint32                   dwordsNeeded);
     uint32* UploadToUserDataTable(
@@ -918,12 +909,12 @@ private:
         uint32                   dwordsNeeded,
         uint32*                  pCeCmdSpace);
 
-    template <bool HasPipelineChanged, bool UseRingBufferForCe, bool TessEnabled, bool GsEnabled, bool VsEnabled>
+    template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled, bool VsEnabled>
     uint32* ValidateGraphicsUserData(
         const GraphicsPipelineSignature* pPrevSignature,
         uint32*                          pDeCmdSpace);
 
-    template <bool HasPipelineChanged, bool UseRingBufferForCe>
+    template <bool HasPipelineChanged>
     uint32* ValidateComputeUserData(
         const ComputePipelineSignature* pPrevSignature,
         uint32*                         pDeCmdSpace);
@@ -960,8 +951,6 @@ private:
     uint32* UploadStreamOutBufferStridesToCeRam(
         uint8   dirtyStrideMask,
         uint32* pCeCmdSpace);
-
-    bool CheckNestedExecuteReference(const UniversalCmdBuffer* pCmdBuffer);
 
     Extent2d GetColorBinSize() const;
     Extent2d GetDepthBinSize() const;
@@ -1028,37 +1017,26 @@ private:
         uint32*             pData;  // Tracks the contents of each indirect user-data table.
 
         CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
-        CeRamUserDataRingBuffer  ring;   // Tracks the state for the indirect user-data table's GPU memory ring buffer
 
     }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
 
     struct
     {
         CeRamUserDataTableState  state; // Tracks the state of the NGG state table
-        CeRamUserDataRingBuffer  ring;  // Tracks the state of the NGG tables' shared GPU memory ring buffer
     }  m_nggTable;
 
     struct
     {
         CeRamUserDataTableState  stateCs;  // Tracks the state of the compute spill table
         CeRamUserDataTableState  stateGfx; // Tracks the state of the graphics spill table
-        CeRamUserDataRingBuffer  ring;     // Tracks the state of the spill tables' shared GPU memory ring buffer
     }  m_spillTable;
 
     struct
     {
         CeRamUserDataTableState  state;  // Tracks the state of the stream-out SRD table
-        CeRamUserDataRingBuffer  ring;   // Tracks the state of the stream-out table's GPU memory ring buffer
 
         BufferSrd  srd[MaxStreamOutTargets];    // Current stream-out target SRD's
     }  m_streamOut;
-
-    struct
-    {
-        CeRamUserDataTableState state;  // Tracks the state of nested indirect CE dump table
-        CeRamUserDataRingBuffer ring;   // GPU memory ring buffer shared between nested command buffer executes
-                                        // when UniversalCmdBufferState.flags.useIndirectAddrForCe is true.
-    } m_nestedIndirectCeDumpTable;
 
     WorkaroundState              m_workaroundState;
     UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations
@@ -1124,11 +1102,7 @@ private:
     // insert an idle before performing the Reset().  This has a high performance penalty.  This structure is used
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
-    Util::IntervalTree<gpusize, bool, Platform> m_activeOcclusionQueryWriteRanges;
-    Util::Vector<CmdStreamChunk*, 16, Platform> m_nestedChunkRefList;
-
-    // true if the microcode on this device supports using the IT_SET_REG...OFFSET packets.
-    const bool  m_supportsDumpOffsetPacket;
+    Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

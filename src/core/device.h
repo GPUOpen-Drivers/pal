@@ -638,13 +638,15 @@ struct GpuChipProperties
                 uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
+                uint32 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
+                                                                      // and SET_SH_REG_OFFSET indexed packet.
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 placeholder1                             :  2; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
-                uint32 reserved                                 : 10;
+                uint32 reserved                                 :  9;
             };
 
             struct
@@ -1413,8 +1415,6 @@ public:
         { return m_finalizeInfo.indirectUserDataTable[tableId].sizeInDwords; }
     size_t IndirectUserDataTableCeRamOffset(uint32 tableId) const
         { return m_finalizeInfo.indirectUserDataTable[tableId].offsetInDwords; }
-    uint32 IndirectUserDataTableRingSize(uint32 tableId) const
-        { return m_finalizeInfo.indirectUserDataTable[tableId].ringSize; }
 
     size_t CeRamBytesUsed(EngineType engine) const
         { return m_finalizeInfo.ceRamSizeUsed[engine]; }
@@ -1676,6 +1676,7 @@ private:
     Result HwlEarlyInit();
     void   InitPageFaultDebugSrd();
     Result InitDummyChunkMem();
+    Result CreateInternalCmdAllocators();
 
     Result CreateEngines(const DeviceFinalizeInfo& finalizeInfo);
 
@@ -1788,6 +1789,7 @@ extern void InitializePerfExperimentProperties(
 
 // Initialize default values for the GPU chip properties for GFXIP9+ hardware.
 extern void InitializeGpuChipProperties(
+    uint32             cpUcodeVersion,
     GpuChipProperties* pInfo);
 
 // Finalize default values for the GPU chip properties for GFXIP9+ hardware.

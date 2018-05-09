@@ -539,6 +539,7 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 395
     if (value.flags.useLinearBufferForCeRamDumps)
     {
@@ -549,6 +550,7 @@ void LogContext::Struct(
     {
         Value("useEmbeddedDataForCeRamDumps");
     }
+#endif
 #endif
 
     if (value.flags.disallowNestedLaunchViaIb2)
@@ -793,7 +795,9 @@ void LogContext::Struct(
         BeginMap(false);
         KeyAndValue("sizeInDwords", value.indirectUserDataTable[idx].sizeInDwords);
         KeyAndValue("offsetInDwords", value.indirectUserDataTable[idx].offsetInDwords);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
         KeyAndValue("ringSize", value.indirectUserDataTable[idx].ringSize);
+#endif
         EndMap();
     }
     EndList();

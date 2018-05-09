@@ -513,28 +513,6 @@ Result Device::Finalize()
 
     if (result == Result::Success)
     {
-        const Gfx6PalSettings&   settings  = Settings();
-        const GpuChipProperties& chipProps = m_pParent->ChipProperties();
-
-        const auto pPalSettings = Parent()->GetPublicSettings();
-        gpusize ceRingBufferSizeInBytes =
-            (pPalSettings->userDataSpillTableRingSize * sizeof(uint32)    * chipProps.gfxip.maxUserDataEntries) +
-            (pPalSettings->streamOutTableRingSize     * sizeof(BufferSrd) * MaxStreamOutTargets);
-
-        // Client-specified indirect user-data table size(s):
-        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
-        {
-            ceRingBufferSizeInBytes += (sizeof(uint32) * Parent()->IndirectUserDataTableSize(i) *
-                                       Parent()->IndirectUserDataTableRingSize(i));
-        }
-
-        // The CP spec recommends 8-DW alignment for CE RAM dumps for performance reasons.
-        constexpr gpusize Alignment = (sizeof(uint32) * 8);
-        result = AllocateCeRingBufferGpuMem(ceRingBufferSizeInBytes, Alignment);
-    }
-
-    if (result == Result::Success)
-    {
         // Initialize an array for finding cb index which is compatible to specified db tileIndex.
         memset(m_overridedTileIndexForDepthStencilCopy, 0, sizeof(m_overridedTileIndexForDepthStencilCopy));
 
