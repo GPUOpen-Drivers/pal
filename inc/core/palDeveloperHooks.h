@@ -327,6 +327,7 @@ struct ImageDataAddrMgrSurfInfo
 enum class DrawDispatchType : uint32
 {
     CmdDraw = 0,                 ///< Auto-indexed draw
+    CmdDrawOpaque,               ///< Auto draw
     CmdDrawIndexed,              ///< Indexed draw
     CmdDrawIndirectMulti,        ///< (Multi) indirect draw
     CmdDrawIndexedIndirectMulti, ///< (Multi) indirect indexed draw

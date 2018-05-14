@@ -898,7 +898,7 @@ Result Queue::PrepareUploadedCommandBuffers(
 
             result = AddIb(streamInfo.pGpuMemory->Desc().gpuVirtAddr,
                            static_cast<uint32>(streamInfo.launchSize / sizeof(uint32)),
-                           streamInfo.flags.isConstantEngine,
+                           (streamInfo.subEngineType == SubEngineType::ConstantEngine),
                            streamInfo.flags.isPreemptionEnabled,
                            streamInfo.flags.dropIfSameContext);
         }
@@ -969,7 +969,7 @@ Result Queue::SubmitNonGfxIp(
 
             result = AddIb(pChunk->GpuVirtAddr(),
                            pChunk->CmdDwordsToExecute(),
-                           pCmdStream->IsConstantEngine(),
+                           (pCmdStream->GetSubEngineType() == SubEngineType::ConstantEngine),
                            pCmdStream->IsPreemptionEnabled(),
                            pCmdStream->DropIfSameContext());
 
@@ -1170,7 +1170,7 @@ Result Queue::AddCmdStream(
 
     return AddIb(pChunk->GpuVirtAddr(),
                  pChunk->CmdDwordsToExecute(),
-                 cmdStream.IsConstantEngine(),
+                 (cmdStream.GetSubEngineType() == SubEngineType::ConstantEngine),
                  cmdStream.IsPreemptionEnabled(),
                  cmdStream.DropIfSameContext());
 }

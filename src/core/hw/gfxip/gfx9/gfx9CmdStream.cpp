@@ -65,19 +65,19 @@ CmdStream::CmdStream(
     const Device&  device,
     ICmdAllocator* pCmdAllocator,
     EngineType     engineType,
-    SubQueueType   subqueueType,
-    bool           isNested,
-    bool           disablePreemption)
+    SubEngineType  subEngineType,
+    CmdStreamUsage cmdStreamUsage,
+    bool           isNested)
     :
     GfxCmdStream(device,
                  pCmdAllocator,
                  engineType,
-                 subqueueType,
+                 subEngineType,
+                 cmdStreamUsage,
                  GetChainSizeInDwords(device, engineType, isNested),
                  CmdUtil::MinNopSizeInDwords,
                  CmdUtil::CondIndirectBufferSize,
-                 isNested,
-                 disablePreemption),
+                 isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
@@ -91,7 +91,7 @@ Result CmdStream::Begin(
     VirtualLinearAllocator* pMemAllocator)
 {
     // Note that we don't support command optimization or command prefetch for CE.
-    if (IsConstantEngine())
+    if (m_subEngineType == SubEngineType::ConstantEngine)
     {
         flags.optimizeCommands = false;
         flags.prefetchCommands = false;
@@ -774,7 +774,8 @@ size_t CmdStream::BuildCondIndirectBuffer(
     uint32*     pPacket
     ) const
 {
-    return m_cmdUtil.BuildCondIndirectBuffer(compareFunc, compareGpuAddr, data, mask, IsConstantEngine(), pPacket);
+    return m_cmdUtil.BuildCondIndirectBuffer(
+        compareFunc, compareGpuAddr, data, mask, (m_subEngineType == SubEngineType::ConstantEngine), pPacket);
 }
 
 // =====================================================================================================================
@@ -790,7 +791,7 @@ size_t CmdStream::BuildIndirectBuffer(
                                          ibAddr,
                                          ibSize,
                                          chain,
-                                         IsConstantEngine(),
+                                         (m_subEngineType == SubEngineType::ConstantEngine),
                                          preemptionEnabled,
                                          pPacket);
 }

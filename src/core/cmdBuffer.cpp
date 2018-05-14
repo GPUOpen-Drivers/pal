@@ -59,6 +59,11 @@ static void PAL_STDCALL CmdDrawInvalid(
     uint32      vertexCount,
     uint32      firstInstance,
     uint32      instanceCount);
+static void PAL_STDCALL CmdDrawOpaqueInvalid(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride);
 static void PAL_STDCALL CmdDrawIndexedInvalid(
     ICmdBuffer* pCmdBuffer,
     uint32      firstIndex,
@@ -126,6 +131,7 @@ CmdBuffer::CmdBuffer(
     // Initialize all draw/dispatch funcs to invalid stubs.  HWIP command buffer classes that support these interfaces
     // will overwrite the function pointers.
     m_funcTable.pfnCmdDraw                     = CmdDrawInvalid;
+    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaqueInvalid;
     m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexedInvalid;
     m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMultiInvalid;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMultiInvalid;
@@ -908,6 +914,17 @@ static void PAL_STDCALL CmdDrawInvalid(
     uint32      vertexCount,
     uint32      firstInstance,
     uint32      instanceCount)
+{
+    PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Default implementation of CmdDraw is unimplemented, derived CmdBuffer classes should override it if supported.
+static void PAL_STDCALL CmdDrawOpaqueInvalid(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride)
 {
     PAL_NEVER_CALLED();
 }

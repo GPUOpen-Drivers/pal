@@ -63,19 +63,19 @@ CmdStream::CmdStream(
     const Device&  device,
     ICmdAllocator* pCmdAllocator,
     EngineType     engineType,
-    SubQueueType   subqueueType,
-    bool           isNested,
-    bool           disablePreemption)
+    SubEngineType  subEngineType,
+    CmdStreamUsage cmdStreamUsage,
+    bool           isNested)
     :
     Pal::GfxCmdStream(device,
                       pCmdAllocator,
                       engineType,
-                      subqueueType,
+                      subEngineType,
+                      cmdStreamUsage,
                       GetChainSizeInDwords(device, isNested),
                       device.CmdUtil().GetMinNopSizeInDwords(),
                       CmdUtil::GetCondIndirectBufferSize(),
-                      isNested,
-                      disablePreemption),
+                      isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr)
 {
@@ -88,7 +88,7 @@ Result CmdStream::Begin(
 {
     // We simply can't enable PM4 optimization without an allocator because we need to dynamically allocate a
     // Pm4Optimizer. We also shouldn't optimize CE streams because Pm4Optimizer has no optimizations for them.
-    flags.optimizeCommands &= (pMemAllocator != nullptr) && (IsConstantEngine() == false);
+    flags.optimizeCommands &= (pMemAllocator != nullptr) && (m_subEngineType != SubEngineType::ConstantEngine);
 
     Result result = GfxCmdStream::Begin(flags, pMemAllocator);
 
@@ -832,7 +832,8 @@ size_t CmdStream::BuildCondIndirectBuffer(
     uint32*     pPacket
     ) const
 {
-    return m_cmdUtil.BuildCondIndirectBuffer(compareFunc, compareGpuAddr, data, mask, IsConstantEngine(), pPacket);
+    return m_cmdUtil.BuildCondIndirectBuffer(
+        compareFunc, compareGpuAddr, data, mask, (m_subEngineType == SubEngineType::ConstantEngine), pPacket);
 }
 
 // =====================================================================================================================
@@ -845,7 +846,8 @@ size_t CmdStream::BuildIndirectBuffer(
     uint32*  pPacket
     ) const
 {
-    return m_cmdUtil.BuildIndirectBuffer(ibAddr, ibSize, chain, IsConstantEngine(), preemptionEnabled, pPacket);
+    return m_cmdUtil.BuildIndirectBuffer(
+        ibAddr, ibSize, chain, (m_subEngineType == SubEngineType::ConstantEngine), preemptionEnabled, pPacket);
 }
 
 // =====================================================================================================================

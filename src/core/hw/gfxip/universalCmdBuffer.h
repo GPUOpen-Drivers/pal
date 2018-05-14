@@ -57,7 +57,8 @@ union GraphicsStateFlags
                 uint16 queryState             : 1; // Gfx6 & Gfx9
                 uint16 colorTargetView        : 1; // Gfx9 only
                 uint16 depthStencilView       : 1; // Gfx9 only
-                uint16 reservedValidationBits : 5;
+                uint16 reservedForFutureHw    : 1;
+                uint16 reservedValidationBits : 4;
             };
 
             uint16 u16All;
@@ -152,6 +153,7 @@ struct ValidateDrawInfo
     uint32 firstVertex;   // First vertex
     uint32 firstInstance; // First instance
     uint32 firstIndex;    // First index
+    bool   useOpaque;     // if draw opaque
 };
 
 // Tracks the state of a user-data table stored in GPU memory.  The tables contents are managed using CE RAM.

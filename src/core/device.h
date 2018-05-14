@@ -643,7 +643,7 @@ struct GpuChipProperties
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  2; // Placeholder. Do not use.
+                uint32 placeholder1                             :  3; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
                 uint32 reserved                                 :  9;
@@ -1069,7 +1069,6 @@ public:
         return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
                 m_pGfxDevice->CreateMsaaState(createInfo, pPlacementAddr, ppMsaaState);
     }
-
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetColorBlendStateSize(
         const ColorBlendStateCreateInfo& createInfo,

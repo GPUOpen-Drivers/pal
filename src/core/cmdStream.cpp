@@ -44,14 +44,16 @@ CmdStream::CmdStream(
     Device*        pDevice,
     ICmdAllocator* pCmdAllocator,
     EngineType     engineType,
-    SubQueueType   subqueueType,
+    SubEngineType  subEngineType,
+    CmdStreamUsage cmdStreamUsage,
     uint32         postambleDwords,  // Each chunk must reserve at least this many DWORDs for final commands.
     uint32         minPaddingDwords, // The size of the smallest padding command this stream can write.
-    bool           isNested,
-    bool           disablePreemption)
+    bool           isNested)
     :
     m_chunkList(pDevice->GetPlatform()),
     m_retainedChunkList(pDevice->GetPlatform()),
+    m_subEngineType(subEngineType),
+    m_cmdStreamUsage(cmdStreamUsage),
     m_sizeAlignDwords(pDevice->EngineProperties().perEngine[engineType].sizeAlignInDwords),
     m_startAlignBytes(pDevice->EngineProperties().perEngine[engineType].startAlign),
     m_pCmdAllocator(static_cast<CmdAllocator*>(pCmdAllocator)),
@@ -100,9 +102,7 @@ CmdStream::CmdStream(
     }
 
     // Cannot init flags bitfield in the initializer list.
-    m_flags.value            = 0;
-    m_flags.isCePreamble     =  (subqueueType == SubQueueType::ConstantEnginePreamble);
-    m_flags.isConstantEngine = ((subqueueType == SubQueueType::ConstantEngine) | IsConstantEnginePreamble());
+    m_flags.value = 0;
 
     if (engineInfo.flags.mustBuildCmdBuffersInSystemMem ||
         (isNested && (engineInfo.flags.indirectBufferSupport == 0)))
@@ -110,9 +110,18 @@ CmdStream::CmdStream(
         m_flags.buildInSysMem = 1;
     }
 
-    if ((engineInfo.flags.supportsMidCmdBufPreemption != 0) && (disablePreemption == false))
+    // Preemption can only be enabled if:
+    // - The KMD has enabled preemption support for this engine.
+    // - The command stream is a workload stream.
+    if ((engineInfo.flags.supportsMidCmdBufPreemption != 0) &&
+        (m_cmdStreamUsage == CmdStreamUsage::Workload))
     {
-        m_flags.enablePreemption = 1;
+        // We may want to disable preemption even if the KMD has enabled it. Because of the way the CE runs ahead of
+        // the DE, we must always enable preemption for our CE workload even if we want to disable preemption or we
+        // may corrupt or hang another driver's submit. Disabling preemption on our DE stream will be enough to tell
+        // the KMD/CP that we want preemption disabled for our submit.
+        m_flags.enablePreemption = ((m_subEngineType == SubEngineType::ConstantEngine) ||
+                                    (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable));
     }
 }
 
@@ -231,7 +240,7 @@ void CmdStream::CommitCommands(
     // If commit size logging is enabled, make the appropriate call to the allocator to update its histogram.
     if (m_pDevice->Settings().logCmdBufCommitSizes)
     {
-        m_pCmdAllocator->LogCommit(m_engineType, IsConstantEngine(), dwordsUsed);
+        m_pCmdAllocator->LogCommit(m_engineType, (m_subEngineType == SubEngineType::ConstantEngine), dwordsUsed);
     }
 #endif
 
@@ -696,17 +705,18 @@ void CmdStream::DumpCommands(
 
     uint32 subEngineId = 0; // DE subengine ID
 
-    if (IsConstantEngine())
+    if (m_subEngineType == SubEngineType::ConstantEngine)
     {
-        subEngineId = 1; // CE subengine ID
+        if (m_cmdStreamUsage == CmdStreamUsage::Preamble)
+        {
+            subEngineId = 2; // CE preamble subengine ID
+        }
+        else
+        {
+            subEngineId = 1; // CE subengine ID
+        }
     }
-
-    if (IsConstantEnginePreamble())
-    {
-        subEngineId = 2; // CE preamble subengine ID
-    }
-
-    if (GetEngineType() == EngineType::EngineTypeDma)
+    else if (GetEngineType() == EngineType::EngineTypeDma)
     {
         subEngineId = 4; // SDMA engine ID
     }

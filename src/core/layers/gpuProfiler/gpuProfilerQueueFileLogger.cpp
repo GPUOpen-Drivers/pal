@@ -81,6 +81,7 @@ static const char* CmdBufCallIdStrings[] =
     "CmdWaitMemoryValue()",
     "CmdWaitBusAddressableMemoryMarker()",
     "CmdDraw()",
+    "CmdDrawOpaque()",
     "CmdDrawIndexed()",
     "CmdDrawIndirectMulti()",
     "CmdDrawIndexedIndirectMulti()",

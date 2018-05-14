@@ -107,6 +107,9 @@ enum class VaRange : uint32;
 /// Maximum string length for GPU names.  @see DeviceProperties.
 constexpr uint32 MaxDeviceName = 256;
 
+/// Maximum number of viewports.
+constexpr uint32 MaxViewports = 16;
+
 /// Maximum number of indirect user-data tables managed by PAL's command buffer objects.  @see DeviceFinalizeInfo.
 constexpr uint32 MaxIndirectUserDataTables = 3;
 
@@ -1000,8 +1003,8 @@ struct DeviceProperties
                                                                      ///  submissions. The client cannot assume that
                                                                      ///  timestamps will increase monotonically across
                                                                      ///  command buffer submissions.
-
-                uint32 reserved                                 : 13; ///< Reserved for future use.
+                uint32 placeholder3                             : 1; ///< Reserved for future hardware.
+                uint32 reserved                                 : 12; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -3593,7 +3596,6 @@ public:
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const = 0;
-
     /// Determines the amount of system memory required for a color blend state object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateColorBlendState().
     ///

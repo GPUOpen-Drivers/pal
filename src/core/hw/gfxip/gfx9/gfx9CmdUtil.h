@@ -309,7 +309,11 @@ public:
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
         void*        pBuffer) const;
-    size_t BuildDrawIndexAuto(uint32 indexCount, Pm4Predicate predicate, void* pBuffer) const;
+    size_t BuildDrawIndexAuto(
+        uint32       indexCount,
+        bool         useOpaque,
+        Pm4Predicate predicate,
+        void*        pBuffer) const;
     size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
         void*         pBuffer) const;

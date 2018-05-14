@@ -101,6 +101,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetGlobalScissor,
     CmdBufferCmdBarrier,
     CmdBufferCmdDraw,
+    CmdBufferCmdDrawOpaque,
     CmdBufferCmdDrawIndexed,
     CmdBufferCmdDrawIndirectMulti,
     CmdBufferCmdDrawIndexedIndirectMulti,

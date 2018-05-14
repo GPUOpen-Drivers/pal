@@ -147,21 +147,21 @@ ComputeQueueContext::ComputeQueueContext(
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
                 EngineTypeCompute,
-                SubQueueType::Primary,
-                false,
-                true),              // Preambles cannot be preemptible.
+                SubEngineType::Primary,
+                CmdStreamUsage::Preamble,
+                false),
     m_perSubmitCmdStream(*pDevice,
                          pDevice->Parent()->InternalUntrackedCmdAllocator(),
                          EngineTypeCompute,
-                         SubQueueType::Primary,
-                         false,
-                         true),     // Preambles cannot be preemptible.
+                         SubEngineType::Primary,
+                         CmdStreamUsage::Preamble,
+                         false),
     m_postambleCmdStream(*pDevice,
                          pDevice->Parent()->InternalUntrackedCmdAllocator(),
                          EngineTypeCompute,
-                         SubQueueType::Primary,
-                         false,
-                         true)      // Postambles cannot be preemptible.
+                         SubEngineType::Primary,
+                         CmdStreamUsage::Postamble,
+                         false)
 {
     SetupCommonPreamble(pDevice, pEngine->Type(), &m_commonPreamble);
     BuildComputePreambleHeaders();
@@ -409,40 +409,40 @@ UniversalQueueContext::UniversalQueueContext(
     m_shadowedRegCount(0),
     m_deCmdStream(*pDevice,
                   pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                  pEngine->Type(),
-                  SubQueueType::Primary,
-                  false,
-                  true),                // Preambles cannot be preemptible.
+                  EngineTypeUniversal,
+                  SubEngineType::Primary,
+                  CmdStreamUsage::Preamble,
+                  false),
     m_perSubmitCmdStream(*pDevice,
                          pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                         pEngine->Type(),
-                         SubQueueType::Primary,
-                         false,
-                         true),         // Preambles cannot be preemptible.
+                         EngineTypeUniversal,
+                         SubEngineType::Primary,
+                         CmdStreamUsage::Preamble,
+                         false),
     m_shadowInitCmdStream(*pDevice,
                           pDevice->Parent()->InternalUntrackedCmdAllocator(),
                           EngineTypeUniversal,
-                          SubQueueType::Primary,
-                          false,
-                          true),           // Preambles cannot be preemptible.
+                          SubEngineType::Primary,
+                          CmdStreamUsage::Preamble,
+                          false),
     m_cePreambleCmdStream(*pDevice,
                           pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                          pEngine->Type(),
-                          SubQueueType::ConstantEnginePreamble,
-                          false,
-                          true),        // Preambles cannot be preemptible.
+                          EngineTypeUniversal,
+                          SubEngineType::ConstantEngine,
+                          CmdStreamUsage::Preamble,
+                          false),
     m_cePostambleCmdStream(*pDevice,
                            pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                           pEngine->Type(),
-                           SubQueueType::ConstantEngine,
-                           false,
-                           true),       // Postambles cannot be preemptible.
+                           EngineTypeUniversal,
+                           SubEngineType::ConstantEngine,
+                           CmdStreamUsage::Postamble,
+                           false),
     m_dePostambleCmdStream(*pDevice,
                            pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                           pEngine->Type(),
-                           SubQueueType::Primary,
-                           false,
-                           true)        // Postambles cannot be preemptible.
+                           EngineTypeUniversal,
+                           SubEngineType::Primary,
+                           CmdStreamUsage::Postamble,
+                           false)
 {
 }
 

@@ -53,6 +53,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                     = CmdDraw;
+    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque;
     m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed;
     m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti;
@@ -2874,6 +2875,35 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
         pLogContext->KeyAndValue("vertexCount", vertexCount);
         pLogContext->KeyAndValue("firstInstance", firstInstance);
         pLogContext->KeyAndValue("instanceCount", instanceCount);
+        pLogContext->EndInput();
+
+        pThis->m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride)
+{
+    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawOpaque;
+    funcInfo.objectId     = pThis->m_objectId;
+    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    pThis->m_pNextLayer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
+    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("streamOutFilledSizeVa", streamOutFilledSizeVa);
+        pLogContext->KeyAndValue("streamOutOffset",       streamOutOffset);
+        pLogContext->KeyAndValue("stride",                stride);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);

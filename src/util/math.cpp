@@ -774,5 +774,25 @@ float FlushDenormToZero(
     return input;
 }
 
+// =====================================================================================================================
+// Converts a signed 8 bit number into a 1.7 signed magnitude scheme. Valid input range is (-127, 127)
+uint8 IntToSignedMagnitude(
+    int8 input)
+{
+    uint8 output      = 0;
+    uint8 absoluteVal = static_cast<uint8>(Math::Absu(input));
+
+    // Only numbers from (-127, 127) can be represented in this scheme.
+    PAL_ASSERT(absoluteVal < 128);
+
+    if (input < 0)
+    {
+        // Sign bit
+        output = (0x1 << 7);
+    }
+
+    return (output | ( 0x7f & absoluteVal ));
+}
+
 } // Math
 } // Util

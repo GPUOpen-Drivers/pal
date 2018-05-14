@@ -69,7 +69,12 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_prefetchMgr(device),
-    m_cmdStream(device, createInfo.pCmdAllocator, EngineTypeCompute, SubQueueType::Primary, IsNested(), false),
+    m_cmdStream(device,
+                createInfo.pCmdAllocator,
+                EngineTypeCompute,
+                SubEngineType::Primary,
+                CmdStreamUsage::Workload,
+                IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_predGpuAddr(0)
 {

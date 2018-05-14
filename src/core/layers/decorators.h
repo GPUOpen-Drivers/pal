@@ -712,7 +712,6 @@ public:
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const override;
-
     virtual size_t GetColorBlendStateSize(
         const ColorBlendStateCreateInfo& createInfo,
         Result*                          pResult) const override;
@@ -1114,6 +1113,7 @@ public:
         m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] =
             &CmdBufferFwdDecorator::CmdSetUserDataDecoratorGfx;
         m_funcTable.pfnCmdDraw                     = CmdDrawDecorator;
+        m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaqueDecorator;
         m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexedDecorator;
         m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMultiDecorator;
         m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMultiDecorator;
@@ -1141,7 +1141,6 @@ public:
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override
         { m_pNextLayer->CmdBindMsaaState(NextMsaaState(pMsaaState)); }
-
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override
         { m_pNextLayer->CmdBindColorBlendState(NextColorBlendState(pColorBlendState)); }
@@ -1898,6 +1897,16 @@ private:
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
         pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+    }
+
+    static void PAL_STDCALL CmdDrawOpaqueDecorator(
+        ICmdBuffer*   pCmdBuffer,
+        gpusize       streamOutFilledSizeVa,
+        uint32        streamOutOffset,
+        uint32        stride)
+    {
+        ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
+        pNextLayer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
     }
 
     static void PAL_STDCALL CmdDrawIndexedDecorator(

@@ -204,7 +204,11 @@ public:
         gpusize      indexBufAddr,
         PM4Predicate predicate,
         void*        pBuffer) const;
-    size_t BuildDrawIndexAuto(uint32 indexCount, PM4Predicate predicate, void* pBuffer) const;
+    size_t BuildDrawIndexAuto(
+        uint32       indexCount,
+        bool         useOpaque,
+        PM4Predicate predicate,
+        void*        pBuffer) const;
     size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,

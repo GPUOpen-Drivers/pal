@@ -1856,6 +1856,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         uint32 baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32 baseMipLevel   = viewInfo.subresRange.startSubres.mipLevel;
 
+        const ChNumFormat imageViewFormat = viewInfo.swizzledFormat.format;
+
+        const SubResourceInfo& startSubresInfo =
+            *image.Parent()->SubresourceInfo(viewInfo.subresRange.startSubres);
+
         // There are some cases where the view must be setup with base level 0:
         // 1. RPM wants to BLT to the tail of a compressed texture.  When setting up a view where each "pixel"
         //    corresponds to a 4x4 block, the texture unit thinks that the 4x4 level is really 1x1, and there is no way
@@ -1867,6 +1872,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         //    "pixel" corresponds to half a 2x1 macro-pixel, the texture unit cannot be used to compute the dimensions
         //    of each smaller mipmap level. In this case, we need to treat each mip as an individual resource and pad
         //    the width dimension up to the next even number.
+        // 4. For 96 bit bpp formats(X32Y32Z32_Uint/X32Y32Z32_Sint/X32Y32Z32_Float), X32_Uint formated image view srd
+        //    might be created upon the image for image copy operation. Extent of mipmaped level of X32_Uint and
+        //    mipmaped level of the original X32Y32Z32_* format might mismatch, especially on the last several mips.
+        //    Thus, it could be problemtic to use 256b address of zero-th mip + mip level mode. Instead we shall
+        //    adopt 256b address of startsubres's miplevel.
         bool forceBaseMip   = false;
         bool padToEvenWidth = false;
         if (viewInfo.subresRange.numMips == 1)
@@ -1887,6 +1897,11 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 subresource.arraySlice = baseArraySlice;
                 baseArraySlice = 0;
             }
+            else if ((startSubresInfo.bitsPerTexel != Formats::BitsPerPixel(imageViewFormat)) &&
+                     (startSubresInfo.bitsPerTexel == 96))
+            {
+                forceBaseMip = true;
+            }
         }
 
         if (forceBaseMip)
@@ -1898,8 +1913,6 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
         const SubResourceInfo&         subresInfo = *image.Parent()->SubresourceInfo(subresource);
         const AddrMgr1::TileInfo*const pTileInfo  = AddrMgr1::GetTileInfo(image.Parent(), subresource);
-
-        ChNumFormat format = viewInfo.swizzledFormat.format;
 
         bool includePadding = (viewInfo.flags.includePadding != 0);
 
@@ -1925,16 +1938,16 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         //    can access each array slice). This has the unfortunate side-effect of making normalized texture
         //    coordinates inaccurate. However, this is required for access to multiple slices (a feature required by D3D
         //    conformance tests).
-        if ((imgIsBc && (Formats::IsBlockCompressed(format) == false)) ||
-            (subresInfo.bitsPerTexel != Formats::BitsPerPixel(format)))
+        if ((imgIsBc && (Formats::IsBlockCompressed(imageViewFormat) == false)) ||
+            (subresInfo.bitsPerTexel != Formats::BitsPerPixel(imageViewFormat)))
         {
             extent       = subresInfo.extentElements;
             actualExtent = subresInfo.actualExtentElements;
         }
 
-        if (Formats::IsYuvPacked(subresInfo.format.format) &&
-            (Formats::IsYuvPacked(format) == false)        &&
-            ((subresInfo.bitsPerTexel << 1) == Formats::BitsPerPixel(format)))
+        if (Formats::IsYuvPacked(subresInfo.format.format)   &&
+            (Formats::IsYuvPacked(imageViewFormat) == false) &&
+            ((subresInfo.bitsPerTexel << 1) == Formats::BitsPerPixel(imageViewFormat)))
         {
             // Changing how we interpret the bits-per-pixel of the subresource wreaks havoc with any tile swizzle
             // pattern used. This will only work for linear-tiled Images.
@@ -1966,8 +1979,8 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         srd.word0.u32All = 0;
         // IMG RSRC MIN_LOD field is unsigned
         srd.word1.bits.MIN_LOD     = Math::FloatToUFixed(viewInfo.minLod, Gfx6MinLodIntBits, Gfx6MinLodFracBits, true);
-        srd.word1.bits.DATA_FORMAT = Formats::Gfx6::HwImgDataFmt(pFmtInfo, format);
-        srd.word1.bits.NUM_FORMAT  = Formats::Gfx6::HwImgNumFmt(pFmtInfo, format);
+        srd.word1.bits.DATA_FORMAT = Formats::Gfx6::HwImgDataFmt(pFmtInfo, imageViewFormat);
+        srd.word1.bits.NUM_FORMAT  = Formats::Gfx6::HwImgNumFmt(pFmtInfo, imageViewFormat);
 
         if (includePadding)
         {
@@ -2141,9 +2154,6 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 const bool checkFromStartMip = pParent->IsDepthStencil() ?
                     (TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil)) :
                     (TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget));
-
-                const SubResourceInfo& startSubresInfo =
-                    *image.Parent()->SubresourceInfo(viewInfo.subresRange.startSubres);
 
                 if ((checkFromStartMip == false) || (startSubresInfo.flags.supportMetaDataTexFetch == true))
                 {

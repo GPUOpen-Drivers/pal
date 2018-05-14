@@ -198,7 +198,6 @@ public:
 
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override
         { PAL_NEVER_CALLED(); }
-
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override
         { PAL_NEVER_CALLED(); }
 

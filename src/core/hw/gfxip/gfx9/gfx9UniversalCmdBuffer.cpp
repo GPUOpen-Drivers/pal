@@ -235,16 +235,16 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_prefetchMgr(device),
     m_deCmdStream(device,
                   createInfo.pCmdAllocator,
-                  GetEngineType(),
-                  SubQueueType::Primary,
-                  IsNested(),
-                  false),
+                  EngineTypeUniversal,
+                  SubEngineType::Primary,
+                  CmdStreamUsage::Workload,
+                  IsNested()),
     m_ceCmdStream(device,
                   createInfo.pCmdAllocator,
-                  GetEngineType(),
-                  SubQueueType::ConstantEngine,
-                  IsNested(),
-                  false),
+                  EngineTypeUniversal,
+                  SubEngineType::ConstantEngine,
+                  CmdStreamUsage::Workload,
+                  IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_pSignatureGfx(&NullGfxSignature),
     m_pipelineCtxPm4Hash(0),
@@ -275,6 +275,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     memset(&m_cachedSettings,           0, sizeof(m_cachedSettings));
     memset(&m_drawTimeHwState,          0, sizeof(m_drawTimeHwState));
     memset(&m_nggState,                 0, sizeof(m_nggState));
+    memset(&m_currentBinSize,           0, sizeof(m_currentBinSize));
 
     memset(&m_pipelinePsHash, 0, sizeof(m_pipelinePsHash));
     m_pipelineFlags.u32All = 0;
@@ -1719,6 +1720,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     drawInfo.firstVertex   = firstVertex;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
+    drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<false, false>(drawInfo);
 
@@ -1748,13 +1750,110 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
             if (TestAnyFlagSet(mask, 1))
             {
                 pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
-                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount, pThis->PacketPredicate(), pDeCmdSpace);
+                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
             }
         }
     }
     else
     {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount, pThis->PacketPredicate(), pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
+    }
+
+    if (issueSqttMarkerEvent)
+    {
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+    }
+
+    pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
+
+    pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+    // On Gfx9, the WD (Work distributor - breaks down draw commands into work groups which are sent to IA
+    // units) has changed to having independent DMA and DRAW logic. As a result, DRAW_INDEX_AUTO commands have
+    // added a dummy DMA command issued by the CP which overwrites the VGT_INDEX_TYPE register used by GFX. This
+    // can cause hangs and rendering corruption with subsequent indexed draw commands. We must invalidate the
+    // index type state so that it will be issued before the next indexed draw.
+    pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
+}
+
+// =====================================================================================================================
+// Issues a draw opaque command.
+template <bool issueSqttMarkerEvent, bool viewInstancingEnable>
+void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride)
+{
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+
+    ValidateDrawInfo drawInfo;
+    drawInfo.vtxIdxCount   = 0;
+    drawInfo.instanceCount = 1;
+    drawInfo.firstVertex   = 0;
+    drawInfo.firstInstance = 0;
+    drawInfo.firstIndex    = 0;
+    drawInfo.useOpaque     = true;
+
+    pThis->ValidateDraw<false, false>(drawInfo);
+
+    // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
+    // required for computations in DescribeDraw.
+    if (issueSqttMarkerEvent)
+    {
+        pThis->DescribeDraw(Developer::DrawDispatchType::CmdDrawOpaque);
+    }
+
+    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
+
+    // Streamout filled is saved in gpuMemory, we use a me_copy to set mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE.
+    pDeCmdSpace += pThis->m_cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                          dst_sel__me_copy_data__mem_mapped_register,
+                                                          mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE,
+                                                          src_sel__me_copy_data__memory__GFX09,
+                                                          streamOutFilledSizeVa,
+                                                          count_sel__me_copy_data__32_bits_of_data,
+                                                          wr_confirm__me_copy_data__wait_for_confirmation,
+                                                          pDeCmdSpace);
+
+    // StreamOutFilledSize is generated by the HW in units of dwords, while streamOutOffset and
+    // stride are specified by the client in units of bytes.
+    // Hardware will calc to indices by (mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE -
+    // mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET) / mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE
+    PAL_ASSERT(IsPow2Aligned(streamOutOffset, sizeof(uint32)));
+    PAL_ASSERT(IsPow2Aligned(stride, sizeof(uint32)));
+
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetOneContextReg(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET,
+                                                             streamOutOffset >> 2,
+                                                             pDeCmdSpace);
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetOneContextReg(mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE,
+                                                             stride >> 2,
+                                                             pDeCmdSpace);
+
+    if (viewInstancingEnable)
+    {
+        const auto*const pPipeline          =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto&      viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32           mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+
+        if (viewInstancingDesc.enableMasking)
+        {
+            mask &= pThis->m_graphicsState.viewInstanceMask;
+        }
+
+        for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+        {
+            if (TestAnyFlagSet(mask, 1))
+            {
+                pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
+            }
+        }
+    }
+    else
+    {
+        pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
     }
 
     if (issueSqttMarkerEvent)
@@ -1796,6 +1895,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     drawInfo.firstVertex   = vertexOffset;
     drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = firstIndex;
+    drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<true, false>(drawInfo);
 
@@ -1858,6 +1958,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                 {
                     // NGG Fast Launch pipelines treat all draws as auto-index draws.
                     pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(indexCount,
+                                                                       false,
                                                                        pThis->PacketPredicate(),
                                                                        pDeCmdSpace);
                 }
@@ -1895,7 +1996,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
         else
         {
             // NGG Fast Launch pipelines treat all draws as auto-index draws.
-            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(indexCount, pThis->PacketPredicate(), pDeCmdSpace);
+            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(indexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
         }
     }
 
@@ -1932,6 +2033,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
+    drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<false, true>(drawInfo);
 
@@ -2037,6 +2139,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     drawInfo.firstVertex   = 0;
     drawInfo.firstInstance = 0;
     drawInfo.firstIndex    = 0;
+    drawInfo.useOpaque     = false;
 
     pThis->ValidateDraw<true, true>(drawInfo);
 
@@ -2768,7 +2871,7 @@ Result UniversalCmdBuffer::AddPostamble()
                                                           pDeCmdSpace);
         const uint32 vgtIndexType = 0;
         pDeCmdSpace += m_cmdUtil.BuildIndexType(vgtIndexType, pDeCmdSpace);
-        pDeCmdSpace += m_cmdUtil.BuildDrawIndexAuto(0, Pm4Predicate::PredDisable, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildDrawIndexAuto(0, false, Pm4Predicate::PredDisable, pDeCmdSpace);
     }
 
     if (m_gfxCmdBufState.cpBltActive)
@@ -4056,6 +4159,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         {
             m_enabledPbb = shouldEnablePbb;
             pDeCmdSpace  = ValidateBinSizes<pm4OptImmediate>(*pPipeline, pBlendState, disableDfsm, pDeCmdSpace);
+
         }
     }
 
@@ -4544,6 +4648,9 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_BINNER_CNTL_0,
                                                                        m_paScBinnerCntl0.u32All,
                                                                        pDeCmdSpace);
+
+    // Update the current bin sizes chosen.
+    m_currentBinSize = binSize;
 
     return pDeCmdSpace;
 }
@@ -5554,6 +5661,7 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     //    - Point list
     //    - Line strip
     //    - Triangle strip
+    // add draw opaque.
 
     const PrimitiveTopology primTopology            = m_graphicsState.inputAssemblyState.topology;
     const bool              primitiveRestartEnabled = m_graphicsState.inputAssemblyState.primitiveRestartEnable;
@@ -5563,7 +5671,8 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
                         (primitiveRestartEnabled &&
                          ((primTopology != PrimitiveTopology::PointList) &&
                           (primTopology != PrimitiveTopology::LineStrip) &&
-                          (primTopology != PrimitiveTopology::TriangleStrip))));
+                          (primTopology != PrimitiveTopology::TriangleStrip))) ||
+                        drawInfo.useOpaque);
 
     if ((switchOnEop == false) && m_cachedSettings.disableWdLoadBalancing)
     {
@@ -6292,6 +6401,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             drawInfo.firstVertex   = 0;
             drawInfo.firstInstance = 0;
             drawInfo.firstIndex    = 0;
+            drawInfo.useOpaque     = false;
             if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
             {
                 ValidateDraw<false, true>(drawInfo);
@@ -6485,6 +6595,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;
         m_pfnValidateUserDataGfxPipelineSwitch     = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
         m_funcTable.pfnCmdDraw                     = cmdBuffer.m_funcTable.pfnCmdDraw;
+        m_funcTable.pfnCmdDrawOpaque               = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
         m_funcTable.pfnCmdDrawIndexed              = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
         m_funcTable.pfnCmdDrawIndirectMulti        = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
         m_funcTable.pfnCmdDrawIndexedIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
@@ -6874,6 +6985,7 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
         if (m_cachedSettings.issueSqttMarkerEvent)
         {
             m_funcTable.pfnCmdDraw              = CmdDraw<true, true>;
+            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<true, true>;
             m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<true, true>;
 
             if (nggFastLuanch)
@@ -6890,6 +7002,7 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
         else
         {
             m_funcTable.pfnCmdDraw              = CmdDraw<false, true>;
+            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<false, true>;
             m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<false, true>;
 
             if (nggFastLuanch)
@@ -6909,6 +7022,7 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
         if (m_cachedSettings.issueSqttMarkerEvent)
         {
             m_funcTable.pfnCmdDraw              = CmdDraw<true, false>;
+            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<true, false>;
             m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<true, false>;
 
             if (nggFastLuanch)
@@ -6925,6 +7039,7 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
         else
         {
             m_funcTable.pfnCmdDraw              = CmdDraw<false, false>;
+            m_funcTable.pfnCmdDrawOpaque        = CmdDrawOpaque<false, false>;
             m_funcTable.pfnCmdDrawIndirectMulti = CmdDrawIndirectMulti<false, false>;
 
             if (nggFastLuanch)

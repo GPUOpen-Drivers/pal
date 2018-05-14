@@ -84,6 +84,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDraw,                              (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdDrawOpaque,                        (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDrawIndexed,                       (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDrawIndirectMulti,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti,          (CmdBuild)            },

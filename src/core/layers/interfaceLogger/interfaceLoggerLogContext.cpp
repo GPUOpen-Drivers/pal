@@ -128,6 +128,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
     { InterfaceFunc::CmdBufferCmdDraw,                                          InterfaceObject::CmdBuffer,            "CmdDraw"                                 },
+    { InterfaceFunc::CmdBufferCmdDrawOpaque,                                    InterfaceObject::CmdBuffer,            "CmdDrawOpaque"                           },
     { InterfaceFunc::CmdBufferCmdDrawIndexed,                                   InterfaceObject::CmdBuffer,            "CmdDrawIndexed"                          },
     { InterfaceFunc::CmdBufferCmdDrawIndirectMulti,                             InterfaceObject::CmdBuffer,            "CmdDrawIndirectMulti"                    },
     { InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti,                      InterfaceObject::CmdBuffer,            "CmdDrawIndexedIndirectMulti"             },

@@ -29,7 +29,7 @@
 #include "core/platform.h"
 #include "palHashMap.h"
 #include "palMutex.h"
-#include "../../shared/gpuopen/inc/ddUriInterface.h"
+#include "ddUriInterface.h"
 
 // Forward declarations.
 namespace DevDriver

@@ -355,8 +355,7 @@ Result CmdUploadRing::UploadCmdBuffers(
         const CmdStream*const pFirstStream = static_cast<const CmdBuffer*>(ppCmdBuffers[0])->GetCmdStream(idx);
 
         streamState[idx].curIbFreeBytes                 = Min(m_maxStreamBytes, RaftMemBytes) - m_minPostambleBytes;
-        streamState[idx].flags.isConstantEngine         = pFirstStream->IsConstantEngine();
-        streamState[idx].flags.isConstantEnginePreamble = pFirstStream->IsConstantEnginePreamble();
+        streamState[idx].subEngineType                  = pFirstStream->GetSubEngineType();
         streamState[idx].flags.isPreemptionEnabled      = pFirstStream->IsPreemptionEnabled();
         streamState[idx].flags.dropIfSameContext        = pFirstStream->DropIfSameContext();
     }
@@ -447,7 +446,7 @@ Result CmdUploadRing::UploadCmdBuffers(
                                                  pState->prevIbPostambleSize,
                                                  pChunk->GpuVirtAddr(),
                                                  pChunk->CmdDwordsToExecute() * sizeof(uint32),
-                                                 pState->flags.isConstantEngine,
+                                                 (pState->subEngineType == SubEngineType::ConstantEngine),
                                                  pState->flags.isPreemptionEnabled);
 
                             uploadMoreCmdBuffers = false;
@@ -504,7 +503,7 @@ Result CmdUploadRing::UploadCmdBuffers(
                                      pState->prevIbPostambleSize,
                                      0,
                                      0,
-                                     pState->flags.isConstantEngine,
+                                     (pState->subEngineType == SubEngineType::ConstantEngine),
                                      pState->flags.isPreemptionEnabled);
             }
         }
@@ -560,15 +559,14 @@ Result CmdUploadRing::UploadCmdBuffers(
             // case we can just leave a hole in the stream array.
             if (streamState[idx].launchBytes > 0)
             {
-                pUploadInfo->streamInfo[idx].flags      = streamState[idx].flags;
-                pUploadInfo->streamInfo[idx].pGpuMemory = pRaft->pGpuMemory[idx];
-                pUploadInfo->streamInfo[idx].launchSize = streamState[idx].launchBytes;
+                pUploadInfo->streamInfo[idx].flags         = streamState[idx].flags;
+                pUploadInfo->streamInfo[idx].subEngineType = streamState[idx].subEngineType;
+                pUploadInfo->streamInfo[idx].pGpuMemory    = pRaft->pGpuMemory[idx];
+                pUploadInfo->streamInfo[idx].launchSize    = streamState[idx].launchBytes;
             }
             else
             {
-                pUploadInfo->streamInfo[idx].flags.u32All = 0;
-                pUploadInfo->streamInfo[idx].pGpuMemory   = 0;
-                pUploadInfo->streamInfo[idx].launchSize   = 0;
+                memset(&pUploadInfo->streamInfo[idx], 0, sizeof(pUploadInfo->streamInfo[idx]));
             }
         }
     }
@@ -621,7 +619,7 @@ void CmdUploadRing::EndCurrentIb(
                              pState->prevIbPostambleSize,
                              pState->curIbOffset,
                              curIbTotalBytes,
-                             pState->flags.isConstantEngine,
+                             (pState->subEngineType == SubEngineType::ConstantEngine),
                              pState->flags.isPreemptionEnabled);
     }
 

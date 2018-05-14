@@ -102,12 +102,13 @@ void SettingsLoader::HwlValidateSettings()
         ((m_gfxLevel == GfxIpLevel::GfxIp9)     &&
          (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix)))
     {
-        m_gfx9Settings.commandBufferPreemptionFlags &= ~UniversalEnginePreemption;
+        // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
+        // but we can't support state shadowing without these features.
+        m_gfx9Settings.cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
     }
-
-    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
-        m_gfx9Settings.commandBufferPreemptionFlags = PreemptionDisabled;
+        m_gfx9Settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
     // Validate the number of offchip LDS buffers used for tessellation.

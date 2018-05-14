@@ -69,7 +69,8 @@ struct UniversalCmdBufferState
             uint32 containsDrawIndirect  :  1;
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
-            uint32 reserved              : 22;
+            uint32 reservedForFutureHw   :  1;
+            uint32 reserved              : 21;
         };
         uint32 u32All;
     } flags;
@@ -797,6 +798,12 @@ private:
         uint32      vertexCount,
         uint32      firstInstance,
         uint32      instanceCount);
+    template <bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    static void PAL_STDCALL CmdDrawOpaque(
+        ICmdBuffer* pCmdBuffer,
+        gpusize streamOutFilledSizeVa,
+        uint32  streamOutOffset,
+        uint32  stride);
     template <bool issueSqttMarkerEvent, bool isNggFastLaunch, bool viewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
@@ -1055,11 +1062,13 @@ private:
     regPA_SC_BINNER_CNTL_0       m_savedPaScBinnerCntl0; // Value of PA_SC_BINNER_CNTL0 selected by settings
     uint32                       m_log2NumSamples;       // Last written value of PA_SC_AA_CONFIG.MSAA_NUM_SAMPLES.
 
-    BinningMode      m_binningMode;                     // Last value programmed into paScBinnerCntl0.BINNING_MODE
-    BinningOverride  m_pbbStateOverride;                // Sets PBB on/off as per dictated by the new bound pipeline.
-    bool             m_enabledPbb;                      // PBB is currently enabled or disabled.
-    uint16           m_customBinSizeX;                  // Custom bin sizes for PBB.  Zero indicates PBB is not using
-    uint16           m_customBinSizeY;                  // a custom bin size.
+    BinningMode      m_binningMode;                      // Last value programmed into paScBinnerCntl0.BINNING_MODE
+    BinningOverride  m_pbbStateOverride;                 // Sets PBB on/off as per dictated by the new bound pipeline.
+    bool             m_enabledPbb;                       // PBB is currently enabled or disabled.
+    uint16           m_customBinSizeX;                   // Custom bin sizes for PBB.  Zero indicates PBB is not using
+    uint16           m_customBinSizeY;                   // a custom bin size.
+    Extent2d         m_currentBinSize;                   // Current PBB bin size that has been chosen. This could be
+                                                         // equal to the custom bin size.
 
     union
     {

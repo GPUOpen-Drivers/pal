@@ -111,17 +111,17 @@ private:
         uint32 u32All;
     } m_flags;
 
-    BinningOverride  m_binningOverride; // Override global batched binning. Gfx9 only.
+    BinningOverride          m_binningOverride; // Override global batched binning. Gfx9 only.
 
-    uint32  m_vertsPerPrim; // Number of vertices per primitive (based on topology).
+    uint32                   m_vertsPerPrim; // Number of vertices per primitive (based on topology).
 
     // Store any info from the pipeline creation info that might be needed later, such as for draw-time blend
     // optimization programming.
-    SwizzledFormat  m_targetSwizzledFormats[MaxColorTargets];
-    uint8           m_targetWriteMasks[MaxColorTargets];
+    SwizzledFormat           m_targetSwizzledFormats[MaxColorTargets];
+    uint8                    m_targetWriteMasks[MaxColorTargets];
 
     // Use this late_alloc_vs limit if lateAllocVsLimit flag is set.
-    uint32  m_lateAllocVsLimit;
+    uint32                   m_lateAllocVsLimit;
 
     ViewInstancingDescriptor m_viewInstancingDesc;  // View instancing descriptor.
 

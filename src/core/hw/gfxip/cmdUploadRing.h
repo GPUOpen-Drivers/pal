@@ -46,11 +46,9 @@ union UploadedStreamFlags
 {
     struct
     {
-        uint32 isConstantEngine         :  1; // If the stream is for the constant engine.
-        uint32 isConstantEnginePreamble :  1; // If the stream is a constant engine preamble.
-        uint32 isPreemptionEnabled      :  1; // If the stream can be preempted.
-        uint32 dropIfSameContext        :  1; // If the stream can be dropped if the prior submit was PAL's.
-        uint32 reserved                 : 28;
+        uint32 isPreemptionEnabled :  1; // If the stream can be preempted.
+        uint32 dropIfSameContext   :  1; // If the stream can be dropped if the prior submit was PAL's.
+        uint32 reserved            : 30;
     };
     uint32 u32All;
 };
@@ -59,8 +57,9 @@ union UploadedStreamFlags
 struct UploadedStreamInfo
 {
     UploadedStreamFlags flags;
-    const GpuMemory*    pGpuMemory; // The GPU memory backing the stream or null if the stream is empty.
-    gpusize             launchSize; // The size of the first command block in the stream.
+    SubEngineType       subEngineType; // The sub engine type targeted by this stream.
+    const GpuMemory*    pGpuMemory;    // The GPU memory backing the stream or null if the stream is empty.
+    gpusize             launchSize;    // The size of the first command block in the stream.
 };
 
 // All information needed to launch the uploaded command streams from a set of command buffers.
@@ -168,7 +167,8 @@ private:
     // Some information we need to track per-command-stream while building upload commands.
     struct UploadState
     {
-        UploadedStreamFlags flags;     // Most of these are taken from the first command stream uploaded.
+        UploadedStreamFlags flags;         // Most of these are taken from the first command stream uploaded.
+        SubEngineType       subEngineType; // Also from the first command stream.
 
         gpusize raftFreeOffset;        // Where the next byte of free space is in the raft.
         gpusize prevIbPostambleOffset; // Zero, or the offset to the previous IB's chain postamble.

@@ -108,12 +108,12 @@ protected:
         const GfxDevice& device,
         ICmdAllocator*   pCmdAllocator,
         EngineType       engineType,
-        SubQueueType     subQueueType,
+        SubEngineType    subEngineType,
+        CmdStreamUsage   cmdStreamUsage,
         uint32           chainSizeInDwords,
         uint32           minNopSizeInDwords,
         uint32           condIndirectBufferSize,
-        bool             isNested,
-        bool             disablePreemption);
+        bool             isNested);
     virtual ~GfxCmdStream() { }
 
     void UpdateTailChainLocation(uint32* pTailChain);

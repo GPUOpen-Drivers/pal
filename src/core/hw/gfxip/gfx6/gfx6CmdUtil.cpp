@@ -1242,10 +1242,13 @@ size_t CmdUtil::BuildDrawIndex2(
 // Builds a PM4 packet which issues a non-indexed draw. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildDrawIndexAuto(
     uint32       indexCount,
+    bool         useOpaque,
     PM4Predicate predicate,
     void*        pBuffer     // [out] Build the PM4 packet in this buffer.
     ) const
 {
+    PAL_ASSERT((indexCount == 0) || (useOpaque == false));
+
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_AUTO_DWORDS;
     auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXAUTO*>(pBuffer);
 
@@ -1255,6 +1258,7 @@ size_t CmdUtil::BuildDrawIndexAuto(
     pPacket->drawInitiator.u32All             = 0;
     pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
     pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    pPacket->drawInitiator.bits.USE_OPAQUE    = useOpaque ? 1 : 0;
 
     return PacketSize;
 }

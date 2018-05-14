@@ -74,6 +74,7 @@ static const char* CmdBufCallIdStrings[] =
     "CmdWaitMemoryValue()",
     "CmdWaitBusAddressableMemoryMarker()",
     "CmdDraw()",
+    "CmdDrawOpaque()",
     "CmdDrawIndexed()",
     "CmdDrawIndirectMulti()",
     "CmdDrawIndexedIndirectMulti()",
@@ -1007,6 +1008,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                     = CmdDraw;
+    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque;
     m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed;
     m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti;
@@ -1067,11 +1069,19 @@ static void CmdBindPipelineToString(
                                                                         "PipelineBindPoint::Graphics");
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "PipelineHash      = 0x%016llX", params.pPipeline->GetInfo().pipelineHash);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    if (params.pPipeline != nullptr)
+    {
+        Snprintf(pString, StringLength, "PipelineHash      = 0x%016llX", params.pPipeline->GetInfo().pipelineHash);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "CompilerHash      = 0x%016llX", params.pPipeline->GetInfo().compilerHash);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "CompilerHash      = 0x%016llX", params.pPipeline->GetInfo().compilerHash);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    }
+    else
+    {
+        Snprintf(pString, StringLength, "Pipeline = Null");
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    }
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2185,6 +2195,24 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     }
 
     pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+}
+
+// =====================================================================================================================
+void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
+    ICmdBuffer* pCmdBuffer,
+    gpusize streamOutFilledSizeVa,
+    uint32  streamOutOffset,
+    uint32  stride)
+{
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    if (pThis->m_flags.logCmdDraws)
+    {
+        pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDrawOpaque));
+        // TODO: Add comment string.
+    }
+
+    pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
 }
 
 // =====================================================================================================================

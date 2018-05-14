@@ -187,5 +187,8 @@ extern uint32 Absu(int32 number);
 /// Return sign-preserved zero if input is denorm, otherwise input value
 extern float FlushDenormToZero(float input);
 
+/// Return value in 1.7 signed magnitude format. Valid input range is (-127, 127)
+extern uint8 IntToSignedMagnitude(int8 input);
+
 } // Math
 } // Util

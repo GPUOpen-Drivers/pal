@@ -964,6 +964,15 @@ typedef void (PAL_STDCALL *CmdDrawFunc)(
     uint32      firstInstance,
     uint32      instanceCount);
 
+/// @internal Function pointer type definition for issuing draws auto.
+///
+/// @see ICmdBuffer::CmdDrawOpaque().
+typedef void (PAL_STDCALL *CmdDrawOpaqueFunc)(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride);
+
 /// @internal Function pointer type definition for issuing indexed draws.
 ///
 /// @see ICmdBuffer::CmdDrawIndexed().
@@ -1150,9 +1159,6 @@ struct BlendConstParams
 {
     float blendConst[4];  ///< 4-component RGBA float specifying the new blend constant.
 };
-
-/// Maximum number of viewports.
-constexpr uint32 MaxViewports = 16;
 
 /// Specifies the viewport transform parameters for setting a single viewport.
 /// @see ICmdBuffer::CmdSetViewport
@@ -1710,6 +1716,21 @@ public:
         uint32 instanceCount)
     {
         m_funcTable.pfnCmdDraw(this, firstVertex, vertexCount, firstInstance, instanceCount);
+    }
+
+    /// Issues draw opaque call using the command buffer's currently bound graphics state.
+    /// Uses the stream-out target of a previous draw as the input vertex data.
+    /// the number of vertices = (streamOutFilledSize (value of streamOutFilledSizeVa) - streamOutOffset) / stride
+    ///
+    /// @param [in] streamOutFilledSizeVa gpuAddress of streamOut filled size for streamOut buffer.
+    /// @param [in] streamOutOffset       the offset of begin of streamOut as vertex.
+    /// @param [in] stride                stride for stream data as vertex.
+    PAL_INLINE void CmdDrawOpaque(
+        gpusize streamOutFilledSizeVa,
+        uint32  streamOutOffset,
+        uint32  stride)
+    {
+        m_funcTable.pfnCmdDrawOpaque(this, streamOutFilledSizeVa, streamOutOffset, stride);
     }
 
     /// Issues an instanced, indexed draw call using the command buffer's currently bound graphics state.  Results in
@@ -3128,6 +3149,7 @@ protected:
         CmdSetUserDataFunc              pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Count)];
 
         CmdDrawFunc                     pfnCmdDraw;                     ///< CmdDraw function pointer.
+        CmdDrawOpaqueFunc               pfnCmdDrawOpaque;               ///< CmdDrawOpaque function pointer.
         CmdDrawIndexedFunc              pfnCmdDrawIndexed;              ///< CmdDrawIndexed function pointer.
         CmdDrawIndirectMultiFunc        pfnCmdDrawIndirectMulti;        ///< CmdDrawIndirectMulti function pointer.
         CmdDrawIndexedIndirectMultiFunc pfnCmdDrawIndexedIndirectMulti; ///< CmdDrawIndexedIndirectMulti func pointer.

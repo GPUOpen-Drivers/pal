@@ -686,6 +686,12 @@ private:
         uint32      firstInstance,
         uint32      instanceCount);
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
+    static void PAL_STDCALL CmdDrawOpaque(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     streamOutFilledSizeVa,
+        uint32      streamOutOffset,
+        uint32      stride);
+    template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,

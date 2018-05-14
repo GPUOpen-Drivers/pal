@@ -32,6 +32,7 @@
 #pragma once
 
 #include "pal.h"
+#include "palDevice.h"
 #include "palGpuMemoryBindable.h"
 #include "palImage.h"
 #include "palShader.h"
@@ -213,10 +214,11 @@ struct GraphicsPipelineCreateInfo
                                                    ///  axis-aligned line end caps during line rasterization.
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
+#elif (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374)
+        bool            depthClampEnable;          ///< Disable depth clamping to viewport min/max depth
 #endif
-
     } rsState;             ///< Rasterizer state.
 
     struct

@@ -120,12 +120,13 @@ void SettingsLoader::HwlValidateSettings()
         (gfx6Props.supportPreemptionWithChaining == 0) ||
         (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
-        m_gfx6Settings.commandBufferPreemptionFlags &= ~UniversalEnginePreemption;
+        // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
+        // but we can't support state shadowing without these features.
+        m_gfx6Settings.cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
     }
-
-    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
-        m_gfx6Settings.commandBufferPreemptionFlags = PreemptionDisabled;
+        m_gfx6Settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
     // The maximum GS LDS size must be aligned to the LDS granularity.

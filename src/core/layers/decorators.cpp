@@ -1160,7 +1160,6 @@ Result DeviceDecorator::CreateMsaaState(
 
     return result;
 }
-
 // =====================================================================================================================
 size_t DeviceDecorator::GetColorBlendStateSize(
     const ColorBlendStateCreateInfo& createInfo,

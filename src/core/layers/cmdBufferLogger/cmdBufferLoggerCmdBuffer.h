@@ -67,6 +67,7 @@ enum class CmdBufCallId : uint32
     CmdWaitMemoryValue,
     CmdWaitBusAddressableMemoryMarker,
     CmdDraw,
+    CmdDrawOpaque,
     CmdDrawIndexed,
     CmdDrawIndirectMulti,
     CmdDrawIndexedIndirectMulti,
@@ -598,6 +599,11 @@ private:
         uint32      vertexCount,
         uint32      firstInstance,
         uint32      instanceCount);
+    static void PAL_STDCALL CmdDrawOpaque(
+        ICmdBuffer* pCmdBuffer,
+        gpusize     streamOutFilledSizeVa,
+        uint32      streamOutOffset,
+        uint32      stride);
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,

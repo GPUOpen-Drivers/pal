@@ -69,6 +69,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                     = CmdDraw;
+    m_funcTable.pfnCmdDrawOpaque               = CmdDrawOpaque;
     m_funcTable.pfnCmdDrawIndexed              = CmdDrawIndexed;
     m_funcTable.pfnCmdDrawIndirectMulti        = CmdDrawIndirectMulti;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti = CmdDrawIndexedIndirectMulti;
@@ -879,6 +880,40 @@ void CmdBuffer::ReplayCmdDraw(
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDraw);
     pTgtCmdBuffer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
+void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     streamOutFilledSizeVa,
+    uint32      streamOutOffset,
+    uint32      stride)
+{
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+
+    pThis->InsertToken(CmdBufCallId::CmdDrawOpaque);
+    pThis->InsertToken(streamOutFilledSizeVa);
+    pThis->InsertToken(streamOutOffset);
+    pThis->InsertToken(stride);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDrawOpaque(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto streamOutFilledSizeVa = ReadTokenVal<gpusize>();
+    auto streamOutOffset       = ReadTokenVal<uint32>();
+    auto stride                = ReadTokenVal<uint32>();
+
+    LogItem logItem = { };
+    logItem.cmdBufCall.flags.draw         = 1;
+    logItem.cmdBufCall.draw.vertexCount   = 0;
+    logItem.cmdBufCall.draw.instanceCount = 1;
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDraw);
+    pTgtCmdBuffer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -3064,6 +3099,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdWaitMemoryValue,
         &CmdBuffer::ReplayCmdWaitBusAddressableMemoryMarker,
         &CmdBuffer::ReplayCmdDraw,
+        &CmdBuffer::ReplayCmdDrawOpaque,
         &CmdBuffer::ReplayCmdDrawIndexed,
         &CmdBuffer::ReplayCmdDrawIndirectMulti,
         &CmdBuffer::ReplayCmdDrawIndexedIndirectMulti,

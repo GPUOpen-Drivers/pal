@@ -279,7 +279,7 @@ void SettingsLoader::ValidateSettings()
     if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled())
     {
         m_pSettings->requestDebugVmid = true;
-        m_pSettings->commandBufferPreemptionFlags = PreemptionDisabled;
+        m_pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
     if ((m_pSettings->logPipelines != 0) &&

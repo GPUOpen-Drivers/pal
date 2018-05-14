@@ -620,14 +620,19 @@ void Device::FinalizeQueueProperties()
     // Disable mid command buffer preemption on the DMA and Universal Engines if the setting has the feature disabled.
     // Furthermore, if the KMD does not support at least seven UDMA buffers per submission, we cannot support preemption
     // on the Universal Engine.
-    if (((Settings().commandBufferPreemptionFlags & UniversalEnginePreemption) == 0) ||
-        (m_queueProperties.maxNumCmdStreamsPerSubmit < 7))
+    //
+    // Doing this while the KMD has enabled MCBP can cause corruption or hangs on other drivers. The only safe way to
+    // disable MCBP is to fully enable everything like it's on and then disable preemption in the workload CmdStream.
+    const bool fullyDisableMcbp = (Settings().cmdBufPreemptionMode == CmdBufPreemptModeFullDisableUnsafe);
+
+    if (fullyDisableMcbp || (m_queueProperties.maxNumCmdStreamsPerSubmit < 7))
     {
         m_engineProperties.perEngine[EngineTypeUniversal].flags.supportsMidCmdBufPreemption = 0;
         m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaSize               = 0;
         m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaAlignment          = 0;
     }
-    if ((Settings().commandBufferPreemptionFlags & DmaEnginePreemption) == 0)
+
+    if (fullyDisableMcbp)
     {
         m_engineProperties.perEngine[EngineTypeDma].flags.supportsMidCmdBufPreemption = 0;
         m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize               = 0;

@@ -48,22 +48,23 @@ class IQueue;
 class Platform;
 enum  QueueType : uint32;
 
-// Many queues & command buffers actually break down into multiple command streams and subqueues internally. For
-// example, Universal queues/cmdbufs actually submit a universal command stream and a constant engine command
-// stream.
-enum class SubQueueType : uint32
+// Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal
+// command buffers build a primary stream (DE) but may also build a second stream for the constant engine (CE).
+enum class SubEngineType : uint32
 {
-    // Subqueue that is the queue itself, rather than an ancilliary queue.
-    Primary = 0,
+    Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
+    ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
+    Count,
+};
 
-    // CP constant update engine that runs in parallel with draw engine.
-    ConstantEngine = 1,
-
-    // Preamble command buffer CP constant update engine that runs in parallel with the draw engine, but prior
-    // to any of the other ConstantEngine command streams. This is meant for use only in QueueContext classes.
-    ConstantEnginePreamble = 2,
-
-    SubQueueTypeCount,
+// Each submit to the hardware may include additional command streams that are executed before and after the command
+// buffer streams.
+enum class CmdStreamUsage : uint32
+{
+    Preamble  = 0, // The command stream will always be executed before the command buffer streams.
+    Workload  = 1, // The command stream is part of a command buffer.
+    Postamble = 2, // The command stream will always be executed after the command buffer streams.
+    Count,
 };
 
 // Structure for passing arguments to FilterSetUserDataGfx() and WriteUserDataRegisters().  Reduces moving
@@ -82,19 +83,17 @@ union CmdStreamFlags
 {
     struct
     {
-        uint32 isConstantEngine   :  1; // Indicates that this is a Constant Engine command stream.
-        uint32 isCePreamble       :  1; // Indicates that this is a Constant Engine Preamble command stream.
-        uint32 dropIfSameContext  :  1; // The KMD can drop this stream if the previous scheduler context is the same.
-        uint32 prefetchCommands   :  1; // The command stream should be prefetched into the GPU cache.
-        uint32 optimizeCommands   :  1; // The command stream contents should be optimized.
-        uint32 optModeImmediate   :  1; // Commands will be optimized when they are written to the reserve buffer.
-        uint32 optModeFinalized   :  1; // Commands will be optimized when chunks are finalized.
-        uint32 buildInSysMem      :  1; // Command data will be allocated using system memory chunks instead of the
-                                        // usual GPU memory chunks.
-        uint32 enablePreemption   :  1; // This command stream can be preempted.
-        uint32 addressDependent   :  1; // One or more commands are dependent on the command chunk's GPU address. This
-                                        // disables optimizations that copy commands and execute them without patching.
-        uint32 reserved           : 22;
+        uint32 dropIfSameContext :  1; // The KMD can drop this stream if the previous scheduler context is the same.
+        uint32 prefetchCommands  :  1; // The command stream should be prefetched into the GPU cache.
+        uint32 optimizeCommands  :  1; // The command stream contents should be optimized.
+        uint32 optModeImmediate  :  1; // Commands will be optimized when they are written to the reserve buffer.
+        uint32 optModeFinalized  :  1; // Commands will be optimized when chunks are finalized.
+        uint32 buildInSysMem     :  1; // Command data will be allocated using system memory chunks instead of the
+                                       // usual GPU memory chunks.
+        uint32 enablePreemption  :  1; // This command stream can be preempted.
+        uint32 addressDependent  :  1; // One or more commands are dependent on the command chunk's GPU address. This
+                                       // disables optimizations that copy commands and execute them without patching.
+        uint32 reserved          : 24;
     };
     uint32     value;
 };
@@ -151,11 +150,11 @@ public:
         Device*        pDevice,
         ICmdAllocator* pCmdAllocator,
         EngineType     engineType,
-        SubQueueType   subQueueType,
+        SubEngineType  subEngineType,
+        CmdStreamUsage cmdStreamUsage,
         uint32         postambleDwords,
         uint32         minPaddingDwords,
-        bool           isNested,
-        bool           disablePreemption);
+        bool           isNested);
     virtual ~CmdStream();
 
     virtual Result Init();
@@ -223,8 +222,6 @@ public:
 
     void EnableDropIfSameContext(bool enable) { m_flags.dropIfSameContext = enable; }
 
-    bool IsConstantEngine() const { return m_flags.isConstantEngine == 1; }
-    bool IsConstantEnginePreamble() const { return m_flags.isCePreamble == 1; }
     bool DropIfSameContext() const { return m_flags.dropIfSameContext == 1; }
     bool IsPreemptionEnabled() const { return m_flags.enablePreemption == 1; }
 
@@ -236,7 +233,9 @@ public:
     // Returns true if this command stream has recorded no commands.
     bool IsEmpty() const { return (GetNumChunks() == 0) || (GetFirstChunk()->DwordsAllocated() == 0); }
 
-    EngineType GetEngineType() const { return m_engineType; }
+    EngineType     GetEngineType()     const { return m_engineType; }
+    SubEngineType  GetSubEngineType()  const { return m_subEngineType; }
+    CmdStreamUsage GetCmdStreamUsage() const { return m_cmdStreamUsage; }
 
     uint32 GetNumChunks() const { return m_chunkList.NumElements(); }
 
@@ -266,16 +265,16 @@ protected:
 
     // A list of command chunk pointers that the command stream owns. The chunks will be executed from front to back
     // which means that the chunk at the back is currently being built.
-    ChunkRefList   m_chunkList;
+    ChunkRefList         m_chunkList;
     // A list of chunks that are being retained between command stream resets to avoid calling the allocator
-    ChunkRefList   m_retainedChunkList;
+    ChunkRefList         m_retainedChunkList;
 
-    CmdStreamFlags m_flags;             // Flags describing the state of this command stream object.
-
-    const uint32   m_sizeAlignDwords;   // Required size alignment of each chunk.
-    const uint32   m_startAlignBytes;   // Required start alignment of each chunk.
-
-    CmdAllocator*  m_pCmdAllocator;
+    const SubEngineType  m_subEngineType;
+    const CmdStreamUsage m_cmdStreamUsage;
+    const uint32         m_sizeAlignDwords;   // Required size alignment of each chunk.
+    const uint32         m_startAlignBytes;   // Required start alignment of each chunk.
+    CmdStreamFlags       m_flags;             // Flags describing the state of this command stream object.
+    CmdAllocator*        m_pCmdAllocator;
 
     // An optional memory allocator that the command stream can use to make temporary allocations. It must be managed
     // by a parent command buffer and it is expected to be null in some situations (e.g., internal command streams).

@@ -1964,11 +1964,10 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
 void GraphicsPipeline::SetupStereoRegisters()
 {
     const ViewInstancingDescriptor& viewInstancingDesc = GetViewInstancingDesc();
+    bool viewInstancingEnable = false;
 
     if (viewInstancingDesc.viewInstanceCount > 1)
     {
-        bool viewInstancingEnable = false;
-
         for (uint32 i = 0; i < NumHwShaderStagesGfx; i++)
         {
             if (m_signature.viewIdRegAddr[i] != UserDataNotMapped)
@@ -1988,6 +1987,7 @@ void GraphicsPipeline::SetupStereoRegisters()
             }
         }
     }
+
 }
 
 } // Gfx9

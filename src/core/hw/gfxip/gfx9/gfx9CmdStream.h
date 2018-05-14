@@ -49,9 +49,9 @@ public:
         const Device&  device,
         ICmdAllocator* pCmdAllocator,
         EngineType     engineType,
-        SubQueueType   subqueueType,
-        bool           isNested,
-        bool           disablePreemption);
+        SubEngineType  subEngineType,
+        CmdStreamUsage cmdStreamUsage,
+        bool           isNested);
     virtual ~CmdStream() {}
 
     virtual Result Begin(CmdStreamBeginFlags flags, Util::VirtualLinearAllocator* pMemAllocator) override;
