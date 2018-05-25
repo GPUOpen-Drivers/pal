@@ -70,7 +70,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryHwIpInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryHwIpInfo(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryHwIpInfo(hDevice,
                                                  type,
                                                  ipInstance,
                                                  pInfo);
@@ -101,7 +101,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoVaOp(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoVaOp(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoVaOp(hBuffer,
                                           offset,
                                           size,
                                           address,
@@ -137,7 +137,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoVaOpRaw(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoVaOpRaw(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuBoVaOpRaw(hDevice,
                                              hBuffer,
                                              offset,
                                              size,
@@ -169,7 +169,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCreateSemaphore(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCreateSemaphore(pSemaphore);
+    int32 ret = m_pFuncs->pfnAmdgpuCsCreateSemaphore(pSemaphore);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsCreateSemaphore,%ld,%ld,%ld\n", begin, end, elapse);
@@ -193,7 +193,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSignalSemaphore(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSignalSemaphore(hContext,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSignalSemaphore(hContext,
                                                      ipType,
                                                      ipInstance,
                                                      ring,
@@ -225,7 +225,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsWaitSemaphore(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsWaitSemaphore(hConext,
+    int32 ret = m_pFuncs->pfnAmdgpuCsWaitSemaphore(hConext,
                                                    ipType,
                                                    ipInstance,
                                                    ring,
@@ -253,7 +253,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsDestroySemaphore(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsDestroySemaphore(hSemaphore);
+    int32 ret = m_pFuncs->pfnAmdgpuCsDestroySemaphore(hSemaphore);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsDestroySemaphore,%ld,%ld,%ld\n", begin, end, elapse);
@@ -274,7 +274,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCreateSem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCreateSem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsCreateSem(hDevice,
                                                pSemaphore);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -301,7 +301,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSignalSem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSignalSem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSignalSem(hDevice,
                                                hContext,
                                                ipType,
                                                ipInstance,
@@ -336,7 +336,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsWaitSem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsWaitSem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsWaitSem(hDevice,
                                              hContext,
                                              ipType,
                                              ipInstance,
@@ -368,7 +368,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsExportSem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsExportSem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsExportSem(hDevice,
                                                hSemaphore,
                                                pSharedFd);
     const int64 end = Util::GetPerfCpuTime();
@@ -394,7 +394,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsImportSem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsImportSem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsImportSem(hDevice,
                                                fd,
                                                pSemaphore);
     const int64 end = Util::GetPerfCpuTime();
@@ -419,7 +419,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsDestroySem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsDestroySem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsDestroySem(hDevice,
                                                 hSemaphore);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -441,7 +441,7 @@ const char* DrmLoaderFuncsProxy::pfnAmdgpuGetMarketingName(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const const char* pRet = m_pFuncs->pfnAmdgpuGetMarketingName(hDevice);
+    const char* pRet = m_pFuncs->pfnAmdgpuGetMarketingName(hDevice);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuGetMarketingName,%ld,%ld,%ld\n", begin, end, elapse);
@@ -461,7 +461,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuVaRangeFree(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuVaRangeFree(hVaRange);
+    int32 ret = m_pFuncs->pfnAmdgpuVaRangeFree(hVaRange);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuVaRangeFree,%ld,%ld,%ld\n", begin, end, elapse);
@@ -484,7 +484,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuVaRangeQuery(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuVaRangeQuery(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuVaRangeQuery(hDevice,
                                                 type,
                                                 pStart,
                                                 pEnd);
@@ -517,7 +517,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuVaRangeAlloc(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuVaRangeAlloc(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuVaRangeAlloc(hDevice,
                                                 vaRangeType,
                                                 size,
                                                 vaBaseAlignment,
@@ -556,7 +556,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuReadMmRegisters(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuReadMmRegisters(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuReadMmRegisters(hDevice,
                                                    dwordOffset,
                                                    count,
                                                    instance,
@@ -589,7 +589,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuDeviceInitialize(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuDeviceInitialize(fd,
+    int32 ret = m_pFuncs->pfnAmdgpuDeviceInitialize(fd,
                                                     pMajorVersion,
                                                     pMinorVersion,
                                                     pDeviceHandle);
@@ -615,7 +615,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuDeviceDeinitialize(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuDeviceDeinitialize(hDevice);
+    int32 ret = m_pFuncs->pfnAmdgpuDeviceDeinitialize(hDevice);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuDeviceDeinitialize,%ld,%ld,%ld\n", begin, end, elapse);
@@ -637,7 +637,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoAlloc(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoAlloc(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuBoAlloc(hDevice,
                                            pAllocBuffer,
                                            pBufferHandle);
     const int64 end = Util::GetPerfCpuTime();
@@ -662,7 +662,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoSetMetadata(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoSetMetadata(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoSetMetadata(hBuffer,
                                                  pInfo);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -685,7 +685,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoQueryInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoQueryInfo(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoQueryInfo(hBuffer,
                                                pInfo);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -709,7 +709,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoExport(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoExport(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoExport(hBuffer,
                                             type,
                                             pFd);
     const int64 end = Util::GetPerfCpuTime();
@@ -736,7 +736,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoImport(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoImport(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuBoImport(hDevice,
                                             type,
                                             fd,
                                             pOutput);
@@ -765,7 +765,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCreateBoFromUserMem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCreateBoFromUserMem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCreateBoFromUserMem(hDevice,
                                                        pCpuAddress,
                                                        size,
                                                        pBufferHandle);
@@ -794,7 +794,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCreateBoFromPhysMem(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCreateBoFromPhysMem(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCreateBoFromPhysMem(hDevice,
                                                        physAddress,
                                                        size,
                                                        pBufferHandle);
@@ -824,7 +824,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuFindBoByCpuMapping(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuFindBoByCpuMapping(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuFindBoByCpuMapping(hDevice,
                                                       pCpuAddress,
                                                       size,
                                                       pBufferHandle,
@@ -852,7 +852,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoFree(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoFree(hBuffer);
+    int32 ret = m_pFuncs->pfnAmdgpuBoFree(hBuffer);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuBoFree,%ld,%ld,%ld\n", begin, end, elapse);
@@ -873,7 +873,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoCpuMap(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoCpuMap(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoCpuMap(hBuffer,
                                             ppCpuAddress);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -895,7 +895,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoCpuUnmap(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoCpuUnmap(hBuffer);
+    int32 ret = m_pFuncs->pfnAmdgpuBoCpuUnmap(hBuffer);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuBoCpuUnmap,%ld,%ld,%ld\n", begin, end, elapse);
@@ -917,7 +917,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoWaitForIdle(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoWaitForIdle(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoWaitForIdle(hBuffer,
                                                  timeoutInNs,
                                                  pBufferBusy);
     const int64 end = Util::GetPerfCpuTime();
@@ -945,7 +945,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListCreate(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoListCreate(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuBoListCreate(hDevice,
                                                 numberOfResources,
                                                 pResources,
                                                 pResourcePriorities,
@@ -973,7 +973,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListDestroy(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoListDestroy(hBoList);
+    int32 ret = m_pFuncs->pfnAmdgpuBoListDestroy(hBoList);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuBoListDestroy,%ld,%ld,%ld\n", begin, end, elapse);
@@ -994,7 +994,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCtxCreate(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxCreate(hDevice,
                                                pContextHandle);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1016,7 +1016,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxFree(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCtxFree(hContext);
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxFree(hContext);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsCtxFree,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1039,7 +1039,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmit(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSubmit(hContext,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSubmit(hContext,
                                             flags,
                                             pIbsRequest,
                                             numberOfRequests);
@@ -1068,7 +1068,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsQueryFenceStatus(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsQueryFenceStatus(pFence,
+    int32 ret = m_pFuncs->pfnAmdgpuCsQueryFenceStatus(pFence,
                                                       timeoutInNs,
                                                       flags,
                                                       pExpired);
@@ -1099,7 +1099,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsWaitFences(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsWaitFences(pFences,
+    int32 ret = m_pFuncs->pfnAmdgpuCsWaitFences(pFences,
                                                 fenceCount,
                                                 waitAll,
                                                 timeoutInNs,
@@ -1130,7 +1130,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryBufferSizeAlignment(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryBufferSizeAlignment(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryBufferSizeAlignment(hDevice,
                                                             pInfo);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1157,7 +1157,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryFirmwareVersion(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryFirmwareVersion(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryFirmwareVersion(hDevice,
                                                         fwType,
                                                         ipInstance,
                                                         index,
@@ -1189,7 +1189,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryHwIpCount(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryHwIpCount(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryHwIpCount(hDevice,
                                                   type,
                                                   pCount);
     const int64 end = Util::GetPerfCpuTime();
@@ -1216,7 +1216,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryHeapInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryHeapInfo(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryHeapInfo(hDevice,
                                                  heap,
                                                  flags,
                                                  pInfo);
@@ -1243,7 +1243,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryGpuInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryGpuInfo(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryGpuInfo(hDevice,
                                                 pInfo);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1268,7 +1268,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQuerySensorInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQuerySensorInfo(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQuerySensorInfo(hDevice,
                                                    sensor_type,
                                                    size,
                                                    value);
@@ -1297,7 +1297,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryInfo(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryInfo(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryInfo(hDevice,
                                              infoId,
                                              size,
                                              pValue);
@@ -1325,7 +1325,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryPrivateAperture(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQueryPrivateAperture(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQueryPrivateAperture(hDevice,
                                                         pStartVa,
                                                         pEndVa);
     const int64 end = Util::GetPerfCpuTime();
@@ -1351,7 +1351,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQuerySharedAperture(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuQuerySharedAperture(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuQuerySharedAperture(hDevice,
                                                        pStartVa,
                                                        pEndVa);
     const int64 end = Util::GetPerfCpuTime();
@@ -1376,7 +1376,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoGetPhysAddress(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuBoGetPhysAddress(hBuffer,
+    int32 ret = m_pFuncs->pfnAmdgpuBoGetPhysAddress(hBuffer,
                                                     pPhysAddress);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1398,7 +1398,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsReservedVmid(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsReservedVmid(hDevice);
+    int32 ret = m_pFuncs->pfnAmdgpuCsReservedVmid(hDevice);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsReservedVmid,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1418,7 +1418,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsUnreservedVmid(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsUnreservedVmid(hDevice);
+    int32 ret = m_pFuncs->pfnAmdgpuCsUnreservedVmid(hDevice);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("AmdgpuCsUnreservedVmid,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1439,7 +1439,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCreateSyncobj(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCreateSyncobj(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsCreateSyncobj(hDevice,
                                                    pSyncObj);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1463,7 +1463,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCreateSyncobj2(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCreateSyncobj2(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsCreateSyncobj2(hDevice,
                                                     flags,
                                                     pSyncObj);
     const int64 end = Util::GetPerfCpuTime();
@@ -1488,7 +1488,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsDestroySyncobj(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsDestroySyncobj(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsDestroySyncobj(hDevice,
                                                     syncObj);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1512,7 +1512,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsExportSyncobj(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsExportSyncobj(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsExportSyncobj(hDevice,
                                                    syncObj,
                                                    pSharedFd);
     const int64 end = Util::GetPerfCpuTime();
@@ -1538,7 +1538,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsImportSyncobj(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsImportSyncobj(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsImportSyncobj(hDevice,
                                                    sharedFd,
                                                    pSyncObj);
     const int64 end = Util::GetPerfCpuTime();
@@ -1567,7 +1567,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSubmitRaw(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSubmitRaw(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSubmitRaw(hDevice,
                                                hContext,
                                                hBuffer,
                                                numChunks,
@@ -1641,7 +1641,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjImportSyncFile(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjImportSyncFile(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjImportSyncFile(hDevice,
                                                            syncObj,
                                                            syncFileFd);
     const int64 end = Util::GetPerfCpuTime();
@@ -1667,7 +1667,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjExportSyncFile(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjExportSyncFile(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjExportSyncFile(hDevice,
                                                            syncObj,
                                                            pSyncFileFd);
     const int64 end = Util::GetPerfCpuTime();
@@ -1696,7 +1696,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjWait(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjWait(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjWait(hDevice,
                                                  pHandles,
                                                  numHandles,
                                                  timeoutInNs,
@@ -1728,7 +1728,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjReset(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjReset(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjReset(hDevice,
                                                   pHandles,
                                                   numHandles);
     const int64 end = Util::GetPerfCpuTime();
@@ -1754,7 +1754,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsSyncobjSignal(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjSignal(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsSyncobjSignal(hDevice,
                                                    pHandles,
                                                    numHandles);
     const int64 end = Util::GetPerfCpuTime();
@@ -1780,7 +1780,7 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate2(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnAmdgpuCsCtxCreate2(hDevice,
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxCreate2(hDevice,
                                                 priority,
                                                 pContextHandle);
     const int64 end = Util::GetPerfCpuTime();
@@ -1804,7 +1804,7 @@ int32 DrmLoaderFuncsProxy::pfnDrmGetNodeTypeFromFd(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnDrmGetNodeTypeFromFd(fd);
+    int32 ret = m_pFuncs->pfnDrmGetNodeTypeFromFd(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmGetNodeTypeFromFd,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1824,7 +1824,7 @@ char* DrmLoaderFuncsProxy::pfnDrmGetRenderDeviceNameFromFd(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const char* pRet = m_pFuncs->pfnDrmGetRenderDeviceNameFromFd(fd);
+    char* pRet = m_pFuncs->pfnDrmGetRenderDeviceNameFromFd(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmGetRenderDeviceNameFromFd,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1845,7 +1845,7 @@ int32 DrmLoaderFuncsProxy::pfnDrmGetDevices(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnDrmGetDevices(pDevices,
+    int32 ret = m_pFuncs->pfnDrmGetDevices(pDevices,
                                            maxDevices);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -1888,7 +1888,7 @@ char* DrmLoaderFuncsProxy::pfnDrmGetBusid(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const char* pRet = m_pFuncs->pfnDrmGetBusid(fd);
+    char* pRet = m_pFuncs->pfnDrmGetBusid(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmGetBusid,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1926,7 +1926,7 @@ drmModeResPtr DrmLoaderFuncsProxy::pfnDrmModeGetResources(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const drmModeResPtr ret = m_pFuncs->pfnDrmModeGetResources(fd);
+    drmModeResPtr ret = m_pFuncs->pfnDrmModeGetResources(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmModeGetResources,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1965,7 +1965,7 @@ drmModeConnectorPtr DrmLoaderFuncsProxy::pfnDrmModeGetConnector(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const drmModeConnectorPtr ret = m_pFuncs->pfnDrmModeGetConnector(fd,
+    drmModeConnectorPtr ret = m_pFuncs->pfnDrmModeGetConnector(fd,
                                                                connectorId);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -2007,7 +2007,7 @@ int32 DrmLoaderFuncsProxy::pfnDrmGetCap(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnDrmGetCap(fd,
+    int32 ret = m_pFuncs->pfnDrmGetCap(fd,
                                        capability,
                                        pValue);
     const int64 end = Util::GetPerfCpuTime();
@@ -2033,7 +2033,7 @@ int32 DrmLoaderFuncsProxy::pfnDrmSyncobjCreate(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnDrmSyncobjCreate(fd,
+    int32 ret = m_pFuncs->pfnDrmSyncobjCreate(fd,
                                               flags,
                                               pHandle);
     const int64 end = Util::GetPerfCpuTime();
@@ -2093,7 +2093,7 @@ drmModePlaneResPtr DrmLoaderFuncsProxy::pfnDrmModeGetPlaneResources(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const drmModePlaneResPtr ret = m_pFuncs->pfnDrmModeGetPlaneResources(fd);
+    drmModePlaneResPtr ret = m_pFuncs->pfnDrmModeGetPlaneResources(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmModeGetPlaneResources,%ld,%ld,%ld\n", begin, end, elapse);
@@ -2114,7 +2114,7 @@ drmModePlanePtr DrmLoaderFuncsProxy::pfnDrmModeGetPlane(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const drmModePlanePtr ret = m_pFuncs->pfnDrmModeGetPlane(fd,
+    drmModePlanePtr ret = m_pFuncs->pfnDrmModeGetPlane(fd,
                                                        planeId);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
@@ -2136,7 +2136,7 @@ int32 DrmLoaderFuncsProxy::pfnDrmDropMaster(
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    const int32 ret = m_pFuncs->pfnDrmDropMaster(fd);
+    int32 ret = m_pFuncs->pfnDrmDropMaster(fd);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("DrmDropMaster,%ld,%ld,%ld\n", begin, end, elapse);

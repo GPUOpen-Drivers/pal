@@ -174,7 +174,7 @@ public:
     static Result ValidatePeerOpenInfo(const Device* pDevice, const PeerGpuMemoryOpenInfo& peerInfo);
 
     virtual Result Init(const GpuMemoryCreateInfo& createInfo, const GpuMemoryInternalCreateInfo& internalInfo);
-    Result Init(const PinnedGpuMemoryCreateInfo& createInfo);
+    virtual Result Init(const PinnedGpuMemoryCreateInfo& createInfo);
     Result Init(const SvmGpuMemoryCreateInfo& createInfo);
     Result Init(const GpuMemoryOpenInfo& openInfo);
     Result Init(const PeerGpuMemoryOpenInfo& peerInfo);

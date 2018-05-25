@@ -525,12 +525,12 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // Setup the starting corner of the source rectangle.
     packet.xInfo1.bits.src  = imageCopyInfo.src.offset.x >> 3;
     packet.yInfo1.bits.src  = imageCopyInfo.src.offset.y >> 3;
-    packet.zInfo2.bits.srcz = imageCopyInfo.src.offset.z;
+    packet.zInfo2.si_bits.srcz = imageCopyInfo.src.offset.z;
 
     // Setup the starting corner of the destination rectangle.
     packet.xInfo1.bits.dst  = imageCopyInfo.dst.offset.x >> 3;
     packet.yInfo1.bits.dst  = imageCopyInfo.dst.offset.y >> 3;
-    packet.zInfo2.bits.dstz = imageCopyInfo.dst.offset.z;
+    packet.zInfo2.si_bits.dstz = imageCopyInfo.dst.offset.z;
 
     packet.dInfo1.u32All  = 0;
     packet.dzInfo3.u32All = 0;

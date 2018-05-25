@@ -1504,6 +1504,17 @@ void LogContext::Struct(
     KeyAndStruct("extent", value.extent);
     KeyAndValue("numSlices", value.numSlices);
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+    Key("pQuadSamplePattern");
+    if (value.pQuadSamplePattern != nullptr)
+    {
+        Struct(*value.pQuadSamplePattern);
+    }
+    else
+    {
+        NullValue();
+    }
+#endif
     EndMap();
 }
 

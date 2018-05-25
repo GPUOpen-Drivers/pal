@@ -584,6 +584,10 @@ public:
     void FreeVirtualAddress(
         Pal::GpuMemory*         pGpuMemory);
 
+    virtual Result ProbeGpuVaRange(
+        gpusize vaStart,
+        gpusize vaSize) const override;
+
     // Reserve gpu virtual address range. This function is called by SVM manager 'SvmMgr'
     virtual Result ReserveGpuVirtualAddress(VaRange                 vaRange,
                                             gpusize                 baseVirtAddr,

@@ -866,6 +866,12 @@ struct ImageResolveRegion
     uint32         numSlices;       ///< Number of slices to be resolved
     SwizzledFormat swizzledFormat;  ///< If not Undefined, reinterpret both subresources using this format and swizzle.
                                     ///  The format must match both subresource's native formats.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+    const MsaaQuadSamplePattern* pQuadSamplePattern; ///< Specifies sample pattern for MSAA depth image. It must be a
+                                                     ///  valid pointer if image was created with sampleLocsAlwaysKnown
+                                                     ///  flag set.
+#endif
 };
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single

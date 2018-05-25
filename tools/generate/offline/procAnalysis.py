@@ -327,10 +327,10 @@ class ProcMgr:
                 paramIndent = 0
                 if entry.GetFunctionRetType() != "void":
                     if entry.GetFunctionRetType().find('*') != -1:
-                        fp.write("    const " + entry.GetFunctionRetType() + " pRet = ")
+                        fp.write("    " + entry.GetFunctionRetType() + " pRet = ")
                         paramIndent += 4 + len(entry.GetFunctionRetType()) + 8
                     else:
-                        fp.write("    const " + entry.GetFunctionRetType() + " ret = ")
+                        fp.write("    " + entry.GetFunctionRetType() + " ret = ")
                         paramIndent += 4 + len(entry.GetFunctionRetType()) + 7
                     fp.write("m_pFuncs->pfn")
                     paramIndent += 13

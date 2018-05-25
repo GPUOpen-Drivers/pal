@@ -140,6 +140,7 @@ protected:
     virtual uint32          GetNumSamplesLog2(const Image&  image) const = 0;
     virtual AddrSwizzleMode GetSwizzleMode(const Image& image) const;
     bool                    IsThick(const Image& image) const;
+    uint32                  AdjustPipeBankXorForSwizzle(const Image&  image, uint32  pipeBankXor) const;
 
     // Of the three types of mask-ram surfaces (hTile, dcc and cMask), only DCC is really associated with
     // a color image.  hTile is associated with depth, and cMask is the meta surface for fMask, so, for

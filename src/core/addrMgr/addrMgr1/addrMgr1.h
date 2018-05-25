@@ -66,10 +66,10 @@ union TileToken
         uint32 bankWidth        :  2; // Bank width
         uint32 banks            :  2; // Number of banks
         uint32 macroAspectRatio :  2; // Macro tile aspect ratio
-        uint32 tileType         :  2; // Micro tiling type (MICRO_TILE_MODE)
+        uint32 tileType         :  3; // Micro tiling type (MICRO_TILE_MODE)
         uint32 tileSplitBytes   :  3; // Tile split size
         uint32 elementSize      :  3; // Log2 of bytes per pixel
-        uint32 reserved         : 11; // Reserved for future use
+        uint32 reserved         : 10; // Reserved for future use
     } bits;
 
     uint32 u32All;

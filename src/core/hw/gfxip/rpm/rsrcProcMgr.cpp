@@ -978,18 +978,9 @@ void RsrcProcMgr::CopyImageCompute(
             PAL_NOT_IMPLEMENTED();
         }
 
-        const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
-        const ImageMemoryLayout& dstImgMemLayout = dstImage.GetMemoryLayout();
-
-        // If memory sizes differ it could be due to copying between resources with different shader compat
-        // compression modes (1 TC compat, other not).  For RT Src will need to be decompressed which means
-        // we can't take advanatge of optimized copy since we keep fmask compressed. Moreover, there are
-        // metadata layout differences between gfxip8 and below and gfxip9.
-        // TODO:- Make it work for gfxip8 and below.
-        if (((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) ==
-             (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize)) &&
-             (srcCreateInfo.arraySize == dstCreateInfo.arraySize) &&
-             (m_pDevice->Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9))
+        // Optimized image copies require a call to HwlUpdateDstImageMetaData...
+        // Verify that any "update" operation performed is legal for the source and dest images.
+        if (HwlUseOptimizedImageCopy(srcImage, dstImage))
         {
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImageOptimized);
             isFmaskCopyOptimized = true;
@@ -3717,7 +3708,7 @@ void RsrcProcMgr::CmdClearImageView(
 }
 
 // =====================================================================================================================
-// Expand DCC/Fmask and sync before resolve image.
+// Expand DCC/Fmask/HTile and sync before resolve image.
 void RsrcProcMgr::LateExpandResolveSrc(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
@@ -3757,7 +3748,19 @@ void RsrcProcMgr::LateExpandResolveSrc(
             }
             transition[i].imageInfo.newLayout.engines  = srcImageLayout.engines;
             transition[i].imageInfo.subresRange        = range;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+            if (srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
+            }
+            else
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
+            }
+            transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
+#else
             transition[i].imageInfo.pQuadSamplePattern = nullptr;
+#endif
             transition[i].srcCacheMask                 = Pal::CoherResolve;
             transition[i].dstCacheMask                 = Pal::CoherShader;
         }
@@ -5420,6 +5423,19 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+        if (srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern != nullptr);
+            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcImage.GetGfxImage()->Parent()->GetImageCreateInfo().samples,
+                                                    *pRegions[idx].pQuadSamplePattern);
+        }
+        else
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern == nullptr);
+        }
+#endif
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {

@@ -1009,10 +1009,20 @@ void Image::InitLayoutStateMasksOneMip(
         compressedLayouts.usages  = DbUsages;
         compressedLayouts.engines = LayoutUniversalEngine;
 
-        // Postpone decompresses for HTILE from Barrier-time to Resolve-time.
         if (isMsaa)
         {
-            compressedLayouts.usages |= LayoutResolveSrc;
+            if (Formats::BitsPerPixel(m_createInfo.swizzledFormat.format) == 8)
+            {
+                // Decompress/Resolve stencil only format image does not need sample location information.
+                compressedLayouts.usages |= LayoutResolveSrc;
+            }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+            else if (m_createInfo.flags.sampleLocsAlwaysKnown)
+            {
+                // Postpone decompresses for HTILE from Barrier-time to Resolve-time if sample location is always known.
+                compressedLayouts.usages |= LayoutResolveSrc;
+            }
+#endif
         }
 
         // On Gfxip8 with a TC-compatible htile, even the compressed layout is shader-readable

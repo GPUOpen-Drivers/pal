@@ -586,6 +586,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
         else if (sliceIdx > 0)
         {
             srcSubResInfo.subresId.arraySlice++;
+            linearDstCopyRgn.imageOffset.z = sliceIdx;
         }
 
         if (GetImageType(*dst.pImage) == ImageType::Tex3d)
@@ -595,6 +596,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
         else if (sliceIdx > 0)
         {
             dstSubResInfo.subresId.arraySlice++;
+            tiledDstCopyRgn.imageOffset.z = sliceIdx;
         }
 
         for (uint32  yIdx = 0; yIdx < imageCopyInfo.copyExtent.height; yIdx++)

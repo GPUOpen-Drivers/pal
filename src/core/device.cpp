@@ -803,28 +803,56 @@ void Device::GetHwIpDeviceSizes(
 }
 
 // =====================================================================================================================
-// Reserve CPU VA range with the size(vaSize) by given expected start virtual address(startVaAddr).
-// If it fails to reserve this CPU va Range, it will add 64K offset to start virtual address and try to reserve again
-// until the reservation succeed or (start virtual address) >= (vaEnd-vaSize)
-// If the reservation succeed, then it returns Success and the startVaAddr will be the reserved start virtual address
-// If the reservation fails, then it doesn't return Success.
-Result Device::FindAndReserveCpuVaRange(
-    gpusize* pStartVaAddr,
+// Find a gpu VA range with size(vaSize) and base address between *pVaStart and (vaEnd - vaSize) that is not reserved.
+// If reserveCpuVa is true, the equivalent VA range in host memory will tried to be reserved.
+// If successfull, *pVaStart will be set to the base address of the found VA range.
+Result Device::FindGpuVaRange(
+    gpusize* pVaStart,
+    gpusize  vaEnd,
     gpusize  vaSize,
-    gpusize  vaEnd)
+    gpusize  vaAlignment,
+    bool     reserveCpuVa
+    ) const
 {
-    Result            result = Result::Success;
-    constexpr gpusize ReservePageSize = 65536;
+    Result result = Result::Success;
+    gpusize vaAllocated = 0u;
 
-    for (gpusize vaAddr = *pStartVaAddr; vaAddr < (vaEnd - vaSize); vaAddr = (vaAddr + ReservePageSize))
+    PAL_ASSERT(IsPowerOfTwo(vaAlignment));
+    *pVaStart = Pow2Align(*pVaStart, vaAlignment);
+
+    for (gpusize vaAddr = *pVaStart; vaAddr < (vaEnd - *pVaStart); vaAddr += vaAlignment)
     {
-        result = VirtualReserve(static_cast<size_t>(vaSize),
-                                reinterpret_cast<void**>(&vaAddr),
-                                reinterpret_cast<void*>(vaAddr));
+        result = Result::Success;
+
+        if (reserveCpuVa)
+        {
+            result = VirtualReserve(static_cast<size_t>(vaSize),
+                                    reinterpret_cast<void**>(&vaAllocated),
+                                    reinterpret_cast<void*>(vaAddr));
+
+            // Make sure we get the address that we requested
+            if (vaAllocated != vaAddr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
         if (result == Result::Success)
         {
-            *pStartVaAddr = vaAddr;
-            break;
+            result = ProbeGpuVaRange(vaAddr, vaSize);
+
+            if (result == Result::Success)
+            {
+                *pVaStart = vaAddr;
+                break;
+            }
+        }
+
+        // If the gpu VA range wasn't available, free it on the host side
+        if (reserveCpuVa)
+        {
+            VirtualRelease(reinterpret_cast<void*>(vaAllocated),
+                           static_cast<size_t>(vaSize));
         }
     }
 
@@ -933,16 +961,25 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         // Case #1
         // This is the ideal scenario: we have more than 12 GB of address space, so we can use the first two 4 GB
         // sections for the ShadowDescriptorTable and DescriptorTable ranges, and the leftovers for Default.
+        gpusize baseVirtAddr = usableVaStart;
 
-        gpusize baseVirtAddr = Pow2Align(usableVaStart, _4GB);
+        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB);
 
-        pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].size = _4GB;
+        if (result == Result::Success)
+        {
+            pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::DescriptorTable)].size = _4GB;
+        }
 
         baseVirtAddr += _4GB;
 
-        pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size = _4GB;
+        result = FindGpuVaRange(&baseVirtAddr, usableVaEnd, _4GB, _4GB);
+
+        if (result == Result::Success)
+        {
+            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size = _4GB;
+        }
 
         baseVirtAddr += _4GB;
 
@@ -951,17 +988,14 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         if (m_pPlatform->SvmModeEnabled() && (MemoryProperties().flags.iommuv2Support == 0))
         {
             gpusize startVirtAddr = baseVirtAddr;
+
             if (m_pPlatform->GetSvmRangeStart() == 0)
             {
-                if (FindAndReserveCpuVaRange(&startVirtAddr,
-                                             m_pPlatform->GetMaxSizeOfSvm(),
-                                             usableVaEnd) == Result::Success)
+                result = FindGpuVaRange(&startVirtAddr, usableVaEnd, m_pPlatform->GetMaxSizeOfSvm(), _4GB, true);
+
+                if (result == Result::Success)
                 {
-                    m_pPlatform->SetSvmRangeStart(startVirtAddr);
-                }
-                else
-                {
-                    result = Result::ErrorInitializationFailed;
+                    m_pPlatform->SetSvmRangeStart(baseVirtAddr);
                 }
             }
             else
@@ -969,8 +1003,11 @@ Result Device::FixupUsableGpuVirtualAddressRange(
                 startVirtAddr = m_pPlatform->GetSvmRangeStart();
             }
 
-            pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr = startVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::Svm)].size         = m_pPlatform->GetMaxSizeOfSvm();
+            if (result == Result::Success)
+            {
+                pVaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr = startVirtAddr;
+                pVaRange[static_cast<uint32>(VaPartition::Svm)].size         = m_pPlatform->GetMaxSizeOfSvm();
+            }
 
             // Find larger partition of (ShadowDescriptorTable to Svm) and (Svm to vaEnd) as default partition
             if ((startVirtAddr - baseVirtAddr) < (usableVaEnd - (startVirtAddr + m_pPlatform->GetMaxSizeOfSvm())))
@@ -983,8 +1020,11 @@ Result Device::FixupUsableGpuVirtualAddressRange(
             }
         }
 
-        pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
+        if (result == Result::Success)
+        {
+            pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
+        }
 
         m_memoryProperties.flags.multipleVaRangeSupport = 1;
 

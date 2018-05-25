@@ -487,7 +487,6 @@ typedef enum SpmGpuBlock
     RPB,
     RMI,
 
-/*Gfx10 blocks*/
     GE,
     GL1A,
     GL1C,

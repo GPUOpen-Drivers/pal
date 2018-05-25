@@ -78,7 +78,7 @@ public:
         const ImageCopyRegion* pRegions,
         uint32                 flags) const;
 
-    void CmdCopyMemoryToImage(
+    virtual void CmdCopyMemoryToImage(
         GfxCmdBuffer*                pCmdBuffer,
         const GpuMemory&             srcGpuMemory,
         const Image&                 dstImage,
@@ -87,7 +87,7 @@ public:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
 
-    void CmdCopyImageToMemory(
+    virtual void CmdCopyImageToMemory(
         GfxCmdBuffer*                pCmdBuffer,
         const Image&                 srcImage,
         ImageLayout                  srcImageLayout,
@@ -250,6 +250,12 @@ protected:
     uint32 SrdDwordAlignment() const { return m_srdAlignment; }
 
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const { return UseMipLevelInSrd; }
+
+    // Assume optimized copies won't work
+    virtual bool HwlUseOptimizedImageCopy(
+        const Pal::Image&  srcImage,
+        const Pal::Image&  dstImage) const
+        { return false; }
 
     const ComputePipeline* GetLinearHtileClearPipeline(
         bool    expClearEnable,

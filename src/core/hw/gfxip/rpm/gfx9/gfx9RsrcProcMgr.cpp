@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
+#include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
@@ -1514,9 +1515,51 @@ void RsrcProcMgr::HwlFastColorClear(
 }
 
 // =====================================================================================================================
+// An optimized copy does a memcpy of the source fmask and cmask data to the destination image after it is finished.
+// See the HwlUpdateDstImageMetaData function.  For this to work, the layout needs to be exactly the same between the
+// two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
+bool RsrcProcMgr::HwlUseOptimizedImageCopy(
+    const Pal::Image&  srcImage,
+    const Pal::Image&  dstImage
+    ) const
+{
+    const auto&              srcCreateInfo   = srcImage.GetImageCreateInfo();
+    const auto&              dstCreateInfo   = dstImage.GetImageCreateInfo();
+    const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
+    const ImageMemoryLayout& dstImgMemLayout = dstImage.GetMemoryLayout();
+
+    // If memory sizes differ it could be due to copying between resources with different shader compat
+    // compression modes (1 TC compat, other not).  For RT Src will need to be decompressed which means
+    // we can't take advanatge of optimized copy since we keep fmask compressed. Moreover, there are
+    // metadata layout differences between gfxip8 and below and gfxip9.
+    bool  tileSwizzlesMatch = (((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) ==
+                                (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize)) &&
+                               (srcCreateInfo.arraySize == dstCreateInfo.arraySize));
+
+    if (tileSwizzlesMatch)
+    {
+        const Image*  pGfxSrcImage = static_cast<const Image*>(srcImage.GetGfxImage());
+        const Image*  pGfxDstImage = static_cast<const Image*>(dstImage.GetGfxImage());
+        const auto*   pSrcFmask    = pGfxSrcImage->GetFmask();
+        const auto*   pDstFmask    = pGfxDstImage->GetFmask();
+
+        if ((pSrcFmask != nullptr) && (pDstFmask != nullptr))
+        {
+            if ((pSrcFmask->GetSwizzleMode() != pDstFmask->GetSwizzleMode()) ||
+                (pSrcFmask->GetPipeBankXor() != pDstFmask->GetPipeBankXor()))
+            {
+                tileSwizzlesMatch = false;
+            }
+        }
+    }
+
+    return tileSwizzlesMatch;
+}
+
+// =====================================================================================================================
 // On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
-// the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
-// dest color data is no longer dcc compressed after copy.
+// the data from src to dest, which means dst needs to have fmask of src.  Note that updates to this function need to
+// be reflected in HwlUseOptimizedImageCopy as well.
 void RsrcProcMgr::HwlUpdateDstImageMetaData(
     GfxCmdBuffer*          pCmdBuffer,
     const Pal::Image&      srcImage,
@@ -1526,53 +1569,40 @@ void RsrcProcMgr::HwlUpdateDstImageMetaData(
     uint32                 flags
     ) const
 {
-    auto*const  pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
-    const auto& gfx9SrcImage = static_cast<const Gfx9::Image&>(*srcImage.GetGfxImage());
-    const auto& gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+    const auto*  pDstFmask    = gfx9DstImage.GetFmask();
 
-    for (uint32 idx = 0; idx < regionCount; ++idx)
+    // Copy the src fmask and cmask data to destination
+    if (pDstFmask != nullptr)
     {
-        ImageCopyRegion copyRegion = pRegions[idx];
-        // Since color data is no longer dcc compressed set it to fully uncompressed.
-        if (gfx9DstImage.HasDccData())
-        {
-            SubresRange range = {};
-            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
-            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
-            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
-            range.numMips                = 1;
-            range.numSlices              = copyRegion.numSlices;
-            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
-        }
+        const auto&       gfx9SrcImage = static_cast<const Gfx9::Image&>(*srcImage.GetGfxImage());
+        const auto*       pSrcFmask    = gfx9SrcImage.GetFmask();
+        const auto&       srcBoundMem  = srcImage.GetBoundGpuMemory();
+        const IGpuMemory* pSrcMemory   = reinterpret_cast<const IGpuMemory*>(srcBoundMem.Memory());
 
-        // Copy the src fmask and cmask data to destination
-        if (gfx9DstImage.HasFmaskData())
-        {
-            const auto*   pSrcCmask = gfx9SrcImage.GetCmask();
-            const auto*   pSrcFmask = gfx9SrcImage.GetFmask();
-            const auto*   pDstCmask = gfx9DstImage.GetCmask();
-            const auto*   pDstFmask = gfx9DstImage.GetFmask();
+        const auto&       dstBoundMem  = dstImage.GetBoundGpuMemory();
+        const IGpuMemory* pDstMemory   = reinterpret_cast<const IGpuMemory*>(dstBoundMem.Memory());
 
-            // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
-            const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
+        // Our calculation of "srcCopySize" below assumes that fmask memory comes before the cmask memory in
+        // our orginzation of the image data.
+        PAL_ASSERT(pSrcFmask->MemoryOffset() < gfx9SrcImage.GetCmask()->MemoryOffset());
+        PAL_ASSERT(pDstFmask->MemoryOffset() < gfx9DstImage.GetCmask()->MemoryOffset());
 
-            // Memory
-            const IGpuMemory* pSrcMemory = reinterpret_cast<const IGpuMemory*>(srcImage.GetBoundGpuMemory().Memory());
-            const IGpuMemory* pDstMemory = reinterpret_cast<const IGpuMemory*>(dstImage.GetBoundGpuMemory().Memory());
+        // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
+        const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
 
-            MemoryCopyRegion memcpyRegion;
+        const gpusize srcCopySize =
+            (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset)) +
+            srcImgMemLayout.metadataHeaderSize;
 
-            memcpyRegion.srcOffset = pSrcFmask->MemoryOffset();
-            memcpyRegion.dstOffset = pDstFmask->MemoryOffset();
-            const gpusize srcCopySize =
-                (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset)) +
-                srcImgMemLayout.metadataHeaderSize;
+        MemoryCopyRegion memcpyRegion = {};
+        memcpyRegion.srcOffset = srcBoundMem.Offset() + pSrcFmask->MemoryOffset();
+        memcpyRegion.dstOffset = dstBoundMem.Offset() + pDstFmask->MemoryOffset();
+        memcpyRegion.copySize  = srcCopySize;
 
-            memcpyRegion.copySize = srcCopySize;
-
-            // Do the copy
-            pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
-        }
+        // Do the copy
+        pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
     }
 }
 
@@ -3077,6 +3107,254 @@ void RsrcProcMgr::HwlEndGraphicsCopy(
         // full number of RBs and SEs for regular rendering.
         CommitBeginEndGfxCopy(pCmdStream, 0);
     }
+}
+
+// ====================================================================================================================
+// Returns the maximum size that would be copied for the specified sub-resource-id via the SRD used by the default
+// copy image<->memory functions.
+Extent3d RsrcProcMgr::GetCopyViaSrdCopyDims(
+    const Pal::Image&  image,
+    const SubresId&    subResId,
+    bool               includePadding)
+{
+    const SubresId  baseMipSubResId  = { subResId.aspect, 0, subResId.arraySlice };
+    const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
+    const auto&     programmedExtent = (includePadding
+                                        ? pBaseSubResInfo->actualExtentElements
+                                        : pBaseSubResInfo->extentElements);
+
+    Extent3d  hwCopyDims = {};
+
+    // Ok, the HW is programmed in terms of the dimensions specified in "actualExtentElements" found in the
+    // pBaseSubResInfo structure.  The HW will do a simple ">> 1" for each subsequent mip level.
+    hwCopyDims.width  = Max(1u, programmedExtent.width  >> subResId.mipLevel);
+    hwCopyDims.height = Max(1u, programmedExtent.height >> subResId.mipLevel);
+    hwCopyDims.depth  = Max(1u, programmedExtent.depth  >> subResId.mipLevel);
+
+    return hwCopyDims;
+}
+
+// ====================================================================================================================
+// Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
+// copy algorithm.
+void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
+    GfxCmdBuffer*                 pCmdBuffer,
+    const Pal::Image&             image,
+    const GpuMemory&              memory,
+    const MemoryImageCopyRegion&  region,
+    bool                          includePadding,
+    bool                          imageIsSrc
+    ) const
+{
+    const auto&     createInfo       = image.GetImageCreateInfo();
+    const auto*     pPalDevice       = m_pDevice->Parent();
+    const auto*     pSubResInfo      = image.SubresourceInfo(region.imageSubres);
+    const auto*     pGfxImage        = static_cast<const Image*>(image.GetGfxImage());
+    const auto&     surfSetting      = pGfxImage->GetAddrSettings(pSubResInfo);
+    const auto*     pTileInfo        = Pal::AddrMgr2::GetTileInfo(&image, pSubResInfo->subresId);
+    const SubresId  baseMipSubResId  = { region.imageSubres.aspect, 0, region.imageSubres.arraySlice };
+    const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
+    const auto*     pSrcMem          = ((imageIsSrc) ? image.GetBoundGpuMemory().Memory() : &memory);
+    const auto*     pDstMem          = ((imageIsSrc) ? &memory : image.GetBoundGpuMemory().Memory());
+    const Extent3d  hwCopyDims       = GetCopyViaSrdCopyDims(image, region.imageSubres, includePadding);
+    const bool      is3dImage        = (createInfo.imageType == ImageType::Tex3d);
+    const uint32    sliceOffset      = (is3dImage ? region.imageOffset.z : region.imageSubres.arraySlice);
+    const uint32    sliceDepth       = (is3dImage ? region.imageExtent.depth : region.numSlices);
+    ADDR_HANDLE     hAddrLib         = pPalDevice->AddrLibHandle();
+
+    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT  input = {};
+    input.size            = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT);
+    input.sample          = 0;
+    input.mipId           = region.imageSubres.mipLevel;
+    input.unalignedWidth  = pBaseSubResInfo->extentElements.width;
+    input.unalignedHeight = pBaseSubResInfo->extentElements.height;
+    input.numSlices       = createInfo.arraySize;
+    input.numMipLevels    = createInfo.mipLevels;
+    input.numSamples      = createInfo.samples;
+    input.numFrags        = createInfo.fragments;
+    input.swizzleMode     = surfSetting.swizzleMode;
+    input.resourceType    = surfSetting.resourceType;
+    input.pipeBankXor     = pTileInfo->pipeBankXor;
+    input.bpp             = Formats::BitsPerPixel(createInfo.swizzledFormat.format);
+
+    for (uint32  sliceIdx = 0; sliceIdx < sliceDepth; sliceIdx++)
+    {
+        // the slice input is used for both 2D arrays and 3D slices.
+        input.slice = sliceOffset + sliceIdx;
+
+        for (uint32  yIdx = 0; yIdx < region.imageExtent.height; yIdx++)
+        {
+            input.y = yIdx + region.imageOffset.y;
+
+            // If the default copy algorithm (done previously) has already seen this scanline, then we can bias
+            // the starting X coordinate over to skip the region already copied by the default copy implementation.
+            // If this entire scanline was invisible to default copy function though, we have to do the entire thing.
+            const uint32  startX = ((input.y < hwCopyDims.height)
+                                    ? hwCopyDims.width
+                                    : 0);
+
+            // It's possible that the default copy algorithm already handled an entire scanline of this region.  If
+            // so, there's nothing to do here.
+            if (startX < region.imageExtent.width)
+            {
+                // Batch up all the copies in the "X" direction in one auto-buffer that we can submit in
+                // one swell foop
+                AutoBuffer<MemoryCopyRegion, 32, Platform> newRegions(region.imageExtent.width,
+                                                                      m_pDevice->GetPlatform());
+
+                uint32  newRegionsIdx = 0;
+                for (uint32  xIdx = startX; xIdx < region.imageExtent.width; xIdx++)
+                {
+                    input.x = xIdx + region.imageOffset.x;
+
+                    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT  output = {};
+                    output.size = sizeof(ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT);
+
+                    const ADDR_E_RETURNCODE retCode = Addr2ComputeSurfaceAddrFromCoord(
+                                                        hAddrLib,
+                                                        &input,
+                                                        &output);
+
+                    if (retCode == ADDR_OK)
+                    {
+                        const gpusize  imgOffset = image.GetBoundGpuMemory().Offset() + output.addr;
+                        const gpusize  memOffset = region.gpuMemoryOffset                +
+                                                   sliceIdx * region.gpuMemoryDepthPitch +
+                                                   yIdx     * region.gpuMemoryRowPitch   +
+                                                   xIdx     * (input.bpp >> 3);
+
+                        newRegions[newRegionsIdx].srcOffset = (imageIsSrc ? imgOffset : memOffset);
+                        newRegions[newRegionsIdx].dstOffset = (imageIsSrc ? memOffset : imgOffset);
+                        newRegions[newRegionsIdx].copySize  = input.bpp >> 3;
+
+                        newRegionsIdx++;
+                    } // end check for successfully converting coordinates to an address
+                } // End loop through "x" pixels
+
+                CmdCopyMemory(pCmdBuffer, *pSrcMem, *pDstMem, newRegionsIdx, &newRegions[0]);
+            }
+        } // End loop through "y" pixels
+    } // end loop through the slices
+}
+
+// ====================================================================================================================
+// Returns true if the CmdCopyMemoryFromToImageViaPixels function needs to be used
+bool RsrcProcMgr::UsePixelCopy(
+    const Pal::Image&             image,
+    const MemoryImageCopyRegion&  region,
+    bool                          includePadding)
+{
+    const Extent3d  hwCopyDims = GetCopyViaSrdCopyDims(image, region.imageSubres, includePadding);
+
+    // If the default implementation copy dimensions did not cover the region specified by this region, then
+    // we need to copy the remaining pixels the slow way.
+    const bool  usePixelCopy = ((hwCopyDims.width  < (region.imageOffset.x + region.imageExtent.width))  ||
+                                (hwCopyDims.height < (region.imageOffset.y + region.imageExtent.height)) ||
+                                (hwCopyDims.depth  < (region.imageOffset.z + region.imageExtent.depth)));
+
+    return usePixelCopy;
+}
+
+// ====================================================================================================================
+void RsrcProcMgr::CmdCopyMemoryToImage(
+    GfxCmdBuffer*                pCmdBuffer,
+    const GpuMemory&             srcGpuMemory,
+    const Pal::Image&            dstImage,
+    ImageLayout                  dstImageLayout,
+    uint32                       regionCount,
+    const MemoryImageCopyRegion* pRegions,
+    bool                         includePadding
+    ) const
+{
+    const auto&  createInfo = dstImage.GetImageCreateInfo();
+
+    Pal::RsrcProcMgr::CmdCopyMemoryToImage(pCmdBuffer,
+                                            srcGpuMemory,
+                                            dstImage,
+                                            dstImageLayout,
+                                            regionCount,
+                                            pRegions,
+                                            includePadding);
+
+    if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
+        (createInfo.mipLevels > 1))
+    {
+        // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
+        // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
+
+        // The default copy-memory-to-image algorithm copies BCn images as 32-32-uint.  This leads to the SRDs
+        // being setup in terms of block dimensions (as opposed to expanded pixel dimensions), which in turn can
+        // ultimately lead to a mismatch of mip level sizes.
+        for (uint32  regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        {
+            const auto&  region = pRegions[regionIdx];
+
+            if (UsePixelCopy(dstImage, region, includePadding))
+            {
+                CmdCopyMemoryFromToImageViaPixels(pCmdBuffer, dstImage, srcGpuMemory, region, includePadding, false);
+            }
+        } // end loop through copy regions
+    } // end check for trivial case
+}
+
+// ====================================================================================================================
+void RsrcProcMgr::CmdCopyImageToMemory(
+    GfxCmdBuffer*                pCmdBuffer,
+    const Pal::Image&            srcImage,
+    ImageLayout                  srcImageLayout,
+    const GpuMemory&             dstGpuMemory,
+    uint32                       regionCount,
+    const MemoryImageCopyRegion* pRegions,
+    bool                         includePadding
+    ) const
+{
+    const auto&  createInfo = srcImage.GetImageCreateInfo();
+
+    Pal::RsrcProcMgr::CmdCopyImageToMemory(pCmdBuffer,
+                                           srcImage,
+                                           srcImageLayout,
+                                           dstGpuMemory,
+                                           regionCount,
+                                           pRegions,
+                                           includePadding);
+
+    // The default copy-image-to-memory algorithm copies BCn images as 32-32-uint.  This leads to the SRDs
+    // being setup in terms of block dimensions (as opposed to expanded pixel dimensions), which in turn can
+    // ultimately lead to a mismatch of mip level sizes.  Look through all the regions to see if something "bad"
+    // happened.
+    if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
+        (createInfo.mipLevels > 1))
+    {
+        bool  issuedCsPartialFlush = false;
+
+        for (uint32  regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        {
+            const auto&  region = pRegions[regionIdx];
+
+            if (UsePixelCopy(srcImage, region, includePadding))
+            {
+                // We have to wait for the compute shader invoked above to finish...  Otherwise, it will be writing
+                // zeroes into the destination memory that correspond to pixels that it couldn't read.  This only
+                // needs to be done once before the first pixel-level copy.
+                if (issuedCsPartialFlush == false)
+                {
+                    Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+                    CmdStream*       pGfxCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+                    uint32*          pCmdSpace     = pGfxCmdStream->ReserveCommands();
+
+                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH,
+                                                                    EngineType::EngineTypeCompute,
+                                                                    pCmdSpace);
+
+                    pGfxCmdStream->CommitCommands(pCmdSpace);
+
+                    issuedCsPartialFlush = true;
+                }
+
+                CmdCopyMemoryFromToImageViaPixels(pCmdBuffer, srcImage, dstGpuMemory, region, includePadding, true);
+            }
+        } // end loop through copy regions
+    } // end check for trivial case
 }
 
 // ====================================================================================================================
@@ -4792,6 +5070,48 @@ void Gfx9RsrcProcMgr::InitCmask(
     {
         image.CpuProcessCmaskEq(initRange, Gfx9Cmask::InitialValue);
     }
+}
+
+// =====================================================================================================================
+// On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
+// the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
+// dest color data is no longer dcc compressed after copy.
+void Gfx9RsrcProcMgr::HwlUpdateDstImageMetaData(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 flags
+    ) const
+{
+    auto*const   pStream      = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+
+    for (uint32 idx = 0; (idx < regionCount) && gfx9DstImage.HasDccData(); ++idx)
+    {
+        const auto&  copyRegion  = pRegions[idx];
+        const auto*  pSubResInfo = dstImage.SubresourceInfo(copyRegion.dstSubres);
+
+        // If the image is not meta-fetchable, then it should have been decompressed on the transition to
+        // "LayoutCopyDst", at which point there's nothing to do here.
+        if (pSubResInfo->flags.supportMetaDataTexFetch)
+        {
+            // Since color data is no longer dcc compressed set it to fully uncompressed.
+            SubresRange range = {};
+
+            range.startSubres.aspect     = copyRegion.dstSubres.aspect;
+            range.startSubres.mipLevel   = copyRegion.dstSubres.mipLevel;
+            range.startSubres.arraySlice = copyRegion.dstSubres.arraySlice;
+            range.numMips                = 1;
+            range.numSlices              = copyRegion.numSlices;
+
+            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+        }
+    }
+
+    // Fmask and cmask data still need fixing as well.
+    RsrcProcMgr::HwlUpdateDstImageMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
 }
 
 } // Gfx9

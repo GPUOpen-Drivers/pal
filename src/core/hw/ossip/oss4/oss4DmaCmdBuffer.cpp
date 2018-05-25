@@ -387,9 +387,9 @@ uint32 DmaCmdBuffer::GetImageZ(
     }
     else
     {
-        // non-3d images don't have Z-coordinates, verify that Z is zero
-        PAL_ASSERT(offsetZ == 0);
-
+        // For 2D image array, offsetZ represents the sliceIndex counted from the "start slice" whose base address
+        // is DmaImageInfo::baseAddr, which is used by gfx6-gfx8. For gfx9, just ignore offsetZ and adopt the
+        // sliceIndex counted from "0".
         imageZ = dmaImageInfo.pSubresInfo->subresId.arraySlice;
     }
 

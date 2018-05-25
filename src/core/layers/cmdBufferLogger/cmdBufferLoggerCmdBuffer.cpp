@@ -2581,6 +2581,13 @@ static void DumpImageResolveRegion(
         Snprintf(pString + currentLength, StringLength - currentLength, " }");
         pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+        if (region.pQuadSamplePattern != nullptr)
+        {
+            DumpMsaaQuadSamplePattern(this, *region.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
+        }
+#endif
+
         Snprintf(pString, StringLength, "]");
         pNextCmdBuffer->CmdCommentString(pString);
     }

@@ -2395,18 +2395,28 @@ void Device::CreateFmaskViewSrdsInternal(
                                                       ? &pFmaskViewInternalInfo[i]
                                                       : nullptr);
         const FmaskViewInfo&         viewInfo      = pFmaskViewInfo[i];
-        ImageSrd                     srd           = {};
+        const Image&                 image         = *GetGfx9Image(viewInfo.pImage);
+        const Gfx9Fmask* const       pFmask        = image.GetFmask();
 
-        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+        if (pFmask != nullptr)
         {
-            Gfx9CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd.gfx9);
+            ImageSrd srd = {};
+
+            if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+            {
+                Gfx9CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd.gfx9);
+            }
+            else
+            {
+                PAL_ASSERT_ALWAYS();
+            }
+
+            pSrds[i] = srd;
         }
         else
         {
-            PAL_ASSERT_ALWAYS();
+            memcpy(pSrds + i, Parent()->ChipProperties().nullSrds.pNullFmaskView, sizeof(ImageSrd));
         }
-
-        pSrds[i] = srd;
     }
 }
 

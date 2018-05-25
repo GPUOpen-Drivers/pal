@@ -378,10 +378,10 @@ struct Gfx6PerfCounterInfo
 #endif // PAL_BUILD_GFX6
 
 #if PAL_BUILD_GFX9
-// Maximum amount of counters per GPU block for Gfx9/10.
+// Maximum amount of counters per GPU block for Gfx9
 constexpr size_t MaxCountersPerBlock = 16;
 
-// Contains information for perf counters for Gfx9 and Gfx10 HW.
+// Contains information for perf counters for Gfx9
 struct Gfx9PerfCounterInfo
 {
     PerfExperimentDeviceFeatureFlags features;       // Performance experiment feature flags.
@@ -1548,7 +1548,17 @@ protected:
     virtual void FinalizeQueueProperties() = 0;
     void FinalizeMemoryHeapProperties();
 
-    Result FindAndReserveCpuVaRange(gpusize* pStartVaAddr, gpusize  vaSize, gpusize  vaEnd);
+    virtual Result ProbeGpuVaRange(
+        gpusize vaStart,
+        gpusize vaSize) const
+        { return Result::Success; }
+
+    Result FindGpuVaRange(
+        gpusize* pStartVaAddr,
+        gpusize  vaEnd,
+        gpusize  vaSize,
+        gpusize  vaAlignment,
+        bool     reserveCpuVa = false) const;
 
     Result FixupUsableGpuVirtualAddressRange(uint32 vaRangeNumBits);
 

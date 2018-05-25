@@ -345,7 +345,7 @@ Device::Device(
     m_supportQueuePriority(false),
     m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
-    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy()),
+    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
     m_drmProcs(pPlatform->GetDrmLoader().GetProcsTable())
 #endif
@@ -3624,6 +3624,42 @@ void Device::FreeVirtualAddress(
         PAL_ASSERT_ALWAYS();
     }
     pMemory->SetVaRangeHandle(nullptr);
+}
+
+// =====================================================================================================================
+Result Device::ProbeGpuVaRange(
+    gpusize vaStart,
+    gpusize vaSize
+    ) const
+{
+    Result result = Result::Success;
+    gpusize vaAllocated = 0u;
+    amdgpu_va_handle vaHandle;
+
+    result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeAlloc(
+                                            m_hDevice,
+                                            amdgpu_gpu_va_range_general,
+                                            vaSize,
+                                            0u,
+                                            vaStart,
+                                            &vaAllocated,
+                                            &vaHandle,
+                                            0u),
+                         Result::ErrorUnknown);
+
+    if (result == Result::Success)
+    {
+        result = CheckResult(m_drmProcs.pfnAmdgpuVaRangeFree(vaHandle),
+                             Result::ErrorUnknown);
+    }
+
+    if ((result == Result::Success) &&
+        (vaAllocated != vaStart))
+    {
+        result = Result::ErrorOutOfGpuMemory;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

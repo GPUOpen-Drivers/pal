@@ -1931,10 +1931,10 @@ void CmdBuffer::ReplayCmdResolveImage(
     pTgtCmdBuffer->CmdResolveImage(*pSrcImage,
                                    srcImageLayout,
                                    *pDstImage,
-                                    dstImageLayout,
-                                    resolveMode,
-                                    regionCount,
-                                    pRegions);
+                                   dstImageLayout,
+                                   resolveMode,
+                                   regionCount,
+                                   pRegions);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 

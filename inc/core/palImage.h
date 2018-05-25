@@ -191,7 +191,12 @@ union ImageCreateFlags
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
         uint32 optimalShareable        :  1; ///< Indicates metadata information is to be added into private data on
                                              ///  creation time and honored on open time.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+        uint32 sampleLocsAlwaysKnown   :  1; ///< Sample pattern is always known in client driver for MSAA depth image.
+        uint32 reserved                : 14; ///< Reserved for future use.
+#else
         uint32 reserved                : 15; ///< Reserved for future use.
+#endif
 #else
         uint32 reserved                : 16; ///< Reserved for future use.
 #endif
