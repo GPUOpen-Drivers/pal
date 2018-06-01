@@ -73,13 +73,13 @@ GpuMemory::~GpuMemory()
         {
             pDevice->DiscardReservedPrtVaRange(m_desc.gpuVirtAddr, m_desc.size);
         }
-        if (m_vaRange != VaRange::Svm)
+        if (m_vaPartition != VaPartition::Svm)
         {
             pDevice->FreeVirtualAddress(this);
         }
     }
 
-    if ((m_vaRange == VaRange::Svm) && (IsGpuVaPreReserved() == false))
+    if ((m_vaPartition == VaPartition::Svm) && (IsGpuVaPreReserved() == false))
     {
         Result result;
         if (IsSvmAlloc())
@@ -162,7 +162,7 @@ Result GpuMemory::AllocateOrPinMemory(
         PAL_ASSERT(baseVirtAddr != 0);
         m_desc.gpuVirtAddr = baseVirtAddr;
     }
-    else if (m_vaRange != VaRange::Svm)
+    else if (m_vaPartition != VaPartition::Svm)
     {
         result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
     }
@@ -341,7 +341,7 @@ Result GpuMemory::AllocateSvmVirtualAddress(
     Device* pDevice = static_cast<Device*>(m_pDevice);
     Result  result = Result::Success;
 
-    PAL_ASSERT(m_vaRange == VaRange::Svm);
+    PAL_ASSERT(m_vaPartition == VaPartition::Svm);
 
     if (baseVirtAddr == 0)
     {
@@ -368,7 +368,7 @@ Result GpuMemory::FreeSvmVirtualAddress()
     Result  result = Result::Success;
     Device* pDevice = static_cast<Device*>(m_pDevice);
 
-    PAL_ASSERT(m_vaRange == VaRange::Svm);
+    PAL_ASSERT(m_vaPartition == VaPartition::Svm);
 
     if (m_pPinnedMemory != nullptr)
     {

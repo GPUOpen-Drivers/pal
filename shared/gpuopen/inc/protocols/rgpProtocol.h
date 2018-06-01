@@ -35,7 +35,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_MAJOR_VERSION 6
+#define RGP_PROTOCOL_MAJOR_VERSION 7
 #define RGP_PROTOCOL_MINOR_VERSION 0
 
 #define RGP_INTERFACE_VERSION ((RGP_INTERFACE_MAJOR_VERSION << 16) | RGP_INTERFACE_MINOR_VERSION)
@@ -46,6 +46,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  7.0    | Added support for aborting traces that are still in the pending state on the server.                     |
 *|  6.0    | Added support for trace trigger markers.                                                                 |
 *|  5.0    | Added support for allow compute presents trace parameter and removed unused clock mode parameter.        |
 *|  4.0    | Added support for reporting trace transfer progress.                                                     |
@@ -55,6 +56,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_PENDING_ABORT_VERSION 7
 #define RGP_TRIGGER_MARKERS_VERSION 6
 #define RGP_COMPUTE_PRESENTS_VERSION 5
 #define RGP_TRACE_PROGRESS_VERSION 4

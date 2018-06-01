@@ -1467,13 +1467,11 @@ Result Device::CreateComputePipeline(
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IPipeline* pNextPipeline = nullptr;
 
-    ComputePipelineCreateInfo nextCreateInfo = createInfo;
-
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::DeviceCreateComputePipeline;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateComputePipeline(nextCreateInfo,
+    const Result result   = m_pNextLayer->CreateComputePipeline(createInfo,
                                                                 NextObjectAddr<Pipeline>(pPlacementAddr),
                                                                 &pNextPipeline);
     funcInfo.postCallTime = pPlatform->GetTime();
@@ -1524,13 +1522,11 @@ Result Device::CreateGraphicsPipeline(
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IPipeline* pNextPipeline = nullptr;
 
-    GraphicsPipelineCreateInfo nextCreateInfo = createInfo;
-
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::DeviceCreateGraphicsPipeline;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateGraphicsPipeline(nextCreateInfo,
+    const Result result   = m_pNextLayer->CreateGraphicsPipeline(createInfo,
                                                                  NextObjectAddr<Pipeline>(pPlacementAddr),
                                                                  &pNextPipeline);
     funcInfo.postCallTime = pPlatform->GetTime();

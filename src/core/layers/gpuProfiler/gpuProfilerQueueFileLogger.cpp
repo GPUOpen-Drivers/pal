@@ -156,7 +156,7 @@ static const char* CmdBufCallIdStrings[] =
 
 };
 
-static_assert((sizeof(CmdBufCallIdStrings)/sizeof(CmdBufCallIdStrings[0])) == static_cast<uint32>(CmdBufCallId::Count),
+static_assert(ArrayLen(CmdBufCallIdStrings) == static_cast<uint32>(CmdBufCallId::Count),
               "Missing entry in CmdBufCallIdStrings.");
 
 // Table converting QueueCallId enums to strings.
@@ -173,7 +173,7 @@ static const char* QueueCallIdStrings[] =
     "CopyVirtualMemoryPageMappings()"
 };
 
-static_assert((sizeof(QueueCallIdStrings)/sizeof(QueueCallIdStrings[0])) == static_cast<uint32>(QueueCallId::Count),
+static_assert(ArrayLen(QueueCallIdStrings) == static_cast<uint32>(QueueCallId::Count),
               "Missing entry in QueueCallIdStrings.");
 
 // =====================================================================================================================
@@ -274,8 +274,8 @@ void Queue::OpenLogFile(
         "HpGfxOnly",
     };
 
-    static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,
-                 "Missing entry in pEngineTypeStrings.");
+    static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
+                  "Missing entry in pEngineTypeStrings.");
 
     // Build a file name for this frame's log file.  It will have the pattern frameAAAAAADevBEngCD-EE.csv, where:
     //     - AAAAAA: Frame number.
@@ -362,8 +362,8 @@ void Queue::OpenSqttFile(
         "HpGfxOnly",
     };
 
-    static_assert((sizeof(pEngineTypeStrings) / sizeof(pEngineTypeStrings[0])) == EngineTypeCount,
-        "Missing entry in pEngineTypeStrings.");
+    static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
+                  "Missing entry in pEngineTypeStrings.");
 
     // CRC Info
     constexpr uint32 CrcInfoSize = 256;

@@ -37,6 +37,7 @@ class  Image;
 class  Queue;
 struct VirtualMemoryRemapRange;
 struct VirtualMemoryCopyPageMappingsRange;
+enum class VaPartition : uint32;
 
 // A somewhat abstracted version of the gfxip cache MTYPE. Which caches respect the this property is hardware specific.
 enum class MType : uint32
@@ -198,7 +199,7 @@ public:
     // NOTE: Part of the public IGpuMemory interface.
     virtual Result Unmap() override;
 
-    VaRange VirtAddrRange() const { return m_vaRange; }
+    VaPartition VirtAddrPartition() const { return m_vaPartition; }
     MType Mtype() const { return m_mtype; }
 
     size_t HeapCount() const { return m_heapCount; }
@@ -308,7 +309,7 @@ protected:
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
 
     Device*const   m_pDevice;
-    VaRange        m_vaRange;
+    VaPartition    m_vaPartition;
     size_t         m_heapCount;
     GpuHeap        m_heaps[GpuHeapCount];
 

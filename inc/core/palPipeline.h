@@ -32,10 +32,8 @@
 #pragma once
 
 #include "pal.h"
-#include "palDevice.h"
 #include "palGpuMemoryBindable.h"
 #include "palImage.h"
-#include "palShader.h"
 
 namespace Util
 {
@@ -52,6 +50,55 @@ namespace Pal
 // Forward declarations.
 struct GpuMemSubAllocInfo;
 enum class PrimitiveTopology : uint32;
+
+/// ShaderHash represents a 128-bit shader hash.
+struct ShaderHash
+{
+    uint64 lower;   ///< Lower 64-bits of hash
+    uint64 upper;   ///< Upper 64-bits of hash
+};
+
+/// Determines whether two ShaderHashes are equal.
+///
+/// @param  [in]    hash1    The first 128-bit shader hash
+/// @param  [in]    hash2    The second 128-bit shader hash
+///
+/// @returns True if the shader hashes are equal.
+PAL_INLINE bool ShaderHashesEqual(
+    const ShaderHash hash1,
+    const ShaderHash hash2)
+{
+    return ((hash1.lower == hash2.lower) & (hash1.upper == hash2.upper));
+}
+
+/// Determines whether the given ShaderHash is non-zero.
+///
+/// @param  [in]    hash    A 128-bit shader hash
+///
+/// @returns True if the shader hash is non-zero.
+PAL_INLINE bool ShaderHashIsNonzero(
+    const ShaderHash hash)
+{
+    return ((hash.upper | hash.lower) != 0);
+}
+
+/// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
+enum class ShaderType : uint32
+{
+    Compute = 0,
+    Vertex,
+    Hull,
+    Domain,
+    Geometry,
+    Pixel,
+};
+
+/// Number of shader program types supported by PAL.
+constexpr uint32 NumShaderTypes =
+    (1u + static_cast<uint32>(ShaderType::Pixel) - static_cast<uint32>(ShaderType::Compute));
+
+/// Maximum number of viewports.
+constexpr uint32 MaxViewports = 16;
 
 /// Maximum number of supported stream-output declaration entries by any PAL device.
 constexpr uint32 MaxStreamOutEntries = 512;
@@ -136,10 +183,10 @@ union PipelineCreateFlags
 {
     struct
     {
-        uint32 clientInternal :  1;
-        uint32 reserved       : 31;
+        uint32 clientInternal :  1; ///< Internal pipeline not created by the application.
+        uint32 reserved       : 31; ///< Reserved for future use.
     };
-    uint32 u32All;                         ///< Flags packed as 32-bit uint.
+    uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
 
 /// Constant definining the max number of view instance count that is supported.
@@ -167,7 +214,6 @@ struct ComputePipelineCreateInfo
                                                  ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                  ///  register values, and additional metadata.
     size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
-
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
@@ -383,7 +429,6 @@ struct ShaderStats
 class IPipeline : public IDestroyable
 {
 public:
-
     /// Returns PAL-computed properties of this pipeline and its corresponding shaders.
     ///
     /// @returns Property structure describing this pipeline.

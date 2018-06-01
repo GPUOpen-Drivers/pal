@@ -692,7 +692,7 @@ uint32* Gfx9ThreadTrace::WriteStopCommands(
                                     mmSQ_THREAD_TRACE_STATUS__GFX09,
                                     mmSQ_THREAD_TRACE_CNTR__GFX09 };
 
-    for (uint32 i = 0; i < (sizeof(data) / sizeof(data[0])); i++)
+    for (uint32 i = 0; i < Util::ArrayLen(data); i++)
     {
         if (engineType == EngineTypeCompute)
         {

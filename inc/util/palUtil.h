@@ -31,10 +31,6 @@
 
 #pragma once
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 375)
-#       define PAL_ENABLE_INTERNAL_SCPC 1
-#endif
-
 #include <cstddef>
 
 /// stdint is included instead of cstdint to allow Visual Studio Intellisense to work for Linux builds. This can be

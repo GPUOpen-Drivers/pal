@@ -29,7 +29,7 @@
 #include <string.h>
 
 #define RGP_CLIENT_MIN_MAJOR_VERSION 2
-#define RGP_CLIENT_MAX_MAJOR_VERSION 6
+#define RGP_CLIENT_MAX_MAJOR_VERSION 7
 
 namespace DevDriver
 {
@@ -75,7 +75,7 @@ namespace DevDriver
                     payload.executeTraceRequestV3.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;
                     payload.executeTraceRequestV3.parameters.flags.u32All = traceInfo.parameters.flags.u32All;
                 }
-                else if (GetSessionVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                else if (GetSessionVersion() >= RGP_TRIGGER_MARKERS_VERSION)
                 {
                     payload.executeTraceRequestV4.parameters.gpuMemoryLimitInMb = traceInfo.parameters.gpuMemoryLimitInMb;
                     payload.executeTraceRequestV4.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;
@@ -123,6 +123,7 @@ namespace DevDriver
             return result;
         }
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_LONG_RGP_TRACES_VERSION)
         Result RGPClient::EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes)
         {
             Result result = Result::Error;
@@ -175,6 +176,63 @@ namespace DevDriver
 
             return result;
         }
+#else
+        Result RGPClient::EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes, uint32 timeoutInMs)
+        {
+            Result result = Result::Error;
+
+            if ((m_traceContext.state == TraceState::TraceRequested) &&
+                (pNumChunks != nullptr)                              &&
+                (pTraceSizeInBytes != nullptr))
+            {
+                if (GetSessionVersion() >= RGP_TRACE_PROGRESS_VERSION)
+                {
+                    RGPPayload payload = {};
+
+                    // Attempt to receive the trace data header.
+                    result = ReceivePayload(payload, timeoutInMs);
+                    if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataHeader))
+                    {
+                        // We've successfully received the trace data header. Check if the trace was successful.
+                        result = payload.traceDataHeader.result;
+                        if (result == Result::Success)
+                        {
+                            m_traceContext.state = TraceState::TraceCompleted;
+                            m_traceContext.numChunks = payload.traceDataHeader.numChunks;
+                            m_traceContext.numChunksReceived = 0;
+
+                            *pNumChunks = payload.traceDataHeader.numChunks;
+                            *pTraceSizeInBytes = payload.traceDataHeader.sizeInBytes;
+                        }
+                        else
+                        {
+                            // Reset the trace state.
+                            m_traceContext.state = TraceState::Error;
+
+                            // Don't overwrite the result from the trace header here. We want to return that to the caller.
+                        }
+                    }
+                    else if (result == Result::NotReady)
+                    {
+                        // If we hit the user specified timeout, don't modify the trace state.
+                        // Just return the result to the caller.
+                    }
+                    else
+                    {
+                        m_traceContext.state = TraceState::Error;
+                        result = Result::Error;
+                    }
+                }
+                else
+                {
+                    m_traceContext.state = TraceState::TraceCompleted;
+                    result = Result::Unavailable;
+                }
+            }
+
+            return result;
+        }
+#endif
 
         Result RGPClient::ReadTraceDataChunk()
         {
@@ -269,7 +327,8 @@ namespace DevDriver
 
             RGPPayload payload = {};
 
-            if (m_traceContext.state == TraceState::TraceCompleted)
+            if ((m_traceContext.state == TraceState::TraceCompleted) |
+                ((m_traceContext.state == TraceState::TraceRequested) & (GetSessionVersion() >= RGP_PENDING_ABORT_VERSION)))
             {
                 if (GetSessionVersion() >= RGP_TRACE_PROGRESS_VERSION)
                 {

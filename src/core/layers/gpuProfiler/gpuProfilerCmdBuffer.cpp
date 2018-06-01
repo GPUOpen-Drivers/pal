@@ -3173,8 +3173,8 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetHiSCompareState1,
     };
 
-    constexpr size_t ReplayFuncTblSize = sizeof(ReplayFuncTbl) / sizeof(ReplayFuncTbl[0]);
-    static_assert(ReplayFuncTblSize == static_cast<size_t>(CmdBufCallId::Count), "Replay table must be updated!");
+    static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),
+                  "Replay table must be updated!");
 
     m_pTokenRdPtr = m_pTokenStream;
 
@@ -3612,7 +3612,7 @@ static const char* FormatToString(
         "P010",
     };
 
-    static_assert((sizeof(FormatStrings) / sizeof(FormatStrings[0])) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
                   "The number of formats has changed!");
 
     return FormatStrings[static_cast<size_t>(format)];
@@ -3635,8 +3635,7 @@ static const char* ImageAspectToString(
         "",
     };
 
-    static_assert((sizeof(ImageAspectStrings) /
-                   sizeof(ImageAspectStrings[0]) == static_cast<size_t>(ImageAspect::Count)),
+    static_assert((ArrayLen(ImageAspectStrings) == static_cast<size_t>(ImageAspect::Count)),
                   "The number of image aspects has changed!");
 
     return ImageAspectStrings[static_cast<size_t>(aspect)];
@@ -3686,7 +3685,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Reserved",
         };
 
-        static_assert(sizeof(LayoutTransitionStrings) / sizeof(LayoutTransitionStrings[0]) ==
+        static_assert(ArrayLen(LayoutTransitionStrings) ==
                       (sizeof(((Developer::BarrierOperations*)0)->layoutTransitions) * 8),
                       "Number of layout transitions has changed!");
 
@@ -3725,7 +3724,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Reserved",
         };
 
-        static_assert(sizeof(PipelineStallsStrings) / sizeof(PipelineStallsStrings[0]) ==
+        static_assert(ArrayLen(PipelineStallsStrings) ==
                       (sizeof(((Developer::BarrierOperations*)0)->pipelineStalls) * 8),
                       "Number of pipeline stalls has changed!");
 
@@ -3764,7 +3763,7 @@ void TargetCmdBuffer::UpdateCommentString(
             "Reserved",
         };
 
-        static_assert(sizeof(CachesStrings) / sizeof(CachesStrings[0]) ==
+        static_assert(ArrayLen(CachesStrings) ==
                       (sizeof(((Developer::BarrierOperations*)0)->caches) * 8),
                       "Number of caches has changed!");
 

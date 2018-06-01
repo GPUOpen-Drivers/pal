@@ -62,7 +62,7 @@ void LogContext::Enum(
         "DecUint64", // 0x15,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(AtomicOp::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(AtomicOp::Count),
                   "The Blend string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -82,7 +82,7 @@ void LogContext::Enum(
         "Enable",  // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(BinningOverride::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(BinningOverride::Count),
         "The BinningOverride string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -118,7 +118,7 @@ void LogContext::Enum(
         "OneMinusSrc1Alpha",     // 0x12,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(Blend::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(Blend::Count),
                   "The Blend string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -140,7 +140,7 @@ void LogContext::Enum(
         "Max",             // 0x4,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(BlendFunc::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(BlendFunc::Count),
                   "The BlendFunc string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -161,7 +161,7 @@ void LogContext::Enum(
         "PaletteIndex",     // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(BorderColorType::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(BorderColorType::Count),
                   "The BorderColorType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -184,7 +184,7 @@ void LogContext::Enum(
         "W",    // 0x5,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ChannelSwizzle::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ChannelSwizzle::Count),
                   "The ChannelSwizzle string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -369,7 +369,7 @@ void LogContext::Enum(
         "P010",                     // 0xA7,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ChNumFormat::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ChNumFormat::Count),
                   "The ChNumFormat string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -390,7 +390,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -411,7 +411,7 @@ void LogContext::Enum(
         "Always",       // 0x7,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(CompareFunc::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(CompareFunc::Count),
                   "The CompareFunc string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -433,7 +433,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -449,7 +449,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -470,11 +470,11 @@ void LogContext::Enum(
         "QueryPeak",      // 0x7,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(DeviceClockMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(DeviceClockMode::Count),
                   "The DeviceClockMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -494,7 +494,7 @@ void LogContext::Enum(
         "EngineTypeHpGfxOnly",
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == EngineTypeCount,
+    static_assert(ArrayLen(StringTable) == EngineTypeCount,
         "The EngineType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -514,7 +514,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -531,7 +531,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -547,7 +547,7 @@ void LogContext::Enum(
         "Available",     // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(FlglSupport::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(FlglSupport::Count),
                   "The FlglSupport string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -568,7 +568,7 @@ void LogContext::Enum(
         "GpuHeapGartCacheable", // GpuHeapGartCacheable = 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == GpuHeapCount,
+    static_assert(ArrayLen(StringTable) == GpuHeapCount,
                   "The GpuHeap string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -591,7 +591,7 @@ void LogContext::Enum(
         "VeryHigh", // VeryHigh  = 0x5,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(GpuMemPriority::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(GpuMemPriority::Count),
                   "The GpuMemPriority string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -616,7 +616,7 @@ void LogContext::Enum(
         "Offset7", // Offset7  = 0x7,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(GpuMemPriorityOffset::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(GpuMemPriorityOffset::Count),
                   "The GpuMemPriorityOffset string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -642,7 +642,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -664,7 +664,7 @@ void LogContext::Enum(
         "YCbCr",   // 0x8,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageAspect::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageAspect::Count),
                   "The ImageAspect string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -685,7 +685,7 @@ void LogContext::Enum(
         "Ccw270", // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageRotation::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageRotation::Count),
                   "The ImageRotation string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -706,7 +706,7 @@ void LogContext::Enum(
         "Maximum",      // 0x3
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageTexOptLevel::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageTexOptLevel::Count),
                   "The ImageTexOptLevel string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -726,7 +726,7 @@ void LogContext::Enum(
         "Standard64Kb", // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageTiling::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageTiling::Count),
                   "The ImageTiling string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -748,7 +748,7 @@ void LogContext::Enum(
         "Interleaved", // 0x4,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageTilingPattern::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageTilingPattern::Count),
                   "The ImageTilingPattern string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -768,7 +768,7 @@ void LogContext::Enum(
         "Tex3d", // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageType::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageType::Count),
                   "The ImageType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -790,7 +790,7 @@ void LogContext::Enum(
         "TexQuilt", // 0x4,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImageViewType::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageViewType::Count),
                   "The ImageViewType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -810,7 +810,7 @@ void LogContext::Enum(
         "Idx32", // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(IndexType::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(IndexType::Count),
                   "The IndexType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -834,7 +834,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -864,7 +864,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -882,7 +882,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -898,7 +898,7 @@ void LogContext::Enum(
         "MipFilterLinear", // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == MipFilterCount,
+    static_assert(ArrayLen(StringTable) == MipFilterCount,
                   "The MipFilter string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -936,7 +936,7 @@ void LogContext::Enum(
         "Max",
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(NullGpuId::Max) + 1,
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::Max) + 1,
                   "The NullGpuId string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -964,7 +964,7 @@ void LogContext::Enum(
         "VideoDecode", // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(PipelineBindPoint::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PipelineBindPoint::Count),
                   "The PipelineBindPoint string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -984,7 +984,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1002,7 +1002,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1020,7 +1020,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1035,7 +1035,7 @@ void LogContext::Enum(
         "Fullscreen", // 0x1,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(PresentMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PresentMode::Count),
                   "The PresentMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1059,7 +1059,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1087,7 +1087,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1104,7 +1104,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1121,7 +1121,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1138,7 +1138,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1155,7 +1155,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1171,7 +1171,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1187,7 +1187,7 @@ void LogContext::Enum(
         "StreamoutStats",   // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(QueryPoolType::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(QueryPoolType::Count),
                   "The QueryPoolType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1212,7 +1212,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1229,7 +1229,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1246,7 +1246,7 @@ void LogContext::Enum(
         "QueueTypeTimer",       // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == QueueTypeCount,
+    static_assert(ArrayLen(StringTable) == QueueTypeCount,
                   "The QueueType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1267,7 +1267,7 @@ void LogContext::Enum(
         "Decompress",   // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ResolveMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ResolveMode::Count),
                   "The ResolveMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1378,7 +1378,7 @@ void LogContext::Enum(
         };
 
         const uint32 idx = static_cast<uint32>(-(1 + static_cast<int32>(value)));
-        PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+        PAL_ASSERT(idx < ArrayLen(StringTable));
 
         Value(StringTable[idx]);
     }
@@ -1402,7 +1402,7 @@ void LogContext::Enum(
         };
 
         const uint32 idx = static_cast<uint32>(value);
-        PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+        PAL_ASSERT(idx < ArrayLen(StringTable));
 
         Value(StringTable[idx]);
     }
@@ -1419,7 +1419,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1440,7 +1440,7 @@ void LogContext::Enum(
         "DecWrap",  // 0x7,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(StencilOp::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(StencilOp::Count),
                   "The StencilOp string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1461,7 +1461,7 @@ void LogContext::Enum(
         "MinGpuCmdOverhead", // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(SubmitOptMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(SubmitOptMode::Count),
                   "The SubmitOptMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1491,7 +1491,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = Log2(static_cast<uint32>(value));
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1508,7 +1508,7 @@ void LogContext::Enum(
         "FifoRelaxed", // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(SwapChainMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(SwapChainMode::Count),
                   "The SwapChainMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1530,7 +1530,7 @@ void LogContext::Enum(
         "ClampBorder", // 0x4,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(TexAddressMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(TexAddressMode::Count),
                   "The TexAddressMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1551,7 +1551,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1567,7 +1567,7 @@ void LogContext::Enum(
         "OptForSpeed",    // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(TilingOptMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(TilingOptMode::Count),
                   "The TilingOptMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1588,7 +1588,7 @@ void LogContext::Enum(
         "Svm",                   // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(VaRange::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VaRange::Count),
                   "The VaRange string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1609,7 +1609,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1631,7 +1631,7 @@ void LogContext::Enum(
     };
 
     const uint32 idx = Log2(static_cast<uint32>(value));
-    PAL_ASSERT(idx < sizeof(StringTable) / sizeof(StringTable[0]));
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }
@@ -1648,7 +1648,7 @@ void LogContext::Enum(
         "XyFilterAnisotropicLinear", // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == XyFilterCount,
+    static_assert(ArrayLen(StringTable) == XyFilterCount,
                   "The XyFilter string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1668,7 +1668,7 @@ void LogContext::Enum(
         "ZFilterLinear", // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == ZFilterCount,
+    static_assert(ArrayLen(StringTable) == ZFilterCount,
                   "The ZFilter string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1688,7 +1688,7 @@ void LogContext::Enum(
         "HMD",          // 0x2,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(VirtualDisplayVSyncMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VirtualDisplayVSyncMode::Count),
         "The VirtualDisplayVSyncMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1707,7 +1707,7 @@ void LogContext::Enum(
         "ImmediateData64Bit",    // 0x1,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(ImmediateDataWidth::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImmediateDataWidth::Count),
         "The ImmediateDataWidth string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1728,7 +1728,7 @@ void LogContext::Enum(
         "Register",           // 0x3,
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == static_cast<uint32>(TurboSyncControlMode::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(TurboSyncControlMode::Count),
         "The TurboSyncControlMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);

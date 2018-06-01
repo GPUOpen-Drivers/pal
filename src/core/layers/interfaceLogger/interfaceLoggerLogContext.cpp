@@ -45,8 +45,6 @@
 #include "core/layers/interfaceLogger/interfaceLoggerQueue.h"
 #include "core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
-#include "core/layers/interfaceLogger/interfaceLoggerShader.h"
-#include "core/layers/interfaceLogger/interfaceLoggerShaderCache.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
 
 using namespace Util;
@@ -84,7 +82,7 @@ const char*const ObjectNames[] =
     "ISwapChain",
 };
 
-static_assert(sizeof(ObjectNames) / sizeof(ObjectNames[0]) == static_cast<size_t>(InterfaceObject::Count),
+static_assert(ArrayLen(ObjectNames) == static_cast<size_t>(InterfaceObject::Count),
               "The ObjectNames array must be updated.");
 
 struct FuncFormattingEntry
@@ -328,7 +326,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::SwapChainDestroy,                                          InterfaceObject::SwapChain,            "Destroy"                                 },
 };
 
-static_assert(sizeof(FuncFormattingTable) / sizeof(FuncFormattingTable[0]) == static_cast<size_t>(InterfaceFunc::Count),
+static_assert(ArrayLen(FuncFormattingTable) == static_cast<size_t>(InterfaceFunc::Count),
               "The FuncFormattingTable must be updated.");
 
 // =====================================================================================================================
@@ -817,7 +815,7 @@ void LogContext::CacheCoherencyUsageFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -845,7 +843,7 @@ void LogContext::ComputeStateFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -873,7 +871,7 @@ void LogContext::CopyControlFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -901,7 +899,7 @@ void LogContext::GpuMemoryRefFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -932,7 +930,7 @@ void LogContext::ImageLayoutEngineFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -971,7 +969,7 @@ void LogContext::ImageLayoutUsageFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -1015,7 +1013,7 @@ void LogContext::QueryPipelineStatsFlags(
     }
     else
     {
-        constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
         for (uint32 idx = 0; idx < NumFlags; ++idx)
         {
             if ((flags & (1 << idx)) != 0)
@@ -1047,7 +1045,7 @@ void LogContext::QueryResultFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -1074,7 +1072,7 @@ void LogContext::ClearColorImageFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -1101,7 +1099,7 @@ void LogContext::ClearDepthStencilFlags(
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = sizeof(StringTable) / sizeof(StringTable[0]);
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
     for (uint32 idx = 0; idx < NumFlags; ++idx)
     {
         if ((flags & (1 << idx)) != 0)
@@ -1129,7 +1127,7 @@ const char* LogContext::GetQueueName(
         "Timer",       // QueueTypeTimer
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == QueueTypeCount,
+    static_assert(ArrayLen(StringTable) == QueueTypeCount,
                   "The GetQueueName string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -1153,8 +1151,8 @@ const char* LogContext::GetEngineName(
             "HpGfxOnly",        // EngineTypeHighPriorityGraphics
     };
 
-    static_assert(sizeof(StringTable) / sizeof(StringTable[0]) == EngineTypeCount,
-        "The GetQueueName string table needs to be updated.");
+    static_assert(ArrayLen(StringTable) == EngineTypeCount,
+                  "The GetQueueName string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < EngineTypeCount);

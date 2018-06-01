@@ -150,7 +150,7 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetHiSCompareState1()",
 };
 
-static_assert((sizeof(CmdBufCallIdStrings)/sizeof(CmdBufCallIdStrings[0])) == static_cast<uint32>(CmdBufCallId::Count),
+static_assert(ArrayLen(CmdBufCallIdStrings) == static_cast<uint32>(CmdBufCallId::Count),
               "Missing entry in CmdBufCallIdStrings.");
 
 // =====================================================================================================================
@@ -176,7 +176,7 @@ static const char* ImageAspectToString(
         "Cr",
         "YCbCr",
     };
-    static_assert(((sizeof(AspectNames) / sizeof(AspectNames[0])) == static_cast<size_t>(ImageAspect::Count)), "");
+    static_assert((ArrayLen(AspectNames) == static_cast<size_t>(ImageAspect::Count)), "");
 
     return AspectNames[static_cast<size_t>(aspect)];
 }
@@ -461,7 +461,7 @@ static const char* FormatToString(
         "P010",
     };
 
-    static_assert((sizeof(FormatStrings) / sizeof(FormatStrings[0])) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
                   "The number of formats has changed!");
 
     return FormatStrings[static_cast<size_t>(format)];
@@ -482,7 +482,7 @@ static void SwizzleToString(
         "W",
     };
 
-    static_assert((sizeof(SwizzleStrings) / sizeof(SwizzleStrings[0])) == static_cast<size_t>(ChannelSwizzle::Count),
+    static_assert(ArrayLen(SwizzleStrings) == static_cast<size_t>(ChannelSwizzle::Count),
                   "The number of swizzles has changed!");
 
     const size_t currentLength = strlen(pString);
@@ -769,7 +769,7 @@ static const void PrintImageCreateInfo(
         "Tex2D",
         "Tex3D",
     };
-    static_assert((sizeof(ImageTypeStrings) / sizeof(ImageTypeStrings[0])) == static_cast<size_t>(ImageType::Count),
+    static_assert(ArrayLen(ImageTypeStrings) == static_cast<size_t>(ImageType::Count),
                   "The number of ImageType's has changed!");
 
     Snprintf(pString, StringLength, "%s\t Image Type       = %s", pPrefix,
@@ -794,8 +794,7 @@ static const void PrintImageCreateInfo(
         "Optimal",
         "Standard64Kb",
     };
-    static_assert((sizeof(ImageTilingStrings) / sizeof(ImageTilingStrings[0])) ==
-                  static_cast<size_t>(ImageTiling::Count),
+    static_assert(ArrayLen(ImageTilingStrings) == static_cast<size_t>(ImageTiling::Count),
                   "ImageTilingStrings struct is not the same size as the ImageTiling enum!");
 
     Snprintf(pString, StringLength, "%s\t Tiling           = %s", pPrefix,
@@ -2584,7 +2583,7 @@ static void DumpImageResolveRegion(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
         if (region.pQuadSamplePattern != nullptr)
         {
-            DumpMsaaQuadSamplePattern(this, *region.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
+            DumpMsaaQuadSamplePattern(pCmdBuffer, *region.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
         }
 #endif
 

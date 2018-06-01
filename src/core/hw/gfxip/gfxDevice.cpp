@@ -62,13 +62,6 @@ GfxDevice::GfxDevice(
 }
 
 // =====================================================================================================================
-GfxDevice::~GfxDevice()
-{
-    // Note that GfxDevice does not own the m_pRsrcProcMgr instance so it is not deleted here.
-
-}
-
-// =====================================================================================================================
 // This must clean up all internal GPU memory allocations and all objects created after EarlyInit. Note that EarlyInit
 // is called when the platform creates the device objects so the work it does must be preserved if we are to reuse
 // this device object.
@@ -92,15 +85,6 @@ Result GfxDevice::Cleanup()
             m_pFrameCountCmdBuffer[i] = nullptr;
         }
     }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Performs any late-stage initialization that can only be done after settings have been committed.
-Result GfxDevice::LateInit()
-{
-    Result result = Result::Success;
 
     return result;
 }

@@ -284,7 +284,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::SwapChainDestroy,                              (CrtDstry)            },
 };
 
-static_assert(sizeof(FuncLoggingTable) / sizeof(FuncLoggingTable[0]) == static_cast<size_t>(InterfaceFunc::Count),
+static_assert(ArrayLen(FuncLoggingTable) == static_cast<size_t>(InterfaceFunc::Count),
               "The FuncLoggingTable must be updated.");
 
 // =====================================================================================================================

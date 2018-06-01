@@ -159,7 +159,7 @@ void RsrcProcMgr::Cleanup()
         &m_pDepthStencilResolveState,
     };
 
-    for (uint32 idx = 0; idx < (sizeof(ppDepthStates) / sizeof(ppDepthStates[0])); ++idx)
+    for (uint32 idx = 0; idx < ArrayLen(ppDepthStates); ++idx)
     {
         if (*ppDepthStates[idx] != nullptr)
         {

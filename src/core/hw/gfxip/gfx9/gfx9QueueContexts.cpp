@@ -712,11 +712,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
-            InitializeContextRegistersGfx9(&cmdStream);
-        }
-        else
-        {
-            PAL_NOT_IMPLEMENTED();
+            InitializeContextRegistersGfx9(&cmdStream, 0, nullptr, nullptr);
         }
     }
 }
@@ -1109,7 +1105,7 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
         m_universalPreamble.spaceNeeded +=
             cmdUtil.BuildSetSeqConfigRegs(mmVGT_MAX_VTX_INDX__GFX09,
                                           mmVGT_INDX_OFFSET__GFX09,
-                                          &m_universalPreamble.vgtIndexRegs.gfx9.hdrVgtIndexRegs);
+                                          &m_universalPreamble.gfx9.hdrVgtIndexRegs);
     }
 
     // TODO: The following are set on Gfx8 because the clear state doesn't set up these registers to our liking.
@@ -1169,9 +1165,9 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
 
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_universalPreamble.vgtIndexRegs.gfx9.vgtMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
-        m_universalPreamble.vgtIndexRegs.gfx9.vgtMinVtxIndx.bits.MIN_INDX    = 0;
-        m_universalPreamble.vgtIndexRegs.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
+        m_universalPreamble.gfx9.vgtMaxVtxIndx.bits.MAX_INDX    = 0xFFFFFFFF;
+        m_universalPreamble.gfx9.vgtMinVtxIndx.bits.MIN_INDX    = 0;
+        m_universalPreamble.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
     }
 
     // Set-and-forget DCC register:

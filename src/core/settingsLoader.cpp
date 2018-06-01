@@ -281,14 +281,6 @@ void SettingsLoader::ValidateSettings()
         m_pSettings->requestDebugVmid = true;
         m_pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
-
-    if ((m_pSettings->logPipelines != 0) &&
-        (TestAnyFlagSet(m_pSettings->logPipelines, (PipelineLogTextFormat | PipelineLogElfFormat)) == false))
-    {
-        // If the user has enabled pipeline logs but forgotten to enable either the text or ELF format, enable the
-        // text format for them.
-        m_pSettings->logPipelines |= PipelineLogTextFormat;
-    }
 }
 
 // =====================================================================================================================

@@ -102,9 +102,7 @@ Pipeline::~Pipeline()
         m_gpuMem.Update(nullptr, 0);
     }
 
-    {
-        PAL_SAFE_FREE(m_pPipelineBinary, m_pDevice->GetPlatform());
-    }
+    PAL_SAFE_FREE(m_pPipelineBinary, m_pDevice->GetPlatform());
 }
 
 // =====================================================================================================================
@@ -179,11 +177,29 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
             if (dataLength > 0)
             {
                 void* pDataPtr = VoidPtrAlign(VoidPtrInc(pMappedPtr, codeLength), static_cast<size_t>(dataAlignment));
-                memcpy(pDataPtr, pDataBuffer, dataLength);
 
                 (*pDataGpuVirtAddr) = ((*pCodeGpuVirtAddr) + Pow2Align(codeLength, dataAlignment));
-                abiProcessor.ApplyRelocations(pDataPtr, dataLength, Abi::AbiSectionType::Data, (*pDataGpuVirtAddr));
-            }
+                memcpy(pDataPtr, pDataBuffer, dataLength);
+
+                // The for loop which follows is entirely non-standard behavior for an ELF loader, but is intended to
+                // only be temporary code.
+                for (uint32 s = 0; s <= static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+                {
+                    const Abi::PipelineSymbolType symbolType =
+                        Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderIntrlTblPtr,
+                                               static_cast<Abi::HardwareStage>(s));
+
+                    Abi::PipelineSymbolEntry symbol = { };
+                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol))
+                    {
+                        m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
+                            VoidPtrInc(pDataPtr, static_cast<size_t>(symbol.value)),
+                            static_cast<size_t>(symbol.size),
+                            (*pDataGpuVirtAddr));
+                    }
+                } // for each hardware stage
+                // End temporary code
+            } // if dataLength > 0
 
             gpusize perfGpuAddr   = m_gpuMem.GpuVirtAddr() + perfDataOffset;
             size_t  currentOffset = static_cast<size_t>(perfDataOffset);
@@ -473,9 +489,7 @@ void Pipeline::DumpPipelineElf(
     const bool hashMatches   = (hashToDump == 0) || (m_info.compilerHash == hashToDump);
     const bool dumpInternal  = TestAnyFlagSet(settings.logPipelines, PipelineLogInternal);
     const bool dumpExternal  = TestAnyFlagSet(settings.logPipelines, PipelineLogExternal);
-    const bool dumpElfFormat = TestAnyFlagSet(settings.logPipelines, PipelineLogElfFormat);
-    const bool dumpPipeline  =
-        (hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())) && dumpElfFormat);
+    const bool dumpPipeline  = (hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
 
     if (dumpPipeline)
     {

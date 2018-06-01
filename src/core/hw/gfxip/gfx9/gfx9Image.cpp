@@ -1211,7 +1211,6 @@ const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
     const SubresId& subresId
     ) const
 {
-    PAL_ASSERT(m_pParent->IsDepthStencil());
     return m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 }
 

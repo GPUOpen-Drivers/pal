@@ -176,7 +176,7 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmRMI_PERFCOUNTER3_SELECT,           }, },  // rmi
 };
 
-static_assert(sizeof(Gfx9PerfCountSelect0)/sizeof(Gfx9PerfCountSelect0[0])   == static_cast<uint32>(GpuBlock::Count),
+static_assert(ArrayLen(Gfx9PerfCountSelect0) == static_cast<uint32>(GpuBlock::Count),
               "Gfx9PerfCountSelect0 must have one entry for each GpuBlock.");
 
 // Table of all the secondary perf-counter select registers.  We list all the register offsets since the delta's
@@ -231,7 +231,7 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
 
 };
 
-static_assert(sizeof(Gfx9PerfCountSelect1)/sizeof(Gfx9PerfCountSelect1[0])   == static_cast<uint32>(GpuBlock::Count),
+static_assert(ArrayLen(Gfx9PerfCountSelect1) == static_cast<uint32>(GpuBlock::Count),
               "Gfx9PerfCountSelect1 must have one entry for each GpuBlock.");
 
 // =====================================================================================================================

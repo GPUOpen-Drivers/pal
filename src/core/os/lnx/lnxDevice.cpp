@@ -722,6 +722,13 @@ Result Device::InitGpuProperties()
         Strncpy(&m_gpuName[0], "Unknown AMD GPU", sizeof(m_gpuName));
     }
 
+    for (uint32 i = 0; i < EngineTypeCount; i++)
+    {
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]  = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
+    }
+
     // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
     switch (m_chipProperties.gfxLevel)
     {
@@ -829,8 +836,8 @@ void Device::InitGfx6ChipProperties()
     pChipInfo->sqgEventsEnabled = ((spiConfigCntl & SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
                                    (spiConfigCntl & SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
 
-    pChipInfo->gbAddrConfig = m_gpuInfo.gb_addr_cfg;
-    pChipInfo->mcArbRamcfg  = m_gpuInfo.mc_arb_ramcfg;
+    pChipInfo->gbAddrConfig             = m_gpuInfo.gb_addr_cfg;
+    pChipInfo->mcArbRamcfg              = m_gpuInfo.mc_arb_ramcfg;
 
     pChipInfo->numShaderEngines = m_gpuInfo.num_shader_engines;
     pChipInfo->numShaderArrays  = m_gpuInfo.num_shader_arrays_per_engine;
@@ -928,17 +935,18 @@ void Device::InitGfx9ChipProperties()
 
     if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
     {
-        pChipInfo->numShaderEngines        = deviceInfo.num_shader_engines;
-        pChipInfo->numShaderArrays         = deviceInfo.num_shader_arrays_per_engine;
-        pChipInfo->maxNumRbPerSe           = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
-        pChipInfo->wavefrontSize           = deviceInfo.wave_front_size;
-        pChipInfo->numShaderVisibleVgprs   = deviceInfo.num_shader_visible_vgprs;
-        pChipInfo->maxNumCuPerSh           = deviceInfo.num_cu_per_sh;
-        pChipInfo->numTccBlocks            = deviceInfo.num_tcc_blocks;
-        pChipInfo->gsVgtTableDepth         = deviceInfo.gs_vgt_table_depth;
-        pChipInfo->gsPrimBufferDepth       = deviceInfo.gs_prim_buffer_depth;
-        pChipInfo->maxGsWavesPerVgt        = deviceInfo.max_gs_waves_per_vgt;
-        pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
+        pChipInfo->numShaderEngines         = deviceInfo.num_shader_engines;
+        pChipInfo->numShaderArrays          = deviceInfo.num_shader_arrays_per_engine;
+        pChipInfo->maxNumRbPerSe            = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
+        pChipInfo->wavefrontSize            = deviceInfo.wave_front_size;
+        pChipInfo->numShaderVisibleVgprs    = deviceInfo.num_shader_visible_vgprs;
+        pChipInfo->maxNumCuPerSh            = deviceInfo.num_cu_per_sh;
+        pChipInfo->numTccBlocks             = deviceInfo.num_tcc_blocks;
+        pChipInfo->gsVgtTableDepth          = deviceInfo.gs_vgt_table_depth;
+        pChipInfo->gsPrimBufferDepth        = deviceInfo.gs_prim_buffer_depth;
+        pChipInfo->maxGsWavesPerVgt         = deviceInfo.max_gs_waves_per_vgt;
+        pChipInfo->doubleOffchipLdsBuffers  = deviceInfo.gc_double_offchip_lds_buf;
+        pChipInfo->paScTileSteeringOverride = 0;
     }
     else
     {
@@ -1647,7 +1655,7 @@ Result Device::GetSwapChainInfo(
         pSwapChainProperties->supportedUsageFlags.shaderWrite   = 1;
 
         // Get format supported by swap chain.
-        pSwapChainProperties->imageFormatCount = sizeof(PresentableImageFormats)/sizeof(PresentableImageFormats[0]);
+        pSwapChainProperties->imageFormatCount = static_cast<uint32>(ArrayLen(PresentableImageFormats));
         for (uint32 i = 0; i < pSwapChainProperties->imageFormatCount; i++)
         {
             pSwapChainProperties->imageFormat[i] = PresentableImageFormats[i];
@@ -1728,7 +1736,7 @@ static uint64 ConvertMType(
         AMDGPU_VM_MTYPE_UC,      // Uncached
     };
 
-    static_assert(sizeof(MTypeTable) / sizeof(MTypeTable[0]) == static_cast<uint32>(MType::Count),
+    static_assert(ArrayLen(MTypeTable) == static_cast<uint32>(MType::Count),
                   "The MTypeTable needs to be updated.");
 
     PAL_ASSERT(static_cast<uint32>(mtype) < static_cast<uint32>(MType::Count));
@@ -3556,8 +3564,8 @@ Result Device::AssignVirtualAddress(
     Pal::GpuMemory*     pGpuMemory,
     gpusize*            pGpuVirtAddr) // [in/out] In: Zero, or the desired VA. Out: The assigned VA.
 {
-    Result ret        = Result::ErrorOutOfGpuMemory;
-    const auto vaPart = ChooseVaPartition(pGpuMemory->VirtAddrRange());
+    Result            ret    = Result::ErrorOutOfGpuMemory;
+    const VaPartition vaPart = pGpuMemory->VirtAddrPartition();
 
     if (vaPart == VaPartition::Default)
     {
@@ -3588,7 +3596,7 @@ Result Device::AssignVirtualAddress(
         VirtAddrAssignInfo vaInfo = { };
         vaInfo.size      = pGpuMemory->Desc().size;
         vaInfo.alignment = pGpuMemory->Desc().alignment;
-        vaInfo.range     = pGpuMemory->VirtAddrRange();
+        vaInfo.partition = vaPart;
 
         ret = VamMgrSingleton::AssignVirtualAddress(this, vaInfo, pGpuVirtAddr);
         static_cast<GpuMemory*>(pGpuMemory)->SetVaRangeHandle(nullptr);
@@ -3606,8 +3614,8 @@ Result Device::AssignVirtualAddress(
 void Device::FreeVirtualAddress(
     Pal::GpuMemory*     pGpuMemory)
 {
-    GpuMemory* pMemory = static_cast<GpuMemory*>(pGpuMemory);
-    const auto vaPart  = ChooseVaPartition(pGpuMemory->VirtAddrRange());
+    GpuMemory*        pMemory = static_cast<GpuMemory*>(pGpuMemory);
+    const VaPartition vaPart  = pGpuMemory->VirtAddrPartition();
     if (vaPart == VaPartition::Default)
     {
         PAL_ASSERT(pMemory->VaRangeHandle() != nullptr);
@@ -3665,7 +3673,7 @@ Result Device::ProbeGpuVaRange(
 // =====================================================================================================================
 // Reserve gpu va range.
 Result Device::ReserveGpuVirtualAddress(
-    VaRange                 vaRange,
+    VaPartition             vaPartition,
     gpusize                 baseVirtAddr,
     gpusize                 size,
     bool                    isVirtual,
@@ -3674,10 +3682,10 @@ Result Device::ReserveGpuVirtualAddress(
 {
     Result result = Result::Success;
 
-    // On Linux, these ranges are reserved by VamMgrSingleton
-    if ((vaRange != VaRange::Svm) &&
-        (vaRange != VaRange::DescriptorTable) &&
-        (vaRange != VaRange::ShadowDescriptorTable))
+    // On Linux, these partitions are reserved by VamMgrSingleton
+    if ((vaPartition != VaPartition::Svm) &&
+        (vaPartition != VaPartition::DescriptorTable) &&
+        (vaPartition != VaPartition::ShadowDescriptorTable))
     {
         ReservedVaRangeInfo* pInfo = m_reservedVaMap.FindKey(baseVirtAddr);
 

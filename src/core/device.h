@@ -39,6 +39,7 @@
 #include "palTextWriter.h"
 
 #include "core/hw/amdgpu_asic.h"
+#include "palCmdAllocator.h"
 
 typedef void* ADDR_HANDLE;
 
@@ -107,7 +108,10 @@ enum class VaPartition : uint32
                             // two pieces so that the other VA ranges will fit better.
     DescriptorTable,        // SEE: VaRange::DescriptorTable
     ShadowDescriptorTable,  // SEE: VaRange::ShadowDescriptorTable
-    Svm,                    // SEE: VaRange::SharedVirtualMemory
+    Svm,                    // SEE: VaRange::Svm
+    Prt,                    // Some platforms require a specific VA range in order to properly setup HW for PRTs.
+                            // To simplify client support, no corresponding VA range exists and this partition
+                            // will be chosen instead of the default when required.
     Count,
 };
 
@@ -174,6 +178,7 @@ struct GpuMemoryProperties
     // GPU's page table blocks, we limit the "usable" portion of the GPU address space to put an effective upper
     // bound on the number of page table blocks a given Device will require.
     gpusize vaUsableEnd;    // Ending address of the "usable" portion of the GPU's virtual address space
+    gpusize vaStartPrt;     // Subset of the VA range for Partially Resident Textures (PRTs) when required by KMD
 
     gpusize pdeSize;            // Size (in bytes) of a page directory entry (PDE)
     gpusize pteSize;            // Size (in bytes) of a page table entry (PTE)
@@ -308,6 +313,12 @@ struct GpuEngineProperties
         } flags;
 
         EngineSubType engineSubType[MaxAvailableEngines];
+
+        /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
+        /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
+        /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
+        /// heap preferences, but may suffer a performance penalty.
+        GpuHeap preferredCmdAllocHeaps[CmdAllocatorTypeCount];
     } perEngine[EngineTypeCount];
 };
 
@@ -593,6 +604,7 @@ struct GpuChipProperties
         {
             uint32 backendDisableMask;
             uint32 gbAddrConfig;
+            uint32 paScTileSteeringOverride;
             uint32 numShaderEngines;
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
@@ -1285,8 +1297,8 @@ public:
         gpusize           objAlignment,
         bool              allowVirtualBinding = false) const;
 
-    // Requests the device to reserve the GPU VA range.
-    virtual Result ReserveGpuVirtualAddress(VaRange                 vaRange,
+    // Requests the device to reserve the GPU VA partition.
+    virtual Result ReserveGpuVirtualAddress(VaPartition             vaPartition,
                                             gpusize                 vaStartAddress,
                                             gpusize                 vaSize,
                                             bool                    isVirtual,
@@ -1438,7 +1450,7 @@ public:
     void VirtualAddressRange(VaPartition vaPartition, gpusize* pStartVirtAddr, gpusize* pEndVirtAddr) const;
 
     // Chooses a VA partition based on the given VaRange enum.
-    VaPartition ChooseVaPartition(VaRange range) const;
+    VaPartition ChooseVaPartition(VaRange range, bool isVirtual) const;
 
     const SettingsLoader* const GetSettingsLoader() const { return m_pSettingsLoader; }
 

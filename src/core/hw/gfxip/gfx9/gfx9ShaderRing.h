@@ -73,7 +73,7 @@ protected:
     const GfxIpLevel  m_gfxLevel;
 
 private:
-    Result AllocateVideoMemory(gpusize memorySizeBytes, bool cpuVisible);
+    Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingType ringType);
 
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderRing);

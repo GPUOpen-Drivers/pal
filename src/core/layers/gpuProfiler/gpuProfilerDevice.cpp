@@ -27,7 +27,6 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPipeline.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
-#include "core/layers/gpuProfiler/gpuProfilerShader.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -715,7 +714,7 @@ GpuBlock StringToGpuBlock(
         "RMI",     // GpuBlock::Rmi
     };
 
-    static_assert((sizeof(TranslationTbl) / sizeof(TranslationTbl[0])) == static_cast<uint32>(GpuBlock::Count),
+    static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),
                   "Missing entry in TranslationTbl.");
 
     uint32 blockIdx = 0;

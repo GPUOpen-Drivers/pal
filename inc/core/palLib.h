@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 406
+#define PAL_INTERFACE_MAJOR_VERSION 408
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 0
+#define PAL_INTERFACE_MINOR_VERSION 1
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -328,10 +328,6 @@ Result PAL_STDCALL EnumerateNullDevices(
  *      __PAL_BUILD_SCPC__: Defaults to 1.  Controls whether or not the SCPC component is built as part of the PAL
  *      build.  Clients should only change this to zero if they are using something besides SCPC for compiling their
  *      pipeline binaries.
- *
- *      __PAL_ENABLE_INTERNAL_SCPC__: Defaults to 1.  Controls whether or not a PAL IDevice object will manage an
- *      internal instance of an SCPC ICompiler object for compiling pipelines.  If this is 1, then @ref PAL_BUILD_SCPC
- *      is overridden to be 1 as well.
  *
  * ### External Shader Compiler
  * PAL must be linked with an SC library built by the client.  The client must specify the location of the SC interface

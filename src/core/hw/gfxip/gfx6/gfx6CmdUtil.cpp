@@ -103,7 +103,7 @@ constexpr uint32 EventTypeToIndexTable[] =
 };
 
 // Size of the event index table, in entries.
-constexpr size_t EventTypeToIndexTableSize = sizeof(EventTypeToIndexTable) / sizeof(EventTypeToIndexTable[0]);
+constexpr size_t EventTypeToIndexTableSize = ArrayLen(EventTypeToIndexTable);
 
 // Lookup table for converting a AtomicOp index into a TC_OP on Gfx6 hardware.
 constexpr TC_OP Gfx6AtomicOpConversionTable[] =
@@ -133,8 +133,7 @@ constexpr TC_OP Gfx6AtomicOpConversionTable[] =
 };
 
 // Size of the Gfx6AtomicOp conversion table, in entries.
-constexpr size_t Gfx6AtomicOpConversionTableSize = sizeof(Gfx6AtomicOpConversionTable) /
-                                                   sizeof(Gfx6AtomicOpConversionTable[0]);
+constexpr size_t Gfx6AtomicOpConversionTableSize = ArrayLen(Gfx6AtomicOpConversionTable);
 
 // The Gfx6AtomicOp table should contain one entry for each AtomicOp.
 static_assert((Gfx6AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),
@@ -168,8 +167,7 @@ constexpr TC_OP Gfx7AtomicOpConversionTable[] =
 };
 
 // Size of the Gfx7AtomicOp conversion table, in entries.
-constexpr size_t Gfx7AtomicOpConversionTableSize = sizeof(Gfx7AtomicOpConversionTable) /
-                                                   sizeof(Gfx7AtomicOpConversionTable[0]);
+constexpr size_t Gfx7AtomicOpConversionTableSize = ArrayLen(Gfx7AtomicOpConversionTable);
 
 // The CiAtomicOp table should contain one entry for each AtomicOp.
 static_assert((Gfx7AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),

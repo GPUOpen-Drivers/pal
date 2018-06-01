@@ -85,11 +85,6 @@ Result QueryPool::GetResults(
     const void*      pMappedGpuAddr = nullptr;
 #endif
 
-    PAL_ASSERT((queryType != QueryType::StreamoutStats)  &&
-               (queryType != QueryType::StreamoutStats1) &&
-               (queryType != QueryType::StreamoutStats2) &&
-               (queryType != QueryType::StreamoutStats3));
-
     const size_t oneSlotResultSize  = GetResultSizeForOneSlot(flags);
     const size_t resultStride       = (stride == 0) ? oneSlotResultSize : stride;
     const size_t allSlotsResultSize = (queryCount - 1) * resultStride + oneSlotResultSize;

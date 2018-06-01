@@ -55,6 +55,7 @@
 #include "palAssert.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
+
 #include "palFormatInfo.h"
 
 #include "core/hw/amdgpu_asic.h"
@@ -287,7 +288,7 @@ Result Device::LateInit()
     memset(const_cast<ShaderRingItemSizes*>(&m_largestRingSizes), 0, sizeof(m_largestRingSizes));
     m_queueContextUpdateCounter = 0;
 
-    return GfxDevice::LateInit();
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -1550,8 +1551,7 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
         SQ_TEX_CLAMP_BORDER,            // TexAddressMode::ClampBorder
     };
 
-    static_assert(((sizeof(PalTexAddrToHwTbl) / sizeof(PalTexAddrToHwTbl[0])) ==
-                   static_cast<size_t>(TexAddressMode::Count)),
+    static_assert((ArrayLen(PalTexAddrToHwTbl) == static_cast<size_t>(TexAddressMode::Count)),
                   "Hardware table for Texture Address Mode does not match Pal::TexAddressMode enum.");
 
     return PalTexAddrToHwTbl[static_cast<uint32>(texAddress)];
@@ -1602,6 +1602,25 @@ static PAL_INLINE SQ_TEX_ANISO_RATIO GetAnisoRatio(
     }
 
     return anisoRatio;
+}
+
+// =====================================================================================================================
+// Gfx9+ helper function for patching a pipeline's shader internal SRD table.
+void Device::PatchPipelineInternalSrdTable(
+    void*   pDataPtr,       // In,Out: SRD table data
+    size_t  dataLength,     // Length of the SRD table in bytes
+    gpusize dataGpuVirtAddr
+    ) const
+{
+
+    auto*const   pSrd     = static_cast<BufferSrd*>(pDataPtr);
+    const uint32 srdCount = (static_cast<uint32>(dataLength) / sizeof(BufferSrd));
+
+    for (uint32 i = 0; i < srdCount; ++i)
+    {
+        const gpusize patchedGpuVa = (GetBaseAddress(pSrd + i) + dataGpuVirtAddr);
+        SetBaseAddress(pSrd + i, patchedGpuVa);
+    }
 }
 
 // =====================================================================================================================
@@ -2132,7 +2151,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             break;
         }
 
-        PAL_ASSERT(texOptLevel < sizeof(PanelToTexPerfMod) / sizeof(PanelToTexPerfMod[0]));
+        PAL_ASSERT(texOptLevel < ArrayLen(PanelToTexPerfMod));
 
         TexPerfModulation perfMod = PanelToTexPerfMod[texOptLevel];
 
@@ -2982,8 +3001,10 @@ uint32  Device::GetDbDfsmControl() const
     const Gfx9PalSettings& gfx9Settings  = GetGfx9Settings(*m_pParent);
     regDB_DFSM_CONTROL     dbDfsmControl = {};
 
+    const bool disableDfsm = gfx9Settings.disableDfsm;
+
     // Force off DFSM if requested by the settings
-    dbDfsmControl.bits.PUNCHOUT_MODE = (gfx9Settings.disableDfsm ? DfsmPunchoutModeDisable : DfsmPunchoutModeEnable);
+    dbDfsmControl.bits.PUNCHOUT_MODE = (disableDfsm ? DfsmPunchoutModeDisable : DfsmPunchoutModeEnable);
 
     // Setup POPS as requested by the settings as well.
     dbDfsmControl.bits.POPS_DRAIN_PS_ON_OVERLAP = gfx9Settings.drainPsOnOverlap;

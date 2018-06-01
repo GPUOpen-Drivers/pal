@@ -51,6 +51,16 @@ enum class ValueType : uint32
     Str,      ///< String type.
 };
 
+/// Determines the length of an array at compile-time.
+///
+/// @returns The length of the array.
+template <typename T, size_t N>
+constexpr size_t ArrayLen(
+    const T (&array)[N]) ///< The array of arbitrary type T.
+{
+    return N;
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 390
 /// Increments a const pointer by nBytes by first casting it to a const uint8*.
 ///

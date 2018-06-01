@@ -959,6 +959,10 @@ public:
         bool* pGlobalEnable) override
         { return m_pNextLayer->GetChillGlobalEnable(pGlobalEnable); }
 
+    virtual Result UpdateChillStatus(
+        uint64 lastChillActiveTimeStampUs) override
+        { return m_pNextLayer->UpdateChillStatus(lastChillActiveTimeStampUs); }
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,

@@ -1750,7 +1750,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
             if (TestAnyFlagSet(mask, 1))
             {
                 pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
-                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
+                pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(vertexCount,
+                                                                   false,
+                                                                   pThis->PacketPredicate(),
+                                                                   pDeCmdSpace);
             }
         }
     }
@@ -1996,7 +1999,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
         else
         {
             // NGG Fast Launch pipelines treat all draws as auto-index draws.
-            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(indexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
+            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexAuto(indexCount,
+                                                               false,
+                                                               pThis->PacketPredicate(),
+                                                               pDeCmdSpace);
         }
     }
 
@@ -2706,6 +2712,16 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
 }
 
 // =====================================================================================================================
+// Returns the HW enumeration needed for the PA_SC_BINNER_CNTL_0.BINNING_MDOE field when the binning needs to be
+// disabled.
+BinningMode UniversalCmdBuffer::GetDisableBinningSetting() const
+{
+    BinningMode  binningMode = DISABLE_BINNING_USE_LEGACY_SC;
+
+    return binningMode;
+}
+
+// =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
@@ -2819,7 +2835,7 @@ Result UniversalCmdBuffer::AddPreamble()
     // PBB state at validate time.
     m_enabledPbb = false;
     m_paScBinnerCntl0.u32All = 0;
-    m_paScBinnerCntl0.bits.BINNING_MODE          = DISABLE_BINNING_USE_LEGACY_SC;
+    m_paScBinnerCntl0.bits.BINNING_MODE          = GetDisableBinningSetting();
     m_paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = (m_cachedSettings.disableDfsm) ? 1 : 0;
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_BINNER_CNTL_0, m_paScBinnerCntl0.u32All, pDeCmdSpace);
 
@@ -2962,11 +2978,24 @@ void UniversalCmdBuffer::WriteEventCmd(
     switch (pipePoint)
     {
     case HwPipeTop:
-        // Implement set/reset event with a WRITE_DATA command using either the PFP.
+        // Implement set/reset event with a WRITE_DATA command using PFP engine.
         pDeCmdSpace += m_cmdUtil.BuildWriteData(engineType,
                                                 boundMemObj.GpuVirtAddr(),
                                                 1,
                                                 engine_sel__pfp_write_data__prefetch_parser,
+                                                dst_sel__pfp_write_data__memory,
+                                                wr_confirm__pfp_write_data__wait_for_write_confirmation,
+                                                &data,
+                                                PredDisable,
+                                                pDeCmdSpace);
+        break;
+
+    case HwPipePostIndexFetch:
+        // Implement set/reset event with a WRITE_DATA command using the ME engine.
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(engineType,
+                                                boundMemObj.GpuVirtAddr(),
+                                                1,
+                                                engine_sel__me_write_data__micro_engine,
                                                 dst_sel__me_write_data__memory,
                                                 wr_confirm__me_write_data__wait_for_write_confirmation,
                                                 &data,
@@ -2979,7 +3008,6 @@ void UniversalCmdBuffer::WriteEventCmd(
         PAL_ASSERT(IsComputeSupported());
         // break intentionally left out!
 
-    case HwPipePostIndexFetch:
     case HwPipePreRasterization:
     case HwPipePostPs:
         // Implement set/reset with an EOS event waiting for VS/PS or CS waves to complete.  Unfortunately, there is
@@ -4237,107 +4265,114 @@ Extent2d UniversalCmdBuffer::GetColorBinSize() const
         }
     }
 
-    static constexpr CtoBinSize BinSize[][3][8]=
-    {
-        {
-            // One RB / SE
-            {
-                // One shader engine
-                {        0,  128,  128 },
-                {        1,   64,  128 },
-                {        2,   32,  128 },
-                {        3,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  128,  128 },
-                {        2,   64,  128 },
-                {        3,   32,  128 },
-                {        5,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-        {
-            // Two RB / SE
-            {
-                // One shader engine
-                {        0,  128,  128 },
-                {        2,   64,  128 },
-                {        3,   32,  128 },
-                {        5,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   32,  128 },
-                {        9,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  256,  256 },
-                {        2,  128,  256 },
-                {        3,  128,  128 },
-                {        5,   64,  128 },
-                {        9,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-        {
-            // Four RB / SE
-            {
-                // One shader engine
-                {        0,  128,  256 },
-                {        2,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   32,  128 },
-                {        9,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  256,  256 },
-                {        2,  128,  256 },
-                {        3,  128,  128 },
-                {        5,   64,  128 },
-                {        9,   32,  128 },
-                {       17,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  256,  512 },
-                {        2,  256,  256 },
-                {        3,  128,  256 },
-                {        5,  128,  128 },
-                {        9,   64,  128 },
-                {       17,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-    };
+    const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
+    Extent2d          size      = { 0, 0 };
+    const CtoBinSize* pBinEntry = nullptr;
 
-    const CtoBinSize* pBinEntry = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cColor);
-    const Extent2d    size      = { pBinEntry->binSizeX, pBinEntry->binSizeY };
+    if (gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        static constexpr CtoBinSize BinSize[][3][8]=
+        {
+            {
+                // One RB / SE
+                {
+                    // One shader engine
+                    {        0,  128,  128 },
+                    {        1,   64,  128 },
+                    {        2,   32,  128 },
+                    {        3,   16,  128 },
+                    {       17,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Two shader engines
+                    {        0,  128,  128 },
+                    {        2,   64,  128 },
+                    {        3,   32,  128 },
+                    {        5,   16,  128 },
+                    {       17,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Four shader engines
+                    {        0,  128,  128 },
+                    {        3,   64,  128 },
+                    {        5,   16,  128 },
+                    {       17,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+            },
+            {
+                // Two RB / SE
+                {
+                    // One shader engine
+                    {        0,  128,  128 },
+                    {        2,   64,  128 },
+                    {        3,   32,  128 },
+                    {        5,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Two shader engines
+                    {        0,  128,  128 },
+                    {        3,   64,  128 },
+                    {        5,   32,  128 },
+                    {        9,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Four shader engines
+                    {        0,  256,  256 },
+                    {        2,  128,  256 },
+                    {        3,  128,  128 },
+                    {        5,   64,  128 },
+                    {        9,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+            },
+            {
+                // Four RB / SE
+                {
+                    // One shader engine
+                    {        0,  128,  256 },
+                    {        2,  128,  128 },
+                    {        3,   64,  128 },
+                    {        5,   32,  128 },
+                    {        9,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Two shader engines
+                    {        0,  256,  256 },
+                    {        2,  128,  256 },
+                    {        3,  128,  128 },
+                    {        5,   64,  128 },
+                    {        9,   32,  128 },
+                    {       17,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+                {
+                    // Four shader engines
+                    {        0,  256,  512 },
+                    {        2,  256,  256 },
+                    {        3,  128,  256 },
+                    {        5,  128,  128 },
+                    {        9,   64,  128 },
+                    {       17,   16,  128 },
+                    {       33,    0,    0 },
+                    { UINT_MAX,    0,    0 },
+                },
+            },
+        };
+
+        pBinEntry = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cColor);
+        size      = { pBinEntry->binSizeX, pBinEntry->binSizeY };
+    }
 
     return size;
 }
@@ -4369,124 +4404,128 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
                                           (pDepthTargetView->ReadOnlyStencil() == false)) ? 1 : 0;
         const uint32 cDepth            = 4 * (cPerDepthSample + cPerStencilSample) * imageCreateInfo.samples;
 
-        static constexpr CtoBinSize BinSize[][3][9]=
+        const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
+        const CtoBinSize* pBinEntry = nullptr;
+
+        if (gfxLevel == GfxIpLevel::GfxIp9)
         {
+            static constexpr CtoBinSize BinSize[][3][9]=
             {
-                // One RB / SE
                 {
-                    // One shader engine
-                    {        0,  128,  256 },
-                    {        2,  128,  128 },
-                    {        4,   64,  128 },
-                    {        7,   32,  128 },
-                    {       13,   16,  128 },
-                    {       49,    0,    0 },
-                    { UINT_MAX,    0,    0 },
+                    // One RB / SE
+                    {
+                        // One shader engine
+                        {        0,  128,  256 },
+                        {        2,  128,  128 },
+                        {        4,   64,  128 },
+                        {        7,   32,  128 },
+                        {       13,   16,  128 },
+                        {       49,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Two shader engines
+                        {        0,  256,  256 },
+                        {        2,  128,  256 },
+                        {        4,  128,  128 },
+                        {        7,   64,  128 },
+                        {       13,   32,  128 },
+                        {       25,   16,  128 },
+                        {       49,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Four shader engines
+                        {        0,  256,  512 },
+                        {        2,  256,  256 },
+                        {        4,  128,  256 },
+                        {        7,  128,  128 },
+                        {       13,   64,  128 },
+                        {       25,   16,  128 },
+                        {       49,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
                 },
                 {
-                    // Two shader engines
-                    {        0,  256,  256 },
-                    {        2,  128,  256 },
-                    {        4,  128,  128 },
-                    {        7,   64,  128 },
-                    {       13,   32,  128 },
-                    {       25,   16,  128 },
-                    {       49,    0,    0 },
-                    { UINT_MAX,    0,    0 },
+                    // Two RB / SE
+                    {
+                        // One shader engine
+                        {        0,  256,  256 },
+                        {        2,  128,  256 },
+                        {        4,  128,  128 },
+                        {        7,   64,  128 },
+                        {       13,   32,  128 },
+                        {       25,   16,  128 },
+                        {       97,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Two shader engines
+                        {        0,  256,  512 },
+                        {        2,  256,  256 },
+                        {        4,  128,  256 },
+                        {        7,  128,  128 },
+                        {       13,   64,  128 },
+                        {       25,   32,  128 },
+                        {       49,   16,  128 },
+                        {       97,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Four shader engines
+                        {        0,  512,  512 },
+                        {        2,  256,  512 },
+                        {        4,  256,  256 },
+                        {        7,  128,  256 },
+                        {       13,  128,  128 },
+                        {       25,   64,  128 },
+                        {       49,   16,  128 },
+                        {       97,    0,    0 },
+                        { UINT_MAX,    0,    0 },
+                    },
                 },
                 {
-                    // Four shader engines
-                    {        0,  256,  512 },
-                    {        2,  256,  256 },
-                    {        4,  128,  256 },
-                    {        7,  128,  128 },
-                    {       13,   64,  128 },
-                    {       25,   16,  128 },
-                    {       49,    0,    0 },
-                    { UINT_MAX,    0,    0 },
+                    // Four RB / SE
+                    {
+                        // One shader engine
+                        {        0,  256,  512 },
+                        {        2,  256,  256 },
+                        {        4,  128,  256 },
+                        {        7,  128,  128 },
+                        {       13,   64,  128 },
+                        {       25,   32,  128 },
+                        {       49,   16,  128 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Two shader engines
+                        {        0,  512,  512 },
+                        {        2,  256,  512 },
+                        {        4,  256,  256 },
+                        {        7,  128,  256 },
+                        {       13,  128,  128 },
+                        {       25,   64,  128 },
+                        {       49,   32,  128 },
+                        {       97,   16,  128 },
+                        { UINT_MAX,    0,    0 },
+                    },
+                    {
+                        // Four shader engines
+                        {        0,  512,  512 },
+                        {        4,  256,  512 },
+                        {        7,  256,  256 },
+                        {       13,  128,  256 },
+                        {       25,  128,  128 },
+                        {       49,   64,  128 },
+                        {       97,   16,  128 },
+                        { UINT_MAX,    0,    0 },
+                    },
                 },
-            },
-            {
-                // Two RB / SE
-                {
-                    // One shader engine
-                    {        0,  256,  256 },
-                    {        2,  128,  256 },
-                    {        4,  128,  128 },
-                    {        7,   64,  128 },
-                    {       13,   32,  128 },
-                    {       25,   16,  128 },
-                    {       97,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Two shader engines
-                    {        0,  256,  512 },
-                    {        2,  256,  256 },
-                    {        4,  128,  256 },
-                    {        7,  128,  128 },
-                    {       13,   64,  128 },
-                    {       25,   32,  128 },
-                    {       49,   16,  128 },
-                    {       97,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Four shader engines
-                    {        0,  512,  512 },
-                    {        2,  256,  512 },
-                    {        4,  256,  256 },
-                    {        7,  128,  256 },
-                    {       13,  128,  128 },
-                    {       25,   64,  128 },
-                    {       49,   16,  128 },
-                    {       97,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-            },
-            {
-                // Four RB / SE
-                {
-                    // One shader engine
-                    {        0,  256,  512 },
-                    {        2,  256,  256 },
-                    {        4,  128,  256 },
-                    {        7,  128,  128 },
-                    {       13,   64,  128 },
-                    {       25,   32,  128 },
-                    {       49,   16,  128 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Two shader engines
-                    {        0,  512,  512 },
-                    {        2,  256,  512 },
-                    {        4,  256,  256 },
-                    {        7,  128,  256 },
-                    {       13,  128,  128 },
-                    {       25,   64,  128 },
-                    {       49,   32,  128 },
-                    {       97,   16,  128 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Four shader engines
-                    {        0,  512,  512 },
-                    {        4,  256,  512 },
-                    {        7,  256,  256 },
-                    {       13,  128,  256 },
-                    {       25,  128,  128 },
-                    {       49,   64,  128 },
-                    {       97,   16,  128 },
-                    { UINT_MAX,    0,    0 },
-                },
-            },
-        };
+            };
 
-        const CtoBinSize*  pBinEntry  = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cDepth);
-
-        size.width  = pBinEntry->binSizeX;
-        size.height = pBinEntry->binSizeY;
+            pBinEntry = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cDepth);
+            size      = { pBinEntry->binSizeX, pBinEntry->binSizeY };
+        }
     }
 
     return size;
@@ -4505,7 +4544,7 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
     // If the reported bin sizes are zero, then disable binning
     if ((size.width == 0) || (size.height == 0))
     {
-        m_paScBinnerCntl0.bits.BINNING_MODE = DISABLE_BINNING_USE_LEGACY_SC;
+        m_paScBinnerCntl0.bits.BINNING_MODE = GetDisableBinningSetting();
     }
     else
     {

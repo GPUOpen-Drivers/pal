@@ -715,6 +715,13 @@ Result Device::EarlyInit(
     m_chipProperties.vceLevel = ipLevels.vce;
     m_chipProperties.uvdLevel = ipLevels.uvd;
 
+    for (uint32 i = 0; i < EngineTypeCount; i++)
+    {
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]  = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
+    }
+
     switch (m_chipProperties.gfxLevel)
     {
 #if PAL_BUILD_GFX6

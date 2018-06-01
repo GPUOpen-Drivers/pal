@@ -119,6 +119,7 @@ void PipelineChunkGs::Init(
     }
 
     m_pm4ImageContext.vgtGsMaxVertOut.u32All    = abiProcessor.GetRegisterEntry(mmVGT_GS_MAX_VERT_OUT);
+
     m_pm4ImageContext.vgtGsInstanceCnt.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GS_INSTANCE_CNT);
     m_pm4ImageContext.vgtGsVertItemSize0.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE);
     m_pm4ImageContext.vgtGsVertItemSize1.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_1);

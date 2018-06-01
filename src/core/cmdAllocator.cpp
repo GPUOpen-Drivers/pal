@@ -262,7 +262,7 @@ void CmdAllocator::FreeAllChunks()
         &m_gpuAllocInfo[GpuScratchMemAlloc],
         &m_sysAllocInfo,
     };
-    static_assert((sizeof(pAllocInfo) / sizeof(pAllocInfo[0])) == (CmdAllocatorTypeCount + 1),
+    static_assert(ArrayLen(pAllocInfo) == (CmdAllocatorTypeCount + 1),
                   "Unexpected number of command allocation memory types!");
 
 #if PAL_ENABLE_PRINTS_ASSERTS

@@ -989,6 +989,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK1             = RmiEventWindowMask1Default;
         rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = RmiChannelIdAll;
         rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = RmiBurstlengthThresholdDefault;
+
         if (restart == false)
         {
             rmiPerfCounterCntl.bits.PERF_SOFT_RESET = 1;

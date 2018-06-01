@@ -27,35 +27,29 @@
 #include "core/hw/gfxip/gfx6/g_gfx6MergedDataFormats.h"
 #include "palDevice.h"
 
+using namespace Util;
+
 namespace Pal
 {
 namespace Formats
 {
 namespace Gfx6
 {
-static_assert(sizeof(Gfx6MergedFormatPropertiesTable.features) / sizeof(Gfx6MergedFormatPropertiesTable.features[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx6MergedFormatPropertiesTable.features) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx6MergedFormatPropertiesTable mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx6MergedChannelFmtInfoTbl) / sizeof(Gfx6MergedChannelFmtInfoTbl[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx6MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx6ChannelFmtInfoTbl mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx7MergedFormatPropertiesTable.features) / sizeof(Gfx7MergedFormatPropertiesTable.features[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx7MergedFormatPropertiesTable.features) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx7MergedFormatPropertiesTable mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx7MergedChannelFmtInfoTbl) / sizeof(Gfx7MergedChannelFmtInfoTbl[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx7MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx7ChannelFmtInfoTbl mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx8MergedFormatPropertiesTable.features) / sizeof(Gfx8MergedFormatPropertiesTable.features[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx8MergedFormatPropertiesTable.features) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx8MergedFormatPropertiesTable mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx8MergedChannelFmtInfoTbl) / sizeof(Gfx8MergedChannelFmtInfoTbl[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx8MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx8ChannelFmtInfoTbl mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx8_1MergedFormatPropertiesTable.features) /
-              sizeof(Gfx8_1MergedFormatPropertiesTable.features[0]) == size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx8_1MergedFormatPropertiesTable.features) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx8_1MergedFormatPropertiesTable mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx8_1MergedChannelFmtInfoTbl) / sizeof(Gfx8_1MergedChannelFmtInfoTbl[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx8_1MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx8_1ChannelFmtInfoTbl mismatches the number of declared ChNumFormat enums");
 
 // =====================================================================================================================

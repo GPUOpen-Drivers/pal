@@ -983,6 +983,8 @@ private:
         bool viewInstancingEnable,
         bool nggFastLuanch);
 
+    BinningMode GetDisableBinningSetting() const;
+
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
 

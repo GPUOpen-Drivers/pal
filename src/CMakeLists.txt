@@ -342,7 +342,6 @@ if(PAL_BUILD_CORE)
             core/hw/gfxip/prefetchMgr.cpp
             core/hw/gfxip/queryPool.cpp
             core/hw/gfxip/universalCmdBuffer.cpp
-            core/hw/gfxip/palToScpcWrapper.cpp
         )
 
         # Resource Processing Manager (RPM) files.
@@ -530,7 +529,6 @@ if(PAL_BUILD_CORE)
                 core/layers/gpuProfiler/gpuProfilerQueue.cpp
                 core/layers/gpuProfiler/gpuProfilerQueueFileLogger.cpp
                 core/layers/gpuProfiler/gpuProfilerPipeline.cpp
-                core/layers/gpuProfiler/gpuProfilerShader.cpp
             )
         endif()
 
@@ -581,8 +579,6 @@ if(PAL_BUILD_CORE)
                 core/layers/interfaceLogger/interfaceLoggerQueue.cpp
                 core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
                 core/layers/interfaceLogger/interfaceLoggerScreen.cpp
-                core/layers/interfaceLogger/interfaceLoggerShader.cpp
-                core/layers/interfaceLogger/interfaceLoggerShaderCache.cpp
                 core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
             )
 

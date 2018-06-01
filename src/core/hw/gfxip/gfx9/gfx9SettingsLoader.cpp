@@ -266,6 +266,7 @@ void SettingsLoader::OverrideGfx9Defaults()
         // the PC used by a single batch.
         m_gfx9Settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
     }
+
 }
 
 // =====================================================================================================================

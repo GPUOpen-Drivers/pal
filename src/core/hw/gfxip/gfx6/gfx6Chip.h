@@ -517,7 +517,7 @@ constexpr uint16 FirstUserDataRegAddr[] =
     (mmSPI_SHADER_USER_DATA_PS_0 + FastUserDataStartReg), // Ps
     (mmCOMPUTE_USER_DATA_0       + FastUserDataStartReg), // Cs
 };
-static_assert(sizeof(FirstUserDataRegAddr) / sizeof(FirstUserDataRegAddr[0]) == NumHwShaderStagesGfx + 1,
+static_assert(Util::ArrayLen(FirstUserDataRegAddr) == NumHwShaderStagesGfx + 1,
               "FirstUserDataRegAddr[] array has the wrong number of elements!");
 
 // This represents the mapping from virtualized user-data entries to physical SPI user-data registers for a single HW

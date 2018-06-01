@@ -33,7 +33,6 @@
 #include "core/platform.h"
 #include "palAutoBuffer.h"
 #include "palFormatInfo.h"
-#include "palShader.h"
 #include "palSysUtil.h"
 #include "palTimeGraphImpl.h"
 

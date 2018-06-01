@@ -201,7 +201,7 @@ constexpr TC_OP AtomicOpConversionTable[] =
 };
 
 // Size of the AtomicOp conversion table, in entries.
-constexpr size_t AtomicOpConversionTableSize = sizeof(AtomicOpConversionTable) / sizeof(AtomicOpConversionTable[0]);
+constexpr size_t AtomicOpConversionTableSize = ArrayLen(AtomicOpConversionTable);
 
 // The AtomicOp table should contain one entry for each AtomicOp.
 static_assert((AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),
@@ -222,8 +222,8 @@ static constexpr uint32 TcCacheOpConversionTable[] =
     CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
 };
 
-constexpr size_t TcCacheOpConversionTableSize = sizeof(TcCacheOpConversionTable) / sizeof(TcCacheOpConversionTable[0]);
-static_assert(TcCacheOpConversionTableSize == static_cast<size_t>(TcCacheOp::Count),
+constexpr size_t TcCacheOpConversionTableSize = ArrayLen(TcCacheOpConversionTable);
+static_assert(ArrayLen(TcCacheOpConversionTable) == static_cast<size_t>(TcCacheOp::Count),
               "TcCacheOp conversion table has too many/few entries");
 
 static uint32 Type3Header(

@@ -312,7 +312,8 @@ size_t StreamoutStatsQueryPool::GetResultSizeForOneSlot(
 }
 
 // =====================================================================================================================
-// Dummy function at this point as streamout query is currently DX12 specific where the query has no GetQueryData API
+// Computes 'queryCount' slots of StreamoutStats and puts the result in the memory pointed to in pData. This is required
+// by DX11 API.
 bool StreamoutStatsQueryPool::ComputeResults(
     QueryResultFlags flags,
     QueryType        queryType,
@@ -321,7 +322,17 @@ bool StreamoutStatsQueryPool::ComputeResults(
     const void*      pGpuData,
     void*            pData)
 {
-    PAL_NOT_IMPLEMENTED();
+    const StreamoutStatsDataPair* pDataPair = static_cast<const StreamoutStatsDataPair*>(pGpuData);
+    StreamoutStatsData* pQueryData = static_cast<StreamoutStatsData*>(pData);
+
+    for (uint32 i = 0; i < queryCount; i++)
+    {
+        const uint64 primCountWritten  = pDataPair[i].end.primCountWritten - pDataPair[i].begin.primCountWritten;
+        const uint64 primStorageNeeded = pDataPair[i].end.primStorageNeeded - pDataPair[i].begin.primStorageNeeded;
+
+        pQueryData[i].primCountWritten  = primCountWritten;
+        pQueryData[i].primStorageNeeded = primStorageNeeded;
+    }
 
     return true;
 }

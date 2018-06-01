@@ -374,6 +374,11 @@ public:
 
     Gfx8TcComaptDbFlushWorkaround WaDbTcCompatFlush() const { return m_waDbTcCompatFlush; }
 
+    virtual void PatchPipelineInternalSrdTable(
+        void*   pDataPtr,
+        size_t  dataLength,
+        gpusize dataGpuVirtAddr) const override;
+
 private:
     bool GetDepthStencilBltPerSubres(
         GfxCmdBuffer*            pCmdBuf,

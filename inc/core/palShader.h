@@ -30,61 +30,16 @@
  */
 
 #pragma once
+#include "palPipeline.h"
 
-#include "pal.h"
-#include "palDestroyable.h"
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 408
+/// Starting with interface 408.0, it is an error to include palShader.h because we want to remove it.  This file will
+/// be removed once interfaces older than 408.0 are no longer supported by PAL.
+#error "Fatal error! palShader.h is deprecated and the client is still including it."
+#else
+#if !defined(PAL_SUPPORTED_IL_MAJOR_VERSION)
 /// The major version of AMD IL that PAL can parse correctly. Shaders compiled with a larger major version may not be
 /// parsed appropriately.
 #define PAL_SUPPORTED_IL_MAJOR_VERSION 2
-
-namespace Pal
-{
-
-/// ShaderHash represents a 128-bit shader hash.
-struct ShaderHash
-{
-    uint64 lower;   ///< Lower 64-bits of hash
-    uint64 upper;   ///< Upper 64-bits of hash
-};
-
-/// Determines whether two ShaderHashes are equal.
-///
-/// @param  [in]    hash1    The first 128-bit shader hash
-/// @param  [in]    hash2    The second 128-bit shader hash
-///
-/// @returns True if the shader hashes are equal.
-PAL_INLINE bool ShaderHashesEqual(
-    const ShaderHash hash1,
-    const ShaderHash hash2)
-{
-    return ((hash1.lower == hash2.lower) & (hash1.upper == hash2.upper));
-}
-
-/// Determines whether the given ShaderHash is non-zero.
-///
-/// @param  [in]    hash    A 128-bit shader hash
-///
-/// @returns True if the shader hash is non-zero.
-PAL_INLINE bool ShaderHashIsNonzero(
-    const ShaderHash hash)
-{
-    return ((hash.upper | hash.lower) != 0);
-}
-
-/// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
-enum class ShaderType : uint32
-{
-    Compute = 0,
-    Vertex,
-    Hull,
-    Domain,
-    Geometry,
-    Pixel,
-};
-
-/// Number of shader program types supported by PAL.
-constexpr uint32 NumShaderTypes =
-    (1u + static_cast<uint32>(ShaderType::Pixel) - static_cast<uint32>(ShaderType::Compute));
-
-} // Pal
+#endif
+#endif

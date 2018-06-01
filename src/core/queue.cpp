@@ -502,9 +502,8 @@ void Queue::DumpCmdToFile(
             "",
         };
 
-        static_assert(
-            (sizeof(QueueTypeStrings) / sizeof(QueueTypeStrings[0])) == static_cast<size_t>(QueueTypeCount),
-            "Mismatch between QueueTypeStrings array size and QueueTypeCount");
+        static_assert(ArrayLen(QueueTypeStrings) == static_cast<size_t>(QueueTypeCount),
+                      "Mismatch between QueueTypeStrings array size and QueueTypeCount");
 
         for (uint32 idx = 0; idx < internalSubmitInfo.numPreambleCmdStreams; ++idx)
         {

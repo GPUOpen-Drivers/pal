@@ -1966,8 +1966,6 @@ bool Image::IsFastDepthStencilClearSupported(
     const SubresRange& range
     ) const
 {
-    PAL_ASSERT(m_pParent->IsDepthStencil());
-
     const SubresId& subResource = range.startSubres;
 
     // We can only fast clear all arrays at once.
@@ -2646,7 +2644,6 @@ const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
     const SubresId& subresId
     ) const
 {
-    PAL_ASSERT(m_pParent->IsDepthStencil());
     return m_layoutToState[subresId.mipLevel].depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
 }
 

@@ -35,6 +35,7 @@
 #include "palDevice.h"
 #include "palImage.h"
 #include "palMsaaState.h"
+#include "palPipeline.h"
 #include "palQueryPool.h"
 
 /// HSA kernel dispatch packet typedef

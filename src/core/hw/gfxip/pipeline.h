@@ -172,7 +172,6 @@ protected:
     Util::Abi::ApiHwShaderMapping m_apiHwMapping;
 
 private:
-
     union
     {
         struct

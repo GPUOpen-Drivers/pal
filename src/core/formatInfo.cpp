@@ -38,7 +38,7 @@ namespace Pal
 namespace Formats
 {
 
-static_assert(sizeof(FormatInfoTable) / sizeof(FormatInfoTable[0]) == size_t(ChNumFormat::Count),
+static_assert(ArrayLen(FormatInfoTable) == static_cast<size_t>(ChNumFormat::Count),
     "Size of FormatInfoTable mismatches the number of declared ChNumFormat enums");
 
 constexpr float LinearToGammaExponent  = 1.f / 2.4f;
@@ -491,7 +491,7 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(UnormTable) / sizeof(UnormTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(UnormTable) == static_cast<size_t>(ChNumFormat::Count),
                   "UnormTable does not match the number of ChNumFormats!");
 
     return UnormTable[static_cast<size_t>(format)];
@@ -674,7 +674,7 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(SnormTable) / sizeof(SnormTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(SnormTable) == static_cast<size_t>(ChNumFormat::Count),
                   "SnormTable does not match the number of ChNumFormats!");
 
     return SnormTable[static_cast<size_t>(format)];
@@ -857,7 +857,7 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(UscaledTable) / sizeof(UscaledTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(UscaledTable) == static_cast<size_t>(ChNumFormat::Count),
                   "UscaledTable does not match the number of ChNumFormats!");
 
     return UscaledTable[static_cast<size_t>(format)];
@@ -1040,7 +1040,7 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(SscaledTable) / sizeof(SscaledTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(SscaledTable) == static_cast<size_t>(ChNumFormat::Count),
                   "SscaledTable does not match the number of ChNumFormats!");
 
     return SscaledTable[static_cast<size_t>(format)];
@@ -1223,7 +1223,7 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(UintTable) / sizeof(UintTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(UintTable) == static_cast<size_t>(ChNumFormat::Count),
                   "UintTable does not match the number of ChNumFormats!");
 
     return UintTable[static_cast<size_t>(format)];
@@ -1406,7 +1406,7 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(SintTable) / sizeof(SintTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(SintTable) == static_cast<size_t>(ChNumFormat::Count),
                   "SintTable does not match the number of ChNumFormats!");
 
     return SintTable[static_cast<size_t>(format)];
@@ -1589,7 +1589,7 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(FloatTable) / sizeof(FloatTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(FloatTable) == static_cast<size_t>(ChNumFormat::Count),
                   "FloatTable does not match the number of ChNumFormats!");
 
     return FloatTable[static_cast<size_t>(format)];
@@ -1772,7 +1772,7 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::Undefined,             // ChNumFormat::P010
     };
 
-    static_assert(sizeof(SrgbTable) / sizeof(SrgbTable[0]) == static_cast<size_t>(ChNumFormat::Count),
+    static_assert(ArrayLen(SrgbTable) == static_cast<size_t>(ChNumFormat::Count),
                   "SrgbTable does not match the number of ChNumFormats!");
 
     return SrgbTable[static_cast<size_t>(format)];

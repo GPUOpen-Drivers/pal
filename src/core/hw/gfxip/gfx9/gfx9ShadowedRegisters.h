@@ -77,8 +77,7 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
     },
 
 };
-constexpr uint32 Gfx9NumUserConfigShadowRanges =
-    (sizeof(Gfx9UserConfigShadowRange) / sizeof(Gfx9UserConfigShadowRange[0]));
+constexpr uint32 Gfx9NumUserConfigShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9UserConfigShadowRange));
 
 // Defines the set of ranges of context registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9ContextShadowRange[] =
@@ -172,7 +171,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmCB_COLOR7_DCC_BASE_EXT__GFX09 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
-constexpr uint32 Gfx9NumContextShadowRanges = (sizeof(Gfx9ContextShadowRange) / sizeof(Gfx9ContextShadowRange[0]));
+constexpr uint32 Gfx9NumContextShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ContextShadowRange));
 
 // Defines the set of ranges of GFX SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9ShShadowRange[] =
@@ -206,7 +205,7 @@ const RegisterRange Gfx9ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_LS_31__GFX09 - mmSPI_SHADER_PGM_LO_HS + 1),
     },
 };
-constexpr uint32 Gfx9NumShShadowRanges = (sizeof(Gfx9ShShadowRange) / sizeof(Gfx9ShShadowRange[0]));
+constexpr uint32 Gfx9NumShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ShShadowRange));
 
 // Defines the set of ranges of CS SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9CsShShadowRange[] =
@@ -236,7 +235,7 @@ const RegisterRange Gfx9CsShShadowRange[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
 };
-constexpr uint32 Gfx9NumCsShShadowRanges = (sizeof(Gfx9CsShShadowRange) / sizeof(Gfx9CsShShadowRange[0]));
+constexpr uint32 Gfx9NumCsShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRange));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // Defines the set of ranges of registers which cannot be shadowed for various reasons. Gfx6/7 have their own lists
@@ -474,7 +473,7 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
     },
 };
-constexpr uint32 Gfx9NumNonShadowedRanges = (sizeof(Gfx9NonShadowedRanges) / sizeof(Gfx9NonShadowedRanges[0]));
+constexpr uint32 Gfx9NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx9NonShadowedRanges));
 #endif // #if PAL_ENABLE_PRINTS_ASSERTS
 
 constexpr uint32 MaxNumUserConfigRanges  = Gfx9NumUserConfigShadowRanges;

@@ -31,7 +31,6 @@
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "palFormatInfo.h"
 #include "palMath.h"
-#include "palShader.h"
 
 #include <limits.h>
 

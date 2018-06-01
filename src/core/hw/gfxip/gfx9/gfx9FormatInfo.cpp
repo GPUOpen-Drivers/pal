@@ -27,17 +27,17 @@
 #include "core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h"
 #include "palDevice.h"
 
+using namespace Util;
+
 namespace Pal
 {
 namespace Formats
 {
 namespace Gfx9
 {
-static_assert(sizeof(Gfx9MergedFormatPropertiesTable.features) / sizeof(Gfx9MergedFormatPropertiesTable.features[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx9MergedFormatPropertiesTable.features) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx9MergedFormatPropertiesTable mismatches the number of declared ChNumFormat enums");
-static_assert(sizeof(Gfx9MergedChannelFmtInfoTbl) / sizeof(Gfx9MergedChannelFmtInfoTbl[0]) ==
-    size_t(ChNumFormat::Count),
+static_assert(ArrayLen(Gfx9MergedChannelFmtInfoTbl) == static_cast<size_t>(ChNumFormat::Count),
               "Size of Gfx9MergedChannelFmtInfoTbl mismatches the number of declared ChNumFormat enums");
 
 // =====================================================================================================================

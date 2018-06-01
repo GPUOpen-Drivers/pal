@@ -78,7 +78,7 @@ Result SvmMgr::Init()
     {
         if (m_pDevice->IsMasterGpu())
         {
-            result = m_pDevice->ReserveGpuVirtualAddress(VaRange::Svm, svmVaStart, svmVaSize, false,
+            result = m_pDevice->ReserveGpuVirtualAddress(VaPartition::Svm, svmVaStart, svmVaSize, false,
                                                          VirtualGpuMemAccessMode::Undefined, nullptr);
         }
         if (result == Result::Success)

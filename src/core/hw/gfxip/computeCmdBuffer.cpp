@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/computeCmdBuffer.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
-#include "palShader.h"
 #include <limits.h>
 
 using namespace Util;

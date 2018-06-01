@@ -63,7 +63,7 @@ public:
         const PrivateScreenCreateInfo& createInfo,
         uint32*                        pTargetId) override;
 
-    virtual Result ReserveGpuVirtualAddress(VaRange                 vaRange,
+    virtual Result ReserveGpuVirtualAddress(VaPartition             vaPartition,
                                             gpusize                 baseVirtAddr,
                                             gpusize                 size,
                                             bool                    isVirtual,
@@ -270,6 +270,9 @@ public:
         }
         return Result::Success;
     }
+
+    virtual Result UpdateChillStatus(
+        uint64 lastChillActiveTimeStampUs) override { return Result::Success; }
 
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,

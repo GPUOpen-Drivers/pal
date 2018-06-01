@@ -87,10 +87,18 @@ namespace DevDriver
             // Requests an RGP trace in the driver. Returns Success if the request was successfully delivered.
             Result BeginTrace(const BeginTraceInfo& traceInfo);
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_LONG_RGP_TRACES_VERSION)
             // Waits until a previously requested trace completes in the driver and returns the result of the trace.
             // If the trace was successful, the number of chunks generated is returned in pNumChunks and the size in
             // bytes of the trace data is returned in pTraceSizeInBytes.
             Result EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes);
+#else
+            // Waits until a previously requested trace completes in the driver. Returns Result::NotReady if the
+            // the timeout specified in timeoutInMs is exceeded. Returns the result of the trace otherwise. If the
+            // trace was successful, the number of chunks generated is returned in pNumChunks and the size in
+            // bytes of the trace data is returned in pTraceSizeInBytes.
+            Result EndTrace(uint32* pNumChunks, uint64* pTraceSizeInBytes, uint32 timeoutInMs);
+#endif
 
             // Reads a chunk of trace data from a previous trace that completed successfully. Returns chunk data
             // via the callback provided earlier in BeginTraceInfo.

@@ -392,7 +392,7 @@ Result Device::LateInit()
     memset(const_cast<ShaderRingItemSizes*>(&m_largestRingSizes), 0, sizeof(m_largestRingSizes));
     m_queueContextUpdateCounter = 0;
 
-    return GfxDevice::LateInit();
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -1674,8 +1674,7 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
         SQ_TEX_CLAMP_BORDER,            // TexAddressMode::ClampBorder
     };
 
-    static_assert(((sizeof(PalTexAddrToHwTbl) / sizeof(PalTexAddrToHwTbl[0])) ==
-                   static_cast<size_t>(TexAddressMode::Count)),
+    static_assert((ArrayLen(PalTexAddrToHwTbl) == static_cast<size_t>(TexAddressMode::Count)),
                   "Hardware table for Texture Address Mode does not match Pal::TexAddressMode enum.");
 
     return PalTexAddrToHwTbl[static_cast<uint32>(texAddress)];
@@ -1726,6 +1725,29 @@ static PAL_INLINE SQ_TEX_ANISO_RATIO GetAnisoRatio(
     }
 
     return anisoRatio;
+}
+
+// =====================================================================================================================
+// Gfx6/7/8 helper function for patching a pipeline's shader internal SRD table.
+void Device::PatchPipelineInternalSrdTable(
+    void*   pDataPtr,       // In,Out: SRD table data
+    size_t  dataLength,     // Length of the SRD table in bytes
+    gpusize dataGpuVirtAddr
+    ) const
+{
+
+    auto*const   pSrd     = static_cast<BufferSrd*>(pDataPtr);
+    const uint32 srdCount = (static_cast<uint32>(dataLength) / sizeof(BufferSrd));
+
+    for (uint32 i = 0; i < srdCount; ++i)
+    {
+        const gpusize patchedGpuVa = dataGpuVirtAddr +
+                                     (static_cast<gpusize>(pSrd[i].word1.bits.BASE_ADDRESS_HI) << 32) +
+                                     pSrd[i].word0.bits.BASE_ADDRESS;
+
+        pSrd[i].word0.bits.BASE_ADDRESS    = LowPart(patchedGpuVa);
+        pSrd[i].word1.bits.BASE_ADDRESS_HI = HighPart(patchedGpuVa);
+    }
 }
 
 // =====================================================================================================================
@@ -2026,7 +2048,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
             break;
         }
 
-        PAL_ASSERT(texOptLevel < sizeof(PanelToTexPerfMod) / sizeof(PanelToTexPerfMod[0]));
+        PAL_ASSERT(texOptLevel < ArrayLen(PanelToTexPerfMod));
 
         TexPerfModulation perfMod = PanelToTexPerfMod[texOptLevel];
 

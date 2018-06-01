@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 31
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 32
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
@@ -44,6 +44,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 32.0    | Updated RGPClient::EndTrace to support user specified timeout values. This allows tools to support       |
+*|         | long running traces via user controlled cancellation dialogs.                                            |
 *| 31.0    | Clean up DevDriverClient and DevDriverServer create info structs. Replace TransportCreateInfo            |
 *|         | struct with MessageChannelCreateInfo and HostInfo structs.                                               |
 *| 30.2    | Added support for RGP v6 protocol which supports trace trigger markers.                                  |
@@ -135,6 +137,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_LONG_RGP_TRACES_VERSION 32
 #define GPUOPEN_CREATE_INFO_CLEANUP_VERSION 31
 #define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION 30
 #define GPUOPEN_URI_RESPONSE_FORMATS_VERSION 29

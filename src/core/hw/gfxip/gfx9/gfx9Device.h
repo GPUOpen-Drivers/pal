@@ -105,9 +105,8 @@ union Workarounds
 {
      struct
      {
-        uint32  waForce256bCbFetch        :  1;
         uint32  waAllowMetaDataForAllMips :  1;
-        uint32  reserved                  : 30;
+        uint32  reserved                  : 31;
      };
 
      uint32  u32All;
@@ -481,7 +480,11 @@ public:
     }
 
     bool AllowMetaDataForAllMips() const { return m_workarounds.waAllowMetaDataForAllMips; }
-    bool GetForce256bCbFetch() const     { return m_workarounds.waForce256bCbFetch; }
+
+    virtual void PatchPipelineInternalSrdTable(
+        void*   pDataPtr,
+        size_t  dataLength,
+        gpusize dataGpuVirtAddr) const override;
 
 private:
     Result InitOcclusionResetMem();

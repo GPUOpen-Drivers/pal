@@ -25,6 +25,8 @@
 
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 
+using namespace Util;
+
 namespace Pal
 {
 namespace InterfaceLogger
@@ -488,7 +490,7 @@ void LogContext::Struct(
 #endif
         };
 
-        static_assert(sizeof(DataAllocNames) / sizeof(DataAllocNames[0]) == static_cast<uint32>(CmdAllocatorTypeCount),
+        static_assert(ArrayLen(DataAllocNames) == static_cast<uint32>(CmdAllocatorTypeCount),
                       "The DataAllocNames string table needs to be updated.");
 
         KeyAndBeginMap(DataAllocNames[idx], false);
@@ -1286,6 +1288,7 @@ void LogContext::Struct(
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
     }
     EndMap();
+
     KeyAndBeginMap("cbState", false);
     {
         KeyAndValue("alphaToCoverageEnable", value.cbState.alphaToCoverageEnable);
@@ -1329,7 +1332,6 @@ void LogContext::Struct(
     EndMap();
 
     EndMap();
-
 }
 
 // =====================================================================================================================
@@ -1846,7 +1848,6 @@ void LogContext::Struct(
     PipelineCreateFlags value)
 {
     BeginList(false);
-
     EndList();
 }
 

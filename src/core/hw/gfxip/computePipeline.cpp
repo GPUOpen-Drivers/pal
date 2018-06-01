@@ -68,7 +68,6 @@ Result ComputePipeline::Init(
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
         result = Result::ErrorInvalidPointer;
     }
 

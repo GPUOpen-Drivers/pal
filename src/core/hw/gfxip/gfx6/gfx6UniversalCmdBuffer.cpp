@@ -2714,7 +2714,7 @@ void UniversalCmdBuffer::WriteEventCmd(
     switch (pipePoint)
     {
     case HwPipeTop:
-        // Implement set/reset event with a WRITE_DATA command using either the PFP.
+        // Implement set/reset event with a WRITE_DATA command using PFP engine.
         pDeCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
                                                 1,
                                                 WRITE_DATA_ENGINE_PFP,
@@ -2726,6 +2726,17 @@ void UniversalCmdBuffer::WriteEventCmd(
         break;
 
     case HwPipePostIndexFetch:
+        // Implement set/reset event with a WRITE_DATA command using ME engine.
+        pDeCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
+                                                1,
+                                                WRITE_DATA_ENGINE_ME,
+                                                WRITE_DATA_DST_SEL_MEMORY_ASYNC,
+                                                true,
+                                                &data,
+                                                PredDisable,
+                                                pDeCmdSpace);
+        break;
+
     case HwPipePreRasterization:
     case HwPipePostPs:
     case HwPipePostCs:

@@ -1024,6 +1024,17 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         {
             pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
             pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
+
+            if (m_memoryProperties.vaStartPrt > 0)
+            {
+                // If a dedicated PRT VA range exists, adjust the default VA range to exclude it.
+                pVaRange[static_cast<uint32>(VaPartition::Default)].size     = (m_memoryProperties.vaStartPrt -
+                                                                                baseVirtAddr);
+
+                pVaRange[static_cast<uint32>(VaPartition::Prt)].baseVirtAddr = m_memoryProperties.vaStartPrt;
+                pVaRange[static_cast<uint32>(VaPartition::Prt)].size         = (usableVaEnd -
+                                                                                m_memoryProperties.vaStartPrt);
+            }
         }
 
         m_memoryProperties.flags.multipleVaRangeSupport = 1;
@@ -1067,6 +1078,8 @@ Result Device::FixupUsableGpuVirtualAddressRange(
             m_memoryProperties.flags.defaultVaRangeSplit = 1;
         }
 
+        PAL_ASSERT(m_memoryProperties.vaStartPrt == 0);
+
         m_memoryProperties.flags.multipleVaRangeSupport = 1;
 
         // Enable support for shadow desc VA range.
@@ -1082,6 +1095,8 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         // purposes.  This path is encountered in special cases (such as emulation) and with 32-bit apps.
         pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = usableVaStart;
         pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - usableVaStart);
+
+        PAL_ASSERT(m_memoryProperties.vaStartPrt == 0);
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
@@ -1701,6 +1716,11 @@ Result Device::GetProperties(
             {
                 pEngineInfo->engineSubType[engineIdx] = engineInfo.engineSubType[engineIdx];
             }
+
+            for (uint32 j = 0; j < CmdAllocatorTypeCount; j++)
+            {
+                pEngineInfo->preferredCmdAllocHeaps[j] = engineInfo.preferredCmdAllocHeaps[j];
+            }
         }
 
         for (uint32 i = 0; i < QueueTypeCount; ++i)
@@ -1727,7 +1747,9 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.virtualMemPageSize         = m_memoryProperties.virtualMemPageSize;
         pInfo->gpuMemoryProperties.fragmentSize               = m_memoryProperties.fragmentSize;
 
-        pInfo->gpuMemoryProperties.maxVirtualMemSize  = (m_memoryProperties.vaEnd - m_memoryProperties.vaStart);
+        pInfo->gpuMemoryProperties.maxVirtualMemSize  =
+            Util::Max(m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::Prt)].size,
+                      m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::Default)].size);
         pInfo->gpuMemoryProperties.vaStart            = m_memoryProperties.vaStart;
         pInfo->gpuMemoryProperties.vaEnd              = m_memoryProperties.vaEnd;
         pInfo->gpuMemoryProperties.descTableVaStart =
@@ -3924,7 +3946,8 @@ void Device::VirtualAddressRange(
 // =====================================================================================================================
 // Chooses a VA partition based on the given VaRange enum.
 VaPartition Device::ChooseVaPartition(
-    VaRange range
+    VaRange range,
+    bool    isVirtual
     ) const
 {
     constexpr VaPartition LookupTable[] =
@@ -3932,14 +3955,29 @@ VaPartition Device::ChooseVaPartition(
         VaPartition::Default,                   // VaRange::Default
         VaPartition::DescriptorTable,           // VaRange::DescriptorTable
         VaPartition::ShadowDescriptorTable,     // VaRange::ShadowDescriptorTable
-        VaPartition::Svm,                       // VaRange::SharedVirtualMemory
+        VaPartition::Svm,                       // VaRange::Svm
     };
 
     // Use the VA partition associated with the VA range, unless the Device does not support multiple VA ranges. In
     // that case, just use the default range.
-    return (m_memoryProperties.flags.multipleVaRangeSupport != 0)
-                ? LookupTable[static_cast<uint32>(range)]
-                : VaPartition::Default;
+    VaPartition partition = VaPartition::Default;
+
+    if (m_memoryProperties.flags.multipleVaRangeSupport != 0)
+    {
+        // If this is a virtual only allocation, a separate partition may be required.
+        if (isVirtual && (m_memoryProperties.vaStartPrt > 0))
+        {
+            PAL_ASSERT(range == VaRange::Default);
+
+            partition = VaPartition::Prt;
+        }
+        else
+        {
+            partition = LookupTable[static_cast<uint32>(range)];
+        }
+    }
+
+    return partition;
 }
 
 // =====================================================================================================================

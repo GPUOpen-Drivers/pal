@@ -119,8 +119,7 @@ Result VamMgr::AssignVirtualAddress(
     // VAM takes a 32-bit alignment so the high part needs to be zero.
     PAL_ASSERT(HighPart(vaInfo.alignment) == 0);
 
-    const VaPartition partition = pDevice->ChooseVaPartition(vaInfo.range);
-    vamAllocIn.hSection = m_hSection[static_cast<uint32>(partition)];
+    vamAllocIn.hSection = m_hSection[static_cast<uint32>(vaInfo.partition)];
     PAL_ASSERT(vamAllocIn.hSection != nullptr);
 
     if (VAMAlloc(m_hVamInstance, &vamAllocIn, &vamAllocOut) == VAM_OK)
@@ -523,7 +522,8 @@ Result VamMgrSingleton::GetReservedVaRange(
         { VaPartition::DefaultBackup, 0 },
         { VaPartition::DescriptorTable, _4GB },
         { VaPartition::ShadowDescriptorTable, _4GB },
-        { VaPartition::Svm, pMemoryProperties->vaRange[static_cast<uint32>(VaPartition::Svm)].size }
+        { VaPartition::Svm, pMemoryProperties->vaRange[static_cast<uint32>(VaPartition::Svm)].size },
+        { VaPartition::Prt, 0 }
     };
     auto* pInfo = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
     if (pInfo != nullptr)

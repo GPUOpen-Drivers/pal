@@ -36,17 +36,6 @@ using namespace Util;
 namespace Pal
 {
 
-// Private structure used to store/load a graphics pipeline object (corresponds to the member data of the
-// GraphicsPipeline class.
-struct SerializedData
-{
-    uint32                   flags;
-    uint32                   vertsPerPrim;
-    SwizzledFormat           targetFormats[MaxColorTargets];
-    uint8                    targetWriteMasks[MaxColorTargets];
-    ViewInstancingDescriptor viewInstancingDesc;
-};
-
 // =====================================================================================================================
 GraphicsPipeline::GraphicsPipeline(
     Device* pDevice,
@@ -86,7 +75,6 @@ Result GraphicsPipeline::Init(
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
         result = Result::ErrorInvalidPointer;
     }
 

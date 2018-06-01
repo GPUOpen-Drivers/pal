@@ -31,7 +31,6 @@
 #include "core/layers/dbgOverlay/dbgOverlayTextWriter.h"
 #include "core/platform.h"
 #include "palFormatInfo.h"
-#include "palShader.h"
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 

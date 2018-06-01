@@ -236,6 +236,10 @@ protected:
         uint32              depth,
         const uint32*       pThreadsPerGroup);
 
+    static void CommitBeginEndGfxCopy(
+        Pal::CmdStream*  pCmdStream,
+        uint32           paScTileSteeringOverride);
+
     Device*const   m_pDevice;
     const CmdUtil& m_cmdUtil;
 
@@ -284,16 +288,6 @@ private:
         bool               needComputeSync,
         uint32             boxCnt,
         const Box*         pBox) const override;
-
-    virtual uint32 HwlBeginGraphicsCopy(
-        Pal::GfxCmdBuffer*           pCmdBuffer,
-        const Pal::GraphicsPipeline* pPipeline,
-        const Pal::Image&            dstImage,
-        uint32                       bpp) const override;
-
-    virtual void HwlEndGraphicsCopy(
-        Pal::CmdStream* pCmdStream,
-        uint32          restoreMask) const override;
 
     virtual bool HwlCanDoFixedFuncResolve(
         const Pal::Image&         srcImage,
@@ -373,10 +367,6 @@ private:
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range) const;
-
-    static void CommitBeginEndGfxCopy(
-        Pal::CmdStream*  pCmdStream,
-        uint32           paScTileSteeringOverride);
 
     void CmdResolveQueryComputeShader(
         GfxCmdBuffer*         pCmdBuffer,
@@ -516,6 +506,16 @@ private:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         uint32                 flags) const override;
+
+    virtual uint32 HwlBeginGraphicsCopy(
+        Pal::GfxCmdBuffer*           pCmdBuffer,
+        const Pal::GraphicsPipeline* pPipeline,
+        const Pal::Image&            dstImage,
+        uint32                       bpp) const override;
+
+    virtual void HwlEndGraphicsCopy(
+        Pal::CmdStream* pCmdStream,
+        uint32          restoreMask) const override;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9RsrcProcMgr);

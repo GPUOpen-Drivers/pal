@@ -238,7 +238,7 @@ public:
     void Destroy() { this->~GfxDevice(); }
 
     virtual Result EarlyInit() = 0;
-    virtual Result LateInit();
+    virtual Result LateInit() = 0;
     virtual Result Finalize();
     virtual Result Cleanup();
 
@@ -523,11 +523,16 @@ public:
     bool WaTcCompatZRange() const { return m_waTcCompatZRange; }
     bool DegeneratePrimFilter() const { return m_degeneratePrimFilter; }
 
+    virtual void PatchPipelineInternalSrdTable(
+        void*   pDataPtr,
+        size_t  dataLength,
+        gpusize dataGpuVirtAddr) const = 0;
+
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
-    virtual ~GfxDevice();
+    virtual ~GfxDevice() { }
 
     Device*const            m_pParent;
     Pal::RsrcProcMgr*       m_pRsrcProcMgr;

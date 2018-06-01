@@ -52,11 +52,11 @@ union PageDirResizeFlags
 // Contains all of the necessary information for assigning a virtual address.
 struct VirtAddrAssignInfo
 {
-    gpusize  size;          // Size of the VA range to assign. Must be a multiple of the Device's virtual memory
-                            // allocation granularity.
-    gpusize  alignment;     // Alignment of the VA range to assign. Must be a multiple of the Device's virtual memory
-                            // allocation granularity.
-    VaRange  range;         // Virtual address range to acquire an address from.
+    gpusize     size;      // Size of the VA range to assign. Must be a multiple of the Device's virtual memory
+                           // allocation granularity.
+    gpusize     alignment; // Alignment of the VA range to assign. Must be a multiple of the Device's virtual memory
+                           // allocation granularity.
+    VaPartition partition; // Virtual address partition to acquire an address from.
 };
 
 // =====================================================================================================================

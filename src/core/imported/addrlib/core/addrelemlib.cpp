@@ -71,6 +71,7 @@ ElemLib::ElemLib(
         default:
             m_fp16ExportNorm = 1;
             m_depthPlanarType = ADDR_DEPTH_PLANAR_R800;
+            break;
     }
 
     m_configFlags.value = 0;
@@ -1387,13 +1388,15 @@ UINT_32 ElemLib::GetBitsPerPixel(
         case ADDR_FMT_16_FLOAT:
             bpp = 16;
             break;
-        case ADDR_FMT_GB_GR: // treat as FMT_8_8
+        case ADDR_FMT_GB_GR:
             elemMode = ADDR_PACKED_GBGR;
-            bpp     = 16;
+            bpp      = m_configFlags.use32bppFor422Fmt ? 32 : 16;
+            expandX  = m_configFlags.use32bppFor422Fmt ? 2 : 1;
             break;
-        case ADDR_FMT_BG_RG: // treat as FMT_8_8
+        case ADDR_FMT_BG_RG:
             elemMode = ADDR_PACKED_BGRG;
-            bpp     = 16;
+            bpp      = m_configFlags.use32bppFor422Fmt ? 32 : 16;
+            expandX  = m_configFlags.use32bppFor422Fmt ? 2 : 1;
             break;
         case ADDR_FMT_8_8_8_8:
         case ADDR_FMT_2_10_10_10:

@@ -1327,7 +1327,7 @@ void ComputeCmdBuffer::WriteEventCmd(
         // Implement set/reset event with a WRITE_DATA command using the CP.
         pCmdSpace += m_cmdUtil.BuildWriteData(boundMemObj.GpuVirtAddr(),
                                               1,
-                                              WRITE_DATA_ENGINE_ME,
+                                              0, // ignored for compute
                                               WRITE_DATA_DST_SEL_MEMORY_ASYNC,
                                               true,
                                               &data,

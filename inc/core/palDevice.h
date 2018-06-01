@@ -35,9 +35,10 @@
 #include "palImage.h"
 #include "palInlineFuncs.h"
 #include "palPerfExperiment.h"
-#include "palShader.h"
+#include "palPipeline.h"
 #include "palQueue.h"
 #include "palFence.h"
+#include "palCmdAllocator.h"
 
 namespace Pal
 {
@@ -106,9 +107,6 @@ enum class VaRange : uint32;
 
 /// Maximum string length for GPU names.  @see DeviceProperties.
 constexpr uint32 MaxDeviceName = 256;
-
-/// Maximum number of viewports.
-constexpr uint32 MaxViewports = 16;
 
 /// Maximum number of indirect user-data tables managed by PAL's command buffer objects.  @see DeviceFinalizeInfo.
 constexpr uint32 MaxIndirectUserDataTables = 3;
@@ -792,6 +790,12 @@ struct DeviceProperties
                                                 ///  engine type.
         uint32   gdsSizePerEngine;              ///< Maximum GDS size in bytes available for a single engine.
         uint32   maxNumDedicatedCu;             ///< The maximum number of dedicated CUs for the real time audio queue
+
+        /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
+        /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
+        /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own
+        /// heap preferences, but may suffer a performance penalty.
+        GpuHeap preferredCmdAllocHeaps[CmdAllocatorTypeCount];
     } engineProperties[EngineTypeCount];    ///< Lists available engines on this device and their properties.
 
     struct
@@ -4254,6 +4258,16 @@ public:
     /// @returns Success if the call succeeded.
     virtual Result GetChillGlobalEnable(
         bool* pGlobalEnable) = 0;
+
+    /// Update Chill Status (last active time stamp). After every frame, UMD needs to generate a time stamp and inform
+    /// KMD through the shared memory, if the time stamp changes between 2 frames, it means Chill is active and KMD
+    /// needs to adjust power through PSM.
+    ///
+    /// @param [in]  lastChillActiveTimeStampUs     the last Chill active time stamp in microseconds to set
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result UpdateChillStatus(
+        uint64 lastChillActiveTimeStampUs) = 0;
 
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by

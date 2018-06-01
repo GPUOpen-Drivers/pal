@@ -353,6 +353,13 @@ public:
        return Result::ErrorUnavailable;
     }
 
+    virtual Result UpdateChillStatus(
+        uint64 lastChillActiveTimeStampUs) override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::ErrorUnavailable;
+    }
+
     virtual Result CreateVirtualDisplay(
         const VirtualDisplayInfo& virtualDisplayInfo,
         uint32*                   pScreenTargetId) override
@@ -589,7 +596,7 @@ public:
         gpusize vaSize) const override;
 
     // Reserve gpu virtual address range. This function is called by SVM manager 'SvmMgr'
-    virtual Result ReserveGpuVirtualAddress(VaRange                 vaRange,
+    virtual Result ReserveGpuVirtualAddress(VaPartition             vaPartition,
                                             gpusize                 baseVirtAddr,
                                             gpusize                 size,
                                             bool                    isVirtual,

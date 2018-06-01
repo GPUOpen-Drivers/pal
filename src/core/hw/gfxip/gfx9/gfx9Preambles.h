@@ -113,6 +113,18 @@ struct StateShadowPreamblePm4Img
     size_t                    spaceNeeded;
 };
 
+// Gfx9-specific registers associated with the preamble
+struct Gfx9UniversalPreamblePm4Img
+{
+    // We need to write VGT_MAX_VTX_INDX, VGT_MIN_VTX_INDX, and VGT_INDX_OFFSET. In Gfx6-8.1, these were "sticky"
+    // context registers, but they have now been moved into UConfig space for GFX9. However, they are written by
+    // UDX on a per-draw basis.
+    PM4_PFP_SET_UCONFIG_REG  hdrVgtIndexRegs;
+    regVGT_MAX_VTX_INDX      vgtMaxVtxIndx;
+    regVGT_MIN_VTX_INDX      vgtMinVtxIndx;
+    regVGT_INDX_OFFSET       vgtIndxOffset;
+};
+
 // Contains a subset of commands necessary to the universal preamble command stream.
 struct UniversalPreamblePm4Img
 {
@@ -136,22 +148,14 @@ struct UniversalPreamblePm4Img
 
     GdsRangeCompute                 gdsRangeCompute;
 
-    // We need to write VGT_MAX_VTX_INDX, VGT_MIN_VTX_INDX, and VGT_INDX_OFFSET. In Gfx6-8.1, these were "sticky"
-    // context registers, but they have now been moved into UConfig space for GFX9. However, they are written by
-    // UDX on a per-draw basis.
+    // GPU specific registers go in this union.  As the union has a variable valid size depending on the GPU
+    // in use, this union must be the last PM4 data in this structure.
     union
     {
-        struct
-        {
-            PM4_PFP_SET_UCONFIG_REG  hdrVgtIndexRegs;
-            regVGT_MAX_VTX_INDX      vgtMaxVtxIndx;
-            regVGT_MIN_VTX_INDX      vgtMinVtxIndx;
-            regVGT_INDX_OFFSET       vgtIndxOffset;
-        } gfx9;
+        Gfx9UniversalPreamblePm4Img     gfx9;
+    };
 
-    } vgtIndexRegs;
-
-    size_t                          spaceNeeded;
+    size_t                              spaceNeeded;
 };
 
 } // Gfx9

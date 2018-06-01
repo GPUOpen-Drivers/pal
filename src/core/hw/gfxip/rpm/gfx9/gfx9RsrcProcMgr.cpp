@@ -3029,7 +3029,7 @@ void RsrcProcMgr::CommitBeginEndGfxCopy(
 // All of the RBs banging away on the PCIE bus produces more traffic than the write-combiner can efficiently handle,
 // so if we detect a write to non-local memory here, then disable RBs for the duration of the copy.  They will get
 // restored in the HwlEndGraphicsCopy function.
-uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
+uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
     Pal::GfxCmdBuffer*           pCmdBuffer,
     const Pal::GraphicsPipeline* pPipeline,
     const Pal::Image&            dstImage,
@@ -3095,7 +3095,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
 
 // =====================================================================================================================
 // Undoes whatever HwlBeginGraphicsCopy did.
-void RsrcProcMgr::HwlEndGraphicsCopy(
+void Gfx9RsrcProcMgr::HwlEndGraphicsCopy(
     Pal::CmdStream* pCmdStream,
     uint32          restoreMask
     ) const

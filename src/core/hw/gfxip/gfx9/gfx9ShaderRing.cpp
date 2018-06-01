@@ -90,8 +90,8 @@ gpusize ShaderRing::ComputeAllocationSize() const
 
 // =====================================================================================================================
 Result ShaderRing::AllocateVideoMemory(
-    gpusize memorySizeBytes,
-    bool    cpuVisible)
+    gpusize        memorySizeBytes,
+    ShaderRingType ringType)
 {
     InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
 
@@ -105,11 +105,19 @@ Result ShaderRing::AllocateVideoMemory(
     // Alignment requirement for shader rings is 256 Bytes.
     constexpr gpusize ShaderRingAlignment = 256;
 
+    GpuMemoryInternalCreateInfo internalInfo = {};
+    internalInfo.flags.alwaysResident = 1;
+
+    GpuMemory* pGpuMemory = nullptr;
+    gpusize    memOffset  = 0;
+    gpusize*   pMemOffset = &memOffset;
+
     GpuMemoryCreateInfo createInfo = { };
     createInfo.size      = memorySizeBytes;
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
-    if (cpuVisible)
+
+    if (ringType == ShaderRingType::SamplePos)
     {
         createInfo.heaps[0]  = GpuHeapLocal;
         createInfo.heaps[1]  = GpuHeapGartUswc;
@@ -123,14 +131,8 @@ Result ShaderRing::AllocateVideoMemory(
         createInfo.heapCount = 3;
     }
 
-    GpuMemoryInternalCreateInfo internalInfo = { };
-    internalInfo.flags.alwaysResident = 1;
-
-    GpuMemory* pGpuMemory = nullptr;
-    gpusize    memOffset  = 0;
-
     // Allocate video memory for this Ring.
-    Result result = pMemMgr->AllocateGpuMem(createInfo, internalInfo, 0, &pGpuMemory, &memOffset);
+    Result result = pMemMgr->AllocateGpuMem(createInfo, internalInfo, 0, &pGpuMemory, pMemOffset);
 
     if (result == Result::Success)
     {
@@ -155,7 +157,7 @@ Result ShaderRing::Validate(
         const gpusize sizeNeeded = ComputeAllocationSize();
 
         // Attempt to allocate the video memory for this Ring.
-        result = AllocateVideoMemory(sizeNeeded, (ringType == ShaderRingType::SamplePos));
+        result = AllocateVideoMemory(sizeNeeded, ringType);
         if (result == Result::Success)
         {
             // Track our current allocation size.
@@ -355,7 +357,9 @@ gpusize TessFactorBuffer::ComputeAllocationSize() const
 
     // The Tahiti register spec recommends a TF buffer size of 0x2000 DWORDs per shader engine, but discussions
     // indicate that 0x1000 DWORDs per SE is preferable.
-    return (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
+    gpusize allocSize = (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
+
+    return allocSize;
 }
 
 // =====================================================================================================================

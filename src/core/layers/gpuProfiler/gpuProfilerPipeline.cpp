@@ -59,8 +59,7 @@ const char* ApiShaderTypeStrings[] =
     "PS",
 };
 
-static_assert((sizeof(ApiShaderTypeStrings) / sizeof(ApiShaderTypeStrings[0])) ==
-              static_cast<uint32>(ApiShaderType::Count),
+static_assert(ArrayLen(ApiShaderTypeStrings) == static_cast<uint32>(ApiShaderType::Count),
               "ApiShaderTypeStrings is not the same size as Pal::ShaderType enum!");
 
 // HardwareStage to string conversion table.
@@ -76,8 +75,7 @@ const char* HardwareStageStrings[] =
     "INVALID",
 };
 
-static_assert((sizeof(HardwareStageStrings) / sizeof(HardwareStageStrings[0])) ==
-              static_cast<uint32>(HardwareStage::Count) + 1,
+static_assert(ArrayLen(HardwareStageStrings) == static_cast<uint32>(HardwareStage::Count) + 1,
               "HardwareStageStrings is not the same size as HardwareStage enum!");
 
 // =====================================================================================================================
@@ -323,9 +321,6 @@ Result Pipeline::InitGfx(
             }
         }
     }
-    else
-    {
-    }
 
     return result;
 }
@@ -360,12 +355,9 @@ Result Pipeline::InitCompute(
             }
         }
     }
-    else
-    {
-    }
 
     return result;
 }
 
-} // InterfaceLogger
+} // GpuProfiler
 } // Pal

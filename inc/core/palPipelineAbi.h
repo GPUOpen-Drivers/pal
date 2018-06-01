@@ -83,6 +83,14 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_disasm",
     "_amdgpu_ps_disasm",
     "_amdgpu_cs_disasm",
+    "_amdgpu_ls_shdr_intrl_data",
+    "_amdgpu_hs_shdr_intrl_data",
+    "_amdgpu_es_shdr_intrl_data",
+    "_amdgpu_gs_shdr_intrl_data",
+    "_amdgpu_vs_shdr_intrl_data",
+    "_amdgpu_ps_shdr_intrl_data",
+    "_amdgpu_cs_shdr_intrl_data",
+    "_amdgpu_pipeline_intrl_data",
 };
 
 /// String table of the Pipeline Metadata names.
@@ -270,11 +278,20 @@ enum class PipelineSymbolType : uint32
     VsDisassembly,     ///< Hardware VS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     PsDisassembly,     ///< Hardware PS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     CsDisassembly,     ///< Hardware CS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
+    LsShdrIntrlData,   ///< LS shader internal data pointer.  Optional.
+    HsShdrIntrlData,   ///< HS shader internal data pointer.  Optional.
+    EsShdrIntrlData,   ///< ES shader internal data pointer.  Optional.
+    GsShdrIntrlData,   ///< GS shader internal data pointer.  Optional.
+    VsShdrIntrlData,   ///< VS shader internal data pointer.  Optional.
+    PsShdrIntrlData,   ///< PS shader internal data pointer.  Optional.
+    CsShdrIntrlData,   ///< CS shader internal data pointer.  Optional.
+    PipelineIntrlData, ///< Cross-shader internal data pointer.  Optional.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point
     ShaderIntrlTblPtr = LsShdrIntrlTblPtr,  ///< Shorthand for the first shader's internal table pointer
     ShaderDisassembly = LsDisassembly,      ///< Shorthand for the first shader's disassembly string
+    ShaderIntrlData   = LsShdrIntrlData,    ///< Shorthand for the first shader's internal data pointer
 };
 
 static_assert(static_cast<uint32>(PipelineSymbolType::Count) == sizeof(PipelineAbiSymbolNameStrings)/sizeof(char*),

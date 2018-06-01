@@ -53,8 +53,7 @@ const RegisterRange UserConfigShadowRangeGfx7[] =
         (mmTA_CS_BC_BASE_ADDR_HI__CI__VI - mmTA_CS_BC_BASE_ADDR__CI__VI + 1),
     }
 };
-constexpr uint32 NumUserConfigShadowRangesGfx7 =
-    (sizeof(UserConfigShadowRangeGfx7) / sizeof(UserConfigShadowRangeGfx7[0]));
+constexpr uint32 NumUserConfigShadowRangesGfx7 = static_cast<uint32>(Util::ArrayLen(UserConfigShadowRangeGfx7));
 
 // Defines the set of ranges of context registers we shadow when mid command buffer
 // preemption is enabled.(Preemption is only supported on GFX8+ GPU's.)
@@ -141,7 +140,7 @@ const RegisterRange ContextShadowRange[] =
         (mmCB_COLOR7_DCC_BASE__VI - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
-constexpr uint32 NumContextShadowRanges = (sizeof(ContextShadowRange) / sizeof(ContextShadowRange[0]));
+constexpr uint32 NumContextShadowRanges = static_cast<uint32>(Util::ArrayLen(ContextShadowRange));
 
 // Special range with just PA_SC_RASTER_CONFIG removed from ContextShadowRange. This register should only be shadowed
 // when RB reconfiguration is not enabled.
@@ -232,12 +231,9 @@ const RegisterRange ContextShadowRangeRbReconfig[] =
         (mmCB_COLOR7_DCC_BASE__VI - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
-constexpr uint32 NumContextShadowRangesRbReconfig =
-    (sizeof(ContextShadowRangeRbReconfig) / sizeof(ContextShadowRangeRbReconfig[0]));
+constexpr uint32 NumContextShadowRangesRbReconfig = static_cast<uint32>(Util::ArrayLen(ContextShadowRangeRbReconfig));
 
-constexpr uint32 MaxNumContextShadowRanges = ((NumContextShadowRanges > NumContextShadowRangesRbReconfig)
-                                              ? NumContextShadowRanges
-                                              : NumContextShadowRangesRbReconfig);
+constexpr uint32 MaxNumContextShadowRanges = Util::Max(NumContextShadowRanges, NumContextShadowRangesRbReconfig);
 
 // Defines the set of ranges of GFX SH registers we shadow when mid command buffer preemption is enabled. (Preemption
 // is only supported on GFX8+ GPU's.)
@@ -292,7 +288,7 @@ const RegisterRange GfxShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_LS_15 - mmSPI_SHADER_PGM_LO_LS + 1),
     },
 };
-constexpr uint32 NumGfxShShadowRanges = (sizeof(GfxShShadowRange) / sizeof(GfxShShadowRange[0]));
+constexpr uint32 NumGfxShShadowRanges = static_cast<uint32>(Util::ArrayLen(GfxShShadowRange));
 
 // Defines the set of ranges of CS SH registers we shadow when mid command buffer preemption is enabled. (Preemption
 // is only supported on GFX8+ GPU's.)
@@ -319,7 +315,7 @@ const RegisterRange CsShShadowRange[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
 };
-constexpr uint32 NumCsShShadowRanges = (sizeof(CsShShadowRange) / sizeof(CsShShadowRange[0]));
+constexpr uint32 NumCsShShadowRanges = static_cast<uint32>(Util::ArrayLen(CsShShadowRange));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // Defines the set of ranges of registers which cannot be shadowed for various reasons. Gfx6/7 have their own lists
@@ -590,7 +586,7 @@ const RegisterRange NonShadowedRangesGfx8[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3__CI__VI - mmCOMPUTE_STATIC_THREAD_MGMT_SE2__CI__VI + 1
     },
 };
-constexpr uint32 NumNonShadowedRangesGfx8 = (sizeof(NonShadowedRangesGfx8) / sizeof(NonShadowedRangesGfx8[0]));
+constexpr uint32 NumNonShadowedRangesGfx8 = static_cast<uint32>(Util::ArrayLen(NonShadowedRangesGfx8));
 
 // =====================================================================================================================
 // Helper function which determines if a register address falls within any of the specified register ranges.

@@ -66,7 +66,7 @@ Result GpuMemory::ValidateCreateInfo(
             if ((desc.gpuVirtAddr != Pow2Align(desc.gpuVirtAddr, alignment)) ||
                 (desc.alignment != createInfo.alignment) ||
                 (desc.size < createInfo.size) ||
-                (pObj->m_vaRange != createInfo.vaRange))
+                (pObj->m_vaPartition != pDevice->ChooseVaPartition(createInfo.vaRange, createInfo.flags.virtualAlloc)))
             {
                 result = Result::ErrorInvalidValue;
             }
@@ -266,7 +266,7 @@ GpuMemory::GpuMemory(
     Device* pDevice)
     :
     m_pDevice(pDevice),
-    m_vaRange(VaRange::Default),
+    m_vaPartition(VaPartition::Default),
     m_heapCount(0),
     m_priority(GpuMemPriority::Unused),
     m_priorityOffset(GpuMemPriorityOffset::Offset0),
@@ -366,7 +366,7 @@ Result GpuMemory::Init(
 
     m_desc.size      = createInfo.size;
     m_desc.alignment = createInfo.alignment;
-    m_vaRange        = createInfo.vaRange;
+    m_vaPartition    = m_pDevice->ChooseVaPartition(createInfo.vaRange, (createInfo.flags.virtualAlloc != 0));
     m_priority       = createInfo.priority;
     m_priorityOffset = createInfo.priorityOffset;
     m_heapCount      = createInfo.heapCount;
@@ -473,12 +473,12 @@ Result GpuMemory::Init(
             // It's illegal for the internal path to specify non-zero base VA when client already does.
             PAL_ASSERT(internalInfo.baseVirtAddr == 0);
             // Do not expect client set "useReservedGpuVa" for ShadowDescriptorTable case
-            PAL_ASSERT(m_vaRange != VaRange::ShadowDescriptorTable);
+            PAL_ASSERT(m_vaPartition != VaPartition::ShadowDescriptorTable);
 
             baseVirtAddr = desc.gpuVirtAddr;
         }
 
-        if (m_vaRange == VaRange::ShadowDescriptorTable)
+        if (m_vaPartition == VaPartition::ShadowDescriptorTable)
         {
             // It's illegal for the internal path to use this VA range.
             PAL_ASSERT(IsClient());
@@ -576,7 +576,7 @@ Result GpuMemory::Init(
     m_desc.size      = createInfo.size;
     m_desc.alignment = createInfo.alignment;
 
-    m_vaRange        = Pal::VaRange::Svm;
+    m_vaPartition    = VaPartition::Svm;
     gpusize baseVirtAddr = 0;
 
     if (IsGpuVaPreReserved())
@@ -642,7 +642,7 @@ Result GpuMemory::Init(
     m_desc.size                      = createInfo.size;
     m_desc.alignment                 =
         m_pDevice->MemoryProperties().realMemAllocGranularity;
-    m_vaRange                        = createInfo.vaRange;
+    m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
 
     // Scan the list of available GPU heaps to determine which heap(s) this pinned allocation will end up in.
     for (uint32 idx = 0; idx < GpuHeapCount; ++idx)
@@ -679,7 +679,7 @@ Result GpuMemory::Init(
     m_pOriginalMem   = static_cast<GpuMemory*>(openInfo.pSharedMem);
     m_desc.size      = m_pOriginalMem->m_desc.size;
     m_desc.alignment = m_pOriginalMem->m_desc.alignment;
-    m_vaRange        = m_pOriginalMem->m_vaRange;
+    m_vaPartition    = m_pOriginalMem->m_vaPartition;
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
 
@@ -738,7 +738,7 @@ Result GpuMemory::Init(
     m_pOriginalMem   = static_cast<GpuMemory*>(peerInfo.pOriginalMem);
     m_desc.size      = m_pOriginalMem->m_desc.size;
     m_desc.alignment = m_pOriginalMem->m_desc.alignment;
-    m_vaRange        = m_pOriginalMem->m_vaRange;
+    m_vaPartition    = m_pOriginalMem->m_vaPartition;
     m_mtype          = m_pOriginalMem->m_mtype;
     m_heapCount      = m_pOriginalMem->m_heapCount;
 

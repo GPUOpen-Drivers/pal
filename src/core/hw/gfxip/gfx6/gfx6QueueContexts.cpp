@@ -1448,14 +1448,14 @@ static uint32* WriteTrapInstallCmds(
         mmSPI_SHADER_TBA_LO_PS
     };
 
-    constexpr uint32 NumGraphicsRegAddrs = sizeof(GraphicsRegAddrs) / sizeof(GraphicsRegAddrs[0]);
+    constexpr uint32 NumGraphicsRegAddrs = static_cast<uint32>(ArrayLen(GraphicsRegAddrs));
 
     constexpr uint32 ComputeRegAddrs[] =
     {
         mmCOMPUTE_TBA_LO
     };
 
-    constexpr uint32 NumComputeRegAddrs = sizeof(ComputeRegAddrs) / sizeof(ComputeRegAddrs[0]);
+    constexpr uint32 NumComputeRegAddrs = static_cast<uint32>(ArrayLen(ComputeRegAddrs));
 
     const PM4ShaderType shaderType = (pipelineType == PipelineBindPoint::Graphics) ? ShaderGraphics : ShaderCompute;
     const uint32* const pRegAddrs  = (pipelineType == PipelineBindPoint::Graphics) ? GraphicsRegAddrs : ComputeRegAddrs;
