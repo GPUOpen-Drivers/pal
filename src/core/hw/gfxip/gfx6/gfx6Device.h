@@ -318,11 +318,7 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         Developer::BarrierOperations* pOperations,
         const BarrierTransition*      pTransition) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
    void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason) const;
-#else
-   void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf) const;
-#endif
    void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const override

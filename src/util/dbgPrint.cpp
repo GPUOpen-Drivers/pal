@@ -216,60 +216,6 @@ void DbgPrintf(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 353
-// =====================================================================================================================
-// Debug printf function to be used for non-fatal warning messages.
-void WarnPrintf(
-    const char* pFormat, // Printf-style format string.
-    ...)                 // Printf-style argument list.
-{
-    if (g_dbgPrintTable[DbgPrintCatWarnMsg].outputMode != DbgPrintMode::Disable)
-    {
-        va_list argList;
-        va_start(argList, pFormat);
-
-        DbgVPrintfHelper(DbgPrintCatWarnMsg, DbgPrintStyleDefault, pFormat, argList);
-
-        va_end(argList);
-    }
-}
-
-// =====================================================================================================================
-// Debug printf function to be used for fatal error messages.  Breaks into the debugger after printing this message.
-void ErrPrintf(
-    const char* pFormat, // Printf-style format string.
-    ...)                 // Printf-style argument list.
-{
-    if (g_dbgPrintTable[DbgPrintCatErrorMsg].outputMode != DbgPrintMode::Disable)
-    {
-        va_list argList;
-        va_start(argList, pFormat);
-
-        DbgVPrintfHelper(DbgPrintCatErrorMsg, DbgPrintStyleDefault, pFormat, argList);
-
-        va_end(argList);
-    }
-}
-
-// =====================================================================================================================
-// Debug Printf function to be used when output is always written and no file output is desired.  Used by the assert
-// macros.
-void AssertPrintf(
-    const char* pFormat, // Printf-style format string.
-    ...)                 // Printf-style argument list.
-{
-    // Use a dummy debug print table entry which always prints to stdout/debugger.
-    const DbgPrintTarget target = { DbgPrintMode::Print, nullptr, nullptr };
-
-    va_list argList;
-    va_start(argList, pFormat);
-
-    DbgVPrintfHelper(DbgPrintCatErrorMsg, DbgPrintStyleNoPrefixNoCrLf, pFormat, argList);
-
-    va_end(argList);
-}
-#endif
-
 // =====================================================================================================================
 // Sets the debug print mode (output to debugger, write to file, disabled) for the specified category of messages.
 // Probably controlled by setting and set during initialization.

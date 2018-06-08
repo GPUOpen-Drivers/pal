@@ -79,15 +79,6 @@ enum class GpaSessionState : Pal::uint32
 /// of SQ thread trace and/or streaming performance counters.
 enum class GpaSampleType : Pal::uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    Cumulative = 0x0,  ///< One 64-bit result will be returned per performance counter representing the cumulative delta
-                       ///  for that counter over the sample period.  Cumulative samples must begin and end in the same
-                       ///  command buffer.
-    Trace      = 0x1,  ///< A GPU memory buffer will be filled with hw-specific SQ thread trace and/or streaming
-                       ///  performance counter data.  Trace samples may span multiple command buffers.
-    Timing     = 0x2,  ///< Two 64-bit results will be recorded in beginTs and endTs to gather timestamp data.
-    None       = 0xf,  ///< No profile will be done.
-#else
     None       = 0x0,  ///< No profile will be done.
     Cumulative = 0x1,  ///< One 64-bit result will be returned per performance counter representing the cumulative delta
                        ///  for that counter over the sample period.  Cumulative samples must begin and end in the same
@@ -97,7 +88,6 @@ enum class GpaSampleType : Pal::uint32
     Timing     = 0x3,  ///< Two 64-bit results will be recorded in beginTs and endTs to gather timestamp data.
     Query      = 0x4,  ///< A set of 11 pipeline stats will be collected.
     Count
-#endif
 };
 
 /// Specifies a specific performance counter to be sampled with GpaSession::BeginSample() and GpaSession::EndSample().

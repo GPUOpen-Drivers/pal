@@ -25,7 +25,7 @@
 
 #include "core/device.h"
 #include "core/svmMgr.h"
-#include "palBuddyAllocatorImpl.h"
+#include "palBestFitAllocatorImpl.h"
 
 using namespace Util;
 
@@ -39,14 +39,14 @@ SvmMgr::SvmMgr(
     m_pDevice(pDevice),
     m_vaStart(0),
     m_vaSize(0),
-    m_pBuddyAllocator(nullptr)
+    m_pSubAllocator(nullptr)
 {
 }
 
 // =====================================================================================================================
 SvmMgr::~SvmMgr()
 {
-    PAL_DELETE(m_pBuddyAllocator, m_pDevice->GetPlatform());
+    PAL_DELETE(m_pSubAllocator, m_pDevice->GetPlatform());
 }
 
 // =====================================================================================================================
@@ -61,17 +61,17 @@ Result SvmMgr::Init()
     gpusize svmVaStart = memProps.vaRange[static_cast<uint32>(VaPartition::Svm)].baseVirtAddr;
     const gpusize svmVaSize  = memProps.vaRange[static_cast<uint32>(VaPartition::Svm)].size;
 
-    // Create and initialize the buddy allocator
-    m_pBuddyAllocator = PAL_NEW(BuddyAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
-                               (m_pDevice->GetPlatform(), svmVaSize, (64 * 1024));
+    // Create and initialize the suballocator
+    m_pSubAllocator = PAL_NEW(BestFitAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
+                               (m_pDevice->GetPlatform(), svmVaSize, memProps.fragmentSize);
 
-    if (m_pBuddyAllocator == nullptr)
+    if (m_pSubAllocator == nullptr)
     {
         result = Result::ErrorOutOfMemory;
     }
     if (result == Result::Success)
     {
-        result = m_pBuddyAllocator->Init();
+        result = m_pSubAllocator->Init();
     }
 
     if (result == Result::Success)
@@ -121,7 +121,7 @@ Result SvmMgr::AllocVa(
     gpusize assignedVa;
     MutexAuto lock(&m_allocFreeVaLock);
 
-    Result result = m_pBuddyAllocator->Allocate(size, align, &assignedVa);
+    Result result = m_pSubAllocator->Allocate(size, align, &assignedVa);
     *pVirtualAddress = assignedVa + m_vaStart;
 
     return result;
@@ -133,7 +133,7 @@ void SvmMgr::FreeVa(
 {
     MutexAuto lock(&m_allocFreeVaLock);
 
-    m_pBuddyAllocator->Free((virtualAddress - m_vaStart));
+    m_pSubAllocator->Free((virtualAddress - m_vaStart));
     return;
 }
 } // Pal

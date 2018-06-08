@@ -283,6 +283,11 @@ bool Pm4Optimizer::OptimizePm4Commands(
                                            &m_cntxRegs[0]);
             m_contextRollDetected |= ((pOptCmdCur > pPreOptCmdCur) != 0);
         }
+        else if (opcode == IT_SET_CONTEXT_REG_INDIRECT)
+        {
+            HandlePm4SetContextRegIndirect(reinterpret_cast<const PM4_PFP_SET_CONTEXT_REG&>(*pOrigCmdCur));
+            m_contextRollDetected = true;
+        }
         else if ((opcode == IT_SET_SH_REG) || (opcode == IT_SET_SH_REG_INDEX))
         {
             optimized  = true;
@@ -331,13 +336,13 @@ bool Pm4Optimizer::OptimizePm4Commands(
         else if (opcode == IT_DRAW_INDIRECT)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDIRECT&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
+            m_shRegs[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
             m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
         }
         else if (opcode == IT_DRAW_INDIRECT_MULTI)
         {
             const auto& packet = reinterpret_cast<const PM4_PFP_DRAW_INDIRECT_MULTI&>(*pOrigCmdCur);
-            m_shRegs[packet.bitfields3.base_vtx_loc].flags.valid   = 0;
+            m_shRegs[packet.bitfields3.start_vtx_loc].flags.valid  = 0;
             m_shRegs[packet.bitfields4.start_inst_loc].flags.valid = 0;
             if (packet.bitfields5.draw_index_enable != 0)
             {

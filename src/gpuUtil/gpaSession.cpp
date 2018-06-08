@@ -1108,9 +1108,7 @@ Result GpaSession::End(
                     barrierInfo.transitionCount    = 1;
                     barrierInfo.pTransitions       = &barrierTransition;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
                     barrierInfo.reason             = Developer::BarrierReasonPostSqttTrace;
-#endif
 
                     pCmdBuf->CmdBarrier(barrierInfo);
                 }
@@ -1168,12 +1166,8 @@ uint32 GpaSession::BeginSample(
     // Validate sample type
     if ((sampleConfig.type != GpaSampleType::Cumulative) &&
         (sampleConfig.type != GpaSampleType::Trace)      &&
-        (sampleConfig.type != GpaSampleType::Timing)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
-        &&
-        (sampleConfig.type != GpaSampleType::Query)
-#endif
-        )
+        (sampleConfig.type != GpaSampleType::Timing)     &&
+        (sampleConfig.type != GpaSampleType::Query))
     {
         // Undefined sample type
         result = Result::Unsupported;
@@ -1310,7 +1304,6 @@ uint32 GpaSession::BeginSample(
                 result = Result::ErrorOutOfMemory;
             }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
         // QuerySample initialization. This sample does not uses PerfExperiment.
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Query)
         {
@@ -1349,7 +1342,6 @@ uint32 GpaSession::BeginSample(
                 }
             }
         }
-#endif
     }
 
     if (result == Result::Success)
@@ -1428,7 +1420,6 @@ void GpaSession::EndSample(
                                    *(pSample->GetEndTsGpuMem()),
                                    pSample->GetEndTsGpuMemOffset());
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
     else if (pSampleItem->sampleConfig.type == GpaSampleType::Query)
     {
         QuerySample* pSample = static_cast<QuerySample*>(pSampleItem->pPerfSample);
@@ -1436,7 +1427,6 @@ void GpaSession::EndSample(
         PAL_ASSERT(pQuery != nullptr);
         pCmdBuf->CmdEndQuery(*pQuery, QueryType::PipelineStats, 0);
     }
-#endif
     else
     {
         PAL_NEVER_CALLED(); // beginSample prevents undefined-mode sample to be added to the list.
@@ -1526,14 +1516,12 @@ Result GpaSession::GetResults(
 
         result = pSample->GetTimingSampleResults(pData, pSizeInBytes);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
     else if (pSampleItem->sampleConfig.type == GpaSampleType::Query)
     {
         QuerySample* pSample = static_cast<QuerySample*>(pSampleItem->pPerfSample);
 
         result = pSample->GetQueryResults(pData, pSizeInBytes);
     }
-#endif
     else
     {
         result = Result::Unsupported;
@@ -1646,9 +1634,7 @@ void GpaSession::CopyResults(
         barrierInfo.transitionCount   = 1;
         barrierInfo.pTransitions      = &barrierTransition;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
         barrierInfo.reason            = Developer::BarrierReasonPrePerfDataCopy;
-#endif
 
         pCmdBuf->CmdBarrier(barrierInfo);
 
@@ -2332,7 +2318,6 @@ Result GpaSession::ImportSampleItem(
                 result = Result::ErrorOutOfGpuMemory;
             }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Query)
         {
             GpuMemoryInfo gpuMemInfo   = {};
@@ -2371,7 +2356,6 @@ Result GpaSession::ImportSampleItem(
                 }
             }
         }
-#endif
     } // End init different sample types.
 
     if (result == Result::Success)
@@ -2612,11 +2596,7 @@ Result GpaSession::AcquirePerfExperiment(
                                                                      m_perfExperimentProps.sqttSeBufferAlignment);
 
                 const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-                PerfTraceInfo sqttInfo = { };
-#else
                 ThreadTraceInfo sqttInfo = { };
-#endif
                 sqttInfo.traceType               = PerfTraceType::ThreadTrace;
                 sqttInfo.optionFlags.bufferSize  = 1;
                 sqttInfo.optionValues.bufferSize = alignedBufferSize;
@@ -2631,11 +2611,7 @@ Result GpaSession::AcquirePerfExperiment(
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
                     sqttInfo.instance = i;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-                    result = (*ppExperiment)->AddTrace(sqttInfo);
-#else
                     result = (*ppExperiment)->AddThreadTrace(sqttInfo);
-#endif
                 }
             }
 

@@ -174,7 +174,6 @@ struct BarrierOperations
     } caches; ///< Information about cache operations performed for the barrier.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
 /// Enumeration for PAL barrier reasons
 enum BarrierReason : uint32
 {
@@ -214,7 +213,6 @@ enum BarrierReason : uint32
     BarrierReasonPreSyncClear  = BarrierReasonPreComputeColorClear,
     BarrierReasonPostSyncClear = BarrierReasonPostComputeColorClear
 };
-#endif
 
 /// Information for barrier executions.
 struct BarrierData
@@ -223,9 +221,7 @@ struct BarrierData
     BarrierTransition transition;    ///< The particular transition that is currently executing.
     bool              hasTransition; ///< Whether or not the transition structure is populated.
     BarrierOperations operations;    ///< Detailed cache and pipeline operations performed during this barrier execution
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     uint32            reason;        ///< Reason that the barrier was invoked.
-#endif
 };
 
 /// Enumeration describing the different types of tile mode dimensions

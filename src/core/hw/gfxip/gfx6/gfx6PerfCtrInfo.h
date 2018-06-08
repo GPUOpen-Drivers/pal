@@ -33,11 +33,7 @@ namespace Pal
 // Forward decl's
 class  Device;
 struct GpuChipProperties;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-struct PerfTraceInfo;
-#else
 struct ThreadTraceInfo;
-#endif
 
 namespace Gfx6
 {
@@ -73,12 +69,7 @@ enum Gfx7SpmSeBlockSelect : uint32
 };
 
 extern void   InitPerfCtrInfo(GpuChipProperties* pProps);
-extern Result ValidateThreadTraceOptions(const Pal::Device& device,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
- const PerfTraceInfo& info);
- #else
- const ThreadTraceInfo& info);
- #endif
+extern Result ValidateThreadTraceOptions(const Pal::Device& device, const ThreadTraceInfo& info);
 
 // These registers do exist on *some* Gfx8 variations. The Gfx8 headers used to create the merged headers don't include
 // them though so they got the __SI__CI tag, but we know better, so we redefine them here without their tags for

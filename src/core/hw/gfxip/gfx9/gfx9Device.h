@@ -391,11 +391,7 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         const BarrierTransition*      pTransition,
         Developer::BarrierOperations* pOperations) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason) const;
-#else
-    void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf) const;
-#endif
     void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     uint32 GetMaxFragsLog2() const         { return GetGbAddrConfig().bits.MAX_COMPRESSED_FRAGS; }

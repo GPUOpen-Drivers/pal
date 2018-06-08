@@ -546,9 +546,7 @@ Result GpaSession::QuerySample::GetQueryResults(
                                                        QueryType::PipelineStats,
                                                        0,
                                                        1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
                                                        nullptr,
-#endif
                                                        pSizeInBytes,
                                                        pData,
                                                        0);

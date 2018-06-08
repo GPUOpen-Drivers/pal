@@ -2754,8 +2754,8 @@ void RsrcProcMgr::DccDecompress(
 }
 
 // =====================================================================================================================
-// Performs a fast color clear eliminate blt on the provided Image.
-void RsrcProcMgr::FastClearEliminate(
+// Performs a fast color clear eliminate blt on the provided Image. Returns true if work (blt) is submitted to GPU.
+bool RsrcProcMgr::FastClearEliminate(
     GfxCmdBuffer*                pCmdBuffer,
     Pal::CmdStream*              pCmdStream,
     const Image&                 image,
@@ -2789,6 +2789,8 @@ void RsrcProcMgr::FastClearEliminate(
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
+
+    return true;
 }
 
 // =====================================================================================================================

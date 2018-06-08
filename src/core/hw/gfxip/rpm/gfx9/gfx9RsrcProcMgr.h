@@ -124,7 +124,7 @@ public:
         const SubresRange& range,
         SyncReqs*          pSyncReqs) const;
 
-    virtual void FastClearEliminate(
+    virtual bool FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,
         Pal::CmdStream*              pCmdStream,
         const Image&                 image,

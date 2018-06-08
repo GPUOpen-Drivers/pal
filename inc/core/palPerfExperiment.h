@@ -209,11 +209,7 @@ struct GlobalCounterLayout
 
 /// Specifies properties for a perf trace being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddThreadTrace().
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-struct PerfTraceInfo
-#else
 struct ThreadTraceInfo
-#endif
 {
     PerfTraceType              traceType;    ///< Type of trace to add.
     uint32                     instance;     ///< Selected trace instance.
@@ -238,12 +234,7 @@ struct ThreadTraceInfo
             uint32 threadTraceShaderTypeMask :  1;
             uint32 threadTraceIssueMask      :  1;
             uint32 threadTraceWrapBuffer     :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-            uint32 spmTraceSampleInterval    : 1;
-            uint32 reserved                  : 18;
-#else
             uint32 reserved                  : 19;
-#endif
         };
         uint32 u32All;
     } optionFlags;
@@ -266,10 +257,6 @@ struct ThreadTraceInfo
         PerfExperimentShaderFlags threadTraceShaderTypeMask;
         uint32                    threadTraceIssueMask;
         bool                      threadTraceWrapBuffer;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-        // SPM trace only options
-        uint32                    spmTraceSampleInterval;
-#endif
     } optionValues;
 };
 
@@ -395,13 +382,8 @@ public:
     /// @param [in] traceInfo Specifies what type of trace to record, which block instance to trace, and options, etc.
     ///
     /// @returns Success if the trace was successfully added to the experiment, otherwise an appropriate error code.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    virtual Result AddTrace(
-        const PerfTraceInfo& traceInfo) = 0;
-#else
     virtual Result AddThreadTrace(
         const ThreadTraceInfo& traceInfo) = 0;
-#endif
 
     /// Adds the specified SpmTrace to be recorded as part of this perf experiment.
     ///

@@ -1053,6 +1053,7 @@ private:
     regVGT_DMA_INDEX_TYPE__GFX09 m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
     regSPI_VS_OUT_CONFIG         m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
     regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
+    regPA_SC_SHADER_CONTROL      m_paScShaderControl;   // Register setting for PA_SC_SHADER_CONTROL
     uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                       m_drawIndexReg;        // Register where the draw index is written
     RbPlusPm4Img                 m_rbPlusPm4Img;        // PM4 image for RB Plus register state

@@ -435,9 +435,6 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.contextRollOptimizationFlags = 0;
     m_publicSettings.unboundDescriptorDebugSrdCount = 1;
     m_publicSettings.disableResourceProcessingManager = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 362
-    m_publicSettings.disableScManager = false;
-#endif
     m_publicSettings.tcCompatibleMetaData = 0x7F;
     m_publicSettings.maxUserDataEntries = 0xFFFFFFFF;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 403
@@ -449,9 +446,6 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.numScratchWavesPerCu = 4;
     m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
     m_publicSettings.cmdAllocResidency = 0xF;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 362
-    m_publicSettings.maxQueuedFrames = 0;
-#endif
     m_publicSettings.presentableImageNumberThreshold = 16;
     m_publicSettings.hintInvariantDepthStencilClearValues = false;
     m_publicSettings.hintDisableSmallSurfColorCompressionSize = 128;
@@ -1099,12 +1093,10 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         PAL_ASSERT(m_memoryProperties.vaStartPrt == 0);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
     if (GetPlatform()->RequestShadowDescVaRange() == false)
     {
         m_memoryProperties.flags.shadowDescVaSupport = 0;
     }
-#endif
 
     return result;
 }
@@ -4160,9 +4152,7 @@ void Device::ApplyDevOverlay(
     barrier.transitionCount = 1;
     barrier.pTransitions    = &transition;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     barrier.reason          = Developer::BarrierReasonDevDriverOverlay;
-#endif
 
     pCmdBuffer->CmdBarrier(barrier);
 #endif

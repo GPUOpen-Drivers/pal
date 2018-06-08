@@ -1363,7 +1363,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 {
     DccFormatEncoding dccFormatEncoding = DccFormatEncoding::Optimal;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     if (imageCreateInfo.viewFormatCount == AllCompatibleFormats)
     {
         // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
@@ -1423,15 +1422,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             }
         }
     }
-#else
-    if ((imageCreateInfo.flags.formatChangeSrd != 0) || (imageCreateInfo.flags.formatChangeTgt != 0))
-    {
-        // In the generic case if formatChangeSrd or formatChangeTgt is requested then all compatible formats are
-        // assumed to be potential valid view formats and none of the format compatibility classes comprise only of
-        // formats that are DCC compatible.
-        dccFormatEncoding = DccFormatEncoding::Incompatible;
-    }
-#endif
 
     return dccFormatEncoding;
 }
@@ -3386,11 +3376,11 @@ PM4PFP_CONTEXT_CONTROL Device::GetContextControl() const
 
     // Since PAL doesn't preserve GPU state across command buffer boundaries, we don't need to enable state shadowing
     // unless mid command buffer preemption is enabled, but we always need to enable loading context and SH registers.
-    contextControl.bitfields2.load_enable            = 1;
+    contextControl.bitfields2.update_load_enables    = 1;
     contextControl.bitfields2.load_per_context_state = 1;
     contextControl.bitfields2.load_cs_sh_regs        = 1;
     contextControl.bitfields2.load_gfx_sh_regs       = 1;
-    contextControl.bitfields3.shadow_enable          = 1;
+    contextControl.bitfields3.update_shadow_enables  = 1;
 
     if ((ForceStateShadowing && Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt) ||
         Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))

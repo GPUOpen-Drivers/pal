@@ -363,10 +363,8 @@ static void ConvertPresentableImageCreateInfo(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
     pOut->viewFormatCount       = in.viewFormatCount;
     pOut->pViewFormats          = in.pViewFormats;
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
-    pOut->viewFormatCount       = AllCompatibleFormats;
 #else
-    pOut->flags.formatChangeSrd = 1;
+    pOut->viewFormatCount       = AllCompatibleFormats;
 #endif
 }
 

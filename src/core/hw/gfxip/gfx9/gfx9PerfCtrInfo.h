@@ -33,11 +33,7 @@ namespace Pal
 // Forward decl's
 class  Device;
 struct GpuChipProperties;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-struct PerfTraceInfo;
-#else
 struct ThreadTraceInfo;
-#endif
 
 namespace Gfx9
 {

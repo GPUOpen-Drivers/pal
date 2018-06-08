@@ -123,32 +123,6 @@ extern void DbgVPrintf(
     const char*      pFormat,
     va_list          argList);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 353
-/// Printf method for reporting error messages (implied category of @ref DbgPrintCatErrorMsg).  Client should use the
-/// PAL_DPERR macro instead of calling this function directly.
-///
-/// @param [in] pFormat Printf-style format string.
-extern void ErrPrintf(
-    const char* pFormat,
-    ...);
-
-/// Printf method for reporting warning messages (implied category of @ref DbgPrintCatWarnMsg).  Client should use the
-/// PAL_DPWARN macro instead of calling this function directly.
-///
-/// @param [in] pFormat Printf-style format string.
-extern void WarnPrintf(
-    const char* pFormat,
-    ...);
-
-/// Printf method for reporting assert messages (never filtered).  This function is only for internal use by the
-/// PAL_ASSERT macros.
-///
-/// @param [in] pFormat Printf-style format string.
-extern void AssertPrintf(
-    const char* pFormat,
-    ...);
-#endif
-
 /// Opens a file that resides in the selected log directory.
 ///
 /// This function exists in all build configurations.
@@ -180,9 +154,7 @@ extern void SetDbgPrintCallback(
 /// @param [in] pFormat      Format string for the log message.
 /// @param [in] args         Variable arguments that correspond to the format string.
 typedef void (PAL_STDCALL *LogCallbackFunc)(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
     void*       pClientData,
-#endif
     uint32      level,
     uint64      categoryMask,
     const char* pFormat,
@@ -237,10 +209,6 @@ extern int Vsnprintf(
 #define PAL_DPWARN(_pFormat, ...)  Util::DbgPrintf(Util::DbgPrintCatWarnMsg, Util::DbgPrintStyleDefault, _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__)
 /// Debug error printf macro.
 #define PAL_DPERROR(_pFormat, ...) Util::DbgPrintf(Util::DbgPrintCatErrorMsg, Util::DbgPrintStyleDefault, _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 353
-/// Back-compat alias for PAL_DPERROR
-#define PAL_DPERR PAL_DPERROR
-#endif
 #else
 /// Debug printf macro.
 #define PAL_DPF(...)     ((void)0)
@@ -250,8 +218,4 @@ extern int Vsnprintf(
 #define PAL_DPWARN(...)  ((void)0)
 /// Debug error printf macro.
 #define PAL_DPERROR(...) ((void)0)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 353
-/// Back-compat alias for PAL_DPERROR
-#define PAL_DPERR PAL_DPERROR
-#endif
 #endif

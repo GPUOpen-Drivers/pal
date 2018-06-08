@@ -54,7 +54,7 @@ struct drm_amdgpu_capability;
  *
  * \sa amdgpu_cs_ib_info
 */
-#define AMDGPU_CS_MAX_IBS_PER_SUBMIT		16
+#define AMDGPU_CS_MAX_IBS_PER_SUBMIT		4
 
 /**
  * Special timeout value meaning that the timeout is infinite.
@@ -97,9 +97,11 @@ enum amdgpu_bo_handle_type {
 enum amdgpu_gpu_va_range
 {
 	/** Allocate from "normal"/general range */
-	amdgpu_gpu_va_range_general = 0,
-	/** Allocate from svm range */
-	amdgpu_gpu_va_range_svm = 1
+	amdgpu_gpu_va_range_general = 0
+};
+
+enum amdgpu_sw_info {
+	amdgpu_sw_info_address32_hi = 0,
 };
 
 /*--------------------------------------------------------------------------*/
@@ -798,9 +800,9 @@ int amdgpu_bo_get_phys_address(amdgpu_bo_handle buf_handle,
  *          <0 - Negative POSIX Error code
  *
  * \note In the case of memory shared between different applications all
- *	 resources will be "physically" freed only all such applications
+ *	 resources will be “physically” freed only all such applications
  *	 will be terminated
- * \note If is UMD responsibility to 'free' buffer only when there is no
+ * \note If is UMD responsibility to ‘free’ buffer only when there is no
  *	 more GPU access
  *
  * \sa amdgpu_bo_set_metadata(), amdgpu_bo_alloc()
@@ -1233,6 +1235,23 @@ int amdgpu_query_capability(amdgpu_device_handle dev,
 			     struct drm_amdgpu_capability *cap);
 
 /**
+ * Query hardware or driver information.
+ *
+ * The return size is query-specific and depends on the "info_id" parameter.
+ * No more than "size" bytes is returned.
+ *
+ * \param   dev     - \c [in] Device handle. See #amdgpu_device_initialize()
+ * \param   info    - \c [in] amdgpu_sw_info_*
+ * \param   value   - \c [out] Pointer to the return value.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX error code
+ *
+*/
+int amdgpu_query_sw_info(amdgpu_device_handle dev, enum amdgpu_sw_info info,
+			 void *value);
+
+/**
  * Query information about GDS
  *
  * \param   dev	     - \c [in] Device handle. See #amdgpu_device_initialize()
@@ -1318,6 +1337,7 @@ int amdgpu_read_mm_registers(amdgpu_device_handle dev, unsigned dword_offset,
  * Flag to request VA address range in the 32bit address space
 */
 #define AMDGPU_VA_RANGE_32_BIT		0x1
+#define AMDGPU_VA_RANGE_HIGH		0x2
 
 /**
  * Allocate virtual address range
@@ -1363,57 +1383,6 @@ int amdgpu_va_range_alloc(amdgpu_device_handle dev,
 			   uint64_t *va_base_allocated,
 			   amdgpu_va_handle *va_range_handle,
 			   uint64_t flags);
-
-/**
- * Allocate virtual address range in client defined range
- *
- * \param dev - [in] Device handle. See #amdgpu_device_initialize()
- * \param va_range_type - \c [in] Type of MC va range from which to allocate
- * \param size - \c [in] Size of range. Size must be correctly* aligned.
- * It is client responsibility to correctly aligned size based on the future
- * usage of allocated range.
- * \param va_base_alignment - \c [in] Overwrite base address alignment
- * requirement for GPU VM MC virtual
- * address assignment. Must be multiple of size alignments received as
- * 'amdgpu_buffer_size_alignments'.
- * If 0 use the default one.
- * \param va_base_required - \c [in] Specified required va base address.
- * If 0 then library choose available one between [va_base_min, va_base_max].
- * If !0 value will be passed and those value already "in use" then
- * corresponding error status will be returned.
- * \param va_base_min- \c [in] Specified required va range min address.
- * valid if va_base_required is 0
- * \param va_base_max - \c [in] Specified required va range max address.
- * valid if va_base_required is 0
- * \param va_base_allocated - \c [out] On return: Allocated VA base to be used
- * by client.
- * \param va_range_handle - \c [out] On return: Handle assigned to allocation
- * \param flags - \c [in] flags for special VA range
- *
- * \return 0 on success\n
- * >0 - AMD specific error code\n
- * <0 - Negative POSIX Error code
- *
- * \notes \n
- * It is client responsibility to correctly handle VA assignments and usage.
- * Neither kernel driver nor libdrm_amdpgu are able to prevent and
- * detect wrong va assignemnt.
- *
- * It is client responsibility to correctly handle multi-GPU cases and to pass
- * the corresponding arrays of all devices handles where corresponding VA will
- * be used.
- *
-*/
-int amdgpu_va_range_alloc_in_range(amdgpu_device_handle dev,
-			  enum amdgpu_gpu_va_range va_range_type,
-			  uint64_t size,
-			  uint64_t va_base_alignment,
-			  uint64_t va_base_required,
-			  uint64_t va_range_min,
-			  uint64_t va_range_max,
-			  uint64_t *va_base_allocated,
-			  amdgpu_va_handle *va_range_handle,
-			  uint64_t flags);
 
 /**
  * Free previously allocated virtual address range
@@ -1490,6 +1459,7 @@ int amdgpu_bo_va_op(amdgpu_bo_handle bo,
  *          <0 - Negative POSIX Error code
  *
 */
+
 int amdgpu_bo_va_op_raw(amdgpu_device_handle dev,
 			amdgpu_bo_handle bo,
 			uint64_t offset,
@@ -1497,73 +1467,6 @@ int amdgpu_bo_va_op_raw(amdgpu_device_handle dev,
 			uint64_t addr,
 			uint64_t flags,
 			uint32_t ops);
-
-/**
- *  VA mapping/unmapping for the buffer object
- *
- * \param  dev      = \c [in] Device handle.
- * \param  bo       - \c [in] BO handle
- * \param  offset   - \c [in] Start offset to map
- * \param  size     - \c [in] Size to map
- * \param  addr     - \c [in] Start virtual address.
- * \param  flags    - \c [in] Supported flags for mapping/unmapping
- * \param  ops      - \c [in] AMDGPU_VA_OP_MAP or AMDGPU_VA_OP_UNMAP
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- */
-int amdgpu_bo_va_op_refcounted(amdgpu_device_handle dev,
-		amdgpu_bo_handle bo,
-		uint64_t offset,
-		uint64_t size,
-		uint64_t addr,
-		uint64_t flags,
-		uint32_t ops);
-
-/**
- * Reserve the virtual address range for SVM support
- *
- * \param amdgpu_device_handle
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_svm_init(amdgpu_device_handle dev);
-
-/**
- * Free the virtual address range for SVM support
- *
- * \param amdgpu_device_handle
- *
- * \return
- *
-*/
-void amdgpu_svm_deinit(amdgpu_device_handle dev);
-
-/**
- *  Commit SVM allocation in a process
- *
- * \param va_range_handle - \c [in] Handle of SVM allocation
- * \param cpu - \c [out] CPU pointer. The value is equal to GPU VM address.
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_svm_commit(amdgpu_va_handle va_range_handle,
-			void **cpu);
-
-/**
- *  Uncommit SVM alloation in process's CPU_VM
- *
- * \param va_range_handle - \c [in] Handle of SVM allocation
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_svm_uncommit(amdgpu_va_handle va_range_handle);
 
 /**
  *  create semaphore

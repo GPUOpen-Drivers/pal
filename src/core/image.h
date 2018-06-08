@@ -267,9 +267,6 @@ public:
     virtual void Destroy() override;
     void DestroyInternal();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 365
-    virtual Result GetMemoryLayout(ImageMemoryLayout* pLayout) const override;
-#endif
     virtual Result GetSubresourceLayout(SubresId subresId, SubresLayout* pLayout) const override;
     virtual Result BindGpuMemory(IGpuMemory* pGpuMemory, gpusize offset) override;
 
@@ -407,17 +404,11 @@ public:
     bool IsSubResourceLinear(const SubresId& subresource) const
         { return (m_pGfxImage == nullptr) ? false : m_pGfxImage->IsSubResourceLinear(subresource); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     // Returns whether or not the format of views created from the image can be different than the base format.
     // We can simply use the viewFormatCount parameter provided at image creation time as that's expected to
     // be zero in case the base format is the only valid view format.
     bool CanChangeFormat() const
         { return (m_createInfo.viewFormatCount != 0); }
-#else
-    // Returns whether or not the format of views created from the image can be different than the base format.
-    bool CanChangeFormat() const
-        { return (m_createInfo.flags.formatChangeSrd != 0) || (m_createInfo.flags.formatChangeTgt != 0); }
-#endif
 
     // Returns the memory object that's bound to this surface.  It's the callers responsibility to verify that the
     // returned object is valid.

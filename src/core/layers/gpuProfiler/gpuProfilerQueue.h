@@ -79,17 +79,9 @@ struct LogItem
         uint32 perfExpOutOfMemory   :  1; // Perf experiment ran out of memory and could not be executed for this
                                           // command buffer call.
         uint32 perfExpUnsupported   :  1; // Perf experiment is unsupported on this command buffer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        uint32 reserved             : 30;
-#else
         uint32 pipeStatsUnsupported :  1; // Pipeline stats query is unsupported on this command buffer.
         uint32 reserved             : 29;
-#endif
     } errors;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    IQueryPool*       pPipeStatsQuery;   // Pipeline stats query object surrounding this call.
-#endif
 
     union
     {
@@ -188,11 +180,6 @@ public:
     // managed by the Queue.
     TargetCmdBuffer* AcquireCmdBuf();
     TargetCmdBuffer* AcquireNestedCmdBuf();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    void AcquireGpuMem(gpusize size, gpusize alignment, GpuHeap heapType, GpuMemoryInfo* pGpuMem, gpusize* pOffset);
-    IQueryPool* AcquirePipeStatsQuery();
-#endif
-
     Result AcquireGpaSession(GpuUtil::GpaSession** ppGpaSession);
 
     void AddLogItem(const LogItem& logItem);
@@ -230,11 +217,7 @@ public:
     GpuUtil::GpaSession* GetPerFrameGpaSession() { return m_perFrameLogItem.pGpaSession; }
 
     // Check if the logItem contains a valid GPA sample.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    bool HasValidGpaSample(const LogItem* pLogItem, bool isTimingMode) const;
-#else
     bool HasValidGpaSample(const LogItem* pLogItem, GpuUtil::GpaSampleType type) const;
-#endif
 
 private:
     virtual ~Queue();
@@ -299,14 +282,6 @@ private:
     Util::Deque<NestedInfo, Platform>           m_availableNestedCmdBufs;
     Util::Deque<NestedInfo, Platform>           m_busyNestedCmdBufs;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    Util::Deque<GpuMemoryInfo, Platform>        m_availableGartGpuMem;
-    Util::Deque<GpuMemoryInfo, Platform>        m_busyGartGpuMem;
-
-    Util::Deque<IQueryPool*, Platform>          m_availablePipeStatsQueries;
-    Util::Deque<IQueryPool*, Platform>          m_busyPipeStatsQueries;
-#endif
-
     // GpaSession config info for the queue
     GpuUtil::GpaSampleConfig                    m_gpaSessionSampleConfig;
 
@@ -333,9 +308,6 @@ private:
         uint32  cmdBufCount;
         uint32  nestedCmdBufCount;
         uint32  gpuMemCount;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        uint32  pipeStatsQueryCount;
-#endif
         uint32  logItemCount;
         uint32  gpaSessionCount;
     };
@@ -346,13 +318,6 @@ private:
     PendingSubmitInfo                 m_nextSubmitInfo;
 
     bool                              m_profilingModeEnabled;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    // Tracks the current GPU memory object and offset being sub-allocated for AcquireGpuMem().  Sub-allocation is
-    // purely linear since all GPU memory used by the GPU profiler is retired in order.
-    GpuMemoryInfo                     m_curGartGpuMem;
-    gpusize                           m_curGartGpuMemOffset;
-#endif
 
     Util::Deque<LogItem, Platform>    m_logItems;         // List of outstanding calls waiting to be logged.
     Util::File                        m_logFile;          // File logging is currently outputted to (changes per frame).

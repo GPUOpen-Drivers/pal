@@ -135,12 +135,10 @@ Result GfxCmdBuffer::Begin(
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
         if (info.pStateInheritCmdBuffer != nullptr)
         {
             InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
         }
-#endif
 
         m_pPrefetchMgr->EnableShaderPrefetch(m_buildFlags.prefetchShaders != 0);
     }

@@ -176,14 +176,8 @@ Result PerfExperiment::ValidatePerfCounterInfo(
 
 // =====================================================================================================================
 // Adds a new trace to this Experiment.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-Result PerfExperiment::AddTrace(
-    const PerfTraceInfo& info)
-#else
 Result PerfExperiment::AddThreadTrace(
     const ThreadTraceInfo& info)
-#endif
-
 {
     Result result = Result::Success;
 

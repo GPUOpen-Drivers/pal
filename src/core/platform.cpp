@@ -112,21 +112,12 @@ Platform::Platform(
     m_flags.force32BitVaSpace          = createInfo.flags.force32BitVaSpace;
     m_flags.createNullDevice           = createInfo.flags.createNullDevice;
     m_flags.enableSvmMode              = createInfo.flags.enableSvmMode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
     m_flags.requestShadowDescVaRange   = createInfo.flags.requestShadowDescriptorVaRange;
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
     if (createInfo.pLogInfo != nullptr)
     {
         m_logCb = *createInfo.pLogInfo;
     }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
-    if (createInfo.pfnLogCb != nullptr)
-    {
-        m_logCb.pfnLogCb = createInfo.pfnLogCb;
-    }
-#endif
 
     Util::Strncpy(&m_settingsPath[0], createInfo.pSettingsPath, MaxSettingsPathLength);
 }
@@ -665,10 +656,7 @@ void Platform::LogMessage(
 
     if (m_logCb.pfnLogCb != nullptr)
     {
-        m_logCb.pfnLogCb(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
-                         m_logCb.pClientData,
-#endif
+        m_logCb.pfnLogCb(m_logCb.pClientData,
                          static_cast<uint32>(level),
                          categoryMask,
                          pFormat,

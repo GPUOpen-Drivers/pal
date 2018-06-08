@@ -652,11 +652,7 @@ void Queue::OutputFrameToFile(
 void Queue::OutputTimestampsToFile(
     const LogItem& logItem)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    if (HasValidGpaSample(&logItem, true))
-#else
     if (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Timing))
-#endif
     {
         uint64 pResult[2] = {};
         Result result     = logItem.pGpaSession->GetResults(logItem.gpaSampleIdTs,
@@ -693,29 +689,14 @@ void Queue::OutputTimestampsToFile(
 void Queue::OutputPipelineStatsToFile(
     const LogItem& logItem)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    if (logItem.pPipeStatsQuery != nullptr)
-#else
     if (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Query))
-#endif
     {
         uint64 pipelineStats[11] = {};
         size_t pipelineStatsSize = sizeof(pipelineStats);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        QueryResultFlags flags = static_cast<QueryResultFlags>(QueryResult64Bit | QueryResultWait);
-        const Result result = logItem.pPipeStatsQuery->GetResults(flags,
-                                                                  QueryType::PipelineStats,
-                                                                  0,
-                                                                  1,
-                                                                  &pipelineStatsSize,
-                                                                  &pipelineStats[0],
-                                                                  0);
-#else
         const Result result = logItem.pGpaSession->GetResults(logItem.gpaSampleIdQuery,
                                                               &pipelineStatsSize,
                                                               pipelineStats);
-#endif
+
         PAL_ASSERT(result == Result::Success);
         PAL_ASSERT(pipelineStatsSize == sizeof(pipelineStats));
 
@@ -740,11 +721,7 @@ void Queue::OutputGlobalPerfCountersToFile(
     const PerfCounter* pGlobalPerfCounters   = m_pDevice->GlobalPerfCounters();
     const uint32       numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    if ((numGlobalPerfCounters > 0) && HasValidGpaSample(&logItem, false))
-#else
     if ((numGlobalPerfCounters > 0) && HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Cumulative))
-#endif
     {
         void*  pResult  = nullptr;
         size_t dataSize = 0;
@@ -830,11 +807,7 @@ void Queue::OutputTraceDataToFile(
 
     if ((m_pDevice->GetProfilerMode() > GpuProfilerSqttOff) &&
         (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        (HasValidGpaSample(&logItem, false)))
-#else
         (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace)))
-#endif
     {
         // Output trace data in RGP format.
         if ((m_pDevice->GetProfilerMode() == GpuProfilerSqttRgp))

@@ -192,6 +192,8 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
+    regPA_SC_SHADER_CONTROL  PaScShaderControl(uint32  numIndices) const
+        { return m_chunkPs.PaScShaderControl(numIndices); }
     regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_streamoutPm4Cmds.vgtStrmoutConfig; }
     regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_streamoutPm4Cmds.vgtStrmoutBufferConfig; }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const

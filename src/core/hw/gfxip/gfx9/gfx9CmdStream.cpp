@@ -260,7 +260,7 @@ uint32* CmdStream::WriteSetVgtLsHsConfig(
     {
         const size_t totalDwords = m_cmdUtil.BuildSetOneContextReg(mmVGT_LS_HS_CONFIG,
                                                                    pCmdSpace,
-                                                                   index__pfp_set_context_reg__vgt_ls_hs_config);
+                                                                   index__pfp_set_context_reg__vgt_ls_hs_config__GFX09);
         m_contextRollDetected = true;
         pCmdSpace[CmdUtil::ContextRegSizeDwords] = vgtLsHsConfig.u32All;
         pCmdSpace += totalDwords;
@@ -282,10 +282,10 @@ uint32* CmdStream::WriteSetVgtLsHsConfig<false>(
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* CmdStream::WriteSetOneConfigReg(
-    uint32                         regAddr,
-    uint32                         regData,
-    uint32*                        pCmdSpace,
-    PFP_SET_UCONFIG_REG_index_enum index)
+    uint32                               regAddr,
+    uint32                               regData,
+    uint32*                              pCmdSpace,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index)
 {
     const size_t totalDwords = m_cmdUtil.BuildSetOneConfigReg(regAddr, pCmdSpace, index);
     pCmdSpace[CmdUtil::ConfigRegSizeDwords] = regData;
@@ -812,7 +812,7 @@ void CmdStream::PatchCondIndirectBuffer(
         // The PM4 spec says that the first IB base/size are used if the conditional passes.
         pPacket->ordinal9    = LowPart(address);
         pPacket->ib_base1_hi = HighPart(address);
-        PAL_ASSERT (pPacket->bitfields9.reserved4 == 0);
+        PAL_ASSERT (pPacket->bitfields9.reserved1 == 0);
 
         pPacket->bitfields11.ib_size1 = ibSizeDwords;
         break;
@@ -821,7 +821,7 @@ void CmdStream::PatchCondIndirectBuffer(
         // The PM4 spec says that the second IB base/size are used if the conditional fails.
         pPacket->ordinal12   = LowPart(address);
         pPacket->ib_base2_hi = HighPart(address);
-        PAL_ASSERT (pPacket->bitfields12.reserved7 == 0);
+        PAL_ASSERT (pPacket->bitfields12.reserved1 == 0);
 
         pPacket->bitfields14.ib_size2 = ibSizeDwords;
         break;

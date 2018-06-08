@@ -84,7 +84,8 @@ struct AcquireMemInfo
     gpusize             sizeBytes;
 };
 
-// To easily see the the differences between ReleaseMem and AcquireMem, we want to use an input structure for BuildAcquireMem.
+// To easily see the the differences between ReleaseMem and AcquireMem, we want to use an input structure
+// for BuildAcquireMem.
 struct ReleaseMemInfo
 {
     EngineType     engineType;
@@ -445,13 +446,13 @@ public:
         Pm4ShaderType                shaderType,
         void*                        pBuffer) const;
     size_t BuildSetOneConfigReg(
-        uint32                         regAddr,
-        void*                          pBuffer,
-        PFP_SET_UCONFIG_REG_index_enum index = index__pfp_set_uconfig_reg__default) const;
+        uint32                               regAddr,
+        void*                                pBuffer,
+        PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default) const;
     size_t BuildSetOneContextReg(
         uint32                         regAddr,
         void*                          pBuffer,
-        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default) const;
+        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default__GFX09) const;
     size_t BuildSetOneShReg(
         uint32        regAddr,
         Pm4ShaderType shaderType,
@@ -467,15 +468,15 @@ public:
         Pm4ShaderType shaderType,
         void*         pBuffer) const;
     size_t BuildSetSeqConfigRegs(
-        uint32                         startRegAddr,
-        uint32                         endRegAddr,
-        void*                          pBuffer,
-        PFP_SET_UCONFIG_REG_index_enum index = index__pfp_set_uconfig_reg__default) const;
+        uint32                               startRegAddr,
+        uint32                               endRegAddr,
+        void*                                pBuffer,
+        PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default) const;
     size_t BuildSetSeqContextRegs(
         uint32                         startRegAddr,
         uint32                         endRegAddr,
         void*                          pBuffer,
-        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default) const;
+        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default__GFX09) const;
     size_t BuildSetSeqShRegs(
         uint32        startRegAddr,
         uint32        endRegAddr,

@@ -3792,7 +3792,6 @@ void TargetCmdBuffer::BeginSample(
     pLogItem->pGpaSession   = m_pGpaSession;            // Save the session for later end it.
     pLogItem->gpaSampleId   = GpuUtil::InvalidSampleId; // Initialize sample id.
     pLogItem->gpaSampleIdTs = GpuUtil::InvalidSampleId; // Initialize sample id.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 355
     pLogItem->gpaSampleIdQuery = GpuUtil::InvalidSampleId; // Initialize sample id.
 
     // If requested, surround this universal/compute queue operation a pipeline stats query.
@@ -3810,7 +3809,6 @@ void TargetCmdBuffer::BeginSample(
             pLogItem->errors.pipeStatsUnsupported = 1;
         }
     }
-#endif
 
     if (perfExp)
     {
@@ -3841,25 +3839,6 @@ void TargetCmdBuffer::EndSample(
     Queue*         pQueue,
     const LogItem* pLogItem)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    if (pQueue->HasValidGpaSample(pLogItem, true))
-    {
-        pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdTs);
-    }
-
-    if (pQueue->HasValidGpaSample(pLogItem, false))
-    {
-        // Here we cannot use m_pGpaSession because in perFrame granularity the "this"(TargetCmdBuffer) is
-        // a new one with m_pGpaSession==nullptr.
-        pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleId);
-    }
-
-    if (pLogItem->pPipeStatsQuery != nullptr)
-    {
-        // End the pipeline stats query.
-        CmdEndQuery(*pLogItem->pPipeStatsQuery, QueryType::PipelineStats, 0);
-    }
-#else
     // End the timestamp sample.
     if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Timing))
     {
@@ -3877,7 +3856,6 @@ void TargetCmdBuffer::EndSample(
     {
         pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdQuery);
     }
-#endif
 }
 
 // =====================================================================================================================

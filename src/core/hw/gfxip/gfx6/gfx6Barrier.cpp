@@ -977,11 +977,7 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     if (barrier.flags.splitBarrierLatePhase == 0)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
         DescribeBarrierStart(pCmdBuf, barrier.reason);
-#else
-        DescribeBarrierStart(pCmdBuf);
-#endif
 
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
@@ -1427,25 +1423,19 @@ void Device::Barrier(
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void Device::DescribeBarrierStart(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     GfxCmdBuffer* pCmdBuf,
     uint32        reason
-#else
-    GfxCmdBuffer* pCmdBuf
-#endif
     ) const
 {
     Developer::BarrierData data = {};
 
     data.pCmdBuffer = pCmdBuf;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     // Make sure we have an acceptable barrier reason.
     PAL_ALERT_MSG((GetPlatform()->IsDevDriverProfilingEnabled() && (reason == Developer::BarrierReasonInvalid)),
                   "Invalid barrier reason codes are not allowed!");
 
     data.reason = reason;
-#endif
 
     m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &data);
 }

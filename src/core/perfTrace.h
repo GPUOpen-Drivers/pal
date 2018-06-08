@@ -192,11 +192,7 @@ public:
     virtual size_t GetInfoAlignment() const = 0;
 
 protected:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    ThreadTrace(Device* pDevice, const PerfTraceInfo& info);
-#else
     ThreadTrace(Device* pDevice, const ThreadTraceInfo& info);
-#endif
 
     const uint32   m_shaderEngine;  // Shader Engine this thread trace runs on
 

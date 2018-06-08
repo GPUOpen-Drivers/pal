@@ -49,7 +49,9 @@ PipelineChunkPs::PipelineChunkPs(
     memset(&m_pm4ImageShDynamic, 0, sizeof(m_pm4ImageShDynamic));
     memset(&m_pm4ImageContext,   0, sizeof(m_pm4ImageContext));
     memset(&m_stageInfo,         0, sizeof(m_stageInfo));
-    m_stageInfo.stageId = Abi::HardwareStage::Ps;
+
+    m_stageInfo.stageId        = Abi::HardwareStage::Ps;
+    m_paScShaderControl.u32All = 0;
 }
 
 // =====================================================================================================================
@@ -95,7 +97,7 @@ void PipelineChunkPs::Init(
 
     m_pm4ImageContext.dbShaderControl.u32All    = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
     m_pm4ImageContext.paScAaConfig.reg_data     = abiProcessor.GetRegisterEntry(mmPA_SC_AA_CONFIG);
-    m_pm4ImageContext.paScShaderControl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SC_SHADER_CONTROL);
+    m_paScShaderControl.u32All                  = abiProcessor.GetRegisterEntry(mmPA_SC_SHADER_CONTROL);
     m_pm4ImageContext.spiBarycCntl.u32All       = abiProcessor.GetRegisterEntry(mmSPI_BARYC_CNTL);
     m_pm4ImageContext.spiPsInputAddr.u32All     = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ADDR);
     m_pm4ImageContext.spiPsInputEna.u32All      = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ENA);
@@ -247,10 +249,6 @@ void PipelineChunkPs::BuildPm4Headers(
     m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_SHADER_CONTROL,
                                                                    &m_pm4ImageContext.hdrDbShaderControl);
 
-    // Sets the following context register: PA_SC_SHADER_CONTROL.
-    m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_SHADER_CONTROL,
-                                                                   &m_pm4ImageContext.hdrPaScShaderControl);
-
     // Sets the following context register: PA_SC_BINNER_CNTL_1.
     m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_SC_BINNER_CNTL_1,
                                                                    &m_pm4ImageContext.hdrPaScBinnerCntl1);
@@ -280,6 +278,16 @@ void PipelineChunkPs::BuildPm4Headers(
                                                              ShaderGraphics,
                                                              &m_pm4ImageSh.hdrSpiShaderPgmChksum);
     }
+}
+
+// =====================================================================================================================
+regPA_SC_SHADER_CONTROL  PipelineChunkPs::PaScShaderControl(
+    uint32  numIndices
+    ) const
+{
+    regPA_SC_SHADER_CONTROL  paScShaderControl = m_paScShaderControl;
+
+    return  paScShaderControl;
 }
 
 } // Gfx9

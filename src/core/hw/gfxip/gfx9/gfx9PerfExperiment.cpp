@@ -253,11 +253,7 @@ Result PerfExperiment::CreateCounter(
 //
 // This function only should be used for thread traces!
 Result PerfExperiment::CreateThreadTrace(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)
-#else
     const ThreadTraceInfo& info)
-#endif
 {
     PAL_ASSERT(info.traceType == PerfTraceType::ThreadTrace);
 
@@ -305,7 +301,7 @@ Result PerfExperiment::ConstructSpmTraceObj(
     Result result = Result::Success;
     PAL_ASSERT(ppSpmTrace != nullptr);
 
-    auto perfCounterInfo  = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+    const auto& perfCounterInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
 
     PerfExperimentProperties perfExpProperties = { };
     result = m_device.Parent()->GetPerfExperimentProperties(&perfExpProperties);

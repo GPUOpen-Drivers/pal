@@ -604,16 +604,16 @@ void Device::FinalizeQueueProperties()
     m_supportedSwapChainModes[FullscreenIdx] =
         SupportImmediateSwapChain| SupportFifoSwapChain| SupportMailboxSwapChain;
 
-    static_assert(AMDGPU_CS_MAX_IBS_PER_SUBMIT >= MinCmdStreamsPerSubmission,
+    static_assert(MaxIbsPerSubmit >= MinCmdStreamsPerSubmission,
                   "The minimum supported number of command streams per submission is not enough for PAL!");
     if (Settings().maxNumCmdStreamsPerSubmit == 0)
     {
-        m_queueProperties.maxNumCmdStreamsPerSubmit = AMDGPU_CS_MAX_IBS_PER_SUBMIT;
+        m_queueProperties.maxNumCmdStreamsPerSubmit = MaxIbsPerSubmit;
     }
     else
     {
         m_queueProperties.maxNumCmdStreamsPerSubmit =
-            Max<uint32>(MinCmdStreamsPerSubmission, Min<uint32>(AMDGPU_CS_MAX_IBS_PER_SUBMIT,
+            Max<uint32>(MinCmdStreamsPerSubmission, Min<uint32>(MaxIbsPerSubmit,
                                                                 Settings().maxNumCmdStreamsPerSubmit));
     }
 
@@ -652,26 +652,19 @@ Result Device::GetProperties(
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 378
         pInfo->osProperties.supportOpaqueFdSemaphore = ((m_semType == SemaphoreType::ProOnly) ||
                                                         (m_semType == SemaphoreType::SyncObj));
         // Todo: Implement the sync file import/export upon sync object.
         pInfo->osProperties.supportSyncFileSemaphore = false;
-#else
-        pInfo->osProperties.supportProSemaphore      = ((m_semType == SemaphoreType::ProOnly) ||
-                                                        (m_semType == SemaphoreType::SyncObj));
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
         pInfo->osProperties.supportSyncFileSemaphore = (m_semType == SemaphoreType::SyncObj);
         pInfo->osProperties.supportSyncFileFence     = (m_fenceType == FenceType::SyncObj);
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
         pInfo->osProperties.supportQueuePriority = m_supportQueuePriority;
         // Linux don't support changing the queue priority at the submission granularity.
         pInfo->osProperties.supportDynamicQueuePriority = false;
-#endif
 
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
             static_cast<Platform*>(m_pPlatform)->IsHostMappedForeignMemorySupported();
@@ -2916,7 +2909,6 @@ void Device::UpdateMetaData(
         PAL_NOT_IMPLEMENTED();
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
     pUmdMetaData->flags.optimal_shareable = image.GetImageCreateInfo().flags.optimalShareable;
 
     if (pUmdMetaData->flags.optimal_shareable)
@@ -2967,7 +2959,6 @@ void Device::UpdateMetaData(
         //linux don't need use this value to pass extra information for now
         pUmdSharedMetadata->resource_id = 0;
     }
-#endif
 
     m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
 }

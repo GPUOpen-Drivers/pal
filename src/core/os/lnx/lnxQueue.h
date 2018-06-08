@@ -226,7 +226,7 @@ private:
 
     // These IBs will be sent to the kernel when SubmitIbs is called.
     uint32                m_numIbs;
-    amdgpu_cs_ib_info     m_ibs[AMDGPU_CS_MAX_IBS_PER_SUBMIT];
+    amdgpu_cs_ib_info     m_ibs[MaxIbsPerSubmit];
 
     // The sync object refers to the fence of last submission.
     amdgpu_syncobj_handle m_lastSignaledSyncObject;

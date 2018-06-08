@@ -1173,7 +1173,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
                                                 DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+#else
     // Configure depth clamping
     dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
                                                     (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
@@ -1183,13 +1183,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
                                                 DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
-#else
-    // Write the PM4 packet to set DB_RENDER_OVERRIDE. Note: both the bitfields FORCE_SHADER_Z_ORDER or
-    // FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update these two bitfields.
-    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
-                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK);
 #endif
-
     cmdUtil.BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
                                DbRenderOverrideRmwMask,
                                dbRenderOverride.u32All,

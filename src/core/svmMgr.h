@@ -26,7 +26,7 @@
 #pragma once
 
 #include "palMutex.h"
-#include "palBuddyAllocator.h"
+#include "palBestFitAllocator.h"
 #include "core/platform.h"
 
 namespace Pal
@@ -34,10 +34,10 @@ namespace Pal
 class Platform;
 
 // =====================================================================================================================
-// SvmMgr provides a clean interface between PAL and the BuddyAllocator, which is used to allocate and free GPU
-// virtual address space for SVM allocations on Windows WDDM2 platforms. This GPU virtual address is shared with CPU.
+// SvmMgr provides a clean interface between PAL and the BestFitAllocator, which is used to allocate and free GPU
+// virtual address space for SVM allocations on Windows WDDM2 and Linux platforms.
+// This GPU virtual address is shared with CPU.
 // On WDDM1 platforms, VamMgr provides VA managements for SVM.
-// On Linux platforms, SVM is not implemented yet. This class is intended to be used in Linux.
 //
 // Some commonly used abbreviations throughout the implementation of this class:
 //     - VA:  Virtual address
@@ -61,7 +61,7 @@ private:
     gpusize      m_vaStart;
     gpusize      m_vaSize;
 
-    Util::BuddyAllocator<Pal::Platform>* m_pBuddyAllocator;  // Buddy allocator used for the suballocation
+    Util::BestFitAllocator<Pal::Platform>* m_pSubAllocator;  // Suballocator used for the suballocation
 
     Util::Mutex  m_allocFreeVaLock;                          // Mutex protecting allocation and free of SVM va
 

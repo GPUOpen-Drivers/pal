@@ -391,9 +391,7 @@ Result Queue::SubmitOverlayCmdBuffer(
 
             m_pDevice->GetTextWriter().WriteVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer, expectedMode);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
             barrier.reason = Developer::BarrierReasonDebugOverlayText;
-#endif
 
             pTrackedCmdBuffer->pCmdBuffer->CmdBarrier(barrier);
         }
@@ -402,9 +400,7 @@ Result Queue::SubmitOverlayCmdBuffer(
         {
             m_pDevice->GetTimeGraph().DrawVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
             barrier.reason = Developer::BarrierReasonDebugOverlayGraph;
-#endif
 
             pTrackedCmdBuffer->pCmdBuffer->CmdBarrier(barrier);
         }

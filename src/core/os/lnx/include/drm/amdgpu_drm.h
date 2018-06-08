@@ -110,8 +110,6 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_EXPLICIT_SYNC		(1 << 7)
 
 /* Hybrid specific */
-/* Flag that the memory should be in SPARSE resource */
-#define AMDGPU_GEM_CREATE_SPARSE		(1ULL << 29)
 /* Flag that the memory allocation should be from top of domain */
 #define AMDGPU_GEM_CREATE_TOP_DOWN		(1ULL << 30)
 /* Flag that the memory allocation should be pinned */
@@ -181,6 +179,7 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_OP_ALLOC_CTX	1
 #define AMDGPU_CTX_OP_FREE_CTX	2
 #define AMDGPU_CTX_OP_QUERY_STATE	3
+#define AMDGPU_CTX_OP_QUERY_STATE2	4
 
 /* GPU reset status */
 #define AMDGPU_CTX_NO_RESET		0
@@ -190,6 +189,13 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_INNOCENT_RESET	2
 /* unknown cause */
 #define AMDGPU_CTX_UNKNOWN_RESET	3
+
+/* indicate gpu reset occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_RESET    (1<<0)
+/* indicate vram lost occured after ctx created */
+#define AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST (1<<1)
+/* indicate some job from this context once cause gpu hang */
+#define AMDGPU_CTX_QUERY2_FLAGS_GUILTY   (1<<2)
 
 /* Context priority level */
 #define AMDGPU_CTX_PRIORITY_UNSET       -2048
@@ -679,6 +685,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_FW_SOS		0x0c
 	/* Subquery id: Query PSP ASD firmware version */
 	#define AMDGPU_INFO_FW_ASD		0x0d
+	/* Subquery id: Query VCN firmware version */
+	#define AMDGPU_INFO_FW_VCN		0x0e
 /* number of bytes moved for TTM migration */
 #define AMDGPU_INFO_NUM_BYTES_MOVED		0x0f
 /* the used VRAM size */
@@ -877,6 +885,7 @@ struct drm_amdgpu_info_firmware {
 #define AMDGPU_VRAM_TYPE_GDDR5 5
 #define AMDGPU_VRAM_TYPE_HBM   6
 #define AMDGPU_VRAM_TYPE_DDR3  7
+#define AMDGPU_VRAM_TYPE_DDR4  8
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */

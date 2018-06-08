@@ -55,6 +55,9 @@ using namespace Util;
 
 constexpr int32 InvalidFd = -1; // value representing a invalid file descriptor for Linux
 
+// Maximum number of IB's we will specify in a single submission to the GPU.
+constexpr int32 MaxIbsPerSubmit = 16;
+
 #if __cplusplus
 } // extern "C"
 #endif

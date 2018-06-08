@@ -339,7 +339,8 @@ void MemTracker<Allocator>::MemoryReport()
     while (pCurrent->pNext != nullptr)
     {
         pCurrent = pCurrent->pNext;
-        PAL_DPWARN("AllocSize = %8d, MemBlkType = %s, File = %-15s, LineNumber = %8d, AllocNum = %8d",
+        PAL_DPWARN("ClientMem = 0x%p, AllocSize = %8d, MemBlkType = %s, File = %-15s, LineNumber = %8d, AllocNum = %8d",
+                   pCurrent->pClientMem,
                    pCurrent->size,
                    MemBlkTypeStr[static_cast<uint32>(pCurrent->blockType)],
                    pCurrent->pFilename,

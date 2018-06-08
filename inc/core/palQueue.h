@@ -102,10 +102,8 @@ struct QueueCreateInfo
     uint32        engineIndex;   ///< Which instance of the specified engine type to query. For example, there
                                  ///  can be multiple compute queues, so this parameter distinguished between them.
     SubmitOptMode submitOptMode; ///< A hint telling PAL which submit-time bottlenecks should be optimized, if any.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
     QueuePriority priority;      ///< A hint telling PAL to create queue with proper priority.
                                  ///  It is only supported if supportQueuePriority is set in DeviceProperties.
-#endif
     struct
     {
         uint32 placeholder1      :  1; ///< Reserved field. Set to 0.
@@ -238,9 +236,7 @@ struct PresentDirectInfo
 #endif
     };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 351
     MgpuSlsInfo    mgpuSlsInfo;     ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
-#endif
 };
 
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentSwapChain().

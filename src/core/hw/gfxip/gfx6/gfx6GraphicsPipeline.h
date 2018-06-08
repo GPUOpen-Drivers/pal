@@ -276,10 +276,8 @@ private:
 
     GraphicsPipelineSignature  m_signature;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
     // Stores information about the depth clamp state
     regDB_RENDER_OVERRIDE m_dbRenderOverride;
-#endif
 
     // Private structure used to store/load a graphics pipeline object. Does not include the data from the shader.
     // Should correspond to the data members in Pal::Gfx6::GraphicsPipeline.

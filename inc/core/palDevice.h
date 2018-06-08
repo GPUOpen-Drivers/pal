@@ -1107,20 +1107,14 @@ struct DeviceProperties
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 378
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
-#else
-        bool   supportProSemaphore;      ///< Support export/import semaphore as opaque fd in linux KMD.
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 398
         bool   supportSyncFileFence;     ///< Support export/import fence as sync file in linux KMD.
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
         bool   supportQueuePriority;        ///< Support create queue with priority
         bool   supportDynamicQueuePriority; ///< Support set the queue priority through IQueue::SetExecutionPriority
-#endif
 
         uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
         VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
@@ -3784,28 +3778,6 @@ public:
         void*                  pPlacementAddr,
         IFence**               ppFence) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 348
-    /// Creates a GPU fence object.
-    ///
-    /// @param [in]  initiallySignaled  Specify whether the initial status of the fence is signaled or not
-    /// @param [in]  pPlacementAddr     Pointer to the location where PAL should construct this object.  There must be as
-    ///                                 much size available here as reported by calling GetFenceSize().
-    /// @param [out] ppFence            Constructed fence object.  When successful, the returned address will be
-    ///                                 the same as specified in pPlacementAddr.
-    ///
-    /// @returns Success if the fence was successfully created.  Otherwise, one of the following errors may be returned:
-    ///          + ErrorInvalidPointer if pPlacementAddr or ppFence is null.
-    PAL_INLINE Result CreateFence(
-        bool      initiallySignaled,
-        void*     pPlacementAddr,
-        IFence**  ppFence) const
-    {
-        FenceCreateInfo createInfo = {};
-        createInfo.flags.signaled  = initiallySignaled;
-        return CreateFence(createInfo, pPlacementAddr, ppFence);
-    }
-#endif
-
     /// Opens a fence wihich was shared by another Device.
     ///
     /// @param  [in] openInfo         A reference to FenceOpenInfo, the handle is used if it's not null, or the
@@ -4272,7 +4244,7 @@ public:
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by
     /// calling @ref IGpuMemory::Desc() on the appropriate object.
-    /// Client drivers must call @ref AddGpuMemroyReferences() for all relevant allocations before calling this.
+    /// Client drivers must call @ref AddGpuMemoryReferences() for all relevant allocations before calling this.
     ///
     /// @param [in]  pQueue         Queue used by PAL for performing this operation.
     /// @param [in]  gpuMemCount    Number of GPU memory allocations to expose to remote devices.

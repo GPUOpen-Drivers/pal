@@ -453,8 +453,19 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
         IsAlignedForT2t(dst.offset,               RequiredAlignments) &&
         IsAlignedForT2t(imageCopyInfo.copyExtent, RequiredAlignments))
     {
-        // Wow!  We can use the built-in packet!
+        // Now we can try to use the built-in packet!
         useScanlineCopy = false;
+    }
+
+    // Beyond the documented T2T packet restricitons, there is an apparent hardware bug with OSS 1.0
+    // that causes corruption when copying from a 2D to a 3D image where the source array-slice doesn't
+    // match the destination Z-slice.
+    if ((src.pImage->GetImageCreateInfo().imageType == ImageType::Tex2d) &&
+        (dst.pImage->GetImageCreateInfo().imageType == ImageType::Tex3d) &&
+        (dst.offset.z > 0)                                               &&
+        (dst.offset.z != src.offset.z))
+    {
+        useScanlineCopy = true;
     }
 
     return useScanlineCopy;

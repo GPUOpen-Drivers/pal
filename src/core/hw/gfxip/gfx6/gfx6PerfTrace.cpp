@@ -349,11 +349,7 @@ uint32* SpmTrace::WriteSetupCommands(
 // =====================================================================================================================
 ThreadTrace::ThreadTrace(
     const Device*        pDevice,    ///< [retained] Associated Device object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)      ///< [in] Trace creation info
-#else
     const ThreadTraceInfo& info)      ///< [in] Trace creation info
-#endif
     :
     Pal::ThreadTrace(pDevice->Parent(), info),
     m_device(*pDevice)
@@ -433,11 +429,7 @@ ThreadTrace::ThreadTrace(
 // =====================================================================================================================
 // Initializes one of the thread-trace creation options.
 void ThreadTrace::SetOptions(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)
-#else
     const ThreadTraceInfo& info)
-#endif
 {
     const auto& flags  = info.optionFlags;
     const auto& values = info.optionValues;

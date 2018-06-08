@@ -570,10 +570,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdScanlineCopy(
     Pal::BarrierInfo  barrierInfo  = {};
     barrierInfo.pipePointWaitCount = 1;
     barrierInfo.pPipePoints        = &pipePoints;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     barrierInfo.reason             = Developer::BarrierReasonDmaImgScanlineCopySync;
-#endif
 
     uint32*  pCmdSpace = nullptr;
 

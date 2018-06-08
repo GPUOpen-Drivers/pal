@@ -38,6 +38,8 @@ namespace DevDriver
     {
         enum struct DeviceClockMode : Pal::uint32;
     }
+
+    struct URIRequestContext;
 }
 
 namespace Pal
@@ -92,6 +94,16 @@ public:
     const char* GetName() const override final { return pPipelineDumpServiceName; }
 
 private:
+    // Writes a header into a pipeline dump file
+    void WritePipelineDumpHeader(DevDriver::URIRequestContext* pContext,
+                                 uint64 numRecords);
+
+    // Writes a pipeline record into a pipeline dump file
+    void WritePipelineDumpRecord(DevDriver::URIRequestContext* pContext,
+                                 uint64 pipelineHash,
+                                 uint64 pipelineOffset,
+                                 uint64 pipelineSize);
+
     // Struct for keeping track of pipeline binary data.
     struct PipelineRecord
     {
@@ -105,7 +117,6 @@ private:
     Platform*         m_pPlatform;
     Util::Mutex       m_mutex;
     PipelineRecordMap m_pipelineRecords;
-    uint32            m_maxPipelineBinarySize;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineDumpService);
     PAL_DISALLOW_DEFAULT_CTOR(PipelineDumpService);

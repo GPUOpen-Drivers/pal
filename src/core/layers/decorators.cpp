@@ -64,9 +64,7 @@ CmdBufferBuildInfo NextCmdBufferBuildInfo(
     const CmdBufferBuildInfo& buildInfo)
 {
     CmdBufferBuildInfo nextBuildInfo = buildInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
     nextBuildInfo.pStateInheritCmdBuffer = NextCmdBuffer(buildInfo.pStateInheritCmdBuffer);
-#endif
 
     return nextBuildInfo;
 }
@@ -2276,14 +2274,12 @@ Result QueueDecorator::PresentDirect(
     nextPresentInfo.pDstImage = NextImage(presentInfo.pDstImage);
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 351
     PAL_ASSERT(presentInfo.mgpuSlsInfo.imageCount <= MaxMgpuSlsImageCount);
 
     for (uint32 i = 0; i < presentInfo.mgpuSlsInfo.imageCount; i++)
     {
         nextPresentInfo.mgpuSlsInfo.pImage[i] = NextImage(presentInfo.mgpuSlsInfo.pImage[i]);
     }
-#endif
 
     return m_pNextLayer->PresentDirect(nextPresentInfo);
 }

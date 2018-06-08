@@ -1496,7 +1496,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 {
     DccFormatEncoding dccFormatEncoding = DccFormatEncoding::Optimal;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     if (imageCreateInfo.viewFormatCount == AllCompatibleFormats)
     {
         // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
@@ -1558,15 +1557,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             }
         }
     }
-#else
-    if ((imageCreateInfo.flags.formatChangeSrd != 0) || (imageCreateInfo.flags.formatChangeTgt != 0))
-    {
-        // In the generic case if formatChangeSrd or formatChangeTgt is requested then all compatible formats are
-        // assumed to be potential valid view formats and none of the format compatibility classes comprise only of
-        // formats that are DCC compatible.
-        dccFormatEncoding = DccFormatEncoding::Incompatible;
-    }
-#endif
 
     return dccFormatEncoding;
 }

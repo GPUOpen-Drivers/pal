@@ -623,10 +623,7 @@ void MlaaUtil<Allocator>::ResolveImage(
 
     barrier.transitionCount = 1;
     barrier.pTransitions    = &transition;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     barrier.reason          = Pal::Developer::BarrierReasonMlaaResolveEdgeSync;
-#endif
 
     Pal::uint32 iterationDepth = 0;
 

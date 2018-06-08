@@ -76,13 +76,9 @@ public:
 
     virtual Result GetGlobalCounterLayout(
         GlobalCounterLayout* pLayout) const override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    virtual Result AddTrace(
-        const PerfTraceInfo& info) override;
-#else
+
     virtual Result AddThreadTrace(
         const ThreadTraceInfo& info) override;
-#endif
 
     virtual Result GetThreadTraceLayout(
         ThreadTraceLayout* pLayout) const override;
@@ -115,11 +111,7 @@ protected:
     virtual ~PerfExperiment();
 
     virtual Result CreateCounter(const PerfCounterInfo& info, PerfCounter** ppCounter) = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    virtual Result CreateThreadTrace(const PerfTraceInfo& info) = 0;
-#else
     virtual Result CreateThreadTrace(const ThreadTraceInfo& info) = 0;
-#endif
 
     virtual Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, SpmTrace** ppSpmTrace) = 0;
     virtual StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) = 0;

@@ -1921,12 +1921,10 @@ void RsrcProcMgr::CmdScaledCopyImage(
     {
         colorKeyEnableMask = 2;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 349
     else if (copyInfo.flags.srcAlpha)
     {
         alphaBlendEnableMask = 4;
     }
-#endif
 
     if (colorKeyEnableMask > 0)
     {
@@ -2869,13 +2867,8 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
                                           pBoundColorTargets[colorIndex].swizzledFormat), });
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(pBoundColorTargets[colorIndex].swizzledFormat,
                                                      pBoundColorTargets[colorIndex].targetIndex);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 354)
-        pCmdBuffer->CmdBindMsaaState(GetMsaaState(pBoundColorTargets[colorIndex].samples,
-                                                  pBoundColorTargets[colorIndex].samples));
-#else
         pCmdBuffer->CmdBindMsaaState(GetMsaaState(pBoundColorTargets[colorIndex].samples,
                                                   pBoundColorTargets[colorIndex].fragments));
-#endif
 
         RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
@@ -5860,9 +5853,8 @@ static void PreComputeColorClearSync(
     transition.dstCacheMask       = CoherShader;
     preBarrier.transitionCount    = 1;
     preBarrier.pTransitions       = &transition;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     preBarrier.reason             = Developer::BarrierReasonPreComputeColorClear;
-#endif
+
     pCmdBuffer->CmdBarrier(preBarrier);
 }
 
@@ -5884,9 +5876,8 @@ static void PostComputeColorClearSync(
     transition.dstCacheMask        = CoherColorTarget;
     postBarrier.transitionCount    = 1;
     postBarrier.pTransitions       = &transition;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     postBarrier.reason             = Developer::BarrierReasonPostComputeColorClear;
-#endif
+
     pCmdBuffer->CmdBarrier(postBarrier);
 }
 
@@ -5917,9 +5908,8 @@ void PreComputeDepthStencilClearSync(
 
     preBarrier.transitionCount             = 1;
     preBarrier.pTransitions                = &transition;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     preBarrier.reason                      = Developer::BarrierReasonPreComputeDepthStencilClear;
-#endif
+
     pCmdBuffer->CmdBarrier(preBarrier);
 }
 
@@ -5941,9 +5931,8 @@ void PostComputeDepthStencilClearSync(
     transition.dstCacheMask        = CoherDepthStencilTarget;
     postBarrier.transitionCount    = 1;
     postBarrier.pTransitions       = &transition;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     postBarrier.reason             = Developer::BarrierReasonPostComputeDepthStencilClear;
-#endif
+
     pCmdBuffer->CmdBarrier(postBarrier);
 }
 

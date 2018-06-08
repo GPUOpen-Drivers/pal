@@ -84,6 +84,18 @@ public:
         return (*this);
     }
 
+    /// Equality operator. Returns true if two iterators point to the same position in the list.
+    bool operator ==(const ListIterator<T, Allocator>& listIterator)
+    {
+        return (m_pList == listIterator.m_pList) && (m_pCurrent == listIterator.m_pCurrent);
+    }
+
+    /// Inequality operator. Returns false if two iterators are equal.
+    bool operator !=(const ListIterator<T, Allocator>& listIterator)
+    {
+        return !(*this == listIterator);
+    }
+
 private:
     ListIterator(const List<T, Allocator>* pList, ListNode<T>* pStart);
 

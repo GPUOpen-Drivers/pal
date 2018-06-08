@@ -2614,11 +2614,6 @@ static void DumpResolveMode(
     case ResolveMode::Maximum:
         Snprintf(pString, StringLength, "ResolveMode: Max");
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 356
-    case ResolveMode::Decompress:
-        Snprintf(pString, StringLength, "ResolveMode: Decompress");
-        break;
-#endif
     default:
         Snprintf(pString, StringLength, "ResolveMode: Unknown");
         PAL_NEVER_CALLED();

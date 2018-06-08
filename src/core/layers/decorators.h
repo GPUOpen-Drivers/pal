@@ -2236,11 +2236,6 @@ public:
         m_pNextLayer(pNextImage), m_pDevice(pNextDevice)
     {}
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 365
-    virtual Result GetMemoryLayout(
-        ImageMemoryLayout* pLayout) const override
-        { return m_pNextLayer->GetMemoryLayout(pLayout); }
-#endif
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_pNextLayer->GetMemoryLayout(); }
 
@@ -2373,15 +2368,9 @@ public:
         GlobalCounterLayout* pLayout) const override
         { return m_pNextLayer->GetGlobalCounterLayout(pLayout); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    virtual Result AddTrace(
-        const PerfTraceInfo& traceInfo) override
-        { return m_pNextLayer->AddTrace(traceInfo); }
-#else
     virtual Result AddThreadTrace(
         const ThreadTraceInfo& traceInfo) override
         { return m_pNextLayer->AddThreadTrace(traceInfo); }
-#endif
 
     virtual Result AddSpmTrace(
         const SpmTraceCreateInfo& spmInfo) override
@@ -2494,9 +2483,7 @@ public:
         QueryType        queryType,
         uint32           startQuery,
         uint32           queryCount,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
         const void*      pMappedGpuAddr,
-#endif
         size_t*          pDataSize,
         void*            pData,
         size_t           stride) override
@@ -2505,9 +2492,7 @@ public:
                                             queryType,
                                             startQuery,
                                             queryCount,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
                                             pMappedGpuAddr,
-#endif
                                             pDataSize,
                                             pData,
                                             stride);

@@ -61,21 +61,12 @@ Queue::Queue(
     m_busyCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
     m_availableNestedCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyNestedCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    m_availableGartGpuMem(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_busyGartGpuMem(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_availablePipeStatsQueries(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_busyPipeStatsQueries(static_cast<Platform*>(pDevice->GetPlatform())),
-#endif
     m_availableGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_numReportedPerfCounters(0),
     m_availableFences(static_cast<Platform*>(pDevice->GetPlatform())),
     m_pendingSubmits(static_cast<Platform*>(pDevice->GetPlatform())),
     m_profilingModeEnabled(false),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    m_curGartGpuMemOffset(0),
-#endif
     m_logItems(static_cast<Platform*>(pDevice->GetPlatform())),
     m_curLogFrame(0),
     m_curLogCmdBufIdx(0),
@@ -83,9 +74,6 @@ Queue::Queue(
 {
     memset(&m_nestedAllocatorCreateInfo, 0, sizeof(m_nestedAllocatorCreateInfo));
     memset(&m_gpaSessionSampleConfig,    0, sizeof(m_gpaSessionSampleConfig));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    memset(&m_curGartGpuMem,             0, sizeof(m_curGartGpuMem));
-#endif
     memset(&m_nextSubmitInfo,            0, sizeof(m_nextSubmitInfo));
     memset(&m_perFrameLogItem,           0, sizeof(m_perFrameLogItem));
 
@@ -113,9 +101,6 @@ Queue::~Queue()
 
     PAL_ASSERT(m_busyCmdBufs.NumElements() == 0);
     PAL_ASSERT(m_busyNestedCmdBufs.NumElements() == 0);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    PAL_ASSERT(m_busyGartGpuMem.NumElements() == 0);
-#endif
     PAL_ASSERT(m_pendingSubmits.NumElements() == 0);
     PAL_ASSERT(m_busyGpaSessions.NumElements() == 0);
 
@@ -140,29 +125,6 @@ Queue::~Queue()
         PAL_SAFE_FREE(info.pCmdAllocator, m_pDevice->GetPlatform());
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    while (m_availableGartGpuMem.NumElements() > 0)
-    {
-        GpuMemoryInfo info = {};
-        m_availableGartGpuMem.PopFront(&info);
-
-        PAL_ASSERT(info.pGpuMemory != nullptr);
-
-        info.pGpuMemory->Unmap();
-        info.pGpuMemory->Destroy();
-        PAL_SAFE_FREE(info.pGpuMemory, m_pDevice->GetPlatform());
-    }
-
-    while (m_availablePipeStatsQueries.NumElements() > 0)
-    {
-        IQueryPool* pQuery = nullptr;
-        m_availablePipeStatsQueries.PopFront(&pQuery);
-
-        pQuery->Destroy();
-        PAL_SAFE_FREE(pQuery, m_pDevice->GetPlatform());
-    }
-#endif
-
     while (m_availableGpaSessions.NumElements() > 0)
     {
         GpuUtil::GpaSession* pGpaSession = nullptr;
@@ -186,14 +148,6 @@ Queue::~Queue()
         PAL_SAFE_FREE(m_pCmdAllocator, m_pDevice->GetPlatform());
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    if (m_curGartGpuMem.pGpuMemory != nullptr)
-    {
-        m_curGartGpuMem.pGpuMemory->Unmap();
-        m_curGartGpuMem.pGpuMemory->Destroy();
-        PAL_SAFE_FREE(m_curGartGpuMem.pGpuMemory, m_pDevice->GetPlatform());
-    }
-#endif
     PAL_SAFE_FREE(m_pGlobalPerfCounterValues, m_pDevice->GetPlatform());
 
     DestroyGpaSessionSampleConfig();
@@ -791,174 +745,6 @@ TargetCmdBuffer* Queue::AcquireNestedCmdBuf()
     return info.pCmdBuffer;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-// =====================================================================================================================
-// Acquires a range of queue-owned GPU memory for use by the next command buffer submission.
-void Queue::AcquireGpuMem(
-    gpusize        size,
-    gpusize        alignment,
-    GpuHeap        heapType,
-    GpuMemoryInfo* pGpuMem,
-    gpusize*       pOffset)
-{
-    Util::Deque<GpuMemoryInfo, Platform>* pBusyList      = &m_busyGartGpuMem;
-    Util::Deque<GpuMemoryInfo, Platform>* pAvailableList = &m_availableGartGpuMem;
-
-    GpuMemoryInfo* pCurGpuMem       = &m_curGartGpuMem;
-    gpusize*       pCurGpuMemOffset = &m_curGartGpuMemOffset;
-
-    *pCurGpuMemOffset = Pow2Align(*pCurGpuMemOffset, alignment);
-
-    // If there isn't enough space left in the current allocation to fulfill this request, get a new allocation.  This
-    // is done in a loop to handle the low GPU memory case where we may need to wait for prior work to finish then
-    // try again.
-    while ((pCurGpuMem->pGpuMemory == nullptr) || ((*pCurGpuMemOffset) + size > pCurGpuMem->pGpuMemory->Desc().size))
-    {
-        // Mark the current allocation as busy and associated with the upcoming submit.
-        if (pCurGpuMem->pGpuMemory != nullptr)
-        {
-            pBusyList->PushBack(*pCurGpuMem);
-            m_nextSubmitInfo.gpuMemCount++;
-        }
-
-        if (pAvailableList->NumElements() > 0)
-        {
-            // We already have an idle GPU memory allocation in the pool, return that to the caller.
-            pAvailableList->PopFront(pCurGpuMem);
-        }
-        else
-        {
-            const auto&   settings = m_pDevice->ProfilerSettings();
-            const gpusize pageSize = m_pDevice->FragmentSize();
-
-            const gpusize sqttBufferSize = (m_pDevice->GetProfilerMode() > GpuProfilerDisabled) ?
-                                           (settings.gpuProfilerSqttBufferSize * m_shaderEngineCount + pageSize) : 0;
-
-            // If there aren't any idle allocations, allocate a new piece of GPU memory.
-            constexpr gpusize MaxRaftSize       = 0x400000ull;
-            const gpusize     gpuMemoryRaftSize = Max<gpusize>(MaxRaftSize, Pow2Align(sqttBufferSize, pageSize));
-            PAL_ASSERT(size <= gpuMemoryRaftSize);
-
-            GpuMemoryCreateInfo createInfo = { };
-            createInfo.size      = gpuMemoryRaftSize;
-            createInfo.alignment = pageSize;
-            createInfo.vaRange   = VaRange::Default;
-            createInfo.heapCount = 1;
-            createInfo.heaps[0]  = heapType;
-            createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
-
-            void* pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, nullptr),
-                                       m_pDevice->GetPlatform(),
-                                       AllocInternal);
-
-            Result result = Result::ErrorOutOfMemory;
-
-            if (pMemory != nullptr)
-            {
-                result = m_pDevice->CreateGpuMemory(createInfo, pMemory, &pCurGpuMem->pGpuMemory);
-            }
-
-            if (result == Result::Success)
-            {
-                // GPU profiler memory is perma-resident.
-                GpuMemoryRef memRef = {};
-                memRef.pGpuMemory = pCurGpuMem->pGpuMemory;
-
-                result = m_pDevice->AddGpuMemoryReferences(1, &memRef, this, GpuMemoryRefCantTrim);
-            }
-
-            if ((result == Result::Success) && (heapType != GpuHeapInvisible))
-            {
-                // GPU profiler memory is perma-mapped.
-                result = pCurGpuMem->pGpuMemory->Map(&pCurGpuMem->pCpuAddr);
-            }
-
-            if (result != Result::Success)
-            {
-                if (pCurGpuMem->pGpuMemory != nullptr)
-                {
-                    pCurGpuMem->pGpuMemory->Destroy();
-                    pCurGpuMem->pGpuMemory = nullptr;
-                    pCurGpuMem->pCpuAddr   = nullptr;
-                }
-
-                PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
-
-                // Look for any GPU memory that can be reclaimed by submitting and waiting idle.
-                WaitIdle();
-                ProcessIdleSubmits();
-
-                // Hitting this assert means that we are out of GPU memory.  Consider enabling
-                // GpuProfilerBreakSubmitBatches, reducing the amount of data collected (e.g., reduce
-                // GpuProfilerSqttBufferSize or reduce number of global perf counters listed in the
-                // GpuProfilerGlobalPerfCounterConfigFile), reducing the granularity in GpuProfilerGranularity (only
-                // record data per command buffer instead of per draw), or enable profiling filtering to only gather
-                // data under certain circumstances.
-                PAL_ASSERT(pAvailableList->NumElements() > 0);
-            }
-        }
-
-        *pCurGpuMemOffset = 0;
-    }
-
-    *pGpuMem = *pCurGpuMem;
-    *pOffset = *pCurGpuMemOffset;
-
-    *pCurGpuMemOffset += size;
-}
-
-// =====================================================================================================================
-// Acquires a queue-owned pipeline stats query.
-IQueryPool* Queue::AcquirePipeStatsQuery()
-{
-    IQueryPool* pQuery= nullptr;
-
-    if (m_availablePipeStatsQueries.NumElements() > 0)
-    {
-        // Use an idle query if available.
-        m_availablePipeStatsQueries.PopFront(&pQuery);
-    }
-    else
-    {
-        // No queries are currently idle (or possibly none exist at all) - allocate a new one.
-        QueryPoolCreateInfo createInfo = { };
-        createInfo.queryPoolType = QueryPoolType::PipelineStats;
-        createInfo.numSlots      = 1;
-        createInfo.enabledStats  = QueryPipelineStatsAll;
-
-        void* pMemory = PAL_MALLOC(m_pDevice->GetQueryPoolSize(createInfo, nullptr),
-                                   m_pDevice->GetPlatform(),
-                                   AllocInternal);
-
-        if (pMemory != nullptr)
-        {
-            Result result = m_pDevice->CreateQueryPool(createInfo, pMemory, &pQuery);
-
-            if (result != Result::Success)
-            {
-                PAL_SAFE_FREE(pMemory, m_pDevice->GetPlatform());
-            }
-        }
-    }
-
-    PAL_ASSERT(pQuery != nullptr);
-    m_busyPipeStatsQueries.PushBack(pQuery);
-    m_nextSubmitInfo.pipeStatsQueryCount++;
-
-    // Acquire GPU memory for the query from the pool and bind it.
-    GpuMemoryRequirements gpuMemReqs = { };
-    pQuery->GetGpuMemoryRequirements(&gpuMemReqs);
-
-    GpuMemoryInfo gpuMemInfo;
-    gpusize       offset;
-    AcquireGpuMem(gpuMemReqs.size, gpuMemReqs.alignment, GpuHeapGartCacheable, &gpuMemInfo, &offset);
-
-    pQuery->BindGpuMemory(gpuMemInfo.pGpuMemory, offset);
-
-    return pQuery;
-}
-#endif
-
 // =====================================================================================================================
 // Acquires a queue-owned GPA session based on the device's performance experiment requests.
 Result Queue::AcquireGpaSession(
@@ -1076,28 +862,6 @@ void Queue::ProcessIdleSubmits()
 
             m_availableNestedCmdBufs.PushBack(info);
         }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-        for (uint32 i = 0; i < submitInfo.gpuMemCount; i++)
-        {
-            if (m_busyGartGpuMem.NumElements() > 0)
-            {
-                GpuMemoryInfo info = {};
-                m_busyGartGpuMem.PopFront(&info);
-                m_availableGartGpuMem.PushBack(info);
-            }
-        }
-
-        for (uint32 i = 0; i < submitInfo.pipeStatsQueryCount; i++)
-        {
-            IQueryPool* pQuery = nullptr;
-            m_busyPipeStatsQueries.PopFront(&pQuery);
-
-            pQuery->BindGpuMemory(nullptr, 0);
-
-            m_availablePipeStatsQueries.PushBack(pQuery);
-        }
-#endif
 
         for (uint32 i = 0; i < submitInfo.gpaSessionCount; i++)
         {
@@ -1341,17 +1105,9 @@ void Queue::DestroyGpaSessionSampleConfig()
 // Check if the logItem contains a valid GPA sample.
 bool Queue::HasValidGpaSample(
     const LogItem* pLogItem,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    bool isTimingMode
-#else
     GpuUtil::GpaSampleType type
-#endif
 ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 355
-    uint32 sampleId = isTimingMode ? pLogItem->gpaSampleIdTs : pLogItem->gpaSampleId;
-    return ((pLogItem->pGpaSession != nullptr) && (sampleId != GpuUtil::InvalidSampleId));
-#else
     uint32 sampleId = GpuUtil::InvalidSampleId;
 
     if (pLogItem->pGpaSession != nullptr)
@@ -1374,7 +1130,6 @@ bool Queue::HasValidGpaSample(
     }
 
     return (sampleId != GpuUtil::InvalidSampleId);
-#endif
 }
 
 } // GpuProfiler

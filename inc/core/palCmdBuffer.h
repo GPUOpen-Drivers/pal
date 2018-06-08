@@ -331,15 +331,8 @@ struct CmdBufferCreateInfo
             /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
             uint32  realtimeComputeUnits :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 370 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 380
-            /// Placeholder.
-            uint32  placeholder0         :  1;
-            /// Reserved for future use.
-            uint32  reserved             : 29;
-#else
             /// Reserved for future use.
             uint32  reserved             : 30;
-#endif
         };
 
         /// Flags packed as 32-bit uint.
@@ -453,11 +446,9 @@ struct CmdBufferBuildInfo
     /// command buffer needs to be provided here.
     const InheritedStateParams* pInheritedState;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
     /// If non-null, the command buffer will begin with all states set as they are in this previously built command
     /// buffer. Any state specified in pInheritedState is excluded if it is also provided.
     const ICmdBuffer* pStateInheritCmdBuffer;
-#endif
 
     /// Optional allocator for PAL to use when allocating temporary memory during command buffer building.  PAL will
     /// stop using this allocator once command building ends.  If no allocator is provided PAL will use an internally
@@ -706,9 +697,7 @@ struct BarrierInfo
     ///       creating GPU events used exclusively for this purpose.
     const IGpuEvent*  pSplitBarrierGpuEvent;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     uint32 reason; ///< The reason that the barrier was invoked.
-#endif
 };
 
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a
@@ -882,10 +871,6 @@ enum class ResolveMode : uint32
     Average     = 0x0,   ///< Resolve result is an average of all the individual samples
     Minimum     = 0x1,   ///< Resolve result is the minimum value of all individual samples
     Maximum     = 0x2,   ///< Resolve result is the maximum value of all individual samples
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 356
-    Decompress  = 0x3,   ///< Decompress compressed MSAA image. Either in place or to another MSAA image.
-                         ///< Source and destination sample count must match.
-#endif
     Count       = 0x4,
 };
 
@@ -1283,9 +1268,7 @@ struct BoundColorTarget
     uint32         targetIndex;    ///< Render target index where the target image is currently bound.
     SwizzledFormat swizzledFormat; ///< Format and swizzle of the target image.
     uint32         samples;        ///< Sample count for the target.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 354)
     uint32         fragments;      ///< Fragment count for the target.
-#endif
     ClearColor     clearValue;     ///< clear color value.
 };
 
@@ -1373,13 +1356,9 @@ union ScaledCopyFlags
                                   ///< should be replaced with the corresponding pixel from the source image, and all of
                                   ///< the destination pixels that do not match the color key should not be replaced.
                                   ///< Mutually exclusive with srcColorKey.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 349
         uint32 srcAlpha     : 1;  ///< If set, use alpha channel in source surface as blend factor.
                                   ///< color = src alpha * src color + (1.0 - src alpha) * dst color.
         uint32 reserved     : 29; ///< reserved for future useage.
-#else
-        uint32 reserved     : 30; ///< reserved for future useage.
-#endif
     };
     uint32 u32All;                ///< Flags packed as uint32.
 };
@@ -2313,21 +2292,6 @@ public:
         DepthStencilSelectFlags         flag,
         uint32                          regionCount,
         const ClearBoundTargetRegion*   pClearRegions) = 0;
-
-    // Passthrough to CmdClearBoundDepthStencilTargets for clients that are using a version prior to 354.
-    // Passes in the sample count as fragment count to match previous behaviour.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 354)
-    PAL_INLINE void CmdClearBoundDepthStencilTargets(
-        float                           depth,
-        uint8                           stencil,
-        uint32                          samples,
-        DepthStencilSelectFlags         flag,
-        uint32                          regionCount,
-        const ClearBoundTargetRegion*   pClearRegions)
-    {
-        CmdClearBoundDepthStencilTargets(depth, stencil, samples, samples, flag, regionCount, pClearRegions);
-    }
-#endif
 
     /// Clears a depth/stencil image to the specified clear values.
     ///

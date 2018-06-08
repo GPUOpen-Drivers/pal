@@ -116,46 +116,6 @@ enum class MetadataSharingLevel : uint32
     FullOptimal = 2,    ///< The metadata can remain as-is if possible at ownership transition time.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
-/// Specifies a set of image creation flags.
-union ImageCreateFlags
-{
-    struct
-    {
-        uint32 invariant               :  1; ///< Images with this flag set and all other creation identical are
-                                             ///  guaranteed to have a consistent data layout.
-        uint32 cloneable               :  1; ///< Image is valid as a source or destination of a clone operation.
-        uint32 shareable               :  1; ///< Image can be shared between compatible devices.
-        uint32 flippable               :  1; ///< Image can be used for flip presents.
-        uint32 stereo                  :  1; ///< Whether it is a stereo image
-        uint32 formatChangeSrd         :  1; ///< Indicates views created for this image can use a different format.
-        uint32 formatChangeTgt         :  1; ///< Indicates targets created for this image can use a different format.
-        uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
-        uint32 prt                     :  1; ///< Image is a partially resident texture (aka, sparse image or tiled
-                                             ///  resource)
-        uint32 noMetadata              :  1; ///< This image's GPU memory will not contain any metadata.
-        uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
-        uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
-                                             ///  CmdBarrier calls out of the uninitialized layout.
-        uint32 separateDepthAspectInit :  1; ///< If set, the caller may transition the stencil and depth aspects from
-                                             ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
-                                             ///  transitioned in the same barrier call.  Only meaningful if
-                                             /// "perSubresInit" is set
-        uint32 copyFormatsMatch        :  1; ///< Optimization: When this image is used as an argument to CmdCopyImage,
-                                             ///  its format must match the format of the other image.
-        uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
-                                             ///  is mostly similar to this image?
-        uint32 preferSwizzleEqs        :  1; ///< Image prefers valid swizzle equations, but an invalid swizzle
-                                             ///  equation is also acceptable.
-        uint32 fixedTileSwizzle        :  1; ///< Fix this image's tile swizzle to ImageCreateInfo::tileSwizzle. This
-                                             ///  is only supported for single-sampled color images.
-        uint32 videoReferenceOnly      :  1; ///< Image is used by video hardware for reference buffer only.
-                                             ///  It uses a different tiling format than the decoder output buffer.
-        uint32 reserved                : 14; ///< Reserved for future use.
-    };
-    uint32 u32All;                     ///< Flags packed as 32-bit uint.
-};
-#else // if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
 /// Specifies a set of image creation flags.
 union ImageCreateFlags
 {
@@ -188,7 +148,6 @@ union ImageCreateFlags
                                              ///  is only supported for single-sampled color images.
         uint32 videoReferenceOnly      :  1; ///< Image is used by video hardware for reference buffer only.
                                              ///  It uses a different tiling format than the decoder output buffer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
         uint32 optimalShareable        :  1; ///< Indicates metadata information is to be added into private data on
                                              ///  creation time and honored on open time.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
@@ -197,13 +156,9 @@ union ImageCreateFlags
 #else
         uint32 reserved                : 15; ///< Reserved for future use.
 #endif
-#else
-        uint32 reserved                : 16; ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                     ///< Flags packed as 32-bit uint.
 };
-#endif
 
 /// Specifies a set of ways an image might be used by the GPU (color target, shader read, etc.).
 union ImageUsageFlags
@@ -278,7 +233,6 @@ struct ImageCreateInfo
 
     Rational           stereoRefreshRate; ///< The expected refresh rate when presenting this stero image.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
                                           ///  or the special value AllCompatibleFormats to indicate that all
                                           ///  compatible formats can be used as a view format.
@@ -291,7 +245,6 @@ struct ImageCreateInfo
                                           ///  the default values of zero and nullptr, respectively.
                                           ///  Note that this array is consumed at image creation time and should
                                           ///  not be accessed afterwards through GetImageCreateInfo().
-#endif
 
 };
 
@@ -346,12 +299,7 @@ struct PrivateScreenImageCreateInfo
         {
             uint32 invariant       :  1; ///< Images with this flag set and all other creation identical are guaranteed
                                          ///  to have a consistent data layout.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
             uint32 reserved        : 31; ///< Reserved for future use.
-#else
-            uint32 formatChangeSrd :  1; ///< Indicates views created for this image can use a different format.
-            uint32 reserved        : 30; ///< Reserved for future use.
-#endif
         };
         uint32 u32All;                 ///< Flags packed as 32-bit uint.
     } flags;                           ///< Private screen image creation flags.
@@ -361,7 +309,6 @@ struct PrivateScreenImageCreateInfo
     Extent2d        extent;         ///< Width/height of the image.
     IPrivateScreen* pScreen;        ///< Private screen this image is created on (then this image can be used to be
                                     ///  presented on this private screen).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     uint32             viewFormatCount;   ///< Number of additional image formats views of this image can be used with
                                           ///  or the special value AllCompatibleFormats to indicate that all
                                           ///  compatible formats can be used as a view format.
@@ -374,7 +321,6 @@ struct PrivateScreenImageCreateInfo
                                           ///  the default values of zero and nullptr, respectively.
                                           ///  Note that this array is consumed at image creation time and should
                                           ///  not be accessed afterwards through GetImageCreateInfo().
-#endif
 };
 
 /// Specifies parameters for opening another device's image for peer access from this device.  Input structure to
@@ -477,18 +423,6 @@ struct SubresRange
 class IImage : public IGpuMemoryBindable
 {
 public:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 365
-    /// Reports information on the layout of the image in memory.
-    ///
-    /// @param [out] pLayout Reports info on the memory layout such as core data size and metadata alignment.
-    ///
-    /// @returns Success if the layout was successfully reported.  Otherwise, one of the following error codes may be
-    ///          returned:
-    ///          + ErrorInvalidPointer if pLayout is null.
-    virtual Result GetMemoryLayout(
-        ImageMemoryLayout* pLayout) const = 0;
-#endif
-
     /// Reports information on the layout of the image in memory such as core data size and metadata alignment.
     ///
     /// @returns the reference to ImageCreateInfo

@@ -380,6 +380,62 @@ private:
 };
 
 /**
+***********************************************************************************************************************
+* @brief Non-templated wrapper class around a templated Allocator. More indirect than encapsulating a typed Allocator
+* directly, but is useful for simplifying the implementation details of certain utilities.
+***********************************************************************************************************************
+*/
+class IndirectAllocator
+{
+public:
+    /// Constructor.
+    template <typename Allocator>
+    IndirectAllocator(Allocator*const pAllocator)
+        :
+        m_pAllocator(pAllocator),
+        m_pfnAlloc(&DispatchAlloc<Allocator>),
+        m_pfnFree(&DispatchFree<Allocator>)
+    { }
+
+    /// Allocates memory.
+    ///
+    /// @param [in] allocInfo Contains information about the requested allocation.
+    ///
+    /// @returns Pointer to the allocated memory, nullptr if the allocation failed.
+    void* Alloc(const AllocInfo& allocInfo) { return m_pfnAlloc(m_pAllocator, allocInfo); }
+
+    /// Frees memory.
+    ///
+    /// @param [in] freeInfo Contains information about the requested free.
+    void  Free(const FreeInfo& freeInfo) { return m_pfnFree(m_pAllocator, freeInfo); }
+
+private:
+    /// @internal Allocation dispatch function. This is what the non-templated m_pfnAlloc callback pointer references.
+    template <typename Allocator>
+    static void* DispatchAlloc(void*const pAllocator, const AllocInfo& allocInfo)
+    {
+        auto*const pTypedAllocator = static_cast<Allocator*const>(pAllocator);
+        return pTypedAllocator->Alloc(allocInfo);
+    }
+
+    /// @internal Free dispatch function. This is what the non-templated m_pfnFree callback pointer references.
+    template <typename Allocator>
+    static void  DispatchFree(void*const pAllocator, const FreeInfo& freeInfo)
+    {
+        auto*const pTypedAllocator = static_cast<Allocator*const>(pAllocator);
+        pTypedAllocator->Free(freeInfo);
+    }
+
+    using DispatchAllocCb = void* (*)(void*const, const AllocInfo&);
+    using DispatchFreeCb  = void  (*)(void*const, const FreeInfo&);
+
+    void*const m_pAllocator;
+
+    const DispatchAllocCb m_pfnAlloc;
+    const DispatchFreeCb  m_pfnFree;
+};
+
+/**
  ***********************************************************************************************************************
  * @brief A generic allocator class that allocate and free memory for general purpose use.
  ***********************************************************************************************************************

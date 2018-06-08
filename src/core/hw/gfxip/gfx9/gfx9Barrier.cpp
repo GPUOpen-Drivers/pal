@@ -493,12 +493,13 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-            RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                             pCmdStream,
-                                             gfx9Image,
-                                             pMsaaState,
-                                             transition.imageInfo.pQuadSamplePattern,
-                                             subresRange);
+            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
+            fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                                  pCmdStream,
+                                                                  gfx9Image,
+                                                                  pMsaaState,
+                                                                  transition.imageInfo.pQuadSamplePattern,
+                                                                  subresRange);
 
             pMsaaState->Destroy();
             PAL_SAFE_FREE(pMsaaState, &allocator);
@@ -887,11 +888,7 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     if (barrier.flags.splitBarrierLatePhase == 0)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
         DescribeBarrierStart(pCmdBuf, barrier.reason);
-#else
-        DescribeBarrierStart(pCmdBuf);
-#endif
 
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
@@ -1330,25 +1327,19 @@ void Device::Barrier(
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void Device::DescribeBarrierStart(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     GfxCmdBuffer* pCmdBuf,
     uint32        reason
-#else
-    GfxCmdBuffer* pCmdBuf
-#endif
     ) const
 {
     Developer::BarrierData barrierData = {};
 
     barrierData.pCmdBuffer = pCmdBuf;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     // Make sure we have an acceptable barrier reason.
     PAL_ALERT_MSG((GetPlatform()->IsDevDriverProfilingEnabled() && (reason == Developer::BarrierReasonInvalid)),
                   "Invalid barrier reason codes are not allowed!");
 
     barrierData.reason = reason;
-#endif
 
     m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &barrierData);
 }

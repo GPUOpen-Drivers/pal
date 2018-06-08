@@ -67,10 +67,10 @@ public:
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
     uint32* WriteSetOneConfigReg(
-        uint32                          regAddr,
-        uint32                          regData,
-        uint32*                         pCmdSpace,
-        PFP_SET_UCONFIG_REG_index_enum  index = index__pfp_set_uconfig_reg__default);
+        uint32                                regAddr,
+        uint32                                regData,
+        uint32*                               pCmdSpace,
+        PFP_SET_UCONFIG_REG_INDEX_index_enum  index = index__pfp_set_uconfig_reg_index__default);
 
     template <bool pm4OptImmediate>
     uint32* WriteSetOneContextReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);

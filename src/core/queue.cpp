@@ -103,11 +103,7 @@ Queue::Queue(
     // the RtCuHighCompute and Exclusive Compute are only supported on Windows now.
     m_queuePriority = (m_engineType == EngineTypeExclusiveCompute) ?
                                        QueuePriority::High :
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 364
                                        createInfo.priority;
-#else
-                                       QueuePriority::Low;
-#endif
 
     const auto engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
     if (engineSubType == EngineSubType::RtCuHighCompute)
@@ -351,9 +347,6 @@ Result Queue::SubmitInternal(
 
         if (submitInfo.pFence != nullptr)
         {
-            // Associate fence with this queue's submission context. It is assumed that any previous submits associated
-            // with this fence have already been reset explicitly.
-            PAL_ASSERT(static_cast<Fence*>(submitInfo.pFence)->IsReset());
             static_cast<Fence*>(submitInfo.pFence)->AssociateWithContext(m_pSubmissionContext);
         }
 

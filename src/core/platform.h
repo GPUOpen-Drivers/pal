@@ -155,9 +155,7 @@ public:
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     bool SvmModeEnabled()     const { return m_flags.enableSvmMode; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
     bool RequestShadowDescVaRange() const { return m_flags.requestShadowDescVaRange; }
-#endif
 
     gpusize GetSvmRangeStart() const { return m_svmRangeStart; }
     void SetSvmRangeStart(gpusize svmRangeStart) { m_svmRangeStart = svmRangeStart; }
@@ -261,13 +259,9 @@ private:
             uint32 force32BitVaSpace          :  1;     // Forces 32 bit VA space for the flat address in 32 bit ISA
             uint32 createNullDevice           :  1;     // If set, creates a NULL device based on the nullGpuId
             uint32 enableSvmMode              :  1;     // If set, SVM mode is enabled
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
             uint32 requestShadowDescVaRange   :  1;     // Requests that PAL provides support for the client to use
                                                         // the @ref VaRange::ShadowDescriptorTable virtual-address range.
             uint32 reserved                   : 26;
-#else
-            uint32 reserved                   : 27;
-#endif
         };
         uint32 u32All;
     } m_flags;

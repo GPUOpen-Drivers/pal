@@ -26,76 +26,40 @@
 #include "core/devDriverUtil.h"
 #include "core/device.h"
 #include "palHashMapImpl.h"
-#include "palJsonWriter.h"
 
-#include "devDriverServer.h"
-#include "protocols/driverControlServer.h"
 #include "ddTransferManager.h"
+#include "protocols/driverControlServer.h"
 
 using namespace Util;
 
 namespace Pal
 {
 
-// Size required to hold a hash text string and null terminator.
-static const uint32 HashStringBufferSize = 19;
+// Pipeline dump format versions
+static const uint32 PipelineDumpInitialVersion = 1;
 
-// Lookup table for binary to hex string conversion.
-static const char HexStringLookup[] = "0123456789ABCDEF";
+// Latest pipeline dump format
+static const uint32 PipelineDumpVersion = PipelineDumpInitialVersion;
 
-// =====================================================================================================================
-// Helper function which converts an array of bytes into a hex string.
-void ConvertToHexString(
-    char*        pDstBuffer,
-    const uint8* pSrcBuffer,
-    size_t       srcBufferSize)
-{
-    // Two characters for each byte in hex plus null terminator
-    const size_t numTextBytes = (srcBufferSize * 2) + 1;
-
-    // Build a hex string in the destination buffer.
-    for (uint32 byteIndex = 0; byteIndex < srcBufferSize; ++byteIndex)
-    {
-        const size_t bufferOffset = (byteIndex * 2);
-        char* pBufferStart = pDstBuffer + bufferOffset;
-        const uint8 byteValue = pSrcBuffer[byteIndex];
-        pBufferStart[0] = HexStringLookup[byteValue >> 4];
-        pBufferStart[1] = HexStringLookup[byteValue & 0x0F];
-    }
-
-    // Null terminate the string
-    pDstBuffer[numTextBytes - 1] = '\0';
-}
+// Pipeline dump format magic number            "pdmp"
+static const uint32 PipelineDumpMagicNumber = 0x70646d70;
 
 // =====================================================================================================================
-// An JsonStream implementation that writes json data directly to a developer driver transfer block.
-class BlockJsonStream : public Util::JsonStream
+// Header structure for the pipeline dump format
+struct PipelineDumpHeader
 {
-public:
-    explicit BlockJsonStream(
-        DevDriver::TransferProtocol::LocalBlock* pBlock)
-        :
-        m_pBlock(pBlock) {}
-    virtual ~BlockJsonStream() {}
+    uint32 magicNumber; // Magic number that identifies the dump format
+    uint32 version;     // Format version
+    uint64 numRecords;  // Number of pipeline dump records present after this structure
+};
 
-    virtual void WriteString(
-        const char* pString,
-        uint32      length) override
-    {
-        m_pBlock->Write(reinterpret_cast<const DevDriver::uint8*>(pString), length);
-    }
-
-    virtual void WriteCharacter(
-        char character) override
-    {
-        m_pBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&character), 1);
-    }
-
-private:
-    DevDriver::TransferProtocol::LocalBlock* m_pBlock;
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(BlockJsonStream);
-    PAL_DISALLOW_DEFAULT_CTOR(BlockJsonStream);
+// =====================================================================================================================
+// Structure that identifies an individual pipeline within the pipeline dump format
+struct PipelineDumpRecord
+{
+    uint64 hash;   // Pipeline hash
+    uint64 offset; // Offset of the associated pipeline ELF binary from the beginning of the dump
+    uint64 size;   // Size of the associated pipeline ELF binary
 };
 
 // =====================================================================================================================
@@ -255,8 +219,7 @@ PipelineDumpService::PipelineDumpService(
     :
     DevDriver::IService(),
     m_pPlatform(pPlatform),
-    m_pipelineRecords(0x4000, pPlatform),
-    m_maxPipelineBinarySize(0)
+    m_pipelineRecords(0x4000, pPlatform)
 {
 }
 
@@ -295,92 +258,99 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 
     if (strcmp(pContext->pRequestArguments, "index") == 0)
     {
-        // The client requested an index of all available pipeline dumps.
-
-        BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
-        JsonWriter jsonWriter(&jsonStream);
-        jsonWriter.BeginList(false);
+        // The client requested an index of the pipeline binaries.
 
         m_mutex.Lock();
 
-        // Allocate a small buffer on the stack that's exactly large enough for a hex string.
-        char hashStringBuffer[HashStringBufferSize];
-        auto iter = m_pipelineRecords.Begin();
-        while (iter.Get())
-        {
-            Util::Snprintf(hashStringBuffer, sizeof(hashStringBuffer), "0x%016llX", iter.Get()->key);
-            jsonWriter.Value(hashStringBuffer);
+        // Write the pipeline dump header
 
-            iter.Next();
+        const uint64 numRecords = static_cast<uint64>(m_pipelineRecords.GetNumEntries());
+
+        WritePipelineDumpHeader(pContext, numRecords);
+
+        // Write the pipeline dump records without a valid offset parameter since we won't be including any actual
+        // pipeline binary data.
+
+        auto recordIter = m_pipelineRecords.Begin();
+        while (recordIter.Get())
+        {
+            const PipelineRecord* pRecord = &recordIter.Get()->value;
+
+            const uint64 pipelineHash = recordIter.Get()->key;
+            const uint32 pipelineSize = pRecord->pipelineBinaryLength;
+
+            WritePipelineDumpRecord(pContext,
+                                    pipelineHash,
+                                    UINT64_MAX,
+                                    pipelineSize);
+
+            recordIter.Next();
         }
 
         m_mutex.Unlock();
 
-        jsonWriter.EndList();
+        pContext->responseDataFormat = DevDriver::URIDataFormat::Binary;
 
         result = DevDriver::Result::Success;
     }
     else if (strcmp(pContext->pRequestArguments, "all") == 0)
     {
-        // The client requested all pipeline dumps.
+        // The client requested that we dump all of the pipeline binaries.
 
         m_mutex.Lock();
 
-        // Allocate enough space to handle the request.
+        // Write the pipeline dump header
 
-        // Two characters for each byte in hex plus null terminator
-        const uint32 maxNumTextBytes = (m_maxPipelineBinarySize * 2) + 1;
-        const uint32 scratchMemorySize = Util::Max(HashStringBufferSize, maxNumTextBytes);
-        void* pScratchMemory = PAL_MALLOC(scratchMemorySize,
-                                          m_pPlatform,
-                                          AllocInternalTemp);
+        const uint64 numRecords = static_cast<uint64>(m_pipelineRecords.GetNumEntries());
 
-        if (pScratchMemory != nullptr)
+        WritePipelineDumpHeader(pContext, numRecords);
+
+        const uint64 pipelineBinaryBaseOffset =
+            sizeof(PipelineDumpHeader) + (sizeof(PipelineDumpRecord) * numRecords);
+
+        uint64 currentOffset = pipelineBinaryBaseOffset;
+
+        // Write the pipeline dump records
+
+        auto recordIter = m_pipelineRecords.Begin();
+        while (recordIter.Get())
         {
-            BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
-            JsonWriter jsonWriter(&jsonStream);
-            jsonWriter.BeginList(false);
+            const PipelineRecord* pRecord = &recordIter.Get()->value;
 
-            auto iter = m_pipelineRecords.Begin();
-            while (iter.Get())
-            {
-                const PipelineRecord* pRecord = &iter.Get()->value;
+            const uint64 pipelineHash = recordIter.Get()->key;
+            const uint32 pipelineSize = pRecord->pipelineBinaryLength;
 
-                const uint32 numBytes = pRecord->pipelineBinaryLength;
+            WritePipelineDumpRecord(pContext,
+                                    pipelineHash,
+                                    currentOffset,
+                                    pipelineSize);
 
-                // Two characters for each byte in hex plus null terminator
-                const uint32 numTextBytes = (numBytes * 2) + 1;
+            currentOffset += pipelineSize;
 
-                jsonWriter.BeginMap(false);
+            recordIter.Next();
+        }
 
-                Util::Snprintf(reinterpret_cast<char*>(pScratchMemory),
-                               scratchMemorySize,
-                               "0x%016llX",
-                               iter.Get()->key);
-                jsonWriter.KeyAndValue("hash", reinterpret_cast<char*>(pScratchMemory));
+        // Write the binary data for each pipeline into the dump
 
-                jsonWriter.Key("binary");
+        auto binaryIter = m_pipelineRecords.Begin();
+        while (binaryIter.Get())
+        {
+            const PipelineRecord* pRecord = &binaryIter.Get()->value;
 
-                // Build a hex string of the pipeline binary data in the scratch buffer.
-                ConvertToHexString(reinterpret_cast<char*>(pScratchMemory),
-                                   reinterpret_cast<const uint8*>(pRecord->pPipelineBinary),
-                                   numBytes);
+            const void* pPipelineBinary = pRecord->pPipelineBinary;
+            const uint32 pipelineSize   = pRecord->pipelineBinaryLength;
 
-                jsonWriter.Value(reinterpret_cast<char*>(pScratchMemory));
+            pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(pPipelineBinary),
+                                            static_cast<size_t>(pipelineSize));
 
-                jsonWriter.EndMap();
-
-                iter.Next();
-            }
-
-            jsonWriter.EndList();
-
-            PAL_SAFE_FREE(pScratchMemory, m_pPlatform);
-
-            result = DevDriver::Result::Success;
+            binaryIter.Next();
         }
 
         m_mutex.Unlock();
+
+        pContext->responseDataFormat = DevDriver::URIDataFormat::Binary;
+
+        result = DevDriver::Result::Success;
     }
     else
     {
@@ -388,45 +358,34 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 
         m_mutex.Lock();
 
-        const uint64 pipelineHash = strtoull(pContext->pRequestArguments, nullptr, 16);
+        // Attempt to find the requested pipeline.
+        const uint64 pipelineHash     = strtoull(pContext->pRequestArguments, nullptr, 16);
         const PipelineRecord* pRecord = m_pipelineRecords.FindKey(pipelineHash);
         if (pRecord != nullptr)
         {
-            const uint32 numBytes = pRecord->pipelineBinaryLength;
+            // Write a pipeline dump header with only one pipeline record in it
+            WritePipelineDumpHeader(pContext, 1);
 
-            // Two characters for each byte in hex plus null terminator
-            const uint32 numTextBytes = (numBytes * 2) + 1;
+            // Write the pipeline dump record for the specific pipeline
 
-            // Allocate exactly enough memory for the specific pipeline's binary data.
-            const uint32 scratchMemorySize = Util::Max(HashStringBufferSize, numTextBytes);
-            void* pScratchMemory = PAL_MALLOC(scratchMemorySize,
-                                              m_pPlatform,
-                                              AllocInternalTemp);
-            if (pScratchMemory != nullptr)
-            {
-                BlockJsonStream jsonStream(pContext->pResponseBlock.Get());
-                JsonWriter jsonWriter(&jsonStream);
+            const uint32 pipelineSize   = pRecord->pipelineBinaryLength;
+            const uint32 pipelineOffset = sizeof(PipelineDumpHeader) + sizeof(PipelineDumpRecord);
 
-                jsonWriter.BeginMap(false);
+            WritePipelineDumpRecord(pContext,
+                                    pipelineHash,
+                                    pipelineOffset,
+                                    pipelineSize);
 
-                Util::Snprintf(reinterpret_cast<char*>(pScratchMemory), scratchMemorySize, "0x%016llX", pipelineHash);
-                jsonWriter.KeyAndValue("hash", reinterpret_cast<char*>(pScratchMemory));
+            // Write the binary data for the specific pipeline
 
-                jsonWriter.Key("binary");
+            const void* pPipelineBinary = pRecord->pPipelineBinary;
 
-                // Build a hex string of the pipeline binary data in the scratch buffer.
-                ConvertToHexString(reinterpret_cast<char*>(pScratchMemory),
-                                   reinterpret_cast<const uint8*>(pRecord->pPipelineBinary),
-                                   numBytes);
+            pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(pPipelineBinary),
+                                            static_cast<size_t>(pipelineSize));
 
-                jsonWriter.Value(reinterpret_cast<char*>(pScratchMemory));
+            pContext->responseDataFormat = DevDriver::URIDataFormat::Binary;
 
-                jsonWriter.EndMap();
-
-                result = DevDriver::Result::Success;
-
-                PAL_FREE(pScratchMemory, m_pPlatform);
-            }
+            result = DevDriver::Result::Success;
         }
 
         m_mutex.Unlock();
@@ -464,9 +423,6 @@ void PipelineDumpService::RegisterPipeline(
 
             // Save the length.
             pRecord->pipelineBinaryLength = pipelineBinaryLength;
-
-            // Update the max pipeline binary size.
-            m_maxPipelineBinarySize = Util::Max(m_maxPipelineBinarySize, pipelineBinaryLength);
         }
         else
         {
@@ -477,6 +433,37 @@ void PipelineDumpService::RegisterPipeline(
     }
 
     m_mutex.Unlock();
+}
+
+// =====================================================================================================================
+// Writes a header into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpHeader(
+    DevDriver::URIRequestContext* pContext,
+    uint64                        numRecords)
+{
+    PipelineDumpHeader header = {};
+    header.magicNumber        = PipelineDumpMagicNumber;
+    header.version            = PipelineDumpVersion;
+    header.numRecords         = numRecords;
+
+    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&header),
+                                    sizeof(PipelineDumpHeader));
+}
+// =====================================================================================================================
+// Writes a pipeline record into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpRecord(
+    DevDriver::URIRequestContext* pContext,
+    uint64                        pipelineHash,
+    uint64                        pipelineOffset,
+    uint64                        pipelineSize)
+{
+    PipelineDumpRecord record = {};
+    record.hash               = pipelineHash;
+    record.offset             = pipelineOffset;
+    record.size               = pipelineSize;
+
+    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&record),
+                                    sizeof(PipelineDumpRecord));
 }
 
 } // Pal

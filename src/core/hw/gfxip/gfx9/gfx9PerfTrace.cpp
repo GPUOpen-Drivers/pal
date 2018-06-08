@@ -326,11 +326,7 @@ uint32* Gfx9SpmTrace::WriteEndCommands(
 // =====================================================================================================================
 ThreadTrace::ThreadTrace(
     const Device*        pDevice,   ///< [retained] Associated Device object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)      ///< [in] Trace creation info
-#else
     const ThreadTraceInfo& info)    ///< [in] Trace creation info
-#endif
     :
     Pal::ThreadTrace(pDevice->Parent(), info),
     m_device(*pDevice),
@@ -374,11 +370,7 @@ uint32* ThreadTrace::WriteInsertMarker(
 // =====================================================================================================================
 Gfx9ThreadTrace::Gfx9ThreadTrace(
     const Device*         pDevice,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo&  info)
-#else
     const ThreadTraceInfo&  info)
-#endif
     :
     ThreadTrace(pDevice, info)
 {

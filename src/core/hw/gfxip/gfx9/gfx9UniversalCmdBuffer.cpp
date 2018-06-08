@@ -499,9 +499,10 @@ void UniversalCmdBuffer::ResetState()
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE = VGT_DMA_SWAP_NONE;
 
-    m_spiVsOutConfig.u32All = 0;
-    m_spiPsInControl.u32All = 0;
-    m_binningMode           = FORCE_BINNING_ON; // set a value that we would never use
+    m_spiVsOutConfig.u32All    = 0;
+    m_spiPsInControl.u32All    = 0;
+    m_paScShaderControl.u32All = 0;
+    m_binningMode              = FORCE_BINNING_ON; // set a value that we would never use
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All   = 0;
@@ -1027,9 +1028,9 @@ uint32* UniversalCmdBuffer::BuildSetInputAssemblyState(
         DI_PT_TRIFAN,           // TriangleFan
     };
 
-    size_t                          totalDwords   = 0;
-    InputAssemblyStatePm4Img*       pImage        = reinterpret_cast<InputAssemblyStatePm4Img*>(pCmdSpace);
-    PFP_SET_UCONFIG_REG_index_enum  primTypeIndex = index__pfp_set_uconfig_reg__prim_type;
+    size_t                                totalDwords   = 0;
+    InputAssemblyStatePm4Img*             pImage        = reinterpret_cast<InputAssemblyStatePm4Img*>(pCmdSpace);
+    PFP_SET_UCONFIG_REG_INDEX_index_enum  primTypeIndex = index__pfp_set_uconfig_reg_index__prim_type__GFX09;
 
     totalDwords += device.CmdUtil().BuildSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
                                                          &pImage->hdrPrimType,
@@ -2740,9 +2741,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
         PM4PFP_CONTEXT_CONTROL contextControl = {};
 
-        contextControl.bitfields2.load_enable            = 1;
+        contextControl.bitfields2.update_load_enables    = 1;
         contextControl.bitfields2.load_per_context_state = 1;
-        contextControl.bitfields3.shadow_enable          = 1;
+        contextControl.bitfields3.update_shadow_enables  = 1;
 
         pDeCmdSpace += m_cmdUtil.BuildContextControl(contextControl, pDeCmdSpace);
     }
@@ -4089,7 +4090,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmIA_MULTI_VGT_PARAM__GFX09,
                                                              iaMultiVgtParam.u32All,
                                                              pDeCmdSpace,
-                                                             index__pfp_set_uconfig_reg__multi_vgt_param);
+                                                             index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
@@ -4194,6 +4195,16 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
     //
+
+    const regPA_SC_SHADER_CONTROL  newPaScShaderControl = pPipeline->PaScShaderControl(drawInfo.vtxIdxCount);
+    if (newPaScShaderControl.u32All != m_paScShaderControl.u32All)
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
+                                                          newPaScShaderControl.u32All,
+                                                          pDeCmdSpace);
+
+        m_paScShaderControl.u32All = newPaScShaderControl.u32All;
+    }
 
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn = {};
 
@@ -5026,8 +5037,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_MULTI_PRIM_IB_RESET_EN__GFX09,
                                                          vgtMultiPrimIbResetEn.u32All,
-                                                         pDeCmdSpace,
-                                                         index__pfp_set_uconfig_reg__default);
+                                                         pDeCmdSpace);
     }
 
     if ((m_drawTimeHwState.paScModeCntl1.u32All != paScModeCntl1.u32All) ||
@@ -6668,6 +6678,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
     m_pipelineFlags.u32All = cmdBuffer.m_pipelineFlags.u32All;
     m_spiPsInControl       = cmdBuffer.m_spiPsInControl;
+    m_paScShaderControl    = cmdBuffer.m_paScShaderControl;
     m_spiVsOutConfig       = cmdBuffer.m_spiVsOutConfig;
 
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
@@ -6925,9 +6936,8 @@ void UniversalCmdBuffer::P2pBltWaSync()
     barrierInfo.pPipePoints        = &PipePoint;
     barrierInfo.transitionCount    = 1;
     barrierInfo.pTransitions       = &transition;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
     barrierInfo.reason             = Developer::BarrierReasonP2PBlitSync;
-#endif
+
     CmdBarrier(barrierInfo);
 }
 

@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 408
+#define PAL_INTERFACE_MAJOR_VERSION 410
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,13 +53,13 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 346
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 380
 
 /// Minimum supported major interface version for gpuopen library. This is the minimum interface version of the gpuopen
 /// library that PAL is backwards compatible to.
@@ -123,13 +123,9 @@ struct PlatformCreateInfo
                                                 ///  specified callbacks to allocate and free all internal system
                                                 ///  memory. If null, PAL will manage memory on its own through the C
                                                 ///  runtime library.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 377
     const Util::LogCallbackInfo* pLogInfo;      ///< Optional client-provided callback info.  If non-null, Pal will
                                                 ///  call the callback to pass debug prints to the client.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 368
-    Util::LogCallbackFunc        pfnLogCb;      ///< Optional client-provided callback.  If non-null, Pal will call the
-                                                ///  specified callback to pass debug prints to the client.
-#endif
+
     const char*                  pSettingsPath; ///< A null-terminated string describing the path to where settings are
                                                 ///  located on the system. For example, on Windows, this will refer to
                                                 ///  which UMD subkey to look in under a device's key. For Linux, this
@@ -149,15 +145,11 @@ struct PlatformCreateInfo
                                                          ///  cpu va range with size "maxSvmSize", and allow client to
                                                          ///  to create gpu or pinned memory for use of Svm.
                                                          ///  For detail of SVM, please refer to CreateSvmGpuMemory
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 358
             uint32 requestShadowDescriptorVaRange : 1;   ///< Requests that PAL provides support for the client to use
                                                          ///  the @ref VaRange::ShadowDescriptorTable virtual-address
                                                          ///  range. Some GPU's may not be capable of supporting this,
                                                          ///  even when requested by the client.
             uint32 reserved                   : 27;      ///< Reserved for future use.
-#else
-            uint32 reserved                   : 28;      ///< Reserved for future use.
-#endif
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< Platform-wide creation flags.

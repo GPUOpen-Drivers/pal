@@ -401,11 +401,7 @@ Result SpmTrace::GetTraceLayout(
 // Implementation for ThreadTrace
 ThreadTrace::ThreadTrace(
     Device*              pDevice,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)
-#else
     const ThreadTraceInfo& info)
-#endif
     :
     PerfTrace(pDevice),
     m_shaderEngine(info.instance),

@@ -293,11 +293,7 @@ Result PerfExperiment::CreateCounter(
 //
 // This function only should be used for thread traces!
 Result PerfExperiment::CreateThreadTrace(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)
-#else
     const ThreadTraceInfo& info)
-#endif
 {
     PAL_ASSERT(info.traceType == PerfTraceType::ThreadTrace);
 

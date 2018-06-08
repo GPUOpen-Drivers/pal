@@ -571,7 +571,6 @@ void LogContext::Struct(
         KeyAndNullValue("inheritedState");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 380
     if (value.pStateInheritCmdBuffer != nullptr)
     {
         KeyAndObject("stateInheritCmdBuffer", value.pStateInheritCmdBuffer);
@@ -580,7 +579,6 @@ void LogContext::Struct(
     {
         KeyAndNullValue("stateInheritCmdBuffer");
     }
-#endif
 
     EndMap();
 }
@@ -1379,18 +1377,6 @@ void LogContext::Struct(
         Value("stereo");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
-    if (value.formatChangeSrd)
-    {
-        Value("formatChangeSrd");
-    }
-
-    if (value.formatChangeTgt)
-    {
-        Value("formatChangeTgt");
-    }
-#endif
-
     if (value.cubemap)
     {
         Value("cubemap");
@@ -1466,7 +1452,6 @@ void LogContext::Struct(
     KeyAndValue("rowPitch", value.rowPitch);
     KeyAndValue("depthPitch", value.depthPitch);
     KeyAndStruct("stereoRefreshRate", value.stereoRefreshRate);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     KeyAndValue("viewFormatCount", value.viewFormatCount);
     KeyAndBeginList("viewFormats", false);
     if (value.viewFormatCount != AllCompatibleFormats)
@@ -1477,7 +1462,6 @@ void LogContext::Struct(
         }
     }
     EndList();
-#endif
     EndMap();
 }
 
@@ -2002,7 +1986,6 @@ void LogContext::Struct(
     KeyAndObject("dstImage", value.pDstImage);
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 351
     KeyAndBeginMap("mgpuSlsInfo", false);
     {
         KeyAndValue("vidPnSourceId", value.mgpuSlsInfo.vidPnSourceId);
@@ -2015,7 +1998,6 @@ void LogContext::Struct(
         EndList();
     }
     EndMap();
-#endif
 
     EndMap();
 }
@@ -2128,20 +2110,12 @@ void LogContext::Struct(
         Value("invariant");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 366
-    if (value.flags.formatChangeSrd)
-    {
-        Value("formatChangeSrd");
-    }
-#endif
-
     EndList();
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
     KeyAndStruct("usage", value.usage);
     KeyAndStruct("extent", value.extent);
     KeyAndObject("screen", value.pScreen);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     KeyAndValue("viewFormatCount", value.viewFormatCount);
     KeyAndBeginList("viewFormats", false);
     if (value.viewFormatCount != AllCompatibleFormats)
@@ -2152,7 +2126,6 @@ void LogContext::Struct(
         }
     }
     EndList();
-#endif
 
     EndMap();
 }

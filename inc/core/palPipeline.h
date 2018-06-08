@@ -115,6 +115,7 @@ enum class PrimitiveType : uint32
     Patch    = 0x5
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 409
 /// If next available quad falls outside tile aligned region of size defined by this enumeration the SC will
 /// force end of vector in the SC to shader wavefront
 enum class WaveBreakSize : uint32
@@ -124,6 +125,7 @@ enum class WaveBreakSize : uint32
     _16x16 = 0x2,
     _32x32 = 0x3,
 };
+#endif
 
 /// Specifies the target range of Z values after viewport transform.
 enum class DepthRange : uint32
@@ -262,7 +264,7 @@ struct GraphicsPipelineCreateInfo
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
-#elif (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374)
+#else
         bool            depthClampEnable;          ///< Disable depth clamping to viewport min/max depth
 #endif
     } rsState;             ///< Rasterizer state.

@@ -1125,6 +1125,8 @@ Result Image::ComputePipeBankXor(
             // Ok, this surface can conceivably use swizzling...  make sure the settings allow swizzling for
             // this surface type as well.
             if (supportSwizzle &&
+                // Check to see if non-zero fMask pipe-bank-xor values are allowed.
+                ((aspect != ImageAspect::Fmask) || settings.fmaskAllowPipeBankXor) &&
                 ((TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
                  (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
                  (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleShaderRes))))

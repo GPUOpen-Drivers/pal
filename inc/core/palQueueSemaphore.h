@@ -49,12 +49,8 @@ struct QueueSemaphoreCreateInfo
         {
             uint32 shareable         :  1;  ///< This queue semaphore may be opened for use by a different device.
             uint32 sharedViaNtHandle :  1;  ///< This queue semaphore can only be shared through Nt handle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 350
             uint32 externalOpened    :  1;  ///< Semaphore was created by other APIs
             uint32 reserved          : 29;  ///< Reserved for future use.
-#else
-            uint32 reserved          : 30;  ///< Reserved for future use.
-#endif
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< Queue semaphore creation flags.

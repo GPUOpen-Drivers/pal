@@ -72,11 +72,7 @@ private:
 class ThreadTrace : public Pal::ThreadTrace
 {
 public:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    ThreadTrace(const Device* pDevice, const PerfTraceInfo& info);
-#else
     ThreadTrace(const Device* pDevice, const ThreadTraceInfo& info);
-#endif
 
     /// Destructor has nothing to do.
     virtual ~ThreadTrace() {}
@@ -105,11 +101,7 @@ public:
         uint32*             pCmdSpace) const;
 
 protected:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    void SetOptions(const PerfTraceInfo& info);
-#else
     void SetOptions(const ThreadTraceInfo& info);
-#endif
 
 private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;

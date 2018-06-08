@@ -94,11 +94,7 @@ uint32* GraphicsPipeline::WriteDbShaderControl(
     }
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
     regDB_RENDER_OVERRIDE dbRenderOverride = m_dbRenderOverride;
-#else
-    regDB_RENDER_OVERRIDE dbRenderOverride = {};
-#endif
     dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (dbShaderControl.bits.Z_ORDER == RE_Z);
 
     if (m_pDevice->WaDbReZStencilCorruption())
@@ -116,20 +112,13 @@ uint32* GraphicsPipeline::WriteDbShaderControl(
             dbRenderOverride.bits.FORCE_STENCIL_READ = 0;
         }
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+
     // Write the PM4 packet to set DB_SHADER_CONTROL and DB_RENDER_OVERRIDE.  NOTE: both the bitfields
     // FORCE_SHADER_Z_ORDER or FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update
     // these three bitfields.
     constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
                                                 DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
                                                 DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
-#else
-    // Write the PM4 packet to set DB_SHADER_CONTROL and DB_RENDER_OVERRIDE.  NOTE: both the bitfields
-    // FORCE_SHADER_Z_ORDER or FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update
-    // these two bitfields.
-    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
-                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK);
-#endif
 
     static_assert((DbRenderOverrideRmwMask & DepthStencilView::DbRenderOverrideRmwMask) == 0,
                   "GraphicsPipeline and DepthStencilView DB_RENDER_OVERRIDE fields intersect.  This would require"
@@ -283,9 +272,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_vgtLsHsConfig.u32All     = 0;
     m_paScModeCntl1.u32All     = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
     m_dbRenderOverride.u32All = 0;
-#endif
 }
 
 // =====================================================================================================================
@@ -959,7 +946,7 @@ void GraphicsPipeline::InitCommonStateRegisters(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
     m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
                                                       (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374
+#else
     m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
                                                       (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
 #endif

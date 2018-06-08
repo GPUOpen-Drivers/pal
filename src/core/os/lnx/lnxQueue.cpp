@@ -656,8 +656,7 @@ Result Queue::SubmitPm4(
 
     PAL_ASSERT(internalSubmitInfo.flags.hasPrimShaderWorkload == 0);
 
-    // For linux platforms, after change AMDGPU_CS_MAX_IBS_PER_SUBMIT from 4 to 8,
-    // there will exist at most 3 preamble + 2 postamble:
+    // For linux platforms, there will exist at most 3 preamble + 2 postamble:
     // Preamble  CE IB (always)
     // Preamble  DE IB (always)
     // Preamble  DE IB (if context switch)
@@ -943,7 +942,7 @@ Result Queue::SubmitNonGfxIp(
     switch(m_type)
     {
     case QueueTypeDma:
-        maxChunkCount = AMDGPU_CS_MAX_IBS_PER_SUBMIT;
+        maxChunkCount = MaxIbsPerSubmit;
         break;
 
     default:
@@ -973,8 +972,8 @@ Result Queue::SubmitNonGfxIp(
                            pCmdStream->IsPreemptionEnabled(),
                            pCmdStream->DropIfSameContext());
 
-            // There is a limitation on amdgpu that the ib counts can't exceed AMDGPU_CS_MAX_IBS_PER_SUBMIT.
-            // Need to submit several times when there are more than AMDGPU_CS_MAX_IBS_PER_SUBMIT chunks in a
+            // There is a limitation on amdgpu that the ib counts can't exceed MaxIbsPerSubmit.
+            // Need to submit several times when there are more than MaxIbsPerSubmit chunks in a
             // command stream.
             if ((++chunkCount == maxChunkCount) && (result == Result::Success))
             {
@@ -1186,7 +1185,7 @@ Result Queue::AddIb(
 {
     Result result = Result::ErrorUnknown;
 
-    if (m_numIbs < AMDGPU_CS_MAX_IBS_PER_SUBMIT)
+    if (m_numIbs < MaxIbsPerSubmit)
     {
         result = Result::Success;
 

@@ -862,9 +862,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                     PAL_ASSERT(descSize == AbiMinorVersionNoteSize);
                     m_abiMinorVersionNote = *static_cast<const AbiMinorVersionNote*>(pDesc);
                     break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 362
-                case PipelineAbiNoteType::OldPalMetadata:
-#endif
                 case PipelineAbiNoteType::PalMetadata:
                 {
                     PAL_ASSERT(descSize % PalMetadataNoteEntrySize == 0);

@@ -217,9 +217,7 @@ void TimeGraph::DrawVisualConfirm(
         gridBarrier.transitionCount = 1;
         gridBarrier.pTransitions    = &gridTransition;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
         gridBarrier.reason          = Developer::BarrierReasonTimeGraphGrid;
-#endif
 
         pCmdBuffer->CmdBarrier(gridBarrier);
 
@@ -247,9 +245,7 @@ void TimeGraph::DrawVisualConfirm(
         gpuBarrier.transitionCount = 1;
         gpuBarrier.pTransitions    = &gpuTransition;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 360
         gpuBarrier.reason          = Developer::BarrierReasonTimeGraphGpuLine;
-#endif
 
         pCmdBuffer->CmdBarrier(gpuBarrier);
 

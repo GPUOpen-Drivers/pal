@@ -136,10 +136,8 @@ Result Image::CreatePresentableImage(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 394
         imgCreateInfo.viewFormatCount       = createInfo.viewFormatCount;
         imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
-        imgCreateInfo.viewFormatCount       = AllCompatibleFormats;
 #else
-        imgCreateInfo.flags.formatChangeSrd = 1;
+        imgCreateInfo.viewFormatCount       = AllCompatibleFormats;
 #endif
         imgCreateInfo.flags.flippable       = 1;
 
@@ -318,12 +316,7 @@ void Image::GetExternalSharedImageCreateInfo(
 
         if (changeFormat)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
             pCreateInfo->viewFormatCount = AllCompatibleFormats;
-#else
-            pCreateInfo->flags.formatChangeSrd = 1;
-            pCreateInfo->flags.formatChangeTgt = 1;
-#endif
         }
         pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
     }
@@ -366,16 +359,10 @@ void Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
     pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
     pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-#endif
     // This image must be shareable (as it has already been shared); request view format change as well to be safe.
     pCreateInfo->flags.shareable       = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     pCreateInfo->viewFormatCount       = AllCompatibleFormats;
-#else
-    pCreateInfo->flags.formatChangeSrd = 1;
-#endif
     pCreateInfo->flags.flippable       = false;
 }
 
@@ -429,7 +416,6 @@ Result Image::CreateExternalSharedImage(
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);
     internalCreateInfo.flags.useSharedTilingOverrides = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 367
     if (createInfo.flags.optimalShareable)
     {
         if (pMetadata->flags.optimal_shareable)
@@ -487,7 +473,6 @@ Result Image::CreateExternalSharedImage(
             createInfo.flags.noMetadata       = 1;
         }
     }
-#endif
 
     Pal::Image* pImage = nullptr;
     Result result = pDevice->CreateInternalImage(createInfo,

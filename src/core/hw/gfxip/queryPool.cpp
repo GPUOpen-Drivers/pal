@@ -74,17 +74,11 @@ Result QueryPool::GetResults(
     QueryType        queryType,
     uint32           startQuery,
     uint32           queryCount,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
     const void*      pMappedGpuAddr,
-#endif
     size_t*          pDataSize,
     void*            pData,
     size_t           stride)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 371
-    const void*      pMappedGpuAddr = nullptr;
-#endif
-
     const size_t oneSlotResultSize  = GetResultSizeForOneSlot(flags);
     const size_t resultStride       = (stride == 0) ? oneSlotResultSize : stride;
     const size_t allSlotsResultSize = (queryCount - 1) * resultStride + oneSlotResultSize;

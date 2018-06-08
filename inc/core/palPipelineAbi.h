@@ -210,6 +210,7 @@ static const char* PipelineMetadataNameStrings[] =
     "VS_PERFORMANCE_DATA_BUFFER_SIZE",
     "PS_PERFORMANCE_DATA_BUFFER_SIZE",
     "CS_PERFORMANCE_DATA_BUFFER_SIZE",
+
 };
 
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
@@ -335,9 +336,6 @@ enum class PipelineAbiNoteType : uint32
 {
     HsaIsa          = 3,  ///< Structure defining the ISA type in the code object.  Shared with HSA code objects.
     AbiMinorVersion = 8,  ///< ABI minor version.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 362
-    OldPalMetadata  = 9,  ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-#endif
     PalMetadata     = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
 };
 
@@ -491,7 +489,6 @@ enum class PipelineMetadataType : uint32
                                   ///  shader and the size in bytes required.
     CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
                                   ///  shader and the size in bytes required.
-
     Count,
 
     ShaderNumUsedVgprs              = LsNumUsedVgprs,              ///< Shorthand for the first shader's used VGPR count

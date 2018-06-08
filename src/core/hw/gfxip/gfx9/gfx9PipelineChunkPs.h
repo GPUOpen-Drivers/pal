@@ -79,6 +79,7 @@ public:
     regDB_SHADER_CONTROL DbShaderControl() const { return m_pm4ImageContext.dbShaderControl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const
         { return *reinterpret_cast<const regPA_SC_AA_CONFIG*>(&m_pm4ImageContext.paScAaConfig.reg_data); }
+    regPA_SC_SHADER_CONTROL  PaScShaderControl(uint32  numIndices) const;
 
     // Shortcut for checking if the shader has enabled INNER_COVERAGE mode.
     bool UsesInnerCoverage() const
@@ -142,9 +143,6 @@ private:
         PM4_PFP_SET_CONTEXT_REG      hdrDbShaderControl;
         regDB_SHADER_CONTROL         dbShaderControl;
 
-        PM4_PFP_SET_CONTEXT_REG      hdrPaScShaderControl;
-        regPA_SC_SHADER_CONTROL      paScShaderControl;
-
         PM4_PFP_SET_CONTEXT_REG      hdrPaScBinnerCntl1;
         regPA_SC_BINNER_CNTL_1       paScBinnerCntl1;
 
@@ -164,14 +162,16 @@ private:
 
     const Device&  m_device;
 
-    Pm4ImageSh        m_pm4ImageSh;        // PS sh commands to be written when the associated pipeline is bound.
-    Pm4ImageShDynamic m_pm4ImageShDynamic; // PS sh commands to be calculated and written when the associated pipeline
-                                           // is bound.
-    Pm4ImageContext   m_pm4ImageContext;   // PS context commands to be written when the associated pipeline is bound.
+    Pm4ImageSh               m_pm4ImageSh;        // PS sh commands to be written when the associated pipeline
+                                                  // is bound
+    Pm4ImageShDynamic        m_pm4ImageShDynamic; // PS sh commands to be calculated and written when the associated
+                                                  // pipeline is bound.
+    Pm4ImageContext          m_pm4ImageContext;   // PS context commands to be written when the associated pipeline
+                                                  // is bound.
+    regPA_SC_SHADER_CONTROL  m_paScShaderControl;
+    const PerfDataInfo*      m_pPsPerfDataInfo;   // PS performance data information.
 
-    const PerfDataInfo* m_pPsPerfDataInfo;   // PS performance data information.
-
-    ShaderStageInfo   m_stageInfo;
+    ShaderStageInfo          m_stageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkPs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkPs);

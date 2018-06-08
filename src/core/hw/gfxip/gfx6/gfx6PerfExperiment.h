@@ -104,11 +104,7 @@ protected:
     virtual ~PerfExperiment() {}
 
     virtual Result CreateCounter(const PerfCounterInfo& info, Pal::PerfCounter** ppCounter) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    virtual Result CreateThreadTrace(const PerfTraceInfo& info) override;
-#else
     virtual Result CreateThreadTrace(const ThreadTraceInfo& info) override;
-#endif
 
     Result ConstructSpmTraceObj(const SpmTraceCreateInfo& info, Pal::SpmTrace** ppSpmTrace) override;
     Pal::StreamingPerfCounter* CreateStreamingPerfCounter(GpuBlock block, uint32 instance, uint32 slot) override;

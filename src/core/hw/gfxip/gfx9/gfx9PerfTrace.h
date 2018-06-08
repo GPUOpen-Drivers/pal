@@ -95,20 +95,10 @@ public:
     virtual Result Init() { return Result::Success; }
 
 protected:
-    ThreadTrace(const Device* pDevice,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-                const PerfTraceInfo& info
-#else
-                const ThreadTraceInfo& info
-#endif
-    );
+    ThreadTrace(const Device* pDevice, const ThreadTraceInfo& info);
 
     const Device&       m_device;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo m_info;
-#else
     const ThreadTraceInfo m_info;
-#endif
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(ThreadTrace);
@@ -120,11 +110,8 @@ private:
 class Gfx9ThreadTrace : public ThreadTrace
 {
 public:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    Gfx9ThreadTrace(const Device* pDevice, const PerfTraceInfo& info);
-#else
     Gfx9ThreadTrace(const Device* pDevice, const ThreadTraceInfo& info);
-#endif
+
     virtual ~Gfx9ThreadTrace() {}
 
     // Returns the CU that was selected for this thread trace.

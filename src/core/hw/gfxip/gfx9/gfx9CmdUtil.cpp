@@ -467,7 +467,7 @@ uint32 CmdUtil::BuildAcquireMemInternal(
     pPacket->ordinal6      = Get256BAddrHi(alignedAddress);
 
     // Make sure that the address field doesn't overflow
-    PAL_ASSERT (pPacket->bitfields6.reserved2 == 0);
+    PAL_ASSERT (pPacket->bitfields6.reserved1 == 0);
 
     pPacket->ordinal7                 = 0;
     pPacket->bitfields7.poll_interval = Pal::Device::PollInterval;
@@ -645,7 +645,7 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     // Make sure our comparison address is aligned properly
     pPacket->ordinal3        = LowPart(compareGpuAddr);
     pPacket->compare_addr_hi = HighPart(compareGpuAddr);
-    PAL_ASSERT (pPacket->bitfields3.reserved3 == 0);
+    PAL_ASSERT (pPacket->bitfields3.reserved1 == 0);
 
     pPacket->mask_lo      = LowPart(mask);
     pPacket->mask_hi      = HighPart(mask);
@@ -832,8 +832,8 @@ size_t CmdUtil::BuildCopyDataInternal(
         pPacketGfx->ordinal3 = LowPart(srcAddr);
 
         // Make sure we didn't get an illegal register offset
-        PAL_ASSERT ((gfxSupported && (pPacketGfx->bitfields3a.reserved7 == 0)) ||
-                    (isCompute    && (pPacketCompute->bitfields3a.reserved8 == 0)));
+        PAL_ASSERT ((gfxSupported && (pPacketGfx->bitfields3a.reserved1 == 0)) ||
+                    (isCompute    && (pPacketCompute->bitfields3a.reserved1 == 0)));
         PAL_ASSERT (HighPart(srcAddr) == 0);
         break;
 
@@ -852,11 +852,11 @@ size_t CmdUtil::BuildCopyDataInternal(
 
         // Make sure our srcAddr is properly aligned.  The alignment differs based on how much data is being written
         PAL_ASSERT (((countSel == count_sel__mec_copy_data__64_bits_of_data) &&
-                     ((isCompute    && (pPacketCompute->bitfields3c.reserved10 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields3c.reserved9 == 0)))) ||
+                     ((isCompute    && (pPacketCompute->bitfields3c.reserved1 == 0)) ||
+                      (gfxSupported && (pPacketGfx->bitfields3c.reserved1 == 0)))) ||
                     ((countSel == count_sel__mec_copy_data__32_bits_of_data) &&
-                     ((isCompute    && (pPacketCompute->bitfields3b.reserved9 == 0))  ||
-                      (gfxSupported && (pPacketGfx->bitfields3b.reserved8 == 0)))));
+                     ((isCompute    && (pPacketCompute->bitfields3b.reserved1 == 0))  ||
+                      (gfxSupported && (pPacketGfx->bitfields3b.reserved1 == 0)))));
         break;
 
     case src_sel__me_copy_data__gpu_clock_count:
@@ -874,8 +874,8 @@ size_t CmdUtil::BuildCopyDataInternal(
     case dst_sel__me_copy_data__perfcounters:
     case dst_sel__me_copy_data__mem_mapped_register:
         pPacketGfx->ordinal5 = LowPart(dstAddr);
-        PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5a.reserved12 == 0)) ||
-                    (gfxSupported && (pPacketGfx->bitfields5a.reserved11 == 0)));
+        PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5a.reserved1 == 0)) ||
+                    (gfxSupported && (pPacketGfx->bitfields5a.reserved1 == 0)));
         break;
 
     case dst_sel__me_copy_data__memory_sync_across_grbm:
@@ -890,17 +890,17 @@ size_t CmdUtil::BuildCopyDataInternal(
 
         // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
         PAL_ASSERT (((countSel == count_sel__mec_copy_data__64_bits_of_data) &&
-                     ((isCompute    && (pPacketCompute->bitfields3c.reserved10 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields3c.reserved9 == 0)))) ||
+                     ((isCompute    && (pPacketCompute->bitfields3c.reserved1 == 0)) ||
+                      (gfxSupported && (pPacketGfx->bitfields3c.reserved1 == 0)))) ||
                     ((countSel == count_sel__mec_copy_data__32_bits_of_data) &&
-                     ((isCompute    && (pPacketCompute->bitfields5b.reserved13 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields5b.reserved12 == 0)))));
+                     ((isCompute    && (pPacketCompute->bitfields5b.reserved1 == 0)) ||
+                      (gfxSupported && (pPacketGfx->bitfields5b.reserved1 == 0)))));
         break;
 
     case dst_sel__me_copy_data__gds:
         pPacketGfx->ordinal5 = LowPart(dstAddr);
-        PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5d.reserved15 == 0)) ||
-                    (gfxSupported && (pPacketGfx->bitfields5d.reserved14 == 0)));
+        PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5d.reserved1 == 0)) ||
+                    (gfxSupported && (pPacketGfx->bitfields5d.reserved1 == 0)));
         break;
 
     default:
@@ -1242,7 +1242,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     pPacket->header.u32All = Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
-    pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
+    pPacket->bitfields3.start_vtx_loc  = baseVtxLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal4                  = 0;
     pPacket->bitfields4.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal5                  = 0;
@@ -1526,7 +1526,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     pPacket->bitfields2.event_type  = vgtEvent;
     pPacket->bitfields2.event_index = VgtEventIndex[vgtEvent];
     pPacket->ordinal3               = LowPart(gpuAddr);
-    PAL_ASSERT(pPacket->bitfields3.reserved3 == 0);
+    PAL_ASSERT(pPacket->bitfields3.reserved1 == 0);
     pPacket->address_hi             = HighPart(gpuAddr);
 
     return PacketSize;
@@ -1635,7 +1635,7 @@ size_t CmdUtil::BuildIndexType(
 {
     const size_t PacketSize     = BuildSetOneConfigReg(mmVGT_INDEX_TYPE,
                                                        pBuffer,
-                                                       index__pfp_set_uconfig_reg__index_type);
+                                                       index__pfp_set_uconfig_reg_index__index_type);
     const size_t RegisterOffset = PacketSize - (sizeof(regVGT_INDEX_TYPE) / sizeof(uint32));
 
     uint32* pPacket         = static_cast<uint32*>(pBuffer);
@@ -1790,7 +1790,7 @@ size_t CmdUtil::BuildOcclusionQuery(
     PAL_ASSERT((pPacket->bitfields2.reserved1 == 0) && (queryMemAddr != 0));
 
     // The destination address should be 4-byte aligned.
-    PAL_ASSERT((pPacket->bitfields4.reserved2 == 0) && (dstMemAddr != 0));
+    PAL_ASSERT((pPacket->bitfields4.reserved1 == 0) && (dstMemAddr != 0));
 
     return PacketSize;
 }
@@ -1861,7 +1861,7 @@ size_t CmdUtil::BuildPrimeUtcL2(
     pPacket->addr_hi                    = HighPart(gpuAddr);
     pPacket->ordinal5                   = 0;
     pPacket->bitfields5.requested_pages = static_cast<uint32>(requestedPages);
-    PAL_ASSERT(pPacket->bitfields5.reserved2 == 0);
+    PAL_ASSERT(pPacket->bitfields5.reserved1 == 0);
 
     return PacketSize;
 }
@@ -2365,9 +2365,9 @@ size_t CmdUtil::BuildReleaseMemInternal(
     // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
     if (releaseMemInfo.dataSel == data_sel__mec_release_mem__store_gds_data_to_memory)
     {
-        pPacket->bitfields6c.dw_offset  = gdsAddr;
-        pPacket->bitfields6c.num_dwords = gdsSize;
-        pPacket->data_hi                = 0;
+        pPacket->bitfields6.dw_offset  = gdsAddr;
+        pPacket->bitfields6.num_dwords = gdsSize;
+        pPacket->data_hi               = 0;
     }
 
     return PacketSize;
@@ -2520,7 +2520,7 @@ size_t CmdUtil::BuildSetBase(
     pPacket->address_hi            = HighPart(address);
 
     // Make sure our address was aligned properly
-    PAL_ASSERT (pPacket->bitfields3.reserved2 == 0);
+    PAL_ASSERT (pPacket->bitfields3.reserved1 == 0);
 
     return PacketSize;
 }
@@ -2544,7 +2544,7 @@ size_t CmdUtil::BuildSetBaseCe(
     pPacket->address_hi            = HighPart(address);
 
     // Make sure our address was aligned properly
-    PAL_ASSERT (pPacket->bitfields3a.reserved2 == 0);
+    PAL_ASSERT (pPacket->bitfields3a.reserved1 == 0);
 
     return PacketSize;
 }
@@ -2553,17 +2553,21 @@ size_t CmdUtil::BuildSetBaseCe(
 // Builds a PM4 packet which sets one config register. The index field is used to set special registers and should be
 // set to zero except when setting one of those registers. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetOneConfigReg(
-    uint32                         regAddr,
-    void*                          pBuffer,  // [out] Build the PM4 packet in this buffer.
-    PFP_SET_UCONFIG_REG_index_enum index
+    uint32                               regAddr,
+    void*                                pBuffer,  // [out] Build the PM4 packet in this buffer.
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index
     ) const
 {
-    PAL_ASSERT(((regAddr != mmVGT_INDEX_TYPE)    || (index == index__pfp_set_uconfig_reg__index_type))    &&
-               ((regAddr != mmVGT_NUM_INSTANCES) || (index == index__pfp_set_uconfig_reg__num_instances)));
+    PAL_ASSERT(((regAddr != mmVGT_INDEX_TYPE)    ||
+                (index == index__pfp_set_uconfig_reg_index__index_type))    &&
+               ((regAddr != mmVGT_NUM_INSTANCES) ||
+                (index == index__pfp_set_uconfig_reg_index__num_instances)));
 
     PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) ||
-                (((regAddr != mmVGT_PRIMITIVE_TYPE)        || (index == index__pfp_set_uconfig_reg__prim_type))     &&
-                 ((regAddr != mmIA_MULTI_VGT_PARAM__GFX09) || (index == index__pfp_set_uconfig_reg__multi_vgt_param))));
+                (((regAddr != mmVGT_PRIMITIVE_TYPE)        ||
+                  (index == index__pfp_set_uconfig_reg_index__prim_type__GFX09))     &&
+                 ((regAddr != mmIA_MULTI_VGT_PARAM__GFX09) ||
+                  (index == index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09))));
 
     return BuildSetSeqConfigRegs(regAddr, regAddr, pBuffer, index);
 }
@@ -2572,10 +2576,10 @@ size_t CmdUtil::BuildSetOneConfigReg(
 // Builds a PM4 packet which sets a sequence of config registers starting with startRegAddr and ending with endRegAddr
 // (inclusive). Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetSeqConfigRegs(
-    uint32                         startRegAddr,
-    uint32                         endRegAddr,
-    void*                          pBuffer,
-    PFP_SET_UCONFIG_REG_index_enum index
+    uint32                                startRegAddr,
+    uint32                                endRegAddr,
+    void*                                 pBuffer,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum  index
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -2586,6 +2590,35 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     auto*const   pPacket    = static_cast<PM4_PFP_SET_UCONFIG_REG*>(pBuffer);
 
     IT_OpCodeType opCode = IT_SET_UCONFIG_REG;
+    if (index != index__pfp_set_uconfig_reg_index__default)
+    {
+        // GFX9 started supporting uconfig-reg-index as of ucode version 26.
+        if ((m_cpUcodeVersion >= 26)
+            )
+        {
+            //    SW needs to change from using the IT_SET_UCONFIG_REG to IT_SET_UCONFIG_REG_INDEX when using the
+            //    "index" field to access the mmVGT_INDEX_TYPE and mmVGT_NUM_INSTANCE registers.
+            //
+            //    Only [values] (2, 3) [need the new packet]. The VGT has changed their design so that [values] (1, 4)
+            //    are no longer programmed on GFX10
+            opCode = IT_SET_UCONFIG_REG_INDEX;
+        }
+        else
+        {
+            // Ok, we still have a non-zero index, but the device doesn't support the new and improved
+            // uconfig-index packet.  This uses a different enumeration.  Verify that the "old" and "new"
+            // enumerations match.
+            static_assert(((static_cast<uint32>(index__pfp_set_uconfig_reg_index__prim_type__GFX09)       ==
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__prim_type__GFX09))       &&
+                           (static_cast<uint32>(index__pfp_set_uconfig_reg_index__index_type)             ==
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__index_type__GFX09))      &&
+                           (static_cast<uint32>(index__pfp_set_uconfig_reg_index__num_instances)          ==
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__num_instances__GFX09))   &&
+                           (static_cast<uint32>(index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09) ==
+                            static_cast<uint32>(index__pfp_set_uconfig_reg__multi_vgt_param__GFX09))),
+                          "uconfig index enumerations have changed across old and new packets!");
+        }
+    }
 
     pPacket->header.u32All  = Type3Header(opCode, packetSize);
     pPacket->ordinal2       = Type3Ordinal2((startRegAddr - UCONFIG_SPACE_START), index);
@@ -2716,7 +2749,7 @@ size_t CmdUtil::BuildSetOneContextReg(
     PFP_SET_CONTEXT_REG_index_enum index
     ) const
 {
-    PAL_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) || (index == index__pfp_set_context_reg__vgt_ls_hs_config));
+    PAL_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) || (index == index__pfp_set_context_reg__vgt_ls_hs_config__GFX09));
     return BuildSetSeqContextRegs(regAddr, regAddr, pBuffer, index);
 }
 
@@ -2762,12 +2795,12 @@ size_t CmdUtil::BuildSetPredication(
     ) const
 {
     static_assert(
-        (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Zpass) ==
+        (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Zpass)     ==
                 pred_op__pfp_set_predication__set_zpass_predicate) &&
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::PrimCount) ==
                 pred_op__pfp_set_predication__set_primcount_predicate) &&
         (static_cast<PFP_SET_PREDICATION_pred_op_enum>(PredicateType::Boolean)   ==
-                pred_op__pfp_set_predication__mem),
+                pred_op__pfp_set_predication__DX12),
         "Unexpected values for the PredicateType enum.");
 
     constexpr uint32 PacketSize = (sizeof(PM4PFP_SET_PREDICATION) / sizeof(uint32));
@@ -2781,7 +2814,7 @@ size_t CmdUtil::BuildSetPredication(
     pPacket->start_addr_hi = (HighPart(gpuVirtAddr) & 0xFF);
 
     // Verify that the address is properly aligned
-    PAL_ASSERT (pPacket->bitfields3.reserved5 == 0);
+    PAL_ASSERT (pPacket->bitfields3.reserved1 == 0);
 
     pPacket->ordinal2                = 0;
     pPacket->bitfields2.pred_bool    = (predicationBool
@@ -2869,7 +2902,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     case source_select__pfp_strmout_buffer_update__none:
         pPacket->bitfields2.update_memory = update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
         pPacket->ordinal3                 = LowPart(dstGpuVirtAddr);
-        PAL_ASSERT(pPacket->bitfields3.reserved3 == 0);
+        PAL_ASSERT(pPacket->bitfields3.reserved1 == 0);
         pPacket->dst_address_hi           = HighPart(dstGpuVirtAddr);
         pPacket->bitfields2.data_type     = DataType;
         break;
@@ -3234,16 +3267,16 @@ size_t CmdUtil::BuildWriteDataInternal(
     switch (dstSel)
     {
     case dst_sel__me_write_data__mem_mapped_register:
-        PAL_ASSERT(pPacket->bitfields3a.reserved6 == 0);
+        PAL_ASSERT(pPacket->bitfields3a.reserved1 == 0);
         break;
 
     case dst_sel__me_write_data__memory:
     case dst_sel__me_write_data__tc_l2:
-        PAL_ASSERT(pPacket->bitfields3c.reserved8 == 0);
+        PAL_ASSERT(pPacket->bitfields3c.reserved1 == 0);
         break;
 
     case dst_sel__me_write_data__gds:
-        PAL_ASSERT(pPacket->bitfields3b.reserved7 == 0);
+        PAL_ASSERT(pPacket->bitfields3b.reserved1 == 0);
         break;
 
     case dst_sel__me_write_data__memory_sync_across_grbm:

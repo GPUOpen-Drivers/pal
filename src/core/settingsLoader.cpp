@@ -151,19 +151,6 @@ void SettingsLoader::InitEarlySettings()
 {
     auto pPublicSettings = m_pDevice->GetPublicSettings();
 
-// After this interface version it becomes the client's responsibility to provide these values.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 363
-    m_pDevice->ReadSetting("CatalystAI",
-                           ValueType::Uint,
-                           &pPublicSettings->catalystAI,
-                           InternalSettingScope::PublicCatalystKey);
-
-    m_pDevice->ReadSetting("TFQ",
-                           ValueType::Uint,
-                           &pPublicSettings->textureOptLevel,
-                           InternalSettingScope::PublicCatalystKey);
-#endif
-
     m_pDevice->ReadSetting("HwCompositingEnabled",
                            ValueType::Boolean,
                            &m_pSettings->hwCompositingEnabled,

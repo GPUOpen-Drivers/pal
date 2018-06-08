@@ -297,10 +297,11 @@ Result AddrMgr2::InitSubresourcesForImage(
     // through again to compute the final offsets for each subresource.
     if (result == Result::Success)
     {
-        // Depth/stencil and YUV images have different orderings of subresources and planes. To handle this, we'll loop
-        // through again to compute the final offsets for each subresource.
+        // Depth/stencil and YUV images have different orderings of subresources and planes. To handle this, we'll
+        // loop through again to compute the final offsets for each subresource.
         //
-        // This loops through all the slices of a mip level first before incrementing the mip-level part of the subResId.
+        // This loops through all the slices of a mip level first before incrementing the mip-level part of
+        // the subResId.
         SubResIterator subResIt(*pImage);
         do
         {

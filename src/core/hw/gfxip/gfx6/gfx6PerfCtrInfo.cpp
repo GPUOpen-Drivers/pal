@@ -1207,11 +1207,7 @@ void InitPerfCtrInfo(
 // Validates the value of a thread-trace creation option.
 Result ValidateThreadTraceOptions(
     const Device&        device,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 373
-    const PerfTraceInfo& info)
-#else
     const ThreadTraceInfo& info)
-#endif
 {
     const GpuChipProperties& chipProps = device.ChipProperties();
     const GfxIpLevel gfxIpLevel        = chipProps.gfxLevel;

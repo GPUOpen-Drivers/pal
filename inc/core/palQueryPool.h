@@ -150,9 +150,7 @@ public:
         QueryType        queryType,
         uint32           startQuery,
         uint32           queryCount,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 371
         const void*      pMappedGpuAddr,
-#endif
         size_t*          pDataSize,
         void*            pData,
         size_t           stride) = 0;

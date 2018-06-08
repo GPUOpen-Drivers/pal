@@ -855,24 +855,6 @@ uint32 Image::GetPlaneFromAspect(
     return plane;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 365
-// =====================================================================================================================
-// Fills in the ImageMemoryLayout struct with info for this image.
-Result Image::GetMemoryLayout(
-    ImageMemoryLayout* pLayout // [out] Memory layout information
-    ) const
-{
-    Result result = Result::ErrorInvalidValue;
-
-    if (pLayout != nullptr)
-    {
-        *pLayout = m_gpuMemLayout;
-        result   = Result::Success;
-    }
-
-    return result;
-}
-#endif
 // =====================================================================================================================
 // Fills in the SubresLayout struct with info for the subresource specified
 Result Image::GetSubresourceLayout(
@@ -1336,12 +1318,8 @@ void ConvertPrivateScreenImageCreateInfo(
     pImageInfo->imageType             = ImageType::Tex2d;
     pImageInfo->tiling                = ImageTiling::Optimal;
     pImageInfo->usageFlags            = privateImageCreateInfo.usage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 366
     pImageInfo->viewFormatCount       = privateImageCreateInfo.viewFormatCount;
     pImageInfo->pViewFormats          = privateImageCreateInfo.pViewFormats;
-#else
-    pImageInfo->flags.formatChangeSrd = privateImageCreateInfo.flags.formatChangeSrd;
-#endif
 }
 
 // =====================================================================================================================
