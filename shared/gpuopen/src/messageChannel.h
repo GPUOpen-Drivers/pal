@@ -125,11 +125,6 @@ namespace DevDriver
             return m_pURIServer->UnregisterService(pService);
         }
 
-        void GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames) override
-        {
-            m_pURIServer->GetServiceNames(serviceNames);
-        }
-
     protected:
         struct MsgThreadInfo
         {

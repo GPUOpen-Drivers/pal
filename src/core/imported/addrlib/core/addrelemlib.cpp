@@ -1385,7 +1385,6 @@ UINT_32 ElemLib::GetBitsPerPixel(
         case ADDR_FMT_8_8:
         case ADDR_FMT_4_4_4_4:
         case ADDR_FMT_16:
-        case ADDR_FMT_16_FLOAT:
             bpp = 16;
             break;
         case ADDR_FMT_GB_GR:
@@ -1403,22 +1402,16 @@ UINT_32 ElemLib::GetBitsPerPixel(
         case ADDR_FMT_10_11_11:
         case ADDR_FMT_11_11_10:
         case ADDR_FMT_16_16:
-        case ADDR_FMT_16_16_FLOAT:
         case ADDR_FMT_32:
-        case ADDR_FMT_32_FLOAT:
         case ADDR_FMT_24_8:
-        case ADDR_FMT_24_8_FLOAT:
             bpp = 32;
             break;
         case ADDR_FMT_16_16_16_16:
-        case ADDR_FMT_16_16_16_16_FLOAT:
         case ADDR_FMT_32_32:
-        case ADDR_FMT_32_32_FLOAT:
         case ADDR_FMT_CTX1:
             bpp = 64;
             break;
         case ADDR_FMT_32_32_32_32:
-        case ADDR_FMT_32_32_32_32_FLOAT:
             bpp = 128;
             break;
         case ADDR_FMT_INVALID:
@@ -1444,10 +1437,7 @@ UINT_32 ElemLib::GetBitsPerPixel(
         case ADDR_FMT_32_AS_8:
         case ADDR_FMT_32_AS_8_8:
         case ADDR_FMT_8_24:
-        case ADDR_FMT_8_24_FLOAT:
         case ADDR_FMT_10_10_10_2:
-        case ADDR_FMT_10_11_11_FLOAT:
-        case ADDR_FMT_11_11_10_FLOAT:
         case ADDR_FMT_5_9_9_9_SHAREDEXP:
             bpp = 32;
             break;
@@ -1461,12 +1451,10 @@ UINT_32 ElemLib::GetBitsPerPixel(
             expandX = 3;
             break;
         case ADDR_FMT_16_16_16:
-        case ADDR_FMT_16_16_16_FLOAT:
             elemMode = ADDR_EXPANDED;
             bpp = 48;//@@ 16;      // read 3 elements per pixel
             expandX = 3;
             break;
-        case ADDR_FMT_32_32_32_FLOAT:
         case ADDR_FMT_32_32_32:
             elemMode = ADDR_EXPANDED;
             expandX = 3;
@@ -1796,9 +1784,7 @@ BOOL_32 ElemLib::IsExpand3x(
     {
         case ADDR_FMT_8_8_8:
         case ADDR_FMT_16_16_16:
-        case ADDR_FMT_16_16_16_FLOAT:
         case ADDR_FMT_32_32_32:
-        case ADDR_FMT_32_32_32_FLOAT:
             is3x = TRUE;
             break;
         default:

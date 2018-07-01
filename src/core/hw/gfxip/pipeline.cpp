@@ -183,17 +183,19 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
                 // The for loop which follows is entirely non-standard behavior for an ELF loader, but is intended to
                 // only be temporary code.
-                for (uint32 s = 0; s <= static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+                for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
                 {
                     const Abi::PipelineSymbolType symbolType =
                         Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderIntrlTblPtr,
                                                static_cast<Abi::HardwareStage>(s));
 
                     Abi::PipelineSymbolEntry symbol = { };
-                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol))
+                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol) &&
+                        (symbol.sectionType == Abi::AbiSectionType::Data))
                     {
                         m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
-                            VoidPtrInc(pDataPtr, static_cast<size_t>(symbol.value)),
+                            VoidPtrInc(pDataPtr,    static_cast<size_t>(symbol.value)), // Dst
+                            VoidPtrInc(pDataBuffer, static_cast<size_t>(symbol.value)), // Src
                             static_cast<size_t>(symbol.size),
                             (*pDataGpuVirtAddr));
                     }

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 32
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 34
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
@@ -44,6 +44,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 34.0    | Updated URI services to define a version number for each service.                                        |
+*| 33.0    | Abstracts URIRequestContext into an abstract interface.                                                  |
 *| 32.0    | Updated RGPClient::EndTrace to support user specified timeout values. This allows tools to support       |
 *|         | long running traces via user controlled cancellation dialogs.                                            |
 *| 31.0    | Clean up DevDriverClient and DevDriverServer create info structs. Replace TransportCreateInfo            |
@@ -137,6 +139,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_VERSIONED_URI_SERVICES_VERSION 34
+#define GPUOPEN_URIINTERFACE_CLEANUP_VERSION 33
 #define GPUOPEN_LONG_RGP_TRACES_VERSION 32
 #define GPUOPEN_CREATE_INFO_CLEANUP_VERSION 31
 #define GPUOPEN_SESSION_INTERFACE_CLEANUP_VERSION 30
@@ -238,6 +242,7 @@ namespace DevDriver
 
     ////////////////////////////
     // Common result codes
+    // enum struct Result : uint32
     enum struct Result : uint32
     {
         Success = 0,
@@ -249,17 +254,23 @@ namespace DevDriver
         EndOfStream = 6,
         Aborted = 7,
         InsufficientMemory = 8,
+        InvalidParameter = 9,
 
         //// URI PROTOCOL  ////
         UriServiceRegistrationError = 1000,
         UriStringParseError = 1001,
-        UriInvalidParamters = 1002,
+#if !DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+        UriInvalidParametrs = 1002,
+#endif
+        UriInvalidParameters = 1002,
         UriInvalidPostDataBlock = 1003,
         UriInvalidPostDataSize = 1004,
         UriFailedToAcquirePostBlock = 1005,
         UriFailedToOpenResponseBlock = 1006,
         UriRequestFailed = 1007,
         UriPendingRequestError = 1008,
+        UriInvalidChar = 1009,
+        UriInvalidJson = 1010,
 
         //// Settings URI Service  ////
         SettingsUriInvalidComponent = 2000,

@@ -30,15 +30,15 @@ typedef union PM4_PFP_TYPE_3_HEADER
 {
     struct
     {
-        uint32_t                                      predicate : 1;
-        uint32_t                                     shaderType : 1;
-        uint32_t                                 resetFilterCam : 1;
-        uint32_t                                      reserved1 : 5;
-        uint32_t                                         opcode : 8;
-        uint32_t                                          count : 14;
-        uint32_t                                           type : 2;
+        uint32_t                              predicate : 1;
+        uint32_t                             shaderType : 1;
+        uint32_t                         resetFilterCam : 1;
+        uint32_t                              reserved1 : 5;
+        uint32_t                                 opcode : 8;
+        uint32_t                                  count : 14;
+        uint32_t                                   type : 2;
     };
-    uint32_t                               u32All;
+    uint32_t                                     u32All;
 
 } PM4_PFP_TYPE_3_HEADER, *PPM4_PFP_TYPE_3_HEADER;
 
@@ -52,52 +52,52 @@ typedef struct PM4_PFP_ACQUIRE_MEM__GFX09
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     coher_cntl : 31;
-            PFP_ACQUIRE_MEM_engine_sel_enum                     engine_sel : 1;
+            uint32_t                         coher_cntl : 31;
+            PFP_ACQUIRE_MEM_engine_sel_enum  engine_sel : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                           coher_size;
+    uint32_t                                 coher_size;
 
     union
     {
         struct
         {
-            uint32_t                                  coher_size_hi : 8;
-            uint32_t                                      reserved1 : 24;
+            uint32_t                      coher_size_hi : 8;
+            uint32_t                          reserved1 : 24;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                        coher_base_lo;
+    uint32_t                              coher_base_lo;
 
     union
     {
         struct
         {
-            uint32_t                                  coher_base_hi : 24;
-            uint32_t                                      reserved1 : 8;
+            uint32_t                      coher_base_hi : 24;
+            uint32_t                          reserved1 : 8;
         } bitfields6;
-        uint32_t                             ordinal6;
+        uint32_t                               ordinal6;
     };
 
     union
     {
         struct
         {
-            uint32_t                                  poll_interval : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                      poll_interval : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
 } PM4PFP_ACQUIRE_MEM__GFX09, *PPM4PFP_ACQUIRE_MEM__GFX09;
@@ -133,79 +133,79 @@ typedef struct PM4_PFP_ATOMIC_GDS
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                        atom_op : 7;
-            uint32_t                                      reserved1 : 9;
-            PFP_ATOMIC_GDS_atom_cmp_swap_enum                     atom_cmp_swap : 1;
-            PFP_ATOMIC_GDS_atom_complete_enum                     atom_complete : 1;
-            PFP_ATOMIC_GDS_atom_read_enum                 atom_read : 1;
-            PFP_ATOMIC_GDS_atom_rd_cntl_enum                     atom_rd_cntl : 2;
-            uint32_t                                      reserved2 : 9;
-            PFP_ATOMIC_GDS_engine_sel_enum                     engine_sel : 2;
+            uint32_t                            atom_op : 7;
+            uint32_t                          reserved1 : 9;
+            PFP_ATOMIC_GDS_atom_cmp_swap_enum atom_cmp_swap : 1;
+            PFP_ATOMIC_GDS_atom_complete_enum atom_complete : 1;
+            PFP_ATOMIC_GDS_atom_read_enum     atom_read : 1;
+            PFP_ATOMIC_GDS_atom_rd_cntl_enum atom_rd_cntl : 2;
+            uint32_t                          reserved2 : 9;
+            PFP_ATOMIC_GDS_engine_sel_enum   engine_sel : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 auto_inc_bytes : 6;
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                          dmode : 1;
-            uint32_t                                      reserved2 : 23;
+            uint32_t                     auto_inc_bytes : 6;
+            uint32_t                          reserved1 : 2;
+            uint32_t                              dmode : 1;
+            uint32_t                          reserved2 : 23;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      atom_base : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                          atom_base : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      atom_size : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                          atom_size : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
     union
     {
         struct
         {
-            uint32_t                                   atom_offset0 : 8;
-            uint32_t                                      reserved1 : 8;
-            uint32_t                                   atom_offset1 : 8;
-            uint32_t                                      reserved2 : 8;
+            uint32_t                       atom_offset0 : 8;
+            uint32_t                          reserved1 : 8;
+            uint32_t                       atom_offset1 : 8;
+            uint32_t                          reserved2 : 8;
         } bitfields6;
-        uint32_t                             ordinal6;
+        uint32_t                               ordinal6;
     };
 
-    uint32_t                             atom_dst;
+    uint32_t                                   atom_dst;
 
-    uint32_t                            atom_src0;
+    uint32_t                                  atom_src0;
 
-    uint32_t                          atom_src0_u;
+    uint32_t                                atom_src0_u;
 
-    uint32_t                            atom_src1;
+    uint32_t                                  atom_src1;
 
-    uint32_t                          atom_src1_u;
+    uint32_t                                atom_src1_u;
 
 } PM4PFP_ATOMIC_GDS, *PPM4PFP_ATOMIC_GDS;
 
@@ -228,45 +228,45 @@ typedef struct PM4_PFP_ATOMIC_MEM
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                         atomic : 7;
-            uint32_t                                      reserved1 : 1;
-            PFP_ATOMIC_MEM_command_enum                     command : 4;
-            uint32_t                                      reserved2 : 13;
-            PFP_ATOMIC_MEM_cache_policy_enum                     cache_policy : 2;
-            uint32_t                                      reserved3 : 3;
-            PFP_ATOMIC_MEM_engine_sel_enum                     engine_sel : 2;
+            uint32_t                             atomic : 7;
+            uint32_t                          reserved1 : 1;
+            PFP_ATOMIC_MEM_command_enum         command : 4;
+            uint32_t                          reserved2 : 13;
+            PFP_ATOMIC_MEM_cache_policy_enum cache_policy : 2;
+            uint32_t                          reserved3 : 3;
+            PFP_ATOMIC_MEM_engine_sel_enum   engine_sel : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                              addr_lo;
+    uint32_t                                    addr_lo;
 
-    uint32_t                              addr_hi;
+    uint32_t                                    addr_hi;
 
-    uint32_t                          src_data_lo;
+    uint32_t                                src_data_lo;
 
-    uint32_t                          src_data_hi;
+    uint32_t                                src_data_hi;
 
-    uint32_t                          cmp_data_lo;
+    uint32_t                                cmp_data_lo;
 
-    uint32_t                          cmp_data_hi;
+    uint32_t                                cmp_data_hi;
 
     union
     {
         struct
         {
-            uint32_t                                  loop_interval : 13;
-            uint32_t                                      reserved1 : 19;
+            uint32_t                      loop_interval : 13;
+            uint32_t                          reserved1 : 19;
         } bitfields9;
-        uint32_t                             ordinal9;
+        uint32_t                               ordinal9;
     };
 
 } PM4PFP_ATOMIC_MEM, *PPM4PFP_ATOMIC_MEM;
@@ -283,18 +283,18 @@ typedef struct PM4_PFP_CLEAR_STATE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_CLEAR_STATE_cmd_enum                            cmd : 4;
-            uint32_t                                      reserved1 : 28;
+            PFP_CLEAR_STATE_cmd_enum                cmd : 4;
+            uint32_t                          reserved1 : 28;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_CLEAR_STATE, *PPM4PFP_CLEAR_STATE;
@@ -304,32 +304,32 @@ typedef struct PM4_PFP_COND_EXEC
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                        addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                            addr_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                              addr_hi;
+    uint32_t                                    addr_hi;
 
-    uint32_t                            reserved2;
+    uint32_t                                  reserved2;
 
     union
     {
         struct
         {
-            uint32_t                                     exec_count : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         exec_count : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_COND_EXEC, *PPM4PFP_COND_EXEC;
@@ -364,88 +364,88 @@ typedef struct PM4_PFP_COND_INDIRECT_BUFFER
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_COND_INDIRECT_BUFFER_mode_enum                     mode : 2;
-            uint32_t                                      reserved1 : 6;
-            PFP_COND_INDIRECT_BUFFER_function_enum                     function : 3;
-            uint32_t                                      reserved2 : 21;
+            PFP_COND_INDIRECT_BUFFER_mode_enum     mode : 2;
+            uint32_t                          reserved1 : 6;
+            PFP_COND_INDIRECT_BUFFER_function_enum function : 3;
+            uint32_t                          reserved2 : 21;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                                compare_addr_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                    compare_addr_lo : 29;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                      compare_addr_hi;
+    uint32_t                            compare_addr_hi;
 
-    uint32_t                              mask_lo;
+    uint32_t                                    mask_lo;
 
-    uint32_t                              mask_hi;
+    uint32_t                                    mask_hi;
 
-    uint32_t                         reference_lo;
+    uint32_t                               reference_lo;
 
-    uint32_t                         reference_hi;
+    uint32_t                               reference_hi;
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                    ib_base1_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                        ib_base1_lo : 30;
         } bitfields9;
-        uint32_t                             ordinal9;
+        uint32_t                               ordinal9;
     };
 
-    uint32_t                          ib_base1_hi;
+    uint32_t                                ib_base1_hi;
 
     union
     {
         struct
         {
-            uint32_t                                       ib_size1 : 20;
-            uint32_t                                      reserved1 : 8;
-            PFP_COND_INDIRECT_BUFFER_cache_policy1_enum                     cache_policy1 : 2;
-            uint32_t                                      reserved2 : 2;
+            uint32_t                           ib_size1 : 20;
+            uint32_t                          reserved1 : 8;
+            PFP_COND_INDIRECT_BUFFER_cache_policy1_enum cache_policy1 : 2;
+            uint32_t                          reserved2 : 2;
         } bitfields11;
-        uint32_t                            ordinal11;
+        uint32_t                              ordinal11;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                    ib_base2_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                        ib_base2_lo : 30;
         } bitfields12;
-        uint32_t                            ordinal12;
+        uint32_t                              ordinal12;
     };
 
-    uint32_t                          ib_base2_hi;
+    uint32_t                                ib_base2_hi;
 
     union
     {
         struct
         {
-            uint32_t                                       ib_size2 : 20;
-            uint32_t                                      reserved1 : 8;
-            PFP_COND_INDIRECT_BUFFER_cache_policy2_enum                     cache_policy2 : 2;
-            uint32_t                                      reserved2 : 2;
+            uint32_t                           ib_size2 : 20;
+            uint32_t                          reserved1 : 8;
+            PFP_COND_INDIRECT_BUFFER_cache_policy2_enum cache_policy2 : 2;
+            uint32_t                          reserved2 : 2;
         } bitfields14;
-        uint32_t                            ordinal14;
+        uint32_t                              ordinal14;
     };
 
 } PM4PFP_COND_INDIRECT_BUFFER, *PPM4PFP_COND_INDIRECT_BUFFER;
@@ -455,44 +455,44 @@ typedef struct PM4_PFP_CONTEXT_CONTROL
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                             load_global_config : 1;
-            uint32_t                         load_per_context_state : 1;
-            uint32_t                                      reserved1 : 13;
-            uint32_t                            load_global_uconfig : 1;
-            uint32_t                               load_gfx_sh_regs : 1;
-            uint32_t                                      reserved2 : 7;
-            uint32_t                                load_cs_sh_regs : 1;
-            uint32_t                                      reserved3 : 3;
-            uint32_t                                    load_ce_ram : 1;
-            uint32_t                                      reserved4 : 2;
-            uint32_t                            update_load_enables : 1;
+            uint32_t                 load_global_config : 1;
+            uint32_t             load_per_context_state : 1;
+            uint32_t                          reserved1 : 13;
+            uint32_t                load_global_uconfig : 1;
+            uint32_t                   load_gfx_sh_regs : 1;
+            uint32_t                          reserved2 : 7;
+            uint32_t                    load_cs_sh_regs : 1;
+            uint32_t                          reserved3 : 3;
+            uint32_t                        load_ce_ram : 1;
+            uint32_t                          reserved4 : 2;
+            uint32_t                update_load_enables : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                           shadow_global_config : 1;
-            uint32_t                       shadow_per_context_state : 1;
-            uint32_t                                      reserved1 : 13;
-            uint32_t                          shadow_global_uconfig : 1;
-            uint32_t                             shadow_gfx_sh_regs : 1;
-            uint32_t                                      reserved2 : 7;
-            uint32_t                              shadow_cs_sh_regs : 1;
-            uint32_t                                      reserved3 : 6;
-            uint32_t                          update_shadow_enables : 1;
+            uint32_t               shadow_global_config : 1;
+            uint32_t           shadow_per_context_state : 1;
+            uint32_t                          reserved1 : 13;
+            uint32_t              shadow_global_uconfig : 1;
+            uint32_t                 shadow_gfx_sh_regs : 1;
+            uint32_t                          reserved2 : 7;
+            uint32_t                  shadow_cs_sh_regs : 1;
+            uint32_t                          reserved3 : 6;
+            uint32_t              update_shadow_enables : 1;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
 } PM4PFP_CONTEXT_CONTROL, *PPM4PFP_CONTEXT_CONTROL;
@@ -502,23 +502,23 @@ typedef struct PM4_PFP_CONTEXT_REG_RMW
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                             reg_mask;
+    uint32_t                                   reg_mask;
 
-    uint32_t                             reg_data;
+    uint32_t                                   reg_data;
 
 } PM4PFP_CONTEXT_REG_RMW, *PPM4PFP_CONTEXT_REG_RMW;
 
@@ -564,80 +564,80 @@ typedef struct PM4_PFP_COPY_DATA
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_COPY_DATA_src_sel_enum                      src_sel : 4;
-            uint32_t                                      reserved1 : 4;
-            PFP_COPY_DATA_dst_sel_enum                      dst_sel : 4;
-            uint32_t                                      reserved2 : 1;
-            PFP_COPY_DATA_src_cache_policy_enum                     src_cache_policy : 2;
-            uint32_t                                      reserved3 : 1;
-            PFP_COPY_DATA_count_sel_enum                  count_sel : 1;
-            uint32_t                                      reserved4 : 3;
-            PFP_COPY_DATA_wr_confirm_enum                wr_confirm : 1;
-            uint32_t                                      reserved5 : 4;
-            PFP_COPY_DATA_dst_cache_policy_enum                     dst_cache_policy : 2;
-            uint32_t                                      reserved6 : 3;
-            PFP_COPY_DATA_engine_sel_enum                engine_sel : 2;
+            PFP_COPY_DATA_src_sel_enum          src_sel : 4;
+            uint32_t                          reserved1 : 4;
+            PFP_COPY_DATA_dst_sel_enum          dst_sel : 4;
+            uint32_t                          reserved2 : 1;
+            PFP_COPY_DATA_src_cache_policy_enum src_cache_policy : 2;
+            uint32_t                          reserved3 : 1;
+            PFP_COPY_DATA_count_sel_enum      count_sel : 1;
+            uint32_t                          reserved4 : 3;
+            PFP_COPY_DATA_wr_confirm_enum    wr_confirm : 1;
+            uint32_t                          reserved5 : 4;
+            PFP_COPY_DATA_dst_cache_policy_enum dst_cache_policy : 2;
+            uint32_t                          reserved6 : 3;
+            PFP_COPY_DATA_engine_sel_enum    engine_sel : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 src_reg_offset : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                     src_reg_offset : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3a;
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                src_32b_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                    src_32b_addr_lo : 30;
         } bitfields3b;
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                                src_64b_addr_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                    src_64b_addr_lo : 29;
         } bitfields3c;
-        uint32_t                             imm_data;
-        uint32_t                             ordinal3;
+        uint32_t                               imm_data;
+        uint32_t                               ordinal3;
     };
 
     union
     {
-        uint32_t                    src_memtc_addr_hi;
-        uint32_t                         src_imm_data;
-        uint32_t                             ordinal4;
+        uint32_t                      src_memtc_addr_hi;
+        uint32_t                           src_imm_data;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 dst_reg_offset : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                     dst_reg_offset : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields5a;
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                dst_32b_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                    dst_32b_addr_lo : 30;
         } bitfields5b;
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                                dst_64b_addr_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                    dst_64b_addr_lo : 29;
         } bitfields5c;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
-    uint32_t                          dst_addr_hi;
+    uint32_t                                dst_addr_hi;
 
 } PM4PFP_COPY_DATA, *PPM4PFP_COPY_DATA;
 
@@ -646,17 +646,17 @@ typedef struct PM4_PFP_DISPATCH_DIRECT
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                                dim_x;
+    uint32_t                                      dim_x;
 
-    uint32_t                                dim_y;
+    uint32_t                                      dim_y;
 
-    uint32_t                                dim_z;
+    uint32_t                                      dim_z;
 
-    uint32_t                   dispatch_initiator;
+    uint32_t                         dispatch_initiator;
 
 } PM4PFP_DISPATCH_DIRECT, *PPM4PFP_DISPATCH_DIRECT;
 
@@ -665,38 +665,38 @@ typedef struct PM4_PFP_DISPATCH_DRAW
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                         index_offset;
+    uint32_t                               index_offset;
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 16;
-            uint32_t                                      prim_type : 5;
-            uint32_t                                      reserved2 : 11;
+            uint32_t                          reserved1 : 16;
+            uint32_t                          prim_type : 5;
+            uint32_t                          reserved2 : 11;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                          index_count;
+    uint32_t                                index_count;
 
     union
     {
         struct
         {
-            uint32_t                                   vrb_loc_sgpr : 4;
-            uint32_t                                        use_vrb : 1;
-            uint32_t                     max_index_multiple_minus_1 : 11;
-            uint32_t                     min_poll_intervals_for_partial_draw : 16;
+            uint32_t                       vrb_loc_sgpr : 4;
+            uint32_t                            use_vrb : 1;
+            uint32_t         max_index_multiple_minus_1 : 11;
+            uint32_t min_poll_intervals_for_partial_draw : 16;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DISPATCH_DRAW, *PPM4PFP_DISPATCH_DRAW;
 
@@ -715,41 +715,41 @@ typedef struct PM4_PFP_DISPATCH_DRAW_PREAMBLE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                       krb_size : 10;
-            uint32_t                                krb_free_offset : 10;
-            uint32_t                                     krb_offset : 10;
-            uint32_t                                      reserved1 : 2;
+            uint32_t                           krb_size : 10;
+            uint32_t                    krb_free_offset : 10;
+            uint32_t                         krb_offset : 10;
+            uint32_t                          reserved1 : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 4;
-            uint32_t                                       buf_type : 2;
-            uint32_t                                      reserved2 : 3;
-            PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum                     not_eop : 1;
-            PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum                     req_path__GFX09 : 1;
-            uint32_t                                      reserved3 : 21;
+            uint32_t                          reserved1 : 4;
+            uint32_t                           buf_type : 2;
+            uint32_t                          reserved2 : 3;
+            PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum not_eop : 1;
+            PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum req_path__GFX09 : 1;
+            uint32_t                          reserved3 : 21;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                          irb_addr_lo;
+    uint32_t                                irb_addr_lo;
 
-    uint32_t                          irb_addr_hi;
+    uint32_t                                irb_addr_hi;
 
-    uint32_t                        irb_wrap_size;
+    uint32_t                              irb_wrap_size;
 
 } PM4PFP_DISPATCH_DRAW_PREAMBLE, *PPM4PFP_DISPATCH_DRAW_PREAMBLE;
 
@@ -758,13 +758,13 @@ typedef struct PM4_PFP_DISPATCH_INDIRECT
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          data_offset;
+    uint32_t                                data_offset;
 
-    uint32_t                   dispatch_initiator;
+    uint32_t                         dispatch_initiator;
 
 } PM4PFP_DISPATCH_INDIRECT, *PPM4PFP_DISPATCH_INDIRECT;
 
@@ -821,49 +821,49 @@ typedef struct PM4_PFP_DMA_DATA
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_DMA_DATA_engine_sel_enum                 engine_sel : 1;
-            uint32_t                                      reserved1 : 12;
-            PFP_DMA_DATA_src_cache_policy_enum                     src_cache_policy : 2;
-            uint32_t                                      reserved2 : 5;
-            PFP_DMA_DATA_dst_sel_enum                       dst_sel : 2;
-            uint32_t                                      reserved3 : 3;
-            PFP_DMA_DATA_dst_cache_policy_enum                     dst_cache_policy : 2;
-            uint32_t                                      reserved4 : 2;
-            PFP_DMA_DATA_src_sel_enum                       src_sel : 2;
-            uint32_t                                        cp_sync : 1;
+            PFP_DMA_DATA_engine_sel_enum     engine_sel : 1;
+            uint32_t                          reserved1 : 12;
+            PFP_DMA_DATA_src_cache_policy_enum src_cache_policy : 2;
+            uint32_t                          reserved2 : 5;
+            PFP_DMA_DATA_dst_sel_enum           dst_sel : 2;
+            uint32_t                          reserved3 : 3;
+            PFP_DMA_DATA_dst_cache_policy_enum dst_cache_policy : 2;
+            uint32_t                          reserved4 : 2;
+            PFP_DMA_DATA_src_sel_enum           src_sel : 2;
+            uint32_t                            cp_sync : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                  src_addr_lo_or_data;
+    uint32_t                        src_addr_lo_or_data;
 
-    uint32_t                          src_addr_hi;
+    uint32_t                                src_addr_hi;
 
-    uint32_t                          dst_addr_lo;
+    uint32_t                                dst_addr_lo;
 
-    uint32_t                          dst_addr_hi;
+    uint32_t                                dst_addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     byte_count : 26;
-            PFP_DMA_DATA_sas_enum                               sas : 1;
-            PFP_DMA_DATA_das_enum                               das : 1;
-            PFP_DMA_DATA_saic_enum                             saic : 1;
-            PFP_DMA_DATA_daic_enum                             daic : 1;
-            uint32_t                                       raw_wait : 1;
-            uint32_t                                         dis_wc : 1;
+            uint32_t                         byte_count : 26;
+            PFP_DMA_DATA_sas_enum                   sas : 1;
+            PFP_DMA_DATA_das_enum                   das : 1;
+            PFP_DMA_DATA_saic_enum                 saic : 1;
+            PFP_DMA_DATA_daic_enum                 daic : 1;
+            uint32_t                           raw_wait : 1;
+            uint32_t                             dis_wc : 1;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
 } PM4PFP_DMA_DATA, *PPM4PFP_DMA_DATA;
@@ -891,44 +891,44 @@ typedef struct PM4_PFP_DMA_DATA_FILL_MULTI
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_DMA_DATA_FILL_MULTI_engine_sel_enum                     engine_sel : 1;
-            uint32_t                                      reserved1 : 9;
-            uint32_t                                   memlog_clear : 1;
-            uint32_t                                      reserved2 : 9;
-            PFP_DMA_DATA_FILL_MULTI_dst_sel_enum                     dst_sel : 2;
-            uint32_t                                      reserved3 : 3;
-            PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum                     dst_cache_policy : 2;
-            uint32_t                                      reserved4 : 2;
-            PFP_DMA_DATA_FILL_MULTI_src_sel_enum                     src_sel : 2;
-            uint32_t                                        cp_sync : 1;
+            PFP_DMA_DATA_FILL_MULTI_engine_sel_enum engine_sel : 1;
+            uint32_t                          reserved1 : 9;
+            uint32_t                       memlog_clear : 1;
+            uint32_t                          reserved2 : 9;
+            PFP_DMA_DATA_FILL_MULTI_dst_sel_enum dst_sel : 2;
+            uint32_t                          reserved3 : 3;
+            PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum dst_cache_policy : 2;
+            uint32_t                          reserved4 : 2;
+            PFP_DMA_DATA_FILL_MULTI_src_sel_enum src_sel : 2;
+            uint32_t                            cp_sync : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                          byte_stride;
+    uint32_t                                byte_stride;
 
-    uint32_t                            dma_count;
+    uint32_t                                  dma_count;
 
-    uint32_t                          dst_addr_lo;
+    uint32_t                                dst_addr_lo;
 
-    uint32_t                          dst_addr_hi;
+    uint32_t                                dst_addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     byte_count : 26;
-            uint32_t                                      reserved1 : 6;
+            uint32_t                         byte_count : 26;
+            uint32_t                          reserved1 : 6;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
 } PM4PFP_DMA_DATA_FILL_MULTI, *PPM4PFP_DMA_DATA_FILL_MULTI;
@@ -938,19 +938,19 @@ typedef struct PM4_PFP_DRAW_INDEX_2
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                             max_size;
+    uint32_t                                   max_size;
 
-    uint32_t                        index_base_lo;
+    uint32_t                              index_base_lo;
 
-    uint32_t                        index_base_hi;
+    uint32_t                              index_base_hi;
 
-    uint32_t                          index_count;
+    uint32_t                                index_count;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_2, *PPM4PFP_DRAW_INDEX_2;
 
@@ -959,13 +959,13 @@ typedef struct PM4_PFP_DRAW_INDEX_AUTO
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          index_count;
+    uint32_t                                index_count;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_AUTO, *PPM4PFP_DRAW_INDEX_AUTO;
 
@@ -974,35 +974,35 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          data_offset;
+    uint32_t                                data_offset;
 
     union
     {
         struct
         {
-            uint32_t                                   base_vtx_loc : 16;
-            uint32_t                                 start_indx_loc : 16;
+            uint32_t                       base_vtx_loc : 16;
+            uint32_t                     start_indx_loc : 16;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 start_inst_loc : 16;
-            uint32_t                                      reserved1 : 12;
-            uint32_t                              start_indx_enable : 1;
-            uint32_t                                      reserved2 : 3;
+            uint32_t                     start_inst_loc : 16;
+            uint32_t                          reserved1 : 12;
+            uint32_t                  start_indx_enable : 1;
+            uint32_t                          reserved2 : 3;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_INDIRECT, *PPM4PFP_DRAW_INDEX_INDIRECT;
 
@@ -1011,63 +1011,63 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          data_offset;
+    uint32_t                                data_offset;
 
     union
     {
         struct
         {
-            uint32_t                                   base_vtx_loc : 16;
-            uint32_t                                 start_indx_loc : 16;
+            uint32_t                       base_vtx_loc : 16;
+            uint32_t                     start_indx_loc : 16;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 start_inst_loc : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                     start_inst_loc : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 draw_index_loc : 16;
-            uint32_t                                      reserved2 : 12;
-            uint32_t                             start_index_enable : 1;
-            uint32_t                                      reserved3 : 1;
-            uint32_t                          count_indirect_enable : 1;
-            uint32_t                              draw_index_enable : 1;
+            uint32_t                     draw_index_loc : 16;
+            uint32_t                          reserved2 : 12;
+            uint32_t                 start_index_enable : 1;
+            uint32_t                          reserved3 : 1;
+            uint32_t              count_indirect_enable : 1;
+            uint32_t                  draw_index_enable : 1;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
-    uint32_t                                count;
+    uint32_t                                      count;
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                  count_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                      count_addr_lo : 30;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
-    uint32_t                        count_addr_hi;
+    uint32_t                              count_addr_hi;
 
-    uint32_t                               stride;
+    uint32_t                                     stride;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_INDIRECT_MULTI, *PPM4PFP_DRAW_INDEX_INDIRECT_MULTI;
 
@@ -1076,23 +1076,23 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_AUTO
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                           prim_count;
+    uint32_t                                 prim_count;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
     union
     {
         struct
         {
-            uint32_t                                   index_offset : 16;
-            uint32_t                                      prim_type : 5;
-            uint32_t                                    index_count : 11;
+            uint32_t                       index_offset : 16;
+            uint32_t                          prim_type : 5;
+            uint32_t                        index_count : 11;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
 } PM4PFP_DRAW_INDEX_MULTI_AUTO, *PPM4PFP_DRAW_INDEX_MULTI_AUTO;
@@ -1102,25 +1102,25 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                       instance_count;
+    uint32_t                             instance_count;
 
-    uint32_t                       obj_id_addr_lo;
+    uint32_t                             obj_id_addr_lo;
 
-    uint32_t                       obj_id_addr_hi;
+    uint32_t                             obj_id_addr_hi;
 
-    uint32_t                             max_size;
+    uint32_t                                   max_size;
 
-    uint32_t                        index_base_lo;
+    uint32_t                              index_base_lo;
 
-    uint32_t                        index_base_hi;
+    uint32_t                              index_base_hi;
 
-    uint32_t                          index_count;
+    uint32_t                                index_count;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_MULTI_INST, *PPM4PFP_DRAW_INDEX_MULTI_INST;
 
@@ -1129,17 +1129,17 @@ typedef struct PM4_PFP_DRAW_INDEX_OFFSET_2
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                             max_size;
+    uint32_t                                   max_size;
 
-    uint32_t                         index_offset;
+    uint32_t                               index_offset;
 
-    uint32_t                          index_count;
+    uint32_t                                index_count;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDEX_OFFSET_2, *PPM4PFP_DRAW_INDEX_OFFSET_2;
 
@@ -1148,33 +1148,33 @@ typedef struct PM4_PFP_DRAW_INDIRECT
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          data_offset;
+    uint32_t                                data_offset;
 
     union
     {
         struct
         {
-            uint32_t                                  start_vtx_loc : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                      start_vtx_loc : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 start_inst_loc : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                     start_inst_loc : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDIRECT, *PPM4PFP_DRAW_INDIRECT;
 
@@ -1183,62 +1183,62 @@ typedef struct PM4_PFP_DRAW_INDIRECT_MULTI
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          data_offset;
+    uint32_t                                data_offset;
 
     union
     {
         struct
         {
-            uint32_t                                  start_vtx_loc : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                      start_vtx_loc : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 start_inst_loc : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                     start_inst_loc : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 draw_index_loc : 16;
-            uint32_t                                      reserved1 : 11;
-            uint32_t                                      reserved3 : 3;
-            uint32_t                          count_indirect_enable : 1;
-            uint32_t                              draw_index_enable : 1;
+            uint32_t                     draw_index_loc : 16;
+            uint32_t                          reserved1 : 11;
+            uint32_t                          reserved3 : 3;
+            uint32_t              count_indirect_enable : 1;
+            uint32_t                  draw_index_enable : 1;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
-    uint32_t                                count;
+    uint32_t                                      count;
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                  count_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                      count_addr_lo : 30;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
-    uint32_t                        count_addr_hi;
+    uint32_t                              count_addr_hi;
 
-    uint32_t                               stride;
+    uint32_t                                     stride;
 
-    uint32_t                       draw_initiator;
+    uint32_t                             draw_initiator;
 
 } PM4PFP_DRAW_INDIRECT_MULTI, *PPM4PFP_DRAW_INDIRECT_MULTI;
 
@@ -1257,19 +1257,19 @@ typedef struct PM4_PFP_FRAME_CONTROL
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_FRAME_CONTROL_tmz_enum                          tmz : 1;
-            uint32_t                                      reserved1 : 27;
-            PFP_FRAME_CONTROL_command_enum                     command : 4;
+            PFP_FRAME_CONTROL_tmz_enum              tmz : 1;
+            uint32_t                          reserved1 : 27;
+            PFP_FRAME_CONTROL_command_enum      command : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_FRAME_CONTROL, *PPM4PFP_FRAME_CONTROL;
@@ -1279,27 +1279,27 @@ typedef struct PM4_PFP_GEN_PDEPTE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                          dst_addr_lo;
+    uint32_t                                dst_addr_lo;
 
-    uint32_t                          dst_addr_hi;
+    uint32_t                                dst_addr_hi;
 
-    uint32_t                              mask_lo;
+    uint32_t                                    mask_lo;
 
-    uint32_t                              mask_hi;
+    uint32_t                                    mask_hi;
 
-    uint32_t                        init_value_lo;
+    uint32_t                              init_value_lo;
 
-    uint32_t                        init_value_hi;
+    uint32_t                              init_value_hi;
 
-    uint32_t                              incr_lo;
+    uint32_t                                    incr_lo;
 
-    uint32_t                              incr_hi;
+    uint32_t                                    incr_hi;
 
-    uint32_t                           loop_count;
+    uint32_t                                 loop_count;
 
 } PM4PFP_GEN_PDEPTE, *PPM4PFP_GEN_PDEPTE;
 
@@ -1308,30 +1308,30 @@ typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                              attribute_base_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                  attribute_base_lo : 29;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                    attribute_base_hi;
+    uint32_t                          attribute_base_hi;
 
     union
     {
         struct
         {
-            uint32_t                                attribute_index : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                    attribute_index : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
 } PM4PFP_INDEX_ATTRIBUTES_INDIRECT, *PPM4PFP_INDEX_ATTRIBUTES_INDIRECT;
@@ -1341,21 +1341,21 @@ typedef struct PM4_PFP_INDEX_BASE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 1;
-            uint32_t                                  index_base_lo : 31;
+            uint32_t                          reserved1 : 1;
+            uint32_t                      index_base_lo : 31;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                        index_base_hi;
+    uint32_t                              index_base_hi;
 
 } PM4PFP_INDEX_BASE, *PPM4PFP_INDEX_BASE;
 
@@ -1364,11 +1364,11 @@ typedef struct PM4_PFP_INDEX_BUFFER_SIZE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                    index_buffer_size;
+    uint32_t                          index_buffer_size;
 
 } PM4PFP_INDEX_BUFFER_SIZE, *PPM4PFP_INDEX_BUFFER_SIZE;
 
@@ -1382,36 +1382,36 @@ typedef struct PM4_PFP_INDIRECT_BUFFER
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                     ib_base_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                         ib_base_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                           ib_base_hi;
+    uint32_t                                 ib_base_hi;
 
     union
     {
         struct
         {
-            uint32_t                                        ib_size : 20;
-            uint32_t                                          chain : 1;
-            uint32_t                                        pre_ena : 1;
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                           vmid : 4;
-            PFP_INDIRECT_BUFFER_cache_policy_enum                     cache_policy : 2;
-            uint32_t                                     pre_resume : 1;
-            uint32_t                                      reserved2 : 1;
+            uint32_t                            ib_size : 20;
+            uint32_t                              chain : 1;
+            uint32_t                            pre_ena : 1;
+            uint32_t                          reserved1 : 2;
+            uint32_t                               vmid : 4;
+            PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy : 2;
+            uint32_t                         pre_resume : 1;
+            uint32_t                          reserved2 : 1;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
 } PM4PFP_INDIRECT_BUFFER, *PPM4PFP_INDIRECT_BUFFER;
@@ -1421,40 +1421,40 @@ typedef struct PM4_PFP_LOAD_CONFIG_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                   base_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                       base_addr_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                         base_addr_hi;
+    uint32_t                               base_addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     num_dwords : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_CONFIG_REG, *PPM4PFP_LOAD_CONFIG_REG;
@@ -1464,40 +1464,40 @@ typedef struct PM4_PFP_LOAD_CONTEXT_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                   base_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                       base_addr_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                         base_addr_hi;
+    uint32_t                               base_addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     num_dwords : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_CONTEXT_REG, *PPM4PFP_LOAD_CONTEXT_REG;
@@ -1517,47 +1517,47 @@ typedef struct PM4_PFP_LOAD_CONTEXT_REG_INDEX
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_LOAD_CONTEXT_REG_INDEX_index_enum                     index : 1;
-            uint32_t                                      reserved1 : 1;
-            uint32_t                                    mem_addr_lo : 30;
+            PFP_LOAD_CONTEXT_REG_INDEX_index_enum index : 1;
+            uint32_t                          reserved1 : 1;
+            uint32_t                        mem_addr_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
-        uint32_t                          mem_addr_hi;
-        uint32_t                          addr_offset;
-        uint32_t                             ordinal3;
+        uint32_t                            mem_addr_hi;
+        uint32_t                            addr_offset;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 15;
-            PFP_LOAD_CONTEXT_REG_INDEX_data_format_enum                     data_format : 1;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 15;
+            PFP_LOAD_CONTEXT_REG_INDEX_data_format_enum data_format : 1;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     num_dwords : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_CONTEXT_REG_INDEX, *PPM4PFP_LOAD_CONTEXT_REG_INDEX;
@@ -1567,40 +1567,40 @@ typedef struct PM4_PFP_LOAD_SH_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                base_address_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                    base_address_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                      base_address_hi;
+    uint32_t                            base_address_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      num_dword : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                          num_dword : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_SH_REG, *PPM4PFP_LOAD_SH_REG;
@@ -1620,47 +1620,47 @@ typedef struct PM4_PFP_LOAD_SH_REG_INDEX
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_LOAD_SH_REG_INDEX_index_enum                     index : 1;
-            uint32_t                                      reserved1 : 1;
-            uint32_t                                    mem_addr_lo : 30;
+            PFP_LOAD_SH_REG_INDEX_index_enum      index : 1;
+            uint32_t                          reserved1 : 1;
+            uint32_t                        mem_addr_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
-        uint32_t                          mem_addr_hi;
-        uint32_t                          addr_offset;
-        uint32_t                             ordinal3;
+        uint32_t                            mem_addr_hi;
+        uint32_t                            addr_offset;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 15;
-            PFP_LOAD_SH_REG_INDEX_data_format_enum                     data_format : 1;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 15;
+            PFP_LOAD_SH_REG_INDEX_data_format_enum data_format : 1;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     num_dwords : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_SH_REG_INDEX, *PPM4PFP_LOAD_SH_REG_INDEX;
@@ -1670,40 +1670,40 @@ typedef struct PM4_PFP_LOAD_UCONFIG_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                base_address_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                    base_address_lo : 30;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                      base_address_hi;
+    uint32_t                            base_address_hi;
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     num_dwords : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                         num_dwords : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_LOAD_UCONFIG_REG, *PPM4PFP_LOAD_UCONFIG_REG;
@@ -1713,8 +1713,8 @@ typedef struct PM4_PFP_NOP
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
 } PM4PFP_NOP, *PPM4PFP_NOP;
@@ -1724,11 +1724,11 @@ typedef struct PM4_PFP_NUM_INSTANCES
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                        num_instances;
+    uint32_t                              num_instances;
 
 } PM4PFP_NUM_INSTANCES, *PPM4PFP_NUM_INSTANCES;
 
@@ -1737,33 +1737,33 @@ typedef struct PM4_PFP_OCCLUSION_QUERY
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 4;
-            uint32_t                                  start_addr_lo : 28;
+            uint32_t                          reserved1 : 4;
+            uint32_t                      start_addr_lo : 28;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                        start_addr_hi;
+    uint32_t                              start_addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                  query_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                      query_addr_lo : 30;
         } bitfields4;
-        uint32_t                             ordinal4;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                        query_addr_hi;
+    uint32_t                              query_addr_hi;
 
 } PM4PFP_OCCLUSION_QUERY, *PPM4PFP_OCCLUSION_QUERY;
 
@@ -1772,11 +1772,11 @@ typedef struct PM4_PFP_PFP_SYNC_ME
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
-    uint32_t                           dummy_data;
+    uint32_t                                 dummy_data;
 
 } PM4PFP_PFP_SYNC_ME, *PPM4PFP_PFP_SYNC_ME;
 
@@ -1792,18 +1792,18 @@ typedef struct PM4_PFP_PREAMBLE_CNTL
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 28;
-            PFP_PREAMBLE_CNTL_command_enum                     command : 4;
+            uint32_t                          reserved1 : 28;
+            PFP_PREAMBLE_CNTL_command_enum      command : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_PREAMBLE_CNTL, *PPM4PFP_PREAMBLE_CNTL;
@@ -1813,19 +1813,19 @@ typedef struct PM4_PFP_PRED_EXEC
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     exec_count : 14;
-            uint32_t                                      reserved1 : 10;
-            uint32_t                                  device_select : 8;
+            uint32_t                         exec_count : 14;
+            uint32_t                          reserved1 : 10;
+            uint32_t                      device_select : 8;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_PRED_EXEC, *PPM4PFP_PRED_EXEC;
@@ -1850,34 +1850,34 @@ typedef struct PM4_PFP_PRIME_UTCL2
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_PRIME_UTCL2_cache_perm_enum                     cache_perm : 3;
-            PFP_PRIME_UTCL2_prime_mode_enum                     prime_mode : 1;
-            uint32_t                                      reserved1 : 26;
-            PFP_PRIME_UTCL2_engine_sel_enum                     engine_sel : 2;
+            PFP_PRIME_UTCL2_cache_perm_enum  cache_perm : 3;
+            PFP_PRIME_UTCL2_prime_mode_enum  prime_mode : 1;
+            uint32_t                          reserved1 : 26;
+            PFP_PRIME_UTCL2_engine_sel_enum  engine_sel : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
-    uint32_t                              addr_lo;
+    uint32_t                                    addr_lo;
 
-    uint32_t                              addr_hi;
+    uint32_t                                    addr_hi;
 
     union
     {
         struct
         {
-            uint32_t                                requested_pages : 14;
-            uint32_t                                      reserved1 : 18;
+            uint32_t                    requested_pages : 14;
+            uint32_t                          reserved1 : 18;
         } bitfields5;
-        uint32_t                             ordinal5;
+        uint32_t                               ordinal5;
     };
 
 } PM4PFP_PRIME_UTCL2, *PPM4PFP_PRIME_UTCL2;
@@ -1887,18 +1887,18 @@ typedef struct PM4_PFP_REWIND
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 31;
-            uint32_t                                          valid : 1;
+            uint32_t                          reserved1 : 31;
+            uint32_t                              valid : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_REWIND, *PPM4PFP_REWIND;
@@ -1915,31 +1915,31 @@ typedef struct PM4_PFP_SET_BASE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_SET_BASE_base_index_enum                 base_index : 4;
-            uint32_t                                      reserved1 : 28;
+            PFP_SET_BASE_base_index_enum     base_index : 4;
+            uint32_t                          reserved1 : 28;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                                     address_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                         address_lo : 29;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                           address_hi;
+    uint32_t                                 address_hi;
 
 } PM4PFP_SET_BASE, *PPM4PFP_SET_BASE;
 
@@ -1953,46 +1953,46 @@ typedef struct PM4_PFP_SET_CONTEXT_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 12;
-            PFP_SET_CONTEXT_REG_index_enum                     index__GFX09 : 4;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 12;
+            PFP_SET_CONTEXT_REG_index_enum index__GFX09 : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_SET_CONTEXT_REG, *PPM4PFP_SET_CONTEXT_REG;
 
 //--------------------SET_CONTEXT_REG_INDEX__GFX09--------------------
 enum PFP_SET_CONTEXT_REG_INDEX_index_enum {
-    index__pfp_set_context_reg_index__default                              =  0,
-    index__pfp_set_context_reg_index__vgt_ls_hs_config                     =  2,
+    index__pfp_set_context_reg_index__default__GFX09                       =  0,
+    index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09              =  2,
 };
 
 typedef struct PM4_PFP_SET_CONTEXT_REG_INDEX__GFX09
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 12;
-            PFP_SET_CONTEXT_REG_INDEX_index_enum                     index : 4;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 12;
+            PFP_SET_CONTEXT_REG_INDEX_index_enum  index : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_SET_CONTEXT_REG_INDEX__GFX09, *PPM4PFP_SET_CONTEXT_REG_INDEX__GFX09;
@@ -2024,37 +2024,37 @@ typedef struct PM4_PFP_SET_PREDICATION
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 8;
-            PFP_SET_PREDICATION_pred_bool_enum                     pred_bool : 1;
-            uint32_t                                      reserved2 : 3;
-            PFP_SET_PREDICATION_hint_enum                      hint : 1;
-            uint32_t                                      reserved3 : 3;
-            PFP_SET_PREDICATION_pred_op_enum                     pred_op : 3;
-            uint32_t                                      reserved4 : 12;
-            PFP_SET_PREDICATION_continue_bit_enum                     continue_bit : 1;
+            uint32_t                          reserved1 : 8;
+            PFP_SET_PREDICATION_pred_bool_enum pred_bool : 1;
+            uint32_t                          reserved2 : 3;
+            PFP_SET_PREDICATION_hint_enum          hint : 1;
+            uint32_t                          reserved3 : 3;
+            PFP_SET_PREDICATION_pred_op_enum    pred_op : 3;
+            uint32_t                          reserved4 : 12;
+            PFP_SET_PREDICATION_continue_bit_enum continue_bit : 1;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 4;
-            uint32_t                                  start_addr_lo : 28;
+            uint32_t                          reserved1 : 4;
+            uint32_t                      start_addr_lo : 28;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                        start_addr_hi;
+    uint32_t                              start_addr_hi;
 
 } PM4PFP_SET_PREDICATION, *PPM4PFP_SET_PREDICATION;
 
@@ -2067,19 +2067,19 @@ typedef struct PM4_PFP_SET_SH_REG_INDEX
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 12;
-            PFP_SET_SH_REG_INDEX_index_enum                     index : 4;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 12;
+            PFP_SET_SH_REG_INDEX_index_enum       index : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_SET_SH_REG_INDEX, *PPM4PFP_SET_SH_REG_INDEX;
@@ -2087,44 +2087,45 @@ typedef struct PM4_PFP_SET_SH_REG_INDEX
 //--------------------SET_SH_REG_OFFSET--------------------
 enum PFP_SET_SH_REG_OFFSET_index_enum {
     index__pfp_set_sh_reg_offset__normal_operation                         =  0,
-    index__pfp_set_sh_reg_offset__data_indirect                            =  1,
+    index__pfp_set_sh_reg_offset__data_indirect_2dw_256b                   =  1,
+    index__pfp_set_sh_reg_offset__data_indirect_1dw                        =  2,
 };
 
 typedef struct PM4_PFP_SET_SH_REG_OFFSET
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 15;
-            PFP_SET_SH_REG_OFFSET_index_enum                     index : 1;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 14;
+            PFP_SET_SH_REG_OFFSET_index_enum      index : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
-        uint32_t                            ib_offset;
-        uint32_t                          data_offset;
-        uint32_t                             ordinal3;
+        uint32_t                              ib_offset;
+        uint32_t                            data_offset;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 16;
-            uint32_t                                    driver_data : 16;
+            uint32_t                          reserved1 : 16;
+            uint32_t                        driver_data : 16;
         } bitfields4;
-        uint32_t                                dummy;
-        uint32_t                             ordinal4;
+        uint32_t                                  dummy;
+        uint32_t                               ordinal4;
     };
 
 } PM4PFP_SET_SH_REG_OFFSET, *PPM4PFP_SET_SH_REG_OFFSET;
@@ -2142,19 +2143,19 @@ typedef struct PM4_PFP_SET_UCONFIG_REG
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 12;
-            PFP_SET_UCONFIG_REG_index_enum                     index__GFX09 : 4;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 12;
+            PFP_SET_UCONFIG_REG_index_enum index__GFX09 : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_SET_UCONFIG_REG, *PPM4PFP_SET_UCONFIG_REG;
@@ -2172,19 +2173,19 @@ typedef struct PM4_PFP_SET_UCONFIG_REG_INDEX
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                     reg_offset : 16;
-            uint32_t                                      reserved1 : 12;
-            PFP_SET_UCONFIG_REG_INDEX_index_enum                     index : 4;
+            uint32_t                         reg_offset : 16;
+            uint32_t                          reserved1 : 12;
+            PFP_SET_UCONFIG_REG_INDEX_index_enum  index : 4;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
 } PM4PFP_SET_UCONFIG_REG_INDEX, *PPM4PFP_SET_UCONFIG_REG_INDEX;
@@ -2218,39 +2219,39 @@ typedef struct PM4_PFP_STRMOUT_BUFFER_UPDATE
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_STRMOUT_BUFFER_UPDATE_update_memory_enum                     update_memory : 1;
-            PFP_STRMOUT_BUFFER_UPDATE_source_select_enum                     source_select : 2;
-            uint32_t                                      reserved1 : 4;
-            PFP_STRMOUT_BUFFER_UPDATE_data_type_enum                     data_type : 1;
-            PFP_STRMOUT_BUFFER_UPDATE_buffer_select_enum                     buffer_select : 2;
-            uint32_t                                      reserved2 : 22;
+            PFP_STRMOUT_BUFFER_UPDATE_update_memory_enum update_memory : 1;
+            PFP_STRMOUT_BUFFER_UPDATE_source_select_enum source_select : 2;
+            uint32_t                          reserved1 : 4;
+            PFP_STRMOUT_BUFFER_UPDATE_data_type_enum data_type : 1;
+            PFP_STRMOUT_BUFFER_UPDATE_buffer_select_enum buffer_select : 2;
+            uint32_t                          reserved2 : 22;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                 dst_address_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                     dst_address_lo : 30;
         } bitfields3;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                       dst_address_hi;
+    uint32_t                             dst_address_hi;
 
-    uint32_t                 offset_or_address_lo;
+    uint32_t                       offset_or_address_lo;
 
-    uint32_t                       src_address_hi;
+    uint32_t                             src_address_hi;
 
 } PM4PFP_STRMOUT_BUFFER_UPDATE, *PPM4PFP_STRMOUT_BUFFER_UPDATE;
 
@@ -2287,67 +2288,67 @@ typedef struct PM4_PFP_WAIT_REG_MEM
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_WAIT_REG_MEM_function_enum                     function : 3;
-            uint32_t                                      reserved1 : 1;
-            PFP_WAIT_REG_MEM_mem_space_enum                     mem_space : 2;
-            PFP_WAIT_REG_MEM_operation_enum                     operation : 2;
-            PFP_WAIT_REG_MEM_engine_sel_enum                     engine_sel : 2;
-            uint32_t                                      reserved2 : 15;
+            PFP_WAIT_REG_MEM_function_enum     function : 3;
+            uint32_t                          reserved1 : 1;
+            PFP_WAIT_REG_MEM_mem_space_enum   mem_space : 2;
+            PFP_WAIT_REG_MEM_operation_enum   operation : 2;
+            PFP_WAIT_REG_MEM_engine_sel_enum engine_sel : 2;
+            uint32_t                          reserved2 : 15;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                               mem_poll_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                   mem_poll_addr_lo : 30;
         } bitfields3a;
         struct
         {
-            uint32_t                                  reg_poll_addr : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                      reg_poll_addr : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3b;
         struct
         {
-            uint32_t                                reg_write_addr1 : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                    reg_write_addr1 : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3c;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                reg_write_addr2 : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                    reg_write_addr2 : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields4;
-        uint32_t                     mem_poll_addr_hi;
-        uint32_t                             ordinal4;
+        uint32_t                       mem_poll_addr_hi;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                            reference;
+    uint32_t                                  reference;
 
-    uint32_t                                 mask;
+    uint32_t                                       mask;
 
     union
     {
         struct
         {
-            uint32_t                                  poll_interval : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                      poll_interval : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields7;
-        uint32_t                             ordinal7;
+        uint32_t                               ordinal7;
     };
 
 } PM4PFP_WAIT_REG_MEM, *PPM4PFP_WAIT_REG_MEM;
@@ -2385,71 +2386,71 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            PFP_WAIT_REG_MEM64_function_enum                     function : 3;
-            uint32_t                                      reserved1 : 1;
-            PFP_WAIT_REG_MEM64_mem_space_enum                     mem_space : 2;
-            PFP_WAIT_REG_MEM64_operation_enum                     operation : 2;
-            PFP_WAIT_REG_MEM64_engine_sel_enum                     engine_sel : 2;
-            uint32_t                                      reserved2 : 15;
+            PFP_WAIT_REG_MEM64_function_enum   function : 3;
+            uint32_t                          reserved1 : 1;
+            PFP_WAIT_REG_MEM64_mem_space_enum mem_space : 2;
+            PFP_WAIT_REG_MEM64_operation_enum operation : 2;
+            PFP_WAIT_REG_MEM64_engine_sel_enum engine_sel : 2;
+            uint32_t                          reserved2 : 15;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 3;
-            uint32_t                               mem_poll_addr_lo : 29;
+            uint32_t                          reserved1 : 3;
+            uint32_t                   mem_poll_addr_lo : 29;
         } bitfields3a;
         struct
         {
-            uint32_t                                  reg_poll_addr : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                      reg_poll_addr : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3b;
         struct
         {
-            uint32_t                                reg_write_addr1 : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                    reg_write_addr1 : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3c;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
     union
     {
         struct
         {
-            uint32_t                                reg_write_addr2 : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                    reg_write_addr2 : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields4;
-        uint32_t                     mem_poll_addr_hi;
-        uint32_t                             ordinal4;
+        uint32_t                       mem_poll_addr_hi;
+        uint32_t                               ordinal4;
     };
 
-    uint32_t                            reference;
+    uint32_t                                  reference;
 
-    uint32_t                         reference_hi;
+    uint32_t                               reference_hi;
 
-    uint32_t                                 mask;
+    uint32_t                                       mask;
 
-    uint32_t                              mask_hi;
+    uint32_t                                    mask_hi;
 
     union
     {
         struct
         {
-            uint32_t                                  poll_interval : 16;
-            uint32_t                                      reserved1 : 16;
+            uint32_t                      poll_interval : 16;
+            uint32_t                          reserved1 : 16;
         } bitfields9;
-        uint32_t                             ordinal9;
+        uint32_t                               ordinal9;
     };
 
 } PM4PFP_WAIT_REG_MEM64, *PPM4PFP_WAIT_REG_MEM64;
@@ -2485,45 +2486,45 @@ typedef struct PM4_PFP_WRITE_DATA
 {
     union
     {
-        PM4_PFP_TYPE_3_HEADER                  header;
-        uint32_t                             ordinal1;
+        PM4_PFP_TYPE_3_HEADER                    header;
+        uint32_t                               ordinal1;
     };
 
     union
     {
         struct
         {
-            uint32_t                                      reserved1 : 8;
-            PFP_WRITE_DATA_dst_sel_enum                     dst_sel : 4;
-            uint32_t                                      reserved2 : 4;
-            PFP_WRITE_DATA_addr_incr_enum                 addr_incr : 1;
-            uint32_t                                      reserved3 : 2;
-            uint32_t                                      resume_vf : 1;
-            PFP_WRITE_DATA_wr_confirm_enum                     wr_confirm : 1;
-            uint32_t                                      reserved4 : 4;
-            PFP_WRITE_DATA_cache_policy_enum                     cache_policy : 2;
-            uint32_t                                      reserved5 : 3;
-            PFP_WRITE_DATA_engine_sel_enum                     engine_sel : 2;
+            uint32_t                          reserved1 : 8;
+            PFP_WRITE_DATA_dst_sel_enum         dst_sel : 4;
+            uint32_t                          reserved2 : 4;
+            PFP_WRITE_DATA_addr_incr_enum     addr_incr : 1;
+            uint32_t                          reserved3 : 2;
+            uint32_t                          resume_vf : 1;
+            PFP_WRITE_DATA_wr_confirm_enum   wr_confirm : 1;
+            uint32_t                          reserved4 : 4;
+            PFP_WRITE_DATA_cache_policy_enum cache_policy : 2;
+            uint32_t                          reserved5 : 3;
+            PFP_WRITE_DATA_engine_sel_enum   engine_sel : 2;
         } bitfields2;
-        uint32_t                             ordinal2;
+        uint32_t                               ordinal2;
     };
 
     union
     {
         struct
         {
-            uint32_t                                 dst_mmreg_addr : 18;
-            uint32_t                                      reserved1 : 14;
+            uint32_t                     dst_mmreg_addr : 18;
+            uint32_t                          reserved1 : 14;
         } bitfields3a;
         struct
         {
-            uint32_t                                      reserved1 : 2;
-            uint32_t                                dst_mem_addr_lo : 30;
+            uint32_t                          reserved1 : 2;
+            uint32_t                    dst_mem_addr_lo : 30;
         } bitfields3b;
-        uint32_t                             ordinal3;
+        uint32_t                               ordinal3;
     };
 
-    uint32_t                      dst_mem_addr_hi;
+    uint32_t                            dst_mem_addr_hi;
 
 } PM4PFP_WRITE_DATA, *PPM4PFP_WRITE_DATA;
 

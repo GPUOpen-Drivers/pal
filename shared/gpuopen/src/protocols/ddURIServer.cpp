@@ -25,8 +25,11 @@
 
 #include "ddURIServer.h"
 #include "msgChannel.h"
+#include "util/ddMetroHash.h"
 #include "ddTransferManager.h"
+#include "ddUriInterface.h"
 #include "protocols/ddURIProtocol.h"
+#include "ddURIRequestContext.h"
 #include "util/vector.h"
 
 #define URI_SERVER_MIN_MAJOR_VERSION URI_INITIAL_VERSION
@@ -94,9 +97,9 @@ namespace DevDriver
                 , m_pTransferManager(pTransferManager)
                 , m_pSession(pSession)
                 , m_pResponseBlock()
+                , m_payload()
                 , m_hasQueuedPayload(false)
                 , m_context()
-                , m_payload()
                 , m_pendingPostRequest()
             {
             }
@@ -133,6 +136,12 @@ namespace DevDriver
             }
 
             // ========================================================================================================
+#if !DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+            void Update()
+            {
+                DD_ASSERT(Result::VersionMismatch != Result::VersionMismatch && "You have a version mismatch");
+            }
+#else
             void Update()
             {
                 // Attempt to send the session's queued payload if it has one.
@@ -197,6 +206,7 @@ namespace DevDriver
                         }
                         else if (header.command == URIMessage::URIRequest)
                         {
+                            PostDataInfo postInfo;
                             URIRequestPayload& payload = m_payload.GetPayload<URIRequestPayload>();
                             // Declare the post data block here so the shared pointer will live through the handling of the
                             // request
@@ -231,14 +241,14 @@ namespace DevDriver
                                         {
                                             // Request data was sent inline in a single packet, setup the context to point at
                                             // the packet offset after the request payload struct
-                                            m_context.pPostData = GetInlineDataPtr(&m_payload);
-                                            m_context.postDataSize = payload.dataSize;
-                                            m_context.postDataFormat = TransferFmtToURIDataFmt(payload.dataFormat);
+                                            postInfo.pData  = GetInlineDataPtr(&m_payload);
+                                            postInfo.size   = payload.dataSize;
+                                            postInfo.format = TransferFmtToURIDataFmt(payload.dataFormat);
                                         }
                                         else
                                         {
                                             // We should never have a dataSize > 0 and an invalid BlockId
-                                            result = Result::UriInvalidParamters;
+                                            result = Result::UriInvalidParameters;
                                             DD_ASSERT_ALWAYS();
                                         }
                                     }
@@ -259,9 +269,9 @@ namespace DevDriver
                                         (payload.dataSize == m_pendingPostRequest.pPostDataBlock->GetBlockDataSize()))
                                     {
                                         // The request data was sent via the provided blockId, setup the context to point at the block.
-                                        m_context.pPostData = m_pendingPostRequest.pPostDataBlock->GetBlockData();
-                                        m_context.postDataSize = static_cast<uint32>(m_pendingPostRequest.pPostDataBlock->GetBlockDataSize());
-                                        m_context.postDataFormat = TransferFmtToURIDataFmt(payload.dataFormat);
+                                        postInfo.pData  = m_pendingPostRequest.pPostDataBlock->GetBlockData();
+                                        postInfo.size   = static_cast<uint32>(m_pendingPostRequest.pPostDataBlock->GetBlockDataSize());
+                                        postInfo.format = TransferFmtToURIDataFmt(payload.dataFormat);
                                     }
                                     else
                                     {
@@ -282,12 +292,12 @@ namespace DevDriver
                                 else
                                 {
                                     // Handle the request using the appropriate service.
-                                    m_context.pRequestArguments = pServiceArguments;
-                                    m_context.pResponseBlock = m_pResponseBlock;
-                                    m_context.responseDataFormat = URIDataFormat::Unknown;
+                                    m_context.Begin(pServiceArguments, URIDataFormat::Unknown, m_pResponseBlock, postInfo);
 
                                     // We've successfully extracted the request parameters.
                                     result = m_pServer->ServiceRequest(pServiceName, &m_context);
+
+                                    m_context.End();
 
                                     // Close the post data block, if necessary
                                     ClosePendingPostRequest();
@@ -298,14 +308,14 @@ namespace DevDriver
                             }
 
                             // Assemble the response payload.
-                            if ((result == Result::Success))
+                            if (result == Result::Success)
                             {
                                 // Assemble the response payload.
 
                                 // We send this data back regardless of protocol version, but it will only
                                 // be read in a v2 or higher session.
                                 const TransferDataFormat format =
-                                    UriFormatToResponseFormat(m_context.responseDataFormat);
+                                    UriFormatToResponseFormat(m_context.GetUriDataFormat());
                                 m_payload.CreatePayload<URIResponsePayload>(result,
                                                                             m_pResponseBlock->GetBlockId(),
                                                                             format);
@@ -332,7 +342,7 @@ namespace DevDriver
                     }
                 }
             }
-
+#endif
         private:
             URIDataFormat TransferFmtToURIDataFmt(TransferDataFormat transferFormat)
             {
@@ -349,21 +359,9 @@ namespace DevDriver
 
             void ClosePendingPostRequest()
             {
-                if (m_pendingPostRequest.pPostDataBlock.IsNull() == false)
-                {
                     m_pTransferManager->CloseServerBlock(m_pendingPostRequest.pPostDataBlock);
-                }
-                m_pendingPostRequest.pPostDataBlock.Clear();
                 m_pendingPostRequest.requestedSize = 0;
             }
-
-            URIServer*                                   m_pServer;
-            TransferManager*                             m_pTransferManager;
-            SharedPointer<ISession>                      m_pSession;
-            SharedPointer<TransferProtocol::ServerBlock> m_pResponseBlock;
-            bool                                         m_hasQueuedPayload;
-            URIRequestContext                            m_context;
-            SizedPayloadContainer                        m_payload;
 
             struct PostDataRequest
             {
@@ -377,6 +375,16 @@ namespace DevDriver
                 }
             };
 
+            // There's some subtle alignment among these members. Be careful when re-arranging these that you don't
+            // trigger "padding added" warnings(errors) on 32-bit builds.
+            // SizedPayloadContainer m_payload must be 8-byte aligned, and there's a balance here to be had.
+            URIServer*                                   m_pServer;
+            TransferManager*                             m_pTransferManager;
+            SharedPointer<ISession>                      m_pSession;
+            SharedPointer<TransferProtocol::ServerBlock> m_pResponseBlock;
+            SizedPayloadContainer                        m_payload;
+            bool                                         m_hasQueuedPayload;
+            URIRequestContext                            m_context;
             PostDataRequest m_pendingPostRequest;
         };
 
@@ -384,7 +392,6 @@ namespace DevDriver
         URIServer::URIServer(IMsgChannel* pMsgChannel)
             : BaseProtocolServer(pMsgChannel, Protocol::URI, URI_SERVER_MIN_MAJOR_VERSION, URI_SERVER_MAX_MAJOR_VERSION)
             , m_registeredServices(pMsgChannel->GetAllocCb())
-            , m_registeredServiceNamesCache(pMsgChannel->GetAllocCb())
         {
             DD_ASSERT(m_pMsgChannel != nullptr);
         }
@@ -445,23 +452,27 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIServer::RegisterService(IService* pService)
         {
-            m_mutex.Lock();
-            Result result = m_registeredServices.PushBack(pService) ? Result::Success : Result::UriServiceRegistrationError;
-            m_mutex.Unlock();
-
-            if (result == Result::Success)
+            Result result = Result::InvalidParameter;
+            if (pService != nullptr)
             {
-                m_cacheMutex.Lock();
-                result = m_registeredServiceNamesCache.PushBack(pService->GetName()) ? Result::Success : Result::UriServiceRegistrationError;
-                m_cacheMutex.Unlock();
+                FixedString<kMaxUriServiceNameLength> serviceName(pService->GetName());
 
-                // To keep the cache consistent with the registered services list,
-                // undo the first insert if the second one failed.
-                // This may reorder the cache, and is why we cannot rely on there being a particular ordering.
-                if (result != Result::Success)
+                if (strcmp(serviceName.AsCStr(), kInternalServiceName) == 0)
                 {
+                    // There is a reserved internal service name that cannot be used by other services
+                    result = Result::Rejected;
+                }
+                else
+                {
+                    const uint64 hash = MetroHash::HashCStr64(serviceName.AsCStr());
+
+                    ServiceInfo info = {};
+                    info.pService = pService;
+                    info.name = serviceName;
+                    info.version = pService->GetVersion();
+
                     m_mutex.Lock();
-                    result = m_registeredServices.Remove(pService) ? Result::Success : Result::UriServiceRegistrationError;
+                    result = m_registeredServices.Create(hash, info);
                     m_mutex.Unlock();
                 }
             }
@@ -472,73 +483,94 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIServer::UnregisterService(IService* pService)
         {
-            m_mutex.Lock();
-            Result result = m_registeredServices.Remove(pService) ? Result::Success : Result::UriServiceRegistrationError;
-            m_mutex.Unlock();
-
-            if (result == Result::Success)
+            Result result = Result::InvalidParameter;
+            if (pService != nullptr)
             {
-                m_cacheMutex.Lock();
                 FixedString<kMaxUriServiceNameLength> serviceName(pService->GetName());
-                result = m_registeredServiceNamesCache.Remove(serviceName) ? Result::Success : Result::UriServiceRegistrationError;
-                m_cacheMutex.Unlock();
+                const uint64 hash = MetroHash::HashCStr64(serviceName.AsCStr());
 
-                // To keep the cache consistent with the registered services list,
-                // undo the first removal if the second one failed.
-                // This may reorder the cache, and is why we cannot rely on there being a particular ordering.
-                if (result != Result::Success)
-                {
-                    m_mutex.Lock();
-                    result = m_registeredServices.PushBack(pService) ? Result::Success : Result::Error;
-                    m_mutex.Unlock();
-                }
+                m_mutex.Lock();
+                result = m_registeredServices.Erase(hash);
+                m_mutex.Unlock();
             }
 
             return result;
         }
 
         // =====================================================================================================================
-        void URIServer::GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames)
-        {
-            Platform::LockGuard<Platform::Mutex> lock(m_cacheMutex);
-
-            for (const FixedString<kMaxUriServiceNameLength>& serviceName : m_registeredServiceNamesCache)
-            {
-                serviceNames.PushBack(serviceName);
-            }
-        }
-
-        // =====================================================================================================================
+        // Finds a service pointer based on the provided name. It is the caller's responsibility to take the registered services
+        // mutex before calling this function.
         IService* URIServer::FindService(const char* pServiceName)
         {
             IService* pService = nullptr;
 
-            for (auto& pSearchServer : m_registeredServices)
+            const uint64 hash = MetroHash::HashCStr64(pServiceName);
+            auto iter = m_registeredServices.Find(hash);
+            if (iter != m_registeredServices.End())
             {
-                if (strcmp(pSearchServer->GetName(), pServiceName) == 0)
-                {
-                    pService = pSearchServer;
-                    break;
-                }
+                pService = iter->value.pService;
             }
 
             return pService;
         }
 
         // =====================================================================================================================
-        Result URIServer::ServiceRequest(const char* pServiceName, URIRequestContext* pRequestContext)
+        Result URIServer::ServiceRequest(const char* pServiceName, IURIRequestContext* pRequestContext)
         {
             Result result = Result::Unavailable;
 
-            // Lock the mutex
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-
-            IService* pService = FindService(pServiceName);
-
-            // Check if the requested service was successfully located.
-            if (pService != nullptr)
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+            // We handle internal service requests directly here
+            if (strcmp(pServiceName, kInternalServiceName) == 0)
             {
-                result = pService->HandleRequest(pRequestContext);
+                // The only currently supported internal request is for the services list
+                if (strcmp(pRequestContext->GetRequestArguments(), "services") == 0)
+                {
+                    IStructuredWriter* pWriter;
+                    result = pRequestContext->BeginJsonResponse(&pWriter);
+
+                    if (result == Result::Success)
+                    {
+                        pWriter->BeginMap();
+                        pWriter->KeyAndBeginList("Services");
+
+                        // Lock the mutex
+                        Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+                        for (auto iter = m_registeredServices.Begin(); iter != m_registeredServices.End(); ++iter)
+                        {
+                            pWriter->BeginMap();
+                            pWriter->KeyAndValue("Name", iter->value.name.AsCStr());
+                            pWriter->KeyAndValue("Version", iter->value.version);
+                            pWriter->EndMap();
+                        }
+
+                        pWriter->EndList();
+                        pWriter->EndMap();
+                        result = pWriter->End();
+                    }
+                }
+                else
+                {
+                    // No other internal service commands are handled
+                    DD_NOT_IMPLEMENTED();
+                }
+            }
+            else
+#endif
+            {
+                // Otherwise forward the request to the specified service
+
+                // Lock the mutex
+                Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+                IService* pService = FindService(pServiceName);
+
+                // Check if the requested service was successfully located.
+                if (pService != nullptr)
+                {
+                    result = pService->HandleRequest(pRequestContext);
+                }
             }
 
             return result;

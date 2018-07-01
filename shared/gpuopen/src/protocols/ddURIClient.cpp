@@ -68,7 +68,7 @@ namespace DevDriver
             const void*      pPostData,
             size_t           postDataSize)
         {
-            Result result = Result::UriInvalidParamters;
+            Result result = Result::UriInvalidParameters;
 
             if ((m_context.state == State::Idle) &&
                 (pRequestString != nullptr))
@@ -256,7 +256,7 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIClient::ReadResponse(uint8* pDstBuffer, size_t bufferSize, size_t* pBytesRead)
         {
-            Result result = Result::UriInvalidParamters;
+            Result result = Result::UriInvalidParameters;
 
             if (m_context.state == State::ReadResponse)
             {
@@ -277,7 +277,7 @@ namespace DevDriver
         // =====================================================================================================================
         Result URIClient::AbortRequest()
         {
-            Result result = Result::UriInvalidParamters;
+            Result result = Result::UriInvalidParameters;
 
             if (m_context.state == State::ReadResponse)
             {

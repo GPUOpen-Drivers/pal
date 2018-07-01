@@ -119,7 +119,7 @@ public:
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
                                            const uint32*      pColor,
-                                           const SubresRange& range) const = 0;
+                                           const SubresRange& range) = 0;
 
     virtual bool IsFastDepthStencilClearSupported(ImageLayout        depthLayout,
                                                   ImageLayout        stencilLayout,
@@ -198,6 +198,14 @@ public:
     // Returns true if the specified mip level supports having a meta-data surface for the given mip level
     virtual bool CanMipSupportMetaData(uint32  mip) const { return true; }
 
+    // Returns true if a clear operation was ever performed with a non-TC compatible clear color.
+    bool    HasSeenNonTcCompatibleClearColor() const { return (m_hasSeenNonTcCompatClearColor == true); }
+    void    SetNonTcCompatClearFlag(bool value) { m_hasSeenNonTcCompatClearColor = value; }
+    bool    IsFceOptimizationEnabled() { return (m_pNumSkippedFceCounter!= nullptr); };
+    uint32* GetFceRefCounter() const { return m_pNumSkippedFceCounter; }
+    uint32  GetFceRefCount() const;
+    void    IncrementFceRefCount();
+
 protected:
     GfxImage(
         Image*        pParentImage,
@@ -230,6 +238,8 @@ protected:
         uint32           mipLevel,
         ClearMethod      method);
 
+    void Destroy();
+
     Image*const            m_pParent;
     const Device&          m_device;
     const ImageCreateInfo& m_createInfo;
@@ -237,6 +247,10 @@ protected:
 
     gpusize  m_fastClearMetaDataOffset;      // Offset to beginning of fast-clear metadata
     gpusize  m_fastClearMetaDataSizePerMip;  // Size of fast-clear metadata per mip level.
+
+    bool   m_hasSeenNonTcCompatClearColor;  // True if this image has been cleared with non TC-compatible color.
+
+    uint32* m_pNumSkippedFceCounter;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxImage);

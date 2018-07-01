@@ -891,9 +891,9 @@ uint32  Gfx9MaskRam::GetPipeBankXor(
     const auto*    pParent      = image.Parent();
     const SubresId baseSubResId = { aspect, 0, 0 };
 
-    uint32  pipeBankXor = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
+    const uint32   pipeBankXor = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
 
-    return pipeBankXor;
+    return AdjustPipeBankXorForSwizzle(image, pipeBankXor);
 }
 
 // =====================================================================================================================
@@ -955,6 +955,19 @@ bool Gfx9MaskRam::IsThick(
     return  ((createInfo.imageType == ImageType::Tex3d) &&
              (IsStandardSwzzle(swizzleMode) ||
               IsZSwizzle(swizzleMode)));
+}
+
+// =====================================================================================================================
+// The supplied pipeBankXor is the pipe-bank-xor value associated with the "owner" of this mask-ram surface.  That is,
+// image data owns DCC memory and fMask owns cMask memory.  The owner's pipe-bank-xor value might not be compatible
+// with the tiling (swizzle) mode of the mask-ram, so perform any necessary adjustments here.
+uint32 Gfx9MaskRam::AdjustPipeBankXorForSwizzle(
+    const Image&  image,
+    uint32        pipeBankXor
+    ) const
+{
+
+    return pipeBankXor;
 }
 
 // =====================================================================================================================
@@ -2281,7 +2294,9 @@ uint32 Gfx9Cmask::GetPipeBankXor(
     ImageAspect   aspect
     ) const
 {
-    return image.GetFmask()->GetPipeBankXor();
+    const uint32 pipeBankXor = image.GetFmask()->GetPipeBankXor();
+
+    return AdjustPipeBankXorForSwizzle(image, pipeBankXor);
 }
 
 // =====================================================================================================================

@@ -41,9 +41,11 @@ namespace DevDriver
 {
     namespace URIProtocol
     {
+#if !DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // We alias these types for backwards compatibility
         using URIRequestContext = DevDriver::URIRequestContext;
         using ResponseDataFormat = DevDriver::URIDataFormat;
+#endif
 
         // Base class for URI services
         class URIService : public IService

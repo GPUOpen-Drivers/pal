@@ -29,8 +29,8 @@
 #include "core/fence.h"
 #include "core/platform.h"
 #include "palDeque.h"
+#include "palHashSet.h"
 #include "palQueryPool.h"
-#include "palVector.h"
 
 namespace Pal
 {
@@ -150,6 +150,9 @@ class GfxCmdBuffer : public CmdBuffer
 
     // A useful shorthand for a vector of chunks.
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
+
+    // Alias for a hash set of pointers to gfx images.
+    using FceRefCounters = Util::HashSet<uint32*, Platform>;
 
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
@@ -375,6 +378,8 @@ public:
     void EnableSpmTrace() { m_spmTraceEnabled = true; }
     bool SpmTraceEnabled() const { return m_spmTraceEnabled; }
 
+    Result AddFceSkippedImageCounter(GfxImage* pGfxImage);
+
 protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
@@ -466,6 +471,7 @@ protected:
 private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
+    void ResetFastClearReferenceCounts();
 
     const GfxDevice&  m_device;
 
@@ -483,6 +489,8 @@ private:
     uint32  m_computeStateFlags;       // The flags that CmdSaveCompputeState was called with.
     bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
                                        // buffer so that appropriate submit-time operations can be done.
+
+    FceRefCounters m_fceRefCounts;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

@@ -59,6 +59,8 @@ GfxDevice::GfxDevice(
         m_pFrameCountCmdBuffer[i] = nullptr;
     }
     memset(m_flglRegSeq, 0, sizeof(m_flglRegSeq));
+
+    memset(m_fastClearImageRefs, 0, sizeof(m_fastClearImageRefs));
 }
 
 // =====================================================================================================================
@@ -474,6 +476,29 @@ void GfxDevice::DescribeDraw(
     data.draw.userDataRegs.drawIndex      = drawIndexUserDataIdx;
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatch, &data);
+}
+
+// =====================================================================================================================
+// Returns a pointer to an unused index in the fast clear ref count array for use of the image. Returns nullptr if
+// allocation was unsuccessful.
+uint32* GfxDevice::AllocateFceRefCount()
+{
+    uint32* pCounter = nullptr;
+
+    for (uint32 i = 0; i < MaxNumFastClearImageRefs; ++i)
+    {
+        if (m_fastClearImageRefs[i] == 0)
+        {
+            if (AtomicCompareAndSwap(&m_fastClearImageRefs[i], RefCounterState::Free, RefCounterState::InUse) == 0)
+            {
+                // The index was acquired, so return a pointer.
+                pCounter = &m_fastClearImageRefs[i];
+                break;
+            }
+        }
+    }
+
+    return pCounter;
 }
 
 } // Pal

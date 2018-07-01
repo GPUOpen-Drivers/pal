@@ -84,5 +84,10 @@ inline uint32 MetroHash32(const uint8* pData, const uint64 dataSize)
     return Compact32(MetroHash64(pData, dataSize));
 }
 
+inline uint64 HashCStr64(const char* pString)
+{
+    return MetroHash64(reinterpret_cast<const uint8*>(pString), strlen(pString));
+}
+
 } // MetroHash
 } // DevDriver

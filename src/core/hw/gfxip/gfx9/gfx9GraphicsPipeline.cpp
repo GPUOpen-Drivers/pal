@@ -60,6 +60,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
+    { UserDataNotMapped, },     // Performance data address for each shader stage
     { 0, },                     // User-data mapping hashes per-stage
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
@@ -233,8 +234,11 @@ Result GraphicsPipeline::HwlInit(
             HsParams params = {};
             params.codeGpuVirtAddr = codeGpuVirtAddr;
             params.dataGpuVirtAddr = dataGpuVirtAddr;
-            params.pHsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)];
             params.pHasher         = &hasher;
+
+            PerfDataInfo* pPerfData = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)];
+            pPerfData->regOffset    = m_signature.perfDataAddr[HwShaderStage::Hs];
+            params.pHsPerfDataInfo  = pPerfData;
 
             m_chunkHs.Init(abiProcessor, params);
         }
@@ -247,9 +251,15 @@ Result GraphicsPipeline::HwlInit(
             params.esGsLdsSizeRegVs  = m_signature.esGsLdsSizeRegAddrVs;
             params.isNgg             = IsNgg();
             params.usesOnChipGs      = IsGsOnChip();
-            params.pGsPerfDataInfo   = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)];
-            params.pCopyPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
             params.pHasher           = &hasher;
+
+            PerfDataInfo* pPerfData  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)];
+            pPerfData->regOffset     = m_signature.perfDataAddr[HwShaderStage::Gs];
+            params.pGsPerfDataInfo   = pPerfData;
+
+            pPerfData = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
+            pPerfData->regOffset     = m_signature.perfDataAddr[HwShaderStage::Vs];
+            params.pCopyPerfDataInfo = pPerfData;
 
             m_chunkGs.Init(abiProcessor, params);
         }
@@ -258,8 +268,11 @@ Result GraphicsPipeline::HwlInit(
             VsParams params = {};
             params.codeGpuVirtAddr = codeGpuVirtAddr;
             params.dataGpuVirtAddr = dataGpuVirtAddr;
-            params.pVsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
             params.pHasher         = &hasher;
+
+            PerfDataInfo* pPerfData  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Vs)];
+            pPerfData->regOffset     = m_signature.perfDataAddr[HwShaderStage::Vs];
+            params.pVsPerfDataInfo   = pPerfData;
 
             m_chunkVs.Init(abiProcessor, params);
         }
@@ -268,8 +281,11 @@ Result GraphicsPipeline::HwlInit(
         params.codeGpuVirtAddr = codeGpuVirtAddr;
         params.dataGpuVirtAddr = dataGpuVirtAddr;
         params.isNgg           = IsNgg();
-        params.pPsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)];
         params.pHasher         = &hasher;
+
+        PerfDataInfo* pPerfData  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)];
+        pPerfData->regOffset     = m_signature.perfDataAddr[HwShaderStage::Ps];
+        params.pPsPerfDataInfo   = pPerfData;
 
         m_chunkPs.Init(abiProcessor, params);
 
@@ -1496,6 +1512,14 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     const uint32 stageId = static_cast<uint32>(stage);
     auto*const   pStage  = &m_signature.stage[stageId];
 
+    constexpr Abi::HardwareStage PalToAbiHwShaderStage[] =
+    {
+        Abi::HardwareStage::Hs,
+        Abi::HardwareStage::Gs,
+        Abi::HardwareStage::Vs,
+        Abi::HardwareStage::Ps,
+    };
+
     for (uint16 offset = baseRegAddr; offset <= lastRegAddr; ++offset)
     {
         uint32 value = 0;
@@ -1589,6 +1613,11 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::ViewId))
             {
                 m_signature.viewIdRegAddr[stageId] = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
+            {
+                const uint32 abiHwId = static_cast<uint32>(PalToAbiHwShaderStage[stage]);
+                m_signature.perfDataAddr[abiHwId] = offset;
             }
             else
             {

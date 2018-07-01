@@ -227,6 +227,14 @@ enum SmallPrimFilterCntl : uint32
 
 };
 
+constexpr uint32 MaxNumFastClearImageRefs = 256;
+
+enum RefCounterState : uint32
+{
+    Free  = 0,
+    InUse = 1
+};
+
 // =====================================================================================================================
 // Abstract class for accessing a Device's hardware-specific functionality common to all GFXIP hardware layers.
 class GfxDevice
@@ -524,9 +532,11 @@ public:
     bool DegeneratePrimFilter() const { return m_degeneratePrimFilter; }
 
     virtual void PatchPipelineInternalSrdTable(
-        void*   pDataPtr,
-        size_t  dataLength,
-        gpusize dataGpuVirtAddr) const = 0;
+        void*       pDstSrdTable,
+        const void* pSrcSrdTable,
+        size_t      tableBytes,
+        gpusize     dataGpuVirtAddr) const = 0;
+    uint32* AllocateFceRefCount();
 
 protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
@@ -561,6 +571,8 @@ protected:
     bool    m_waEnableDccCacheFlushAndInvalidate;
     bool    m_waTcCompatZRange;
     bool    m_degeneratePrimFilter;
+
+    PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxDevice);

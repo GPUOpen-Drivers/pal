@@ -450,9 +450,9 @@ public:
         void*                                pBuffer,
         PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default) const;
     size_t BuildSetOneContextReg(
-        uint32                         regAddr,
-        void*                          pBuffer,
-        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default__GFX09) const;
+        uint32                               regAddr,
+        void*                                pBuffer,
+        PFP_SET_CONTEXT_REG_INDEX_index_enum index = index__pfp_set_context_reg_index__default__GFX09) const;
     size_t BuildSetOneShReg(
         uint32        regAddr,
         Pm4ShaderType shaderType,
@@ -463,20 +463,21 @@ public:
         PFP_SET_SH_REG_INDEX_index_enum index,
         void*                           pBuffer) const;
     size_t BuildSetShRegDataOffset(
-        uint32        regAddr,
-        uint32        dataOffset,
-        Pm4ShaderType shaderType,
-        void*         pBuffer) const;
+        uint32                           regAddr,
+        uint32                           dataOffset,
+        Pm4ShaderType                    shaderType,
+        void*                            pBuffer,
+        PFP_SET_SH_REG_OFFSET_index_enum index = index__pfp_set_sh_reg_offset__data_indirect_1dw) const;
     size_t BuildSetSeqConfigRegs(
-        uint32                               startRegAddr,
-        uint32                               endRegAddr,
-        void*                                pBuffer,
-        PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default) const;
-    size_t BuildSetSeqContextRegs(
         uint32                         startRegAddr,
         uint32                         endRegAddr,
         void*                          pBuffer,
-        PFP_SET_CONTEXT_REG_index_enum index = index__pfp_set_context_reg__default__GFX09) const;
+        PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default) const;
+    size_t BuildSetSeqContextRegs(
+        uint32                               startRegAddr,
+        uint32                               endRegAddr,
+        void*                                pBuffer,
+        PFP_SET_CONTEXT_REG_INDEX_index_enum index = index__pfp_set_context_reg_index__default__GFX09) const;
     size_t BuildSetSeqShRegs(
         uint32        startRegAddr,
         uint32        endRegAddr,

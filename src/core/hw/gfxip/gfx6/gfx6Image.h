@@ -169,7 +169,7 @@ public:
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
                                            const uint32*      pColor,
-                                           const SubresRange& range) const override;
+                                           const SubresRange& range) override;
 
     virtual bool IsFastDepthStencilClearSupported(ImageLayout        depthLayout,
                                                   ImageLayout        stencilLayout,

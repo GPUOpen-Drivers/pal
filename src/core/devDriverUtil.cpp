@@ -251,6 +251,187 @@ Result PipelineDumpService::Init()
 
 // =====================================================================================================================
 // Handles pipeline dump requests from the developer driver bus
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+DevDriver::Result PipelineDumpService::HandleRequest(
+    DevDriver::IURIRequestContext* pContext)
+{
+    DevDriver::Result result = DevDriver::Result::Error;
+
+    const char* pArgs = pContext->GetRequestArguments();
+    if (strcmp(pArgs, "index") == 0)
+    {
+        // The client requested an index of the pipeline binaries.
+
+        DevDriver::IByteWriter* pWriter = nullptr;
+        result = pContext->BeginByteResponse(&pWriter);
+        if (result == DevDriver::Result::Success)
+        {
+            m_mutex.Lock();
+
+            // Write the pipeline dump header
+
+            const uint64 numRecords = static_cast<uint64>(m_pipelineRecords.GetNumEntries());
+
+            WritePipelineDumpHeader(pWriter, numRecords);
+
+            // Write the pipeline dump records without a valid offset parameter since we won't be including any actual
+            // pipeline binary data.
+
+            auto recordIter = m_pipelineRecords.Begin();
+            while (recordIter.Get())
+            {
+                const PipelineRecord* pRecord = &recordIter.Get()->value;
+
+                const uint64 pipelineHash = recordIter.Get()->key;
+                const uint32 pipelineSize = pRecord->pipelineBinaryLength;
+
+                WritePipelineDumpRecord(pWriter,
+                    pipelineHash,
+                    UINT64_MAX,
+                    pipelineSize);
+
+                recordIter.Next();
+            }
+
+            m_mutex.Unlock();
+            result = pWriter->End();
+        }
+    }
+    else if (strcmp(pArgs, "all") == 0)
+    {
+        // The client requested that we dump all of the pipeline binaries.
+
+        DevDriver::IByteWriter* pWriter = nullptr;
+        result = pContext->BeginByteResponse(&pWriter);
+        if (result == DevDriver::Result::Success)
+        {
+            m_mutex.Lock();
+
+            // Write the pipeline dump header
+
+            const uint64 numRecords = static_cast<uint64>(m_pipelineRecords.GetNumEntries());
+
+            WritePipelineDumpHeader(pWriter, numRecords);
+
+            const uint64 pipelineBinaryBaseOffset =
+                sizeof(PipelineDumpHeader) + (sizeof(PipelineDumpRecord) * numRecords);
+
+            uint64 currentOffset = pipelineBinaryBaseOffset;
+
+            // Write the pipeline dump records
+
+            auto recordIter = m_pipelineRecords.Begin();
+            while (recordIter.Get())
+            {
+                const PipelineRecord* pRecord = &recordIter.Get()->value;
+
+                const uint64 pipelineHash = recordIter.Get()->key;
+                const uint32 pipelineSize = pRecord->pipelineBinaryLength;
+
+                WritePipelineDumpRecord(pWriter,
+                    pipelineHash,
+                    currentOffset,
+                    pipelineSize);
+
+                currentOffset += pipelineSize;
+
+                recordIter.Next();
+            }
+
+            // Write the binary data for each pipeline into the dump
+
+            auto binaryIter = m_pipelineRecords.Begin();
+            while (binaryIter.Get())
+            {
+                const PipelineRecord* pRecord = &binaryIter.Get()->value;
+
+                const void* pPipelineBinary = pRecord->pPipelineBinary;
+                const uint32 pipelineSize = pRecord->pipelineBinaryLength;
+
+                pWriter->WriteBytes(reinterpret_cast<const void*>(pPipelineBinary),
+                    static_cast<size_t>(pipelineSize));
+
+                binaryIter.Next();
+            }
+
+            m_mutex.Unlock();
+            result = pWriter->End();
+        }
+    }
+    else
+    {
+        // The client requested a specific pipeline dump via the pipeline hash.
+
+        DevDriver::IByteWriter* pWriter = nullptr;
+        result = pContext->BeginByteResponse(&pWriter);
+        if (result == DevDriver::Result::Success)
+        {
+            m_mutex.Lock();
+
+            // Attempt to find the requested pipeline.
+            const uint64 pipelineHash = strtoull(pArgs, nullptr, 16);
+            const PipelineRecord* pRecord = m_pipelineRecords.FindKey(pipelineHash);
+            if (pRecord != nullptr)
+            {
+                // Write a pipeline dump header with only one pipeline record in it
+                WritePipelineDumpHeader(pWriter, 1);
+
+                // Write the pipeline dump record for the specific pipeline
+
+                const uint32 pipelineSize = pRecord->pipelineBinaryLength;
+                const uint32 pipelineOffset = sizeof(PipelineDumpHeader) + sizeof(PipelineDumpRecord);
+
+                WritePipelineDumpRecord(pWriter,
+                    pipelineHash,
+                    pipelineOffset,
+                    pipelineSize);
+
+                // Write the binary data for the specific pipeline
+
+                const void* pPipelineBinary = pRecord->pPipelineBinary;
+
+                pWriter->WriteBytes(reinterpret_cast<const void*>(pPipelineBinary),
+                    static_cast<size_t>(pipelineSize));
+            }
+
+            m_mutex.Unlock();
+            result = pWriter->End();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Writes a header into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpHeader(
+    DevDriver::IByteWriter* pWriter,
+    uint64                  numRecords)
+{
+    PipelineDumpHeader header = {};
+    header.magicNumber = PipelineDumpMagicNumber;
+    header.version = PipelineDumpVersion;
+    header.numRecords = numRecords;
+
+    pWriter->WriteBytes(reinterpret_cast<const void*>(&header), sizeof(PipelineDumpHeader));
+}
+
+// =====================================================================================================================
+// Writes a pipeline record into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpRecord(
+    DevDriver::IByteWriter* pWriter,
+    uint64                  pipelineHash,
+    uint64                  pipelineOffset,
+    uint64                  pipelineSize)
+{
+    PipelineDumpRecord record = {};
+    record.hash = pipelineHash;
+    record.offset = pipelineOffset;
+    record.size = pipelineSize;
+
+    pWriter->WriteBytes(reinterpret_cast<const void*>(&record), sizeof(PipelineDumpRecord));
+}
+#else
 DevDriver::Result PipelineDumpService::HandleRequest(
     DevDriver::URIRequestContext* pContext)
 {
@@ -395,6 +576,39 @@ DevDriver::Result PipelineDumpService::HandleRequest(
 }
 
 // =====================================================================================================================
+// Writes a header into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpHeader(
+    DevDriver::URIRequestContext* pContext,
+    uint64                        numRecords)
+{
+    PipelineDumpHeader header = {};
+    header.magicNumber = PipelineDumpMagicNumber;
+    header.version = PipelineDumpVersion;
+    header.numRecords = numRecords;
+
+    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&header),
+        sizeof(PipelineDumpHeader));
+}
+
+// =====================================================================================================================
+// Writes a pipeline record into a pipeline dump file
+void PipelineDumpService::WritePipelineDumpRecord(
+    DevDriver::URIRequestContext* pContext,
+    uint64                        pipelineHash,
+    uint64                        pipelineOffset,
+    uint64                        pipelineSize)
+{
+    PipelineDumpRecord record = {};
+    record.hash = pipelineHash;
+    record.offset = pipelineOffset;
+    record.size = pipelineSize;
+
+    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&record),
+        sizeof(PipelineDumpRecord));
+}
+#endif
+
+// =====================================================================================================================
 // Registers a pipeline into the pipeline records map and exposes it to the developer driver bus
 void PipelineDumpService::RegisterPipeline(
     void*  pPipelineBinary,
@@ -433,37 +647,6 @@ void PipelineDumpService::RegisterPipeline(
     }
 
     m_mutex.Unlock();
-}
-
-// =====================================================================================================================
-// Writes a header into a pipeline dump file
-void PipelineDumpService::WritePipelineDumpHeader(
-    DevDriver::URIRequestContext* pContext,
-    uint64                        numRecords)
-{
-    PipelineDumpHeader header = {};
-    header.magicNumber        = PipelineDumpMagicNumber;
-    header.version            = PipelineDumpVersion;
-    header.numRecords         = numRecords;
-
-    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&header),
-                                    sizeof(PipelineDumpHeader));
-}
-// =====================================================================================================================
-// Writes a pipeline record into a pipeline dump file
-void PipelineDumpService::WritePipelineDumpRecord(
-    DevDriver::URIRequestContext* pContext,
-    uint64                        pipelineHash,
-    uint64                        pipelineOffset,
-    uint64                        pipelineSize)
-{
-    PipelineDumpRecord record = {};
-    record.hash               = pipelineHash;
-    record.offset             = pipelineOffset;
-    record.size               = pipelineSize;
-
-    pContext->pResponseBlock->Write(reinterpret_cast<const DevDriver::uint8*>(&record),
-                                    sizeof(PipelineDumpRecord));
 }
 
 } // Pal

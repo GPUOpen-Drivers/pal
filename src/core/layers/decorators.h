@@ -67,6 +67,9 @@
 //      available in developer builds.
 //  + GpuProfiler
 //      The GpuProfiler provides timings, performance experiments, and thread traces on a per-command buffer basis.
+//  + InterfaceLogger
+//      The InterfaceLogger provides PAL-interface traces for all input functions. This layer is only available in
+//      developer builds.
 //
 // For future layers, the only class that needs its own overriden implementation is DeviceDecorator. Not all functions
 // in DeviceDecorator need to be overridden just the ones that the layer needs to use.

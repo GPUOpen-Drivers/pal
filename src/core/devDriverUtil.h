@@ -73,6 +73,7 @@ void DevDriverFree(
     void* pMemory);
 
 static const char* pPipelineDumpServiceName = "pipelinedump";
+static const DevDriver::Version PipelineDumpServiceVersion = 1;
 // =====================================================================================================================
 // PAL Pipeline Dump Service
 // Used to allow clients on the developer driver bus to remotely dump pipelines from the driver.
@@ -85,15 +86,31 @@ public:
     Result Init();
 
     // Handles a request from a developer driver client.
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+    DevDriver::Result HandleRequest(DevDriver::IURIRequestContext* pContext) override;
+#else
     DevDriver::Result HandleRequest(DevDriver::URIRequestContext* pContext) override;
+#endif
 
     // Registers a pipeline hash / binary pair with the dump service.
     void RegisterPipeline(void* pPipelineBinary, uint32 pipelineBinaryLength, uint64 pipelineHash);
 
     // Returns the name of the service
     const char* GetName() const override final { return pPipelineDumpServiceName; }
+    DevDriver::Version GetVersion() const override final { return PipelineDumpServiceVersion; }
 
 private:
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
+    // Writes a header into a pipeline dump file
+    void WritePipelineDumpHeader(DevDriver::IByteWriter* pWriter,
+                                 uint64 numRecords);
+
+    // Writes a pipeline record into a pipeline dump file
+    void WritePipelineDumpRecord(DevDriver::IByteWriter* pWriter,
+                                 uint64 pipelineHash,
+                                 uint64 pipelineOffset,
+                                 uint64 pipelineSize);
+#else
     // Writes a header into a pipeline dump file
     void WritePipelineDumpHeader(DevDriver::URIRequestContext* pContext,
                                  uint64 numRecords);
@@ -103,6 +120,7 @@ private:
                                  uint64 pipelineHash,
                                  uint64 pipelineOffset,
                                  uint64 pipelineSize);
+#endif
 
     // Struct for keeping track of pipeline binary data.
     struct PipelineRecord

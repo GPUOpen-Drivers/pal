@@ -40,6 +40,8 @@ namespace DevDriver
     // String used to identify the client URI service
     DD_STATIC_CONST char kClientURIServiceName[] = "client";
 
+    DD_STATIC_CONST Version kClientURIServiceVersion = 1;
+
     class ClientURIService : public IService
     {
     public:
@@ -48,13 +50,24 @@ namespace DevDriver
 
         // Returns the name of the service
         const char* GetName() const override final { return kClientURIServiceName; }
+        Version GetVersion() const override final { return kClientURIServiceVersion; }
 
         // Binds a message channel to the service
         // All requests will be handled using the currently bound message channel
         void BindMessageChannel(IMsgChannel* pMsgChannel) { m_pMsgChannel = pMsgChannel; }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
         // Handles an incoming URI request
-        Result HandleRequest(URIRequestContext* pContext) override final;
+        Result HandleRequest(IURIRequestContext* pContext) override final;
+#else
+        // Handles an incoming URI request
+        // Deprecated
+        Result HandleRequest(URIRequestContext* pContext) override final
+        {
+            DD_UNUSED(pContext);
+            return Result::VersionMismatch;
+        }
+#endif
 
     private:
         // Currently bound message channel

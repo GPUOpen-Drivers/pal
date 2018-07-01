@@ -26,7 +26,9 @@
 #include "core/device.h"
 #include "core/image.h"
 #include "core/hw/gfxip/gfxImage.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "palFormatInfo.h"
+#include "palHashSetImpl.h"
 
 using namespace Util;
 using namespace Pal::Formats;
@@ -45,7 +47,9 @@ GfxImage::GfxImage(
     m_createInfo(m_pParent->GetImageCreateInfo()),
     m_pImageInfo(pImageInfo),
     m_fastClearMetaDataOffset(0),
-    m_fastClearMetaDataSizePerMip(0)
+    m_fastClearMetaDataSizePerMip(0),
+    m_hasSeenNonTcCompatClearColor(false),
+    m_pNumSkippedFceCounter(nullptr)
 {
 }
 
@@ -256,6 +260,38 @@ bool GfxImage::IsRestrictedTiledMultiMediaSurface() const
 {
     return ((m_createInfo.swizzledFormat.format == ChNumFormat::NV12) ||
             (m_createInfo.swizzledFormat.format == ChNumFormat::P010));
+}
+
+// =====================================================================================================================
+uint32 GfxImage::GetFceRefCount() const
+{
+    uint32 refCount = 0;
+
+    if (m_pNumSkippedFceCounter != nullptr)
+    {
+        refCount = *m_pNumSkippedFceCounter;
+    }
+
+    return refCount;
+}
+
+// =====================================================================================================================
+// Increments the FCE ref count.
+void GfxImage::IncrementFceRefCount()
+{
+    if (m_pNumSkippedFceCounter != nullptr)
+    {
+        Util::AtomicIncrement(m_pNumSkippedFceCounter);
+    }
+}
+
+// =====================================================================================================================
+void GfxImage::Destroy()
+{
+    if (m_pNumSkippedFceCounter != nullptr)
+    {
+        *m_pNumSkippedFceCounter = 0; // Give up the allocation.
+    }
 }
 
 } // Pal

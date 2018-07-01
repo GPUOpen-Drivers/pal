@@ -72,11 +72,9 @@ endif
 # Common JEMALLOC Includes
 #-----------------------------------------------------------------------
 
-LCXXINCS += -I$(JEMALLOC_DEPTH)             \
-            -I$(JEMALLOC_DEPTH)/core
+LCXXINCS += -I$(JEMALLOC_DEPTH)
 
-LCINCS += -I$(JEMALLOC_DEPTH)             \
-          -I$(JEMALLOC_DEPTH)/core
+LCINCS += -I$(JEMALLOC_DEPTH)
 
 ifeq ($(PAL_PLATFORM), win)
     LCXXINCS += -I$(JEMALLOC_DEPTH)/msvc_compat

@@ -478,9 +478,10 @@ public:
     bool AllowMetaDataForAllMips() const { return m_workarounds.waAllowMetaDataForAllMips; }
 
     virtual void PatchPipelineInternalSrdTable(
-        void*   pDataPtr,
-        size_t  dataLength,
-        gpusize dataGpuVirtAddr) const override;
+        void*       pDstSrdTable,
+        const void* pSrcSrdTable,
+        size_t      tableBytes,
+        gpusize     dataGpuVirtAddr) const override;
 
 private:
     Result InitOcclusionResetMem();

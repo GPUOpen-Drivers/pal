@@ -74,6 +74,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::YCbCr,
                 { ChNumFormat::X8Y8Z8W8_Unorm,
                   { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }, },
+                0.5f, 0.5f,
                 { 0, 1, 2, },
             },
         },
@@ -98,6 +99,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::YCbCr,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, 1, 2, },
             },
         },
@@ -122,6 +124,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::YCbCr,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, 2, 1, },
             },
         },
@@ -146,6 +149,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::YCbCr,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, 1, 2, },
             },
         },
@@ -170,6 +174,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::YCbCr,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, 2, 1, },
             },
         },
@@ -199,16 +204,19 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::Cr,           // Cr plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
                 { 1, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::Cb,           // Cb plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
                 { 2, USHRT_MAX, USHRT_MAX, },
             },
         },
@@ -233,11 +241,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::CbCr,          // CbCr plane
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 1, 2, USHRT_MAX, },
             },
         },
@@ -262,11 +272,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::CbCr,          // CbCr plane
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
             },
         },
@@ -291,11 +303,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::CbCr,          // CbCr plane
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 2, 1, USHRT_MAX, },
             },
         },
@@ -320,11 +334,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::CbCr,          // CbCr plane
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
             },
         },
@@ -349,11 +365,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   ImageAspect::Y,             // Y plane
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   ImageAspect::CbCr,          // CbCr plane
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
             },
         },
@@ -369,7 +387,7 @@ void SetupRgbToYuvCscTable(
     ChNumFormat                      format,
     uint32                           pass,
     const ColorSpaceConversionTable& cscTable,
-    YuvRgbConversionInfo*            pInfo)
+    RgbYuvConversionInfo*            pInfo)
 {
     constexpr size_t RowBytes = (sizeof(float) * 4);
     constexpr uint32 RowCount = 3;

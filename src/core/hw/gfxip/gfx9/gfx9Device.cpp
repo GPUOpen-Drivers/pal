@@ -1597,19 +1597,26 @@ static PAL_INLINE SQ_TEX_ANISO_RATIO GetAnisoRatio(
 // =====================================================================================================================
 // Gfx9+ helper function for patching a pipeline's shader internal SRD table.
 void Device::PatchPipelineInternalSrdTable(
-    void*   pDataPtr,       // In,Out: SRD table data
-    size_t  dataLength,     // Length of the SRD table in bytes
-    gpusize dataGpuVirtAddr
+    void*       pDstSrdTable,   // Out: Patched SRD table in mapped GPU memory
+    const void* pSrcSrdTable,   // In: Unpatched SRD table from ELF binary
+    size_t      tableBytes,
+    gpusize     dataGpuVirtAddr
     ) const
 {
 
-    auto*const   pSrd     = static_cast<BufferSrd*>(pDataPtr);
-    const uint32 srdCount = (static_cast<uint32>(dataLength) / sizeof(BufferSrd));
+    auto*const pSrcSrd = static_cast<const BufferSrd*>(pSrcSrdTable);
+    auto*const pDstSrd = static_cast<BufferSrd*>(pDstSrdTable);
 
-    for (uint32 i = 0; i < srdCount; ++i)
+    for (uint32 i = 0; i < (tableBytes / sizeof(BufferSrd)); ++i)
     {
-        const gpusize patchedGpuVa = (GetBaseAddress(pSrd + i) + dataGpuVirtAddr);
-        SetBaseAddress(pSrd + i, patchedGpuVa);
+        BufferSrd srd = pSrcSrd[i];
+
+        const gpusize patchedGpuVa = (GetBaseAddress(&srd) + dataGpuVirtAddr);
+        SetBaseAddress(&srd, patchedGpuVa);
+
+        // Note: The entire unpatched SRD table has already been copied to GPU memory wholesale.  We just need to
+        // modify the first quadword of the SRD to patch the addresses.
+        memcpy((pDstSrd + i), &srd, sizeof(uint64));
     }
 }
 
@@ -2691,6 +2698,7 @@ void InitializeGpuChipProperties(
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerThreadGroup = 32 * 1024;
     pInfo->gfxip.ldsSizePerCu          = 65536;
+    pInfo->gfxip.ldsGranularity        = Gfx9LdsDwGranularity * sizeof(uint32);
     pInfo->gfxip.tccSizeInBytes        = 4096 * 1024;
     pInfo->gfxip.tcpSizeInBytes        = 16384;
     pInfo->gfxip.maxLateAllocVsLimit   = 64;

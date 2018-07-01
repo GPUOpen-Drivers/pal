@@ -78,6 +78,17 @@ public:
     ///         internal error occured when calling the OS (ErrorUnknown).
     Result Reset() const;
 
+    /// Waits for the event to enter the _set_ state before returning control to the caller.  The event will change to
+    /// the _reset_ state if manualReset was false on initialization.
+    ///
+    /// @param [in] timeout Max time to wait, in seconds.  If zero, this call will poll the event without blocking.
+    ///
+    /// @returns Success if the wait completed successfully or Timeout if the wait did not complete but the operation
+    ///          timed out.  Otherwise, one of the following errors may be returned:
+    ///          + ErrorInvalidValue will be returned if the timeout is negative.
+    ///          + ErrorUnknown may be returned if an unexpected internal occurs when calling the OS.
+    Result Wait(float timeout) const;
+
     /// On Linux, a handle to an OS event primitive is a file descriptor, which is just an int.
     typedef int32 EventHandle;
 
@@ -99,6 +110,7 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Event);
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 412
 /// Waits for one or more events to enter the _set_ state before returning control to the caller.
 ///
 /// @param [in] pAllocator If this function needs to allocate memory, it uses the specified allocator.
@@ -119,5 +131,6 @@ extern Result WaitForEvents(
     uint32             eventCount,
     bool               waitAll,
     float              timeout);
+#endif
 
 } // Util

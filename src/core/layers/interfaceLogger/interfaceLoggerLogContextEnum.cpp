@@ -1737,28 +1737,5 @@ void LogContext::Enum(
     Value(StringTable[idx]);
 }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 410)
-// =====================================================================================================================
-void LogContext::Enum(
-    VideoEncodeH265QpMapType value)
-{
-    const char*const StringTable[] =
-    {
-        "None",      // 0x0,
-        "Delta",     // 0x1,
-        "Absolute",  // 0x2,
-    };
-
-    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VideoEncodeH265QpMapType::Count),
-                  "The VideoEncodeH265QpMapType string table needs to be updated.");
-
-    const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < static_cast<uint32>(VideoEncodeH265QpMapType::Count));
-
-    Value(StringTable[idx]);
-
-}
-#endif
-
 } // InterfaceLogger
 } // Pal

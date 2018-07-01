@@ -194,7 +194,7 @@ public:
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
                                            const uint32*      pColor,
-                                           const SubresRange& range) const override;
+                                           const SubresRange& range) override;
 
     virtual bool IsFastDepthStencilClearSupported(ImageLayout        depthLayout,
                                                   ImageLayout        stencilLayout,
@@ -352,6 +352,8 @@ public:
     bool IsInMetadataMipTail(uint32 mip) const;
     bool CanMipSupportMetaData(uint32 mip) const override;
 
+    gpusize GetGpuMemSyncSize() const { return m_gpuMemSyncSize; }
+
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
     static const uint32                      MaxNumPlanes = 3;
@@ -381,6 +383,8 @@ private:
 
     gpusize m_metaDataLookupTableOffsets[MaxImageMipLevels]; // Offset to lookup table for htile or cmask of each mip
     gpusize m_metaDataLookupTableSizes[MaxImageMipLevels];   // Size of lookup table for htile or cmask of each mip
+
+    gpusize m_gpuMemSyncSize; // Total size of the the image and metadata before any required allocation padding
 
     union
     {

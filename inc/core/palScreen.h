@@ -89,14 +89,16 @@ enum ScreenColorSpace : uint32
     TfHlg            = 0x00080, ///< Hybrid Log Gamma (BBC \ NHK Ref)
 
     /// Color space flags - defines the domain of the input signal.
-    CsSrgb           = 0x01000, ///< SDR standard: sRGB non-linear format (IEC 61966-2-1:1999)
-    CsBt709          = 0x02000, ///< SDR standard: BT.709 standard (HDTV)
-    CsBt2020         = 0x04000, ///< HDR standard: BT.2020 standard (UHDTV)
-    CsDolbyVision    = 0x08000, ///< HDR standard: Propriety Dolby Vision
-    CsAdobe          = 0x10000, ///< HDR standard: Adobe
-    CsDciP3          = 0x20000, ///< HDR standard: DCI-P3 film industry standard
-    CsScrgb          = 0x40000, ///< HDR standard: scRGB non-linear format (Microsoft)
-    CsUserDefined    = 0x80000, ///< HDR standard: AMD FreeSync 2(passthru)
+    CsSrgb           = 0x001000,  ///< SDR standard: sRGB non-linear format (IEC 61966-2-1:1999)
+    CsBt709          = 0x002000,  ///< SDR standard: BT.709 standard (HDTV)
+    CsBt2020         = 0x004000,  ///< HDR standard: BT.2020 standard (UHDTV)
+    CsDolbyVision    = 0x008000,  ///< HDR standard: Propriety Dolby Vision
+    CsAdobe          = 0x010000,  ///< HDR standard: Adobe
+    CsDciP3          = 0x020000,  ///< HDR standard: DCI-P3 film industry standard
+    CsScrgb          = 0x040000,  ///< HDR standard: scRGB non-linear format (Microsoft)
+    CsUserDefined    = 0x080000,  ///< HDR standard: User defined
+    CsNative         = 0x100000,  ///< HDR standard: Panel Native
+    CsFreeSync2      = 0x200000,  ///< HDR standard: AMD FreeSync 2
 };
 
 /// Specifies properties for use with IScreen::GetColorCapabilties()

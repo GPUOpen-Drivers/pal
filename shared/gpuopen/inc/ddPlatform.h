@@ -42,6 +42,8 @@
 #endif
 #endif
 
+#include <inttypes.h>
+
 #if   defined(__APPLE__) || defined(__linux__)
 #include "posix/ddPosixPlatform.h"
 #endif

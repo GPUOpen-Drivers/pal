@@ -35,10 +35,10 @@
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palDequeImpl.h"
 #include "palFormatInfo.h"
+#include "palHashSetImpl.h"
 #include "palImage.h"
 #include "palIntrusiveListImpl.h"
 #include "palQueryPool.h"
-#include "palVectorImpl.h"
 #include "palAutoBuffer.h"
 
 #include <limits.h>
@@ -65,7 +65,8 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_pTimestampMem(nullptr),
     m_timestampOffset(0),
     m_computeStateFlags(0),
-    m_spmTraceEnabled(false)
+    m_spmTraceEnabled(false),
+    m_fceRefCounts(MaxNumFastClearImageRefs, device.GetPlatform())
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -79,6 +80,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     }
 
     m_gfxCmdBufState.u32All = 0;
+
 }
 
 // =====================================================================================================================
@@ -119,6 +121,11 @@ Result GfxCmdBuffer::Init(
                                                              false,
                                                              &m_pTimestampMem,
                                                              &m_timestampOffset);
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_fceRefCounts.Init();
     }
 
     return result;
@@ -181,8 +188,25 @@ Result GfxCmdBuffer::Reset(
 {
     // Do this before our parent class changes the allocator.
     ReturnGeneratedCommandChunks(returnGpuMemory);
+    ResetFastClearReferenceCounts();
 
     return CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
+}
+
+// =====================================================================================================================
+// Decrements the ref count of images stored in the Fast clear eliminate ref count array.
+void GfxCmdBuffer::ResetFastClearReferenceCounts()
+{
+    if (m_fceRefCounts.GetNumEntries() > 0)
+    {
+        for (auto iter = m_fceRefCounts.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            auto pCounter = iter.Get()->key;
+            Util::AtomicDecrement(pCounter);
+        }
+    }
+
+    m_fceRefCounts.Reset();
 }
 
 // =====================================================================================================================
@@ -210,6 +234,7 @@ void GfxCmdBuffer::ResetState()
     {
         m_gfxCmdBufState.cpMemoryWriteL2CacheStale = 1;
     }
+
 }
 
 // =====================================================================================================================
@@ -992,6 +1017,40 @@ void GfxCmdBuffer::CmdCopyImageToPackedPixelImage(
         regionCount,
         pRegions,
         packPixelType);
+}
+
+// =====================================================================================================================
+// Adds the gfxImage for which a fast clear eliminate was skipped to this command buffers list for tracking and
+// increments the ref counter associated with the image.
+// Note: The fast clear eliminate optimization aims to remove the unnecessary CPU work that is done for fast clear
+//       eliminates for certain barrier transistions (compressed old state to compressed new state). If the clear color
+//       was TC-compatible, the corresponding fast clear eliminate operation need not be done as it is predicated by the
+//       GPU anyway. We accomplish this by allowing the fast clear eliminate, for this specific transition, only
+//       when the image had been cleared with a non-TC-compatible clear color in the past, else we update a counter
+//       and skip the fast clear eliminate. During command buffer reset, this counter is decremented for each command
+//       buffer and for each time the fast clear eliminate was skipped. This cost of looping through the list is
+//       outweighed by all the work that was skipped for setting up the FCE.
+Result GfxCmdBuffer::AddFceSkippedImageCounter(
+    GfxImage* pGfxImage)
+{
+    Result result = Result::Success;
+
+    PAL_ASSERT(pGfxImage != nullptr);
+
+    uint32* pCounter = pGfxImage->GetFceRefCounter();
+
+    if ((pCounter != nullptr) && (m_fceRefCounts.Contains(pCounter) == false))
+    {
+        // Insert the gfxImage's counter to the set and increment the ref count if it has not been done already.
+        result = m_fceRefCounts.Insert(pCounter);
+
+        if (result == Result::Success)
+        {
+            pGfxImage->IncrementFceRefCount();
+        }
+    }
+
+    return result;
 }
 
 } // Pal

@@ -31,11 +31,15 @@
 
 #pragma once
 
-#include <pthread.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <errno.h>
 #include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <math.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(__APPLE__)
 #include <dispatch/dispatch.h>

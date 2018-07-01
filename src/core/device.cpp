@@ -1209,6 +1209,7 @@ void Device::CopyLayerSettings()
     m_interfaceLoggerSettings.interfaceLoggerBasePreset     = settings.interfaceLoggerBasePreset;
     m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = settings.interfaceLoggerElevatedPreset;
     Strncpy(m_interfaceLoggerSettings.interfaceLoggerDirectory, settings.interfaceLoggerDirectory, MaxPathStrLen);
+
 }
 
 // =====================================================================================================================
@@ -1920,6 +1921,7 @@ Result Device::GetProperties(
 
         pInfo->gfxipProperties.shaderCore.ldsSizePerCu           = m_chipProperties.gfxip.ldsSizePerCu;
         pInfo->gfxipProperties.shaderCore.ldsSizePerThreadGroup  = m_chipProperties.gfxip.ldsSizePerThreadGroup;
+        pInfo->gfxipProperties.shaderCore.ldsGranularity         = m_chipProperties.gfxip.ldsGranularity;
         pInfo->gfxipProperties.shaderCore.offchipTessBufferSize  = m_chipProperties.gfxip.offChipTessBufferSize;
         pInfo->gfxipProperties.shaderCore.tessFactorBufSizePerSe = m_chipProperties.gfxip.tessFactorBufferSizePerSe;
         pInfo->gfxipProperties.shaderCore.tccSizeInBytes         = m_chipProperties.gfxip.tccSizeInBytes;

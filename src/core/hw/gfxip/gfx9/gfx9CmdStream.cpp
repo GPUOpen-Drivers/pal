@@ -258,9 +258,10 @@ uint32* CmdStream::WriteSetVgtLsHsConfig(
     if ((pm4OptImmediate == false) ||
         m_pPm4Optimizer->MustKeepSetContextReg(mmVGT_LS_HS_CONFIG, vgtLsHsConfig.u32All))
     {
-        const size_t totalDwords = m_cmdUtil.BuildSetOneContextReg(mmVGT_LS_HS_CONFIG,
-                                                                   pCmdSpace,
-                                                                   index__pfp_set_context_reg__vgt_ls_hs_config__GFX09);
+        const size_t totalDwords = m_cmdUtil.BuildSetOneContextReg(
+                                        mmVGT_LS_HS_CONFIG,
+                                        pCmdSpace,
+                                        index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09);
         m_contextRollDetected = true;
         pCmdSpace[CmdUtil::ContextRegSizeDwords] = vgtLsHsConfig.u32All;
         pCmdSpace += totalDwords;
@@ -495,9 +496,10 @@ uint32* CmdStream::WriteSetSeqShRegs(
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <Pm4ShaderType shaderType, bool pm4OptImmediate>
 uint32* CmdStream::WriteSetShRegDataOffset(
-    uint32        regAddr,
-    uint32        dataOffset,
-    uint32*       pCmdSpace)
+    uint32                           regAddr,
+    uint32                           dataOffset,
+    uint32*                          pCmdSpace,
+    PFP_SET_SH_REG_OFFSET_index_enum index)
 {
     PAL_ASSERT(m_flags.optModeImmediate == pm4OptImmediate);
 
@@ -527,17 +529,18 @@ uint32* CmdStream::WriteSetShRegDataOffset(
 // enabled.
 template <Pm4ShaderType shaderType>
 uint32* CmdStream::WriteSetShRegDataOffset(
-    uint32        regAddr,
-    uint32        regData,
-    uint32*       pCmdSpace)
+    uint32                           regAddr,
+    uint32                           regData,
+    uint32*                          pCmdSpace,
+    PFP_SET_SH_REG_OFFSET_index_enum index)
 {
     if (m_flags.optModeImmediate)
     {
-        pCmdSpace = WriteSetShRegDataOffset<shaderType, true>(regAddr, regData, pCmdSpace);
+        pCmdSpace = WriteSetShRegDataOffset<shaderType, true>(regAddr, regData, pCmdSpace, index);
     }
     else
     {
-        pCmdSpace = WriteSetShRegDataOffset<shaderType, false>(regAddr, regData, pCmdSpace);
+        pCmdSpace = WriteSetShRegDataOffset<shaderType, false>(regAddr, regData, pCmdSpace, index);
     }
 
     return pCmdSpace;
@@ -546,14 +549,16 @@ uint32* CmdStream::WriteSetShRegDataOffset(
 // Instantiate the template for the linker.
 template
 uint32* CmdStream::WriteSetShRegDataOffset<ShaderGraphics>(
-    uint32        regAddr,
-    uint32        regData,
-    uint32*       pCmdSpace);
+    uint32                           regAddr,
+    uint32                           regData,
+    uint32*                          pCmdSpace,
+    PFP_SET_SH_REG_OFFSET_index_enum index);
 template
 uint32* CmdStream::WriteSetShRegDataOffset<ShaderCompute>(
-    uint32        regAddr,
-    uint32        regData,
-    uint32*       pCmdSpace);
+    uint32                           regAddr,
+    uint32                           regData,
+    uint32*                          pCmdSpace,
+    PFP_SET_SH_REG_OFFSET_index_enum index);
 
 // =====================================================================================================================
 // Helper function for writing the user-SGPR's mapped to user-data entries for a graphics shader stage.

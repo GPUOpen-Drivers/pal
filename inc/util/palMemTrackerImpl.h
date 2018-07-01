@@ -108,8 +108,8 @@ void* MemTracker<Allocator>::AddMemElement(
     // Increment memory pointer for alloced memory.
     void* pClientMem = VoidPtrAlign(VoidPtrInc(pMem, m_markerSizeBytes), align);
 
-    uint32* pUnderrun = static_cast<uint32*>(VoidPtrDec(pClientMem, m_markerSizeBytes));
-    uint32* pOverrun  = static_cast<uint32*>(VoidPtrInc(pClientMem, Pow2Align(bytes, sizeof(uint32))));
+    uint32* pUnderrun = static_cast<uint32*>(Util::VoidPtrDec(pClientMem, m_markerSizeBytes));
+    uint32* pOverrun  = static_cast<uint32*>(Util::VoidPtrInc(pClientMem, Pow2Align(bytes, sizeof(uint32))));
 
     // Mark the memory with the underrun/overrun marker.
     for (uint32 markerUints = 0; markerUints < m_markerSizeUints; ++markerUints)
@@ -231,8 +231,9 @@ void* MemTracker<Allocator>::RemoveMemElement(
     {
         // We can check for memory corruption at top and bottom since the element was found in our free list.
 
-        uint32* pUnderrun = static_cast<uint32*>(VoidPtrDec(pClientMem, m_markerSizeBytes));
-        uint32* pOverrun  = static_cast<uint32*>(VoidPtrInc(pClientMem, Pow2Align(pCurrent->size, sizeof(uint32))));
+        uint32* pUnderrun = static_cast<uint32*>(Util::VoidPtrDec(pClientMem, m_markerSizeBytes));
+        uint32* pOverrun  = static_cast<uint32*>
+                            (Util::VoidPtrInc(pClientMem, Pow2Align(pCurrent->size, sizeof(uint32))));
 
         for (uint32 markerUints = 0; markerUints < m_markerSizeUints; ++markerUints)
         {

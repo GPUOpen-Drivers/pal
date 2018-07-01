@@ -83,7 +83,6 @@ Result Event::Init(
 
     if (m_hEvent == InvalidEvent)
     {
-        PAL_ALERT_ALWAYS();
         result = Result::ErrorInitializationFailed;
     }
 
@@ -151,6 +150,55 @@ Result Event::Open(
     return Result::Unsupported;
 }
 
+// =====================================================================================================================
+// Wait for the Event object to become set.
+Result Event::Wait(
+    float timeout // Max time to wait, in seconds.
+    ) const
+{
+    Result result = Result::Success;
+
+    if (timeout < 0.0f)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        // Conversion factor to go from seconds to nanoseconds.
+        constexpr float ToNanoseconds = (1E+9);
+
+        timespec spec = { };
+        spec.tv_sec   = static_cast<int32>(timeout);
+        spec.tv_nsec  = static_cast<int32>((timeout - static_cast<float>(spec.tv_sec)) * ToNanoseconds);
+
+        // According to the Linux man pages for eventfd, any of the select(), poll(), or epoll() APIs will treat the
+        // eventfd object as "readable" or "ready to be read from" when the object is in the signaled state. We can
+        // therefore use any of those APIs to multiplex the set of events we need to wait on.
+
+        // Assemble an fd_set structure to pass to the pselect() system call:
+        fd_set eventSet;
+        FD_ZERO(&eventSet);
+        FD_SET(m_hEvent, &eventSet);
+
+        // According to the man pages, pselect's first argument is the maxiumum file descriptor, plus one.
+        const int32 ret = pselect(m_hEvent + 1, &eventSet, nullptr, nullptr, &spec, nullptr);
+
+        if (ret == -1)
+        {
+            // An unknown error occurred.
+            result = Result::ErrorUnknown;
+        }
+        else if (ret == 0)
+        {
+            // Timeout ocurred!
+            result = Result::Timeout;
+        }
+    }
+
+    return result;
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 412
 // =====================================================================================================================
 // Waits for one (or all, if waitAll == true) of the supplied events to become signaled.
 template <typename Allocator>
@@ -340,5 +388,6 @@ Result WaitForEvents(
 
     return result;
 }
+#endif
 
 } // Util

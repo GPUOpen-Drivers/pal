@@ -236,9 +236,9 @@ protected:
         uint32              depth,
         const uint32*       pThreadsPerGroup);
 
-    static void CommitBeginEndGfxCopy(
+    void CommitBeginEndGfxCopy(
         Pal::CmdStream*  pCmdStream,
-        uint32           paScTileSteeringOverride);
+        uint32           paScTileSteeringOverride) const;
 
     Device*const   m_pDevice;
     const CmdUtil& m_cmdUtil;

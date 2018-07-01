@@ -2247,13 +2247,12 @@ void RsrcProcMgr::ConvertYuvToRgb(
 
     ImageViewInfo viewInfo[MaxImageSrds] = { };
 
-    // Override the RGB image format to handle gamma-correction if it is required.
+    // Override the RGB image format to skip gamma-correction if it is required.
     SwizzledFormat dstFormat = dstImageInfo.swizzledFormat;
 
     if (Formats::IsSrgb(dstFormat.format))
     {
-        dstFormat.format         = Formats::ConvertToUnorm(dstFormat.format);
-        copyInfo.gammaCorrection = 1;
+        dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
     }
 
     const ComputePipeline*const pPipeline = GetPipeline(cscInfo.pipelineYuvToRgb);
@@ -2400,11 +2399,19 @@ void RsrcProcMgr::ConvertRgbToYuv(
 
         ImageViewInfo viewInfo[MaxImageSrds] = { };
 
+        // Override the RGB image format to skip degamma.
+        SwizzledFormat srcFormat = srcImageInfo.swizzledFormat;
+
+        if (Formats::IsSrgb(srcFormat.format))
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+        }
+
         const SubresRange srcRange = { region.rgbSubres, 1, region.sliceCount };
         RpmUtil::BuildImageViewInfo(
-            &viewInfo[0], srcImage, srcRange, srcImageInfo.swizzledFormat, false, device.TexOptLevel());
+            &viewInfo[0], srcImage, srcRange, srcFormat, false, device.TexOptLevel());
 
-        RpmUtil::YuvRgbConversionInfo copyInfo = { };
+        RpmUtil::RgbYuvConversionInfo copyInfo = { };
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
         const Extent2d dstExtent = { Math::Absu(region.dstExtent.width), Math::Absu(region.dstExtent.height) };
@@ -2480,6 +2487,10 @@ void RsrcProcMgr::ConvertRgbToYuv(
             copyInfo.dstOffset.y      = (dstOffset.y      >> log2Ratio.height);
             copyInfo.dstExtent.width  = (dstExtent.width  >> log2Ratio.width);
             copyInfo.dstExtent.height = (dstExtent.height >> log2Ratio.height);
+
+            // Each codec(Mpeg-1, Mpeg-2) requires the specific chroma subsampling location.
+            copyInfo.sampleLocX = cscViewInfo.sampleLocX;
+            copyInfo.sampleLocY = cscViewInfo.sampleLocY;
 
             // Each conversion shader requires:
             //  o Two image SRD's: one for the RGB image, one for the YUV image
@@ -2920,7 +2931,7 @@ void RsrcProcMgr::CmdClearColorImage(
     uint32             flags
     ) const
 {
-    const Pal::GfxImage*        pGfxImage     = dstImage.GetGfxImage();
+    Pal::GfxImage*              pGfxImage     = dstImage.GetGfxImage();
     const auto&                 createInfo    = dstImage.GetImageCreateInfo();
     const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
     const bool                  hasBoxes      = (boxCount > 0);

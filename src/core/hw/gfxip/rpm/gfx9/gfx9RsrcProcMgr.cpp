@@ -3014,7 +3014,8 @@ void RsrcProcMgr::FmaskDecompress(
 // to the specified command stream.
 void RsrcProcMgr::CommitBeginEndGfxCopy(
     Pal::CmdStream*  pCmdStream,
-    uint32           paScTileSteeringOverride)
+    uint32           paScTileSteeringOverride
+    ) const
 {
     CmdStream*  pGfxCmdStream = reinterpret_cast<CmdStream*>(pCmdStream);
     uint32*     pCmdSpace     = pCmdStream->ReserveCommands();

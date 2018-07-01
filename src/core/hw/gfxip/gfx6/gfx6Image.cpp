@@ -70,6 +70,8 @@ Image::Image(
 // =====================================================================================================================
 Image::~Image()
 {
+    Pal::GfxImage::Destroy();
+
     PAL_SAFE_DELETE_ARRAY(m_pHtile, m_device.GetPlatform());
     PAL_SAFE_DELETE_ARRAY(m_pCmask, m_device.GetPlatform());
     PAL_SAFE_DELETE_ARRAY(m_pFmask, m_device.GetPlatform());
@@ -812,6 +814,11 @@ Result Image::Finalize(
             {
                 InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
             }
+
+            // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
+            // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
+            // CPU cycles required to set up the fast clear eliminate.
+            m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -1882,8 +1889,7 @@ bool Image::IsFastColorClearSupported(
     GfxCmdBuffer*      pCmdBuffer,  // Command buffer that will be used for the clear
     ImageLayout        colorLayout, // Current layout of the image's color aspect
     const uint32*      pColor,      // 4-component color to use for the clear
-    const SubresRange& range        // The sub-resource range that will be cleared
-    ) const
+    const SubresRange& range)       // The sub-resource range that will be cleared
 {
     // This logic for fast-clearable tex-fetch images is only valid for color images; depth images have their own
     // restrictions which are implemented in IsFastDepthStencilClearSupported().
@@ -1910,6 +1916,13 @@ bool Image::IsFastColorClearSupported(
 
     if (isFastClearSupported)
     {
+        // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a reference
+        // to this image's ref counter.
+        const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() == 1);
+        const bool isClearColorTcCompatible = IsFastClearColorMetaFetchable(pColor);
+
+        SetNonTcCompatClearFlag(isClearColorTcCompatible == false);
+
         // Figure out if we can do a cmask- or a non-TC compatible DCC fast clear.  This kind of fast clear works
         // on any clear color, but requires a fast clear eliminate blt.
         const bool nonTcCompatibleFastClearPossible =
@@ -1921,7 +1934,9 @@ bool Image::IsFastColorClearSupported(
             // The image setting must dictate that all fast clear colors are allowed -- not just TC-compatible ones
             // (this is a profile preference in case sometimes the fast clear eliminate becomes too expensive for
             // specific applications)
-            ColorImageSupportsAllFastClears();
+            ColorImageSupportsAllFastClears() &&
+            // Allow non-TC compatible clears only if there are no skipped fast clear eliminates.
+            noSkippedFastClearElim;
 
         // Figure out if we can do a TC-compatible DCC fast clear (one that requires no fast clear eliminate blt)
         const bool tcCompatDccFastClearPossible =
@@ -1931,7 +1946,7 @@ bool Image::IsFastColorClearSupported(
             // The image supports TC-compatible reads from DCC-compressed surfaces
             pSubResInfo->flags.supportMetaDataTexFetch &&
             // The clear value is TC-compatible
-            IsFastClearColorMetaFetchable(pColor);
+            isClearColorTcCompatible;
 
         // Allow fast clear only if either is possible
         isFastClearSupported = (nonTcCompatibleFastClearPossible || tcCompatDccFastClearPossible);

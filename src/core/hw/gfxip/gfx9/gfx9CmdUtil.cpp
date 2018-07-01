@@ -2716,10 +2716,11 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
 // data to the indirect base address set via SET_BASE packet and writes it to regAddr
 // Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetShRegDataOffset(
-    uint32        regAddr,
-    uint32        dataOffset,
-    Pm4ShaderType shaderType,
-    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
+    uint32                           regAddr,
+    uint32                           dataOffset,
+    Pm4ShaderType                    shaderType,
+    void*                            pBuffer,      // [out] Build the PM4 packet in this buffer.
+    PFP_SET_SH_REG_OFFSET_index_enum index
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -2732,7 +2733,7 @@ size_t CmdUtil::BuildSetShRegDataOffset(
     pPacket->header.u32All         = Type3Header(IT_SET_SH_REG_OFFSET, packetSize, shaderType);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.reg_offset = regAddr - PERSISTENT_SPACE_START;
-    pPacket->bitfields2.index      = index__pfp_set_sh_reg_offset__data_indirect;
+    pPacket->bitfields2.index      = index;
     pPacket->data_offset           = dataOffset;
     pPacket->dummy                 = 0;
 
@@ -2744,12 +2745,12 @@ size_t CmdUtil::BuildSetShRegDataOffset(
 // context registers are for graphics. The index field is used to set special registers and should be set to zero except
 // when setting one of those registers. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetOneContextReg(
-    uint32                         regAddr,
-    void*                          pBuffer, // [out] Build the PM4 packet in this buffer.
-    PFP_SET_CONTEXT_REG_index_enum index
+    uint32                               regAddr,
+    void*                                pBuffer, // [out] Build the PM4 packet in this buffer.
+    PFP_SET_CONTEXT_REG_INDEX_index_enum index
     ) const
 {
-    PAL_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) || (index == index__pfp_set_context_reg__vgt_ls_hs_config__GFX09));
+    PAL_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) || (index == index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09));
     return BuildSetSeqContextRegs(regAddr, regAddr, pBuffer, index);
 }
 
@@ -2757,10 +2758,10 @@ size_t CmdUtil::BuildSetOneContextReg(
 // Builds a PM4 packet which sets a sequence of context registers starting with startRegAddr and ending with endRegAddr
 // (inclusive). All context registers are for graphics. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildSetSeqContextRegs(
-    uint32                         startRegAddr,
-    uint32                         endRegAddr,
-    void*                          pBuffer, // [out] Build the PM4 packet in this buffer.
-    PFP_SET_CONTEXT_REG_index_enum index
+    uint32                               startRegAddr,
+    uint32                               endRegAddr,
+    void*                                pBuffer, // [out] Build the PM4 packet in this buffer.
+    PFP_SET_CONTEXT_REG_INDEX_index_enum index
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS

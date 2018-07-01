@@ -42,15 +42,15 @@ extern "C" {
  */
 typedef struct SqttFileHeader
 {
-    uint32_t                magicNumber;                    /*!< Magic number, always set to <c><i>SQTT_FILE_MAGIC_NUMBER</i></c>. */
-    uint32_t                versionMajor;                   /*!< The major version number of the file. */
-    uint32_t                versionMinor;                   /*!< The minor version number of the file. */
-    uint32_t                flags;                          /*!< Bitfield of flags set with information about the file. */
-    int32_t                 chunkOffset;                    /*!< The offset in bytes to the first chunk contained in the file. */
-    int32_t                 second;                         /*!< The second in the minute that the RGP file was created. */
-    int32_t                 minute;                         /*!< The minute in the hour that the RGP file was created. */
-    int32_t                 hour;                           /*!< The hour in the day that the RGP file was created. */
-    int32_t                 dayInMonth;                     /*!< The day in the month that the RGP file was created. */
+    uint32_t                magicNumber;       /*!< Magic number, always set to <c><i>SQTT_FILE_MAGIC_NUMBER</i></c> */
+    uint32_t                versionMajor;      /*!< The major version number of the file. */
+    uint32_t                versionMinor;      /*!< The minor version number of the file. */
+    uint32_t                flags;             /*!< Bitfield of flags set with information about the file. */
+    int32_t                 chunkOffset;       /*!< The offset in bytes to the first chunk contained in the file. */
+    int32_t                 second;            /*!< The second in the minute that the RGP file was created. */
+    int32_t                 minute;            /*!< The minute in the hour that the RGP file was created. */
+    int32_t                 hour;              /*!< The hour in the day that the RGP file was created. */
+    int32_t                 dayInMonth;        /*!< The day in the month that the RGP file was created. */
     int32_t                 month;
     int32_t                 year;
     int32_t                 dayInWeek;
@@ -62,15 +62,15 @@ typedef struct SqttFileHeader
  */
 typedef enum SqttFileChunkType
 {
-    SQTT_FILE_CHUNK_TYPE_ASIC_INFO,                         /*!< A chunk containing the description of the ASIC on which the trace was made. */
-    SQTT_FILE_CHUNK_TYPE_SQTT_DESC,                         /*!< A chunk containing the description of the SQTT data. */
-    SQTT_FILE_CHUNK_TYPE_SQTT_DATA,                         /*!< A chunk containing the SQTT data for a single shader engine. */
-    SQTT_FILE_CHUNK_TYPE_API_INFO,                          /*!< A chunk containing the description of the API on which the trace was made. */
-    SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,                      /*!< A chunk containing the Shader ISA code. */
-    SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,               /*!< A chunk containing the timings for queue events that occurred during the trace. */
-    SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,                 /*!< A chunk containing the information required to correlate between clock domains. */
-    SQTT_FILE_CHUNK_TYPE_CPU_INFO,                          /*!< A chunk containing the description of the CPU on which the trace was made. */
-    SQTT_FILE_CHUNK_TYPE_SPM_DB,                            /*!< A chunk containing the SPM trace data. */
+    SQTT_FILE_CHUNK_TYPE_ASIC_INFO,                    /*!< Description of the ASIC on which the trace was made. */
+    SQTT_FILE_CHUNK_TYPE_SQTT_DESC,                    /*!< Description of the SQTT data. */
+    SQTT_FILE_CHUNK_TYPE_SQTT_DATA,                    /*!< SQTT data for a single shader engine. */
+    SQTT_FILE_CHUNK_TYPE_API_INFO,                     /*!< Description of the API on which the trace was made. */
+    SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,                 /*!< Shader ISA code. */
+    SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,          /*!< Timings for queue events that occurred during trace. */
+    SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,            /*!< Information required to correlate between clock domains. */
+    SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
+    SQTT_FILE_CHUNK_TYPE_SPM_DB,                       /*!< SPM trace data. */
 
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
@@ -141,7 +141,7 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_7   = 0x2,
     SQTT_GFXIP_LEVEL_GFXIP_8   = 0x3,
     SQTT_GFXIP_LEVEL_GFXIP_8_1 = 0x4,
-    SQTT_GFXIP_LEVEL_GFXIP_9   = 0x5
+    SQTT_GFXIP_LEVEL_GFXIP_9   = 0x5,
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -168,47 +168,48 @@ const uint32_t SQTT_GPU_NAME_MAX_SIZE = 256;
  */
 typedef struct SqttFileChunkAsicInfo
 {
-    SqttFileChunkHeader         header;                          /*!< Common header for all chunks. */
-    uint64_t                    flags;                           /*!< Flags for the ASIC info chunk. */
-    uint64_t                    traceShaderCoreClock;            /*!< The shader core clock frequency during SQTT traces. */
-    uint64_t                    traceMemoryClock;                /*!< The memory clock frequency during SQTT traces. */
-    int32_t                     deviceId;                        /*!< The device ID for the card where the trace was performed. */
-    int32_t                     deviceRevisionId;                /*!< The device revision ID for the card where the trace was performed. */
-    int32_t                     vgprsPerSimd;                    /*!< The number of VGPRs per SIMD. */
-    int32_t                     sgprsPerSimd;                    /*!< The number of SGPRs per SIMD. */
-    int32_t                     shaderEngines;                   /*!< The number of shader engines. */
-    int32_t                     computeUnitPerShaderEngine;      /*!< The number of compute units per shader engine. */
-    int32_t                     simdPerComputeUnit;              /*!< The number of SIMDs per compute unit. */
-    int32_t                     wavefrontsPerSimd;               /*!< The number of wavefronts per SIMD. */
-    int32_t                     minimumVgprAlloc;                /*!< Minimum number of VGPRs per wavefront. */
-    int32_t                     vgprAllocGranularity;            /*!< The allocation granularity of VGPRs. */
-    int32_t                     minimumSgprAlloc;                /*!< Minimum number of SGPRs per wavefront. */
-    int32_t                     sgprAllocGranularity;            /*!< The allocation granularity of SGPRs. */
-    int32_t                     hardwareContexts;                /*!< The number of hardware contexts. */
-    SqttGpuType                 gpuType;                         /*!< The type of GPU. */
-    SqttGfxIpLevel              gfxIpLevel;                      /*!< The gfxip level of this GPU. */
-    int32_t                     gpuIndex;                        /*!< The index of this GPU. */
-    int32_t                     gdsSize;                         /*!< The size in bytes of the global data store in bytes in GPU. */
-    int32_t                     gdsPerShaderEngine;              /*!< The max size in bytes of GDS space available per SE. */
-    int32_t                     ceRamSize;                       /*!< The max size in bytes of CE RAM space available. */
-    int32_t                     ceRamSizeGraphics;               /*!< The max CE RAM size available to graphics engine in bytes.*/
-    int32_t                     ceRamSizeCompute;                /*!< The max CE RAM size available to Compute engine in bytes.*/
-    int32_t                     maxNumberOfDedicatedCus;         /*!< The number of CUs dedicated to real time audio queue. */
-    int64_t                     vramSize;                        /*!< The total number of bytes to VRAM. */
-    int32_t                     vramBusWidth;                    /*!< The width of the bus to VRAM. */
-    int32_t                     l2CacheSize;                     /*!< The total number of bytes in L2 Cache. */
-    int32_t                     l1CacheSize;                     /*!< The total number of L1 cache bytes per CU.. */
-    int32_t                     ldsSize;                         /*!< The total number of LDS bytes per CU.. */
-    char                        gpuName[SQTT_GPU_NAME_MAX_SIZE]; /*!< The name of the GPU. Padded to 256 bytes. */
-    float                       aluPerClock;                     /*!< The number of ALUs per clock. */
-    float                       texturePerClock;                 /*!< The number of texture per clock. */
-    float                       primsPerClock;                   /*!< The number of primitives per clock. */
-    float                       pixelsPerClock;                  /*!< The number of pixels per clock. */
-    uint64_t                    gpuTimestampFrequency;           /*!< The frequency of the gpu timestamp clock in Hz. */
-    uint64_t                    maxShaderCoreClock;              /*!< The max shader core clock frequency. */
-    uint64_t                    maxMemoryClock;                  /*!< The max memory clock frequency. */
-    uint32_t                    memoryOpsPerClock;               /*!< The number of memory operations per memory clock cycle. */
-    SqttMemoryType              memoryChipType;                  /*!< The type of memory chip used by the asic. */
+    SqttFileChunkHeader header;                          /*!< Common header for all chunks. */
+    uint64_t            flags;                           /*!< Flags for the ASIC info chunk. */
+    uint64_t            traceShaderCoreClock;            /*!< The shader core clock frequency during SQTT traces. */
+    uint64_t            traceMemoryClock;                /*!< The memory clock frequency during SQTT traces. */
+    int32_t             deviceId;                        /*!< Device ID for the card where the trace was performed. */
+    int32_t             deviceRevisionId;                /*!< Device revision ID for card where trace was performed. */
+    int32_t             vgprsPerSimd;                    /*!< The number of VGPRs per SIMD. */
+    int32_t             sgprsPerSimd;                    /*!< The number of SGPRs per SIMD. */
+    int32_t             shaderEngines;                   /*!< The number of shader engines. */
+    int32_t             computeUnitPerShaderEngine;      /*!< The number of compute units per shader engine. */
+    int32_t             simdPerComputeUnit;              /*!< The number of SIMDs per compute unit. */
+    int32_t             wavefrontsPerSimd;               /*!< The number of wavefronts per SIMD. */
+    int32_t             minimumVgprAlloc;                /*!< Minimum number of VGPRs per wavefront. */
+    int32_t             vgprAllocGranularity;            /*!< The allocation granularity of VGPRs. */
+    int32_t             minimumSgprAlloc;                /*!< Minimum number of SGPRs per wavefront. */
+    int32_t             sgprAllocGranularity;            /*!< The allocation granularity of SGPRs. */
+    int32_t             hardwareContexts;                /*!< The number of hardware contexts. */
+    SqttGpuType         gpuType;                         /*!< The type of GPU. */
+    SqttGfxIpLevel      gfxIpLevel;                      /*!< The gfxip level of this GPU. */
+    int32_t             gpuIndex;                        /*!< The index of this GPU. */
+    int32_t             gdsSize;                         /*!< Size in bytes of global data store in bytes in GPU. */
+    int32_t             gdsPerShaderEngine;              /*!< Max size in bytes of GDS space available per SE. */
+    int32_t             ceRamSize;                       /*!< Max size in bytes of CE RAM space available. */
+    int32_t             ceRamSizeGraphics;               /*!< Max CE RAM size available to graphics engine in bytes.*/
+    int32_t             ceRamSizeCompute;                /*!< Max CE RAM size available to Compute engine in bytes.*/
+    int32_t             maxNumberOfDedicatedCus;         /*!< The number of CUs dedicated to real time audio queue. */
+    int64_t             vramSize;                        /*!< The total number of bytes to VRAM. */
+    int32_t             vramBusWidth;                    /*!< The width of the bus to VRAM. */
+    int32_t             l2CacheSize;                     /*!< The total number of bytes in L2 Cache. */
+    int32_t             l1CacheSize;                     /*!< The total number of L1 cache bytes per CU.. */
+    int32_t             ldsSize;                         /*!< The total number of LDS bytes per CU.. */
+    char                gpuName[SQTT_GPU_NAME_MAX_SIZE]; /*!< The name of the GPU. Padded to 256 bytes. */
+    float               aluPerClock;                     /*!< The number of ALUs per clock. */
+    float               texturePerClock;                 /*!< The number of texture per clock. */
+    float               primsPerClock;                   /*!< The number of primitives per clock. */
+    float               pixelsPerClock;                  /*!< The number of pixels per clock. */
+    uint64_t            gpuTimestampFrequency;           /*!< The frequency of the gpu timestamp clock in Hz. */
+    uint64_t            maxShaderCoreClock;              /*!< The max shader core clock frequency. */
+    uint64_t            maxMemoryClock;                  /*!< The max memory clock frequency. */
+    uint32_t            memoryOpsPerClock;               /*!< Number of memory operations per memory clock cycle. */
+    SqttMemoryType      memoryChipType;                  /*!< The type of memory chip used by the asic. */
+    uint32_t            ldsGranularity;                  /*!< The LDS allocation granularity expressed in bytes. */
 } SqttFileChunkAsicInfo;
 
 /** A structure encapsulating information about the API on which the trace was performed.
@@ -231,8 +232,7 @@ typedef enum SqttVersion
     SQTT_VERSION_2_0  = 0x3,                                /*!< Southern Islands (GfxIp 6). */
     SQTT_VERSION_2_1  = 0x4,                                /*!< Sea Islands (GfxIp 7). */
     SQTT_VERSION_2_2  = 0x5,                                /*!< Volcanic Islands (GfxIP 8). */
-    SQTT_VERSION_2_3  = 0x6                                 /*!< GfxIp 9. */
-
+    SQTT_VERSION_2_3  = 0x6,                                /*!< GfxIp 9. */
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.
@@ -246,15 +246,15 @@ typedef struct SqttFileChunkSqttDesc
     {
         struct
         {
-            int32_t                 instrumentationVersion;     /*!< The major version number of the instrumentation specification
-                                                                that the matching SQTT_DATA chunk contains*/
+            int32_t                 instrumentationVersion;     /*!< The major version number of the instrumentation
+                                                                specification that matching SQTT_DATA chunk contains */
         } v0;
 
         struct
         {
-            int16_t                 instrumentationSpecVersion; /*!< The version of the instrumentation as defined by the spec. */
-            int16_t                 instrumentationApiVersion;  /*!< The version of the instrumentation as defined by the api. */
-            int32_t                 computeUnitIndex;           /*!< The physical index of the compute unit that executed the trace. */
+            int16_t                 instrumentationSpecVersion; /*!< Version of instrumentation as defined by spec. */
+            int16_t                 instrumentationApiVersion;  /*!< Version of instrumentation as defined by api. */
+            int32_t                 computeUnitIndex;           /*!< Phys index of compute unit that executed trace */
         } v1;
     };
 } SqttFileChunkSqttDesc;
@@ -264,7 +264,7 @@ typedef struct SqttFileChunkSqttDesc
 typedef struct SqttFileChunkSqttData
 {
     SqttFileChunkHeader         header;                     /*!< Common header for all chunks. */
-    int32_t                     offset;                     /*!< Offset from the start of the file (in bytes) to the SQTT data. */
+    int32_t                     offset;                     /*!< Offset from start of file (bytes) to SQTT data. */
     int32_t                     size;                       /*!< The size (in bytes) of the SQTT data. */
 } SqttFileChunkSqttData;
 
@@ -303,15 +303,15 @@ typedef struct SqttShaderHash
  */
 typedef struct SqttShaderIsaBlobHeader
 {
-    uint32_t        sizeInBytes;                            /*!< The size of the ISA chunk (in bytes). */
-    uint32_t        actualVgprCount;                        /*!< The actual number of VGPRs used by the shader. */
-    uint32_t        actualSgprCount;                        /*!< The actual number of SGPRs used by the shader. */
-    uint32_t        actualLdsCount;                         /*!< The actual number of LDS bytes used by the shader. */
-    SqttShaderHash  apiShaderHash;                          /*!< The 128-bit hash of the shader, API specific. */
-    SqttShaderHash  palShaderHash;                          /*!< The 128-bit PAL internal hash of the shader used in the shader cache. */
-    uint32_t        scratchSize;                            /*!< The number of DWORDs used for scratch memory. */
-    uint32_t        flags;                                  /*!< Flags as defined in SqttShaderFlags. */
-    uint64_t        baseAddress;                            /*!< The base address of the first instruction in the chunk. */
+    uint32_t        sizeInBytes;                       /*!< The size of the ISA chunk (in bytes). */
+    uint32_t        actualVgprCount;                   /*!< The actual number of VGPRs used by the shader. */
+    uint32_t        actualSgprCount;                   /*!< The actual number of SGPRs used by the shader. */
+    uint32_t        actualLdsCount;                    /*!< The actual number of LDS bytes used by the shader. */
+    SqttShaderHash  apiShaderHash;                     /*!< 128-bit hash of the shader, API specific. */
+    SqttShaderHash  palShaderHash;                     /*!< 128-bit PAL internal hash of shader used in shader cache */
+    uint32_t        scratchSize;                       /*!< The number of DWORDs used for scratch memory. */
+    uint32_t        flags;                             /*!< Flags as defined in SqttShaderFlags. */
+    uint64_t        baseAddress;                       /*!< Base address of first instruction in chunk. */
 } SqttShaderIsaBlobHeader;
 
 /**  A structure encapsulating information about each record in the shader ISA database.
@@ -323,7 +323,7 @@ typedef struct SqttIsaDatabaseRecord
         uint32_t shaderStage : 8;                            /*!< Shader stage mask as defined in SqttShaderType. */
         uint32_t reserved    : 24;                           /*!< Reserved for future use. */
     };
-    uint32_t         recordSize;                             /*!< The size of the record (including all blobs) in bytes. */
+    uint32_t         recordSize;                             /*!< The size of record (including all blobs) in bytes */
 } SqttIsaDbRecord;
 
 /**  A structure encapsulating information about the shader ISA database.

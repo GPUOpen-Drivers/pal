@@ -24,7 +24,6 @@
  #######################################################################################################################
 
 cmake_minimum_required(VERSION 3.5)
-#cmake_minimum_required(VERSION 3.10)
 project(GPUOPEN)
 
 ### CMake Includes #####################################################################################################
@@ -127,11 +126,14 @@ target_sources(gpuopen PRIVATE
     src/baseProtocolServer.cpp
     src/baseProtocolClient.cpp
     src/ddTransferManager.cpp
+    src/ddURIRequestContext.cpp
     src/protocols/ddTransferServer.cpp
     src/protocols/ddTransferClient.cpp
     src/ddClientURIService.cpp
     src/protocols/ddURIServer.cpp
     src/protocols/ddSettingsService.cpp
+    src/util/ddTextWriter.cpp
+    src/util/ddJsonWriter.cpp
 )
 
 # If the client doesn't specify, default to building internal metrohash library
@@ -152,6 +154,9 @@ if (GPUOPEN_BUILD_METROHASH)
 endif()
 
 target_include_directories(gpuopen PRIVATE ${METROHASH_PATH})
+
+### RapidJson ###
+target_include_directories(gpuopen PUBLIC "inc/imported/rapidjson/include")
 
 ### Platform ###
 if(UNIX)

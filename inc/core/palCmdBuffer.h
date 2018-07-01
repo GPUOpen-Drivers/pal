@@ -76,8 +76,10 @@ enum class PipelineBindPoint : uint32
 {
     Compute     = 0x0,
     Graphics    = 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
     VideoEncode = 0x2,
     VideoDecode = 0x3,
+#endif
     Count
 };
 
@@ -3106,7 +3108,15 @@ public:
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly
     /// called the proper create method.
-    ICmdBuffer() : m_pClientData(nullptr) {}
+    ICmdBuffer() : m_pClientData(nullptr)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
+        for (uint32 i = 0; i < static_cast<uint32>(PipelineBindPoint::Count); i++)
+        {
+            m_funcTable.pfnCmdSetUserData[i] = nullptr;
+        }
+#endif
+    }
 
     /// @internal Destructor.  Prevent use of delete operator on this interface.  Client must destroy objects by
     /// explicitly calling IDestroyable::Destroy() and is responsible for freeing the system memory allocated for the

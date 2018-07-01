@@ -104,14 +104,33 @@ struct YuvRgbConversionInfo
     Offset2d  dstOffset;            // Offset into the destination to begin the copy
     Extent2d  dstExtent;            // Region of the destination which will be copied into
     bool      gammaCorrection;      // Toggles gamma correction for the destination
-    float     srcWidthEpsilon;      // Distance between two pixels in a macro-pixel source (normalized coordinates)
-    bool      reversePacking;       // Reverses the packing order in a macro-pixel destination
-    uint32    unused;
+    uint32    unused0;
+    uint32    unused1;
+    uint32    unused2;
     float     cscTable[3][4];       // Color-space-conversion table (4x3 matrix)
 };
 
-// Size of a YuvToRgbCopyInfo structure, in DWORD's.
+// Size of a YuvRgbConversionInfo structure, in DWORD's.
 constexpr uint32 YuvRgbConversionInfoDwords = ((sizeof(YuvRgbConversionInfo) + (sizeof(uint32) - 1)) / sizeof(uint32));
+
+// Helper structure containing the constant buffer data for RGB-to-YUV conversion blits.
+struct RgbYuvConversionInfo
+{
+    float     srcLeft;              // Left of the source copy region (normalized coordinates)
+    float     srcTop;               // Top of the source copy region (normalized coordinates)
+    float     srcRight;             // Right of the source copy region (normalized coordinates)
+    float     srcBottom;            // Bottom of the source copy region (normalized coordinates)
+    Offset2d  dstOffset;            // Offset into the destination to begin the copy
+    Extent2d  dstExtent;            // Region of the destination which will be copied into
+    float     sampleLocX;           // X of the sample location for supporting codec (normalized coordinates)
+    float     sampleLocY;           // Y of the sample location for supporting codec (normalized coordinates)
+    float     srcWidthEpsilon;      // Distance between two pixels in a macro-pixel source (normalized coordinates)
+    bool      reversePacking;       // Reverses the packing order in a macro-pixel destination
+    float     cscTable[3][4];       // Color-space-conversion table (4x3 matrix)
+};
+
+// Size of a RgbYuvConversionInfo structure, in DWORD's.
+constexpr uint32 RgbYuvConversionInfoDwords = ((sizeof(RgbYuvConversionInfo) + (sizeof(uint32) - 1)) / sizeof(uint32));
 
 // Helper struct for setting up the Pipeline and Image view info for each component (Y, Cb, Cr) of a YUV image for
 // color-space-conversion blits.
@@ -129,6 +148,8 @@ struct ColorSpaceConversionInfo
     {
         ImageAspect     aspect;
         SwizzledFormat  swizzledFormat;
+        float           sampleLocX;
+        float           sampleLocY;
         // Note: These indices represent which order the rows of the color-space-conversion matrix should be swizzled
         // in order for the conversion to work properly. See SetupRgbToYuvCscTable() for more details.
         uint16          matrixRowOrder[3];
@@ -148,7 +169,7 @@ extern void SetupRgbToYuvCscTable(
     ChNumFormat                      format,
     uint32                           pass,
     const ColorSpaceConversionTable& cscTable,
-    YuvRgbConversionInfo*            pInfo);
+    RgbYuvConversionInfo*            pInfo);
 
 //Helper function to calculate how many bits are required to to represent each sample of the fmask
 extern uint32 CalculatNumFmaskBits(uint32 fragments, uint32 samples);

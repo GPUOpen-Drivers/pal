@@ -26,6 +26,7 @@
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -313,7 +314,7 @@ void Device::ExpandColor(
 
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    const auto&                 gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
+    auto&                       gfx9Image   = static_cast<Gfx9::Image&>(*image.GetGfxImage());
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
 
@@ -342,7 +343,7 @@ void Device::ExpandColor(
     // getting to a situation where one is needed but has not been performed yet.
     const bool fastClearEliminateSupported = pCmdBuf->IsGraphicsSupported();
 
-    // The "earlyPhase" for decompress BLTs is before any waits and/or cache flushes have been inserted.  If is safe to
+    // The "earlyPhase" for decompress BLTs is before any waits and/or cache flushes have been inserted.  It is safe to
     // perform a color expand in the early phase if the client reports there is dirty data in the CB caches.  This
     // indicates:
     //
@@ -408,10 +409,29 @@ void Device::ExpandColor(
                                                  LayoutCopySrc              |
                                                  LayoutResolveSrc;
 
-            if (TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags) &&
-                (gfx9Image.HasDccData() && pSubresInfo->flags.supportMetaDataTexFetch))
+            if (fastClearEliminateSupported                                              &&
+                TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags) &&
+                (gfx9Image.HasDccData()                                                  &&
+                pSubresInfo->flags.supportMetaDataTexFetch))
             {
-                fastClearEliminate = fastClearEliminateSupported;
+                if ((gfx9Image.HasSeenNonTcCompatibleClearColor() == false) && gfx9Image.IsFceOptimizationEnabled())
+                {
+                    // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
+                    // optimization was enabled.
+                    Result result = pCmdBuf->AddFceSkippedImageCounter(&gfx9Image);
+
+                    if (result != Result::Success)
+                    {
+                        // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
+                        fastClearEliminate = true;
+                    }
+                }
+                else
+                {
+                    // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
+                    // enabled.
+                    fastClearEliminate = true;
+                }
             }
         }
 
@@ -425,9 +445,7 @@ void Device::ExpandColor(
             }
 
             pOperations->layoutTransitions.dccDecompress = 1;
-            DescribeBarrier(pCmdBuf,
-                            &transition,
-                            pOperations);
+            DescribeBarrier(pCmdBuf, &transition, pOperations);
 
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -466,9 +484,7 @@ void Device::ExpandColor(
 
             pCmdStream->CommitCommands(pCmdSpace);
             pOperations->layoutTransitions.fmaskDecompress = 1;
-            DescribeBarrier(pCmdBuf,
-                            &transition,
-                            pOperations);
+            DescribeBarrier(pCmdBuf, &transition, pOperations);
 
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -486,9 +502,7 @@ void Device::ExpandColor(
         else if (fastClearEliminate)
         {
             pOperations->layoutTransitions.fastClearEliminate = 1;
-            DescribeBarrier(pCmdBuf,
-                            &transition,
-                            pOperations);
+            DescribeBarrier(pCmdBuf, &transition, pOperations);
 
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
@@ -1176,7 +1190,8 @@ void Device::Barrier(
             // the VA range of the specified image to be idle.
             for (uint32 i = 0; i < barrier.rangeCheckedTargetWaitCount; i++)
             {
-                const Pal::Image* pImage = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
+                const Pal::Image* pImage     = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
+                const Image*      pGfx9Image = static_cast<const Image*>(pImage->GetGfxImage());
 
                 SyncReqs targetStallSyncReqs = { };
                 targetStallSyncReqs.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
@@ -1188,7 +1203,7 @@ void Device::Barrier(
                                targetStallSyncReqs,
                                barrier.waitPoint,
                                pImage->GetGpuVirtualAddr(),
-                               pImage->GetGpuMemSize(),
+                               pGfx9Image->GetGpuMemSyncSize(),
                                &barrierOps);
                 }
                 else
@@ -1295,7 +1310,8 @@ void Device::Barrier(
                 if ((TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false) &&
                     (TestAnyFlagSet(transition.imageInfo.newLayout.usages, LayoutUninitializedTarget) == false))
                 {
-                    const auto& image = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+                    const auto& image     = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+                    const auto& gfx9Image = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
 
                     SyncReqs imageSyncReqs = { };
 
@@ -1314,7 +1330,7 @@ void Device::Barrier(
                                imageSyncReqs,
                                barrier.waitPoint,
                                image.GetGpuVirtualAddr(),
-                               image.GetGpuMemSize(),
+                               gfx9Image.GetGpuMemSyncSize(),
                                &barrierOps);
                 }
             }

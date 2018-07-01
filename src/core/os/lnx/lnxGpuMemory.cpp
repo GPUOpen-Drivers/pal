@@ -60,6 +60,12 @@ GpuMemory::~GpuMemory()
         m_hExternalResource = 0;
     }
 
+    if (m_desc.flags.isExternPhys)
+    {
+        result = pDevice->FreeSdiSurface(this);
+        PAL_ASSERT(result == Result::Success);
+    }
+
     // Unmap the buffer object and free its virtual address.
     if (m_desc.gpuVirtAddr != 0)
     {
@@ -96,12 +102,6 @@ GpuMemory::~GpuMemory()
     if (m_hSurface != nullptr)
     {
         result = pDevice->FreeBuffer(m_hSurface);
-        PAL_ASSERT(result == Result::Success);
-    }
-
-    if (m_desc.flags.isExternPhys)
-    {
-        result = pDevice->FreeSdiSurface(this);
         PAL_ASSERT(result == Result::Success);
     }
 }
@@ -504,14 +504,22 @@ Result GpuMemory::OpenPeerMemory()
         }
         else
         {
-            amdgpu_bo_info bufferInfo   = {};
-            result = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
+            // if we allocate from external memory handle, the size/alignment of original memory is unknown.
+            // we have to query the kernel to get those information and fill the desc struct.
+            // Otherwise, we should not override the size/alignment.
+            if (m_desc.size == 0)
+            {
+                amdgpu_bo_info bufferInfo   = {};
+                result = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
+                if (result == Result::Success)
+                {
+                    m_desc.size         = bufferInfo.alloc_size;
+                    m_desc.alignment    = bufferInfo.phys_alignment;
+                }
+            }
 
             if (result == Result::Success)
             {
-                m_desc.size         = bufferInfo.alloc_size;
-                m_desc.alignment    = bufferInfo.phys_alignment;
-
                 result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
             }
         }

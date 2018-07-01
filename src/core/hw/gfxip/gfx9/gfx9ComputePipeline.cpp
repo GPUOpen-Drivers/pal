@@ -47,6 +47,7 @@ const ComputePipelineSignature NullCsSignature =
     UserDataNotMapped,          // Register address for numWorkGroups
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
+    UserDataNotMapped,          // Register address for performance data buffer
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
@@ -106,6 +107,11 @@ void ComputePipeline::SetupSignatureFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::GdsRange))
             {
                 PAL_ASSERT(offset == (mmCOMPUTE_USER_DATA_0 + GdsRangeRegCompute));
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
+            {
+                m_signature.perfDataAddr = offset;
+                m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)].regOffset = offset;
             }
             else if ((value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))    ||
                      (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))  ||
@@ -336,6 +342,14 @@ uint32* ComputePipeline::WriteCommands(
         }
     }
 #endif
+
+    const auto& perfData = m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)];
+    if (perfData.regOffset != UserDataNotMapped)
+    {
+        pCmdSpace = pGfx9CmdStream->WriteSetOneShReg<ShaderCompute>(perfData.regOffset,
+                                                                    perfData.gpuVirtAddr,
+                                                                    pCmdSpace);
+    }
 
     const auto& gfx9PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
 

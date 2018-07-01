@@ -53,7 +53,7 @@ static const SqttVersion GfxipToSqttVersionTranslation[static_cast<uint32>(Pal::
     SQTT_VERSION_2_1,  // Gfxip 7
     SQTT_VERSION_2_2,  // Gfxip 8
     SQTT_VERSION_2_2,  // Gfxip 8.1
-    SQTT_VERSION_2_3   // Gfxip 9
+    SQTT_VERSION_2_3,  // Gfxip 9
 };
 
 // Translation table for obtaining SqttQueueType given the Pal::QueueType.
@@ -156,8 +156,8 @@ void FillSqttCpuInfo(
 }
 
 // =====================================================================================================================
-// Helper function to fill in the SqttFileChunkAsicInfo struct based on the DeviceProperties and PerfExperimentProperties
-// provided. Required for writing RGP files.
+// Helper function to fill in the SqttFileChunkAsicInfo struct based on the DeviceProperties and
+// PerfExperimentProperties provided. Required for writing RGP files.
 void FillSqttAsicInfo(
     const Pal::DeviceProperties&         properties,
     const Pal::PerfExperimentProperties& perfExpProps,
@@ -168,7 +168,7 @@ void FillSqttAsicInfo(
 
     pAsicInfo->header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ASIC_INFO;
     pAsicInfo->header.chunkIdentifier.chunkIndex = 0;
-    pAsicInfo->header.version                    = 1;
+    pAsicInfo->header.version                    = 2;
     pAsicInfo->header.sizeInBytes                = sizeof(SqttFileChunkAsicInfo);
 
     pAsicInfo->flags = 0;
@@ -236,6 +236,8 @@ void FillSqttAsicInfo(
 
     pAsicInfo->memoryChipType =
         SqttMemoryTypeTable[static_cast<uint32>(properties.gpuMemoryProperties.localMemoryType)];
+
+    pAsicInfo->ldsGranularity = properties.gfxipProperties.shaderCore.ldsGranularity;
 }
 
 // =====================================================================================================================

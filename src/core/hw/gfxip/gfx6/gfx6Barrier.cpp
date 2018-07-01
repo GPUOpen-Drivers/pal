@@ -522,7 +522,7 @@ uint32 Device::GetColorBltPerSubres(
     ) const
 {
     const auto& image            = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    const auto& gfx6Image        = static_cast<const Image&>(*image.GetGfxImage());
+    auto&       gfx6Image        = static_cast<Image&>(*image.GetGfxImage());
     uint32      allBltOperations = 0;
 
     // Fast clear eliminates are only possible on universal queue command buffers and will be ignored on others.  This
@@ -602,13 +602,31 @@ uint32 Device::GetColorBltPerSubres(
                                                  LayoutCopySrc              |
                                                  LayoutResolveSrc;
 
-            // Mantle use default compute engine to do resolve when create resource.  When newLayout.usages is
+            // Mantle uses default compute engine to do resolve when create resource.  When newLayout.usages is
             // LayoutResolveSrc and no dcc but has cmask fast clear, need FCE when do resolve using compute engine.
-            if (TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags) &&
+            if (fastClearEliminateSupported                                                &&
+                TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags)   &&
                 ((gfx6Image.HasDccData() && pSubresInfo->flags.supportMetaDataTexFetch) ||
                 (gfx6Image.HasCmaskData() && gfx6Image.GetCmask(subRes)->UseFastClear())))
             {
-                pBlt[mip] |= (fastClearEliminateSupported ? ColorBlt::FastClearEliminate : 0);
+                if ((gfx6Image.HasSeenNonTcCompatibleClearColor() == false) && gfx6Image.IsFceOptimizationEnabled())
+                {
+                    // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
+                    // optimization was enabled.
+                    Result result = pCmdBuf->AddFceSkippedImageCounter(&gfx6Image);
+
+                    if (result != Result::Success)
+                    {
+                        // Fallback to performing the Fast clear eliminate if the above step of the optimization failed.
+                        pBlt[mip] |= ColorBlt::FastClearEliminate;
+                    }
+                }
+                else
+                {
+                    // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
+                    // enabled.
+                    pBlt[mip] |= ColorBlt::FastClearEliminate;
+                }
             }
         }
 

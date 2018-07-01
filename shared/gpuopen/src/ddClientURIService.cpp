@@ -40,229 +40,164 @@ namespace DevDriver
     {
     }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
     // =====================================================================================================================
-    Result ClientURIService::HandleRequest(URIRequestContext* pContext)
+    Result ClientURIService::HandleRequest(IURIRequestContext* pContext)
     {
         DD_ASSERT(pContext != nullptr);
 
-        Result result = Result::Error;
+        Result result = Result::Unavailable;
 
         // We can only handle requests if a valid message channel has been bound.
         if (m_pMsgChannel != nullptr)
         {
-            if (strcmp(pContext->pRequestArguments, "info") == 0)
+            if (strcmp(pContext->GetRequestArguments(), "info") == 0)
             {
                 // Fetch the desired information about the client.
                 const ClientId clientId = m_pMsgChannel->GetClientId();
                 const ClientInfoStruct& clientInfo = m_pMsgChannel->GetClientInfo();
 
-                // @todo: Replace with a string builder utility class.
-                char textBuffer[256];
-
                 // Write all the info into the response block as plain text.
-                auto& pBlock = pContext->pResponseBlock;
+                ITextWriter* pResponse = nullptr;
+                result = pContext->BeginTextResponse(&pResponse);
 
-                // Write the header
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "--- Client Information ---");
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the gpuopen library interface version
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Available Interface Version: %u.%u", GPUOPEN_INTERFACE_MAJOR_VERSION, GPUOPEN_INTERFACE_MINOR_VERSION);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the gpuopen client interface version
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Supported Interface Major Version: %u", GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the client message bus version
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Supported Message Bus Version: %u", kMessageVersion);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the client transport type
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Transport: %s", m_pMsgChannel->GetTransportName());
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the client id
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Id: %u", static_cast<uint32>(clientId));
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
-
-                // Write the client type
-                const char* pClientTypeString = "Unknown";
-                switch (clientInfo.metadata.clientType)
+                if (result == Result::Success)
                 {
+                    // Write the header
+                    pResponse->Write("--- Client Information ---");
+
+                    // Write the gpuopen library interface version
+                    pResponse->Write("\nClient Available Interface Version: %u.%u", GPUOPEN_INTERFACE_MAJOR_VERSION, GPUOPEN_INTERFACE_MINOR_VERSION);
+
+                    // Write the gpuopen client interface version
+                    pResponse->Write("\nClient Supported Interface Major Version: %u", GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION);
+
+                    // Write the client message bus version
+                    pResponse->Write("\nClient Supported Message Bus Version: %u", kMessageVersion);
+
+                    // Write the client transport type
+                    pResponse->Write("\nClient Transport: %s", m_pMsgChannel->GetTransportName());
+
+                    // Write the client id
+                    pResponse->Write("\nClient Id: %u", static_cast<uint32>(clientId));
+
+                    // Write the client type
+                    const char* pClientTypeString = "Unknown";
+                    switch (clientInfo.metadata.clientType)
+                    {
                     case Component::Server: pClientTypeString = "Server"; break;
                     case Component::Tool: pClientTypeString = "Tool"; break;
                     case Component::Driver: pClientTypeString = "Driver"; break;
                     default: DD_ALERT_ALWAYS(); break;
-                }
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Type: %s", pClientTypeString);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    }
+                    pResponse->Write("\nClient Type: %s", pClientTypeString);
 
-                // Write the client name
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Name: %s", clientInfo.clientName);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the client name
+                    pResponse->Write("\nClient Name: %s", clientInfo.clientName);
 
-                // Write the client description
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Description: %s", clientInfo.clientDescription);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the client description
+                    pResponse->Write("\nClient Description: %s", clientInfo.clientDescription);
 
-                // Write the client operating system
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Operating System: %s", DD_OS_STRING " " DD_ARCH_STRING);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the client operating system
+                    pResponse->Write("\nClient Operating System: %s", DD_OS_STRING " " DD_ARCH_STRING);
 
-                // Only print protocols + status flags in debug builds for now.
+                    // Only print protocols + status flags in debug builds for now.
 #if !defined(NDEBUG)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Transfer);
-                    if (pServer != nullptr)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Transfer Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Transfer);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient Transfer Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::URI);
-                    if (pServer != nullptr)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient URI Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::URI);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient URI Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                // Write the protocols
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Logging Protocol Support: %u", clientInfo.metadata.protocols.logging);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the protocols
+                    pResponse->Write("\nClient Logging Protocol Support: %u", clientInfo.metadata.protocols.logging);
 
-                if (clientInfo.metadata.protocols.logging)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Logging);
-                    if (pServer != nullptr)
+                    if (clientInfo.metadata.protocols.logging)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Logging Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Logging);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient Logging Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Settings Protocol Support: %u", clientInfo.metadata.protocols.settings);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    pResponse->Write("\nClient Settings Protocol Support: %u", clientInfo.metadata.protocols.settings);
 
-                if (clientInfo.metadata.protocols.settings)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Settings);
-                    if (pServer != nullptr)
+                    if (clientInfo.metadata.protocols.settings)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Settings Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::Settings);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient Settings Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Driver Control Protocol Support: %u", clientInfo.metadata.protocols.driverControl);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    pResponse->Write("\nClient Driver Control Protocol Support: %u", clientInfo.metadata.protocols.driverControl);
 
-                if (clientInfo.metadata.protocols.driverControl)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::DriverControl);
-                    if (pServer != nullptr)
+                    if (clientInfo.metadata.protocols.driverControl)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Driver Control Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::DriverControl);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient Driver Control Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient RGP Protocol Support: %u", clientInfo.metadata.protocols.rgp);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    pResponse->Write("\nClient RGP Protocol Support: %u", clientInfo.metadata.protocols.rgp);
 
-                if (clientInfo.metadata.protocols.rgp)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::RGP);
-                    if (pServer != nullptr)
+                    if (clientInfo.metadata.protocols.rgp)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient RGP Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::RGP);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient RGP Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient ETW Protocol Support: %u", clientInfo.metadata.protocols.etw);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    pResponse->Write("\nClient ETW Protocol Support: %u", clientInfo.metadata.protocols.etw);
 
-                if (clientInfo.metadata.protocols.etw)
-                {
-                    IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::ETW);
-                    if (pServer != nullptr)
+                    if (clientInfo.metadata.protocols.etw)
                     {
-                        Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient ETW Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
-                        pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                        IProtocolServer* pServer = m_pMsgChannel->GetProtocolServer(Protocol::ETW);
+                        if (pServer != nullptr)
+                        {
+                            pResponse->Write("\nClient ETW Protocol Supported Versions: (%u -> %u)", pServer->GetMinVersion(), pServer->GetMaxVersion());
+                        }
                     }
-                }
 
-                // Write the status flags
-                const uint32 developerModeEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::DeveloperModeEnabled)) != 0) ? 1 : 0;
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Developer Mode Status Flag: %u", developerModeEnabled);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the status flags
+                    const uint32 developerModeEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::DeveloperModeEnabled)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Developer Mode Status Flag: %u", developerModeEnabled);
 
-                const uint32 haltOnConnect = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::HaltOnConnect)) != 0) ? 1 : 0;
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Halt On Connect Status Flag: %u", haltOnConnect);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    const uint32 haltOnConnect = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::HaltOnConnect)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Halt On Connect Status Flag: %u", haltOnConnect);
 
-                const uint32 gpuCrashDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::GpuCrashDumpsEnabled)) != 0) ? 1 : 0;
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Gpu Crash Dumps Enabled Status Flag: %u", gpuCrashDumpsEnabled);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    const uint32 gpuCrashDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::GpuCrashDumpsEnabled)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Gpu Crash Dumps Enabled Status Flag: %u", gpuCrashDumpsEnabled);
 
-                const uint32 pipelineDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::PipelineDumpsEnabled)) != 0) ? 1 : 0;
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Pipeline Dumps Enabled Status Flag: %u", pipelineDumpsEnabled);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    const uint32 pipelineDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::PipelineDumpsEnabled)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Pipeline Dumps Enabled Status Flag: %u", pipelineDumpsEnabled);
 #endif
 
-                // Write the process id
-                Platform::Snprintf(textBuffer, sizeof(textBuffer), "\nClient Process Id: %u", clientInfo.processId);
-                pBlock->Write(reinterpret_cast<const uint8*>(textBuffer), strlen(textBuffer));
+                    // Write the process id
+                    pResponse->Write("\nClient Process Id: %u", clientInfo.processId);
 
-                pContext->responseDataFormat = URIDataFormat::Text;
-
-                result = Result::Success;
-            }
-            else if (strcmp(pContext->pRequestArguments, "services") == 0)
-            {
-                auto& pBlock = pContext->pResponseBlock;
-
-                static constexpr char responseHeader[] = "{\n    \"Services\": [\n";
-                static constexpr char itemSuffix[]      = ",\n";
-                static constexpr char itemFinalSuffix[] = "\n"; // JSON doesn't allow trailing commas
-                static constexpr char responseFooter[]  = "    ]\n}\n";
-
-                Vector<FixedString<kMaxUriServiceNameLength>> serviceNames { m_pMsgChannel->GetAllocCb() };
-                m_pMsgChannel->GetServiceNames(serviceNames);
-
-                pBlock->Write(responseHeader, strlen(responseHeader));
-
-                for (size_t serviceIndex = 0; serviceIndex < serviceNames.Size(); ++serviceIndex)
-                {
-                    const FixedString<kMaxUriServiceNameLength>& serviceName = serviceNames[serviceIndex];
-
-                    // We'll write a few things to this: the service name + 8 spaces to indent + 2 quotes + 1 null
-                    char buffer[kMaxUriServiceNameLength + 8 + 2 + 1];
-                    Platform::Snprintf(buffer, sizeof(buffer), "        \"%s\"", serviceName.AsCStr());
-                    pBlock->Write(buffer, strlen(buffer));
-
-                    // There's a special suffix for the final service name, so don't write the usual one.
-                    if (serviceIndex + 1 < serviceNames.Size())
-                    {
-                        pBlock->Write(itemSuffix, strlen(itemSuffix));
-                    }
+                    result = pResponse->End();
                 }
-                // Only write the final suffix if we actually wrote some items.
-                if (serviceNames.Size() != 0)
-                {
-                    pBlock->Write(itemFinalSuffix, strlen(itemFinalSuffix));
-                }
-                pBlock->Write(responseFooter, strlen(responseFooter));
-
-                pContext->responseDataFormat = URIDataFormat::Text;
-                result = Result::Success;
             }
         }
 
         return result;
     }
+#endif
 } // DevDriver

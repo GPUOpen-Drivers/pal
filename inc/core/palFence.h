@@ -114,6 +114,8 @@ public:
     virtual Result GetStatus() const = 0;
 
     /// Export the event handle or sync object handle of the fence for external usage.
+    /// If @ref FenceExportInfo::isReference is not set, then this also performs an implicit reset operation on
+    /// the Fence.
     ///
     /// @param  [in] exportInfo    Information describing how the Fence handle should be exported.
     /// @returns the handle in the type OsExternalHandle

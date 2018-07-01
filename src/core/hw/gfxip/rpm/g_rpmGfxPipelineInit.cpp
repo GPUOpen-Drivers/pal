@@ -115,7 +115,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -141,7 +141,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -172,7 +172,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -198,7 +198,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -224,7 +224,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -255,7 +255,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -281,7 +281,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -307,7 +307,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -338,7 +338,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -369,7 +369,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -398,7 +398,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -424,7 +424,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -450,7 +450,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -481,7 +481,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -515,7 +515,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -549,7 +549,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -580,7 +580,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -611,7 +611,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -642,7 +642,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -673,7 +673,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -704,7 +704,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -735,7 +735,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -766,7 +766,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -797,7 +797,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -828,7 +828,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -859,7 +859,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -890,7 +890,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -921,7 +921,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -952,7 +952,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -983,7 +983,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1014,7 +1014,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1045,7 +1045,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1076,7 +1076,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1107,7 +1107,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1138,7 +1138,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1169,7 +1169,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1200,7 +1200,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1231,7 +1231,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1262,7 +1262,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1293,7 +1293,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1324,7 +1324,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1355,7 +1355,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1386,7 +1386,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1417,7 +1417,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1448,7 +1448,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1479,7 +1479,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1510,7 +1510,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1541,7 +1541,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1572,7 +1572,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1603,7 +1603,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1634,7 +1634,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1665,7 +1665,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1696,7 +1696,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1727,7 +1727,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1758,7 +1758,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1789,7 +1789,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1820,7 +1820,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1851,7 +1851,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1882,7 +1882,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1913,7 +1913,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1944,7 +1944,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -1975,7 +1975,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2006,7 +2006,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2037,7 +2037,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2068,7 +2068,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2099,7 +2099,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2130,7 +2130,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2161,7 +2161,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2192,7 +2192,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2223,7 +2223,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2254,7 +2254,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2285,7 +2285,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2316,7 +2316,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2347,7 +2347,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2378,7 +2378,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2409,7 +2409,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2440,7 +2440,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2471,7 +2471,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2502,7 +2502,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2533,7 +2533,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2564,7 +2564,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2595,7 +2595,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2626,7 +2626,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2657,7 +2657,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2688,7 +2688,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2719,7 +2719,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2750,7 +2750,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2776,7 +2776,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2807,7 +2807,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 
@@ -2866,7 +2866,7 @@ Result CreateRpmGraphicsPipelines(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
         pipeInfo.rsState.depthClampDisable = true;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 374 && PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
         pipeInfo.rsState.depthClampEnable  = false;
 #endif
 

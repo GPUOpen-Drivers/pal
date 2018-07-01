@@ -332,6 +332,10 @@ ThreadTrace::ThreadTrace(
     m_device(*pDevice),
     m_info(info)
 {
+    const auto& flags  = m_info.optionFlags;
+    const auto& values = m_info.optionValues;
+
+    m_dataSize = (flags.bufferSize) ? values.bufferSize : PerfCtrInfo::DefaultBufferSize;
 }
 
 // =====================================================================================================================
@@ -374,7 +378,8 @@ Gfx9ThreadTrace::Gfx9ThreadTrace(
     :
     ThreadTrace(pDevice, info)
 {
-    m_sqThreadTraceSize.u32All = 0;
+    m_sqThreadTraceSize.u32All    = 0;
+    m_sqThreadTraceSize.bits.SIZE = (m_dataSize >> PerfCtrInfo::BufferAlignShift);
 
     m_sqThreadTraceMode.u32All = 0;
     m_sqThreadTraceMode.bits.MASK_PS      = 1;
@@ -433,13 +438,6 @@ void Gfx9ThreadTrace::SetOptions()
 {
     const auto& flags  = m_info.optionFlags;
     const auto& values = m_info.optionValues;
-
-    const size_t bufferSize = (flags.bufferSize) ? values.bufferSize : PerfCtrInfo::DefaultBufferSize;
-
-    m_sqThreadTraceSize.bits.SIZE = (bufferSize >> PerfCtrInfo::BufferAlignShift);
-
-    // Need to update our buffer-size parameter.
-    m_dataSize = bufferSize;
 
     if (flags.threadTraceTokenMask)
     {

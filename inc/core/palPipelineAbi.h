@@ -211,6 +211,9 @@ static const char* PipelineMetadataNameStrings[] =
     "PS_PERFORMANCE_DATA_BUFFER_SIZE",
     "CS_PERFORMANCE_DATA_BUFFER_SIZE",
 
+    "RESERVED0",
+
+    "RESERVED1",
 };
 
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
@@ -489,6 +492,10 @@ enum class PipelineMetadataType : uint32
                                   ///  shader and the size in bytes required.
     CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
                                   ///  shader and the size in bytes required.
+    Reserved0,                    ///< Reserved for future use.
+
+    Reserved1,                    ///< Reserved for future use.
+
     Count,
 
     ShaderNumUsedVgprs              = LsNumUsedVgprs,              ///< Shorthand for the first shader's used VGPR count

@@ -976,6 +976,11 @@ Result Queue::LateInit()
             submitInfo.cmdBufferCount   = 1;
             submitInfo.ppCmdBuffers     = &pCmdBuffer;
 
+            if (m_ifhMode == IfhModeDisabled)
+            {
+                m_pDummyCmdBuffer->IncrementSubmitCount();
+            }
+
             if (result == Result::Success)
             {
                 result = OsSubmit(submitInfo, internalSubmitInfo);

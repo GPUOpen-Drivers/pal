@@ -651,9 +651,9 @@ static T* NewArray(size_t arrayCnt, Allocator* pAllocator, SystemAllocType alloc
 
     if ((!std::is_pod<T>::value) && (pRet != nullptr))
     {
-        pRet = static_cast<T*>(VoidPtrInc(static_cast<void*>(pRet), headerSize));
+        pRet = static_cast<T*>(Util::VoidPtrInc(static_cast<void*>(pRet), headerSize));
 
-        size_t* pArrayCnt = static_cast<size_t*>(VoidPtrDec(static_cast<void*>(pRet), sizeof(size_t)));
+        size_t* pArrayCnt = static_cast<size_t*>(Util::VoidPtrDec(static_cast<void*>(pRet), sizeof(size_t)));
         *pArrayCnt = arrayCnt;
 
         T* pCurObj = static_cast<T*>(pRet);
@@ -689,7 +689,7 @@ void static DeleteArray(T* p, Allocator* pAllocator)
             Destructor(p + i);
         }
 
-        p = static_cast<T*>(VoidPtrDec(p, headerSize));
+        p = static_cast<T*>(Util::VoidPtrDec(p, headerSize));
     }
 
     PAL_FREE_BASE(p, pAllocator, MemBlkType::NewArray);

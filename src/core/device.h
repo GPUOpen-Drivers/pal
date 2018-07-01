@@ -499,6 +499,7 @@ struct GpuChipProperties
         uint32 hardwareContexts;
         uint32 ldsSizePerThreadGroup;                // Maximum LDS size available per thread group in bytes.
         uint32 ldsSizePerCu;                         // Maximum LDS size available per CU in KB.
+        uint32 ldsGranularity;                       // LDS allocation granularity in bytes.
         uint32 offChipTessBufferSize;                // Size of each off-chip tessellation buffer in bytes.
         uint32 tessFactorBufferSizePerSe;            // Size of the tessellation-factor buffer per SE, in bytes.
         uint32 ceRamSize;                            // Maximum on-chip CE RAM size in bytes.
@@ -635,7 +636,8 @@ struct GpuChipProperties
             struct
             {
 
-                uint32 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers per SE
+                uint32 doubleOffchipLdsBuffers                  :  1; // HW supports 2x number of offchip LDS buffers
+                                                                      // per SE
                 uint32 supportFp16Fetch                         :  1;
                 uint32 support16BitInstructions                 :  1;
                 uint32 supportDoubleRate16BitInstructions       :  1;
@@ -654,11 +656,12 @@ struct GpuChipProperties
                                                                       // and SET_SH_REG_OFFSET indexed packet.
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
+                uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 placeholder1                             :  3; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
-                uint32 reserved                                 :  9;
+                uint32 reserved                                 :  8;
             };
 
             struct

@@ -96,9 +96,6 @@ namespace DevDriver
         virtual Result RegisterService(IService* pService) = 0;
         virtual Result UnregisterService(IService* pService) = 0;
 
-        // Get the names of all currently registered services
-        virtual void GetServiceNames(Vector<FixedString<kMaxUriServiceNameLength>>& serviceNames) = 0;
-
         // Get the allocator used to create this message channel
         virtual const AllocCb& GetAllocCb() const = 0;
 

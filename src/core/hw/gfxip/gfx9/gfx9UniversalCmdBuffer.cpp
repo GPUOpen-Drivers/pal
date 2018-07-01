@@ -59,7 +59,10 @@ namespace Gfx9
 {
 
 // Microcode version for NGG Indexed Indirect Draw support.
-constexpr uint32 UcodeVersionNggIndexedIndirectDraw = 34;
+constexpr uint32 UcodeVersionNggIndexedIndirectDraw  = 34;
+
+// Microcode version for SET_SH_REG_OFFSET with 256B alignment.
+constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
 
 // Lookup table for converting between IndexType and VGT_INDEX_TYPE enums.
 constexpr uint32 VgtIndexTypeLookup[] =
@@ -3971,10 +3974,10 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
 #if PAL_DBG_COMMAND_COMMENTS
         pDeCmdSpace += m_cmdUtil.BuildCommentString("NGG: ConstantBufferAddr", pDeCmdSpace);
 #endif
-        const gpusize baseAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
 
         // The address of the constant buffer is stored in the GS shader address registers.
         {
+            const gpusize baseAddr = Get256BAddrLo(m_nggTable.state.gpuVirtAddr);
             pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_PGM_LO_GS,
                                                           mmSPI_SHADER_PGM_HI_GS,
                                                           ShaderGraphics,
@@ -4353,7 +4356,7 @@ Extent2d UniversalCmdBuffer::GetColorBinSize() const
                     {        3,   64,  128 },
                     {        5,   32,  128 },
                     {        9,   16,  128 },
-                    {       33,    0,    0 },
+                    {       17,    0,    0 },
                     { UINT_MAX,    0,    0 },
                 },
                 {
@@ -4370,11 +4373,11 @@ Extent2d UniversalCmdBuffer::GetColorBinSize() const
                 {
                     // Four shader engines
                     {        0,  256,  512 },
-                    {        2,  256,  256 },
-                    {        3,  128,  256 },
-                    {        5,  128,  128 },
-                    {        9,   64,  128 },
-                    {       17,   16,  128 },
+                    {        2,  128,  512 },
+                    {        3,   64,  512 },
+                    {        5,   32,  512 },
+                    {        9,   32,  256 },
+                    {       17,   32,  128 },
                     {       33,    0,    0 },
                     { UINT_MAX,    0,    0 },
                 },
@@ -4420,62 +4423,62 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
 
         if (gfxLevel == GfxIpLevel::GfxIp9)
         {
-            static constexpr CtoBinSize BinSize[][3][9]=
+            static constexpr CtoBinSize BinSize[][3][10]=
             {
                 {
                     // One RB / SE
                     {
                         // One shader engine
-                        {        0,  128,  256 },
-                        {        2,  128,  128 },
-                        {        4,   64,  128 },
-                        {        7,   32,  128 },
-                        {       13,   16,  128 },
-                        {       49,    0,    0 },
-                        { UINT_MAX,    0,    0 },
+                        {        0,  64,  512 },
+                        {        2,  64,  256 },
+                        {        4,  64,  128 },
+                        {        7,  32,  128 },
+                        {       13,  16,  128 },
+                        {       49,   0,    0 },
+                        { UINT_MAX,   0,    0 },
                     },
                     {
                         // Two shader engines
-                        {        0,  256,  256 },
-                        {        2,  128,  256 },
-                        {        4,  128,  128 },
-                        {        7,   64,  128 },
-                        {       13,   32,  128 },
-                        {       25,   16,  128 },
-                        {       49,    0,    0 },
-                        { UINT_MAX,    0,    0 },
+                        {        0, 128,  512 },
+                        {        2,  64,  512 },
+                        {        4,  64,  256 },
+                        {        7,  64,  128 },
+                        {       13,  32,  128 },
+                        {       25,  16,  128 },
+                        {       49,   0,    0 },
+                        { UINT_MAX,   0,    0 },
                     },
                     {
                         // Four shader engines
-                        {        0,  256,  512 },
-                        {        2,  256,  256 },
-                        {        4,  128,  256 },
-                        {        7,  128,  128 },
-                        {       13,   64,  128 },
-                        {       25,   16,  128 },
-                        {       49,    0,    0 },
-                        { UINT_MAX,    0,    0 },
+                        {        0, 256,  512 },
+                        {        2, 128,  512 },
+                        {        4,  64,  512 },
+                        {        7,  64,  256 },
+                        {       13,  64,  128 },
+                        {       25,  16,  128 },
+                        {       49,   0,    0 },
+                        { UINT_MAX,   0,    0 },
                     },
                 },
                 {
                     // Two RB / SE
                     {
                         // One shader engine
-                        {        0,  256,  256 },
-                        {        2,  128,  256 },
-                        {        4,  128,  128 },
-                        {        7,   64,  128 },
-                        {       13,   32,  128 },
-                        {       25,   16,  128 },
-                        {       97,    0,    0 },
-                        { UINT_MAX,    0,    0 },
+                        {        0, 128,  512 },
+                        {        2,  64,  512 },
+                        {        4,  64,  256 },
+                        {        7,  64,  128 },
+                        {       13,  32,  128 },
+                        {       25,  16,  128 },
+                        {       97,   0,    0 },
+                        { UINT_MAX,   0,    0 },
                     },
                     {
                         // Two shader engines
                         {        0,  256,  512 },
-                        {        2,  256,  256 },
-                        {        4,  128,  256 },
-                        {        7,  128,  128 },
+                        {        2,  128,  512 },
+                        {        4,   64,  512 },
+                        {        7,   64,  256 },
                         {       13,   64,  128 },
                         {       25,   32,  128 },
                         {       49,   16,  128 },
@@ -4486,9 +4489,9 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
                         // Four shader engines
                         {        0,  512,  512 },
                         {        2,  256,  512 },
-                        {        4,  256,  256 },
-                        {        7,  128,  256 },
-                        {       13,  128,  128 },
+                        {        4,  128,  512 },
+                        {        7,   64,  512 },
+                        {       13,   64,  256 },
                         {       25,   64,  128 },
                         {       49,   16,  128 },
                         {       97,    0,    0 },
@@ -4500,35 +4503,38 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
                     {
                         // One shader engine
                         {        0,  256,  512 },
-                        {        2,  256,  256 },
-                        {        4,  128,  256 },
-                        {        7,  128,  128 },
+                        {        2,  128,  512 },
+                        {        4,   64,  512 },
+                        {        7,   64,  256 },
                         {       13,   64,  128 },
                         {       25,   32,  128 },
                         {       49,   16,  128 },
+                        {      193,    0,    0 },
                         { UINT_MAX,    0,    0 },
                     },
                     {
                         // Two shader engines
                         {        0,  512,  512 },
                         {        2,  256,  512 },
-                        {        4,  256,  256 },
-                        {        7,  128,  256 },
-                        {       13,  128,  128 },
+                        {        4,  128,  512 },
+                        {        7,   64,  512 },
+                        {       13,   64,  256 },
                         {       25,   64,  128 },
                         {       49,   32,  128 },
                         {       97,   16,  128 },
+                        {      193,    0,    0 },
                         { UINT_MAX,    0,    0 },
                     },
                     {
                         // Four shader engines
                         {        0,  512,  512 },
                         {        4,  256,  512 },
-                        {        7,  256,  256 },
-                        {       13,  128,  256 },
-                        {       25,  128,  128 },
-                        {       49,   64,  128 },
+                        {        7,  128,  512 },
+                        {       13,   64,  512 },
+                        {       25,   32,  512 },
+                        {       49,   32,  256 },
                         {       97,   16,  128 },
+                        {      193,    0,    0 },
                         { UINT_MAX,    0,    0 },
                     },
                 },

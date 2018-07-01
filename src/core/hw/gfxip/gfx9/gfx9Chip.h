@@ -30,12 +30,12 @@
 #include "palInlineFuncs.h"
 #include "palCmdBuffer.h"
 
+#include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_offset.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_default.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_enum.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_mask.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_shift.h"
-#include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_offset.h"
 
 // Some registers define a CS_ENABLE field which conflicts with a Windows GDI constant. Our driver is never going to
 // call ColorMatchToTarget so we should be able to undefine any prior definition of CS_ENABLE.
@@ -544,6 +544,10 @@ struct ComputePipelineSignature
     // of the highest user-data entry accessed by the pipeline.
     uint16  userDataLimit;
 
+    // First user-data entry (+1) containing the GPU virtual address of the performance data buffer used for
+    // shader-specific performance profiling. Zero indicates that the shader does not use this buffer.
+    uint16  perfDataAddr;
+
 };
 
 // User-data signature for an unbound compute pipeline.
@@ -576,7 +580,7 @@ struct GraphicsPipelineSignature
 
     // Register address for the IMM_LDS_ESGS_SIZE parameter for the GS stage.
     uint16  esGsLdsSizeRegAddrGs;
-    // Register address for teh IMM_LDS_ESGS_SIZE parameter for the VS (copy shader) stage.
+    // Register address for the IMM_LDS_ESGS_SIZE parameter for the VS (copy shader) stage.
     uint16  esGsLdsSizeRegAddrVs;
 
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
@@ -590,6 +594,10 @@ struct GraphicsPipelineSignature
     // Address of each shader stage's user-SGPR for view ID.  This is a compacted list, so it is not safe to assume
     // that each index of this array corresponds to the associated HW shader stage enum value.
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
+
+    // First user-data entry (+1) containing the GPU virtual address of the performance data buffer used for
+    // shader-specific performance profiling. Zero indicates that the shader does not use this buffer.
+    uint16  perfDataAddr[NumHwShaderStagesGfx];
 
     // Hash of each stages user-data mapping, used to speed up pipeline binds.
     uint64  userDataHash[NumHwShaderStagesGfx];

@@ -1068,6 +1068,7 @@ struct DeviceProperties
                                             ///  VGPRs.
             uint32 ldsSizePerCu;            ///< Local Data Store size available in bytes per CU.
             uint32 ldsSizePerThreadGroup;   ///< Local Data Store size available in bytes per thread-group.
+            uint32 ldsGranularity;          ///< Local Data Store allocation granularity expressed in bytes.
             uint32 gsPrimBufferDepth;       ///< Hardware configuration for the GS prim buffer depth.
             uint32 gsVgtTableDepth;         ///< Hardware configuration for the GS VGT table depth.
             uint32 offchipTessBufferSize;   ///< Size of each buffer used for passing data between shader stages when

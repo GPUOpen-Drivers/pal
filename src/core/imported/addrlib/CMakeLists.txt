@@ -68,8 +68,6 @@ endif()
 ### Compiler Options ###################################################################################################
 if(UNIX)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        # SEE: https://gcc.gnu.org/onlinedocs/gcc-6.2.0/gcc/Option-Summary.html#Option-Summary
-        # for a list of all options and documentation.
         target_compile_options(addrlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fPIC -fcheck-new -fno-rtti -fno-math-errno>)
         target_compile_options(addrlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-missing-field-initializers>)
 

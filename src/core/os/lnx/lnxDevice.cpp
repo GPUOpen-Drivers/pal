@@ -1045,6 +1045,12 @@ static LocalMemoryType TranslateMemoryType(
             break;
         }
 
+    case AMDGPU_VRAM_TYPE_DDR4:
+        {
+            result = LocalMemoryType::Ddr4;
+            break;
+        }
+
     case AMDGPU_VRAM_TYPE_GDDR5:
         {
             result = LocalMemoryType::Gddr5;
@@ -1115,6 +1121,7 @@ Result Device::InitMemQueueInfo()
     {
 
         m_memoryProperties.vaInitialEnd = m_memoryProperties.vaEnd;
+        m_memoryProperties.vaUsableEnd  = m_memoryProperties.vaEnd;
 
         // kernel reserve 8MB at the begining of VA space and expose all others, up to 64GB, to libdrm_amdgpu.so.
         // There are two VAM instance in the libdrm_amdgpu.so, one for 4GB below and the other for the remains.
@@ -1262,7 +1269,8 @@ Result Device::InitMemQueueInfo()
                     }
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
-                    pEngineInfo->sizeAlignInDwords = engineInfo.ib_size_alignment;
+                    pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
+							       sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1275,7 +1283,8 @@ Result Device::InitMemQueueInfo()
                     }
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
-                    pEngineInfo->sizeAlignInDwords = engineInfo.ib_size_alignment;
+                    pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
+							       sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1296,7 +1305,8 @@ Result Device::InitMemQueueInfo()
                     }
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
-                    pEngineInfo->sizeAlignInDwords = engineInfo.ib_size_alignment;
+                    pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
+							       sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1828,7 +1838,10 @@ Result Device::ReservePrtVaRange(
 {
     Result result = Result::ErrorUnavailable;
 
-    constexpr uint64 operations = AMDGPU_VM_PAGE_PRT;
+    // To work around an issue with the amdgpu module not synchronizing PTE updates, we set the delayed update flag
+    // to avoid GPU faults in certain CTS tests. This should be removed once amdgpu fies the issue.
+    constexpr uint64 operations = AMDGPU_VM_PAGE_PRT  | AMDGPU_VM_DELAY_UPDATE;
+
     const     uint64 mtypeFlag  = ConvertMType(mtype);
 
     // The operation flags and MTYPE flag should be mutually exclusive.
@@ -2329,7 +2342,7 @@ Result Device::WaitForSyncobjFences(
 // =====================================================================================================================
 // Call amdgpu to reset syncobj fences
 Result Device::ResetSyncObject(
-    uint32_t*            pFences,
+    const uint32_t*      pFences,
     uint32_t             fenceCount
     ) const
 {
@@ -4507,7 +4520,7 @@ Result Device::SetSdiSurface(
         *pCardAddr = vaAllocated;
         result = MapSdiMemory(m_hDevice,
                               pGpuMem->Desc().markerBusAddr,
-                              pGpuMem->Desc().size,
+                              MemoryProperties().virtualMemPageSize,
                               hBuffer,
                               hVaRange,
                               vaAllocated);
@@ -4533,7 +4546,7 @@ Result Device::FreeSdiSurface(
     if (pGpuMem->GetBusAddrMarkerVa() != 0)
     {
         result = UnmapSdiMemory(pGpuMem->GetBusAddrMarkerVa(),
-                                pGpuMem->Desc().size,
+                                MemoryProperties().virtualMemPageSize,
                                 pGpuMem->MarkerHandle(),
                                 pGpuMem->MarkerVaRangeHandle());
         pGpuMem->SetBusAddrMarkerVa(0);

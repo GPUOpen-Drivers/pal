@@ -302,3 +302,5 @@ namespace DevDriver
         DD_CHECK_SIZE(RGPPayload, kMaxPayloadSizeInBytes);
     }
 }
+
+#pragma pack(pop)

@@ -510,7 +510,7 @@ public:
         uint32*              pFirstSignaled) const;
 
     Result ResetSyncObject(
-        uint32_t*            pFences,
+        const uint32_t*      pFences,
         uint32_t             fenceCount) const;
 
     bool IsInitialSignaledSyncobjSemaphoreSupported() const

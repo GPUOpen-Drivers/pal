@@ -85,18 +85,17 @@ void SettingsService::UnregisterComponent(
     }
 }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_URIINTERFACE_CLEANUP_VERSION)
 // =====================================================================================================================
 // Handles settings requests from the developer driver bus
 Result SettingsService::HandleRequest(
-    URIRequestContext* pContext)
+    IURIRequestContext* pContext)
 {
-    Result result = Result::UriInvalidParamters;
+    Result result = Result::UriInvalidParameters;
 
     // We can safely use strtok here because HandleRequest can only be called on one thread at a time (enforced by
     // the URI server).
-    const char* pCommandArg = strtok(pContext->pRequestArguments, " ");
-
-    pContext->responseDataFormat = URIDataFormat::Text;
+    const char* pCommandArg = strtok(pContext->GetRequestArguments(), " ");
 
     if (pCommandArg != nullptr)
     {
@@ -118,8 +117,7 @@ Result SettingsService::HandleRequest(
         }
         else
         {
-            // Unsupported request, just assert
-            DD_ASSERT_ALWAYS();
+            // Unsupported request
         }
     }
 
@@ -129,53 +127,33 @@ Result SettingsService::HandleRequest(
 // =====================================================================================================================
 // Returns the list of registered settings components
 Result SettingsService::HandleGetComponents(
-    URIRequestContext* pContext)
+    IURIRequestContext* pContext)
 {
     Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
 
-    // The component list will be returned as a JSON list of the component names
-    // { components: [ <64 max len name>, <repeat for each component> ] }
-    const char* pComponentListStart = "{ \"components\": [ ";
-    const char* pComponentListEnd = " ] }";
-
-    // Each component in the JSON list will be an object with the component name which has a max length of 64 plus 4
-    // characters for the quotes, comma and space separators.
-    DD_STATIC_CONST size_t PerComponentSize = kMaxComponentNameStrLen + 2;
-    const size_t finalStrSize = strlen(pComponentListStart) + strlen(pComponentListEnd) +
-        (PerComponentSize * m_registeredComponents.Size());
-    char *pFinalComponentStr = reinterpret_cast<char*>(DD_MALLOC(finalStrSize, DD_DEFAULT_ALIGNMENT, m_allocCb));
-    DD_ASSERT(pFinalComponentStr != nullptr);
-
-    Platform::Strncpy(pFinalComponentStr, pComponentListStart, finalStrSize);
-
-    static const char* pComponentSeparator = "\", ";
-    auto iter = m_registeredComponents.Begin();
-    if (iter != m_registeredComponents.End())
+    IStructuredWriter* pWriter;
+    Result result = pContext->BeginJsonResponse(&pWriter);
+    if (result == Result::Success)
     {
-        // Copy the first element in so the loop can unconditionally copy in the separator before each element.
-        strcat(pFinalComponentStr, "\"");
-        strcat(pFinalComponentStr, iter->value.componentName);
-        ++iter;
-        for (; iter != m_registeredComponents.End(); ++iter)
+        pWriter->BeginMap();
+        pWriter->KeyAndBeginList("components");
+
+        for (const auto& entry : m_registeredComponents)
         {
-            strcat(pFinalComponentStr, pComponentSeparator);
-            strcat(pFinalComponentStr, iter->value.componentName);
+            pWriter->Value(entry.value.componentName);
         }
+
+        pWriter->EndList();
+        pWriter->EndMap();
+        result = pWriter->End();
     }
-    strcat(pFinalComponentStr, "\"");
 
-    strcat(pFinalComponentStr, pComponentListEnd);
-
-    pContext->pResponseBlock->Write(static_cast<const void*>(pFinalComponentStr), strlen(pFinalComponentStr));
-    pContext->responseDataFormat = URIDataFormat::Text;
-
-    DD_FREE(pFinalComponentStr, m_allocCb);
-    return Result::Success;
+    return result;
 }
 
 // =====================================================================================================================
 Result SettingsService::HandleGetSettingData(
-    URIRequestContext* pContext)
+    IURIRequestContext* pContext)
 {
     Result result = Result::SettingsUriInvalidComponent;
 
@@ -190,9 +168,27 @@ Result SettingsService::HandleGetSettingData(
         if (iter != m_registeredComponents.End() && (iter->value.pSettingsData != nullptr))
         {
             const auto& component = iter->value;
-            pContext->responseDataFormat = component.isSettingsDataText ? URIDataFormat::Text : URIDataFormat::Binary;
-            pContext->pResponseBlock->Write(component.pSettingsData, component.settingsDataSize);
-            result = Result::Success;
+            if (component.isSettingsDataText)
+            {
+                ITextWriter* pWriter = nullptr;
+                result = pContext->BeginTextResponse(&pWriter);
+                if (result == Result::Success)
+                {
+                    pWriter->Write(static_cast<const char*>(component.pSettingsData), static_cast<uint32>(component.settingsDataSize));
+                    result = pWriter->End();
+                }
+            }
+            else
+            {
+                IByteWriter* pWriter = nullptr;
+                result = pContext->BeginByteResponse(&pWriter);
+                if (result == Result::Success)
+                {
+                    pWriter->WriteBytes(component.pSettingsData, component.settingsDataSize);
+                    result = pWriter->End();
+                }
+            }
+
         }
     }
 
@@ -201,7 +197,7 @@ Result SettingsService::HandleGetSettingData(
 
 // =====================================================================================================================
 Result SettingsService::HandleGetValue(
-    URIRequestContext* pContext)
+    IURIRequestContext* pContext)
 {
     Result result = Result::Success;
     // This continues the same strtok started in HandleRequest, which is safe because it can only be called on one thread
@@ -256,13 +252,18 @@ Result SettingsService::HandleGetValue(
                 {
                     if ((pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0))
                     {
-                        // We've got the value, now send it back to the client.  We'll send the struct as binary,
-                        // with the pointer zeroed out.
-                        pContext->responseDataFormat = URIDataFormat::Binary;
-                        void* pValueDataPtr = pSettingValue->pValuePtr;
-                        pSettingValue->pValuePtr = nullptr;
-                        pContext->pResponseBlock->Write(pSettingValue, sizeof(SettingValue));
-                        pContext->pResponseBlock->Write(pValueDataPtr, pSettingValue->valueSize);
+                        IByteWriter* pWriter = nullptr;
+                        result = pContext->BeginByteResponse(&pWriter);
+                        if (result == Result::Success)
+                        {
+                            // We've got the value, now send it back to the client.  We'll send the struct as binary,
+                            // with the pointer zeroed out.
+                            void* pValueDataPtr = pSettingValue->pValuePtr;
+                            pSettingValue->pValuePtr = nullptr;
+                            pWriter->WriteBytes(pSettingValue, sizeof(SettingValue));
+                            pWriter->WriteBytes(pValueDataPtr, pSettingValue->valueSize);
+                            result = pWriter->End();
+                        }
                     }
                     else
                     {
@@ -300,7 +301,7 @@ Result SettingsService::HandleGetValue(
 
 // =====================================================================================================================
 Result SettingsService::HandleSetValue(
-    URIRequestContext* pContext)
+    IURIRequestContext* pContext)
 {
     Result result = Result::Success;
     // This continues the same strtok started in HandleRequest, which is safe because it can only be called on one thread
@@ -325,14 +326,15 @@ Result SettingsService::HandleSetValue(
                 // We found component and setting matching the parameters, setup the provided post data as a
                 // SettingValue struct
                 SettingValue settingValue = {};
-                if((pContext->pPostData != nullptr) && (pContext->postDataSize >= sizeof(SettingValue)))
+                const PostDataInfo& postData = pContext->GetPostData();
+                if((postData.pData != nullptr) && (postData.size >= sizeof(SettingValue)))
                 {
-                    const SettingValue* pSettingValue = static_cast<const SettingValue*>(pContext->pPostData);
-                    settingValue = (*pSettingValue);
+                    const SettingValue* pSettingValue = static_cast<const SettingValue*>(postData.pData);
+                    settingValue =* pSettingValue;
 
-                    if (pContext->postDataSize >= (sizeof(SettingValue) + settingValue.valueSize))
+                    if (postData.size >= (sizeof(SettingValue) + settingValue.valueSize))
                     {
-                        settingValue.pValuePtr = const_cast<void*>(VoidPtrInc(pContext->pPostData, sizeof(SettingValue)));
+                        settingValue.pValuePtr = const_cast<void*>(VoidPtrInc(postData.pData, sizeof(SettingValue)));
                     }
                     else
                     {
@@ -363,6 +365,7 @@ Result SettingsService::HandleSetValue(
 
     return result;
 }
+#endif
 
 } // SettingsURIService
 } // DevDriver

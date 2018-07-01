@@ -70,7 +70,13 @@ Result SyncobjFence::Init(
     result = Fence::Init(createInfo, needsEvent);
     if (result == Result::Success)
     {
-        result = m_device.CreateSyncObject(0, &m_fenceSyncObject);
+        uint32 flags = 0;
+        if (createInfo.flags.signaled)
+        {
+            flags |= DRM_SYNCOBJ_CREATE_SIGNALED;
+        }
+
+        result = m_device.CreateSyncObject(flags, &m_fenceSyncObject);
     }
 
     return result;
@@ -99,6 +105,7 @@ Result SyncobjFence::WaitForFences(
     AutoBuffer<amdgpu_syncobj_handle, 16, Pal::Platform> fenceList(fenceCount, device.GetPlatform());
 
     uint32 count = 0;
+    bool   isNeverSubmitted = false;
 
     if (fenceList.Capacity() >= fenceCount)
     {
@@ -111,24 +118,9 @@ Result SyncobjFence::WaitForFences(
                 result = Result::ErrorInvalidPointer;
                 break;
             }
-            // linux heavily rely on submission to have a right fence to wait for.
-            // If it is created as signaled, we'd better to skip this fence directly.
-            else if (ppFenceList[fence]->InitialState())
+            else if (ppFenceList[fence]->WasNeverSubmitted())
             {
-                if (waitAll == true)
-                {
-                    continue;
-                }
-                else
-                {
-                    result = Result::Success;
-                    break;
-                }
-            }
-            else if ((ppFenceList[fence]->WasNeverSubmitted()) && (ppFenceList[fence]->IsOpened() == false))
-            {
-                result = Result::ErrorFenceNeverSubmitted;
-                break;
+                isNeverSubmitted = true;
             }
 
             const auto*const pSyncobjFence = static_cast<const SyncobjFence*>(ppFenceList[fence]);
@@ -177,6 +169,13 @@ Result SyncobjFence::WaitForFences(
         {
             result = Result::Success;
         }
+    }
+
+    // For Fence never submitted, fence wait return success if it shares the payload with another signaled fence;
+    // for other cases, return Timeout.
+    if (isNeverSubmitted && (result != Result::Success))
+    {
+        result = Result::Timeout;
     }
 
     // return Timeout in failed scenario no matter whether timeout is 0.
@@ -231,7 +230,11 @@ OsExternalHandle SyncobjFence::ExportExternalHandle(
     }
     else
     {
-        m_device.SyncObjExportSyncFile(m_fenceSyncObject, reinterpret_cast<int32*>(&handle));
+        Result result = m_device.SyncObjExportSyncFile(m_fenceSyncObject, reinterpret_cast<int32*>(&handle));
+        if (result == Result::Success)
+        {
+            m_device.ResetSyncObject(&m_fenceSyncObject, 1);
+        }
     }
 
     return handle;
