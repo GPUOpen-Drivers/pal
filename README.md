@@ -110,3 +110,4 @@ PAL contains code written by third parties. Such libraries have their own indivi
 * jemalloc: see src/util/imported/jemalloc/jemalloc-license
 * Metrohash: see src/util/imported/metrohash/metrohash-license
 * rapidjson: see shared/gpuopen/inc/imported/rapidjson/license.txt
+
