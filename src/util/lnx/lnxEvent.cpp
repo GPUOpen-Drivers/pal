@@ -59,6 +59,7 @@ Event::~Event()
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
 // =====================================================================================================================
 // Used to initialize a static event object, not needed (although not dangerous) for dynamic event objects.
 //
@@ -69,8 +70,8 @@ Event::~Event()
 //
 // SEE: http://man7.org/linux/man-pages/man2/eventfd.2.html
 Result Event::Init(
-    bool manualReset,
-    bool initiallySignaled)
+    bool  manualReset,
+    bool  initiallySignaled)
 {
     Result result = Result::Success;
     PAL_ASSERT(manualReset == true);
@@ -80,6 +81,39 @@ Result Event::Init(
     const uint32 initialState = initiallySignaled ? 1 : 0;
 
     m_hEvent = eventfd(initialState, EFD_NONBLOCK);
+
+    if (m_hEvent == InvalidEvent)
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    return result;
+}
+#endif
+
+// =====================================================================================================================
+// Used to initialize a static event object, not needed (although not dangerous) for dynamic event objects.
+//
+// On Linux, we're using "eventfd" objects to represent the manual-reset event used on Windows platforms.  An eventfd is
+// a file descriptor which can be used as an wait/notify mechanism by userspace applications and by the kernel to notify
+// userspace applications of events.  This mechanism was chosen because it is the most likely candidate for the kernel
+// graphics driver to be able to notify the UMD of event ocurrences.
+//
+// SEE: http://man7.org/linux/man-pages/man2/eventfd.2.html
+Result Event::Init(
+    const EventCreateFlags& flags)
+{
+    Result result = Result::Success;
+    PAL_ASSERT(flags.manualReset == true);
+
+    const uint32 initialState = flags.initiallySignaled ? 1 : 0;
+
+    int32 eventflags = 0;
+    eventflags |= flags.closeOnExecute ? EFD_CLOEXEC   : 0;
+    eventflags |= flags.nonBlocking    ? EFD_NONBLOCK  : 0;
+    eventflags |= flags.semaphore      ? EFD_SEMAPHORE : 0;
+
+    m_hEvent = eventfd(initialState, eventflags);
 
     if (m_hEvent == InvalidEvent)
     {

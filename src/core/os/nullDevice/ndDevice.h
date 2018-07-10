@@ -128,6 +128,10 @@ public:
         WsiPlatform          wsiPlatform,
         int64                visualId) override { return Result::Unsupported; } // can't present anything
 
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const override { return 0; }
+
     virtual Result DetermineExternalSharedResourceType(
         const ExternalResourceOpenInfo& openInfo,
         bool*                           pIsImage) const override;
@@ -289,6 +293,11 @@ public:
     virtual Result GetVirtualDisplayProperties(
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        int32*          pConnectorId) override { return Result::Success; }
 
 protected:
     Device(

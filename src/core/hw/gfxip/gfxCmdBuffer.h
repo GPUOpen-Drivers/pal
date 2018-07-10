@@ -29,7 +29,6 @@
 #include "core/fence.h"
 #include "core/platform.h"
 #include "palDeque.h"
-#include "palHashSet.h"
 #include "palQueryPool.h"
 
 namespace Pal
@@ -151,8 +150,8 @@ class GfxCmdBuffer : public CmdBuffer
     // A useful shorthand for a vector of chunks.
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
-    // Alias for a hash set of pointers to gfx images.
-    using FceRefCounters = Util::HashSet<uint32*, Platform>;
+    // Alias for a vector of pointers to gfx images.
+    using FceRefCountsVector = Util::Vector<uint32*, MaxNumFastClearImageRefs, Platform>;
 
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
@@ -490,7 +489,7 @@ private:
     bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
                                        // buffer so that appropriate submit-time operations can be done.
 
-    FceRefCounters m_fceRefCounts;
+    FceRefCountsVector m_fceRefCountVec;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

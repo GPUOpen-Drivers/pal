@@ -117,19 +117,29 @@ public:
         OsDisplayHandle     hDisplay,
         int64               visualId);
 
+    static Result GetConnectorIdFromOutput(
+        Device*         pDevice,
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        int32*          pConnectorId);
+
+    static Result AcquireScreenAccess(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        uint32          randrOutput,
+        int32*          pDrmMasterFd);
+
     virtual Result CreatePresentableImage(
-        const Image&        image,
-        int32               sharedBufferFd,
-        uint32*             pPresentImage) override;
+        Image*              pImage,
+        int32               sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
         uint32              image) override;
 
     virtual Result Present(
-        uint32              presentImage,
-        PresentMode         presentMode,
-        PresentFence*       pRenderFence,
-        PresentFence*       pIdleFence) override;
+        const PresentSwapChainInfo& presentInfo,
+        PresentFence*               pRenderFence,
+        PresentFence*               pIdleFence) override;
 
     virtual Result WaitForLastImagePresented() override;
 

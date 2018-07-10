@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
+#include "core/os/lnx/display/displayWindowSystem.h"
 #if PAL_HAVE_WAYLAND_PLATFORM
 #include "core/os/lnx/wayland/waylandWindowSystem.h"
 #endif
@@ -38,9 +39,10 @@ namespace Linux
 
 // More supported platforms could be added in the future.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392 && PAL_HAVE_WAYLAND_PLATFORM
-constexpr uint32 SupportedPlatformMask = WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland;
+constexpr uint32 SupportedPlatformMask =
+    WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland | WsiPlatform::DirectDisplay;
 #else
-constexpr uint32 SupportedPlatformMask = WsiPlatform::Xcb | WsiPlatform::Xlib;
+constexpr uint32 SupportedPlatformMask = WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::DirectDisplay;
 #endif
 
 // =====================================================================================================================
@@ -62,6 +64,9 @@ size_t PresentFence::GetSize(
             size = WaylandPresentFence::GetSize();
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            size = DisplayPresentFence::GetSize();
+            break;
         default:
             PAL_NOT_IMPLEMENTED();
             break;
@@ -104,6 +109,12 @@ Result PresentFence::Create(
                                                  ppPresentFence);
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            result = DisplayPresentFence::Create(static_cast<const DisplayWindowSystem&>(windowSystem),
+                                                 initiallySignaled,
+                                                 pPlacementAddr,
+                                                 ppPresentFence);
+            break;
         default:
             PAL_NOT_IMPLEMENTED();
             break;
@@ -136,6 +147,9 @@ size_t WindowSystem::GetSize(
             size = WaylandWindowSystem::GetSize();
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            size = DisplayWindowSystem::GetSize();
+            break;
         default:
             PAL_NOT_IMPLEMENTED();
             break;
@@ -171,6 +185,9 @@ Result WindowSystem::Create(
             result = WaylandWindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            result = DisplayWindowSystem::Create(device, createInfo, pPlacementAddr, ppWindowSystem);
+            break;
         default:
             PAL_NOT_IMPLEMENTED();
             break;
@@ -219,6 +236,9 @@ Result WindowSystem::GetWindowGeometry(
             result = WaylandWindowSystem::GetWindowGeometry(pDevice, hDisplay, hWindow, pExtents);
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            result = Result::Success;
+            break;
         default:
             PAL_NEVER_CALLED();
             break;
@@ -256,6 +276,9 @@ Result WindowSystem::DeterminePresentationSupported(
             result = WaylandWindowSystem::DeterminePresentationSupported(pDevice, hDisplay, visualId);
             break;
 #endif
+        case WsiPlatform::DirectDisplay:
+            result = DisplayWindowSystem::DeterminePresentationSupported(pDevice, hDisplay, visualId);
+            break;
         default:
             PAL_NEVER_CALLED();
             break;
@@ -264,6 +287,66 @@ Result WindowSystem::DeterminePresentationSupported(
     else
     {
         PAL_NEVER_CALLED();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result WindowSystem::GetConnectorIdFromOutput(
+    Device*         pDevice,
+    OsDisplayHandle hDisplay,
+    uint32          randrOutput,
+    WsiPlatform     wsiPlatform,
+    int32*          pConnectorId)
+{
+    Result result = Result::ErrorUnavailable;
+    if (SupportedPlatformMask & wsiPlatform)
+    {
+        switch (wsiPlatform)
+        {
+        case WsiPlatform::Xcb:
+        case WsiPlatform::Xlib:
+            result = Dri3WindowSystem::GetConnectorIdFromOutput(pDevice, hDisplay, randrOutput, pConnectorId);
+            break;
+        default:
+            PAL_NOT_IMPLEMENTED();
+            break;
+        }
+    }
+    else
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result WindowSystem::AcquireScreenAccess(
+    Device*         pDevice,
+    OsDisplayHandle hDisplay,
+    WsiPlatform     wsiPlatform,
+    uint32          randrOutput,
+    int32*          pDrmMasterFd)
+{
+    Result result = Result::ErrorUnavailable;
+    if (SupportedPlatformMask & wsiPlatform)
+    {
+        switch (wsiPlatform)
+        {
+        case WsiPlatform::Xcb:
+        case WsiPlatform::Xlib:
+            result = Dri3WindowSystem::AcquireScreenAccess(hDisplay, pDevice, randrOutput, pDrmMasterFd);
+            break;
+        default:
+            PAL_NOT_IMPLEMENTED();
+            break;
+        }
+    }
+    else
+    {
+        PAL_NOT_IMPLEMENTED();
     }
 
     return result;

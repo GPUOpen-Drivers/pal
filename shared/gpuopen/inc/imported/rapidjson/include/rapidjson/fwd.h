@@ -113,7 +113,7 @@ struct GenericStringRef;
 template <typename Encoding, typename Allocator> 
 class GenericValue;
 
-typedef GenericValue<UTF8<char>, MemoryPoolAllocator<CrtAllocator> > Write;
+typedef GenericValue<UTF8<char>, MemoryPoolAllocator<CrtAllocator> > Value;
 
 template <typename Encoding, typename Allocator, typename StackAllocator>
 class GenericDocument;
@@ -125,7 +125,7 @@ typedef GenericDocument<UTF8<char>, MemoryPoolAllocator<CrtAllocator>, CrtAlloca
 template <typename ValueType, typename Allocator>
 class GenericPointer;
 
-typedef GenericPointer<Write, CrtAllocator> Pointer;
+typedef GenericPointer<Value, CrtAllocator> Pointer;
 
 // schema.h
 
@@ -135,7 +135,7 @@ class IGenericRemoteSchemaDocumentProvider;
 template <typename ValueT, typename Allocator>
 class GenericSchemaDocument;
 
-typedef GenericSchemaDocument<Write, CrtAllocator> SchemaDocument;
+typedef GenericSchemaDocument<Value, CrtAllocator> SchemaDocument;
 typedef IGenericRemoteSchemaDocumentProvider<SchemaDocument> IRemoteSchemaDocumentProvider;
 
 template <

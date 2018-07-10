@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "core/layers/functionIds.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
 #include "palLinearAllocator.h"
 
@@ -41,113 +42,6 @@ namespace GpuProfiler
 
 class Device;
 class TargetCmdBuffer;
-
-// Identifies a specific ICmdBuffer function call in a token stream.  One enum per interface in ICmdBuffer.
-enum class CmdBufCallId : uint32
-{
-    Begin,
-    End,
-    CmdBindPipeline,
-    CmdBindMsaaState,
-    CmdBindColorBlendState,
-    CmdBindDepthStencilState,
-    CmdBindIndexData,
-    CmdBindTargets,
-    CmdBindStreamOutTargets,
-    CmdBindBorderColorPalette,
-    CmdSetUserData,
-    CmdSetIndirectUserData,
-    CmdSetIndirectUserDataWatermark,
-    CmdSetBlendConst,
-    CmdSetInputAssemblyState,
-    CmdSetTriangleRasterState,
-    CmdSetPointLineRasterState,
-    CmdSetDepthBiasState,
-    CmdSetDepthBounds,
-    CmdSetStencilRefMasks,
-    CmdSetMsaaQuadSamplePattern,
-    CmdSetViewports,
-    CmdSetScissorRects,
-    CmdSetGlobalScissor,
-    CmdBarrier,
-    CmdWaitRegisterValue,
-    CmdWaitMemoryValue,
-    CmdWaitBusAddressableMemoryMarker,
-    CmdDraw,
-    CmdDrawOpaque,
-    CmdDrawIndexed,
-    CmdDrawIndirectMulti,
-    CmdDrawIndexedIndirectMulti,
-    CmdDispatch,
-    CmdDispatchIndirect,
-    CmdDispatchOffset,
-    CmdUpdateMemory,
-    CmdUpdateBusAddressableMemoryMarker,
-    CmdFillMemory,
-    CmdCopyMemory,
-    CmdCopyTypedBuffer,
-    CmdCopyRegisterToMemory,
-    CmdCopyImage,
-    CmdScaledCopyImage,
-    CmdColorSpaceConversionCopy,
-    CmdCloneImageData,
-    CmdCopyMemoryToImage,
-    CmdCopyImageToMemory,
-    CmdClearColorBuffer,
-    CmdClearBoundColorTargets,
-    CmdClearColorImage,
-    CmdClearBoundDepthStencilTargets,
-    CmdClearDepthStencil,
-    CmdClearBufferView,
-    CmdClearImageView,
-    CmdResolveImage,
-    CmdSetEvent,
-    CmdResetEvent,
-    CmdPredicateEvent,
-    CmdMemoryAtomic,
-    CmdResetQueryPool,
-    CmdBeginQuery,
-    CmdEndQuery,
-    CmdResolveQuery,
-    CmdSetPredication,
-    CmdWriteTimestamp,
-    CmdLoadGds,
-    CmdStoreGds,
-    CmdUpdateGds,
-    CmdFillGds,
-    CmdLoadBufferFilledSizes,
-    CmdSaveBufferFilledSizes,
-    CmdLoadCeRam,
-    CmdWriteCeRam,
-    CmdDumpCeRam,
-    CmdExecuteNestedCmdBuffers,
-    CmdExecuteIndirectCmds,
-    CmdIf,
-    CmdElse,
-    CmdEndIf,
-    CmdWhile,
-    CmdEndWhile,
-    CmdBeginPerfExperiment,
-    CmdUpdatePerfExperimentSqttTokenMask,
-    CmdEndPerfExperiment,
-    CmdInsertTraceMarker,
-    CmdInsertRgpTraceMarker,
-    CmdSetUserClipPlanes,
-    CmdCommentString,
-    CmdXdmaWaitFlipPending,
-    CmdCopyMemoryToTiledImage,
-    CmdCopyTiledImageToMemory,
-    CmdCopyImageToPackedPixelImage,
-    CmdFlglEnable,
-    CmdFlglDisable,
-    CmdFlglSync,
-    CmdStartGpuProfilerLogging,
-    CmdStopGpuProfilerLogging,
-    CmdSetViewInstanceMask,
-    CmdSetHiSCompareState0,
-    CmdSetHiSCompareState1,
-    Count
-};
 
 // =====================================================================================================================
 // GpuProfiler implementation of the ICmdBuffer interface.  Instead of passing commands on to the next layer, the
@@ -731,7 +625,7 @@ private:
     void ReplayCmdCopyRegisterToMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdScaledCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdConvertYuvToRgb(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdColorSpaceConversionCopy(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCloneImageData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyMemoryToImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -773,7 +667,7 @@ private:
     void ReplayCmdWhile(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdEndWhile(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBeginPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdUpdatePerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdUpdatePerfExperimentSqttTokenMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdEndPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertRgpTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

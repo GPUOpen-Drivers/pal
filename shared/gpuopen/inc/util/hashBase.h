@@ -518,47 +518,47 @@ namespace DevDriver
 
                 pFoundEntry = iterator.Get();
 
-                DD_ASSERT(pFoundEntry != nullptr);
-
-                // We need to look for the last entry in the current chain. We will then either swap this entry with
-                // last entry and destroy the object
-                Entry* pLastEntry = nullptr;
-                Bucket* pLastBucket = nullptr;
-
-                while (pBucket != nullptr && (pBucket->footer.numEntries > 0))
+                if(pFoundEntry != nullptr)
                 {
-                    Bucket& currentBucket = *pBucket;
+                    // We need to look for the last entry in the current chain. We will then either swap this entry with
+                    // last entry and destroy the object
+                    Entry* pLastEntry = nullptr;
+                    Bucket* pLastBucket = nullptr;
 
-                    // keep track of last entry of all groups in bucket
-                    pLastEntry = &(currentBucket.entries[currentBucket.footer.numEntries - 1]);
-                    pLastBucket = pBucket;
+                    while (pBucket != nullptr && (pBucket->footer.numEntries > 0))
+                    {
+                        Bucket& currentBucket = *pBucket;
 
-                    // Chain to the next entry group.
-                    pBucket = currentBucket.footer.pNextBucket;
+                        // keep track of last entry of all groups in bucket
+                        pLastEntry = &(currentBucket.entries[currentBucket.footer.numEntries - 1]);
+                        pLastBucket = pBucket;
+
+                        // Chain to the next entry group.
+                        pBucket = currentBucket.footer.pNextBucket;
+                    }
+
+                    if((pLastEntry != nullptr) && (pLastBucket != nullptr))
+                    {
+                        this->m_numEntries--;
+                        pLastBucket->footer.numEntries--;
+
+                        if (pFoundEntry != pLastEntry)
+                        {
+                            *pFoundEntry = Platform::Move(*pLastEntry);
+                        }
+                        else
+                        {
+                            // This was the last entry in the current bucket, so we need to advance the iterator
+                            iterator.Next();
+                        }
+
+                        // If the element we removed wasn't a POD type we need to explicitly invoke the destructor
+                        if (!Platform::IsPod<Entry>::Value)
+                        {
+                            pLastEntry->~Entry();
+                        }
+                    }
                 }
-
-                DD_ASSERT(pLastEntry != nullptr);
-                DD_ASSERT(pLastBucket != nullptr);
-
-                this->m_numEntries--;
-                pLastBucket->footer.numEntries--;
-
-                if (pFoundEntry != pLastEntry)
-                {
-                    *pFoundEntry = Platform::Move(*pLastEntry);
-                }
-                else
-                {
-                    // This was the last entry in the current bucket, so we need to advance the iterator
-                    iterator.Next();
-                }
-
-                // If the element we removed wasn't a POD type we need to explicitly invoke the destructor
-                if (!Platform::IsPod<Entry>::Value)
-                {
-                    pLastEntry->~Entry();
-                }
-
             }
             return (pFoundEntry != nullptr);
         }

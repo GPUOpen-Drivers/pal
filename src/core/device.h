@@ -1650,10 +1650,12 @@ protected:
     Pal::GdsInfo  m_gdsInfo[EngineTypeCount][MaxAvailableEngines];
     bool          m_perPipelineBindPointGds;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     // A mask of SwapChainModeSupport flags for each present mode.
     // This indicates which kinds of swap chains can be
     // created depending on the client's intended present mode.
     uint32 m_supportedSwapChainModes[static_cast<uint32>(PresentMode::Count)];
+#endif
 
     char  m_gpuName[MaxDeviceName];
 

@@ -110,6 +110,7 @@ uint32* PrefetchMgr::RequestPrefetch(
                 dmaDataInfo.srcAddrSpace = CPDMA_ADDR_SPACE_MEM;
                 dmaDataInfo.srcSel       = CPDMA_SRC_SEL_SRC_ADDR_USING_L2;
                 dmaDataInfo.numBytes     = static_cast<uint32>(sizeInBytes);
+                dmaDataInfo.disableWc    = true;
 
                 pCmdSpace += device.CmdUtil().BuildDmaData(dmaDataInfo, pCmdSpace);
             }

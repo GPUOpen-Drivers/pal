@@ -51,6 +51,7 @@
 #include <xcb/dri2.h>
 #include <xcb/xcb.h>
 #include <xcb/present.h>
+#include "randr1_6.h"
 extern "C"
 {
     #include <X11/xshmfence.h>
@@ -227,6 +228,65 @@ typedef xcb_dri2_connect_reply_t* (*XcbDri2ConnectReply)(
             xcb_dri2_connect_cookie_t     cookie,
             xcb_generic_error_t**         ppError);
 
+// symbols from libxcb-randr.so.0
+typedef xcb_randr_create_lease_cookie_t (*XcbRandrCreateLease)(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_randr_lease_t             leaseId,
+            uint16_t                      numCrtcs,
+            uint16_t                      numOutputs,
+            const xcb_randr_crtc_t*       pCrtcs,
+            const xcb_randr_output_t*     pOutputs);
+
+typedef xcb_randr_create_lease_reply_t* (*XcbRandrCreateLeaseReply)(
+            xcb_connection_t*                 pConnection,
+            xcb_randr_create_lease_cookie_t   cookie,
+            xcb_generic_error_t**             ppError);
+
+typedef int* (*XcbRandrCreateLeaseReplyFds)(
+            xcb_connection_t *                pConnection,
+            xcb_randr_create_lease_reply_t*   pReply);
+
+typedef xcb_randr_get_screen_resources_cookie_t (*XcbRandrGetScreenResources)(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window);
+
+typedef xcb_randr_get_screen_resources_reply_t* (*XcbRandrGetScreenResourcesReply)(
+            xcb_connection_t*                         pConnection,
+            xcb_randr_get_screen_resources_cookie_t   cookie,
+            xcb_generic_error_t**                     ppError);
+
+typedef xcb_randr_output_t* (*XcbRandrGetScreenResourcesOutputs)(
+            const xcb_randr_get_screen_resources_reply_t*     pScrResReply);
+
+typedef xcb_randr_get_output_info_cookie_t (*XcbRandrGetOutputInfo)(
+            xcb_connection_t*     pConnection,
+            xcb_randr_output_t    output,
+            xcb_timestamp_t       configTimestamp);
+
+typedef xcb_randr_get_output_info_reply_t* (*XcbRandrGetOutputInfoReply)(
+            xcb_connection_t*                     pConnection,
+            xcb_randr_get_output_info_cookie_t    cookie,
+            xcb_generic_error_t **                ppError);
+
+typedef xcb_randr_get_output_property_cookie_t (*XcbRandrGetOutputProperty)(
+            xcb_connection_t*     pConnection,
+            xcb_randr_output_t    output,
+            xcb_atom_t            property,
+            xcb_atom_t            type,
+            uint32_t              offset,
+            uint32_t              length,
+            uint8_t               _delete,
+            uint8_t               pending);
+
+typedef uint8_t* (*XcbRandrGetOutputPropertyData)(
+            const xcb_randr_get_output_property_reply_t*  pReply);
+
+typedef xcb_randr_get_output_property_reply_t * (*XcbRandrGetOutputPropertyReply)(
+            xcb_connection_t*                         pConnection,
+            xcb_randr_get_output_property_cookie_t    cookie,
+            xcb_generic_error_t**                     ppError);
+
 // symbols from libxcb-sync.so.1
 typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
             xcb_connection_t*     pConnection,
@@ -289,291 +349,358 @@ enum Dri3LoaderLibraries : uint32
     LibXshmFence = 2,
     LibXcbDri3 = 3,
     LibXcbDri2 = 4,
-    LibXcbSync = 5,
-    LibX11 = 6,
-    LibXcbPresent = 7,
-    Dri3LoaderLibrariesCount = 8
+    LibXcbRandr = 5,
+    LibXcbSync = 6,
+    LibX11 = 7,
+    LibXcbPresent = 8,
+    Dri3LoaderLibrariesCount = 9
 };
 
 struct Dri3LoaderFuncs
 {
-    XGetXCBConnection                 pfnXGetXCBConnection;
+    XGetXCBConnection                     pfnXGetXCBConnection;
     bool pfnXGetXCBConnectionisValid() const
     {
         return (pfnXGetXCBConnection != nullptr);
     }
 
-    XcbGenerateId                     pfnXcbGenerateId;
+    XcbGenerateId                         pfnXcbGenerateId;
     bool pfnXcbGenerateIdisValid() const
     {
         return (pfnXcbGenerateId != nullptr);
     }
 
-    XcbRegisterForSpecialXge          pfnXcbRegisterForSpecialXge;
+    XcbRegisterForSpecialXge              pfnXcbRegisterForSpecialXge;
     bool pfnXcbRegisterForSpecialXgeisValid() const
     {
         return (pfnXcbRegisterForSpecialXge != nullptr);
     }
 
-    XcbUnregisterForSpecialEvent      pfnXcbUnregisterForSpecialEvent;
+    XcbUnregisterForSpecialEvent          pfnXcbUnregisterForSpecialEvent;
     bool pfnXcbUnregisterForSpecialEventisValid() const
     {
         return (pfnXcbUnregisterForSpecialEvent != nullptr);
     }
 
-    XcbWaitForSpecialEvent            pfnXcbWaitForSpecialEvent;
+    XcbWaitForSpecialEvent                pfnXcbWaitForSpecialEvent;
     bool pfnXcbWaitForSpecialEventisValid() const
     {
         return (pfnXcbWaitForSpecialEvent != nullptr);
     }
 
-    XcbGetExtensionData               pfnXcbGetExtensionData;
+    XcbGetExtensionData                   pfnXcbGetExtensionData;
     bool pfnXcbGetExtensionDataisValid() const
     {
         return (pfnXcbGetExtensionData != nullptr);
     }
 
-    XcbPrefetchExtensionData          pfnXcbPrefetchExtensionData;
+    XcbPrefetchExtensionData              pfnXcbPrefetchExtensionData;
     bool pfnXcbPrefetchExtensionDataisValid() const
     {
         return (pfnXcbPrefetchExtensionData != nullptr);
     }
 
-    XcbRequestCheck                   pfnXcbRequestCheck;
+    XcbRequestCheck                       pfnXcbRequestCheck;
     bool pfnXcbRequestCheckisValid() const
     {
         return (pfnXcbRequestCheck != nullptr);
     }
 
-    XcbGetGeometry                    pfnXcbGetGeometry;
+    XcbGetGeometry                        pfnXcbGetGeometry;
     bool pfnXcbGetGeometryisValid() const
     {
         return (pfnXcbGetGeometry != nullptr);
     }
 
-    XcbGetGeometryReply               pfnXcbGetGeometryReply;
+    XcbGetGeometryReply                   pfnXcbGetGeometryReply;
     bool pfnXcbGetGeometryReplyisValid() const
     {
         return (pfnXcbGetGeometryReply != nullptr);
     }
 
-    XcbFreePixmapChecked              pfnXcbFreePixmapChecked;
+    XcbFreePixmapChecked                  pfnXcbFreePixmapChecked;
     bool pfnXcbFreePixmapCheckedisValid() const
     {
         return (pfnXcbFreePixmapChecked != nullptr);
     }
 
-    XcbInternAtomReply                pfnXcbInternAtomReply;
+    XcbInternAtomReply                    pfnXcbInternAtomReply;
     bool pfnXcbInternAtomReplyisValid() const
     {
         return (pfnXcbInternAtomReply != nullptr);
     }
 
-    XcbInternAtom                     pfnXcbInternAtom;
+    XcbInternAtom                         pfnXcbInternAtom;
     bool pfnXcbInternAtomisValid() const
     {
         return (pfnXcbInternAtom != nullptr);
     }
 
-    XcbScreenAllowedDepthsIterator    pfnXcbScreenAllowedDepthsIterator;
+    XcbScreenAllowedDepthsIterator        pfnXcbScreenAllowedDepthsIterator;
     bool pfnXcbScreenAllowedDepthsIteratorisValid() const
     {
         return (pfnXcbScreenAllowedDepthsIterator != nullptr);
     }
 
-    XcbDepthNext                      pfnXcbDepthNext;
+    XcbDepthNext                          pfnXcbDepthNext;
     bool pfnXcbDepthNextisValid() const
     {
         return (pfnXcbDepthNext != nullptr);
     }
 
-    XcbVisualtypeNext                 pfnXcbVisualtypeNext;
+    XcbVisualtypeNext                     pfnXcbVisualtypeNext;
     bool pfnXcbVisualtypeNextisValid() const
     {
         return (pfnXcbVisualtypeNext != nullptr);
     }
 
-    XcbSetupRootsIterator             pfnXcbSetupRootsIterator;
+    XcbSetupRootsIterator                 pfnXcbSetupRootsIterator;
     bool pfnXcbSetupRootsIteratorisValid() const
     {
         return (pfnXcbSetupRootsIterator != nullptr);
     }
 
-    XcbScreenNext                     pfnXcbScreenNext;
+    XcbScreenNext                         pfnXcbScreenNext;
     bool pfnXcbScreenNextisValid() const
     {
         return (pfnXcbScreenNext != nullptr);
     }
 
-    XcbDepthVisualsIterator           pfnXcbDepthVisualsIterator;
+    XcbDepthVisualsIterator               pfnXcbDepthVisualsIterator;
     bool pfnXcbDepthVisualsIteratorisValid() const
     {
         return (pfnXcbDepthVisualsIterator != nullptr);
     }
 
-    XcbGetSetup                       pfnXcbGetSetup;
+    XcbGetSetup                           pfnXcbGetSetup;
     bool pfnXcbGetSetupisValid() const
     {
         return (pfnXcbGetSetup != nullptr);
     }
 
-    XcbFlush                          pfnXcbFlush;
+    XcbFlush                              pfnXcbFlush;
     bool pfnXcbFlushisValid() const
     {
         return (pfnXcbFlush != nullptr);
     }
 
-    XshmfenceUnmapShm                 pfnXshmfenceUnmapShm;
+    XshmfenceUnmapShm                     pfnXshmfenceUnmapShm;
     bool pfnXshmfenceUnmapShmisValid() const
     {
         return (pfnXshmfenceUnmapShm != nullptr);
     }
 
-    XshmfenceMapShm                   pfnXshmfenceMapShm;
+    XshmfenceMapShm                       pfnXshmfenceMapShm;
     bool pfnXshmfenceMapShmisValid() const
     {
         return (pfnXshmfenceMapShm != nullptr);
     }
 
-    XshmfenceQuery                    pfnXshmfenceQuery;
+    XshmfenceQuery                        pfnXshmfenceQuery;
     bool pfnXshmfenceQueryisValid() const
     {
         return (pfnXshmfenceQuery != nullptr);
     }
 
-    XshmfenceAwait                    pfnXshmfenceAwait;
+    XshmfenceAwait                        pfnXshmfenceAwait;
     bool pfnXshmfenceAwaitisValid() const
     {
         return (pfnXshmfenceAwait != nullptr);
     }
 
-    XshmfenceAllocShm                 pfnXshmfenceAllocShm;
+    XshmfenceAllocShm                     pfnXshmfenceAllocShm;
     bool pfnXshmfenceAllocShmisValid() const
     {
         return (pfnXshmfenceAllocShm != nullptr);
     }
 
-    XshmfenceTrigger                  pfnXshmfenceTrigger;
+    XshmfenceTrigger                      pfnXshmfenceTrigger;
     bool pfnXshmfenceTriggerisValid() const
     {
         return (pfnXshmfenceTrigger != nullptr);
     }
 
-    XshmfenceReset                    pfnXshmfenceReset;
+    XshmfenceReset                        pfnXshmfenceReset;
     bool pfnXshmfenceResetisValid() const
     {
         return (pfnXshmfenceReset != nullptr);
     }
 
-    XcbDri3Open                       pfnXcbDri3Open;
+    XcbDri3Open                           pfnXcbDri3Open;
     bool pfnXcbDri3OpenisValid() const
     {
         return (pfnXcbDri3Open != nullptr);
     }
 
-    XcbDri3OpenReply                  pfnXcbDri3OpenReply;
+    XcbDri3OpenReply                      pfnXcbDri3OpenReply;
     bool pfnXcbDri3OpenReplyisValid() const
     {
         return (pfnXcbDri3OpenReply != nullptr);
     }
 
-    XcbDri3OpenReplyFds               pfnXcbDri3OpenReplyFds;
+    XcbDri3OpenReplyFds                   pfnXcbDri3OpenReplyFds;
     bool pfnXcbDri3OpenReplyFdsisValid() const
     {
         return (pfnXcbDri3OpenReplyFds != nullptr);
     }
 
-    XcbDri3FenceFromFdChecked         pfnXcbDri3FenceFromFdChecked;
+    XcbDri3FenceFromFdChecked             pfnXcbDri3FenceFromFdChecked;
     bool pfnXcbDri3FenceFromFdCheckedisValid() const
     {
         return (pfnXcbDri3FenceFromFdChecked != nullptr);
     }
 
-    XcbDri3PixmapFromBufferChecked    pfnXcbDri3PixmapFromBufferChecked;
+    XcbDri3PixmapFromBufferChecked        pfnXcbDri3PixmapFromBufferChecked;
     bool pfnXcbDri3PixmapFromBufferCheckedisValid() const
     {
         return (pfnXcbDri3PixmapFromBufferChecked != nullptr);
     }
 
-    XcbDri3QueryVersion               pfnXcbDri3QueryVersion;
+    XcbDri3QueryVersion                   pfnXcbDri3QueryVersion;
     bool pfnXcbDri3QueryVersionisValid() const
     {
         return (pfnXcbDri3QueryVersion != nullptr);
     }
 
-    XcbDri3QueryVersionReply          pfnXcbDri3QueryVersionReply;
+    XcbDri3QueryVersionReply              pfnXcbDri3QueryVersionReply;
     bool pfnXcbDri3QueryVersionReplyisValid() const
     {
         return (pfnXcbDri3QueryVersionReply != nullptr);
     }
 
-    XcbDri2Connect                    pfnXcbDri2Connect;
+    XcbDri2Connect                        pfnXcbDri2Connect;
     bool pfnXcbDri2ConnectisValid() const
     {
         return (pfnXcbDri2Connect != nullptr);
     }
 
-    XcbDri2ConnectDriverNameLength    pfnXcbDri2ConnectDriverNameLength;
+    XcbDri2ConnectDriverNameLength        pfnXcbDri2ConnectDriverNameLength;
     bool pfnXcbDri2ConnectDriverNameLengthisValid() const
     {
         return (pfnXcbDri2ConnectDriverNameLength != nullptr);
     }
 
-    XcbDri2ConnectDriverName          pfnXcbDri2ConnectDriverName;
+    XcbDri2ConnectDriverName              pfnXcbDri2ConnectDriverName;
     bool pfnXcbDri2ConnectDriverNameisValid() const
     {
         return (pfnXcbDri2ConnectDriverName != nullptr);
     }
 
-    XcbDri2ConnectReply               pfnXcbDri2ConnectReply;
+    XcbDri2ConnectReply                   pfnXcbDri2ConnectReply;
     bool pfnXcbDri2ConnectReplyisValid() const
     {
         return (pfnXcbDri2ConnectReply != nullptr);
     }
 
-    XcbSyncTriggerFenceChecked        pfnXcbSyncTriggerFenceChecked;
+    XcbRandrCreateLease                   pfnXcbRandrCreateLease;
+    bool pfnXcbRandrCreateLeaseisValid() const
+    {
+        return (pfnXcbRandrCreateLease != nullptr);
+    }
+
+    XcbRandrCreateLeaseReply              pfnXcbRandrCreateLeaseReply;
+    bool pfnXcbRandrCreateLeaseReplyisValid() const
+    {
+        return (pfnXcbRandrCreateLeaseReply != nullptr);
+    }
+
+    XcbRandrCreateLeaseReplyFds           pfnXcbRandrCreateLeaseReplyFds;
+    bool pfnXcbRandrCreateLeaseReplyFdsisValid() const
+    {
+        return (pfnXcbRandrCreateLeaseReplyFds != nullptr);
+    }
+
+    XcbRandrGetScreenResources            pfnXcbRandrGetScreenResources;
+    bool pfnXcbRandrGetScreenResourcesisValid() const
+    {
+        return (pfnXcbRandrGetScreenResources != nullptr);
+    }
+
+    XcbRandrGetScreenResourcesReply       pfnXcbRandrGetScreenResourcesReply;
+    bool pfnXcbRandrGetScreenResourcesReplyisValid() const
+    {
+        return (pfnXcbRandrGetScreenResourcesReply != nullptr);
+    }
+
+    XcbRandrGetScreenResourcesOutputs     pfnXcbRandrGetScreenResourcesOutputs;
+    bool pfnXcbRandrGetScreenResourcesOutputsisValid() const
+    {
+        return (pfnXcbRandrGetScreenResourcesOutputs != nullptr);
+    }
+
+    XcbRandrGetOutputInfo                 pfnXcbRandrGetOutputInfo;
+    bool pfnXcbRandrGetOutputInfoisValid() const
+    {
+        return (pfnXcbRandrGetOutputInfo != nullptr);
+    }
+
+    XcbRandrGetOutputInfoReply            pfnXcbRandrGetOutputInfoReply;
+    bool pfnXcbRandrGetOutputInfoReplyisValid() const
+    {
+        return (pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    XcbRandrGetOutputProperty             pfnXcbRandrGetOutputProperty;
+    bool pfnXcbRandrGetOutputPropertyisValid() const
+    {
+        return (pfnXcbRandrGetOutputProperty != nullptr);
+    }
+
+    XcbRandrGetOutputPropertyData         pfnXcbRandrGetOutputPropertyData;
+    bool pfnXcbRandrGetOutputPropertyDataisValid() const
+    {
+        return (pfnXcbRandrGetOutputPropertyData != nullptr);
+    }
+
+    XcbRandrGetOutputPropertyReply        pfnXcbRandrGetOutputPropertyReply;
+    bool pfnXcbRandrGetOutputPropertyReplyisValid() const
+    {
+        return (pfnXcbRandrGetOutputPropertyReply != nullptr);
+    }
+
+    XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
     bool pfnXcbSyncTriggerFenceCheckedisValid() const
     {
         return (pfnXcbSyncTriggerFenceChecked != nullptr);
     }
 
-    XcbSyncDestroyFenceChecked        pfnXcbSyncDestroyFenceChecked;
+    XcbSyncDestroyFenceChecked            pfnXcbSyncDestroyFenceChecked;
     bool pfnXcbSyncDestroyFenceCheckedisValid() const
     {
         return (pfnXcbSyncDestroyFenceChecked != nullptr);
     }
 
-    XGetVisualInfo                    pfnXGetVisualInfo;
+    XGetVisualInfo                        pfnXGetVisualInfo;
     bool pfnXGetVisualInfoisValid() const
     {
         return (pfnXGetVisualInfo != nullptr);
     }
 
-    XFree                             pfnXFree;
+    XFree                                 pfnXFree;
     bool pfnXFreeisValid() const
     {
         return (pfnXFree != nullptr);
     }
 
-    XcbPresentQueryVersion            pfnXcbPresentQueryVersion;
+    XcbPresentQueryVersion                pfnXcbPresentQueryVersion;
     bool pfnXcbPresentQueryVersionisValid() const
     {
         return (pfnXcbPresentQueryVersion != nullptr);
     }
 
-    XcbPresentQueryVersionReply       pfnXcbPresentQueryVersionReply;
+    XcbPresentQueryVersionReply           pfnXcbPresentQueryVersionReply;
     bool pfnXcbPresentQueryVersionReplyisValid() const
     {
         return (pfnXcbPresentQueryVersionReply != nullptr);
     }
 
-    XcbPresentSelectInputChecked      pfnXcbPresentSelectInputChecked;
+    XcbPresentSelectInputChecked          pfnXcbPresentSelectInputChecked;
     bool pfnXcbPresentSelectInputCheckedisValid() const
     {
         return (pfnXcbPresentSelectInputChecked != nullptr);
     }
 
-    XcbPresentPixmapChecked           pfnXcbPresentPixmapChecked;
+    XcbPresentPixmapChecked               pfnXcbPresentPixmapChecked;
     bool pfnXcbPresentPixmapCheckedisValid() const
     {
         return (pfnXcbPresentPixmapChecked != nullptr);
@@ -941,6 +1068,119 @@ public:
     bool pfnXcbDri2ConnectReplyisValid() const
     {
         return (m_pFuncs->pfnXcbDri2ConnectReply != nullptr);
+    }
+
+    xcb_randr_create_lease_cookie_t pfnXcbRandrCreateLease(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_randr_lease_t             leaseId,
+            uint16_t                      numCrtcs,
+            uint16_t                      numOutputs,
+            const xcb_randr_crtc_t*       pCrtcs,
+            const xcb_randr_output_t*     pOutputs) const;
+
+    bool pfnXcbRandrCreateLeaseisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrCreateLease != nullptr);
+    }
+
+    xcb_randr_create_lease_reply_t* pfnXcbRandrCreateLeaseReply(
+            xcb_connection_t*                 pConnection,
+            xcb_randr_create_lease_cookie_t   cookie,
+            xcb_generic_error_t**             ppError) const;
+
+    bool pfnXcbRandrCreateLeaseReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrCreateLeaseReply != nullptr);
+    }
+
+    int* pfnXcbRandrCreateLeaseReplyFds(
+            xcb_connection_t *                pConnection,
+            xcb_randr_create_lease_reply_t*   pReply) const;
+
+    bool pfnXcbRandrCreateLeaseReplyFdsisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrCreateLeaseReplyFds != nullptr);
+    }
+
+    xcb_randr_get_screen_resources_cookie_t pfnXcbRandrGetScreenResources(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window) const;
+
+    bool pfnXcbRandrGetScreenResourcesisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetScreenResources != nullptr);
+    }
+
+    xcb_randr_get_screen_resources_reply_t* pfnXcbRandrGetScreenResourcesReply(
+            xcb_connection_t*                         pConnection,
+            xcb_randr_get_screen_resources_cookie_t   cookie,
+            xcb_generic_error_t**                     ppError) const;
+
+    bool pfnXcbRandrGetScreenResourcesReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetScreenResourcesReply != nullptr);
+    }
+
+    xcb_randr_output_t* pfnXcbRandrGetScreenResourcesOutputs(
+            const xcb_randr_get_screen_resources_reply_t*     pScrResReply) const;
+
+    bool pfnXcbRandrGetScreenResourcesOutputsisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetScreenResourcesOutputs != nullptr);
+    }
+
+    xcb_randr_get_output_info_cookie_t pfnXcbRandrGetOutputInfo(
+            xcb_connection_t*     pConnection,
+            xcb_randr_output_t    output,
+            xcb_timestamp_t       configTimestamp) const;
+
+    bool pfnXcbRandrGetOutputInfoisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputInfo != nullptr);
+    }
+
+    xcb_randr_get_output_info_reply_t* pfnXcbRandrGetOutputInfoReply(
+            xcb_connection_t*                     pConnection,
+            xcb_randr_get_output_info_cookie_t    cookie,
+            xcb_generic_error_t **                ppError) const;
+
+    bool pfnXcbRandrGetOutputInfoReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    xcb_randr_get_output_property_cookie_t pfnXcbRandrGetOutputProperty(
+            xcb_connection_t*     pConnection,
+            xcb_randr_output_t    output,
+            xcb_atom_t            property,
+            xcb_atom_t            type,
+            uint32_t              offset,
+            uint32_t              length,
+            uint8_t               _delete,
+            uint8_t               pending) const;
+
+    bool pfnXcbRandrGetOutputPropertyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputProperty != nullptr);
+    }
+
+    uint8_t* pfnXcbRandrGetOutputPropertyData(
+            const xcb_randr_get_output_property_reply_t*  pReply) const;
+
+    bool pfnXcbRandrGetOutputPropertyDataisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputPropertyData != nullptr);
+    }
+
+    xcb_randr_get_output_property_reply_t * pfnXcbRandrGetOutputPropertyReply(
+            xcb_connection_t*                         pConnection,
+            xcb_randr_get_output_property_cookie_t    cookie,
+            xcb_generic_error_t**                     ppError) const;
+
+    bool pfnXcbRandrGetOutputPropertyReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputPropertyReply != nullptr);
     }
 
     xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(

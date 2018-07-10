@@ -116,6 +116,7 @@ uint32* PrefetchMgr::RequestPrefetch(
             dmaDataInfo.srcAddrSpace = sas__pfp_dma_data__memory;
             dmaDataInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
             dmaDataInfo.numBytes     = static_cast<uint32>(sizeInBytes);
+            dmaDataInfo.disWc        = true;
 
             pCmdSpace += device.CmdUtil().BuildDmaData(dmaDataInfo, pCmdSpace);
         }

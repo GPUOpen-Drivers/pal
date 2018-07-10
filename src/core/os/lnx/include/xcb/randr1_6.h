@@ -1,3 +1,4 @@
+#pragma once
 /*
  ***********************************************************************************************************************
  *
@@ -23,8 +24,20 @@
  *
  **********************************************************************************************************************/
 
-// Bump up after each promotion from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MAJOR        164
+#if (XCB_RANDR_MAJOR_VERSION < 1) || ((XCB_RANDR_MAJOR_VERSION == 1) && (XCB_RANDR_MINOR_VERSION < 6))
 
-// Bump up after each cherry-up from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MINOR        0
+typedef struct xcb_randr_create_lease_cookie_t {
+    unsigned int sequence;
+} xcb_randr_create_lease_cookie_t;
+
+typedef uint32_t xcb_randr_lease_t;
+
+typedef struct xcb_randr_create_lease_reply_t {
+    uint8_t  response_type;
+    uint8_t  nfd;
+    uint16_t sequence;
+    uint32_t length;
+    uint8_t  pad0[24];
+} xcb_randr_create_lease_reply_t;
+#endif
+

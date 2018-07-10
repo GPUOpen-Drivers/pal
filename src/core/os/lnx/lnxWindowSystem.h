@@ -31,6 +31,9 @@ namespace Pal
 enum class PresentMode   : uint32;
 enum class SwapChainMode : uint32;
 enum       WsiPlatform   : uint32;
+struct ScreenInfo;
+struct PresentableImageCreateInfo;
+struct PresentSwapChainInfo;
 
 namespace Linux
 {
@@ -42,10 +45,26 @@ class WindowSystem;
 struct WindowSystemCreateInfo
 {
     WsiPlatform     platform;
-    OsDisplayHandle hDisplay;
-    OsWindowHandle  hWindow;
-    SwizzledFormat  format;
     SwapChainMode   swapChainMode;
+
+    union
+    {
+        /// Properties of desktop window platform.
+        struct
+        {
+            OsDisplayHandle hDisplay;
+            OsWindowHandle  hWindow;
+            SwizzledFormat  format;
+        };
+
+        /// Properties of DirectDisplay platform.
+        struct
+        {
+            uint32          crtcId;
+            int32           drmMasterFd;
+            int32           connectorId;
+        };
+    };
 };
 
 union WindowSystemProperties
@@ -121,11 +140,24 @@ public:
         WsiPlatform         platform,
         int64               visualId);
 
+    static Result GetConnectorIdFromOutput(
+        Device*         pDevice,
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        int32*          pConnectorId);
+
+    static Result AcquireScreenAccess(
+        Device*         pDevice,
+        OsDisplayHandle hDisplay,
+        WsiPlatform     wsiPlatform,
+        uint32          randrOutput,
+        int32*          pDrmMasterFd);
+
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.
     virtual Result CreatePresentableImage(
-        const Image&        image,
-        int32               sharedBufferFd,
-        uint32*             pPresentImage) = 0;
+        Image*              pImage,
+        int32               sharedBufferFd) = 0;
 
     virtual void DestroyPresentableImage(
         uint32              image) = 0;
@@ -133,10 +165,9 @@ public:
     // Ask window system to present. For Dri3, the pixmap will be presented. For Dri2, pixmap is useless and only a
     // swap buffer request will be sent to X Server.
     virtual Result Present(
-        uint32              presentImage,
-        PresentMode         presentMode,
-        PresentFence*       pRenderFence,
-        PresentFence*       pIdleFence) = 0;
+        const PresentSwapChainInfo& presentInfo,
+        PresentFence*               pRenderFence,
+        PresentFence*               pIdleFence) = 0;
 
     virtual Result WaitForLastImagePresented() = 0;
 

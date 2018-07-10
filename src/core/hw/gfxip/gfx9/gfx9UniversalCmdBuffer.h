@@ -874,10 +874,7 @@ private:
 
     bool HasStreamOutBeenSet() const;
 
-    void SynchronizeCeDeCounters(
-        uint32** ppDeCmdSpace,
-        uint32** ppCeCmdSpace);
-
+    uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
     Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.packetPredicate); }

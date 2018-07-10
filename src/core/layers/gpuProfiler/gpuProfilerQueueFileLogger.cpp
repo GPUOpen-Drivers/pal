@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/layers/functionIds.h"
 #include "core/layers/gpuProfiler/gpuProfilerCmdBuffer.h"
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
@@ -48,133 +49,6 @@ static const SqttVersion GfxipToSqttVersionTranslation[static_cast<uint32>(Pal::
     SQTT_VERSION_2_2,  // Gfxip 8.1
     SQTT_VERSION_2_3   // Gfxip 9
 };
-
-// Table converting CmdBufCallId enums to strings.
-static const char* CmdBufCallIdStrings[] =
-{
-    "Begin()",
-    "End()",
-    "CmdBindPipeline()",
-    "CmdBindMsaaState()",
-    "CmdBindColorBlendState()",
-    "CmdBindDepthStencilState()",
-    "CmdBindIndexData()",
-    "CmdBindTargets()",
-    "CmdBindStreamOutTargets()",
-    "CmdBindBorderColorPalette()",
-    "CmdSetUserData()",
-    "CmdSetIndirectUserData()",
-    "CmdSetIndirectUserDataWatermark()",
-    "CmdSetBlendConst()",
-    "CmdSetInputAssemblyState()",
-    "CmdSetTriangleRasterState()",
-    "CmdSetPointLineRasterState()",
-    "CmdSetDepthBiasState()",
-    "CmdSetDepthBounds()",
-    "CmdSetStencilRefMasks()",
-    "CmdSetMsaaQuadSamplePattern()",
-    "CmdSetViewports()",
-    "CmdSetScissorRects()",
-    "CmdSetGlobalScissor()",
-    "CmdBarrier()",
-    "CmdWaitRegisterValue()",
-    "CmdWaitMemoryValue()",
-    "CmdWaitBusAddressableMemoryMarker()",
-    "CmdDraw()",
-    "CmdDrawOpaque()",
-    "CmdDrawIndexed()",
-    "CmdDrawIndirectMulti()",
-    "CmdDrawIndexedIndirectMulti()",
-    "CmdDispatch()",
-    "CmdDispatchIndirect()",
-    "CmdDispatchOffset()",
-    "CmdUpdateMemory()",
-    "CmdUpdateBusAddressableMemoryMarker()",
-    "CmdFillMemory()",
-    "CmdCopyMemory()",
-    "CmdCopyTypedBuffer()",
-    "CmdCopyRegisterToMemory()",
-    "CmdCopyImage()",
-    "CmdScaledCopyImage()",
-    "CmdColorSpaceConversionCopy()",
-    "CmdCloneImageData()",
-    "CmdCopyMemoryToImage()",
-    "CmdCopyImageToMemory()",
-    "CmdClearColorBuffer()",
-    "CmdClearBoundColorTargets()",
-    "CmdClearColorImage()",
-    "CmdClearBoundDepthStencilTargets()",
-    "CmdClearDepthStencil()",
-    "CmdClearBufferView()",
-    "CmdClearImageView()",
-    "CmdResolveImage()",
-    "CmdSetEvent()",
-    "CmdResetEvent()",
-    "CmdPredicateEvent()",
-    "CmdMemoryAtomic()",
-    "CmdResetQueryPool()",
-    "CmdBeginQuery()",
-    "CmdEndQuery()",
-    "CmdResolveQuery()",
-    "CmdSetPredication()",
-    "CmdWriteTimestamp()",
-    "CmdLoadGds()",
-    "CmdStoreGds()",
-    "CmdUpdateGds()",
-    "CmdFillGds()",
-    "CmdLoadBufferFilledSizes()",
-    "CmdSaveBufferFilledSizes()",
-    "CmdLoadCeRam()",
-    "CmdWriteCeRam()",
-    "CmdDumpCeRam()",
-    "CmdExecuteNestedCmdBuffers()",
-    "CmdExecuteIndirectCmds()",
-    "CmdIf()",
-    "CmdElse()",
-    "CmdEndIf()",
-    "CmdWhile()",
-    "CmdEndWhile()",
-    "CmdBeginPerfExperiment()",
-    "CmdUdpatePerfExperiment()",
-    "CmdEndPerfExperiment()",
-    "CmdInsertTraceMarker()",
-    "CmdInsertRgpTraceMarker()",
-    "CmdSetUserClipPlanes()",
-    "CmdCommentString()",
-    "CmdXdmaWaitFlipPending()",
-    "CmdCopyMemoryToTiledImage()",
-    "CmdCopyTiledImageToMemory()",
-    "CmdCopyImageToPackedPixelImage()",
-    "CmdFlglSync()",
-    "CmdFlglEnable()",
-    "CmdFlglDisable()",
-    "CmdStartGpuProfilerLogging()",
-    "CmdStopGpuProfilerLogging()",
-    "CmdSetViewInstanceMask()",
-    "CmdSetHiSCompareState0()",
-    "CmdSetHiSCompareState1()",
-
-};
-
-static_assert(ArrayLen(CmdBufCallIdStrings) == static_cast<uint32>(CmdBufCallId::Count),
-              "Missing entry in CmdBufCallIdStrings.");
-
-// Table converting QueueCallId enums to strings.
-static const char* QueueCallIdStrings[] =
-{
-    "Submit()",
-    "WaitIdle()",
-    "SignalQueueSemaphore()",
-    "WaitQueueSemaphore()",
-    "PresentDirect()",
-    "PresentSwapChain()",
-    "Delay()",
-    "RemapVirtualMemoryPages()",
-    "CopyVirtualMemoryPageMappings()"
-};
-
-static_assert(ArrayLen(QueueCallIdStrings) == static_cast<uint32>(QueueCallId::Count),
-              "Missing entry in QueueCallIdStrings.");
 
 // =====================================================================================================================
 // Writes .csv entries to file corresponding to the first count items in the m_logItems deque.  The caller guarantees
@@ -286,9 +160,8 @@ void Queue::OpenLogFile(
     char tempString[512];
     Snprintf(&tempString[0],
              sizeof(tempString),
-             "%s/%s/frame%06uDev%uEng%s%u-%02u.csv",
-             settings.gpuProfilerLogDirectory,
-             static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName(),
+             "%s/frame%06uDev%uEng%s%u-%02u.csv",
+             m_pDevice->GetPlatform()->LogDirPath(),
              frameId,
              m_pDevice->Id(),
              pEngineTypeStrings[static_cast<uint32>(m_engineType)],
@@ -315,22 +188,12 @@ void Queue::OpenLogFile(
     }
 
     const uint32 numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
+    const PerfCounter* pPerfCounters   = m_pDevice->GlobalPerfCounters();
     if (numGlobalPerfCounters > 0)
     {
         for (uint32 i = 0; i < numGlobalPerfCounters; i++)
         {
-            const auto& counter = m_pDevice->GlobalPerfCounters()[i];
-            if (settings.gpuProfilerGlobalPerfCounterPerInstance)
-            {
-                for (uint32 j = 0; j < counter.instanceCount; j++)
-                {
-                    m_logFile.Printf("%s_INSTANCE%d, ", &counter.name[0], j);
-                }
-            }
-            else
-            {
-                m_logFile.Printf("%s, ", &counter.name[0]);
-            }
+            m_logFile.Printf("%s, ", &pPerfCounters[i].name[0]);
         }
     }
 
@@ -397,9 +260,8 @@ void Queue::OpenSqttFile(
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/%s/frame%06uDev%uEng%s%u-%02u.SqttCmdBuf%uTrace%uSe%uCu%u%s.out",
-             m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
-             static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName(),
+             "%s/frame%06uDev%uEng%s%u-%02u.SqttCmdBuf%uTrace%uSe%uCu%u%s.out",
+             m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
              pEngineTypeStrings[static_cast<uint32>(m_engineType)],
@@ -426,9 +288,8 @@ void Queue::OpenSpmFile(
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/%s/frame%06u_cb%03u_spm.csv",
-             m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
-             static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName(),
+             "%s/frame%06u_cb%03u_spm.csv",
+             m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_curLogCmdBufIdx);
 
@@ -446,9 +307,8 @@ void Queue::OutputRgpFile(
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/%s/frame%06u.rgp",
-             m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
-             static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName(),
+             "%s/frame%06u.rgp",
+             m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame);
 
     File file;
@@ -597,9 +457,8 @@ void Queue::OutputFrameToFile(
         char tempString[512];
         Snprintf(&tempString[0],
                  sizeof(tempString),
-                 "%s/%s/frameLog.csv",
-                 settings.gpuProfilerLogDirectory,
-                 static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName());
+                 "%s/frameLog.csv",
+                 m_pDevice->GetPlatform()->LogDirPath());
 
         Result result = m_logFile.Open(&tempString[0], FileAccessWrite);
         PAL_ASSERT(result == Result::Success);
@@ -608,23 +467,14 @@ void Queue::OutputFrameToFile(
         const char* pCsvHeader = "Frame #, Start Clock, End Clock, Time (us) [Frequency: %llu], ";
         Snprintf(&tempString[0], sizeof(tempString), pCsvHeader, m_pDevice->TimestampFreq());
         m_logFile.Write(&tempString[0], strlen(&tempString[0]));
+
         const uint32 numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
+        const PerfCounter* pPerfCounters   = m_pDevice->GlobalPerfCounters();
         if (numGlobalPerfCounters > 0)
         {
             for (uint32 i = 0; i < numGlobalPerfCounters; i++)
             {
-                const auto& counter = m_pDevice->GlobalPerfCounters()[i];
-                if (settings.gpuProfilerGlobalPerfCounterPerInstance)
-                {
-                    for (uint32 j = 0; j < counter.instanceCount; j++)
-                    {
-                        m_logFile.Printf("%s_INSTANCE%d, ", &counter.name[0], j);
-                    }
-                }
-                else
-                {
-                    m_logFile.Printf("%s, ", &counter.name[0]);
-                }
+                m_logFile.Printf("%s, ", &pPerfCounters[i].name[0]);
             }
         }
 
@@ -755,30 +605,18 @@ void Queue::OutputGlobalPerfCountersToFile(
             // accumulated into this array.
             memset(m_pGlobalPerfCounterValues, 0, sizeof(uint64) * m_numReportedPerfCounters);
 
-            PerfExperimentProperties perfExpProps;
-            result = m_pDevice->GetPerfExperimentProperties(&perfExpProps);
+            const PerfCounter* pPerfCounters = m_pDevice->GlobalPerfCounters();
+            uint32 pidIndex = 0;
 
-            // Determine which user-specified counter this sample corresponds to.
-            uint32 instanceIndex = 0;
-            if (settings.gpuProfilerGlobalPerfCounterPerInstance)
+            for (uint32 i = 0; i < numGlobalPerfCounters; i++)
             {
-               for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
-               {
-                    m_pGlobalPerfCounterValues[i] += static_cast<uint64*>(pResult)[instanceIndex++];
-               }
+                for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
+                {
+                    m_pGlobalPerfCounterValues[i] += static_cast<uint64*>(pResult)[pidIndex++];
+                }
             }
-            else
-            {
-               for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
-               {
-                   const auto& blockProps = perfExpProps.blocks[static_cast<uint32>(pGlobalPerfCounters[i].block)];
 
-                   for (uint32 j = 0; j < blockProps.instanceCount; j++)
-                   {
-                       m_pGlobalPerfCounterValues[i] += static_cast<uint64*>(pResult)[instanceIndex++];
-                   }
-               }
-            }
+            PAL_ASSERT(pidIndex == m_gpaSessionSampleConfig.perfCounters.numCounters);
 
             PAL_SAFE_FREE(pResult, m_pDevice->GetPlatform());
 
@@ -929,7 +767,7 @@ void Queue::OutputTraceDataToFile(
                     for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
                     {
                         const auto& counter = m_pDevice->StreamingPerfCounters()[i];
-                        spmFile.Printf("%s,", &counter.name[0]);
+                        spmFile.Printf("%s, ", &counter.name[0]);
                     }
 
                     uint64* pTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pResult, sizeof(SqttFileChunkSpmDb)));
@@ -967,15 +805,22 @@ void Queue::OutputTraceDataToFile(
 
                         pCounterInfo = pCounterInfoStart;
 
-                        for (uint32 counter = 0; counter < m_pDevice->NumStreamingPerfCounters(); ++counter)
+                        uint32 counterIdx = 0;
+                        for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); i++)
                         {
-                            pCounterData =
-                                static_cast<uint16*>(Util::VoidPtrInc(pResult, pCounterInfo[counter].dataOffset));
-
-                            // ThreadTraceViewer output: print the counter value for this sample.
-                            spmFile.Printf("%u,", pCounterData[sample]);
+                            const auto& counter = m_pDevice->StreamingPerfCounters()[i];
+                            uint32 sumAll = 0;
+                            for (uint32 j = 0; j < counter.instanceCount; j++)
+                            {
+                                pCounterData =
+                                    static_cast<uint16*>(Util::VoidPtrInc(
+                                        pResult,
+                                        pCounterInfo[counterIdx++].dataOffset));
+                                sumAll += pCounterData[sample];
+                            }
+                            spmFile.Printf("%u,", sumAll);
                         }
-
+                        PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
                         spmFile.Printf("\n");
                     }
 

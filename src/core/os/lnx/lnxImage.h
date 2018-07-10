@@ -79,7 +79,8 @@ public:
         IImage**                      ppImage,
         IGpuMemory**                  ppGpuMemory);
 
-    uint32 GetPresentPixmapHandle() const { return m_presentImageHandle; }
+    uint32 GetPresentImageHandle() const { return m_presentImageHandle; }
+    void SetPresentImageHandle(uint32 handle) { m_presentImageHandle = handle; }
 
     static Result UpdateExternalImageInfo(
         Device*                             pDevice,
@@ -106,13 +107,18 @@ public:
     virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override { PAL_NOT_IMPLEMENTED(); }
     virtual MetadataSharingLevel GetOptimalSharingLevel() const override { return MetadataSharingLevel::FullExpand; }
 
+    void SetFramebufferId(uint32 fbId) { m_framebufferId = fbId; }
+    uint32 GetFrameBufferId() const { return m_framebufferId; }
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 
 private:
 
-    uint32        m_presentImageHandle; // Pixmap handle of the shared buffer used for presentation.
-    WindowSystem* m_pWindowSystem;      // The window system that created the above handle.
+    // For window system (X11 or Wayland) it's a pixmap handle of the shared buffer used for presentation.
+    // For direct rendering display, it's a handle of dma-buf.
+    uint32        m_presentImageHandle;
+    WindowSystem* m_pWindowSystem;       // The window system that created the above handle.
+    uint32        m_framebufferId;       // Framebuffer ID of the framebuffer to be presented.
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

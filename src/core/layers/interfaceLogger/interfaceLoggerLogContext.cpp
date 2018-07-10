@@ -164,7 +164,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdResolveQuery,                                  InterfaceObject::CmdBuffer,            "CmdResolveQuery"                         },
     { InterfaceFunc::CmdBufferCmdResetQueryPool,                                InterfaceObject::CmdBuffer,            "CmdResetQueryPool"                       },
     { InterfaceFunc::CmdBufferCmdWriteTimestamp,                                InterfaceObject::CmdBuffer,            "CmdWriteTimestamp"                       },
-    { InterfaceFunc::CmdBufferCmdWriteImmediate,                                InterfaceObject::CmdBuffer,            "CmdWriteTimestamp"                       },
+    { InterfaceFunc::CmdBufferCmdWriteImmediate,                                InterfaceObject::CmdBuffer,            "CmdWriteImmediate"                       },
     { InterfaceFunc::CmdBufferCmdLoadGds,                                       InterfaceObject::CmdBuffer,            "CmdLoadGds"                              },
     { InterfaceFunc::CmdBufferCmdStoreGds,                                      InterfaceObject::CmdBuffer,            "CmdStoreGds"                             },
     { InterfaceFunc::CmdBufferCmdUpdateGds,                                     InterfaceObject::CmdBuffer,            "CmdUpdateGds"                            },

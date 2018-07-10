@@ -40,6 +40,7 @@
 #include "palImage.h"
 #include "palIndirectCmdGenerator.h"
 #include "palMsaaState.h"
+#include "palMutex.h"
 #include "palPerfExperiment.h"
 #include "palPipeline.h"
 #include "palPipelineAbi.h"
@@ -279,10 +280,15 @@ public:
         va_list         args) override
     { m_pNextLayer->LogMessage(level, categoryMask, pFormat, args); }
 
+    Result CreateLogDir(const char* pBaseDir);
+
     IPlatform* GetNextLayer() const { return m_pNextLayer; }
+    const char* LogDirPath() const { return m_logDirPath; }
 
 protected:
     virtual ~PlatformDecorator();
+
+    virtual Result Init() override;
 
     DeviceDecorator* PreviousDevice(uint32 deviceIndex) { return m_pDevices[deviceIndex]; }
 
@@ -301,6 +307,14 @@ protected:
     const bool             m_layerEnabled;
 
 private:
+    bool                   m_logDirCreated;        // The log dir can only be created once.
+    Util::Mutex            m_logDirMutex;          // Grants access to CreateLogDir.
+
+    // Storage for a unique log directory per session based on the executable name and current date/time.
+    // All devices must use this same directory and the first one to call CreateLogDir picks the root directory.
+    static constexpr size_t LogDirPathSize = 512;
+    char m_logDirPath[LogDirPathSize];
+
     PAL_DISALLOW_DEFAULT_CTOR(PlatformDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(PlatformDecorator);
 };
@@ -367,6 +381,18 @@ public:
     virtual Result GetScanLine(
         int32* pScanLine) const override
         { return m_pNextLayer->GetScanLine(pScanLine); }
+
+    virtual Result AcquireScreenAccess(
+        OsDisplayHandle hDisplay,
+        WsiPlatform     wsiPlatform) override
+        { return m_pNextLayer->AcquireScreenAccess(hDisplay, wsiPlatform); }
+
+    virtual Result ReleaseScreenAccess() override
+        { return m_pNextLayer->ReleaseScreenAccess(); }
+
+    virtual Result SetRandrOutput(
+        uint32 randrOutput) override
+        { return m_pNextLayer->SetRandrOutput(randrOutput); }
 
     IScreen* GetNextLayer() const { return m_pNextLayer; }
 
@@ -518,6 +544,11 @@ public:
         WsiPlatform          wsiPlatform,
         int64                visualId) override
         { return m_pNextLayer->DeterminePresentationSupported(hDisplay, wsiPlatform, visualId); }
+
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const override
+        { return m_pNextLayer->GetSupportedSwapChainModes(wsiPlatform, mode); }
 
     virtual Result DetermineExternalSharedResourceType(
         const ExternalResourceOpenInfo& openInfo,
@@ -989,6 +1020,13 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override
         { return m_pNextLayer->DetermineHwStereoRenderingSupported(viewInstancingInfo); }
+
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        int32*          pConnectorId) override
+        { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
 
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }

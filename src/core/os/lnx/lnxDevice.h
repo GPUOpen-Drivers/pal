@@ -243,6 +243,10 @@ public:
         Pal::WsiPlatform     wsiPlatform,
         int64                visualId) override;
 
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const override;
+
     virtual size_t GetSwapChainSize(
         const SwapChainCreateInfo& createInfo,
         Result*                    pResult) const override;
@@ -384,6 +388,12 @@ public:
     }
 
     virtual Result CheckExecutionState() const override;
+
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        int32*          pConnectorId) override;
 
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
@@ -661,6 +671,8 @@ public:
     {
         return m_drmProcs.pfnAmdgpuCsSubmitRawisValid();
     }
+
+    const DrmLoaderFuncs& GetDrmLoaderFuncs() const { return m_drmProcs; }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
     FenceType     GetFenceType()     const { return m_fenceType; }

@@ -184,6 +184,7 @@ if(UNIX)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/2d)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/drm)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/wsa)
+    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/xcb)
 endif()
 
 # Other Includes

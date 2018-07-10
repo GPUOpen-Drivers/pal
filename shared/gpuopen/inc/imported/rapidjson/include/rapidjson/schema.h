@@ -1527,7 +1527,7 @@ private:
 };
 
 //! GenericSchemaDocument using Value type.
-typedef GenericSchemaDocument<Write> SchemaDocument;
+typedef GenericSchemaDocument<Value> SchemaDocument;
 //! IGenericRemoteSchemaDocumentProvider using SchemaDocument.
 typedef IGenericRemoteSchemaDocumentProvider<SchemaDocument> IRemoteSchemaDocumentProvider;
 

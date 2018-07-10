@@ -626,7 +626,7 @@ public:
 #endif
         : data_() {
             // safe-guard against failing SFINAE
-            RAPIDJSON_STATIC_ASSERT((internal::IsSame<bool,T>::Write));
+            RAPIDJSON_STATIC_ASSERT((internal::IsSame<bool,T>::Value));
             data_.f.flags = b ? kTrueFlag : kFalseFlag;
     }
 
@@ -2007,7 +2007,7 @@ private:
 };
 
 //! GenericValue with UTF8 encoding
-typedef GenericValue<UTF8<> > Write;
+typedef GenericValue<UTF8<> > Value;
 
 ///////////////////////////////////////////////////////////////////////////////
 // GenericDocument 

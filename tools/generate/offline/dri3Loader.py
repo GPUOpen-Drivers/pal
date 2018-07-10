@@ -37,7 +37,8 @@ if __name__ == '__main__':
         "libxcb.so.1"         : "LibXcb",
         "libxshmfence.so.1"   : "LibXshmFence",
         "libX11-xcb.so"       : "LibX11Xcb",
-        "libX11.so"           : "LibX11"}
+        "libX11.so"           : "LibX11",
+        "libxcb-randr.so.0"   : "LibXcbRandr"}
 
     procMgr  = proc.ProcMgr(fileName, libraryDict, 0)
     intro = "Modify the procsAnalysis.py and dri3Loader.py in the tools/generate directory OR dri3WindowSystem.proc instead"
@@ -64,6 +65,7 @@ if __name__ == '__main__':
     fp.write("#include <xcb/dri2.h>\n")
     fp.write("#include <xcb/xcb.h>\n")
     fp.write("#include <xcb/present.h>\n")
+    fp.write("#include \"randr1_6.h\"\n")
     fp.write("extern \"C\"\n")
     fp.write("{\n")
     fp.write("    #include <X11/xshmfence.h>\n")

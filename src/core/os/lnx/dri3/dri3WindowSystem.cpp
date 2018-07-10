@@ -27,6 +27,7 @@
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxPlatform.h"
+#include "palScreen.h"
 #include "palSwapChain.h"
 #include "util/lnx/lnxTimeout.h"
 extern "C"
@@ -559,16 +560,15 @@ Result Dri3WindowSystem::SelectEvent()
 // Interface for the window system to do things related with creating presentable image. For XCB/Dri3 backend, it gets
 // a pixmap packaging memory the image binds from Xserver. Then this pixmap can be presented by Xserver.
 Result Dri3WindowSystem::CreatePresentableImage(
-    const Image&   image,
-    int32          sharedBufferFd, // Xserver can use the shared buffer (created in client side) by sharedBufferFd
-    uint32*        pPresentImage)
+    Image*         pImage,
+    int32          sharedBufferFd) // Xserver can use the shared buffer (created in client side) by sharedBufferFd
 {
     Result       result     = Result::Success;
     xcb_pixmap_t pixmap     = InvalidPixmapId;
     uint32       depth      = 0;
 
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subres);
+    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
 
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;
@@ -632,7 +632,7 @@ Result Dri3WindowSystem::CreatePresentableImage(
     }
     if (result == Result::Success)
     {
-        *pPresentImage = pixmap;
+        pImage->SetPresentImageHandle(pixmap);
     }
 
     return result;
@@ -661,17 +661,18 @@ void Dri3WindowSystem::DestroyPresentableImage(
 // WaitForPresent() to wait for the present is completed. When IdleNotify event return this serial number, it means
 // that usage of this image is completed by Xserver.
 Result Dri3WindowSystem::Present(
-    uint32             pixmap,
-    PresentMode        presentMode,
-    PresentFence*      pRenderFence,
-    PresentFence*      pIdleFence)
+    const PresentSwapChainInfo& presentInfo,
+    PresentFence*               pRenderFence,
+    PresentFence*               pIdleFence)
 {
     Result                 result         = Result::Success;
     Dri3PresentFence*const pDri3WaitFence = static_cast<Dri3PresentFence*>(pRenderFence);
     Dri3PresentFence*const pDri3IdleFence = static_cast<Dri3PresentFence*>(pIdleFence);
     const xcb_sync_fence_t waitSyncFence  = (pDri3WaitFence != nullptr) ? pDri3WaitFence->SyncFence() : 0;
     const xcb_sync_fence_t idleSyncFence  = (pDri3IdleFence != nullptr) ? pDri3IdleFence->SyncFence() : 0;
-
+    const Image&           srcImage       = static_cast<Image&>(*presentInfo.pSrcImage);
+    uint32                 pixmap         = srcImage.GetPresentImageHandle();
+    PresentMode            presentMode    = presentInfo.presentMode;
     PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
 
     // The setting below means if XCB_PRESENT_OPTION_ASYNC is set, display the image immediately, otherwise display
@@ -929,6 +930,154 @@ Result Dri3WindowSystem::DeterminePresentationSupported(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Acquire connector Id from output object.
+Result Dri3WindowSystem::GetConnectorIdFromOutput(
+    Device*         pDevice,
+    OsDisplayHandle hDisplay,
+    uint32          randrOutput,
+    int32*          pConnectorId)
+{
+    Result ret = Result::ErrorInvalidValue;
+
+    const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+    xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
+
+    // Get connector ID from Randr output
+    xcb_atom_t connectorIdAtom = 0;
+    const char* pAtomName  = "CONNECTOR_ID";
+    xcb_intern_atom_cookie_t atomCookie = dri3Procs.pfnXcbInternAtom(pConnection,
+                                                                     true,
+                                                                     strlen(pAtomName),
+                                                                     pAtomName);
+
+    xcb_intern_atom_reply_t* pAtomRelay = dri3Procs.pfnXcbInternAtomReply(pConnection,
+                                                                          atomCookie,
+                                                                          NULL);
+    if (pAtomRelay)
+    {
+        connectorIdAtom = pAtomRelay->atom;
+        free(pAtomRelay);
+    }
+
+    if (connectorIdAtom > 0)
+    {
+        xcb_randr_get_output_property_cookie_t outputPropCookie =
+            dri3Procs.pfnXcbRandrGetOutputProperty(pConnection,
+                                                   randrOutput,
+                                                   connectorIdAtom,
+                                                   0, 0,
+                                                   0xffffffffUL,
+                                                   0, 0);
+
+        xcb_randr_get_output_property_reply_t* pOutputPropReply =
+            dri3Procs.pfnXcbRandrGetOutputPropertyReply(pConnection,
+                                                        outputPropCookie,
+                                                        NULL);
+
+        if (pOutputPropReply != nullptr)
+        {
+            constexpr uint8 propSizeInBit = 32;
+            if ((pOutputPropReply->num_items == 1) && (pOutputPropReply->format == propSizeInBit))
+            {
+                *pConnectorId =
+                    *reinterpret_cast<int32*>(dri3Procs.pfnXcbRandrGetOutputPropertyData(pOutputPropReply));
+            }
+
+            free(pOutputPropReply);
+        }
+    }
+
+    if (*pConnectorId > 0)
+    {
+        ret = Result::Success;
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+// Acquires exclusive access to the display.
+Result Dri3WindowSystem::AcquireScreenAccess(
+    OsDisplayHandle hDisplay,
+    Device*         pDevice,
+    uint32          randrOutput,
+    int32*          pDrmMasterFd)
+{
+    const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+    xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
+
+    const xcb_setup_t* pSetup = dri3Procs.pfnXcbGetSetup(pConnection);
+
+    // Find root window
+    uint32 rootWindow = 0;
+    xcb_screen_iterator_t iter;
+    for (iter = dri3Procs.pfnXcbSetupRootsIterator(pSetup); iter.rem > 0; dri3Procs.pfnXcbScreenNext(&iter))
+    {
+        xcb_randr_get_screen_resources_cookie_t scrResCookiet =
+            dri3Procs.pfnXcbRandrGetScreenResources(pConnection, iter.data->root);
+        xcb_randr_get_screen_resources_reply_t* pScrResReply =
+            dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
+
+        if (pScrResReply != nullptr)
+        {
+            xcb_randr_output_t* pRandrOuput = dri3Procs.pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+
+            for (int i = 0; i < pScrResReply->num_outputs; i++)
+            {
+                if (pRandrOuput[i] == randrOutput)
+                {
+                    rootWindow = iter.data->root;
+                    break;
+                }
+            }
+            free(pScrResReply);
+        }
+    }
+
+    // Find crtc of this randrOutput
+    uint32 randrCrtc = 0;
+    if (rootWindow > 0)
+    {
+        xcb_randr_get_screen_resources_cookie_t scrResCookiet =
+            dri3Procs.pfnXcbRandrGetScreenResources(pConnection, rootWindow);
+        xcb_randr_get_screen_resources_reply_t* pScreenResReply =
+            dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
+        xcb_randr_get_output_info_cookie_t outputInfoCookie =
+            dri3Procs.pfnXcbRandrGetOutputInfo(pConnection, randrOutput, pScreenResReply->config_timestamp);
+        xcb_randr_get_output_info_reply_t* pOutputInfoRelpy =
+            dri3Procs.pfnXcbRandrGetOutputInfoReply(pConnection, outputInfoCookie, NULL);
+        randrCrtc = pOutputInfoRelpy->crtc;
+    }
+
+    // Lease objects from XServer
+    xcb_randr_lease_t lease = dri3Procs.pfnXcbGenerateId(pConnection);
+    xcb_randr_create_lease_cookie_t leaseCookie = dri3Procs.pfnXcbRandrCreateLease(pConnection,
+                                                                                   rootWindow,
+                                                                                   lease,
+                                                                                   1,
+                                                                                   1,
+                                                                                   &randrCrtc,
+                                                                                   &randrOutput);
+
+    xcb_randr_create_lease_reply_t *pLeaseReply = dri3Procs.pfnXcbRandrCreateLeaseReply(pConnection, leaseCookie, NULL);
+
+    int drmMasterfd = -1;
+    if (pLeaseReply && (pLeaseReply->nfd > 0))
+    {
+        int *pLeaseReplyFds = dri3Procs.pfnXcbRandrCreateLeaseReplyFds(pConnection, pLeaseReply);
+        drmMasterfd = pLeaseReplyFds[0];
+    }
+    Result ret = Result::ErrorInvalidValue;
+    if (drmMasterfd > 0)
+    {
+        *pDrmMasterFd = drmMasterfd;
+        ret = Result::Success;
+    }
+
+    return ret;
 }
 
 } // Linux

@@ -26,12 +26,12 @@ public:
     Double(double d) : d_(d) {}
     Double(uint64_t u) : u_(u) {}
 
-    double Write() const { return d_; }
+    double Value() const { return d_; }
     uint64_t Uint64Value() const { return u_; }
 
     double NextPositiveDouble() const {
         RAPIDJSON_ASSERT(!Sign());
-        return Double(u_ + 1).Write();
+        return Double(u_ + 1).Value();
     }
 
     bool Sign() const { return (u_ & kSignMask) != 0; }

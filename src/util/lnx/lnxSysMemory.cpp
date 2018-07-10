@@ -145,9 +145,12 @@ Result VirtualCommit(
 
     if (result == Result::Success)
     {
-        int32 commitResult = mprotect(pMem, sizeInBytes, PROT_READ | PROT_WRITE);
+        int32 protFlags = PROT_READ | PROT_WRITE;
+        protFlags = isExecutable ? (protFlags | PROT_EXEC) : protFlags;
 
-        if (commitResult != 0)
+        void* pMemory = mmap(pMem, sizeInBytes, protFlags, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if ((pMemory != pMem) || (pMemory == MAP_FAILED))
         {
             result = Result::ErrorOutOfMemory;
         }
@@ -175,13 +178,11 @@ Result VirtualDecommit(
 
     if (result == Result::Success)
     {
-        result = Result::ErrorOutOfMemory;
+        void* pMemory = mmap(pMem, sizeInBytes, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-        int32 decommitResult = mprotect(pMem, sizeInBytes, PROT_NONE);
-
-        if (decommitResult == 0)
+        if ((pMemory != pMem) || (pMemory == MAP_FAILED))
         {
-            result = Result::Success;
+            result = Result::ErrorOutOfMemory;
         }
     }
 

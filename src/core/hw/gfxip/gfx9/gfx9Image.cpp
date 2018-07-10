@@ -1277,8 +1277,8 @@ bool Image::IsFastColorClearSupported(
         if (isFastClearSupported)
         {
             // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a
-            // reference to this image's ref counter.
-            const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() == 1);
+            // reference to this image's ref counter. 0 indicates that the optimzation is not enabled for this image.
+            const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() <= 1);
             const bool isClearColorTcCompatible = IsFastClearColorMetaFetchable(pColor);
 
             SetNonTcCompatClearFlag(isClearColorTcCompatible == false);

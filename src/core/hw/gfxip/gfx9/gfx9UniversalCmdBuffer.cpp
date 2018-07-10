@@ -1737,6 +1737,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -1837,6 +1839,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
                                                              stride >> 2,
                                                              pDeCmdSpace);
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -1916,6 +1920,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     const uint32 validIndexCount = pThis->m_graphicsState.iaState.indexCount - firstIndex;
+
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
     if (viewInstancingEnable)
     {
@@ -2067,6 +2073,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -2179,6 +2187,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
         pThis->m_deCmdStream.NotifyIndirectShRegWrite(indexOffsetReg);
     }
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const Pal::Device*  pParentDev         = pThis->m_device.Parent();
@@ -2269,6 +2279,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDispatch(0uLL, x, y, z, pDeCmdSpace);
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                      pThis->PacketPredicate(),
                                                                      pDeCmdSpace);
@@ -2307,6 +2318,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDispatch((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(gpuMemBaseAddr,
                                                  base_index__pfp_set_base__patch_table_base,
                                                  ShaderCompute,
@@ -2364,6 +2376,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     yDim += yOffset;
     zDim += zOffset;
 
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(xDim,
                                                                       yDim,
                                                                       zDim,
@@ -3043,20 +3056,21 @@ CmdStream* UniversalCmdBuffer::GetCmdStreamByEngine(
 }
 
 // =====================================================================================================================
-// Helper function to synchronize the CE and DE counters at draw or dispatch time when a CE RAM dump was performed prior
-// to the draw/dispatch operation.
-void UniversalCmdBuffer::SynchronizeCeDeCounters(
-    uint32** ppDeCmdSpace,  // [in,out] Command space write location for the DE stream
-    uint32** ppCeCmdSpace)  // [in,out] Command space write location for the CE stream
+// Helper function to instruct the DE to wait on the CE counter at draw or dispatch time if a CE RAM dump was performed
+// prior to the draw or dispatch operation or during validation.
+uint32* UniversalCmdBuffer::WaitOnCeCounter(
+    uint32* pDeCmdSpace)
 {
-    PAL_ASSERT(m_state.flags.ceStreamDirty != 0);
+    if (m_state.flags.ceStreamDirty != 0)
+    {
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
 
-    *ppCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(*ppCeCmdSpace);
-    *ppDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), *ppDeCmdSpace);
+        m_state.flags.ceInvalidateKcache = 0;
+        m_state.flags.ceStreamDirty      = 0;
+        m_state.flags.deCounterDirty     = 1;
+    }
 
-    m_state.flags.ceInvalidateKcache    = 0;
-    m_state.flags.ceStreamDirty         = 0;
-    m_state.flags.deCounterDirty        = 1;
+    return pDeCmdSpace;
 }
 
 // =====================================================================================================================
@@ -3601,7 +3615,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         // constant buffer.
         if (!NggEnabled && m_state.flags.ceStreamDirty)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
@@ -3730,7 +3744,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
         // the CE and DE must be synchronized before the Dispatch is issued.
         if (m_state.flags.ceStreamDirty)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
@@ -3964,7 +3978,7 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
         // draw and constant engines before we issue the upcoming Draw.
         if (m_state.flags.ceStreamDirty != 0)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);

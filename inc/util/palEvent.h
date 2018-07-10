@@ -36,6 +36,25 @@
 namespace Util
 {
 
+/// Specifies the flags for event.
+struct EventCreateFlags
+{
+    union
+    {
+        struct
+        {
+            uint32 manualReset       : 1;  ///< If true, the event is created as manual reset.
+            uint32 initiallySignaled : 1;  ///< If true, the event is created in signaled state.
+            uint32 semaphore         : 1;  ///< If true, provide semaphore-like semantics for reads from the file
+                                           ///  descriptor.
+            uint32 nonBlocking       : 1;  ///< If true, set the O_NONBLOCK file status flag on the new file descriptor.
+            uint32 closeOnExecute    : 1;  ///< If true, set the close-on-exec flag for the new file descriptor.
+            uint32 reserved          : 27; ///< Reserved for future use.
+        };
+        uint32 u32All;                      ///< Flags packed as 32-bit uint.
+    };
+};
+
 /**
  ***********************************************************************************************************************
  * @brief Synchronization primitive that can either be in the _set_ or _reset_ state.
@@ -51,7 +70,7 @@ class Event
 public:
     Event();
     ~Event();
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     /// Initializes the event object.  Clients must call this before using the Event object.
     ///
     /// @param manualReset          If true, the event is created as manual reset.
@@ -59,13 +78,22 @@ public:
     /// @param canBeInherited       If true, the event can be inherited by child process, it's Windows-specific.
     /// @param pName                Specified the event's name, it's Windows-specific, Windows uses this name to
     ///                             uniquely identify fence objects across processes.
-    ///
     /// @returns Success if the event was successfully initialized, otherwise an appropriate error code.
     Result Init(
         bool manualReset        = true,
         bool initiallySignaled  = false
         );
+#endif
 
+    /// Initializes the event object.  Clients must call this before using the Event object.
+    ///
+    /// @param flags                Event creation flags.
+    /// @param pName                Specified the event's name, it's Windows-specific, Windows uses this name to
+    ///                             uniquely identify fence objects across processes.
+    /// @returns Success if the event was successfully initialized, otherwise an appropriate error code.
+    Result Init(
+        const EventCreateFlags& flags
+    );
     /// Changes the event state to _set_
     ///
     /// @returns Success unless the Event has not been initialized yet (@ref ErrorUnavailable) or an unexpected internal

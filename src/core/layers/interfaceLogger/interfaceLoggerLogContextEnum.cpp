@@ -960,8 +960,10 @@ void LogContext::Enum(
     {
         "Compute",     // 0x0,
         "Graphics",    // 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 413
         "VideoEncode", // 0x2,
         "VideoDecode", // 0x3,
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(PipelineBindPoint::Count),

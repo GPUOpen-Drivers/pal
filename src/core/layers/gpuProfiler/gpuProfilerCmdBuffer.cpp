@@ -1425,7 +1425,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 }
 
 // =====================================================================================================================
-void CmdBuffer::ReplayCmdConvertYuvToRgb(
+void CmdBuffer::ReplayCmdColorSpaceConversionCopy(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
@@ -2225,6 +2225,7 @@ void CmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
+    InsertToken(CmdBufCallId::CmdWriteImmediate);
     InsertToken(pipePoint);
     InsertToken(data);
     InsertToken(dataSize);
@@ -2860,7 +2861,7 @@ void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
 }
 
 // =====================================================================================================================
-void CmdBuffer::ReplayCmdUpdatePerfExperiment(
+void CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
@@ -2928,6 +2929,7 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
+    InsertToken(CmdBufCallId::CmdSaveComputeState);
     InsertToken(stateFlags);
 }
 
@@ -2943,7 +2945,16 @@ void CmdBuffer::ReplayCmdSaveComputeState(
 void CmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
+    InsertToken(CmdBufCallId::CmdRestoreComputeState);
     InsertToken(stateFlags);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdRestoreComputeState(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdRestoreComputeState(ReadTokenVal<uint32>());
 }
 
 // =====================================================================================================================
@@ -2979,14 +2990,6 @@ void CmdBuffer::ReplayCmdCommentString(
     }
 
     pTgtCmdBuffer->CmdCommentString(pComment);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdRestoreComputeState(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdRestoreComputeState(ReadTokenVal<uint32>());
 }
 
 // =====================================================================================================================
@@ -3114,7 +3117,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdCopyRegisterToMemory,
         &CmdBuffer::ReplayCmdCopyImage,
         &CmdBuffer::ReplayCmdScaledCopyImage,
-        &CmdBuffer::ReplayCmdConvertYuvToRgb,
+        &CmdBuffer::ReplayCmdColorSpaceConversionCopy,
         &CmdBuffer::ReplayCmdCloneImageData,
         &CmdBuffer::ReplayCmdCopyMemoryToImage,
         &CmdBuffer::ReplayCmdCopyImageToMemory,
@@ -3136,6 +3139,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdResolveQuery,
         &CmdBuffer::ReplayCmdSetPredication,
         &CmdBuffer::ReplayCmdWriteTimestamp,
+        &CmdBuffer::ReplayCmdWriteImmediate,
         &CmdBuffer::ReplayCmdLoadGds,
         &CmdBuffer::ReplayCmdStoreGds,
         &CmdBuffer::ReplayCmdUpdateGds,
@@ -3152,20 +3156,22 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndIf,
         &CmdBuffer::ReplayCmdWhile,
         &CmdBuffer::ReplayCmdEndWhile,
+        &CmdBuffer::ReplayCmdFlglSync,
+        &CmdBuffer::ReplayCmdFlglEnable,
+        &CmdBuffer::ReplayCmdFlglDisable,
         &CmdBuffer::ReplayCmdBeginPerfExperiment,
-        &CmdBuffer::ReplayCmdUpdatePerfExperiment,
+        &CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask,
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,
+        &CmdBuffer::ReplayCmdSaveComputeState,
+        &CmdBuffer::ReplayCmdRestoreComputeState,
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
         &CmdBuffer::ReplayCmdCommentString,
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,
         &CmdBuffer::ReplayCmdCopyImageToPackedPixelImage,
-        &CmdBuffer::ReplayCmdFlglEnable,
-        &CmdBuffer::ReplayCmdFlglDisable,
-        &CmdBuffer::ReplayCmdFlglSync,
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,

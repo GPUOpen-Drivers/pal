@@ -49,13 +49,13 @@ DD_STATIC_CONST uint32 kMaxSettingValueSize = 0x100000;
 // additional/custom types.
 enum struct SettingType : uint32
 {
-    Bool   = 0,
-    Int    = 1,
-    Uint   = 2,
-    Int64  = 3,
-    Uint64 = 4,
-    Float  = 5,
-    String = 6,
+    Boolean = 0,
+    Int     = 1,
+    Uint    = 2,
+    Int64   = 3,
+    Uint64  = 4,
+    Float   = 5,
+    String  = 6,
 };
 
 // Struct to hold a setting value

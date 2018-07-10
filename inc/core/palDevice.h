@@ -543,7 +543,6 @@ struct GpuProfilerSettings
     uint32                    gpuProfilerFrameCount;
     bool                      gpuProfilerRecordPipelineStats;
     char                      gpuProfilerGlobalPerfCounterConfigFile[MaxFileNameStrLen];
-    bool                      gpuProfilerGlobalPerfCounterPerInstance;
     bool                      gpuProfilerBreakSubmitBatches;
     bool                      gpuProfilerCacheFlushOnCounterCollection;
     GpuProfilerGranularity    gpuProfilerGranularity;
@@ -698,6 +697,7 @@ struct DeviceProperties
                                              ///  For example, one indicates that queue semaphores are binary.
     PalPublicSettings settings;              ///< Public settings that the client has the option of overriding
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     struct
     {
         ///< A mask of SwapChainModeSupport flags for each present mode.
@@ -706,6 +706,7 @@ struct DeviceProperties
         uint32 supportedSwapChainModes[static_cast<uint32>(Pal::PresentMode::Count)];
 
     } swapChainProperties;
+#endif
 
     struct
     {
@@ -2665,6 +2666,17 @@ public:
         WsiPlatform          wsiPlatform,
         int64                visualId) = 0;
 
+    /// Returns a mask of SwapChainModeSupport flags for each present mode. The swapchain modes are different for each
+    /// WsiPlatform.
+    ///
+    /// @param [in]  wsiPlatform             WSI Platform the swapchain is supposed to work on.
+    /// @param [in]  mode                    The swap chain will use this present mode.
+    ///
+    /// @returns Returns a mask of SwapChainModeSupport.
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const = 0;
+
     /// Determines if the given information corresponds to an external shared image.
     ///
     /// Some clients may not know if a given external shared resource is a simple GPU memory allocation or an image; it
@@ -4301,6 +4313,21 @@ public:
     /// @returns True if hardware accelerated stereo rendering can be enabled, False otherwise.
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
+
+    /// Get connector ID from RandR output object.
+    ///
+    /// @param [in]   hDisplay        Display handle of the window system.
+    /// @param [in]   randrOutput     RandR output object which is going to be leased. The output represents the
+    ///                               underlying display hardware which include encoder and connector.
+    /// @param [in]   wsiPlatform     WSI platform.
+    /// @param [out]  pConnectorId    Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        int32*          pConnectorId) = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

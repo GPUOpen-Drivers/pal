@@ -594,15 +594,17 @@ void Device::FinalizeQueueProperties()
     m_engineProperties.perEngine[EngineTypeDma].flags.supportVirtualMemoryRemap       = 1;
     m_engineProperties.perEngine[EngineTypeUniversal].flags.supportVirtualMemoryRemap = 1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     constexpr uint32 WindowedIdx = static_cast<uint32>(PresentMode::Windowed);
     constexpr uint32 FullscreenIdx = static_cast<uint32>(PresentMode::Fullscreen);
 
     // We can assume that we modes are valid on all WsiPlatforms
-    m_supportedSwapChainModes[WindowedIdx]   =
-        SupportImmediateSwapChain| SupportFifoSwapChain| SupportMailboxSwapChain;
+    m_supportedSwapChainModes[WindowedIdx] =
+        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
 
     m_supportedSwapChainModes[FullscreenIdx] =
-        SupportImmediateSwapChain| SupportFifoSwapChain| SupportMailboxSwapChain;
+        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+#endif
 
     static_assert(MaxIbsPerSubmit >= MinCmdStreamsPerSubmission,
                   "The minimum supported number of command streams per submission is not enough for PAL!");
@@ -1640,9 +1642,17 @@ Result Device::GetSwapChainInfo(
             pSwapChainProperties->minImageExtent.height = pSwapChainProperties->currentExtent.height;
         }
 
-        pSwapChainProperties->minImageCount = 2;    // This is frequently, how many images must be in a swap chain in
-                                                    // order for App to acquire an image in finite time if App currently
-                                                    // doesn't own an image.
+        if (wsiPlatform == DirectDisplay)
+        {
+            // DirectDisplay can support one presentable image for rendering on front buffer.
+            pSwapChainProperties->minImageCount = 1;
+        }
+        else
+        {
+            pSwapChainProperties->minImageCount = 2; // This is frequently, how many images must be in a swap chain in
+                                                     // order for App to acquire an image in finite time if App
+                                                     // currently doesn't own an image.
+        }
 
         // A swap chain must contain at most this many images. The only limits for maximum number of image count are
         // related with the amount of memory available, but here 16 should be enough for client.
@@ -1675,6 +1685,50 @@ Result Device::DeterminePresentationSupported(
     int64                visualId)
 {
     return WindowSystem::DeterminePresentationSupported(this, hDisplay, wsiPlatform, visualId);
+}
+
+// =====================================================================================================================
+uint32 Device::GetSupportedSwapChainModes(
+    WsiPlatform wsiPlatform,
+    PresentMode mode
+    ) const
+{
+    // The swap chain modes various from wsiPlatform to wsiPlatform. X and Wayland window system support immediate and
+    // FIFO mode, and pal implements mailbox mode for both window systems.
+    // DirectDisplay can directly render to a display without using intermediate window system, the display is exclusive
+    // to a process, so it only has full screen mode. FIFO is the basic requirement for now, and it's the only mode
+    // implemented by PAL, but immediate and mailbox modes can also be supported if necessary.
+    uint32 swapchainModes = 0;
+    if (mode == PresentMode::Windowed)
+    {
+        if (wsiPlatform != DirectDisplay)
+        {
+            swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+        }
+    }
+    else
+    {
+        if (wsiPlatform != DirectDisplay)
+        {
+            swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+        }
+        else
+        {
+            swapchainModes = SupportFifoSwapChain;
+        }
+    }
+
+    return swapchainModes;
+}
+
+// =====================================================================================================================
+Result Device::GetConnectorIdFromOutput(
+    OsDisplayHandle hDisplay,
+    uint32          randrOutput,
+    WsiPlatform     wsiPlatform,
+    int32*          pConnectorId)
+{
+    return WindowSystem::GetConnectorIdFromOutput(this, hDisplay, randrOutput, wsiPlatform, pConnectorId);
 }
 
 // =====================================================================================================================

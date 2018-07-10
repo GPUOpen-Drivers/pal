@@ -33,13 +33,13 @@
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/prefetchMgr.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palFormatInfo.h"
-#include "palHashSetImpl.h"
 #include "palImage.h"
 #include "palIntrusiveListImpl.h"
 #include "palQueryPool.h"
-#include "palAutoBuffer.h"
+#include "palVectorImpl.h"
 
 #include <limits.h>
 
@@ -66,7 +66,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_timestampOffset(0),
     m_computeStateFlags(0),
     m_spmTraceEnabled(false),
-    m_fceRefCounts(MaxNumFastClearImageRefs, device.GetPlatform())
+    m_fceRefCountVec(device.GetPlatform())
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 
@@ -121,11 +121,6 @@ Result GfxCmdBuffer::Init(
                                                              false,
                                                              &m_pTimestampMem,
                                                              &m_timestampOffset);
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_fceRefCounts.Init();
     }
 
     return result;
@@ -188,6 +183,7 @@ Result GfxCmdBuffer::Reset(
 {
     // Do this before our parent class changes the allocator.
     ReturnGeneratedCommandChunks(returnGpuMemory);
+
     ResetFastClearReferenceCounts();
 
     return CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
@@ -197,16 +193,16 @@ Result GfxCmdBuffer::Reset(
 // Decrements the ref count of images stored in the Fast clear eliminate ref count array.
 void GfxCmdBuffer::ResetFastClearReferenceCounts()
 {
-    if (m_fceRefCounts.GetNumEntries() > 0)
+    if (m_fceRefCountVec.NumElements() > 0)
     {
-        for (auto iter = m_fceRefCounts.Begin(); iter.Get() != nullptr; iter.Next())
+        uint32* pCounter = nullptr;
+
+        while (m_fceRefCountVec.NumElements() > 0)
         {
-            auto pCounter = iter.Get()->key;
+            m_fceRefCountVec.PopBack(&pCounter);
             Util::AtomicDecrement(pCounter);
         }
     }
-
-    m_fceRefCounts.Reset();
 }
 
 // =====================================================================================================================
@@ -1039,15 +1035,10 @@ Result GfxCmdBuffer::AddFceSkippedImageCounter(
 
     uint32* pCounter = pGfxImage->GetFceRefCounter();
 
-    if ((pCounter != nullptr) && (m_fceRefCounts.Contains(pCounter) == false))
+    if (pCounter != nullptr)
     {
-        // Insert the gfxImage's counter to the set and increment the ref count if it has not been done already.
-        result = m_fceRefCounts.Insert(pCounter);
-
-        if (result == Result::Success)
-        {
-            pGfxImage->IncrementFceRefCount();
-        }
+        result = m_fceRefCountVec.PushBack(pCounter);
+        pGfxImage->IncrementFceRefCount();
     }
 
     return result;

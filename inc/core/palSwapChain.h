@@ -41,6 +41,7 @@ namespace Pal
 // Forward declarations.
 class IQueueSemaphore;
 class IFence;
+class IScreen;
 
 /// Maximum number of format supported by presentable image. @see SwapChainProperties
 constexpr uint32 MaxPresentableImageFormat = 16;
@@ -75,6 +76,8 @@ enum WsiPlatform : uint32
     Xlib                        = 0x00000004,  ///< Xlib platform, which supposed to be run upon DRI2 infrastructure
     Wayland                     = 0x00000008,  ///< Wayland platform, which is running upon wayland protocol.
     Mir                         = 0x00000010,  ///< Mir platform, which is running upon Mir protocol developed by Canonical
+    DirectDisplay               = 0x00000020,  ///< DirectDisplay platform, which can render and present directly to
+                                               ///  display without using an intermediate window system.
 };
 
 /// Describe the surface transform capability or status.
@@ -138,6 +141,10 @@ struct SwapChainCreateInfo
                                                ///  to the image content prior to presentation.
     uint32                imageArraySize;      ///< Determines the number of views for multiview/stereo presentation.
     SwapChainMode         swapChainMode;       ///< How to process and queue this swap chain's presentation requests.
+    IScreen*              pScreen;             ///< The IScreen object associated with swap chain. It's needed only when
+                                               ///  creating a swap chain on DirectDisplay platform, and exclusive
+                                               ///  access to the IScreen is required, that is the IScreen needs to call
+                                               ///  AcquireScreenAccess before swap chain creation.
 };
 
 /// Specifies the properties of acquiring next presentable image. Input structure to ISwapChain::AcquireNextImage

@@ -27,7 +27,6 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "palSysUtil.h"
-#include <ctime>
 
 using namespace Util;
 
@@ -52,25 +51,8 @@ Platform::Platform(
     m_frameId(0),
     m_forceLogging(false),
     m_apiMajorVer(createInfo.apiMajorVer),
-    m_apiMinorVer(createInfo.apiMinorVer),
-    m_pipelinePerfDataLock()
+    m_apiMinorVer(createInfo.apiMinorVer)
 {
-    // Create a directory name that will hold any dumped logs this session.  The name will be composed of the executable
-    // name and current data/time, looking something like this: app.exe_2015-08-26_07.49.20.
-    char  executableNameBuffer[256];
-    char* pExecutableName;
-    GetExecutableName(&executableNameBuffer[0], &pExecutableName, sizeof(executableNameBuffer));
-
-    time_t rawTime;
-    time(&rawTime);
-
-    struct tm* pTimeInfo = localtime(&rawTime);
-    m_time = *pTimeInfo;
-
-    char dateTimeBuffer[64];
-    strftime(&dateTimeBuffer[0], sizeof(dateTimeBuffer), "%Y-%m-%d_%H.%M.%S", pTimeInfo);
-
-    Snprintf(&m_logDirName[0], sizeof(m_logDirName), "%s_%s", pExecutableName, &dateTimeBuffer[0]);
 }
 
 // =====================================================================================================================

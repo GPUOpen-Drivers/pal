@@ -54,3 +54,14 @@ libxcb-dri2.so.0    @proc int xcb_dri2_connect_driver_name_length (const xcb_dri
 libxcb-dri2.so.0    @proc char* xcb_dri2_connect_driver_name (const xcb_dri2_connect_reply_t* pReplay)
 libxcb-dri2.so.0    @proc xcb_dri2_connect_reply_t* xcb_dri2_connect_reply (xcb_connection_t* pConnection, xcb_dri2_connect_cookie_t cookie, xcb_generic_error_t** ppError)
 libxcb-dri2.so.0    @var xcb_extension_t xcb_dri2_id
+libxcb-randr.so.0   @proc xcb_randr_create_lease_cookie_t xcb_randr_create_lease (xcb_connection_t* pConnection, xcb_window_t window, xcb_randr_lease_t leaseId, uint16_t numCrtcs, uint16_t numOutputs, const xcb_randr_crtc_t* pCrtcs, const xcb_randr_output_t* pOutputs);
+libxcb-randr.so.0   @proc xcb_randr_create_lease_reply_t* xcb_randr_create_lease_reply (xcb_connection_t* pConnection, xcb_randr_create_lease_cookie_t cookie, xcb_generic_error_t** ppError)
+libxcb-randr.so.0   @proc int* xcb_randr_create_lease_reply_fds (xcb_connection_t * pConnection, xcb_randr_create_lease_reply_t* pReply)
+libxcb-randr.so.0   @proc xcb_randr_get_screen_resources_cookie_t xcb_randr_get_screen_resources (xcb_connection_t* pConnection, xcb_window_t window)
+libxcb-randr.so.0   @proc xcb_randr_get_screen_resources_reply_t* xcb_randr_get_screen_resources_reply (xcb_connection_t* pConnection, xcb_randr_get_screen_resources_cookie_t cookie, xcb_generic_error_t** ppError)
+libxcb-randr.so.0   @proc xcb_randr_output_t* xcb_randr_get_screen_resources_outputs (const xcb_randr_get_screen_resources_reply_t* pScrResReply)
+libxcb-randr.so.0   @proc xcb_randr_get_output_info_cookie_t xcb_randr_get_output_info (xcb_connection_t* pConnection, xcb_randr_output_t output, xcb_timestamp_t configTimestamp)
+libxcb-randr.so.0   @proc xcb_randr_get_output_info_reply_t* xcb_randr_get_output_info_reply (xcb_connection_t* pConnection, xcb_randr_get_output_info_cookie_t cookie, xcb_generic_error_t ** ppError)
+libxcb-randr.so.0   @proc xcb_randr_get_output_property_cookie_t xcb_randr_get_output_property (xcb_connection_t* pConnection, xcb_randr_output_t output, xcb_atom_t property, xcb_atom_t type, uint32_t offset, uint32_t length, uint8_t _delete, uint8_t pending)
+libxcb-randr.so.0   @proc uint8_t* xcb_randr_get_output_property_data (const xcb_randr_get_output_property_reply_t* pReply)
+libxcb-randr.so.0   @proc xcb_randr_get_output_property_reply_t * xcb_randr_get_output_property_reply (xcb_connection_t* pConnection, xcb_randr_get_output_property_cookie_t cookie, xcb_generic_error_t** ppError)

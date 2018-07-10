@@ -27,7 +27,6 @@
 
 #include "core/layers/decorators.h"
 #include "palMutex.h"
-#include <ctime>
 
 namespace Pal
 {
@@ -64,7 +63,6 @@ public:
     uint32 FrameId() const { return m_frameId; }
     void IncrementFrameId();
 
-    const char* LogDirName() const { return &m_logDirName[0]; }
     bool IsLoggingForced() const { return m_forceLogging; }
 
     // Public IPlatform interface methods:
@@ -81,7 +79,6 @@ public:
         Developer::CallbackType type,
         void*                   pCbData);
 
-    const struct tm& Time() const { return m_time; }
     const uint16 ApiMajorVer() const { return m_apiMajorVer; }
     const uint16 ApiMinorVer() const { return m_apiMinorVer; }
 
@@ -91,19 +88,12 @@ public:
 private:
     virtual ~Platform() { }
 
-    GpuProfilerMode     m_profilerMode;
-
-    uint32     m_frameId;       // ID incremented on every present call.
-    bool       m_forceLogging;  // Indicates logging has been enabled by the user hitting Shift-F11.
-    struct tm  m_time;          // Copy of the date/time info for this run of the application.
-    uint16     m_apiMajorVer;   // API major version, used in RGP dumps.
-    uint16     m_apiMinorVer;   // API minor version, used in RGP dumps.
-
-    // Storage for a unique log directory per session based on the executable name and current date/time.
-    static constexpr size_t LogDirNameLength = 256;
-    char m_logDirName[LogDirNameLength];
-
-    Util::Mutex m_pipelinePerfDataLock;
+    GpuProfilerMode m_profilerMode;
+    uint32          m_frameId;              // ID incremented on every present call.
+    bool            m_forceLogging;         // Indicates logging has been enabled by the user hitting Shift-F11.
+    uint16          m_apiMajorVer;          // API major version, used in RGP dumps.
+    uint16          m_apiMinorVer;          // API minor version, used in RGP dumps.
+    Util::Mutex     m_pipelinePerfDataLock;
 
     PAL_DISALLOW_DEFAULT_CTOR(Platform);
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);

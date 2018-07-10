@@ -180,10 +180,8 @@ Result PresentScheduler::ProcessPresent(
 
     // Ask the windowing system to present our image with the swap chain's idle fence. We don't need it to wait for
     // prior rendering because that was already done by our caller.
-    const Image&       srcImage   = static_cast<Image&>(*presentInfo.pSrcImage);
     PresentFence*const pIdleFence = pSwapChain->PresentIdleFence(presentInfo.imageIndex);
-    Result             result     = m_pWindowSystem->Present(srcImage.GetPresentPixmapHandle(),
-                                                             presentInfo.presentMode,
+    Result             result     = m_pWindowSystem->Present(presentInfo,
                                                              nullptr,
                                                              pIdleFence);
 
@@ -288,6 +286,5 @@ Result PresentScheduler::SignalOnAcquire(
 
     return result;
 }
-
 } // Linux
 } // Pal

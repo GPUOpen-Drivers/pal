@@ -50,7 +50,8 @@ Image::Image(
                createInfo,
                internalCreateInfo),
     m_presentImageHandle(0),
-    m_pWindowSystem(nullptr)
+    m_pWindowSystem(nullptr),
+    m_framebufferId(0)
 {
 }
 
@@ -227,9 +228,8 @@ Result Image::UpdateExternalImageInfo(
         // can destroy this image handle later on.
         pLnxImage->m_pWindowSystem = pWindowSystem;
 
-        result = pWindowSystem->CreatePresentableImage(*pLnxImage,
-                                                       sharedBufferFd,
-                                                       &pLnxImage->m_presentImageHandle);
+        result = pWindowSystem->CreatePresentableImage(pLnxImage,
+                                                       sharedBufferFd);
     }
 
     return result;

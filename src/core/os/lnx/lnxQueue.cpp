@@ -1001,7 +1001,7 @@ Result Queue::OsWaitIdle()
     const auto& context = static_cast<SubmissionContext&>(*m_pSubmissionContext);
 
     // Make sure something has been submitted before attempting to wait for idle!
-    if (context.LastTimestamp() > 0)
+    if ((m_pSubmissionContext != nullptr) && (context.LastTimestamp() > 0))
     {
         struct amdgpu_cs_fence queryFence = {};
 

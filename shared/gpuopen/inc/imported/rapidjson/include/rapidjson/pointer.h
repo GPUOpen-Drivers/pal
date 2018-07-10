@@ -532,14 +532,14 @@ public:
     */
     ValueType& GetWithDefault(ValueType& root, const ValueType& defaultValue, typename ValueType::AllocatorType& allocator) const {
         bool alreadyExist;
-        Write& v = Create(root, allocator, &alreadyExist);
+        Value& v = Create(root, allocator, &alreadyExist);
         return alreadyExist ? v : v.CopyFrom(defaultValue, allocator);
     }
 
     //! Query a value in a subtree with default null-terminated string.
     ValueType& GetWithDefault(ValueType& root, const Ch* defaultValue, typename ValueType::AllocatorType& allocator) const {
         bool alreadyExist;
-        Write& v = Create(root, allocator, &alreadyExist);
+        Value& v = Create(root, allocator, &alreadyExist);
         return alreadyExist ? v : v.SetString(defaultValue, allocator);
     }
 
@@ -1046,7 +1046,7 @@ private:
 };
 
 //! GenericPointer for Value (UTF-8, default allocator).
-typedef GenericPointer<Write> Pointer;
+typedef GenericPointer<Value> Pointer;
 
 //!@name Helper functions for GenericPointer
 //@{

@@ -251,7 +251,9 @@ Device::Device(
     memset(m_gdsInfo, 0, sizeof(m_gdsInfo));
     memset(&m_gpuName[0], 0, sizeof(m_gpuName));
     memset(&m_flglState, 0, sizeof(m_flglState));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     memset(m_supportedSwapChainModes, 0, sizeof(m_supportedSwapChainModes));
+#endif
     memset(&m_flags, 0, sizeof(m_flags));
     memset(&m_bigSoftwareRelease, 0, sizeof(m_bigSoftwareRelease));
     memset(&m_virtualDisplayCaps, 0, sizeof(m_virtualDisplayCaps));
@@ -1167,7 +1169,6 @@ void Device::CopyLayerSettings()
     m_gpuProfilerSettings.gpuProfilerStartFrame                     = settings.gpuProfilerStartFrame;
     m_gpuProfilerSettings.gpuProfilerFrameCount                     = settings.gpuProfilerFrameCount;
     m_gpuProfilerSettings.gpuProfilerRecordPipelineStats            = settings.gpuProfilerRecordPipelineStats;
-    m_gpuProfilerSettings.gpuProfilerGlobalPerfCounterPerInstance   = settings.gpuProfilerGlobalPerfCounterPerInstance;
     m_gpuProfilerSettings.gpuProfilerBreakSubmitBatches             = settings.gpuProfilerBreakSubmitBatches;
     m_gpuProfilerSettings.gpuProfilerCacheFlushOnCounterCollection  = settings.gpuProfilerCacheFlushOnCounterCollection;
     m_gpuProfilerSettings.gpuProfilerGranularity                    = settings.gpuProfilerGranularity;
@@ -1664,10 +1665,12 @@ Result Device::GetProperties(
         pInfo->timestampFrequency          = m_chipProperties.gpuCounterFrequency;
         pInfo->maxSemaphoreCount           = m_maxSemaphoreCount;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
         // The device determined which modes are supported at initialization time.
         memcpy(pInfo->swapChainProperties.supportedSwapChainModes,
                m_supportedSwapChainModes,
                sizeof(m_supportedSwapChainModes));
+#endif
 
         for (uint32 i = 0; i < EngineTypeCount; ++i)
         {

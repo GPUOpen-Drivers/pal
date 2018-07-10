@@ -2150,6 +2150,408 @@ int32 DrmLoaderFuncsProxy::pfnDrmDropMaster(
     return ret;
 }
 
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmPrimeFDToHandle(
+    int32    fd,
+    int32    primeFd,
+    uint32*  pHandle
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmPrimeFDToHandle(fd,
+                                                primeFd,
+                                                pHandle);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmPrimeFDToHandle,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmPrimeFDToHandle(%x, %x, %p)\n",
+        fd,
+        primeFd,
+        pHandle);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmModeAddFB2(
+    int32    fd,
+    uint32   width,
+    uint32   height,
+    uint32   pixelFormat,
+    uint32   boHandles[4],
+    uint32   pitches[4],
+    uint32   offsets[4],
+    uint32*  pBufId,
+    uint32   flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmModeAddFB2(fd,
+                                           width,
+                                           height,
+                                           pixelFormat,
+                                           boHandles[4],
+                                           pitches[4],
+                                           offsets[4],
+                                           pBufId,
+                                           flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeAddFB2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeAddFB2(%x, %x, %x, %x, %x, %x, %x, %p, %x)\n",
+        fd,
+        width,
+        height,
+        pixelFormat,
+        boHandles[4],
+        pitches[4],
+        offsets[4],
+        pBufId,
+        flags);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmModePageFlip(
+    int32   fd,
+    uint32  crtcId,
+    uint32  fbId,
+    uint32  flags,
+    void*   pUserData
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmModePageFlip(fd,
+                                             crtcId,
+                                             fbId,
+                                             flags,
+                                             pUserData);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModePageFlip,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModePageFlip(%x, %x, %x, %x, %p)\n",
+        fd,
+        crtcId,
+        fbId,
+        flags,
+        pUserData);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+drmModeEncoderPtr DrmLoaderFuncsProxy::pfnDrmModeGetEncoder(
+    int32   fd,
+    uint32  encoderId
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    drmModeEncoderPtr ret = m_pFuncs->pfnDrmModeGetEncoder(fd,
+                                                           encoderId);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeGetEncoder,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeGetEncoder(%x, %x)\n",
+        fd,
+        encoderId);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmModeFreeEncoder(
+    drmModeEncoderPtr  pEncoder
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmModeFreeEncoder(pEncoder);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeFreeEncoder,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeFreeEncoder(%p)\n",
+        pEncoder);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
+int DrmLoaderFuncsProxy::pfnDrmModeSetCrtc(
+    int32               fd,
+    uint32              crtcId,
+    uint32              bufferId,
+    uint32              x,
+    uint32              y,
+    uint32*             pConnectors,
+    int32               count,
+    drmModeModeInfoPtr  pMode
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnDrmModeSetCrtc(fd,
+                                          crtcId,
+                                          bufferId,
+                                          x,
+                                          y,
+                                          pConnectors,
+                                          count,
+                                          pMode);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeSetCrtc,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeSetCrtc(%x, %x, %x, %x, %x, %p, %x, %p)\n",
+        fd,
+        crtcId,
+        bufferId,
+        x,
+        y,
+        pConnectors,
+        count,
+        pMode);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+drmModeConnectorPtr DrmLoaderFuncsProxy::pfnDrmModeGetConnectorCurrent(
+    int32   fd,
+    uint32  connectorId
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    drmModeConnectorPtr ret = m_pFuncs->pfnDrmModeGetConnectorCurrent(fd,
+                                                                      connectorId);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeGetConnectorCurrent,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeGetConnectorCurrent(%x, %x)\n",
+        fd,
+        connectorId);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+drmModeCrtcPtr DrmLoaderFuncsProxy::pfnDrmModeGetCrtc(
+    int32   fd,
+    uint32  crtcId
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    drmModeCrtcPtr ret = m_pFuncs->pfnDrmModeGetCrtc(fd,
+                                                     crtcId);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeGetCrtc,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeGetCrtc(%x, %x)\n",
+        fd,
+        crtcId);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmModeFreeCrtc(
+    drmModeCrtcPtr  pCrtc
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmModeFreeCrtc(pCrtc);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeFreeCrtc,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeFreeCrtc(%p)\n",
+        pCrtc);
+    m_paramLogger.Flush();
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmCrtcGetSequence(
+    int32    fd,
+    uint32   crtcId,
+    uint64*  pSequence,
+    uint64*  pNs
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmCrtcGetSequence(fd,
+                                                crtcId,
+                                                pSequence,
+                                                pNs);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmCrtcGetSequence,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmCrtcGetSequence(%x, %x, %p, %p)\n",
+        fd,
+        crtcId,
+        pSequence,
+        pNs);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmCrtcQueueSequence(
+    int32    fd,
+    uint32   crtcId,
+    uint32   flags,
+    uint64   sequence,
+    uint64*  pSequenceQueued,
+    uint64   userData
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmCrtcQueueSequence(fd,
+                                                  crtcId,
+                                                  flags,
+                                                  sequence,
+                                                  pSequenceQueued,
+                                                  userData);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmCrtcQueueSequence,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmCrtcQueueSequence(%x, %x, %x, %lx, %p, %lx)\n",
+        fd,
+        crtcId,
+        flags,
+        sequence,
+        pSequenceQueued,
+        userData);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmHandleEvent(
+    int32               fd,
+    drmEventContextPtr  pEvctx
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmHandleEvent(fd,
+                                            pEvctx);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmHandleEvent,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmHandleEvent(%x, %p)\n",
+        fd,
+        pEvctx);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnDrmIoctl(
+    int32   fd,
+    uint32  request,
+    void*   pArg
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnDrmIoctl(fd,
+                                      request,
+                                      pArg);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmIoctl,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmIoctl(%x, %x, %p)\n",
+        fd,
+        request,
+        pArg);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+drmModePropertyPtr DrmLoaderFuncsProxy::pfnDrmModeGetProperty(
+    int32   fd,
+    uint32  propertyId
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    drmModePropertyPtr ret = m_pFuncs->pfnDrmModeGetProperty(fd,
+                                                             propertyId);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeGetProperty,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeGetProperty(%x, %x)\n",
+        fd,
+        propertyId);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+void DrmLoaderFuncsProxy::pfnDrmModeFreeProperty(
+    drmModePropertyPtr  pProperty
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    m_pFuncs->pfnDrmModeFreeProperty(pProperty);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("DrmModeFreeProperty,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "DrmModeFreeProperty(%p)\n",
+        pProperty);
+    m_paramLogger.Flush();
+}
+
 #endif
 
 // =====================================================================================================================
@@ -2452,6 +2854,51 @@ Result DrmLoader::Init(
             m_funcs.pfnDrmDropMaster = reinterpret_cast<DrmDropMaster>(dlsym(
                         m_libraryHandles[LibDrm],
                         "drmDropMaster"));
+            m_funcs.pfnDrmPrimeFDToHandle = reinterpret_cast<DrmPrimeFDToHandle>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmPrimeFDToHandle"));
+            m_funcs.pfnDrmModeAddFB2 = reinterpret_cast<DrmModeAddFB2>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeAddFB2"));
+            m_funcs.pfnDrmModePageFlip = reinterpret_cast<DrmModePageFlip>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModePageFlip"));
+            m_funcs.pfnDrmModeGetEncoder = reinterpret_cast<DrmModeGetEncoder>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeGetEncoder"));
+            m_funcs.pfnDrmModeFreeEncoder = reinterpret_cast<DrmModeFreeEncoder>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeFreeEncoder"));
+            m_funcs.pfnDrmModeSetCrtc = reinterpret_cast<DrmModeSetCrtc>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeSetCrtc"));
+            m_funcs.pfnDrmModeGetConnectorCurrent = reinterpret_cast<DrmModeGetConnectorCurrent>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeGetConnectorCurrent"));
+            m_funcs.pfnDrmModeGetCrtc = reinterpret_cast<DrmModeGetCrtc>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeGetCrtc"));
+            m_funcs.pfnDrmModeFreeCrtc = reinterpret_cast<DrmModeFreeCrtc>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeFreeCrtc"));
+            m_funcs.pfnDrmCrtcGetSequence = reinterpret_cast<DrmCrtcGetSequence>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmCrtcGetSequence"));
+            m_funcs.pfnDrmCrtcQueueSequence = reinterpret_cast<DrmCrtcQueueSequence>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmCrtcQueueSequence"));
+            m_funcs.pfnDrmHandleEvent = reinterpret_cast<DrmHandleEvent>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmHandleEvent"));
+            m_funcs.pfnDrmIoctl = reinterpret_cast<DrmIoctl>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmIoctl"));
+            m_funcs.pfnDrmModeGetProperty = reinterpret_cast<DrmModeGetProperty>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeGetProperty"));
+            m_funcs.pfnDrmModeFreeProperty = reinterpret_cast<DrmModeFreeProperty>(dlsym(
+                        m_libraryHandles[LibDrm],
+                        "drmModeFreeProperty"));
         }
 
         if (result == Result::Success)

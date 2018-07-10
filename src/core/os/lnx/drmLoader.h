@@ -445,6 +445,87 @@ typedef drmModePlanePtr (*DrmModeGetPlane)(
 typedef int32 (*DrmDropMaster)(
             int32     fd);
 
+typedef int32 (*DrmPrimeFDToHandle)(
+            int32     fd,
+            int32     primeFd,
+            uint32*   pHandle);
+
+typedef int32 (*DrmModeAddFB2)(
+            int32     fd,
+            uint32    width,
+            uint32    height,
+            uint32    pixelFormat,
+            uint32    boHandles[4],
+            uint32    pitches[4],
+            uint32    offsets[4],
+            uint32*   pBufId,
+            uint32    flags);
+
+typedef int32 (*DrmModePageFlip)(
+            int32     fd,
+            uint32    crtcId,
+            uint32    fbId,
+            uint32    flags,
+            void*     pUserData);
+
+typedef drmModeEncoderPtr (*DrmModeGetEncoder)(
+            int32     fd,
+            uint32    encoderId);
+
+typedef void (*DrmModeFreeEncoder)(
+            drmModeEncoderPtr     pEncoder);
+
+typedef int (*DrmModeSetCrtc)(
+            int32                 fd,
+            uint32                crtcId,
+            uint32                bufferId,
+            uint32                x,
+            uint32                y,
+            uint32*               pConnectors,
+            int32                 count,
+            drmModeModeInfoPtr    pMode);
+
+typedef drmModeConnectorPtr (*DrmModeGetConnectorCurrent)(
+            int32     fd,
+            uint32    connectorId);
+
+typedef drmModeCrtcPtr (*DrmModeGetCrtc)(
+            int32     fd,
+            uint32    crtcId);
+
+typedef void (*DrmModeFreeCrtc)(
+            drmModeCrtcPtr    pCrtc);
+
+typedef int32 (*DrmCrtcGetSequence)(
+            int32     fd,
+            uint32    crtcId,
+            uint64*   pSequence,
+            uint64*   pNs);
+
+typedef int32 (*DrmCrtcQueueSequence)(
+            int32     fd,
+            uint32    crtcId,
+            uint32    flags,
+            uint64    sequence,
+            uint64*   pSequenceQueued,
+            uint64    userData);
+
+typedef int32 (*DrmHandleEvent)(
+            int32                 fd,
+            drmEventContextPtr    pEvctx);
+
+typedef int32 (*DrmIoctl)(
+            int32     fd,
+            uint32    request,
+            void*     pArg);
+
+typedef drmModePropertyPtr (*DrmModeGetProperty)(
+            int32     fd,
+            uint32    propertyId);
+
+typedef void (*DrmModeFreeProperty)(
+            drmModePropertyPtr    pProperty);
+
 enum DrmLoaderLibraries : uint32
 {
     LibDrmAmdgpu = 0,
@@ -944,6 +1025,96 @@ struct DrmLoaderFuncs
     bool pfnDrmDropMasterisValid() const
     {
         return (pfnDrmDropMaster != nullptr);
+    }
+
+    DrmPrimeFDToHandle                pfnDrmPrimeFDToHandle;
+    bool pfnDrmPrimeFDToHandleisValid() const
+    {
+        return (pfnDrmPrimeFDToHandle != nullptr);
+    }
+
+    DrmModeAddFB2                     pfnDrmModeAddFB2;
+    bool pfnDrmModeAddFB2isValid() const
+    {
+        return (pfnDrmModeAddFB2 != nullptr);
+    }
+
+    DrmModePageFlip                   pfnDrmModePageFlip;
+    bool pfnDrmModePageFlipisValid() const
+    {
+        return (pfnDrmModePageFlip != nullptr);
+    }
+
+    DrmModeGetEncoder                 pfnDrmModeGetEncoder;
+    bool pfnDrmModeGetEncoderisValid() const
+    {
+        return (pfnDrmModeGetEncoder != nullptr);
+    }
+
+    DrmModeFreeEncoder                pfnDrmModeFreeEncoder;
+    bool pfnDrmModeFreeEncoderisValid() const
+    {
+        return (pfnDrmModeFreeEncoder != nullptr);
+    }
+
+    DrmModeSetCrtc                    pfnDrmModeSetCrtc;
+    bool pfnDrmModeSetCrtcisValid() const
+    {
+        return (pfnDrmModeSetCrtc != nullptr);
+    }
+
+    DrmModeGetConnectorCurrent        pfnDrmModeGetConnectorCurrent;
+    bool pfnDrmModeGetConnectorCurrentisValid() const
+    {
+        return (pfnDrmModeGetConnectorCurrent != nullptr);
+    }
+
+    DrmModeGetCrtc                    pfnDrmModeGetCrtc;
+    bool pfnDrmModeGetCrtcisValid() const
+    {
+        return (pfnDrmModeGetCrtc != nullptr);
+    }
+
+    DrmModeFreeCrtc                   pfnDrmModeFreeCrtc;
+    bool pfnDrmModeFreeCrtcisValid() const
+    {
+        return (pfnDrmModeFreeCrtc != nullptr);
+    }
+
+    DrmCrtcGetSequence                pfnDrmCrtcGetSequence;
+    bool pfnDrmCrtcGetSequenceisValid() const
+    {
+        return (pfnDrmCrtcGetSequence != nullptr);
+    }
+
+    DrmCrtcQueueSequence              pfnDrmCrtcQueueSequence;
+    bool pfnDrmCrtcQueueSequenceisValid() const
+    {
+        return (pfnDrmCrtcQueueSequence != nullptr);
+    }
+
+    DrmHandleEvent                    pfnDrmHandleEvent;
+    bool pfnDrmHandleEventisValid() const
+    {
+        return (pfnDrmHandleEvent != nullptr);
+    }
+
+    DrmIoctl                          pfnDrmIoctl;
+    bool pfnDrmIoctlisValid() const
+    {
+        return (pfnDrmIoctl != nullptr);
+    }
+
+    DrmModeGetProperty                pfnDrmModeGetProperty;
+    bool pfnDrmModeGetPropertyisValid() const
+    {
+        return (pfnDrmModeGetProperty != nullptr);
+    }
+
+    DrmModeFreeProperty               pfnDrmModeFreeProperty;
+    bool pfnDrmModeFreePropertyisValid() const
+    {
+        return (pfnDrmModeFreeProperty != nullptr);
     }
 
 };
@@ -1770,6 +1941,162 @@ public:
     bool pfnDrmDropMasterisValid() const
     {
         return (m_pFuncs->pfnDrmDropMaster != nullptr);
+    }
+
+    int32 pfnDrmPrimeFDToHandle(
+            int32     fd,
+            int32     primeFd,
+            uint32*   pHandle) const;
+
+    bool pfnDrmPrimeFDToHandleisValid() const
+    {
+        return (m_pFuncs->pfnDrmPrimeFDToHandle != nullptr);
+    }
+
+    int32 pfnDrmModeAddFB2(
+            int32     fd,
+            uint32    width,
+            uint32    height,
+            uint32    pixelFormat,
+            uint32    boHandles[4],
+            uint32    pitches[4],
+            uint32    offsets[4],
+            uint32*   pBufId,
+            uint32    flags) const;
+
+    bool pfnDrmModeAddFB2isValid() const
+    {
+        return (m_pFuncs->pfnDrmModeAddFB2 != nullptr);
+    }
+
+    int32 pfnDrmModePageFlip(
+            int32     fd,
+            uint32    crtcId,
+            uint32    fbId,
+            uint32    flags,
+            void*     pUserData) const;
+
+    bool pfnDrmModePageFlipisValid() const
+    {
+        return (m_pFuncs->pfnDrmModePageFlip != nullptr);
+    }
+
+    drmModeEncoderPtr pfnDrmModeGetEncoder(
+            int32     fd,
+            uint32    encoderId) const;
+
+    bool pfnDrmModeGetEncoderisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetEncoder != nullptr);
+    }
+
+    void pfnDrmModeFreeEncoder(
+            drmModeEncoderPtr     pEncoder) const;
+
+    bool pfnDrmModeFreeEncoderisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreeEncoder != nullptr);
+    }
+
+    int pfnDrmModeSetCrtc(
+            int32                 fd,
+            uint32                crtcId,
+            uint32                bufferId,
+            uint32                x,
+            uint32                y,
+            uint32*               pConnectors,
+            int32                 count,
+            drmModeModeInfoPtr    pMode) const;
+
+    bool pfnDrmModeSetCrtcisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeSetCrtc != nullptr);
+    }
+
+    drmModeConnectorPtr pfnDrmModeGetConnectorCurrent(
+            int32     fd,
+            uint32    connectorId) const;
+
+    bool pfnDrmModeGetConnectorCurrentisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetConnectorCurrent != nullptr);
+    }
+
+    drmModeCrtcPtr pfnDrmModeGetCrtc(
+            int32     fd,
+            uint32    crtcId) const;
+
+    bool pfnDrmModeGetCrtcisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetCrtc != nullptr);
+    }
+
+    void pfnDrmModeFreeCrtc(
+            drmModeCrtcPtr    pCrtc) const;
+
+    bool pfnDrmModeFreeCrtcisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreeCrtc != nullptr);
+    }
+
+    int32 pfnDrmCrtcGetSequence(
+            int32     fd,
+            uint32    crtcId,
+            uint64*   pSequence,
+            uint64*   pNs) const;
+
+    bool pfnDrmCrtcGetSequenceisValid() const
+    {
+        return (m_pFuncs->pfnDrmCrtcGetSequence != nullptr);
+    }
+
+    int32 pfnDrmCrtcQueueSequence(
+            int32     fd,
+            uint32    crtcId,
+            uint32    flags,
+            uint64    sequence,
+            uint64*   pSequenceQueued,
+            uint64    userData) const;
+
+    bool pfnDrmCrtcQueueSequenceisValid() const
+    {
+        return (m_pFuncs->pfnDrmCrtcQueueSequence != nullptr);
+    }
+
+    int32 pfnDrmHandleEvent(
+            int32                 fd,
+            drmEventContextPtr    pEvctx) const;
+
+    bool pfnDrmHandleEventisValid() const
+    {
+        return (m_pFuncs->pfnDrmHandleEvent != nullptr);
+    }
+
+    int32 pfnDrmIoctl(
+            int32     fd,
+            uint32    request,
+            void*     pArg) const;
+
+    bool pfnDrmIoctlisValid() const
+    {
+        return (m_pFuncs->pfnDrmIoctl != nullptr);
+    }
+
+    drmModePropertyPtr pfnDrmModeGetProperty(
+            int32     fd,
+            uint32    propertyId) const;
+
+    bool pfnDrmModeGetPropertyisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeGetProperty != nullptr);
+    }
+
+    void pfnDrmModeFreeProperty(
+            drmModePropertyPtr    pProperty) const;
+
+    bool pfnDrmModeFreePropertyisValid() const
+    {
+        return (m_pFuncs->pfnDrmModeFreeProperty != nullptr);
     }
 
 private:

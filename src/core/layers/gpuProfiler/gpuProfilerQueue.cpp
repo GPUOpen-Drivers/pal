@@ -202,13 +202,12 @@ Result Queue::Init()
 
     // Note that global perf counters are disabled if this value is zero.
     const uint32 numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
-
+    const PerfCounter* pPerfCounters   = m_pDevice->GlobalPerfCounters();
     if (numGlobalPerfCounters > 0)
     {
         if (result == Result::Success)
         {
-            m_numReportedPerfCounters = (m_pDevice->ProfilerSettings().gpuProfilerGlobalPerfCounterPerInstance) ?
-                m_gpaSessionSampleConfig.perfCounters.numCounters : numGlobalPerfCounters;
+            m_numReportedPerfCounters = numGlobalPerfCounters;
 
             // Allocate enough space for one 64-bit counter per global perf counter.
             const size_t size = sizeof(uint64) * m_numReportedPerfCounters;
@@ -290,7 +289,7 @@ void Queue::BeginNextFrame(
 
             const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
                                  (m_pDevice->NumStreamingPerfCounters() > 0) ||
-                                 (m_pDevice->GetProfilerMode() > GpuProfilerDisabled);
+                                 (m_pDevice->IsThreadTraceEnabled());
 
             pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
             pStartFrameTgtCmdBuf->End();
@@ -919,14 +918,15 @@ Result Queue::BuildGpaSessionSampleConfig()
 {
     const auto& settings = m_pDevice->ProfilerSettings();
 
-    const uint32 numCounters                           = m_pDevice->NumGlobalPerfCounters();
-    const uint32 numSpmCountersRequested               = m_pDevice->NumStreamingPerfCounters();
-    const GpuProfiler::PerfCounter* pCounters          = m_pDevice->GlobalPerfCounters();
+    const uint32 numCounters                  = m_pDevice->NumGlobalPerfCounters();
+    const GpuProfiler::PerfCounter* pCounters = m_pDevice->GlobalPerfCounters();
+
+    const uint32 numSpmCountersRequested = m_pDevice->NumStreamingPerfCounters();
     const GpuProfiler::PerfCounter* pStreamingCounters = m_pDevice->StreamingPerfCounters();
 
     m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
 
-    if (numCounters != 0)
+    if (numCounters > 0)
     {
         m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::Cumulative;
     }
@@ -961,37 +961,31 @@ Result Queue::BuildGpaSessionSampleConfig()
 
         if (m_gpaSessionSampleConfig.type == GpuUtil::GpaSampleType::Cumulative)
         {
-            // Cumulative
-            uint32 numTotalInstances = 0;
             for (uint32 i = 0; i < numCounters; i++)
             {
-                numTotalInstances += perfExpProps.blocks[static_cast<uint32>(pCounters[i].block)].instanceCount;
+                m_gpaSessionSampleConfig.perfCounters.numCounters += pCounters[i].instanceCount;
             }
-            m_gpaSessionSampleConfig.perfCounters.numCounters = numTotalInstances;
-
             GpuUtil::PerfCounterId* pIds =
-                static_cast<GpuUtil::PerfCounterId*>(PAL_MALLOC(numTotalInstances * sizeof(GpuUtil::PerfCounterId),
-                                                                m_pDevice->GetPlatform(),
-                                                                AllocInternal));
-
+                static_cast<GpuUtil::PerfCounterId*>(
+                    PAL_MALLOC(m_gpaSessionSampleConfig.perfCounters.numCounters * sizeof(GpuUtil::PerfCounterId),
+                               m_pDevice->GetPlatform(),
+                               AllocInternal));
             if (pIds != nullptr)
             {
                 m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
-                uint32 instanceIndex = 0;
+                uint32 counterIdx = 0;
                 for (uint32 i = 0; i < numCounters; i++)
                 {
                     GpuUtil::PerfCounterId counterInfo;
                     counterInfo.block   = pCounters[i].block;
                     counterInfo.eventId = pCounters[i].eventId;
-
-                    const auto& blockProps = perfExpProps.blocks[static_cast<uint32>(pCounters[i].block)];
-
-                    for (uint32 j = 0; j < blockProps.instanceCount; j++)
+                    for (uint32 j = 0; j < pCounters[i].instanceCount; j++)
                     {
-                        counterInfo.instance  = j;
-                        pIds[instanceIndex++] = counterInfo;
+                        counterInfo.instance = pCounters[i].instanceId + j;
+                        pIds[counterIdx++]   = counterInfo;
                     }
                 }
+                PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
             }
             else
             {
@@ -1006,8 +1000,7 @@ Result Queue::BuildGpaSessionSampleConfig()
                 uint32 numTotalInstances = 0;
                 for (uint32 i = 0; i < numSpmCountersRequested; i++)
                 {
-                    numTotalInstances +=
-                        perfExpProps.blocks[static_cast<uint32>(pStreamingCounters[i].block)].instanceCount;
+                    numTotalInstances += pStreamingCounters[i].instanceCount;
                 }
 
                 gpusize ringSizeInBytes = settings.gpuProfilerSpmTraceBufferSize;
@@ -1053,15 +1046,13 @@ Result Queue::BuildGpaSessionSampleConfig()
                         counterInfo.block   = pStreamingCounters[counter].block;
                         counterInfo.eventId = pStreamingCounters[counter].eventId;
 
-                        const auto& blockProps =
-                            perfExpProps.blocks[static_cast<uint32>(pStreamingCounters[counter].block)];
-
-                        for (uint32 blockInstance = 0; blockInstance < blockProps.instanceCount; ++blockInstance)
+                        for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)
                         {
-                            counterInfo.instance = blockInstance;
+                            counterInfo.instance = pStreamingCounters[counter].instanceId + j;
                             pIds[pIdIndex++]     = counterInfo;
                         }
                     }
+                    PAL_ASSERT(pIdIndex == numTotalInstances);
                 }
                 else
                 {
