@@ -173,10 +173,6 @@ Device::Device(
         m_firstUserDataReg[shaderStage] = GetBaseUserDataReg(static_cast<HwShaderStage>(shaderStage)) +
                                           FastUserDataStartReg;
     }
-
-    m_workarounds.u32All                    = 0;
-    m_workarounds.waAllowMetaDataForAllMips = 1;
-
 }
 
 // =====================================================================================================================

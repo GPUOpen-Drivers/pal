@@ -100,18 +100,6 @@ struct SyncReqs
     };
 };
 
-// Structure for storing GFX9-specific workaround flags
-union Workarounds
-{
-     struct
-     {
-        uint32  waAllowMetaDataForAllMips :  1;
-        uint32  reserved                  : 31;
-     };
-
-     uint32  u32All;
-};
-
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
 // pipeline bind point. Client CE RAM will be allocated after and CE load command needs a start alignment of 32 bytes,
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
@@ -475,8 +463,6 @@ public:
                 (Parent()->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionForLoadRegIndex)) ? false : true;
     }
 
-    bool AllowMetaDataForAllMips() const { return m_workarounds.waAllowMetaDataForAllMips; }
-
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,
         const void* pSrcSrdTable,
@@ -528,7 +514,6 @@ private:
     const GfxIpLevel  m_gfxIpLevel;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
-    Workarounds    m_workarounds;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

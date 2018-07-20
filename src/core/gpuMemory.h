@@ -176,7 +176,7 @@ public:
 
     virtual Result Init(const GpuMemoryCreateInfo& createInfo, const GpuMemoryInternalCreateInfo& internalInfo);
     virtual Result Init(const PinnedGpuMemoryCreateInfo& createInfo);
-    Result Init(const SvmGpuMemoryCreateInfo& createInfo);
+    virtual Result Init(const SvmGpuMemoryCreateInfo& createInfo);
     Result Init(const GpuMemoryOpenInfo& openInfo);
     Result Init(const PeerGpuMemoryOpenInfo& peerInfo);
 
@@ -292,7 +292,7 @@ protected:
         IDevice*const*          ppDevice,
         Image*const*            ppImage) = 0;
     // Performs OS-specific initialization for opening a shared, non-peer memory object.
-    virtual Result OpenSharedMemory() = 0;
+    virtual Result OpenSharedMemory(OsExternalHandle handle) = 0;
 
     // Performs OS-specific initialization for opening a connection to a peer memory object.
     virtual Result OpenPeerMemory() = 0;
@@ -350,7 +350,7 @@ protected:
     TypedBufferCreateInfo   m_typedBufferInfo;
 
     GpuMemoryFlags          m_flags;
-    OsExternalHandle        m_hExternalResource;
+
     MType                   m_mtype;
 
     // SDI External Physical Memory PTE index for surface and marker

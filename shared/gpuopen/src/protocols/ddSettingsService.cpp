@@ -168,27 +168,14 @@ Result SettingsService::HandleGetSettingData(
         if (iter != m_registeredComponents.End() && (iter->value.pSettingsData != nullptr))
         {
             const auto& component = iter->value;
-            if (component.isSettingsDataText)
+            IByteWriter* pWriter = nullptr;
+            result = pContext->BeginByteResponse(&pWriter);
+            if (result == Result::Success)
             {
-                ITextWriter* pWriter = nullptr;
-                result = pContext->BeginTextResponse(&pWriter);
-                if (result == Result::Success)
-                {
-                    pWriter->Write(static_cast<const char*>(component.pSettingsData), static_cast<uint32>(component.settingsDataSize));
-                    result = pWriter->End();
-                }
+                pWriter->WriteBytes(&component.settingsDataHeader, sizeof(SettingsDataHeader));
+                pWriter->WriteBytes(component.pSettingsData, component.settingsDataSize);
+                result = pWriter->End();
             }
-            else
-            {
-                IByteWriter* pWriter = nullptr;
-                result = pContext->BeginByteResponse(&pWriter);
-                if (result == Result::Success)
-                {
-                    pWriter->WriteBytes(component.pSettingsData, component.settingsDataSize);
-                    result = pWriter->End();
-                }
-            }
-
         }
     }
 

@@ -193,7 +193,8 @@ union ImageUsageFlags
                                              ///  is used as a color target and compute is used to generate mipmaps,PAL
                                              ///  may be able to enable additional compression on the baseLevels which
                                              ///  are used exclusively as color target and shader read.
-        uint32 reserved               : 19;  ///< Reserved for future use.
+        uint32 placeHolder1           :  1;
+        uint32 reserved               : 18;  ///< Reserved for future use.
     };
     uint32 u32All;                 ///< Flags packed as 32-bit uint.
 };

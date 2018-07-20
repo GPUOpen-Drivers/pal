@@ -82,6 +82,7 @@ void PipelineChunkPs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_PS);
     m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_PS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -172,7 +173,10 @@ uint32* PipelineChunkPs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-    pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+    if (vsStageInfo.wavesPerSh > 0)
+    {
+        pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+    }
 
     if (vsStageInfo.cuEnableMask != 0)
     {

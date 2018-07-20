@@ -393,7 +393,7 @@ public:
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
-        int32*          pConnectorId) override;
+        uint32*         pConnectorId) override;
 
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
@@ -541,10 +541,6 @@ public:
 
     Result DestroyResourceList(
         amdgpu_bo_list_handle handle) const;
-
-    Result IsSameGpu(
-        int32 presentDeviceFd,
-        bool* pIsSame) const;
 
     Result CreateSyncObject(
         uint32                    flags,
@@ -703,6 +699,8 @@ public:
     Result FreeSdiSurface(GpuMemory* pGpuMem);
 
     SvmMgr* GetSvmMgr() const { return m_pSvmMgr; }
+
+    const char* GetBusId() const { return m_busId; }
 
 protected:
     virtual void FinalizeQueueProperties() override;
@@ -868,6 +866,8 @@ private:
     bool m_supportQueuePriority;
     // Support creating bo that is always resident in current VM.
     bool m_supportVmAlwaysValid;
+    // Indicate whether kernel has the fix for PRT va range handling.
+    bool m_requirePrtReserveVaWa;
 #if defined(PAL_DEBUG_PRINTS)
     const DrmLoaderFuncsProxy& m_drmProcs;
 #else

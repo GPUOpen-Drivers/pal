@@ -298,7 +298,7 @@ Result WindowSystem::GetConnectorIdFromOutput(
     OsDisplayHandle hDisplay,
     uint32          randrOutput,
     WsiPlatform     wsiPlatform,
-    int32*          pConnectorId)
+    uint32*         pConnectorId)
 {
     Result result = Result::ErrorUnavailable;
     if (SupportedPlatformMask & wsiPlatform)

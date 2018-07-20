@@ -121,7 +121,7 @@ public:
         Device*         pDevice,
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
-        int32*          pConnectorId);
+        uint32*         pConnectorId);
 
     static Result AcquireScreenAccess(
         OsDisplayHandle hDisplay,
@@ -157,6 +157,11 @@ private:
     Result SelectEvent();
 
     Result HandlePresentEvent(xcb_present_generic_event_t* pPresentEvent);
+
+    static bool IsDevicePresentable(
+        Device*            pDevice,
+        xcb_connection_t*  pConnection,
+        const xcb_window_t window);
 
     const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;

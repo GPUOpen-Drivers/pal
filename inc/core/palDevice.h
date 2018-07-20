@@ -463,6 +463,10 @@ struct PalPublicSettings
     bool longRunningSubmissions;
     /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
     bool disableCommandBufferPreemption;
+    /// Disable the fast clear eliminate skipping optimization.  This optimization will conservatively track the usage
+    /// of clear values to allow the vast majority of images that never clear to a value that isn't TC-compatible to
+    /// skip the CPU and front-end GPU overhead of issuing a predicated fast clear eliminate BLT.
+    bool disableSkipFceOptimization;
 };
 
 /// Command Buffer Logger layer runtime settings
@@ -915,8 +919,10 @@ struct DeviceProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
+                uint32 reservedForFutureHw          :  1;
+
                 /// Reserved for future use.
-                uint32 reserved                     : 30;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;              ///< Flags packed as 32-bit uint.
         } flags;                        ///< GPU memory property flags.
@@ -1009,7 +1015,9 @@ struct DeviceProperties
                                                                      ///  timestamps will increase monotonically across
                                                                      ///  command buffer submissions.
                 uint32 placeholder3                             : 1; ///< Reserved for future hardware.
-                uint32 reserved                                 : 12; ///< Reserved for future use.
+                uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
+                uint32 placeholder4                             : 1; ///< Placeholder, do not use
+                uint32 reserved                                 : 10; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -4327,7 +4335,7 @@ public:
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
-        int32*          pConnectorId) = 0;
+        uint32*         pConnectorId) = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

@@ -1025,7 +1025,7 @@ public:
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
-        int32*          pConnectorId) override
+        uint32*         pConnectorId) override
         { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
 
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }

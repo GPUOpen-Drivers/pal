@@ -62,7 +62,7 @@ struct WindowSystemCreateInfo
         {
             uint32          crtcId;
             int32           drmMasterFd;
-            int32           connectorId;
+            uint32          connectorId;
         };
     };
 };
@@ -145,7 +145,7 @@ public:
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
-        int32*          pConnectorId);
+        uint32*         pConnectorId);
 
     static Result AcquireScreenAccess(
         Device*         pDevice,

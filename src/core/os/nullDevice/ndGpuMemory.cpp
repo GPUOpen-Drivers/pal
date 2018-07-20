@@ -113,7 +113,8 @@ Result NdGpuMemory::OpenPeerMemory()
 // Performs OS-specific initialization for allocating shared memory objects. In this context, a "shared" memory object
 // refers to a GPU memory object residing in a non-local heap which can be accessed (shared between) two or more GPU's
 // without requiring peer memory transfers.
-Result NdGpuMemory::OpenSharedMemory()
+Result NdGpuMemory::OpenSharedMemory(
+    OsExternalHandle handle)
 {
     // This is not expected to ever be called because there's only one null device in the system.
     PAL_NEVER_CALLED();

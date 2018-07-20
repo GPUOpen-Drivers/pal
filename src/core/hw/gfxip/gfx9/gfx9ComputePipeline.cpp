@@ -210,6 +210,7 @@ Result ComputePipeline::HwlInit(
         m_threadsPerTgY = m_pm4Commands.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_pm4Commands.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
+        abiProcessor.HasRegisterEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_pm4CommandsDynamic.computeResourceLimits.u32All);
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
         const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx9.wavefrontSize);
 
@@ -275,25 +276,24 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     uint32 maxWavesPerCu
     ) const
 {
-    constexpr uint32 MaxWavesPerShCompute = (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
-                                             COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT);
-
-    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVES_PER_SH field to the maximum possible value.
-    uint32 wavesPerSh = MaxWavesPerShCompute;
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSh = 0;
 
     if (maxWavesPerCu > 0)
     {
+        const auto&  gfx9ChipProps        = m_pDevice->Parent()->ChipProperties().gfx9;
+        const uint32 numWavefrontsPerCu   = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
+        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.numCuPerSh;
+
         // We assume no one is trying to use more than 100% of all waves.
-        const uint32 numWavefrontsPerCu = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
         const uint32 maxWavesPerSh = (maxWavesPerCu * gfx9ChipProps.numCuPerSh);
 
         // For compute shaders, it is in units of 1 wave and must not exceed the max.
-        wavesPerSh = Min(MaxWavesPerShCompute, maxWavesPerSh);
+        wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
     }
 
     return wavesPerSh;
@@ -314,7 +314,10 @@ uint32* ComputePipeline::WriteCommands(
 
     ComputePipelinePm4ImgDynamic pm4CommandsDynamic = m_pm4CommandsDynamic;
 
-    pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    if (csInfo.maxWavesPerCu > 0)
+    {
+        pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    }
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx9MaxTgPerCu = 15;
@@ -332,7 +335,8 @@ uint32* ComputePipeline::WriteCommands(
             uint32 ldsSpace = 0;
 
             // Round to nearest multiple of the LDS granularity, then convert to the register value.
-            // NOTE: On Gfx9+, granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
+            // NOTE: On Gfx9+, granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to
+            //       16K DWORDs.
             ldsSpace = Pow2Align(ldsSizeDwords, Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
 
             regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = m_pm4Commands.computePgmRsrc2;
@@ -400,7 +404,8 @@ Result ComputePipeline::GetShaderStats(
 // payloads are computed elsewhere.
 void ComputePipeline::BuildPm4Headers()
 {
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    const auto&    chipProps = m_pDevice->Parent()->ChipProperties();
+    const CmdUtil& cmdUtil   = m_pDevice->CmdUtil();
 
     // Sets the following compute registers: COMPUTE_NUM_THREAD_X, COMPUTE_NUM_THREAD_Y,
     // COMPUTE_NUM_THREAD_Z.
@@ -426,7 +431,7 @@ void ComputePipeline::BuildPm4Headers()
                                                           ShaderCompute,
                                                           &m_pm4Commands.hdrComputeUserData);
 
-    if (m_pDevice->Parent()->ChipProperties().gfx9.supportSpp != 0)
+    if (chipProps.gfx9.supportSpp != 0)
     {
         // Sets the following compute register: COMPUTE_SHADER_CHKSUM.
         m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_SHADER_CHKSUM,

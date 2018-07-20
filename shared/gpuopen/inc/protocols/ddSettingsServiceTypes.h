@@ -66,6 +66,14 @@ struct SettingValue
     size_t      valueSize;
 };
 
+// Header for the settingsData command
+struct SettingsDataHeader
+{
+    bool   isEncoded;           //< Indicates if the settings data is in plain text JSON or encoded.
+    uint32 magicBufferId;       //< ID for the file used for decoding JSON data.
+    uint32 magicBufferOffset;   //< Offset within the magic buffer file to start at when decoding.
+};
+
 // The hash type is intentionally opaque to allow individual components to use whatever hashing method they like.
 typedef uint32 SettingNameHash;
 
@@ -98,10 +106,9 @@ struct RegisteredComponent
     uint32                 numSettings;                             //< Number of setting hashes in pSettingsHashes
     SettingGetValueFunc    pfnGetValue;                             //< Function called to get a setting value
     SettingSetValueFunc    pfnSetValue;                             //< Function called to set a setting value
+    SettingsDataHeader     settingsDataHeader;                      //< Info about how JSON data is encoded
     const void*            pSettingsData;                           //< Full settings JSON data
     size_t                 settingsDataSize;                        //< Size of full settings data blob
-    bool                   isSettingsDataText;                      //< Indicates if pSettingsData contains plain text or
-                                                                    //  encoded (i.e. one-time pad) JSON
     void*                  pPrivateData;                            //< Private context data that will be sent back to the
                                                                     //  component when Get/SetValue functions are called.
 };

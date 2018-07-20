@@ -2703,7 +2703,9 @@ bool Image::CanMipSupportMetaData(
     uint32 mip
     ) const
 {
-    return (m_gfxDevice.AllowMetaDataForAllMips() ||
+    // If there is no restriction on meta-data usage, then this mip level is good, otherwise, check the specified
+    // mip level against where the mip-tail begins.
+    return ((m_gfxDevice.Settings().waRestrictMetaDataUseInMipTail == false) ||
             (mip <= m_addrSurfOutput[0].firstMipIdInTail));
 }
 

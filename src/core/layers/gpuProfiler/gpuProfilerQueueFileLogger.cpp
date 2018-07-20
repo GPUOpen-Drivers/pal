@@ -172,18 +172,18 @@ void Queue::OpenLogFile(
     PAL_ASSERT(result == Result::Success);
 
     // Write the CSV column headers to the newly opened file.
-    const char* pCsvHeader = "Queue Call, CmdBuffer Index, CmdBuffer Call, Start Clock, End Clock, Time (us) "
-                             "[Frequency: %llu], PipelineHash, CompilerHash, VS/CS, HS, DS, GS, PS, "
-                             "Verts/ThreadGroups, Instances, Comments, ";
+    const char* pCsvHeader = "Queue Call,CmdBuffer Index,CmdBuffer Call,Start Clock,End Clock,Time (us) "
+                             "[Frequency: %llu],PipelineHash,CompilerHash,VS/CS,HS,DS,GS,PS,"
+                             "Verts/ThreadGroups,Instances,Comments,";
     Snprintf(&tempString[0], sizeof(tempString), pCsvHeader, m_pDevice->TimestampFreq());
     m_logFile.Write(&tempString[0], strlen(&tempString[0]));
 
     // Add some additional column headers based on enabled profiling features.
     if (settings.gpuProfilerRecordPipelineStats)
     {
-        const char* pCsvPipelineStatsHeader = "IaVertices, IaPrimitives, VsInvocations, GsInvocations, "
-                                              "GsPrimitives, CInvocations, CPrimitives, PsInvocations, "
-                                              "HsInvocations, DsInvocations, CsInvocations, ";
+        const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,"
+                                              "GsPrimitives,CInvocations,CPrimitives,PsInvocations,"
+                                              "HsInvocations,DsInvocations,CsInvocations,";
         m_logFile.Write(pCsvPipelineStatsHeader, strlen(pCsvPipelineStatsHeader));
     }
 
@@ -193,13 +193,13 @@ void Queue::OpenLogFile(
     {
         for (uint32 i = 0; i < numGlobalPerfCounters; i++)
         {
-            m_logFile.Printf("%s, ", &pPerfCounters[i].name[0]);
+            m_logFile.Printf("%s,", &pPerfCounters[i].name[0]);
         }
     }
 
     if (m_pDevice->IsThreadTraceEnabled())
     {
-        m_logFile.Printf("ThreadTraceId, ");
+        m_logFile.Printf("ThreadTraceId,");
     }
 
     m_logFile.Printf("\n");
@@ -353,17 +353,16 @@ void Queue::OutputQueueCallToFile(
 {
     PAL_ASSERT(logItem.type == QueueCall);
 
-    m_logFile.Printf("%s, , , , , , , , , , , , , , , , ",
-                     QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
+    m_logFile.Printf("%s,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
 
     if (m_pDevice->ProfilerSettings().gpuProfilerRecordPipelineStats)
     {
-        m_logFile.Printf(", , , , , , , , , , , ");
+        m_logFile.Printf(",,,,,,,,,,,");
     }
 
     for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
     {
-        m_logFile.Printf(", ");
+        m_logFile.Printf(",");
     }
 
     m_logFile.Printf("\n");
@@ -387,7 +386,7 @@ void Queue::OutputCmdBufCallToFile(
 
     const auto& cmdBufItem = logItem.cmdBufCall;
 
-    m_logFile.Printf(", %d, %s%s, ",
+    m_logFile.Printf(",%d,%s%s,",
                      m_curLogCmdBufIdx,
                      pNestedCmdBufPrefix,
                      CmdBufCallIdStrings[static_cast<uint32>(cmdBufItem.callId)]);
@@ -397,8 +396,8 @@ void Queue::OutputCmdBufCallToFile(
     // Print any draw/dispatch specific info (shader hashes, etc.).
     if (cmdBufItem.flags.draw)
     {
-        m_logFile.Printf("0x%016llx, 0x%016llx, 0x%016llx%016llx, 0x%016llx%016llx, 0x%016llx%016llx,"
-                         " 0x%016llx%016llx, 0x%016llx%016llx, %u, %u, , ",
+        m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,0x%016llx%016llx,0x%016llx%016llx,"
+                         "0x%016llx%016llx,0x%016llx%016llx,%u,%u,,",
                          cmdBufItem.draw.pipelineInfo.pipelineHash,
                          cmdBufItem.draw.pipelineInfo.compilerHash,
                          cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.upper,
@@ -416,7 +415,7 @@ void Queue::OutputCmdBufCallToFile(
     }
     else if (cmdBufItem.flags.dispatch)
     {
-        m_logFile.Printf("0x%016llx, 0x%016llx, 0x%016llx%016llx, , , , , %u, , , ",
+        m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,,,,,%u,,,",
                          cmdBufItem.dispatch.pipelineInfo.pipelineHash,
                          cmdBufItem.dispatch.pipelineInfo.compilerHash,
                          cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
@@ -425,16 +424,16 @@ void Queue::OutputCmdBufCallToFile(
     }
     else if (cmdBufItem.flags.barrier)
     {
-        m_logFile.Printf(", , , , , , , , ,\"%s\", ",
+        m_logFile.Printf(",,,,,,,,,\"%s\",",
                          (cmdBufItem.barrier.pComment != nullptr) ? cmdBufItem.barrier.pComment : "");
     }
     else if (cmdBufItem.flags.comment)
     {
-        m_logFile.Printf(", , , , , , , , ,\"%s\", ", cmdBufItem.comment.string);
+        m_logFile.Printf(",,,,,,,,,\"%s\",", cmdBufItem.comment.string);
     }
     else
     {
-        m_logFile.Printf(", , , , , , , , , , ");
+        m_logFile.Printf(",,,,,,,,,,");
     }
 
     OutputPipelineStatsToFile(logItem);
@@ -464,7 +463,7 @@ void Queue::OutputFrameToFile(
         PAL_ASSERT(result == Result::Success);
 
         // Write the CSV column headers to the newly opened file.
-        const char* pCsvHeader = "Frame #, Start Clock, End Clock, Time (us) [Frequency: %llu], ";
+        const char* pCsvHeader = "Frame #,Start Clock,End Clock,Time (us) [Frequency: %llu],";
         Snprintf(&tempString[0], sizeof(tempString), pCsvHeader, m_pDevice->TimestampFreq());
         m_logFile.Write(&tempString[0], strlen(&tempString[0]));
 
@@ -474,19 +473,19 @@ void Queue::OutputFrameToFile(
         {
             for (uint32 i = 0; i < numGlobalPerfCounters; i++)
             {
-                m_logFile.Printf("%s, ", &pPerfCounters[i].name[0]);
+                m_logFile.Printf("%s,", &pPerfCounters[i].name[0]);
             }
         }
 
         if (m_pDevice->IsThreadTraceEnabled())
         {
-            m_logFile.Printf("ThreadTraceId, ");
+            m_logFile.Printf("ThreadTraceId,");
         }
 
         m_logFile.Printf("\n");
     }
 
-    m_logFile.Printf("%u, ", logItem.frameId);
+    m_logFile.Printf("%u,", logItem.frameId);
 
     OutputTimestampsToFile(logItem);
     OutputGlobalPerfCountersToFile(logItem);
@@ -509,7 +508,7 @@ void Queue::OutputTimestampsToFile(
                                                             nullptr,
                                                             pResult);
 
-        m_logFile.Printf("%llu, %llu, ", pResult[0], pResult[1]);
+        m_logFile.Printf("%llu,%llu,", pResult[0], pResult[1]);
 
         bool hideElapsedTime = (m_pDevice->ProfilerSettings().gpuProfilerGranularity == GpuProfilerGranularityDraw) &&
                                (logItem.type == LogItemType::CmdBufferCall) &&
@@ -521,16 +520,16 @@ void Queue::OutputTimestampsToFile(
             const double tsDiff   = static_cast<double>(pResult[1] - pResult[0]);
             const double timeInUs = 1000000 * tsDiff / m_pDevice->TimestampFreq();
 
-            m_logFile.Printf("%.2lf, ", timeInUs);
+            m_logFile.Printf("%.2lf,", timeInUs);
         }
         else
         {
-            m_logFile.Printf(", ");
+            m_logFile.Printf(",");
         }
     }
     else
     {
-        m_logFile.Printf(", , , ");
+        m_logFile.Printf(",,,");
     }
 }
 
@@ -552,13 +551,13 @@ void Queue::OutputPipelineStatsToFile(
 
         // PAL hardcodes the layout of the return pipeline stats values based on the client, leading to different
         // versions of this code to a uniform log layout.
-        m_logFile.Printf("%llu, %llu, %llu, %llu, %llu, %llu, %llu, %llu, %llu, %llu, %llu, ", pipelineStats[0],
+        m_logFile.Printf("%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,", pipelineStats[0],
                          pipelineStats[1], pipelineStats[2], pipelineStats[3], pipelineStats[4], pipelineStats[5],
                          pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10]);
     }
     else if (m_pDevice->ProfilerSettings().gpuProfilerRecordPipelineStats)
     {
-        m_logFile.Printf(", , , , , , , , , , , ");
+        m_logFile.Printf(",,,,,,,,,,,");
     }
 }
 
@@ -623,7 +622,7 @@ void Queue::OutputGlobalPerfCountersToFile(
             // Output into .csv file.
             for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
             {
-                m_logFile.Printf("%llu, ", m_pGlobalPerfCounterValues[i]);
+                m_logFile.Printf("%llu,", m_pGlobalPerfCounterValues[i]);
             }
         }
     }
@@ -631,7 +630,7 @@ void Queue::OutputGlobalPerfCountersToFile(
     {
         for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
         {
-            m_logFile.Printf(", ");
+            m_logFile.Printf(",");
         }
     }
 }
@@ -653,11 +652,11 @@ void Queue::OutputTraceDataToFile(
             if (settings.gpuProfilerGranularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
-                m_logFile.Printf("%u, ", m_curLogFrame);
+                m_logFile.Printf("%u,", m_curLogFrame);
             }
             else
             {
-                m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP, ");
+                m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP,");
             }
         }
         else if (m_pDevice->GetProfilerMode() == GpuProfilerSqttThreadTraceView)
@@ -751,7 +750,7 @@ void Queue::OutputTraceDataToFile(
                         pResult = Util::VoidPtrInc(pResult, (pShaderDb->size - sizeof(SqttFileChunkIsaDatabase)));
                     }
 
-                    m_logFile.Printf("%u, ", m_curLogSqttIdx++);
+                    m_logFile.Printf("%u,", m_curLogSqttIdx++);
                 }
 
                 // Spm trace chunk: Begin output of Spm trace data as a separate .csv file
@@ -767,7 +766,7 @@ void Queue::OutputTraceDataToFile(
                     for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
                     {
                         const auto& counter = m_pDevice->StreamingPerfCounters()[i];
-                        spmFile.Printf("%s, ", &counter.name[0]);
+                        spmFile.Printf("%s,", &counter.name[0]);
                     }
 
                     uint64* pTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pResult, sizeof(SqttFileChunkSpmDb)));
@@ -836,15 +835,15 @@ void Queue::OutputTraceDataToFile(
     {
         // TODO: this error is set under none case yet.
         // GpaSession::BeginSample hits an ASSERT if this error happens.
-        m_logFile.Printf("ERROR: OUT OF MEMORY, ");
+        m_logFile.Printf("ERROR: OUT OF MEMORY,");
     }
     else if (logItem.errors.perfExpUnsupported != 0)
     {
-        m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED, ");
+        m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED,");
     }
     else
     {
-        m_logFile.Printf(", ");
+        m_logFile.Printf(",");
     }
 }
 

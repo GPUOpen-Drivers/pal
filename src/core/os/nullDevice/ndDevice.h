@@ -297,7 +297,7 @@ public:
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
-        int32*          pConnectorId) override { return Result::Success; }
+        uint32*         pConnectorId) override { return Result::Success; }
 
 protected:
     Device(

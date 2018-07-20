@@ -164,7 +164,7 @@ private:
     const DrmLoaderFuncs&  m_drmProcs;
     uint32                 m_crtcId;
     int32                  m_drmMasterFd;
-    int32                  m_connectorId;
+    uint32                 m_connectorId;
 
     Util::Thread           m_waitEventThread;
     Util::Mutex            m_waitMutex;

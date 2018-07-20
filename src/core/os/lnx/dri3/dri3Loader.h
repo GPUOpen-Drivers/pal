@@ -51,6 +51,7 @@
 #include <xcb/dri2.h>
 #include <xcb/xcb.h>
 #include <xcb/present.h>
+#include <xcb/randr.h>
 #include "randr1_6.h"
 extern "C"
 {
@@ -287,6 +288,34 @@ typedef xcb_randr_get_output_property_reply_t * (*XcbRandrGetOutputPropertyReply
             xcb_randr_get_output_property_cookie_t    cookie,
             xcb_generic_error_t**                     ppError);
 
+typedef xcb_randr_get_providers_cookie_t (*XcbRandrGetProviders)(
+            xcb_connection_t*     c,
+            xcb_window_t          window);
+
+typedef xcb_randr_get_providers_reply_t* (*XcbRandrGetProvidersReply)(
+            xcb_connection_t*                 c,
+            xcb_randr_get_providers_cookie_t  cookie,
+            xcb_generic_error_t**             e);
+
+typedef xcb_randr_provider_t* (*XcbRandrGetProvidersProviders)(
+            const xcb_randr_get_providers_reply_t*    R);
+
+typedef int (*XcbRandrGetProvidersProvidersLength)(
+            const xcb_randr_get_providers_reply_t*    R);
+
+typedef xcb_randr_get_provider_info_cookie_t (*XcbRandrGetProviderInfo)(
+            xcb_connection_t*     c,
+            xcb_randr_provider_t  provider,
+            xcb_timestamp_t       config_timestamp);
+
+typedef xcb_randr_get_provider_info_reply_t* (*XcbRandrGetProviderInfoReply)(
+            xcb_connection_t*                     c,
+            xcb_randr_get_provider_info_cookie_t  cookie,
+            xcb_generic_error_t**                 e);
+
+typedef char* (*XcbRandrGetProviderInfoName)(
+            const xcb_randr_get_provider_info_reply_t*    R);
+
 // symbols from libxcb-sync.so.1
 typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
             xcb_connection_t*     pConnection,
@@ -305,6 +334,10 @@ typedef XVisualInfo* (*XGetVisualInfo)(
 
 typedef int32 (*XFree)(
             void*     pAddress);
+
+typedef Window (*XRootWindow)(
+            Display*  pDisplay,
+            int       screenNum);
 
 // symbols from libxcb-present.so.0
 typedef xcb_present_query_version_cookie_t (*XcbPresentQueryVersion)(
@@ -658,6 +691,48 @@ struct Dri3LoaderFuncs
         return (pfnXcbRandrGetOutputPropertyReply != nullptr);
     }
 
+    XcbRandrGetProviders                  pfnXcbRandrGetProviders;
+    bool pfnXcbRandrGetProvidersisValid() const
+    {
+        return (pfnXcbRandrGetProviders != nullptr);
+    }
+
+    XcbRandrGetProvidersReply             pfnXcbRandrGetProvidersReply;
+    bool pfnXcbRandrGetProvidersReplyisValid() const
+    {
+        return (pfnXcbRandrGetProvidersReply != nullptr);
+    }
+
+    XcbRandrGetProvidersProviders         pfnXcbRandrGetProvidersProviders;
+    bool pfnXcbRandrGetProvidersProvidersisValid() const
+    {
+        return (pfnXcbRandrGetProvidersProviders != nullptr);
+    }
+
+    XcbRandrGetProvidersProvidersLength   pfnXcbRandrGetProvidersProvidersLength;
+    bool pfnXcbRandrGetProvidersProvidersLengthisValid() const
+    {
+        return (pfnXcbRandrGetProvidersProvidersLength != nullptr);
+    }
+
+    XcbRandrGetProviderInfo               pfnXcbRandrGetProviderInfo;
+    bool pfnXcbRandrGetProviderInfoisValid() const
+    {
+        return (pfnXcbRandrGetProviderInfo != nullptr);
+    }
+
+    XcbRandrGetProviderInfoReply          pfnXcbRandrGetProviderInfoReply;
+    bool pfnXcbRandrGetProviderInfoReplyisValid() const
+    {
+        return (pfnXcbRandrGetProviderInfoReply != nullptr);
+    }
+
+    XcbRandrGetProviderInfoName           pfnXcbRandrGetProviderInfoName;
+    bool pfnXcbRandrGetProviderInfoNameisValid() const
+    {
+        return (pfnXcbRandrGetProviderInfoName != nullptr);
+    }
+
     XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
     bool pfnXcbSyncTriggerFenceCheckedisValid() const
     {
@@ -680,6 +755,12 @@ struct Dri3LoaderFuncs
     bool pfnXFreeisValid() const
     {
         return (pfnXFree != nullptr);
+    }
+
+    XRootWindow                           pfnXRootWindow;
+    bool pfnXRootWindowisValid() const
+    {
+        return (pfnXRootWindow != nullptr);
     }
 
     XcbPresentQueryVersion                pfnXcbPresentQueryVersion;
@@ -1183,6 +1264,69 @@ public:
         return (m_pFuncs->pfnXcbRandrGetOutputPropertyReply != nullptr);
     }
 
+    xcb_randr_get_providers_cookie_t pfnXcbRandrGetProviders(
+            xcb_connection_t*     c,
+            xcb_window_t          window) const;
+
+    bool pfnXcbRandrGetProvidersisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProviders != nullptr);
+    }
+
+    xcb_randr_get_providers_reply_t* pfnXcbRandrGetProvidersReply(
+            xcb_connection_t*                 c,
+            xcb_randr_get_providers_cookie_t  cookie,
+            xcb_generic_error_t**             e) const;
+
+    bool pfnXcbRandrGetProvidersReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProvidersReply != nullptr);
+    }
+
+    xcb_randr_provider_t* pfnXcbRandrGetProvidersProviders(
+            const xcb_randr_get_providers_reply_t*    R) const;
+
+    bool pfnXcbRandrGetProvidersProvidersisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProvidersProviders != nullptr);
+    }
+
+    int pfnXcbRandrGetProvidersProvidersLength(
+            const xcb_randr_get_providers_reply_t*    R) const;
+
+    bool pfnXcbRandrGetProvidersProvidersLengthisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProvidersProvidersLength != nullptr);
+    }
+
+    xcb_randr_get_provider_info_cookie_t pfnXcbRandrGetProviderInfo(
+            xcb_connection_t*     c,
+            xcb_randr_provider_t  provider,
+            xcb_timestamp_t       config_timestamp) const;
+
+    bool pfnXcbRandrGetProviderInfoisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProviderInfo != nullptr);
+    }
+
+    xcb_randr_get_provider_info_reply_t* pfnXcbRandrGetProviderInfoReply(
+            xcb_connection_t*                     c,
+            xcb_randr_get_provider_info_cookie_t  cookie,
+            xcb_generic_error_t**                 e) const;
+
+    bool pfnXcbRandrGetProviderInfoReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProviderInfoReply != nullptr);
+    }
+
+    char* pfnXcbRandrGetProviderInfoName(
+            const xcb_randr_get_provider_info_reply_t*    R) const;
+
+    bool pfnXcbRandrGetProviderInfoNameisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetProviderInfoName != nullptr);
+    }
+
     xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(
             xcb_connection_t*     pConnection,
             xcb_sync_fence_t      fence) const;
@@ -1218,6 +1362,15 @@ public:
     bool pfnXFreeisValid() const
     {
         return (m_pFuncs->pfnXFree != nullptr);
+    }
+
+    Window pfnXRootWindow(
+            Display*  pDisplay,
+            int       screenNum) const;
+
+    bool pfnXRootWindowisValid() const
+    {
+        return (m_pFuncs->pfnXRootWindow != nullptr);
     }
 
     xcb_present_query_version_cookie_t pfnXcbPresentQueryVersion(

@@ -76,6 +76,8 @@ void PipelineChunkLsHs::Init(
     m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All     = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
     m_pm4ImageContext.vgtHosMinTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MIN_TESS_LEVEL);
     m_pm4ImageContext.vgtHosMaxTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MAX_TESS_LEVEL);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_LS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ls.u32All);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
 
     // Set up the register values written for the WaShaderSpiWriteShaderPgmRsrc2Ls hardware bug workaround.  See
     // BuildPm4Headers() for more info.
@@ -166,8 +168,14 @@ uint32* PipelineChunkLsHs::WriteShCommands(
     {
         Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-        pm4ImageShDynamic.spiShaderPgmRsrc3Ls.bits.WAVE_LIMIT = lsStageInfo.wavesPerSh;
-        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+        if (lsStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Ls.bits.WAVE_LIMIT = lsStageInfo.wavesPerSh;
+        }
+        if (hsStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+        }
 
         if (lsStageInfo.cuEnableMask != 0)
         {

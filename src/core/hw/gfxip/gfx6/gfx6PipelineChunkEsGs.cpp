@@ -72,6 +72,7 @@ void PipelineChunkEsGs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Es.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_ES);
     m_pm4ImageSh.spiShaderPgmRsrc2Es.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_ES);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_ES__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Es.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -79,6 +80,7 @@ void PipelineChunkEsGs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_GS);
     m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_GS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_GS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -179,8 +181,14 @@ uint32* PipelineChunkEsGs::WriteShCommands(
     {
         Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-        pm4ImageShDynamic.spiShaderPgmRsrc3Es.bits.WAVE_LIMIT = esStageInfo.wavesPerSh;
-        pm4ImageShDynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
+        if (esStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Es.bits.WAVE_LIMIT = esStageInfo.wavesPerSh;
+        }
+        if (gsStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
+        }
 
         if (esStageInfo.cuEnableMask != 0)
         {

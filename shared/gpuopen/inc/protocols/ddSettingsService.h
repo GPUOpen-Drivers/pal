@@ -45,7 +45,7 @@ namespace SettingsURIService
 {
 
 static const char* kSettingsServiceName = "settings";
-DD_STATIC_CONST Version kSettingsServiceVersion = 1;
+DD_STATIC_CONST Version kSettingsServiceVersion = 2;
 
 // =====================================================================================================================
 // Settings Service

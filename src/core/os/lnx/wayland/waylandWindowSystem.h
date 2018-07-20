@@ -131,6 +131,8 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandWindowSystem);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandWindowSystem);
+
+    static constexpr int32 DefaultImageHandle = -1;
 };
 
 } // Linux

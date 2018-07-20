@@ -505,6 +505,17 @@ Result Device::OsLateInit()
         m_supportQuerySensorInfo = true;
     }
 
+    // The fix did not bump the kernel version, thus it is only safe to enable it start from the next version: 3.27
+    // The fix also has been pulled into 4.18.rc1 upstream kernel already.
+    if (IsDrmVersionOrGreater(3,27) || IsKernelVersionEqualOrGreater(4,18))
+    {
+        m_requirePrtReserveVaWa = false;
+    }
+    else
+    {
+        m_requirePrtReserveVaWa = true;
+    }
+
     return result;
 }
 
@@ -1726,7 +1737,7 @@ Result Device::GetConnectorIdFromOutput(
     OsDisplayHandle hDisplay,
     uint32          randrOutput,
     WsiPlatform     wsiPlatform,
-    int32*          pConnectorId)
+    uint32*         pConnectorId)
 {
     return WindowSystem::GetConnectorIdFromOutput(this, hDisplay, randrOutput, wsiPlatform, pConnectorId);
 }
@@ -1892,9 +1903,13 @@ Result Device::ReservePrtVaRange(
 {
     Result result = Result::ErrorUnavailable;
 
-    // To work around an issue with the amdgpu module not synchronizing PTE updates, we set the delayed update flag
-    // to avoid GPU faults in certain CTS tests. This should be removed once amdgpu fies the issue.
-    constexpr uint64 operations = AMDGPU_VM_PAGE_PRT  | AMDGPU_VM_DELAY_UPDATE;
+    uint64 operations = AMDGPU_VM_PAGE_PRT;
+
+    // we have to enabl w/a to delay update the va mapping in case kernel did not ready with the fix.
+    if (m_requirePrtReserveVaWa)
+    {
+        operations |= AMDGPU_VM_DELAY_UPDATE;
+    }
 
     const     uint64 mtypeFlag  = ConvertMType(mtype);
 
@@ -2468,38 +2483,6 @@ Result Device::DestroyResourceList(
     if (m_drmProcs.pfnAmdgpuBoListDestroy(handle) != 0)
     {
         result = Result::ErrorInvalidValue;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Check if the GPU presentFd point to is same with the devices'. The caller must ensure the presentDeviceFd is valid.
-// Every GPU has three device node on Linux. card0 is a super node which require authentication and it can be used to do
-// anything, including buffer management, KMS (kernel mode setting), rendering. controlD64 is used for KMS access only.
-// renderD128 is used for rendering, and authentication is not required. X Server is usually open the card0, and PAL
-// open the renderD128. So need to get the bus ID and check if they are same. If X server opens the render node too,
-// compare the node name to check if they are the same one.
-Result Device::IsSameGpu(
-    int32 presentDeviceFd,
-    bool* pIsSame
-    ) const
-{
-    Result result = Result::Success;
-
-    *pIsSame = false;
-
-    // both the render node and master node can use this interface to get the device name.
-    const char* pDeviceName = m_drmProcs.pfnDrmGetRenderDeviceNameFromFd(presentDeviceFd);
-
-    if (pDeviceName == nullptr)
-    {
-        result = Result::ErrorUnknown;
-    }
-
-    if (result == Result::Success)
-    {
-        *pIsSame = (strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
     }
 
     return result;

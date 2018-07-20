@@ -319,6 +319,9 @@ if(PAL_BUILD_CORE)
             )
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
         endif()
+        target_sources(pal PRIVATE
+            core/os/lnx/display/displayWindowSystem.cpp
+        )
     endif()
 
 ### PAL core/hw ################################################################

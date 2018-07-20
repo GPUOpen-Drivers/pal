@@ -154,7 +154,7 @@ struct WsiScreenProperties
     uint32  randrOutput;    ///< A handle to RandR output object. The output represents the underlying display hardware
                             ///  which include encoder and connector.
 
-    int32   connectorId;    ///< Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
+    uint32  connectorId;    ///< Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
     int32   drmMasterFd;    ///< A file descriptor of DRM-master, it's used to hold/control the leased objects. DRM
                             ///  exposes an API that user-space programs can use to send commands and data to the GPU.
                             ///  If a process owns the fd of DRM-master, it has the highest privilege of the DRM.

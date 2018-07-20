@@ -65,6 +65,7 @@ if __name__ == '__main__':
     fp.write("#include <xcb/dri2.h>\n")
     fp.write("#include <xcb/xcb.h>\n")
     fp.write("#include <xcb/present.h>\n")
+    fp.write("#include <xcb/randr.h>\n")
     fp.write("#include \"randr1_6.h\"\n")
     fp.write("extern \"C\"\n")
     fp.write("{\n")

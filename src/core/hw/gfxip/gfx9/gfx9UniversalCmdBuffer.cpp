@@ -3448,8 +3448,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
     const GraphicsPipelineSignature* pPrevSignature,
     uint32*                          pDeCmdSpace)
 {
-    constexpr bool NggEnabled = !VsEnabled;
-
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
@@ -3613,7 +3611,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         // the CE and DE must be synchronized before the Dispatch is issued.  Note that this can only be done here
         // for non-NGG pipelines because NGG pipelines require an additional CE ring buffer for uploading the NGG
         // constant buffer.
-        if (!NggEnabled && m_state.flags.ceStreamDirty)
+        if (m_state.flags.ceStreamDirty)
         {
             pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }

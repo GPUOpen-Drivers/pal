@@ -206,6 +206,7 @@ Result ComputePipeline::HwlInit(
         m_threadsPerTgY = m_pm4Commands.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_pm4Commands.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
+        abiProcessor.HasRegisterEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_pm4CommandsDynamic.computeResourceLimits.u32All);
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
         const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.wavefrontSize);
 
@@ -266,34 +267,35 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     uint32 maxWavesPerCu
     ) const
 {
-    constexpr uint32 MaxWavesPerShCompute             = 1023u;
-    constexpr uint32 MaxWavesPerShGfx6Compute         = 63u;
-    constexpr uint32 MaxWavesPerShGfx6ComputeUnitSize = 16u;
-
-    const auto& chipProps  = m_pDevice->Parent()->ChipProperties();
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVES_PER_SH field to the maximum possible value.
-    uint32 wavesPerSh = (chipProps.gfxLevel == GfxIpLevel::GfxIp6) ? MaxWavesPerShGfx6Compute : MaxWavesPerShCompute;
+    // By default leave the WAVES_PER_SH field unchanged (either 0 or populated from ELF).
+    uint32 wavesPerSh = m_pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH;
 
     if (maxWavesPerCu > 0)
     {
+        const auto&  chipProps            = m_pDevice->Parent()->ChipProperties();
+        const auto&  gfx6ChipProps        = chipProps.gfx6;
+        const uint32 numWavefrontsPerCu   = gfx6ChipProps.numSimdPerCu * gfx6ChipProps.numWavesPerSimd;
+        const uint32 maxWavesPerShCompute = gfx6ChipProps.maxNumCuPerSh * numWavefrontsPerCu;
+
         // We assume no one is trying to use more than 100% of all waves.
-        const uint32 numWavefrontsPerCu = (NumSimdPerCu * chipProps.gfx6.numWavesPerSimd);
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
-        const uint32 maxWavesPerSh = (maxWavesPerCu * chipProps.gfx6.numCuPerSh);
+        const uint32 maxWavesPerSh = (maxWavesPerCu * gfx6ChipProps.numCuPerSh);
 
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
         {
+            constexpr uint32 MaxWavesPerShGfx6ComputeUnitSize = 16u;
+            const uint32     maxWavesPerShGfx6Compute         = maxWavesPerShCompute / MaxWavesPerShGfx6ComputeUnitSize;
+
             // For Gfx6 compute shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63.
             // We must also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-            wavesPerSh = Min(MaxWavesPerShGfx6Compute, Max(1u, maxWavesPerSh / MaxWavesPerShGfx6ComputeUnitSize));
+            wavesPerSh = Min(maxWavesPerShGfx6Compute, Max(1u, maxWavesPerSh / MaxWavesPerShGfx6ComputeUnitSize));
         }
         else
         {
             // For gfx7+ compute shaders, it is in units of 1 wave and must not exceed 1023.
-            wavesPerSh = Min(MaxWavesPerShCompute, maxWavesPerSh);
+            wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
         }
     }
 
@@ -315,7 +317,10 @@ uint32* ComputePipeline::WriteCommands(
 
     ComputePipelinePm4ImgDynamic pm4CommandsDynamic = m_pm4CommandsDynamic;
 
-    pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    if (csInfo.maxWavesPerCu > 0)
+    {
+        pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    }
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx6MaxTgPerCu = 15;

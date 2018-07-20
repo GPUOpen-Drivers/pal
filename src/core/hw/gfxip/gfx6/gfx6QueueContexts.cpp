@@ -740,6 +740,15 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
                                           FullSyncSize,
                                           pCmdSpace);
 
+    if (m_useShadowing)
+    {
+        // Those registers (which are used to setup UniversalRingSet) are shadowed and will be set by LOAD_*_REG.
+        // We have to setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events before those LOAD_*_REGs
+        // to make sure it is safe to write the ring config.
+        pCmdSpace += cmdUtil.BuildEventWrite(VS_PARTIAL_FLUSH, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildEventWrite(VGT_FLUSH,        pCmdSpace);
+    }
+
     // Set up state shadowing.
     pCmdSpace = cmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
                                         &m_stateShadowPreamble,

@@ -63,7 +63,12 @@ DepthStencilView::DepthStencilView(
     const auto& parent    = *m_device.Parent();
 
     m_flags.u32All          = 0;
-    m_flags.hTile           = m_pImage->HasHtileData();
+
+    if (m_pImage->CanMipSupportMetaData(createInfo.mipLevel))
+    {
+        m_flags.hTile = m_pImage->HasHtileData();
+    }
+
     m_flags.depth           = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.stencil         = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;

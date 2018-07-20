@@ -64,6 +64,7 @@ void PipelineChunkHs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_HS);
     m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
 
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
@@ -114,7 +115,10 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-    pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+    if (hsStageInfo.wavesPerSh > 0)
+    {
+        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+    }
 
     if (hsStageInfo.cuEnableMask != 0)
     {

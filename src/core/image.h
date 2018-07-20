@@ -476,6 +476,8 @@ protected:
     const size_t           m_tileInfoBytes;     // Size of each tile info structure, in bytes
 
 private:
+    uint32 DegradeMipDimension(uint32  mipDimension) const;
+
     static Result CreatePrivateScreenImageMemoryObject(
         Device*      pDevice,
         IImage*      pImage,

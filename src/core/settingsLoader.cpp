@@ -254,11 +254,6 @@ void SettingsLoader::ValidateSettings()
         // either zero, or a multiple of four.
         pPalSettings->userDataSpillTableRingSize = RoundUpToMultiple(pPalSettings->userDataSpillTableRingSize, 4u);
     }
-    else
-    {
-        // If the number of instances is zero, then the forced spill threshold shouldn't be set at all!
-        m_pSettings->forcedUserDataSpillThreshold = USHRT_MAX;
-    }
 #endif
 
     // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command

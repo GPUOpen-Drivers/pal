@@ -97,17 +97,8 @@ void GfxDevice::FinalizeChipProperties(
     GpuChipProperties* pChipProperties
     ) const
 {
-    const auto& settings = Parent()->Settings();
-
     // The maximum number of supported user-data entries is controlled by a public PAL setting.
     pChipProperties->gfxip.maxUserDataEntries = m_pParent->GetPublicSettings()->maxUserDataEntries;
-
-    // The effective number of fast user-data registers can be overridden by a PAL setting.
-    for (uint32 i = 0; i < NumShaderTypes; ++i)
-    {
-        pChipProperties->gfxip.fastUserDataEntries[i] = Min(pChipProperties->gfxip.fastUserDataEntries[i],
-                                                            settings.forcedUserDataSpillThreshold);
-    }
 
     // Default to supporting the full 1024 threads-per-group. If necessary, the hardware layer will reduce this.
     constexpr uint32 MaxThreadsPerGroup = 1024;
@@ -485,15 +476,18 @@ uint32* GfxDevice::AllocateFceRefCount()
 {
     uint32* pCounter = nullptr;
 
-    for (uint32 i = 0; i < MaxNumFastClearImageRefs; ++i)
+    if (m_pParent->GetPublicSettings()->disableSkipFceOptimization == false)
     {
-        if (m_fastClearImageRefs[i] == 0)
+        for (uint32 i = 0; i < MaxNumFastClearImageRefs; ++i)
         {
-            if (AtomicCompareAndSwap(&m_fastClearImageRefs[i], RefCounterState::Free, RefCounterState::InUse) == 0)
+            if (m_fastClearImageRefs[i] == 0)
             {
-                // The index was acquired, so return a pointer.
-                pCounter = &m_fastClearImageRefs[i];
-                break;
+                if (AtomicCompareAndSwap(&m_fastClearImageRefs[i], RefCounterState::Free, RefCounterState::InUse) == 0)
+                {
+                    // The index was acquired, so return a pointer.
+                    pCounter = &m_fastClearImageRefs[i];
+                    break;
+                }
             }
         }
     }

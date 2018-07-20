@@ -469,8 +469,9 @@ struct GpuChipProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
+                uint32 reservedForFutureHw          :  1;
                 /// Reserved for future use.
-                uint32 reserved                     : 30;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;
@@ -658,10 +659,11 @@ struct GpuChipProperties
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  3; // Placeholder. Do not use.
+                uint32 placeholder1                             :  4; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
-                uint32 reserved                                 :  8;
+                uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint32 reserved                                 :  6;
             };
 
             struct

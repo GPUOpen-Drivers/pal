@@ -87,7 +87,7 @@ WaylandPresentFence::WaylandPresentFence(
     const WaylandWindowSystem& windowSystem)
     :
     m_windowSystem(windowSystem),
-    m_hImage(-1)
+    m_hImage(WaylandWindowSystem::DefaultImageHandle)
 {
 }
 
@@ -121,10 +121,17 @@ Result WaylandPresentFence::WaitForCompletion(
 {
     Result result = Result::Success;
 
-    if (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) != Success)
+    do
     {
-        result = Result::NotReady;
-    }
+        if ((m_hImage != WaylandWindowSystem::DefaultImageHandle) && (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) != Success))
+        {
+            result = Result::NotReady;
+        }
+        else
+        {
+            result = Result::Success;
+        }
+    } while (doWait && (result != Result::Success));
 
     return result;
 }

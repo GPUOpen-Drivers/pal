@@ -2294,7 +2294,7 @@ Result Image::ComputeAddrTileMode(
         {
             // Degrade the tile to avoid a tile split on some HW (e.g. Hawaii). Additionally,
             // this lets the clients see the same tile thickness regardless of DRAM row size.
-            const bool degradeThickTile = (pSubResInfo->bitsPerTexel >= 128);
+            const bool degradeThickTile = (pSubResInfo->bitsPerTexel >= 64);
 
             switch(*pTileMode)
             {

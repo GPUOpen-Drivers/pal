@@ -316,7 +316,6 @@ Dri3WindowSystem::~Dri3WindowSystem()
 Result Dri3WindowSystem::Init()
 {
     Result result = Result::Success;
-    int32  fd     = InvalidFd;
 
     if (m_pConnection != nullptr)
     {
@@ -327,29 +326,15 @@ Result Dri3WindowSystem::Init()
 
         if (result == Result::Success)
         {
-            fd = OpenDri3();
+            int32 fd = OpenDri3();
             if (fd == InvalidFd)
             {
                 result = Result::ErrorInitializationFailed;
             }
-        }
-
-        if (result == Result::Success)
-        {
-            bool isSameGpu = false;
-            result = m_device.IsSameGpu(fd, &isSameGpu);
-
-            if (result == Result::Success)
+            else
             {
-                if (isSameGpu == false)
-                {
-                    result = Result::ErrorInitializationFailed;
-                }
+                close(fd);
             }
-
-            // The X Server's file descriptor is closed here. For KMD interface access,
-            // the fd stored in device, which is only for rendering, will be used.
-            close(fd);
         }
 
         if (result == Result::Success)
@@ -419,6 +404,62 @@ bool Dri3WindowSystem::IsExtensionSupported()
         {
             result = false;
         }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Check if the device could present to the window. Return true if it is presentable.
+bool Dri3WindowSystem::IsDevicePresentable(
+    Device*             pDevice,
+    xcb_connection_t*   pConnection,
+    const xcb_window_t  window)
+{
+    bool                   result    = false;
+    const Dri3LoaderFuncs& dri3Procs = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+
+    xcb_randr_get_providers_cookie_t providersCookie = dri3Procs.pfnXcbRandrGetProviders(pConnection, window);
+    xcb_randr_get_providers_reply_t* pProvidersReply = dri3Procs.pfnXcbRandrGetProvidersReply(pConnection,
+                                                                                              providersCookie,
+                                                                                              nullptr);
+
+    xcb_randr_provider_t* pProviders   = (pProvidersReply == nullptr) ? nullptr :
+                                          dri3Procs.pfnXcbRandrGetProvidersProviders(pProvidersReply);
+    int32                 providersNum = (pProvidersReply == nullptr) ? 0 :
+                                          dri3Procs.pfnXcbRandrGetProvidersProvidersLength(pProvidersReply);
+
+    for (int32 i = 0; i < providersNum; i++)
+    {
+        xcb_randr_get_provider_info_cookie_t infoCookie = dri3Procs.pfnXcbRandrGetProviderInfo(pConnection,
+                                                                                               pProviders[i],
+                                                                                               0);
+        xcb_randr_get_provider_info_reply_t* pInfoReply = dri3Procs.pfnXcbRandrGetProviderInfoReply(pConnection,
+                                                                                                    infoCookie,
+                                                                                                    nullptr);
+
+        if (pInfoReply != nullptr)
+        {
+            char* pProvidersName = dri3Procs.pfnXcbRandrGetProviderInfoName(pInfoReply);
+            char* pPciBusString  = strstr(pProvidersName, "pci:");
+
+            if (strncmp(pPciBusString, pDevice->GetBusId(), strlen(pDevice->GetBusId())) == 0)
+            {
+                result = true;
+            }
+
+            free(pInfoReply);
+        }
+
+        if (result == true)
+        {
+            break;
+        }
+    }
+
+    if (pProvidersReply != nullptr)
+    {
+        free(pProvidersReply);
     }
 
     return result;
@@ -852,12 +893,19 @@ Result Dri3WindowSystem::DeterminePresentationSupportedXlib(
     // find the visual which means the visual is supported by current connection.
     if (count >= 1)
     {
+        xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(pDisplay);
+        const Window           rootWindow  = dri3Procs.pfnXRootWindow(pDisplay, pVisualList[0].screen);
+
         PAL_ASSERT((pVisualList[0].red_mask   == 0xff0000) &&
                    (pVisualList[0].green_mask == 0x00ff00) &&
                    (pVisualList[0].blue_mask  == 0x0000ff));
 
+        if (Dri3WindowSystem::IsDevicePresentable(pDevice, pConnection, rootWindow))
+        {
+            result = Result::Success;
+        }
+
         dri3Procs.pfnXFree(pVisualList);
-        result = Result::Success;
     }
 
     return result;
@@ -872,9 +920,7 @@ Result Dri3WindowSystem::DeterminePresentationSupported(
     xcb_connection_t*const pConnection = static_cast<xcb_connection_t*>(hDisplay);
     xcb_visualtype_t*      pVisualType = nullptr;
     xcb_screen_iterator_t  iter        = dri3Procs.pfnXcbSetupRootsIterator(dri3Procs.pfnXcbGetSetup(pConnection));
-
-    // Record the screen index where we find the matching visual_id.
-    uint32_t screenIndex = 0;
+    Result                 result      = Result::Unsupported;
 
     // Iterate over the screens of the connection to see whether we can find the required visual_id.
     while (iter.rem)
@@ -902,31 +948,26 @@ Result Dri3WindowSystem::DeterminePresentationSupported(
 
         if (pVisualType != nullptr)
         {
-            break;
-        }
-        else
-        {
-            dri3Procs.pfnXcbScreenNext(&iter);
-            screenIndex++;
-        }
-    }
+            // From the xcb's source code: the bits_per_rgb_value is per color channel but not per pixel.
+            if (pVisualType->bits_per_rgb_value == 8)
+            {
+                PAL_ASSERT((pVisualType->red_mask   == 0xff0000) &&
+                           (pVisualType->green_mask == 0x00ff00) &&
+                           (pVisualType->blue_mask  == 0x0000ff));
 
-    Result result = Result::Unsupported;
+                if (Dri3WindowSystem::IsDevicePresentable(pDevice, pConnection, iter.data->root))
+                {
+                    result = Result::Success;
+                    break;
+                }
+            }
+            else
+            {
+                PAL_NEVER_CALLED();
+            }
+        }
 
-    if (pVisualType != nullptr)
-    {
-        // From the xcb's source code: the bits_per_rgb_value is per color channel but not per pixel.
-        if (pVisualType->bits_per_rgb_value == 8)
-        {
-            PAL_ASSERT((pVisualType->red_mask   == 0xff0000) &&
-                       (pVisualType->green_mask == 0x00ff00) &&
-                       (pVisualType->blue_mask  == 0x0000ff));
-            result = Result::Success;
-        }
-        else
-        {
-            PAL_NEVER_CALLED();
-        }
+        dri3Procs.pfnXcbScreenNext(&iter);
     }
 
     return result;
@@ -938,7 +979,7 @@ Result Dri3WindowSystem::GetConnectorIdFromOutput(
     Device*         pDevice,
     OsDisplayHandle hDisplay,
     uint32          randrOutput,
-    int32*          pConnectorId)
+    uint32*         pConnectorId)
 {
     Result ret = Result::ErrorInvalidValue;
 
@@ -983,7 +1024,7 @@ Result Dri3WindowSystem::GetConnectorIdFromOutput(
             if ((pOutputPropReply->num_items == 1) && (pOutputPropReply->format == propSizeInBit))
             {
                 *pConnectorId =
-                    *reinterpret_cast<int32*>(dri3Procs.pfnXcbRandrGetOutputPropertyData(pOutputPropReply));
+                    *reinterpret_cast<uint32*>(dri3Procs.pfnXcbRandrGetOutputPropertyData(pOutputPropReply));
             }
 
             free(pOutputPropReply);

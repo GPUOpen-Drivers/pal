@@ -470,6 +470,16 @@ void Image::DetermineFormatAndAspectForPlane(
 }
 
 // =====================================================================================================================
+uint32 Image::DegradeMipDimension(
+    uint32  inputMipDimension
+    ) const
+{
+    uint32  retMipDim = inputMipDimension >> 1;
+
+    return retMipDim;
+}
+
+// =====================================================================================================================
 // Initializes the Image's subresources and any metadata surfaces needed by the GfxIp hardware layer.
 Result Image::Init()
 {
@@ -505,9 +515,9 @@ Result Image::Init()
                 pSubRes->clearMethod         = DefaultSlowClearMethod;
             }
 
-            mipWidth  >>= 1;
-            mipHeight >>= 1;
-            mipDepth  >>= 1;
+            mipWidth  = DegradeMipDimension(mipWidth);
+            mipHeight = DegradeMipDimension(mipHeight);
+            mipDepth  = DegradeMipDimension(mipDepth);
         }
     }
 

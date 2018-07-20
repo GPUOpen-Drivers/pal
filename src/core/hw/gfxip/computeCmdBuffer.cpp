@@ -93,7 +93,9 @@ Result ComputeCmdBuffer::Init(
 
         m_spillTableCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
 
-        uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(this + 1);
+        const size_t size = m_device.GetCmdBufferSize(m_createInfo);
+        uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(VoidPtrInc(this, size));
+
         for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
         {
             m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;

@@ -49,6 +49,9 @@ constexpr uint32 MaxMsaaFragments = 8;
 /// Sampling pattern grid size. This is a quad of pixels, i.e. 2x2 grid of pixels.
 constexpr Extent2d MaxGridSize = { 2, 2 };
 
+/// 1xMSAA grid size in which sample locations can vary, i.e. all 4 pixels in quad must have the same sample location.
+constexpr Extent2d Max1xMsaaGridSize = { 1, 1 };
+
 /// The positions are rounded to 1/Pow2(SubPixelBits)
 constexpr uint32 SubPixelBits = 4;
 
@@ -95,7 +98,12 @@ struct MsaaStateCreateInfo
         struct
         {
             uint32  enableConservativeRasterization :  1; ///< Set to true to enable conservative rasterization
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+            uint32  enable1xMsaaSampleLocations     :  1; ///< Set to true to enable 1xMSAA quad sample pattern
+            uint32  reserved                        : 30;
+#else
             uint32  reserved                        : 31;
+#endif
         };
 
         uint32  u32All;

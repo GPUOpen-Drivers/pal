@@ -44,29 +44,29 @@ class Device;
 // PM4 space needed by setting several regs in each packet.
 struct ComputePipelinePm4Img
 {
-    PM4_ME_SET_SH_REG          hdrComputeNumThread;
-    regCOMPUTE_NUM_THREAD_X    computeNumThreadX;
-    regCOMPUTE_NUM_THREAD_Y    computeNumThreadY;
-    regCOMPUTE_NUM_THREAD_Z    computeNumThreadZ;
+    PM4_ME_SET_SH_REG           hdrComputeNumThread;
+    regCOMPUTE_NUM_THREAD_X     computeNumThreadX;
+    regCOMPUTE_NUM_THREAD_Y     computeNumThreadY;
+    regCOMPUTE_NUM_THREAD_Z     computeNumThreadZ;
 
-    PM4_ME_SET_SH_REG          hdrComputePgm;
-    regCOMPUTE_PGM_LO          computePgmLo;
-    regCOMPUTE_PGM_HI          computePgmHi;
+    PM4_ME_SET_SH_REG           hdrComputePgm;
+    regCOMPUTE_PGM_LO           computePgmLo;
+    regCOMPUTE_PGM_HI           computePgmHi;
 
-    PM4_ME_SET_SH_REG          hdrComputePgmRsrc;
-    regCOMPUTE_PGM_RSRC1       computePgmRsrc1;
-    regCOMPUTE_PGM_RSRC2       computePgmRsrc2;
+    PM4_ME_SET_SH_REG           hdrComputePgmRsrc;
+    regCOMPUTE_PGM_RSRC1        computePgmRsrc1;
+    regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
 
-    PM4_ME_SET_SH_REG          hdrComputeUserData;
-    regCOMPUTE_USER_DATA_0     computeUserDataLo;
+    PM4_ME_SET_SH_REG           hdrComputeUserData;
+    regCOMPUTE_USER_DATA_0      computeUserDataLo;
 
     // Checksum register is optional, as not all GFX9+ hardware uses it.
-    PM4_ME_SET_SH_REG          hdrComputeShaderChksum;
-    regCOMPUTE_SHADER_CHKSUM   computeShaderChksum;
+    PM4_ME_SET_SH_REG           hdrComputeShaderChksum;
+    regCOMPUTE_SHADER_CHKSUM    computeShaderChksum;
 
     // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
     // commands contained within.
-    size_t                     spaceNeeded;
+    size_t                      spaceNeeded;
 };
 
 // Represents an "image" of the PM4 commands used to dynamically set wave and CU enable limits.

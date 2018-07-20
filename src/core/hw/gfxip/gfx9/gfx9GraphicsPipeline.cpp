@@ -347,10 +347,6 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     uint32 maxWavesPerCu2
     ) const
 {
-    constexpr uint32 MaxWavesPerShGraphics         = 63u;
-    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-
-    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
     // The HW shader stage might a combination of two API shader stages (e.g., for GS copy shaders), so we must apply
     // the minimum wave limit of both API shader stages.  Note that zero is the largest value because it means
@@ -361,21 +357,27 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
                                                         : Min(maxWavesPerCu1, maxWavesPerCu2)));
 
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to the maximum possible value.
-    uint32 wavesPerSh = MaxWavesPerShGraphics;
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSh = 0;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
-        // We assume no one is trying to use more than 100% of all waves.
-        const uint32 numWavefrontsPerCu = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
-        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+        const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
+        const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
+        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+        const     uint32 maxWavesPerShGraphics         = (numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh) /
+                                                         MaxWavesPerShGraphicsUnitSize;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = (maxWavesPerCu * gfx9ChipProps.numCuPerSh);
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(MaxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;
@@ -814,6 +816,7 @@ void GraphicsPipeline::InitCommonStateRegisters(
 
     SetupNonShaderRegisters(createInfo, abiProcessor);
     SetupIaMultiVgtParam(abiProcessor);
+
 }
 
 // =====================================================================================================================

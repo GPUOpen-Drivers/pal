@@ -455,6 +455,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.longRunningSubmissions = false;
     m_publicSettings.borderColorPaletteSizeLimit = 4096;
     m_publicSettings.disableCommandBufferPreemption = false;
+    m_publicSettings.disableSkipFceOptimization = true;
 
     return ret;
 }
@@ -1898,6 +1899,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
                 m_chipProperties.gfx9.supportTrapezoidTessDistribution;
 
+            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations =
+                m_chipProperties.gfx9.support1xMsaaSampleLocations;
             break;
         }
 #endif // PAL_BUILD_GFX9

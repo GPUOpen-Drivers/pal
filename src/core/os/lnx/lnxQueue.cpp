@@ -445,9 +445,9 @@ Result Queue::RemapVirtualMemoryPages(
         else if (pRealGpuMem == nullptr)
         {
             result = pDevice->ReplacePrtVirtualAddress(nullptr,
-                         pRangeList[idx].virtualStartOffset,
+                         0,
                          pRangeList[idx].size,
-                         gpuMemDesc.gpuVirtAddr,
+                         gpuMemDesc.gpuVirtAddr + pRangeList[idx].virtualStartOffset,
                          pVirtGpuMem->Mtype());
         }
         else

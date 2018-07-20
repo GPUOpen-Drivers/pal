@@ -194,7 +194,12 @@ Result MsaaState::Init(
     m_pm4Image.paScModeCntl0.u32All = 0;
     m_pm4Image.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE   = 1;
     m_pm4Image.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+    m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = (((NumSamples() > 1) ||
+                                                             (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
+#else
     m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = ((NumSamples() > 1) ? 1 : 0);
+#endif
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
     m_pm4Image.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
@@ -202,8 +207,11 @@ Result MsaaState::Init(
     m_pm4Image.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
     m_pm4Image.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
 
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+    if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
+#else
     if (msaaState.coverageSamples > 1)
+#endif
     {
         const uint32 log2ShaderExportSamples   = Log2(msaaState.shaderExportMaskSamples);
 
