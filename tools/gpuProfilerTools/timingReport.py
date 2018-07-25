@@ -64,17 +64,21 @@ VertsThdGrpsCol  = PsCol + 1
 InstancesCol     = VertsThdGrpsCol + 1
 CommentsCol      = InstancesCol + 1
 
+def isValidHash(string):
+    # A valid hash is a non-empty string that represents a non-zero hex value.
+    return string and (int(string, 16) != 0)
+
 def DeterminePipelineType(row):
-    if row[CompilerHashCol].isspace():
+    if not row[CompilerHashCol]:
         return "No Pipeline (BLT, Barrier, etc.)"
     else:
         if re.search("Dispatch", row[2]):
             return "Cs"
-        elif int(row[HsCol], 16) != 0 and int(row[GsCol], 16) != 0:
+        elif isValidHash(row[HsCol]) and isValidHash(row[GsCol]):
             return "VsHsDsGsPs"
-        elif int(row[HsCol], 16) != 0:
+        elif isValidHash(row[HsCol]):
             return "VsHsDsPs"
-        elif int(row[GsCol], 16) != 0:
+        elif isValidHash(row[GsCol]):
             return "VsGsPs"
         else:
             return "VsPs"
@@ -129,6 +133,8 @@ for file in files:
         engineKey = "DMA"
     elif engineType == "Gfx":
         engineKey = "Universal"
+    else:
+        continue
 
     # Create readable keys for perCallTable, will be displayed later.
     deviceKey = "Device " + str(deviceNum)
@@ -143,7 +149,7 @@ for file in files:
         perCallTable[deviceKey][engineKey][queueKey] = { }
 
     with open(file) as csvFile:
-        reader = csv.reader(csvFile)
+        reader = csv.reader(csvFile, skipinitialspace=True)
         headers = next(reader)
 
         tsFreqSearch        = re.search(".*Frequency: (\d+).*", headers[TimeCol])
@@ -152,10 +158,10 @@ for file in files:
         for row in reader:
             if row[QueueCallCol] == "Submit()":
                 submitCount += 1
-            if row[CmdBufCallCol] == " Begin()" and not row[StartClockCol].isspace():
+            if row[CmdBufCallCol] == "Begin()" and row[StartClockCol]:
                 frames[frameNum][1].append((int(row[StartClockCol]), int(row[EndClockCol])))
                 cmdBufCount += 1
-            if not row[TimeCol].isspace():
+            if row[TimeCol]:
                 if row[CmdBufCallCol] in perCallTable[deviceKey][engineKey][queueKey].keys():
                     perCallTable[deviceKey][engineKey][queueKey][row[CmdBufCallCol]][0] += 1
                     perCallTable[deviceKey][engineKey][queueKey][row[CmdBufCallCol]][1] += float(row[TimeCol])
@@ -169,7 +175,7 @@ for file in files:
                 else:
                     perPipelineTypeTable[pipelineType] = [ 1, float(row[TimeCol]) ]
 
-                if not row[CompilerHashCol].isspace():
+                if row[CompilerHashCol]:
                     # Update the perPipelineTable totals.
                     # Note that in practice the compiler hash is most useful because it's in all of the pipeline dumps.
                     if row[CompilerHashCol] in perPipelineTable:
@@ -188,13 +194,14 @@ for file in files:
                         else:
                             pipelineRangeTable[frameNum][engineType][row[CompilerHashCol]] = [(startClock, endClock, float(row[TimeCol]))]
 
-                if row[PsCol] in perPsTable:
-                    perPsTable[row[PsCol]][0] += 1
-                    perPsTable[row[PsCol]][1] += float(row[TimeCol])
-                elif not row[PsCol].isspace():
-                    perPsTable[row[PsCol]] = [ 1, float(row[TimeCol]) ]
+                if row[PsCol]:
+                    if row[PsCol] in perPsTable:
+                        perPsTable[row[PsCol]][0] += 1
+                        perPsTable[row[PsCol]][1] += float(row[TimeCol])
+                    else:
+                        perPsTable[row[PsCol]] = [ 1, float(row[TimeCol]) ]
 
-                if row[CmdBufCallCol] == " CmdBarrier()":
+                if row[CmdBufCallCol] == "CmdBarrier()":
                     frames[frameNum][2] += float(row[TimeCol])
 
         csvFile.close
@@ -262,6 +269,7 @@ for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(),
                pctOfFrame))
 print("\n")
 
+
 print("== Top Pipelines (>= 1%) ========================================================================================================================\n")
 pipelineNum = 0
 hidden = 0
@@ -274,7 +282,7 @@ for pipeline in collections.OrderedDict(sorted(perPipelineTable.items(), key=lam
     if pctOfFrame < 1.0:
         hidden += 1
     else:
-        print("  {0:2d}.{1:s} | {2:10s}   |      {3:10d} |       {4:>12,.2f} |      {5:5.2f} %".
+        print("  {0:2d}. {1:s} | {2:10s}   |      {3:10d} |       {4:>12,.2f} |      {5:5.2f} %".
             format(pipelineNum,
                    pipeline,
                    perPipelineTable[pipeline][0],
@@ -298,13 +306,12 @@ for pipeline in collections.OrderedDict(sorted(perPipelineTable.items(), key=lam
         hidden += 1
     else:
         pipelineHashes = perPipelineTable[pipeline]
-        vsCsHash = pipelineHashes[3] if int((pipelineHashes[3] if not pipelineHashes[3].isspace() else "0x0"), 16) != 0 else ""
-        hsHash   = pipelineHashes[4] if int((pipelineHashes[4] if not pipelineHashes[4].isspace() else "0x0"), 16) != 0 else ""
-        dsHash   = pipelineHashes[5] if int((pipelineHashes[5] if not pipelineHashes[5].isspace() else "0x0"), 16) != 0 else ""
-        gsHash   = pipelineHashes[6] if int((pipelineHashes[6] if not pipelineHashes[6].isspace() else "0x0"), 16) != 0 else ""
-        psHash   = pipelineHashes[7] if int((pipelineHashes[7] if not pipelineHashes[7].isspace() else "0x0"), 16) != 0 else ""
-
-        print("  {0:2d}.{1:18s} | {2:10s} |{3:35s} |{4:35s} |{5:35s} |{6:35s} |{7:35s} ".
+        vsCsHash       = pipelineHashes[3] if isValidHash(pipelineHashes[3]) else ""
+        hsHash         = pipelineHashes[4] if isValidHash(pipelineHashes[4]) else ""
+        dsHash         = pipelineHashes[5] if isValidHash(pipelineHashes[5]) else ""
+        gsHash         = pipelineHashes[6] if isValidHash(pipelineHashes[6]) else ""
+        psHash         = pipelineHashes[7] if isValidHash(pipelineHashes[7]) else ""
+        print("  {0:2d}. {1:18s} | {2:10s} | {3:34s} | {4:34s} | {5:34s} | {6:34s} | {7:34s} ".
             format(pipelineNum,
                    pipeline,
                    pipelineHashes[0],
@@ -316,8 +323,8 @@ print("\n")
 print("== Top Pixel Shaders (>= 1%) ====================================================================================================================\n")
 psNum = 0
 hidden = 0
-print("   PS Hash                               | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
-print("  ---------------------------------------+-----------------+--------------------|--------------")
+print("   PS Hash                                | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
+print("  ----------------------------------------+-----------------+--------------------|--------------")
 for ps in collections.OrderedDict(sorted(perPsTable.items(), key=lambda x: x[1][1], reverse=True)):
     psNum += 1
     timePerFrame = perPsTable[ps][1] / frameCount
@@ -325,7 +332,7 @@ for ps in collections.OrderedDict(sorted(perPsTable.items(), key=lambda x: x[1][
     if pctOfFrame < 1.0:
         hidden += 1
     else:
-        print("  {0:2d}.{1:36s}|      {2:10d} |       {3:>12,.2f} |      {4:5.2f} %".
+        print("  {0:2d}. {1:36s}|      {2:10d} |       {3:>12,.2f} |      {4:5.2f} %".
             format(psNum,
                    ps,
                    int(perPsTable[ps][0] / frameCount),
@@ -345,13 +352,17 @@ for file in files:
     # Decode file name.
     searchObj  = re.search("frame([0-9]*)Dev([0-9]*)Eng(\D*)([0-9]*)-([0-9]*)\.csv", file)
     frameNum   = int(searchObj.group(1))
+    engineType = searchObj.group(3)
+
+    if not (engineType == "Ace" or engineType == "Dma" or engineType == "Gfx"):
+        continue
 
     if frameNum == medianBarrierFrame:
         with open(file) as csvFile:
-            reader = csv.reader(csvFile)
+            reader = csv.reader(csvFile, skipinitialspace=True)
             next(reader)
             for row in reader:
-                if row[CmdBufCallCol] == " CmdBarrier()":
+                if row[CmdBufCallCol] == "CmdBarrier()":
                     barrierTime += float(row[TimeCol])
                     entry = [float(row[TimeCol]), [ ] ]
 
@@ -432,7 +443,7 @@ if len(asyncOverlapTable.keys()) > 0:
         pipelineNum += 1
         timePerFrame = asyncOverlapTable[cPipeline][0] / frameCount
         pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
-        print("  {0:2d}.{1:s}  |  Total               |       {2:>12,.2f} |      {3:5.2f} %".
+        print("  {0:2d}. {1:s}  |  Total               |       {2:>12,.2f} |      {3:5.2f} %".
             format(pipelineNum, cPipeline, timePerFrame, pctOfFrame))
         numTrailing       = 0
         trailingTimeTotal = 0
@@ -443,7 +454,7 @@ if len(asyncOverlapTable.keys()) > 0:
                 numTrailing       += 1
                 trailingTimeTotal += timePerFrame
             else:
-                print("                          | {0:s}  |       {1:>12,.2f} |      {2:5.2f} %".
+                print("                          |  {0:s}  |       {1:>12,.2f} |      {2:5.2f} %".
                     format(uPipeline, timePerFrame, pctOfFrame))
         pctOfFrame = (trailingTimeTotal / gpuFrameTime) * 100
         print("                          |  Num Hidden: {0:<6d}  |       {1:>12,.2f} |      {2:5.2f} %".
