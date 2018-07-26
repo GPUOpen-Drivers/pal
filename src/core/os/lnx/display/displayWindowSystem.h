@@ -33,8 +33,6 @@
 #include "palSemaphore.h"
 #include "palThread.h"
 #include "palUtil.h"
-#include <drm/drm.h>
-#include <drm/drm_fourcc.h>
 #include <xcb/xcb.h>
 #include <xcb/present.h>
 
