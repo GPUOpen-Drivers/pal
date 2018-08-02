@@ -652,7 +652,6 @@ struct GpuChipProperties
                 uint32 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
                 uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
-                uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
                                                                       // and SET_SH_REG_OFFSET indexed packet.
                 uint32 supportImplicitPrimitiveShader           :  1;
@@ -663,7 +662,7 @@ struct GpuChipProperties
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint32 reserved                                 :  6;
+                uint32 reserved                                 :  7;
             };
 
             struct
@@ -846,7 +845,7 @@ public:
         { return m_dbgOverlaySettings; }
     virtual const GpuProfilerSettings& GetGpuProfilerSettings() const override
         { return m_gpuProfilerSettings; }
-    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const override
+    virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const override
         { return m_interfaceLoggerSettings; }
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
@@ -1287,6 +1286,14 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override;
 
+    // NOTE: Part of the public IDevice interface.
+    virtual const char* GetCacheFilePath() const override
+        { return m_cacheFilePath; }
+
+    // NOTE: Part of the public IDevice interface.
+    virtual const char* GetDebugFilePath() const override
+        { return m_debugFilePath; }
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,
@@ -1448,8 +1455,6 @@ public:
         { m_pPlatform->DeveloperCb(m_deviceIndex, type, pCbData); }
 
     virtual bool HwsTrapHandlerPresent() const { return false; }
-
-    virtual const char* GetCacheFilePath() const = 0;
 
     // Determines the start (inclusive) and end (exclusive) virtual addresses for the specified virtual address range.
     void VirtualAddressRange(VaPartition vaPartition, gpusize* pStartVirtAddr, gpusize* pEndVirtAddr) const;
@@ -1630,9 +1635,7 @@ protected:
     GfxDevice*         m_pGfxDevice;
     OssDevice*         m_pOssDevice;
 
-#if PAL_BUILD_GPUOPEN
     GpuUtil::TextWriter<Platform>*     m_pTextWriter;
-#endif
     uint32                             m_devDriverClientId;
 
     FlglState                          m_flglState;
@@ -1698,7 +1701,11 @@ protected:
     CmdBufferLoggerSettings m_cmdBufLoggerSettings;
     DebugOverlaySettings    m_dbgOverlaySettings;
     GpuProfilerSettings     m_gpuProfilerSettings;
-    InterfaceLoggerSettings m_interfaceLoggerSettings;
+    InterfaceLoggerConfig  m_interfaceLoggerSettings;
+
+    // Get*FilePath need to return a persistent storage
+    char m_cacheFilePath[MaxPathStrLen];
+    char m_debugFilePath[MaxPathStrLen];
 
 private:
     Result HwlEarlyInit();
@@ -1793,8 +1800,6 @@ extern void InitializeGpuEngineProperties(
     uint32               eRevId,
     GpuEngineProperties* pInfo);
 
-// Creates SettingsLoader object for GFXIP 6/7/8 hardware
-extern Pal::SettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx6
 #endif
 
@@ -1830,9 +1835,6 @@ extern void InitializeGpuEngineProperties(
     uint32               familyId,
     uint32               eRevId,
     GpuEngineProperties* pInfo);
-
-// Creates SettingsLoader object for GFXIP 9+ hardware
-extern Pal::SettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 }
 #endif // PAL_BUILD_GFX9
 

@@ -156,7 +156,7 @@ public:
                                 const DepthStencilState* pDepthStencilState,
                                 const ColorBlendState*   pBlendState,
                                 uint32                   hasActiveQueries,
-                                Gfx7OutOfOrderPrimMode   gfx7EnableOutOfOrderPrimitives) const;
+                                OutOfOrderPrimMode       gfx7EnableOutOfOrderPrimitives) const;
 
     bool IsOutOfOrderPrimsEnabled() const
         { return m_paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE; }

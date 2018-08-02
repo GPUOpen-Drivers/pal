@@ -304,9 +304,11 @@ CmdUtil::CmdUtil(
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion)
 #if PAL_ENABLE_PRINTS_ASSERTS
-    , m_verifyShadowedRegisters(device.Settings().cmdUtilVerifyShadowedRegRanges)
+    , m_verifyShadowedRegisters(device.Parent()->Settings().cmdUtilVerifyShadowedRegRanges)
 #endif
 {
+    const Pal::Device&  parent = *(device.Parent());
+
     memset(&m_registerInfo, 0, sizeof(m_registerInfo));
 
     m_registerInfo.mmCpPerfmonCntl          = mmCP_PERFMON_CNTL;
@@ -319,18 +321,22 @@ CmdUtil::CmdUtil(
 
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        m_registerInfo.mmEaPerfResultCntl           = mmGCEA_PERFCOUNTER_RSLT_CNTL__GFX09;
-        m_registerInfo.mmAtcPerfResultCntl          = mmATC_PERFCOUNTER_RSLT_CNTL__GFX09;
-        m_registerInfo.mmAtcL2PerfResultCntl        = mmATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09;
-        m_registerInfo.mmMcVmL2PerfResultCntl       = mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09;
-        m_registerInfo.mmRpbPerfResultCntl          = mmRPB_PERFCOUNTER_RSLT_CNTL__GFX09;
-        m_registerInfo.mmSpiShaderPgmLoLs           = mmSPI_SHADER_PGM_LO_LS__GFX09;
-        m_registerInfo.mmSpiShaderPgmLoEs           = mmSPI_SHADER_PGM_LO_ES__GFX09;
-        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09;
-        m_registerInfo.mmDbDfsmControl              = mmDB_DFSM_CONTROL__GFX09;
-        m_registerInfo.mmUserDataStartHsShaderStage = mmSPI_SHADER_USER_DATA_LS_0__GFX09;
+        if (IsVega10(parent) || IsRaven(parent))
+        {
+            m_registerInfo.mmEaPerfResultCntl = Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+        }
+
+        m_registerInfo.mmAtcPerfResultCntl          = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmAtcL2PerfResultCntl        = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmMcVmL2PerfResultCntl       = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmRpbPerfResultCntl          = Gfx09::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmSpiShaderPgmLoLs           = Gfx09::mmSPI_SHADER_PGM_LO_LS;
+        m_registerInfo.mmSpiShaderPgmLoEs           = Gfx09::mmSPI_SHADER_PGM_LO_ES;
+        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP;
+        m_registerInfo.mmDbDfsmControl              = Gfx09::mmDB_DFSM_CONTROL;
+        m_registerInfo.mmUserDataStartHsShaderStage = Gfx09::mmSPI_SHADER_USER_DATA_LS_0;
         m_registerInfo.mmUserDataStartGsShaderStage = mmSPI_SHADER_USER_DATA_ES_0;
-        m_registerInfo.mmSpiConfigCntl              = mmSPI_CONFIG_CNTL__GFX09;
+        m_registerInfo.mmSpiConfigCntl              = Gfx09::mmSPI_CONFIG_CNTL;
     }
 }
 
@@ -984,9 +990,9 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
     PAL_ASSERT(HighPart(byteOffset) == 0);
 
     regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator;
-    dispatchInitiator.u32All                  = 0;
-    dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
-    dispatchInitiator.bits.FORCE_START_AT_000 = 1;
+    dispatchInitiator.u32All                   = 0;
+    dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000  = 1;
 
     constexpr uint32 PacketSize = (sizeof(PM4ME_DISPATCH_INDIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4ME_DISPATCH_INDIRECT*>(pBuffer);
@@ -1013,10 +1019,10 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     auto*const                     pPacket           = static_cast<PM4MEC_DISPATCH_INDIRECT*>(pBuffer);
     regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator = {};
 
-    dispatchInitiator.u32All                  = 0;
-    dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
-    dispatchInitiator.bits.FORCE_START_AT_000 = 1;
-    dispatchInitiator.bits.ORDER_MODE         = 1;
+    dispatchInitiator.u32All                   = 0;
+    dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000  = 1;
+    dispatchInitiator.bits.ORDER_MODE          = 1;
 
     pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize);
     pPacket->addr_lo            = LowPart(address);
@@ -2566,7 +2572,7 @@ size_t CmdUtil::BuildSetOneConfigReg(
     PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) ||
                 (((regAddr != mmVGT_PRIMITIVE_TYPE)        ||
                   (index == index__pfp_set_uconfig_reg_index__prim_type__GFX09))     &&
-                 ((regAddr != mmIA_MULTI_VGT_PARAM__GFX09) ||
+                 ((regAddr != Gfx09::mmIA_MULTI_VGT_PARAM) ||
                   (index == index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09))));
 
     return BuildSetSeqConfigRegs(regAddr, regAddr, pBuffer, index);

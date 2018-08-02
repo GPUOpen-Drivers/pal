@@ -52,7 +52,6 @@
 #include <xcb/xcb.h>
 #include <xcb/present.h>
 #include <xcb/randr.h>
-#include "randr1_6.h"
 extern "C"
 {
     #include <X11/xshmfence.h>
@@ -60,6 +59,10 @@ extern "C"
 
 #include "pal.h"
 #include "palFile.h"
+
+#define XCB_RANDR_SUPPORTS_LEASE ((XCB_RANDR_MAJOR_VERSION > 1) || \
+                                  ((XCB_RANDR_MAJOR_VERSION == 1) && (XCB_RANDR_MINOR_VERSION >= 6)))
+
 using namespace Util;
 namespace Pal
 {
@@ -230,6 +233,7 @@ typedef xcb_dri2_connect_reply_t* (*XcbDri2ConnectReply)(
             xcb_generic_error_t**         ppError);
 
 // symbols from libxcb-randr.so.0
+#if XCB_RANDR_SUPPORTS_LEASE
 typedef xcb_randr_create_lease_cookie_t (*XcbRandrCreateLease)(
             xcb_connection_t*             pConnection,
             xcb_window_t                  window,
@@ -247,6 +251,7 @@ typedef xcb_randr_create_lease_reply_t* (*XcbRandrCreateLeaseReply)(
 typedef int* (*XcbRandrCreateLeaseReplyFds)(
             xcb_connection_t *                pConnection,
             xcb_randr_create_lease_reply_t*   pReply);
+#endif
 
 typedef xcb_randr_get_screen_resources_cookie_t (*XcbRandrGetScreenResources)(
             xcb_connection_t*     pConnection,
@@ -625,6 +630,7 @@ struct Dri3LoaderFuncs
         return (pfnXcbDri2ConnectReply != nullptr);
     }
 
+#if XCB_RANDR_SUPPORTS_LEASE
     XcbRandrCreateLease                   pfnXcbRandrCreateLease;
     bool pfnXcbRandrCreateLeaseisValid() const
     {
@@ -642,6 +648,7 @@ struct Dri3LoaderFuncs
     {
         return (pfnXcbRandrCreateLeaseReplyFds != nullptr);
     }
+#endif
 
     XcbRandrGetScreenResources            pfnXcbRandrGetScreenResources;
     bool pfnXcbRandrGetScreenResourcesisValid() const
@@ -1151,6 +1158,7 @@ public:
         return (m_pFuncs->pfnXcbDri2ConnectReply != nullptr);
     }
 
+#if XCB_RANDR_SUPPORTS_LEASE
     xcb_randr_create_lease_cookie_t pfnXcbRandrCreateLease(
             xcb_connection_t*             pConnection,
             xcb_window_t                  window,
@@ -1183,6 +1191,7 @@ public:
     {
         return (m_pFuncs->pfnXcbRandrCreateLeaseReplyFds != nullptr);
     }
+#endif
 
     xcb_randr_get_screen_resources_cookie_t pfnXcbRandrGetScreenResources(
             xcb_connection_t*     pConnection,

@@ -793,6 +793,9 @@ Result Device::EarlyInit(
         }
     }
 
+    // Init paths
+    InitOutputPaths();
+
     if (result == Result::Success)
     {
         result = InitSettings();
@@ -1046,6 +1049,24 @@ Result Device::InitMemoryProperties()
 void Device::InitExternalPhysicalHeap()
 {
     m_memoryProperties.busAddressableMemSize = 0;
+}
+
+// =====================================================================================================================
+// This is help methods. Init cache and debug file paths
+void Device::InitOutputPaths()
+{
+    const char* pPath;
+
+    // Initialize the root path of cache files and debug files
+    // Cascade:
+    // 1. Find APPDATA to keep backward compatibility.
+    pPath = getenv("APPDATA");
+
+    if (pPath != nullptr)
+    {
+        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
+        Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
+    }
 }
 
 // =====================================================================================================================

@@ -74,31 +74,31 @@ Result Device::CommitSettingsAndInit()
 // =====================================================================================================================
 Result Device::UpdateSettings()
 {
-    m_overlaySettings.visualConfirmEnabled = true;
-    m_overlaySettings.timeGraphEnabled = false;
-    m_overlaySettings.debugOverlayLocation = DebugOverlayLowerLeft;
-    m_overlaySettings.timeGraphGridLineColor = RedColor;
-    m_overlaySettings.timeGraphCpuLineColor = YellowColor;
-    m_overlaySettings.timeGraphGpuLineColor = GreenColor;
-    m_overlaySettings.maxBenchmarkTime = 0;
-    m_overlaySettings.debugUsageLogEnable = false;
-    memset(m_overlaySettings.debugUsageLogDirectory, 0, 512);
-    strncpy(m_overlaySettings.debugUsageLogDirectory, "/tmp/amdpal/", 512);
-    memset(m_overlaySettings.debugUsageLogFilename, 0, 512);
-    strncpy(m_overlaySettings.debugUsageLogFilename, "PalUsageLog.txt", 512);
-    m_overlaySettings.logFrameStats = false;
-    memset(m_overlaySettings.frameStatsLogDirectory, 0, 512);
-    strncpy(m_overlaySettings.frameStatsLogDirectory, "/tmp/amdpal/", 512);
-    m_overlaySettings.maxLoggedFrames = 65536;
-    m_overlaySettings.overlayCombineNonLocal = true;
-    m_overlaySettings.overlayReportCmdAllocator = true;
-    m_overlaySettings.overlayReportExternal = true;
-    m_overlaySettings.overlayReportInternal = true;
-    memset(m_overlaySettings.renderedByString, 0, 61);
-    strncpy(m_overlaySettings.renderedByString, "", 61);
-    memset(m_overlaySettings.miscellaneousDebugString, 0, 61);
-    strncpy(m_overlaySettings.miscellaneousDebugString, "", 61);
-    m_overlaySettings.printFrameNumber = false;
+    m_overlaySettings.debugOverlayConfig.visualConfirmEnabled = true;
+    m_overlaySettings.debugOverlayConfig.timeGraphEnabled = false;
+    m_overlaySettings.debugOverlayConfig.overlayLocation = DebugOverlayLowerLeft;
+    m_overlaySettings.timeGraphConfig.gridLineColor = RedColor;
+    m_overlaySettings.timeGraphConfig.cpuLineColor = YellowColor;
+    m_overlaySettings.timeGraphConfig.gpuLineColor = GreenColor;
+    m_overlaySettings.overlayBenchmarkConfig.maxBenchmarkTime = 0;
+    m_overlaySettings.overlayBenchmarkConfig.usageLogEnable = false;
+    memset(m_overlaySettings.overlayBenchmarkConfig.usageLogDirectory, 0, 512);
+    strncpy(m_overlaySettings.overlayBenchmarkConfig.usageLogDirectory, "/tmp/amdpal/", 512);
+    memset(m_overlaySettings.overlayBenchmarkConfig.usageLogFilename, 0, 512);
+    strncpy(m_overlaySettings.overlayBenchmarkConfig.usageLogFilename, "PalUsageLog.txt", 512);
+    m_overlaySettings.overlayBenchmarkConfig.logFrameStats = false;
+    memset(m_overlaySettings.overlayBenchmarkConfig.frameStatsLogDirectory, 0, 512);
+    strncpy(m_overlaySettings.overlayBenchmarkConfig.frameStatsLogDirectory, "/tmp/amdpal/", 512);
+    m_overlaySettings.overlayBenchmarkConfig.maxLoggedFrames = 65536;
+    m_overlaySettings.overlayMemoryInfoConfig.combineNonLocal = true;
+    m_overlaySettings.overlayMemoryInfoConfig.reportCmdAllocator = true;
+    m_overlaySettings.overlayMemoryInfoConfig.reportExternal = true;
+    m_overlaySettings.overlayMemoryInfoConfig.reportInternal = true;
+    memset(m_overlaySettings.debugOverlayConfig.renderedByString, 0, 61);
+    strncpy(m_overlaySettings.debugOverlayConfig.renderedByString, "", 61);
+    memset(m_overlaySettings.debugOverlayConfig.miscellaneousDebugString, 0, 61);
+    strncpy(m_overlaySettings.debugOverlayConfig.miscellaneousDebugString, "", 61);
+    m_overlaySettings.debugOverlayConfig.printFrameNumber = false;
 
     // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
     m_overlaySettings = GetDbgOverlaySettings();

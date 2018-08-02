@@ -326,6 +326,7 @@ Result Image::Finalize(
     // For AddrMgr2 style addressing, there's no chance of a single subresource being incapable of supporting DCC.
     PAL_ASSERT(dccUnsupported == false);
 
+    const PalSettings&          coreSettings      = m_device.Settings();
     const Gfx9PalSettings&      settings          = GetGfx9Settings(m_device);
     const auto*                 pPublicSettings   = m_device.GetPublicSettings();
     const SubResourceInfo*const pBaseSubResInfo   = pSubResInfoList;
@@ -568,7 +569,7 @@ Result Image::Finalize(
                 result = m_pFmask->Init(*this, pGpuMemSize);
             }
 
-            if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
+            if ((m_createInfo.flags.repetitiveResolve != 0) || (coreSettings.forceFixedFuncColorResolve != 0))
             {
                 // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
                 // surface.
@@ -715,11 +716,6 @@ Result Image::Finalize(
             {
                 InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
             }
-
-            // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
-            // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
-            // CPU cycles required to set up the fast clear eliminate.
-            m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -1068,6 +1064,8 @@ Result Image::ComputePipeBankXor(
 {
     Result  result = Result::Success;
 
+    const PalSettings& coreSettings = m_device.Settings();
+
     // Also need to make sure that mip0 is not in miptail. In this case, tile swizzle cannot be supported. With current
     // design, when mip0 is in the miptail, swizzleOffset would be negative. This is a problem because the offset in MS
     // interface is a UINT.
@@ -1142,9 +1140,9 @@ Result Image::ComputePipeBankXor(
             if (supportSwizzle &&
                 // Check to see if non-zero fMask pipe-bank-xor values are allowed.
                 ((aspect != ImageAspect::Fmask) || settings.fmaskAllowPipeBankXor) &&
-                ((TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
-                 (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
-                 (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleShaderRes))))
+                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
+                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
+                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleShaderRes))))
             {
                 uint32 surfaceIndex = 0;
 
@@ -1695,6 +1693,11 @@ void Image::InitFastClearEliminateMetaData(
 
     // Update the layout information against the fast-clear eliminate metadata.
     UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearEliminateMetaDataOffset, PredicationAlign);
+
+    // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
+    // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
+    // CPU cycles required to set up the fast clear eliminate.
+    m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
 }
 
 // =====================================================================================================================

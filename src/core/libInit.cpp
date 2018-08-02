@@ -63,14 +63,12 @@ static_assert(VAM_VERSION_MAJOR == 1, "Unexpected VAM major version.");
                   "The specified PAL_CLIENT_INTERFACE_MAJOR_VERSION is not supported.");
 #endif
 
-#if PAL_BUILD_GPUOPEN
 // Static asserts to ensure clients have defined a supported GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION
 #ifndef GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION
     static_assert(false, "Client must define GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION.");
 #else
     static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= PAL_MINIMUM_GPUOPEN_INTERFACE_MAJOR_VERSION),
                   "The specified GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION is not supported.");
-#endif
 #endif
 
 // =====================================================================================================================

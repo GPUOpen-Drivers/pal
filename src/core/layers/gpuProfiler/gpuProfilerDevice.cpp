@@ -36,6 +36,7 @@ namespace GpuProfiler
 {
 
 static GpuBlock StringToGpuBlock(const char* pString);
+static constexpr ShaderHash ZeroShaderHash = {};
 
 // =====================================================================================================================
 Device::Device(
@@ -55,6 +56,7 @@ Device::Device(
     m_maxDrawsForThreadTrace(0),
     m_curDrawsForThreadTrace(0),
     m_profilerGranularity(GpuProfilerGranularityDraw),
+    m_stallMode(GpuProfilerStallAlways),
     m_startFrame(0),
     m_endFrame(0),
     m_pGlobalPerfCounters(nullptr),
@@ -64,7 +66,6 @@ Device::Device(
 {
     memset(m_queueIds, 0, sizeof(m_queueIds));
 
-    constexpr ShaderHash ZeroShaderHash = {};
     m_sqttVsHash = ZeroShaderHash;
     m_sqttHsHash = ZeroShaderHash;
     m_sqttDsHash = ZeroShaderHash;
@@ -135,15 +136,18 @@ Result Device::CommitSettingsAndInit()
         m_bufferSrdDwords     = info.gfxipProperties.srdSizes.bufferView / sizeof(uint32);
         m_imageSrdDwords      = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
         m_timestampFreq       = info.timestampFrequency;
-        m_logPipeStats        = settings.gpuProfilerRecordPipelineStats;
-        m_sqttCompilerHash    = settings.gpuProfilerSqttPipelineHash;
+        m_logPipeStats        = settings.profilerConfig.recordPipelineStats;
+        m_sqttCompilerHash    = settings.sqttConfig.pipelineHash;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+        m_stallMode           = settings.sqttConfig.stallMode;
+#endif
 
-        m_sqttVsHash = settings.gpuProfilerSqttVsHash;
-        m_sqttHsHash = settings.gpuProfilerSqttHsHash;
-        m_sqttDsHash = settings.gpuProfilerSqttDsHash;
-        m_sqttGsHash = settings.gpuProfilerSqttGsHash;
-        m_sqttPsHash = settings.gpuProfilerSqttPsHash;
-        m_sqttCsHash = settings.gpuProfilerSqttCsHash;
+        m_sqttVsHash = settings.sqttConfig.vsHash;
+        m_sqttHsHash = settings.sqttConfig.hsHash;
+        m_sqttDsHash = settings.sqttConfig.dsHash;
+        m_sqttGsHash = settings.sqttConfig.gsHash;
+        m_sqttPsHash = settings.sqttConfig.psHash;
+        m_sqttCsHash = settings.sqttConfig.csHash;
 
         m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0)         ||
                                   ShaderHashIsNonzero(m_sqttVsHash) ||
@@ -153,13 +157,13 @@ Result Device::CommitSettingsAndInit()
                                   ShaderHashIsNonzero(m_sqttPsHash) ||
                                   ShaderHashIsNonzero(m_sqttCsHash));
 
-        m_profilerGranularity = settings.gpuProfilerGranularity;
+        m_profilerGranularity = settings.perfCounterConfig.granularity;
 
-        m_maxDrawsForThreadTrace = settings.gpuProfilerSqttMaxDraws;
+        m_maxDrawsForThreadTrace = settings.sqttConfig.maxDraws;
         m_curDrawsForThreadTrace = 0;
 
-        m_startFrame          = settings.gpuProfilerStartFrame;
-        m_endFrame            = m_startFrame + settings.gpuProfilerFrameCount;
+        m_startFrame          = settings.profilerConfig.startFrame;
+        m_endFrame            = m_startFrame + settings.profilerConfig.frameCount;
 
         for (uint32 i = 0; i < EngineTypeCount; i++)
         {
@@ -170,16 +174,16 @@ Result Device::CommitSettingsAndInit()
     if (result == Result::Success)
     {
         // Create directory for log files.
-        result = GetPlatform()->CreateLogDir(settings.gpuProfilerLogDirectory);
+        result = GetPlatform()->CreateLogDir(settings.profilerConfig.logDirectory);
     }
 
-    if ((result == Result::Success) && (settings.gpuProfilerGlobalPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success) && (settings.perfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
     {
         result = InitGlobalPerfCounterState();
         PAL_ASSERT(result == Result::Success);
     }
 
-    if ((result == Result::Success) && (settings.gpuProfilerSpmPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success) && (settings.spmConfig.spmPerfCounterConfigFile[0] != '\0'))
     {
         result = InitSpmTraceCounterState();
         PAL_ASSERT(result == Result::Success);
@@ -191,33 +195,39 @@ Result Device::CommitSettingsAndInit()
 // =====================================================================================================================
 Result Device::UpdateSettings()
 {
-    memset(m_profilerSettings.gpuProfilerLogDirectory, 0, 512);
-    strncpy(m_profilerSettings.gpuProfilerLogDirectory, "/tmp/amdpal/", 512);
-    m_profilerSettings.gpuProfilerStartFrame = 0;
-    m_profilerSettings.gpuProfilerFrameCount = 0;
-    m_profilerSettings.gpuProfilerRecordPipelineStats = false;
-    memset(m_profilerSettings.gpuProfilerGlobalPerfCounterConfigFile, 0, 256);
-    strncpy(m_profilerSettings.gpuProfilerGlobalPerfCounterConfigFile, "", 256);
-    m_profilerSettings.gpuProfilerBreakSubmitBatches = false;
-    m_profilerSettings.gpuProfilerCacheFlushOnCounterCollection = false;
-    m_profilerSettings.gpuProfilerGranularity = GpuProfilerGranularityDraw;
-    m_profilerSettings.gpuProfilerSqThreadTraceTokenMask = 0xFFFF;
-    m_profilerSettings.gpuProfilerSqttPipelineHash = 0;
+    // General settings
+    memset(m_profilerSettings.profilerConfig.logDirectory, 0, 512);
+    strncpy(m_profilerSettings.profilerConfig.logDirectory, "/tmp/amdpal/", 512);
+    m_profilerSettings.profilerConfig.startFrame = 0;
+    m_profilerSettings.profilerConfig.frameCount = 0;
+    m_profilerSettings.profilerConfig.recordPipelineStats = false;
+    m_profilerSettings.profilerConfig.breakSubmitBatches = false;
 
-    constexpr ShaderHash ZeroShaderHash = {};
-    m_profilerSettings.gpuProfilerSqttVsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttHsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttDsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttGsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttPsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttCsHash = ZeroShaderHash;
-    m_profilerSettings.gpuProfilerSqttMaxDraws = 0;
-    m_profilerSettings.gpuProfilerSqttBufferSize = 1048576;
+    // Perf Counter config
+    memset(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, 0, 256);
+    strncpy(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, "", 256);
+    m_profilerSettings.perfCounterConfig.cacheFlushOnCounterCollection = false;
+    m_profilerSettings.perfCounterConfig.granularity = GpuProfilerGranularityDraw;
+
+    // SQTT config
+    m_profilerSettings.sqttConfig.tokenMask = 0xFFFF;
+    m_profilerSettings.sqttConfig.pipelineHash = 0;
+    m_profilerSettings.sqttConfig.vsHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.hsHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.dsHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.gsHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.psHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.csHash = ZeroShaderHash;
+    m_profilerSettings.sqttConfig.maxDraws = 0;
+    m_profilerSettings.sqttConfig.bufferSize = 1048576;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    m_profilerSettings.sqttConfig.stallMode = GpuProfilerStallAlways;
+#endif
 
     // Spm trace config.
-    memset(m_profilerSettings.gpuProfilerSpmPerfCounterConfigFile, 0, 256);
-    m_profilerSettings.gpuProfilerSpmTraceBufferSize = 1048576;
-    m_profilerSettings.gpuProfilerSpmTraceInterval   = 4096;
+    memset(m_profilerSettings.spmConfig.spmPerfCounterConfigFile, 0, 256);
+    m_profilerSettings.spmConfig.spmTraceBufferSize = 1048576;
+    m_profilerSettings.spmConfig.spmTraceInterval   = 4096;
 
     // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
     const auto coreLayerSettings = GetGpuProfilerSettings();
@@ -479,12 +489,13 @@ Result Device::ExtractPerfCounterInfo(
                 char blockName[BlockNameSize];
                 char instanceName[InstanceNameSize];
                 char eventName[EventNameSize];
+                uint32 eventId;
 
                 // Read a line of the form "BlockName EventId InstanceName CounterName".
                 const int scanfRet = sscanf(&buf[0],
                                             "%31s %u %7s %127s",
                                             &blockName[0],
-                                            &pPerfCounters[counterIdx].eventId,
+                                            &eventId,
                                             &instanceName[0],
                                             &eventName[0]);
 
@@ -497,6 +508,7 @@ Result Device::ExtractPerfCounterInfo(
                     for (uint32 i = 0; i < instanceCount; i++)
                     {
                         pPerfCounters[counterIdx].block         = block;
+                        pPerfCounters[counterIdx].eventId       = eventId;
                         pPerfCounters[counterIdx].instanceId    = i;
                         pPerfCounters[counterIdx].instanceCount = 1;
                         Snprintf(
@@ -512,6 +524,7 @@ Result Device::ExtractPerfCounterInfo(
                 {
                     const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
                     pPerfCounters[counterIdx].block         = block;
+                    pPerfCounters[counterIdx].eventId       = eventId;
                     pPerfCounters[counterIdx].instanceId    = 0;
                     pPerfCounters[counterIdx].instanceCount = instanceCount;
                     Snprintf(
@@ -528,6 +541,7 @@ Result Device::ExtractPerfCounterInfo(
                 else
                 {
                     pPerfCounters[counterIdx].block         = block;
+                    pPerfCounters[counterIdx].eventId       = eventId;
                     pPerfCounters[counterIdx].instanceId    = atoi(instanceName);
                     pPerfCounters[counterIdx].instanceCount = 1;
                     Snprintf(
@@ -600,7 +614,7 @@ Result Device::ExtractPerfCounterInfo(
 Result Device::InitGlobalPerfCounterState()
 {
     File configFile;
-    Result result = configFile.Open(ProfilerSettings().gpuProfilerGlobalPerfCounterConfigFile, FileAccessRead);
+    Result result = configFile.Open(ProfilerSettings().perfCounterConfig.globalPerfCounterConfigFile, FileAccessRead);
 
     // Get performance experiment properties from the device in order to validate the requested counters.
     PerfExperimentProperties perfExpProps;
@@ -714,7 +728,7 @@ Result Device::InitSpmTraceCounterState()
     Result result = Result::Success;
 
     File configFile;
-    result = configFile.Open(ProfilerSettings().gpuProfilerSpmPerfCounterConfigFile, FileAccessRead);
+    result = configFile.Open(ProfilerSettings().spmConfig.spmPerfCounterConfigFile, FileAccessRead);
 
     PerfExperimentProperties perfExpProps;
     if (result == Result::Success)

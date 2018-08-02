@@ -29,11 +29,13 @@
 
 namespace Pal
 {
+
+enum  PrefetchMethod : uint32;
+
 namespace Gfx6
 {
 
 class Device;
-enum  PrefetchMethod : uint32;
 
 // =====================================================================================================================
 // Gfx6-specific implementation of the PrefetchMgr.  Manages prefetching (L2 shader cache warming) for various types

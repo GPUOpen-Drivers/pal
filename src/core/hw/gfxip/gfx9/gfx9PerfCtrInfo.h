@@ -66,29 +66,7 @@ constexpr uint32 DefaultSqSelectClientMask = 0xF;
 // [0, MaxEvent) is valid.
 
 // Gfx9 Specific
-constexpr uint32 Gfx9PerfCtrCbMaxEvent     = (CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD + 1);
-constexpr uint32 Gfx9PerfCtrCpcMaxEvent    = (CPC_PERF_SEL_ME2_DC1_SPI_BUSY + 1);
-constexpr uint32 Gfx9PerfCtrCpfMaxEvent    = (CPF_PERF_SEL_CPF_UTCL2IU_STALL__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrCpgMaxEvent    = (CPG_PERF_SEL_CPG_UTCL2IU_STALL + 1);
-constexpr uint32 Gfx9PerfCtrDbMaxEvent     = (DB_PERF_SEL_DB_SC_quad_quads_with_4_pixels + 1);
-constexpr uint32 Gfx9PerfCtrGdsMaxEvent    = (GDS_PERF_SEL_GWS_BYPASS + 1);
-constexpr uint32 Gfx9PerfCtrGrbmMaxEvent   = (GRBM_PERF_SEL_CPAXI_BUSY + 1);
-constexpr uint32 Gfx9PerfCtrGrbmseMaxEvent = (GRBM_PERF_SEL_CPAXI_BUSY + 1);
-constexpr uint32 Gfx9PerfCtrIaMaxEvent     = (ia_perf_utcl1_stall_utcl2_event + 1);
-constexpr uint32 Gfx9PerfCtrPaMaxEvent     = (PERF_CLIENT_UTCL1_INFLIGHT__GFX09 + 1); // pa-su block...
 constexpr uint32 Gfx9PerfCtrRlcMaxEvent    = 7; //< RLC, doesn't have enumerations, look in reg spec
-constexpr uint32 Gfx9PerfCtrScMaxEvent     = (SC_DB1_TILE_INTERFACE_CREDIT_AT_MAX_WITH_NO_PENDING_SEND + 1);
-constexpr uint32 Gfx9PerfCtrSdmaMaxEvent   = (SDMA_PERF_SEL_MMHUB_TAG_DELAY_COUNTER__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrSpiMaxEvent    = (SPI_PERF_VWC_CSC_WR__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrSqMaxEvent     = SQC_PERF_SEL_DUMMY_LAST__GFX09 + 1;
-constexpr uint32 Gfx9PerfCtrSxMaxEvent     = (SX_PERF_SEL_DB3_SIZE + 1);
-constexpr uint32 Gfx9PerfCtrTaMaxEvent     = (TA_PERF_SEL_first_xnack_on_phase3__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrTcaMaxEvent    = (TCA_PERF_SEL_CROSSBAR_STALL_TCC7 + 1);
-constexpr uint32 Gfx9PerfCtrTccMaxEvent    = (TCC_PERF_SEL_CLIENT127_REQ + 1);
-constexpr uint32 Gfx9PerfCtrTcpMaxEvent    = (TCP_PERF_SEL_TCC_DCC_REQ__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrTdMaxEvent     = (TD_PERF_SEL_texels_zeroed_out_by_blend_zero_prt__GFX09 + 1);
-constexpr uint32 Gfx9PerfCtrVgtMaxEvent    = (vgt_perf_sclk_te11_vld + 1);
-constexpr uint32 Gfx9PerfCtrWdMaxEvent     = (wd_perf_utcl1_stall_utcl2_event + 1);
 
 constexpr uint32 Gfx9PerfCtrlEaMaxEvent     = 77;
 

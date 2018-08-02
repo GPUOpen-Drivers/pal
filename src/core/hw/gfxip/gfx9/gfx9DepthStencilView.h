@@ -126,7 +126,6 @@ protected:
             uint32 readOnlyStencil         :  1; // Set if the stencil aspect is present and is read-only
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
-            uint32 usesLoadRegIndexPkt     :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
             uint32 waitOnMetadataMipTail   :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                  // view object.
             uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.
@@ -134,7 +133,7 @@ protected:
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
-            uint32 reserved                : 20;
+            uint32 reserved                : 21;
         };
 
         uint32 u32All;
@@ -161,60 +160,56 @@ private:
 // needed by setting several registers at once.
 struct Gfx9DepthStencilViewPm4Img
 {
-    PM4PFP_SET_CONTEXT_REG           hdrDbZInfoToDfsmControl;
-    regDB_Z_INFO__GFX09              dbZInfo;
-    regDB_STENCIL_INFO__GFX09        dbStencilInfo;
-    regDB_Z_READ_BASE                dbZReadBase;
-    regDB_Z_READ_BASE_HI             dbZReadBaseHi;
-    regDB_STENCIL_READ_BASE          dbStencilReadBase;
-    regDB_STENCIL_READ_BASE_HI       dbStencilReadBaseHi;
-    regDB_Z_WRITE_BASE               dbZWriteBase;
-    regDB_Z_WRITE_BASE_HI            dbZWriteBaseHi;
-    regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
-    regDB_STENCIL_WRITE_BASE_HI      dbStencilWriteBaseHi;
-    regDB_DFSM_CONTROL               dbDfsmControl;
+    PM4PFP_SET_CONTEXT_REG       hdrDbZInfoToDfsmControl;
+    regDB_Z_INFO                 dbZInfo;
+    regDB_STENCIL_INFO           dbStencilInfo;
+    regDB_Z_READ_BASE            dbZReadBase;
+    regDB_Z_READ_BASE_HI         dbZReadBaseHi;
+    regDB_STENCIL_READ_BASE      dbStencilReadBase;
+    regDB_STENCIL_READ_BASE_HI   dbStencilReadBaseHi;
+    regDB_Z_WRITE_BASE           dbZWriteBase;
+    regDB_Z_WRITE_BASE_HI        dbZWriteBaseHi;
+    regDB_STENCIL_WRITE_BASE     dbStencilWriteBase;
+    regDB_STENCIL_WRITE_BASE_HI  dbStencilWriteBaseHi;
+    regDB_DFSM_CONTROL           dbDfsmControl;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbZInfo2ToStencilInfo2;
-    regDB_Z_INFO2__GFX09             dbZInfo2;
-    regDB_STENCIL_INFO2__GFX09       dbStencilInfo2;
+    PM4PFP_SET_CONTEXT_REG      hdrDbZInfo2ToStencilInfo2;
+    regDB_Z_INFO2               dbZInfo2;
+    regDB_STENCIL_INFO2         dbStencilInfo2;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbDepthView;
-    regDB_DEPTH_VIEW                 dbDepthView;
+    PM4PFP_SET_CONTEXT_REG  hdrDbDepthView;
+    regDB_DEPTH_VIEW        dbDepthView;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbRenderOverride2;
-    regDB_RENDER_OVERRIDE2           dbRenderOverride2;
-    regDB_HTILE_DATA_BASE            dbHtileDataBase;
-    regDB_HTILE_DATA_BASE_HI         dbHtileDataBaseHi;
-    regDB_DEPTH_SIZE__GFX09          dbDepthSize;
+    PM4PFP_SET_CONTEXT_REG    hdrDbRenderOverride2;
+    regDB_RENDER_OVERRIDE2    dbRenderOverride2;
+    regDB_HTILE_DATA_BASE     dbHtileDataBase;
+    regDB_HTILE_DATA_BASE_HI  dbHtileDataBaseHi;
+    regDB_DEPTH_SIZE          dbDepthSize;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbHtileSurface;
-    regDB_HTILE_SURFACE              dbHtileSurface;
+    PM4PFP_SET_CONTEXT_REG  hdrDbHtileSurface;
+    regDB_HTILE_SURFACE     dbHtileSurface;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbPreloadControl;
-    regDB_PRELOAD_CONTROL            dbPreloadControl;
+    PM4PFP_SET_CONTEXT_REG  hdrDbPreloadControl;
+    regDB_PRELOAD_CONTROL   dbPreloadControl;
 
-    PM4PFP_SET_CONTEXT_REG           hdrDbRenderControl;
-    regDB_RENDER_CONTROL             dbRenderControl;
+    PM4PFP_SET_CONTEXT_REG  hdrDbRenderControl;
+    regDB_RENDER_CONTROL    dbRenderControl;
 
     PM4PFP_SET_CONTEXT_REG           hdrPaSuPolyOffsetDbFmtCntl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
 
-    PM4PFP_SET_CONTEXT_REG           hdrPaScScreenScissor;
-    regPA_SC_SCREEN_SCISSOR_TL       paScScreenScissorTl;
-    regPA_SC_SCREEN_SCISSOR_BR       paScScreenScissorBr;
+    PM4PFP_SET_CONTEXT_REG      hdrPaScScreenScissor;
+    regPA_SC_SCREEN_SCISSOR_TL  paScScreenScissorTl;
+    regPA_SC_SCREEN_SCISSOR_BR  paScScreenScissorBr;
 
-    PM4PFP_SET_CONTEXT_REG           hdrCoherDestBase;
-    regCOHER_DEST_BASE_0             coherDestBase0;
+    PM4PFP_SET_CONTEXT_REG  hdrCoherDestBase;
+    regCOHER_DEST_BASE_0    coherDestBase0;
 
-    PM4ME_CONTEXT_REG_RMW            dbRenderOverrideRmw;
+    PM4ME_CONTEXT_REG_RMW  dbRenderOverrideRmw;
 
     // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
     // image because it is either absent or present depending on compression state.
-    union
-    {
-        PM4PFP_LOAD_CONTEXT_REG       loadMetaData;
-        PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
-    };
+    PM4PFP_LOAD_CONTEXT_REG_INDEX  loadMetaDataIndex;
 
     // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
     // in the structure to not interfere w/ the actual commands contained within.

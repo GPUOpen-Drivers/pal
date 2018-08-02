@@ -49,22 +49,22 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
     // mmVGT_DMA_INDEX_TYPE cannot be shadowed, since it is a register that is sent to VGT by the PFP, so it will not
     // pass through the shadowing logic in ME.
     {
-        (mmVGT_GSVS_RING_SIZE__GFX09 - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
-        (mmVGT_PRIMITIVE_TYPE - mmVGT_GSVS_RING_SIZE__GFX09 + 1),
+        (Gfx09::mmVGT_GSVS_RING_SIZE - UCONFIG_SPACE_START),              // 0xC241 - 0xC242
+        (mmVGT_PRIMITIVE_TYPE - Gfx09::mmVGT_GSVS_RING_SIZE + 1),
     },
     {
-        (mmVGT_MAX_VTX_INDX__GFX09 - UCONFIG_SPACE_START),                // 0xC248 - 0xC24B
-        (mmVGT_MULTI_PRIM_IB_RESET_EN__GFX09 - mmVGT_MAX_VTX_INDX__GFX09 + 1),
+        (Gfx09::mmVGT_MAX_VTX_INDX - UCONFIG_SPACE_START),                // 0xC248 - 0xC24B
+        (Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN - Gfx09::mmVGT_MAX_VTX_INDX + 1),
     },
     {
         (mmVGT_NUM_INSTANCES - UCONFIG_SPACE_START),                      // 0xC24D - 0xC251
-        (mmVGT_TF_MEMORY_BASE_HI__GFX09 - mmVGT_NUM_INSTANCES + 1),
+        (Gfx09::mmVGT_TF_MEMORY_BASE_HI - mmVGT_NUM_INSTANCES + 1),
     },
     // Note: PAL must not state shadow the following regs because they are written by KMD:
     // mmWD_POS_BUF_BASE, mmWD_POS_BUF_BASE_HI, mmWD_CNTL_SB_BUF_BASE, mmWD_CNTL_SB_BUF_BASE_HI,
     // mmWD_INDEX_BUF_BASE, mmWD_INDEX_BUF_BASE_HI (0xC252 - 0xC257)
     {
-        (mmIA_MULTI_VGT_PARAM__GFX09 - UCONFIG_SPACE_START),              // 0xC258
+        (Gfx09::mmIA_MULTI_VGT_PARAM - UCONFIG_SPACE_START),              // 0xC258
          1,
     },
     {
@@ -116,7 +116,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmSX_PS_DOWNCONVERT - CONTEXT_SPACE_START),                            // 0xA1D5 - 0xA1EF
-        (mmCB_MRT7_EPITCH__GFX09 - mmSX_PS_DOWNCONVERT + 1),
+        (Gfx09::mmCB_MRT7_EPITCH - mmSX_PS_DOWNCONVERT + 1),
     },
     {
         (mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START),                             // 0xA200 - 0xA208
@@ -147,8 +147,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
          1,
     },
     {
-        (mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09 - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B5
-        (mmVGT_STRMOUT_VTX_STRIDE_0 - mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09 + 1),
+        (Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B5
+        (mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
     },
     {
         (mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),                    // 0xA2B8 - 0xA2B9
@@ -168,7 +168,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA38F
-        (mmCB_COLOR7_DCC_BASE_EXT__GFX09 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
+        (Gfx09::mmCB_COLOR7_DCC_BASE_EXT - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
 constexpr uint32 Gfx9NumContextShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ContextShadowRange));
@@ -186,7 +186,7 @@ const RegisterRange Gfx9ShShadowRange[] =
     },
     {
         (mmSPI_SHADER_PGM_RSRC4_GS - PERSISTENT_SPACE_START),                   // 0x2C81 - 0x2C85
-        (mmSPI_SHADER_PGM_HI_ES__GFX09 - mmSPI_SHADER_PGM_RSRC4_GS + 1),
+        (Gfx09::mmSPI_SHADER_PGM_HI_ES - mmSPI_SHADER_PGM_RSRC4_GS + 1),
     },
     {
         (mmSPI_SHADER_PGM_LO_GS - PERSISTENT_SPACE_START),                      // 0x2C88 - 0x2C8B
@@ -194,15 +194,15 @@ const RegisterRange Gfx9ShShadowRange[] =
     },
     {
         (mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),                 // 0x2CCC - 0x2CEB
-        (mmSPI_SHADER_USER_DATA_ES_31__GFX09 - mmSPI_SHADER_USER_DATA_ES_0 + 1),
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - mmSPI_SHADER_USER_DATA_ES_0 + 1),
     },
     {
         (mmSPI_SHADER_PGM_RSRC4_HS - PERSISTENT_SPACE_START),                   // 0x2D01 - 0x2D05
-        (mmSPI_SHADER_PGM_HI_LS__GFX09 - mmSPI_SHADER_PGM_RSRC4_HS + 1),
+        (Gfx09::mmSPI_SHADER_PGM_HI_LS - mmSPI_SHADER_PGM_RSRC4_HS + 1),
     },
     {
         (mmSPI_SHADER_PGM_LO_HS - PERSISTENT_SPACE_START),                      // 0x2D08 - 0x2D2B
-        (mmSPI_SHADER_USER_DATA_LS_31__GFX09 - mmSPI_SHADER_PGM_LO_HS + 1),
+        (Gfx09::mmSPI_SHADER_USER_DATA_LS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
     },
 };
 constexpr uint32 Gfx9NumShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ShShadowRange));
@@ -240,7 +240,7 @@ constexpr uint32 Gfx9NumCsShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gf
 #if PAL_ENABLE_PRINTS_ASSERTS
 // Defines the set of ranges of registers which cannot be shadowed for various reasons. Gfx6/7 have their own lists
 // too, but we don't need to include them since we never enable state-shadowing for pre-Gfx8 GPU's.
-const RegisterRange Gfx9NonShadowedRanges[] =
+const RegisterRange Gfx90NonShadowedRanges[] =
 {
     {
         mmVGT_DMA_PRIMITIVE_TYPE,
@@ -324,7 +324,7 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmDB_OCCLUSION_COUNT3_HI - mmDB_OCCLUSION_COUNT0_LOW + 1
     },
     {
-        mmSPI_CONFIG_CNTL__GFX09,
+        Gfx09::mmSPI_CONFIG_CNTL,
         1
     },
     {
@@ -344,10 +344,6 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmDB_PERFCOUNTER3_SELECT - mmDB_PERFCOUNTER0_SELECT + 1
     },
     {
-        mmGCEA_PERFCOUNTER0_CFG__GFX09,
-        mmGCEA_PERFCOUNTER_RSLT_CNTL__GFX09 - mmGCEA_PERFCOUNTER0_CFG__GFX09 + 1
-    },
-    {
         mmGRBM_PERFCOUNTER0_SELECT,
         mmGRBM_PERFCOUNTER1_SELECT - mmGRBM_PERFCOUNTER0_SELECT + 1
     },
@@ -356,8 +352,8 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmGRBM_SE3_PERFCOUNTER_SELECT - mmGRBM_SE0_PERFCOUNTER_SELECT + 1
     },
     {
-        mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09,
-        mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09 - mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09 + 1
+        Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG,
+        Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL - Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG + 1
     },
     {
         mmRLC_PERFMON_CNTL,
@@ -365,7 +361,7 @@ const RegisterRange Gfx9NonShadowedRanges[] =
     },
     {
         mmPA_SU_PERFCOUNTER0_SELECT,
-        mmPA_SU_PERFCOUNTER3_SELECT__GFX09 - mmPA_SU_PERFCOUNTER0_SELECT + 1,
+        Gfx09::mmPA_SU_PERFCOUNTER3_SELECT - mmPA_SU_PERFCOUNTER0_SELECT + 1,
     },
     {
         mmPA_SC_PERFCOUNTER0_SELECT,
@@ -404,43 +400,43 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
     },
     {
-        mmTCC_PERFCOUNTER0_SELECT__GFX09,
-        mmTCC_PERFCOUNTER3_SELECT__GFX09 - mmTCC_PERFCOUNTER0_SELECT__GFX09 + 1,
+        Gfx09::mmTCC_PERFCOUNTER0_SELECT,
+        Gfx09::mmTCC_PERFCOUNTER3_SELECT - Gfx09::mmTCC_PERFCOUNTER0_SELECT + 1,
     },
     {
-        mmTCA_PERFCOUNTER0_SELECT__GFX09,
-        mmTCA_PERFCOUNTER3_SELECT__GFX09 - mmTCA_PERFCOUNTER0_SELECT__GFX09 + 1,
+        Gfx09::mmTCA_PERFCOUNTER0_SELECT,
+        Gfx09::mmTCA_PERFCOUNTER3_SELECT - Gfx09::mmTCA_PERFCOUNTER0_SELECT + 1,
     },
     {
         mmGDS_PERFCOUNTER0_SELECT,
         mmGDS_PERFCOUNTER0_SELECT1 - mmGDS_PERFCOUNTER0_SELECT + 1,
     },
     {
-        mmVGT_PERFCOUNTER0_SELECT__GFX09,
-        mmVGT_PERFCOUNTER1_SELECT1__GFX09 - mmVGT_PERFCOUNTER0_SELECT__GFX09 + 1,
+        Gfx09::mmVGT_PERFCOUNTER0_SELECT,
+        Gfx09::mmVGT_PERFCOUNTER1_SELECT1 - Gfx09::mmVGT_PERFCOUNTER0_SELECT + 1,
     },
     {
-        mmIA_PERFCOUNTER0_SELECT__GFX09,
-        mmIA_PERFCOUNTER0_SELECT1__GFX09 - mmIA_PERFCOUNTER0_SELECT__GFX09 + 1,
+        Gfx09::mmIA_PERFCOUNTER0_SELECT,
+        Gfx09::mmIA_PERFCOUNTER0_SELECT1 - Gfx09::mmIA_PERFCOUNTER0_SELECT + 1,
     },
     {
-        mmWD_PERFCOUNTER0_SELECT__GFX09,
-        mmWD_PERFCOUNTER3_SELECT__GFX09 - mmWD_PERFCOUNTER0_SELECT__GFX09 + 1,
+        Gfx09::mmWD_PERFCOUNTER0_SELECT,
+        Gfx09::mmWD_PERFCOUNTER3_SELECT - Gfx09::mmWD_PERFCOUNTER0_SELECT + 1,
     },
     {
         mmRLC_SPM_PERFMON_CNTL,
-        mmRLC_SPM_SE_MUXSEL_ADDR__GFX09 - mmRLC_SPM_PERFMON_CNTL + 1,
+        Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR - mmRLC_SPM_PERFMON_CNTL + 1,
     },
     {
-        mmRLC_SPM_GLOBAL_MUXSEL_ADDR__GFX09,
-        mmRLC_SPM_RING_RDPTR__GFX09 - mmRLC_SPM_GLOBAL_MUXSEL_ADDR__GFX09 + 1,
+        Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR,
+        Gfx09::mmRLC_SPM_RING_RDPTR - Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR + 1,
     },
     {
-        mmSQ_THREAD_TRACE_BASE__GFX09,
-        mmSQ_THREAD_TRACE_HIWATER__GFX09 - mmSQ_THREAD_TRACE_BASE__GFX09 + 1
+        Gfx09::mmSQ_THREAD_TRACE_BASE,
+        Gfx09::mmSQ_THREAD_TRACE_HIWATER - Gfx09::mmSQ_THREAD_TRACE_BASE + 1
     },
     {
-        mmRLC_PERFMON_CLK_CNTL__GFX09,
+        Gfx09::mmRLC_PERFMON_CLK_CNTL,
         1,
     },
     {
@@ -472,17 +468,19 @@ const RegisterRange Gfx9NonShadowedRanges[] =
         mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
         mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
     },
+    {
+        Gfx09_0::mmGCEA_PERFCOUNTER0_CFG,
+        Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx09_0::mmGCEA_PERFCOUNTER0_CFG + 1
+    },
 };
-constexpr uint32 Gfx9NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx9NonShadowedRanges));
-#endif // #if PAL_ENABLE_PRINTS_ASSERTS
+constexpr uint32 Gfx90NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx90NonShadowedRanges));
+
+#endif // PAL_ENABLE_PRINTS_ASSERTS
 
 constexpr uint32 MaxNumUserConfigRanges  = Gfx9NumUserConfigShadowRanges;
 constexpr uint32 MaxNumContextRanges     = Gfx9NumContextShadowRanges;
 constexpr uint32 MaxNumShRanges          = Gfx9NumShShadowRanges;
 constexpr uint32 MaxNumCsShRanges        = Gfx9NumShShadowRanges;
-#if PAL_ENABLE_PRINTS_ASSERTS
-constexpr uint32 MaxNumNonShadowedRanges = Gfx9NumNonShadowedRanges;
-#endif // PAL_ENABLE_PRINTS_ASSERTS
 
 } // Gfx9
 } // Pal

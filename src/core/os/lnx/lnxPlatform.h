@@ -72,6 +72,7 @@ public:
     bool  IsCreateSignaledSyncObjectSupported() const { return m_features.supportCreateSignaledSyncobj == 1; }
     bool  IsSyncobjFenceSupported()  const { return m_features.supportSyncobjFence  == 1; }
     bool  IsHostMappedForeignMemorySupported() const { return m_features.suportHostMappedForeignMemory == 1; }
+    bool  IsRandRLeaseSupported() const { return m_features.supportRandRLease == 1; }
 protected:
     virtual Result InitProperties() override;
     virtual Result ConnectToOsInterface() override;
@@ -101,7 +102,8 @@ protected:
             uint32 supportCreateSignaledSyncobj :  1;    // Support creating initial signaled syncobj.
             uint32 supportSyncobjFence          :  1;    // Support fence based on sync object.
             uint32 suportHostMappedForeignMemory:  1;    // Support pin memory which is host-mapped from foreign device.
-            uint32 reserved                     : 24;
+            uint32 supportRandRLease            :  1;    // Support randr lease feature.
+            uint32 reserved                     : 23;
         };
         uint32 u32All;
     } m_features;

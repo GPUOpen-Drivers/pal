@@ -119,19 +119,27 @@ Result WaylandPresentFence::Trigger()
 Result WaylandPresentFence::WaitForCompletion(
     bool doWait)
 {
-    Result result = Result::Success;
+    Result result = Result::NotReady;
 
-    do
+    if (m_hImage == WaylandWindowSystem::DefaultImageHandle)
     {
-        if ((m_hImage != WaylandWindowSystem::DefaultImageHandle) && (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) != Success))
-        {
-            result = Result::NotReady;
-        }
-        else
+        result = Result::Success;
+    }
+
+    if (result != Result::Success)
+    {
+        // quick check
+        if (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) == Success)
         {
             result = Result::Success;
         }
-    } while (doWait && (result != Result::Success));
+    }
+
+    if ((result != Result::Success) && doWait)
+    {
+        WaylandWindowSystem::s_pWsaInterface->pfnWaitForLastImagePresented(m_windowSystem.m_hWsa);
+        result = Result::Success;
+    }
 
     return result;
 }

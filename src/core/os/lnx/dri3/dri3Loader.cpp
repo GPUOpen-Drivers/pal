@@ -953,6 +953,8 @@ xcb_dri2_connect_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri2ConnectReply(
     return pRet;
 }
 
+#if XCB_RANDR_SUPPORTS_LEASE
+
 // =====================================================================================================================
 xcb_randr_create_lease_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrCreateLease(
     xcb_connection_t*          pConnection,
@@ -1039,6 +1041,7 @@ int* Dri3LoaderFuncsProxy::pfnXcbRandrCreateLeaseReplyFds(
 
     return pRet;
 }
+#endif
 
 // =====================================================================================================================
 xcb_randr_get_screen_resources_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResources(
@@ -1944,6 +1947,7 @@ Result Dri3Loader::Init(
         }
         else
         {
+#if XCB_RANDR_SUPPORTS_LEASE
             m_funcs.pfnXcbRandrCreateLease = reinterpret_cast<XcbRandrCreateLease>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_create_lease"));
@@ -1953,6 +1957,7 @@ Result Dri3Loader::Init(
             m_funcs.pfnXcbRandrCreateLeaseReplyFds = reinterpret_cast<XcbRandrCreateLeaseReplyFds>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_create_lease_reply_fds"));
+#endif
             m_funcs.pfnXcbRandrGetScreenResources = reinterpret_cast<XcbRandrGetScreenResources>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_screen_resources"));

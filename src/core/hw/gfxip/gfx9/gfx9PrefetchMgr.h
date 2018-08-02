@@ -29,11 +29,12 @@
 
 namespace Pal
 {
+enum  PrefetchMethod : uint32;
+
 namespace Gfx9
 {
 
 class Device;
-enum  PrefetchMethod : uint32;
 
 // =====================================================================================================================
 // Gfx9-specific implementation of the PrefetchMgr.  Manages prefetching (L2 shader cache warming) for various types

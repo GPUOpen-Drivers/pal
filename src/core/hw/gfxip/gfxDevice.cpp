@@ -52,7 +52,8 @@ GfxDevice::GfxDevice(
     m_smallPrimFilter(SmallPrimFilterEnableAll),
     m_waEnableDccCacheFlushAndInvalidate(false),
     m_waTcCompatZRange(false),
-    m_degeneratePrimFilter(false)
+    m_degeneratePrimFilter(false),
+    m_pSettingsLoader(nullptr)
 {
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
@@ -61,6 +62,17 @@ GfxDevice::GfxDevice(
     memset(m_flglRegSeq, 0, sizeof(m_flglRegSeq));
 
     memset(m_fastClearImageRefs, 0, sizeof(m_fastClearImageRefs));
+}
+
+// =====================================================================================================================
+GfxDevice::~GfxDevice()
+{
+    // Note that GfxDevice does not own the m_pRsrcProcMgr instance so it is not deleted here.
+
+    if (m_pSettingsLoader != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pSettingsLoader, m_pParent->GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -89,6 +101,60 @@ Result GfxDevice::Cleanup()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Performs initialization of hardware layer settings.
+Result GfxDevice::InitHwlSettings(
+    PalSettings* pSettings)
+{
+    Result ret = Result::Success;
+
+    // Make sure we only initialize settings once
+    if (m_pSettingsLoader == nullptr)
+    {
+        switch (m_pParent->ChipProperties().gfxLevel)
+        {
+#if PAL_BUILD_GFX6
+        case GfxIpLevel::GfxIp6:
+        case GfxIpLevel::GfxIp7:
+        case GfxIpLevel::GfxIp8:
+        case GfxIpLevel::GfxIp8_1:
+            m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
+            break;
+#endif
+#if PAL_BUILD_GFX9
+        case GfxIpLevel::GfxIp9:
+            m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
+            break;
+#endif // PAL_BUILD_GFX9
+        case GfxIpLevel::None:
+        default:
+            break;
+        }
+
+        if (m_pSettingsLoader == nullptr)
+        {
+            ret = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            ret = m_pSettingsLoader->Init();
+        }
+    }
+
+    if (ret == Result::Success)
+    {
+        HwlOverrideDefaultSettings(pSettings);
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+const PalSettings& GfxDevice::CoreSettings() const
+{
+    return m_pParent->Settings();
 }
 
 // =====================================================================================================================
@@ -270,13 +336,6 @@ Result GfxDevice::CreateMsaaStateInternal(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Returns the Device object that owns this GFXIP-specific "sub device".
-Pal::Device* GfxDevice::Parent() const
-{
-    return m_pParent;
 }
 
 // =====================================================================================================================

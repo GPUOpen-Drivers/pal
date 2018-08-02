@@ -410,62 +410,6 @@ bool Dri3WindowSystem::IsExtensionSupported()
 }
 
 // =====================================================================================================================
-// Check if the device could present to the window. Return true if it is presentable.
-bool Dri3WindowSystem::IsDevicePresentable(
-    Device*             pDevice,
-    xcb_connection_t*   pConnection,
-    const xcb_window_t  window)
-{
-    bool                   result    = false;
-    const Dri3LoaderFuncs& dri3Procs = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
-
-    xcb_randr_get_providers_cookie_t providersCookie = dri3Procs.pfnXcbRandrGetProviders(pConnection, window);
-    xcb_randr_get_providers_reply_t* pProvidersReply = dri3Procs.pfnXcbRandrGetProvidersReply(pConnection,
-                                                                                              providersCookie,
-                                                                                              nullptr);
-
-    xcb_randr_provider_t* pProviders   = (pProvidersReply == nullptr) ? nullptr :
-                                          dri3Procs.pfnXcbRandrGetProvidersProviders(pProvidersReply);
-    int32                 providersNum = (pProvidersReply == nullptr) ? 0 :
-                                          dri3Procs.pfnXcbRandrGetProvidersProvidersLength(pProvidersReply);
-
-    for (int32 i = 0; i < providersNum; i++)
-    {
-        xcb_randr_get_provider_info_cookie_t infoCookie = dri3Procs.pfnXcbRandrGetProviderInfo(pConnection,
-                                                                                               pProviders[i],
-                                                                                               0);
-        xcb_randr_get_provider_info_reply_t* pInfoReply = dri3Procs.pfnXcbRandrGetProviderInfoReply(pConnection,
-                                                                                                    infoCookie,
-                                                                                                    nullptr);
-
-        if (pInfoReply != nullptr)
-        {
-            char* pProvidersName = dri3Procs.pfnXcbRandrGetProviderInfoName(pInfoReply);
-            char* pPciBusString  = strstr(pProvidersName, "pci:");
-
-            if (strncmp(pPciBusString, pDevice->GetBusId(), strlen(pDevice->GetBusId())) == 0)
-            {
-                result = true;
-            }
-
-            free(pInfoReply);
-        }
-
-        if (result == true)
-        {
-            break;
-        }
-    }
-
-    if (pProvidersReply != nullptr)
-    {
-        free(pProvidersReply);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Send DRI3-Open request to Xserver to get the related GPU file descriptor.
 int32 Dri3WindowSystem::OpenDri3()
 {
@@ -893,17 +837,11 @@ Result Dri3WindowSystem::DeterminePresentationSupportedXlib(
     // find the visual which means the visual is supported by current connection.
     if (count >= 1)
     {
-        xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(pDisplay);
-        const Window           rootWindow  = dri3Procs.pfnXRootWindow(pDisplay, pVisualList[0].screen);
-
         PAL_ASSERT((pVisualList[0].red_mask   == 0xff0000) &&
                    (pVisualList[0].green_mask == 0x00ff00) &&
                    (pVisualList[0].blue_mask  == 0x0000ff));
 
-        if (Dri3WindowSystem::IsDevicePresentable(pDevice, pConnection, rootWindow))
-        {
-            result = Result::Success;
-        }
+        result = Result::Success;
 
         dri3Procs.pfnXFree(pVisualList);
     }
@@ -955,11 +893,8 @@ Result Dri3WindowSystem::DeterminePresentationSupported(
                            (pVisualType->green_mask == 0x00ff00) &&
                            (pVisualType->blue_mask  == 0x0000ff));
 
-                if (Dri3WindowSystem::IsDevicePresentable(pDevice, pConnection, iter.data->root))
-                {
-                    result = Result::Success;
-                    break;
-                }
+                result = Result::Success;
+                break;
             }
             else
             {
@@ -1047,76 +982,89 @@ Result Dri3WindowSystem::AcquireScreenAccess(
     uint32          randrOutput,
     int32*          pDrmMasterFd)
 {
-    const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
-    xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
+    Result ret = Result::ErrorInvalidValue;
 
-    const xcb_setup_t* pSetup = dri3Procs.pfnXcbGetSetup(pConnection);
-
-    // Find root window
-    uint32 rootWindow = 0;
-    xcb_screen_iterator_t iter;
-    for (iter = dri3Procs.pfnXcbSetupRootsIterator(pSetup); iter.rem > 0; dri3Procs.pfnXcbScreenNext(&iter))
+#if XCB_RANDR_SUPPORTS_LEASE
+    if (pDevice->GetPlatform()->IsRandRLeaseSupported())
     {
-        xcb_randr_get_screen_resources_cookie_t scrResCookiet =
-            dri3Procs.pfnXcbRandrGetScreenResources(pConnection, iter.data->root);
-        xcb_randr_get_screen_resources_reply_t* pScrResReply =
-            dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
+        const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+        xcb_connection_t*const pConnection = dri3Procs.pfnXGetXCBConnection(static_cast<Display*>(hDisplay));
 
-        if (pScrResReply != nullptr)
+        const xcb_setup_t* pSetup = dri3Procs.pfnXcbGetSetup(pConnection);
+
+        // Find root window
+        uint32 rootWindow = 0;
+
+        for (auto iter = dri3Procs.pfnXcbSetupRootsIterator(pSetup); iter.rem > 0; dri3Procs.pfnXcbScreenNext(&iter))
         {
-            xcb_randr_output_t* pRandrOuput = dri3Procs.pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+            xcb_randr_get_screen_resources_cookie_t scrResCookiet =
+                dri3Procs.pfnXcbRandrGetScreenResources(pConnection, iter.data->root);
+            xcb_randr_get_screen_resources_reply_t* pScrResReply =
+                dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
 
-            for (int i = 0; i < pScrResReply->num_outputs; i++)
+            if (pScrResReply != nullptr)
             {
-                if (pRandrOuput[i] == randrOutput)
+                xcb_randr_output_t* pRandrOuput = dri3Procs.pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+
+                for (int i = 0; i < pScrResReply->num_outputs; i++)
                 {
-                    rootWindow = iter.data->root;
-                    break;
+                    if (pRandrOuput[i] == randrOutput)
+                    {
+                        rootWindow = iter.data->root;
+                        break;
+                    }
                 }
+                free(pScrResReply);
             }
-            free(pScrResReply);
+        }
+
+        // Find crtc of this randrOutput
+        uint32 randrCrtc = 0;
+
+        if (rootWindow > 0)
+        {
+            xcb_randr_get_screen_resources_cookie_t scrResCookiet =
+                dri3Procs.pfnXcbRandrGetScreenResources(pConnection, rootWindow);
+            xcb_randr_get_screen_resources_reply_t* pScreenResReply =
+                dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
+            xcb_randr_get_output_info_cookie_t outputInfoCookie =
+                dri3Procs.pfnXcbRandrGetOutputInfo(pConnection, randrOutput, pScreenResReply->config_timestamp);
+            xcb_randr_get_output_info_reply_t* pOutputInfoRelpy =
+                dri3Procs.pfnXcbRandrGetOutputInfoReply(pConnection, outputInfoCookie, NULL);
+            randrCrtc = pOutputInfoRelpy->crtc;
+        }
+
+        // Lease objects from XServer
+        xcb_randr_lease_t lease = dri3Procs.pfnXcbGenerateId(pConnection);
+        xcb_randr_create_lease_cookie_t leaseCookie = dri3Procs.pfnXcbRandrCreateLease(pConnection,
+                                                                                       rootWindow,
+                                                                                       lease,
+                                                                                       1,
+                                                                                       1,
+                                                                                       &randrCrtc,
+                                                                                       &randrOutput);
+
+        xcb_randr_create_lease_reply_t* pLeaseReply = dri3Procs.pfnXcbRandrCreateLeaseReply(pConnection,
+                                                                                            leaseCookie,
+                                                                                            NULL);
+
+        int drmMasterfd = -1;
+
+        if (pLeaseReply && (pLeaseReply->nfd > 0))
+        {
+            int* pLeaseReplyFds = dri3Procs.pfnXcbRandrCreateLeaseReplyFds(pConnection, pLeaseReply);
+
+            drmMasterfd = pLeaseReplyFds[0];
+        }
+
+        if (drmMasterfd > 0)
+        {
+            *pDrmMasterFd = drmMasterfd;
+
+            ret = Result::Success;
         }
     }
-
-    // Find crtc of this randrOutput
-    uint32 randrCrtc = 0;
-    if (rootWindow > 0)
-    {
-        xcb_randr_get_screen_resources_cookie_t scrResCookiet =
-            dri3Procs.pfnXcbRandrGetScreenResources(pConnection, rootWindow);
-        xcb_randr_get_screen_resources_reply_t* pScreenResReply =
-            dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookiet, NULL);
-        xcb_randr_get_output_info_cookie_t outputInfoCookie =
-            dri3Procs.pfnXcbRandrGetOutputInfo(pConnection, randrOutput, pScreenResReply->config_timestamp);
-        xcb_randr_get_output_info_reply_t* pOutputInfoRelpy =
-            dri3Procs.pfnXcbRandrGetOutputInfoReply(pConnection, outputInfoCookie, NULL);
-        randrCrtc = pOutputInfoRelpy->crtc;
-    }
-
-    // Lease objects from XServer
-    xcb_randr_lease_t lease = dri3Procs.pfnXcbGenerateId(pConnection);
-    xcb_randr_create_lease_cookie_t leaseCookie = dri3Procs.pfnXcbRandrCreateLease(pConnection,
-                                                                                   rootWindow,
-                                                                                   lease,
-                                                                                   1,
-                                                                                   1,
-                                                                                   &randrCrtc,
-                                                                                   &randrOutput);
-
-    xcb_randr_create_lease_reply_t *pLeaseReply = dri3Procs.pfnXcbRandrCreateLeaseReply(pConnection, leaseCookie, NULL);
-
-    int drmMasterfd = -1;
-    if (pLeaseReply && (pLeaseReply->nfd > 0))
-    {
-        int *pLeaseReplyFds = dri3Procs.pfnXcbRandrCreateLeaseReplyFds(pConnection, pLeaseReply);
-        drmMasterfd = pLeaseReplyFds[0];
-    }
-    Result ret = Result::ErrorInvalidValue;
-    if (drmMasterfd > 0)
-    {
-        *pDrmMasterFd = drmMasterfd;
-        ret = Result::Success;
-    }
+#endif
 
     return ret;
 }

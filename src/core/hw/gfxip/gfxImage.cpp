@@ -290,7 +290,8 @@ void GfxImage::Destroy()
 {
     if (m_pNumSkippedFceCounter != nullptr)
     {
-        *m_pNumSkippedFceCounter = 0; // Give up the allocation.
+        // Give up the allocation.
+        Util::AtomicDecrement(m_pNumSkippedFceCounter);
     }
 }
 

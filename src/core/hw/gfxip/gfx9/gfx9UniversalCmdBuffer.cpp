@@ -266,6 +266,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeY(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
+    const PalSettings&     coreSettings    = m_device.Parent()->Settings();
     const Gfx9PalSettings& settings        = m_device.Settings();
     const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
 
@@ -289,7 +290,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                        CmdBufferEngineSupport::CpDma);
 
     // Setup all of our cached settings checks.
-    m_cachedSettings.tossPointMode              = static_cast<uint32>(settings.tossPointMode);
+    m_cachedSettings.tossPointMode              = static_cast<uint32>(coreSettings.tossPointMode);
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
     m_cachedSettings.disableDfsm                = settings.disableDfsm;
@@ -322,8 +323,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
 
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     m_paScBinnerCntl0.u32All = 0;
@@ -753,10 +754,11 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     // On a legacy-to-NGG pipeline or vice versa, we need to make sure that VGT_DMA_INDEX_TYPE::PRIMGEN_EN is set
     // appropriately if the client performs an indexed draw.
-    if (m_vgtDmaIndexType.bits.PRIMGEN_EN != static_cast<uint32>(isNgg))
+    if ((m_gfxIpLevel == GfxIpLevel::GfxIp9) &&
+         (m_vgtDmaIndexType.gfx09.PRIMGEN_EN != static_cast<uint32>(isNgg)))
     {
         m_drawTimeHwState.dirty.indexType = 1;
-        m_vgtDmaIndexType.bits.PRIMGEN_EN = static_cast<uint32>(isNgg);
+        m_vgtDmaIndexType.gfx09.PRIMGEN_EN = static_cast<uint32>(isNgg);
     }
 
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
@@ -2650,8 +2652,8 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
     if (gfxLevel == GfxIpLevel::GfxIp9)
     {
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO__GFX09,
-                                                      mmDB_DFSM_CONTROL__GFX09,
+        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
+                                                      Gfx09::mmDB_DFSM_CONTROL,
                                                       &pm4Commands.hdrDbInfo);
 
         pm4Commands.gfx9.dbZInfo.u32All              = 0;
@@ -2742,6 +2744,8 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting() const
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
+    const auto&  device = *(m_device.Parent());
+
     // If this trips, it means that this isn't really the preamble -- i.e., somebody has inserted something into the
     // command stream before the preamble.  :-(
     PAL_ASSERT(m_ceCmdStream.IsEmpty());
@@ -2751,9 +2755,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
     pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
 
-    if ((m_device.Parent()->GetPlatform()->IsEmulationEnabled()) && (IsNested() == false))
+    if ((device.GetPlatform()->IsEmulationEnabled()) && (IsNested() == false))
     {
-        PAL_ASSERT(m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
+        PAL_ASSERT(device.IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
 
         PM4PFP_CONTEXT_CONTROL contextControl = {};
 
@@ -2815,10 +2819,6 @@ Result UniversalCmdBuffer::AddPreamble()
                                                                   regValue.u32All,
                                                                   pDeCmdSpace);
         }
-    }
-
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
     }
 
     // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
@@ -4021,13 +4021,37 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const auto*const pDsView =
         static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
 
-    const auto& dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     // If we're about to launch a draw we better have a pipeline bound.
     PAL_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
     m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+
+    if (indexed                                                 &&
+        isNgg                                                   &&
+        (m_graphicsState.iaState.indexType == IndexType::Idx32) &&
+        (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::TriangleList))
+    {
+
+        // We'll underflow the numPages calculation if we're priming zero bytes.
+        const size_t  offset      = drawInfo.firstIndex  * sizeof(uint32);
+        const size_t  sizeInBytes = drawInfo.vtxIdxCount * sizeof(uint32);
+        const gpusize gpuAddr     = m_graphicsState.iaState.indexAddr + offset;
+        PAL_ASSERT(sizeInBytes > 0);
+
+        const gpusize firstPage = Pow2AlignDown(gpuAddr, PrimeUtcL2MemAlignment);
+        const gpusize lastPage  = Pow2AlignDown(gpuAddr + sizeInBytes - 1, PrimeUtcL2MemAlignment);
+        const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
+
+        pDeCmdSpace += m_cmdUtil.BuildPrimeUtcL2(firstPage,
+                                                 cache_perm__pfp_prime_utcl2__read,
+                                                 prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
+                                                 engine_sel__pfp_prime_utcl2__prefetch_parser,
+                                                 numPages,
+                                                 pDeCmdSpace);
+    }
 
     if (pipelineDirty || (stateDirty && dirtyFlags.colorBlendState))
     {
@@ -4070,7 +4094,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                 pDepthState,
                 pBlendState,
                 MayHaveActiveQueries(),
-                static_cast<Gfx9OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
+                static_cast<OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
         }
         if (m_state.flags.optimizeLinearGfxCpy)
         {
@@ -4102,7 +4126,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmIA_MULTI_VGT_PARAM__GFX09,
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmIA_MULTI_VGT_PARAM,
                                                              iaMultiVgtParam.u32All,
                                                              pDeCmdSpace,
                                                              index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
@@ -4291,11 +4315,9 @@ Extent2d UniversalCmdBuffer::GetColorBinSize() const
         }
     }
 
-    const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
     Extent2d          size      = { 0, 0 };
     const CtoBinSize* pBinEntry = nullptr;
 
-    if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         static constexpr CtoBinSize BinSize[][3][8]=
         {
@@ -4430,10 +4452,8 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
                                           (pDepthTargetView->ReadOnlyStencil() == false)) ? 1 : 0;
         const uint32 cDepth            = 4 * (cPerDepthSample + cPerStencilSample) * imageCreateInfo.samples;
 
-        const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
         const CtoBinSize* pBinEntry = nullptr;
 
-        if (gfxLevel == GfxIpLevel::GfxIp9)
         {
             static constexpr CtoBinSize BinSize[][3][10]=
             {
@@ -5053,7 +5073,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All = vgtMultiPrimIbResetEn.u32All;
         m_drawTimeHwState.valid.vgtMultiPrimIbResetEn  = 1;
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_MULTI_PRIM_IB_RESET_EN__GFX09,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN,
                                                          vgtMultiPrimIbResetEn.u32All,
                                                          pDeCmdSpace);
     }

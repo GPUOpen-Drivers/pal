@@ -24,11 +24,11 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
+#include "core/g_palSettings.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/msaaState.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6ColorTargetView.h"
@@ -2780,7 +2780,7 @@ void RsrcProcMgr::FastClearEliminate(
     const SubresRange&           range
     ) const
 {
-    const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().gfx8AlwaysDecompress, Gfx8DecompressFastClear);
+    const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().gfx8AlwaysDecompress, DecompressFastClear);
 
     const GpuMemory* pGpuMem = nullptr;
     gpusize metaDataOffset = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataOffset(range.startSubres.mipLevel);
@@ -2992,7 +2992,7 @@ void RsrcProcMgr::DccDecompress(
         }
         else
         {
-            const bool    alwaysDecompress = TestAnyFlagSet(settings.gfx8AlwaysDecompress, Gfx8DecompressDcc);
+            const bool alwaysDecompress = TestAnyFlagSet(settings.gfx8AlwaysDecompress, DecompressDcc);
 
             const GpuMemory* pGpuMem = nullptr;
             gpusize metaDataOffset = alwaysDecompress ? 0 :
@@ -3160,7 +3160,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
     Pal::CmdStream*const pCmdStream     = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     const GpuMemory*     pGpuMem        = dstImage.GetBoundGpuMemory().Memory();
     const auto&          chipProps      = m_pDevice->Parent()->ChipProperties();
-    const auto&          settings       = m_pDevice->Settings();
+    const auto&          coreSettings   = m_pDevice->CoreSettings();
     auto*const           pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
     uint32*              pCmdSpace      = pGfx6CmdStream->ReserveCommands();
 
@@ -3170,7 +3170,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
 
         if ((((firstHeap == GpuHeapGartUswc) || (firstHeap == GpuHeapGartCacheable)) ||
              (pGpuMem->IsPeer())) &&
-            (settings.nonlocalDestGraphicsCopyRbs >= 0))
+            (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
         {
             // Writes optimized PA_SC_RASTER_CONFIG registers for copy to nonlocal destination. Raster config registers
             // are in command buffer preamble, so we must restore them if they are modified after the copy is done.
@@ -3180,7 +3180,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
             paScRasterConfig.u32All  = chipProps.gfx6.paScRasterCfg;
             paScRasterConfig1.u32All = chipProps.gfx6.paScRasterCfg1;
 
-            uint32 numExpectedRbs = settings.nonlocalDestGraphicsCopyRbs;
+            uint32 numExpectedRbs = coreSettings.nonlocalDestGraphicsCopyRbs;
 
             // 0 means driver chooses the optimal number of RBs.
             if (numExpectedRbs == 0)

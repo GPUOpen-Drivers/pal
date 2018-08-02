@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
+#include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
@@ -113,6 +114,9 @@ constexpr size_t ReservedCeRamDwords = (ReservedCeRamBytes / sizeof(uint32));
 // Minimum microcode feature version required by gfx-9 hardware to support IT_LOAD_SH/CONTEXT_INDEX packets.
 constexpr uint32 MinUcodeFeatureVersionForLoadRegIndex = 29;
 
+// Forward decl
+static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
+
 // =====================================================================================================================
 // GFX9 hardware layer implementation of GfxDevice. Responsible for creating HW-specific objects such as Queue contexts
 // and owning child objects such as the SC manager.
@@ -126,6 +130,16 @@ public:
     virtual Result LateInit() override;
     virtual Result Finalize() override;
     virtual Result Cleanup() override;
+
+    virtual void HwlValidateSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->ValidateSettings(pSettings);
+    }
+
+    virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
+    }
 
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
 
@@ -262,7 +276,10 @@ public:
     const CmdUtil& CmdUtil() const { return m_cmdUtil; }
     const Gfx9::RsrcProcMgr& RsrcProcMgr() const { return static_cast<Gfx9::RsrcProcMgr&>(*m_pRsrcProcMgr); }
 
-    const Gfx9PalSettings& Settings() const { return GetGfx9Settings(*m_pParent); }
+    const Gfx9PalSettings& Settings() const
+    {
+        return static_cast<const Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->GetSettings();
+    }
 
     static uint32 CalcNumRecords(
         size_t      sizeInBytes,
@@ -518,6 +535,11 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);
 };
+
+static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device)
+{
+    return static_cast<const Pal::Gfx9::Device*>(device.GetGfxDevice())->Settings();
+}
 
 } // Gfx9
 } // Pal

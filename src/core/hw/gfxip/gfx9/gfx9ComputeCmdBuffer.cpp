@@ -82,9 +82,11 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    const bool sqttEnabled = (device.Settings().gpuProfilerMode > GpuProfilerSqttOff) &&
-                              TestAnyFlagSet(device.Settings().gpuProfilerTraceModeMask, GpuProfilerTraceSqtt);
-    const bool issueSqttMarkerEvent = (sqttEnabled || m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
+    const PalSettings& settings = m_device.Parent()->Settings();
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+    const bool issueSqttMarkerEvent = (sqttEnabled ||
+                                      m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     if (issueSqttMarkerEvent)
     {

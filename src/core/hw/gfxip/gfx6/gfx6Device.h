@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
+#include "core/hw/gfxip/gfx6/gfx6SettingsLoader.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/rpm/gfx6/gfx6RsrcProcMgr.h"
@@ -57,6 +58,15 @@ struct SyncReqs
     };
 };
 
+// Enumeration controls the behavior of the Gfx8 TC Compatibility DB flush workaround.
+enum Gfx8TcCompatDbFlushWorkaround : uint32
+{
+    Gfx8TcCompatDbFlushWaNever = 0x00000000,
+    Gfx8TcCompatDbFlushWaNormal = 0x00000001,
+    Gfx8TcCompatDbFlushWaAlways = 0x00000002,
+
+};
+
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
 // pipeline bind point.
 constexpr size_t ReservedCeRamBytes =
@@ -77,6 +87,16 @@ public:
     virtual Result LateInit() override;
     virtual Result Finalize() override;
     virtual Result Cleanup() override;
+
+    virtual void HwlValidateSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx6::SettingsLoader*>(m_pSettingsLoader)->ValidateSettings(pSettings);
+    }
+
+    virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx6::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
+    }
 
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
 
@@ -210,7 +230,10 @@ public:
     const CmdUtil& CmdUtil() const { return m_cmdUtil; }
     const Gfx6::RsrcProcMgr& RsrcProcMgr() const { return m_rsrcProcMgr; }
 
-    const Gfx6PalSettings& Settings() const { return GetGfx6Settings(*m_pParent); }
+    const Gfx6PalSettings& Settings() const
+    {
+        return static_cast<const Pal::Gfx6::SettingsLoader*>(m_pSettingsLoader)->GetSettings();
+    }
 
     gpusize CalcNumRecords(gpusize range, gpusize stride) const;
     gpusize CalcBufferSrdRange(const BufferSrd& srd) const;
@@ -368,7 +391,7 @@ public:
     bool WaMiscNullIb()                     const { return (m_supportFlags.waMiscNullIb == 1); }
     bool WaCbNoLt16BitIntClamp()            const { return (m_supportFlags.waCbNoLt16BitIntClamp == 1); }
 
-    Gfx8TcComaptDbFlushWorkaround WaDbTcCompatFlush() const { return m_waDbTcCompatFlush; }
+    Gfx8TcCompatDbFlushWorkaround WaDbTcCompatFlush() const { return m_waDbTcCompatFlush; }
 
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,
@@ -508,11 +531,17 @@ private:
         uint32 reserved                               : 6;
     } m_supportFlags;
 
-    Gfx8TcComaptDbFlushWorkaround m_waDbTcCompatFlush;
+    Gfx8TcCompatDbFlushWorkaround m_waDbTcCompatFlush;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);
 };
+
+static const Gfx6PalSettings& GetGfx6Settings(
+    const Pal::Device& device)
+{
+    return static_cast<const Pal::Gfx6::Device*>(device.GetGfxDevice())->Settings();
+}
 
 } // Gfx6
 } // Pal

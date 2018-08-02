@@ -109,11 +109,11 @@ Result Device::CommitSettingsAndInit()
 // =====================================================================================================================
 Result Device::UpdateSettings()
 {
-    memset(m_interfaceLoggerSettings.interfaceLoggerDirectory, 0, 512);
-    strncpy(m_interfaceLoggerSettings.interfaceLoggerDirectory, "~/.amdpal/", 512);
-    m_interfaceLoggerSettings.interfaceLoggerMultithreaded = false;
-    m_interfaceLoggerSettings.interfaceLoggerBasePreset = 0x7;
-    m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = 0x1F;
+    memset(m_interfaceLoggerSettings.logDirectory, 0, 512);
+    strncpy(m_interfaceLoggerSettings.logDirectory, "~/.amdpal/", 512);
+    m_interfaceLoggerSettings.multithreaded = false;
+    m_interfaceLoggerSettings.basePreset = 0x7;
+    m_interfaceLoggerSettings.elevatedPreset = 0x1F;
 
     // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
     const auto coreLayerSettings = GetInterfaceLoggerSettings();

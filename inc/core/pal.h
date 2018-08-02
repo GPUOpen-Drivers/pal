@@ -683,7 +683,7 @@ static constexpr LogCategoryMask LogCategoryMaskInternal    = (1 << static_cast<
 static constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(LogCategory::Display));
 
 /// Defines the modes that the GPU Profiling layer can be enabled with. If the GpuProfilerMode is
-/// GpuProfilerThreadTraceView or GpuProfilerRgp, then the GpuProfilerTraceModeMask is examined to configure
+/// GpuProfilerThreadTraceView or GpuProfilerRgp, then the TraceModeMask is examined to configure
 /// the trace type (spm, sqtt or both) requested.
 enum GpuProfilerMode : uint32
 {

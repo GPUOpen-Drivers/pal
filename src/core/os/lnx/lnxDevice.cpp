@@ -104,7 +104,10 @@ static PAL_INLINE Result CheckResult(
 constexpr gpusize _4GB = (1ull << 32u);
 constexpr uint32 GpuPageSize = 4096;
 
-constexpr char SettingsFileName[] = "amdPalSettings.cfg";
+constexpr char SettingsFileName[]             = "amdPalSettings.cfg";
+constexpr char UserDefaultConfigFileSubPath[] = "/.config";
+constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
+constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
 
 // Maybe the format supported by presentable image should be got from Xserver, so far we just use a fixed format list.
 constexpr SwizzledFormat PresentableImageFormats[] =
@@ -559,9 +562,40 @@ Result Device::EarlyInit(
         result = InitGpuProperties();
     }
 
+    // Init paths
+    InitOutputPaths();
+
     if (result == Result::Success)
     {
+        // Step 1: try default(as well as global) path
         result = m_settingsMgr.Init(m_pSettingsPath);
+
+        // Step 2: if no global setting found, try XDG_CONFIG_HOME and user specific path
+        if (result == Result::ErrorUnavailable)
+        {
+            const char* pXdgConfigPath = getenv("XDG_CONFIG_HOME");
+            if (pXdgConfigPath != nullptr)
+            {
+                result = m_settingsMgr.Init(pXdgConfigPath);
+            }
+            else
+            {
+                // XDG_CONFIG_HOME is not set, fall back to $HOME
+                char userDefaultConfigFilePath[MaxPathStrLen];
+
+                const char* pPath = getenv("HOME");
+                if (pPath != nullptr)
+                {
+                    Snprintf(userDefaultConfigFilePath, sizeof(userDefaultConfigFilePath), "%s%s",
+                             pPath, UserDefaultConfigFileSubPath);
+                    result = m_settingsMgr.Init(userDefaultConfigFilePath);
+                }
+                else
+                {
+                    result = Result::ErrorUnavailable;
+                }
+            }
+        }
 
         if (result == Result::ErrorUnavailable)
         {
@@ -1364,6 +1398,58 @@ Result Device::InitMemQueueInfo()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// This is help methods. Init cache and debug file paths
+void Device::InitOutputPaths()
+{
+    const char* pPath;
+
+    // Initialize the root path of cache files
+    // Cascade:
+    // 1. Find AMD_SHADER_DISK_CACHE_PATH to keep backward compatibility.
+    // 2. Find XDG_CACHE_HOME.
+    // 3. If AMD_SHADER_DISK_CACHE_PATH and XDG_CACHE_HOME both not set,
+    //    use "$HOME/.cache".
+    pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("XDG_CACHE_HOME");
+    }
+
+    if (pPath != nullptr)
+    {
+        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
+    }
+    else
+    {
+        pPath = getenv("HOME");
+        if (pPath != nullptr)
+        {
+            Snprintf(m_cacheFilePath, sizeof(m_cacheFilePath), "%s%s", pPath, UserDefaultCacheFileSubPath);
+        }
+    }
+
+    // Initialize the root path of debug files which is used to put all files
+    // for debug purpose (such as logs, dumps, replace shader)
+    // Cascade:
+    // 1. Find AMD_DEBUG_DIR.
+    // 2. Find TMPDIR.
+    // 3. If AMD_DEBUG_DIR and TMPDIR both not set, use "/var/tmp"
+    pPath = getenv("AMD_DEBUG_DIR");
+    if (pPath == nullptr)
+    {
+        pPath = getenv("TMPDIR");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = UserDefaultDebugFilePath;
+    }
+
+    Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
 }
 
 // =====================================================================================================================
@@ -2850,17 +2936,6 @@ Result Device::CreatePresentableMemoryObject(
     Pal::GpuMemory** ppMemObjOut)
 {
     return Image::CreatePresentableMemoryObject(this, pImage, pMemObjMem, ppMemObjOut);
-}
-
-// =====================================================================================================================
-const char* Device::GetCacheFilePath() const
-{
-    const char* pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
-    if (pPath == nullptr)
-    {
-        pPath = getenv("HOME");
-    }
-    return pPath;
 }
 
 // =====================================================================================================================

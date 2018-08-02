@@ -148,8 +148,6 @@ public:
         size_t*                      pGpuMemorySize,
         ImageCreateInfo*             pImgCreateInfo) const override;
 
-    virtual const char* GetCacheFilePath() const override { return getenv("APPDATA"); }
-
     virtual Result GetFlipStatus(
         uint32           vidPnSrcId,
         FlipStatusFlags* pFlipFlags,
@@ -337,6 +335,8 @@ private:
     Result InitMemoryProperties();
 
     void InitExternalPhysicalHeap();
+
+    void InitOutputPaths();
 
     virtual Result OsEarlyInit() override;
 

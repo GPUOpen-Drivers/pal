@@ -25,13 +25,12 @@
 
 #pragma once
 
-#include "core/settingsLoader.h"
+#include "palSettingsLoader.h"
+#include "core/device.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 
 namespace Pal
 {
-
-class Device;
 
 namespace Gfx6
 {
@@ -40,35 +39,37 @@ namespace Gfx6
 // This class is responsible for loading the Gfx6-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader : public Pal::SettingsLoader
+class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
     SettingsLoader(Pal::Device* pDevice);
+    virtual ~SettingsLoader();
 
-    static const Gfx6PalSettings* GetSettings(const PalSettings* pSettings)
-        { return (static_cast<const Gfx6PalSettings*>(pSettings)); }
+    virtual Result Init() override;
+
+    const Gfx6PalSettings& GetSettings() const { return m_settings; }
+    void ValidateSettings(PalSettings* pSettings);
+    void OverrideDefaults(PalSettings* pSettings);
 
 protected:
-    virtual void HwlInit() override;
-    virtual void HwlValidateSettings() override;
-    virtual void HwlReadSettings() override;
+    Pal::Device* Device() { return static_cast<Pal::Device*>(m_pDevice); }
 
 private:
-    virtual ~SettingsLoader();
+    PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
+    PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
     virtual void GenerateSettingHash() override;
 
-    void OverrideGfx6Defaults();
+    // Private members
+    Gfx6PalSettings m_settings;  ///< Gfx6 settings pointer
 
     // auto-generated functions
-    static void Gfx6SetupDefaults(Gfx6PalSettings* pSettings);
-    void Gfx6ReadSettings(Gfx6PalSettings* pSettings);
+    virtual void SetupDefaults() override;
+    virtual void ReadSettings() override;
+    virtual void InitSettingsInfo() override;
+    virtual void DevDriverRegister() override;
 
-    // Private members
-    Gfx6PalSettings m_gfx6Settings;  ///< Gfx6 settings info
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
-    PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
+    const char* m_pComponentName = "Gfx6_Pal";
 };
 
 } // Gfx6

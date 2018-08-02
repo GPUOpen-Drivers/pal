@@ -45,6 +45,7 @@ Device::Device(
     :
     DeviceDecorator(pPlatform, pNextDevice),
     m_pPublicSettings(nullptr),
+    m_initialized(false),
     m_gpuMemoryLock(),
     m_freeGpuMemory(pPlatform),
     m_usedGpuMemory(pPlatform)
@@ -88,38 +89,46 @@ Result Device::Finalize(
         result = m_gpuMemoryLock.Init();
     }
 
+    if (result == Result::Success)
+    {
+        m_initialized = true;
+    }
+
     return result;
 }
 
 // =====================================================================================================================
 Result Device::Cleanup()
 {
-    Util::MutexAuto lock(&m_gpuMemoryLock);
-    if (m_usedGpuMemory.NumElements() != 0)
+    if (m_initialized)
     {
-        auto it = m_usedGpuMemory.Begin();
-
-        while (it.Get() != nullptr)
+        Util::MutexAuto lock(&m_gpuMemoryLock);
+        if (m_usedGpuMemory.NumElements() != 0)
         {
-            IGpuMemory* pUsed = (*it.Get());
-            pUsed->Destroy();
-            PAL_SAFE_FREE(pUsed, m_pPlatform);
+            auto it = m_usedGpuMemory.Begin();
 
-            m_usedGpuMemory.Erase(&it);
+            while (it.Get() != nullptr)
+            {
+                IGpuMemory* pUsed = (*it.Get());
+                pUsed->Destroy();
+                PAL_SAFE_FREE(pUsed, m_pPlatform);
+
+                m_usedGpuMemory.Erase(&it);
+            }
         }
-    }
 
-    if (m_freeGpuMemory.NumElements() != 0)
-    {
-        auto it = m_freeGpuMemory.Begin();
-
-        while (it.Get() != nullptr)
+        if (m_freeGpuMemory.NumElements() != 0)
         {
-            IGpuMemory* pFree = (*it.Get());
-            pFree->Destroy();
-            PAL_SAFE_FREE(pFree, m_pPlatform);
+            auto it = m_freeGpuMemory.Begin();
 
-            m_freeGpuMemory.Erase(&it);
+            while (it.Get() != nullptr)
+            {
+                IGpuMemory* pFree = (*it.Get());
+                pFree->Destroy();
+                PAL_SAFE_FREE(pFree, m_pPlatform);
+
+                m_freeGpuMemory.Erase(&it);
+            }
         }
     }
 

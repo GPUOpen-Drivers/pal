@@ -77,6 +77,7 @@ public:
     const PerfCounter* GlobalPerfCounters() const { return m_pGlobalPerfCounters; }
     const PerfCounter* StreamingPerfCounters() const { return m_pStreamingPerfCounters; }
 
+    GpuProfilerStallMode GetSqttStallMode() const { return m_stallMode; }
     uint32 GetSqttMaxDraws() const { return m_maxDrawsForThreadTrace; }
     uint32 GetSqttCurDraws() const { return m_curDrawsForThreadTrace; }
     void   AddSqttCurDraws() { Util::AtomicIncrement(&m_curDrawsForThreadTrace); }
@@ -131,14 +132,14 @@ public:
     bool IsThreadTraceEnabled() const
     {
         return ((GetProfilerMode() > GpuProfilerSqttOff) &&
-                (Util::TestAnyFlagSet(m_profilerSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt)));
+                (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSqtt)));
     }
 
     // Returns true if the settings config has successfully requested for Streaming counter trace.
     bool IsSpmTraceEnabled() const
     {
         return ((GetProfilerMode() > GpuProfilerSqttOff) &&
-                (Util::TestAnyFlagSet(m_profilerSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSpm)));
+                (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSpm)));
     }
 
 private:
@@ -182,6 +183,7 @@ private:
     uint32                 m_curDrawsForThreadTrace;
 
     GpuProfilerGranularity m_profilerGranularity;
+    GpuProfilerStallMode   m_stallMode;
     uint32                 m_startFrame;
     uint32                 m_endFrame;
     uint32                 m_minTimestampAlignment[EngineTypeCount];

@@ -218,6 +218,41 @@ private:
     Allocator*const m_pAllocator;         // Allocator for this hash allocation function.
 };
 
+// =====================================================================================================================
+template<typename Allocator>
+PAL_INLINE HashAllocator<Allocator>::HashAllocator(
+    size_t           groupSize,   // Fixed allocation size.  Allocate() will always create allocations of this size.
+    Allocator*const  pAllocator)  // Allocator for this hash allocation function.
+    :
+    m_groupSize(groupSize),
+    m_curBlock(-1),
+    m_pAllocator(pAllocator)
+{
+    for (int32 i = 0; i < NumBlocks; i++)
+    {
+        m_blocks[i].pMemory = nullptr;
+        m_blocks[i].curGroup = 0;
+        m_blocks[i].numGroups = (1 << i);
+    }
+}
+
+// =====================================================================================================================
+template<typename Allocator>
+PAL_INLINE HashAllocator<Allocator>::~HashAllocator()
+{
+    for (int32 i = 0; i < NumBlocks; i++)
+    {
+        if (m_blocks[i].pMemory == nullptr)
+        {
+            break;
+        }
+        else
+        {
+            PAL_SAFE_FREE(m_blocks[i].pMemory, m_pAllocator);
+        }
+    }
+}
+
 /**
  ***********************************************************************************************************************
  * @brief  Iterator for traversal of elements in a Hash container.

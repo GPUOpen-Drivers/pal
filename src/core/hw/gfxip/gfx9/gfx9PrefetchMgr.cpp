@@ -39,7 +39,8 @@ PrefetchMgr::PrefetchMgr(
     :
     Pal::PrefetchMgr(device)
 {
-    const Gfx9PalSettings& settings = static_cast<const Device&>(m_device).Settings();
+    const PalSettings&     coreSettings = m_device.Parent()->Settings();
+    const Gfx9PalSettings& settings     = static_cast<const Device&>(m_device).Settings();
 
     memset(&m_prefetchDescriptors[0], 0, sizeof(m_prefetchDescriptors));
 
@@ -52,20 +53,20 @@ PrefetchMgr::PrefetchMgr(
     m_prefetchDescriptors[PrefetchCs].method = settings.shaderPrefetchMethod;
 
     // Initialize prefetch minimum sizes.
-    m_prefetchDescriptors[PrefetchVs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchHs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchDs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchGs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchPs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchCs].minSize = settings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchVs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchHs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchDs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchGs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchPs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchCs].minSize = coreSettings.shaderPrefetchMinSize;
 
     // Initialize prefetch clamp sizes.
-    m_prefetchDescriptors[PrefetchVs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchHs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchDs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchGs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchPs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchCs].clampSize = settings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchVs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchHs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchDs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchGs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchPs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchCs].clampSize = coreSettings.shaderPrefetchClampSize;
 }
 
 // =====================================================================================================================

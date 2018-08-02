@@ -54,7 +54,15 @@ HeaderFileDoxComment = "\n\
 
 PalHeaderIncludes = "\n\
 #include \"pal.h\"\n\
-#include \"palDevice.h\"\n"
+#include \"palSettingsLoader.h\"\n"
+
+DevDriverIncludes = "\n\
+#include \"palSettingsLoaderImpl.h\"\n\
+#include \"devDriverServer.h\"\n\
+#include \"protocols/ddSettingsService.h\"\n\
+\n\
+using namespace DevDriver::SettingsURIService;\n\
+\n"
 
 Enum = "\n\
 enum %EnumName% : %EnumDataType%\n\
@@ -64,12 +72,16 @@ enum %EnumName% : %EnumDataType%\n\
 
 StructDef = "\n\
 /// Pal auto-generated settings struct\n\
-struct %SettingStructName%\n\
+struct %SettingStructName% : public Pal::DriverSettings\n\
 {\n\
 %SettingDefs%\
 };\n"
 
-SettingDef = "    %SettingType%    %SettingVarName%%CharArrayLength%;\n"
+SettingDef = "    %SettingType%    %SettingVarName%%ArrayLength%;\n"
+SettingStructDef = "\
+    struct {\n\
+%StructSettingFields%\
+    } %StructSettingName%;\n"
 
 StructDefHwl = "\n\
 struct %Hwl%%SettingStructName% : public %SettingStructName%\n\
@@ -82,8 +94,7 @@ SettingStr = "static const char* %SettingStrName% = %SettingString%;\n"
 SetupDefaultsFunc = "\n\
 // =====================================================================================================================\n\
 // Initializes the settings structure to default values.\n\
-void %ClassName%::%Hwl%SetupDefaults(\n\
-    %Hwl%%SettingStructName%* pSettings)\n\
+void %ClassName%::SetupDefaults()\n\
 {\n\
     // set setting variables to their default values...\n\
 %SetDefaultsCode%\n\
@@ -94,57 +105,102 @@ IfMin    = "#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= %MinVersion%\n"
 IfMax    = "#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= %MaxVersion%\n"
 EndIf    = "#endif\n"
 
-SetDefault = "    pSettings->%SettingVarName% = %SettingDefault%;\n"
-SetStringDefault = "    memset(pSettings->%SettingVarName%, 0, %SettingStringLength%);\n\
-    strncpy(pSettings->%SettingVarName%, %SettingDefault%, %SettingStringLength%);\n"
-SetOsStringDefault = "    memset(pSettings->%SettingVarName%, 0, %SettingStringLength%);\n\
-#if defined(_WIN32)\n\
-    strncpy(pSettings->%SettingVarName%, %SettingDefaultWin%, %SettingStringLength%);\n\
-#elif (__unix__)\n\
-    strncpy(pSettings->%SettingVarName%, %SettingDefaultLnx%, %SettingStringLength%);\n\
-#endif\n"
+SetDefault = "    m_settings.%SettingVarName% = %SettingDefault%;\n"
+SetStringDefault = "    memset(m_settings.%SettingVarName%, 0, %SettingStringLength%);\n\
+    strncpy(m_settings.%SettingVarName%, %SettingDefault%, %SettingStringLength%);\n"
+
+SetArrayDefault = "    memset(m_settings.%SettingVarName%, 0, %SettingSize%);\n\
+    memcpy(m_settings.%SettingVarName%, %SettingDefault%, %SettingSize%);\n"
+
+WinIfDef = "defined(_WIN32)\n"
+LnxIfDef = "(__unix__)\n"
 
 ReadSettingsFunc = "\n\
 // =====================================================================================================================\n\
 // Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n\
-void %ClassName%::%Hwl%ReadSettings(\n\
-    %Hwl%%SettingStructName%* pSettings)\n\
+void %ClassName%::ReadSettings()\n\
 {\n\
     // read from the OS adapter for each individual setting\n\
 %ReadSettingsCode%\n\
 }\n"
 
-PalReadSettingClass = "m_pDevice"
+PalReadSettingClass = "static_cast<Pal::Device*>(m_pDevice)"
 ReadSetting = "    %ReadSettingClass%->ReadSetting(%SettingStrName%,\n\
-                             %SettingRegistryType%,\n\
-                             &pSettings->%SettingVarName%%OsiSettingType%);\n\n"
+                           %SettingRegistryType%,\n\
+                           &m_settings.%SettingVarName%%OsiSettingType%);\n\n"
 ReadSettingStr = "    %ReadSettingClass%->ReadSetting(%SettingStrName%,\n\
-                             %SettingRegistryType%,\n\
-                             &pSettings->%SettingVarName%%OsiSettingType%,\n\
-                             %StringLength%);\n\n"
-PalOsiSettingType = ",\n                             InternalSettingScope::%OsiSettingType%"
+                           %SettingRegistryType%,\n\
+                           &m_settings.%SettingVarName%%OsiSettingType%,\n\
+                           %StringLength%);\n\n"
+PalOsiSettingType = ",\n                           InternalSettingScope::%OsiSettingType%"
 
 GetHwlSettingDecl = "\n\
 namespace Pal { class Device; }\n\
 extern const Pal::%Hwl%::%Hwl%%SettingStructName%& Get%Hwl%Settings(const Pal::Device& device);\n"
 
-GetHwlSettingFunc = "\n\n\
-using namespace Pal::%Hwl%;\n\n\
+SettingHashListName = "g_%LowerCamelComponentName%SettingHashList"
+SettingNumSettingsName = "g_%LowerCamelComponentName%NumSettings"
+SettingHashList = "\n\
+static const uint32 %SettingNumSettingsName% = %NumSettings%;\n\
+static const SettingNameHash %SettingHashListName%[] = {\n\
+%SettingHashList%\
+};\n"
+
+InitSettingsInfoFunc = "\n\
 // =====================================================================================================================\n\
-// Get %Hwl% settings pointer via device object.\n\
-const Pal::%Hwl%::%Hwl%%SettingStructName%& Get%Hwl%Settings(\n\
-    const Pal::Device& device)\n\
+// Initializes the SettingInfo hash map and array of setting hashes.\n\
+void %ClassName%::InitSettingsInfo()\n\
 {\n\
-    return static_cast<const Pal::%Hwl%::%Hwl%%SettingStructName%&>(device.Settings());\n\
-}\n\
-\n"
+    SettingInfo info = {};\n\
+%InitSettingInfoCode%\n\
+}\n"
+
+InitSettingInfo = "\n\
+    info.type      = %DevDriverType%;\n\
+    info.pValuePtr = &m_settings.%SettingVarName%;\n\
+    info.valueSize = sizeof(m_settings.%SettingVarName%);\n\
+    m_settingsInfoMap.Insert(%HashName%, info);\n"
+
+JsonDataArray = "\n\
+static const uint8 %JsonDataArrayName%[] = {\n\
+%JsonArrayData%\n\
+};  // %JsonDataArrayName%[]\n"
+
+DevDriverRegisterFunc = "\n\
+// =====================================================================================================================\n\
+// Registers the core settings with the Developer Driver settings service.\n\
+void %ClassName%::DevDriverRegister()\n\
+{\n\
+    auto* pDevDriverServer = static_cast<Pal::Device*>(m_pDevice)->GetPlatform()->GetDevDriverServer();\n\
+    if (pDevDriverServer != nullptr)\n\
+    {\n\
+        auto* pSettingsService = pDevDriverServer->GetSettingsService();\n\
+        if (pSettingsService != nullptr)\n\
+        {\n\
+            RegisteredComponent component = {};\n\
+            strncpy(&component.componentName[0], m_pComponentName, kMaxComponentNameStrLen);\n\
+            component.pPrivateData = static_cast<void*>(this);\n\
+            component.pSettingsHashes = &%SettingHashListName%[0];\n\
+            component.numSettings = %SettingNumSettingsName%;\n\
+            component.pfnGetValue = ISettingsLoader::GetValue;\n\
+            component.pfnSetValue = ISettingsLoader::SetValue;\n\
+            component.pSettingsData = &%JsonDataArrayName%[0];\n\
+            component.settingsDataSize = sizeof(%JsonDataArrayName%);\n\
+            component.settingsDataHeader.isEncoded = %IsJsonEncoded%;\n\
+            component.settingsDataHeader.magicBufferId = %MagicBufferId%;\n\
+            component.settingsDataHeader.magicBufferOffset = %MagicBufferOffset%;\n\
+\n\
+            pSettingsService->RegisterComponent(component);\n\
+        }\n\
+    }\n\
+}\n"
 
 SettingsBlockComment = "\n\n\
 /**\n\
 ************************************************************************************************************************\n\
 * @page Settings Settings Overview\n\
 *\n\
-* PAL uses python scripts to generate C++ settings structs and default values from config files located in the PAL and\n\
+* PAL uses python scripts to generate C++ settings structs and default values from JSON files located in the PAL and\n\
 * client source trees. At runtime, the auto-generated functions are called to setup default values and then overrides\n\
 * are read from the registry (Windows only) or settings file (Linux). In PAL settings are divided into groups based on\n\
 * the scope of the settings. Settings that are only required by the client are called private driver settings. PAL has\n\
@@ -153,17 +209,8 @@ SettingsBlockComment = "\n\n\
 * palSettingsFileMgr.h). Clients can also look at the SettingsLoader class as a model for creating their own settings\n\
 * code. \n\
 *\n\
-*\n\
-* PAL settings that can be queried and overridden by the client are PAL public settings. PAL public settings cannot be\n\
-* queried until after GPU enumeration. At that point the client may query the PhysicalGpu for a pointer to the public\n\
-* settings struct. Any of the public settings can be overridden through this pointer and the client must call\n\
-* FinalizeSettings regardless of whether any settings were modified. This allows PAL to finish initialization by\n\
-* reading registry/settings file overrides and performing a final validation of setting values.\n\
-*\n\
-*\n\
-* Catalyst system-wide settings can be read by PAL. Only one Catalyst setting (CatalystAI) is currently read by PAL and\n\
-* it is included in the public settings struct. These settings are only separated from other public settings by the\n\
-* registry location they are read from.\n\
+* Catalyst system-wide settings can be read by PAL. Only two Catalyst settings (CatalystAI & TFQ) are currently read by\n\
+* PAL. These settings are only separated from other settings registry location they are read from.\n\
 *\n\
 * PAL settings that are internal to PAL and not visible to client code are PAL private settings. These are settings\n\
 * that the client is not expected to need to override at runtime. They can, however, still be temporarily modified by\n\

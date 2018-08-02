@@ -653,8 +653,6 @@ public:
         OsDisplayHandle  sharedHandle,
         Pal::GpuMemory** ppMemObjOut);
 
-    virtual const char* GetCacheFilePath() const override;
-
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
 
     void SetVaRangeInfo(
@@ -764,6 +762,8 @@ private:
     void InitGfx9ChipProperties();
     void InitGfx9CuMask();
 #endif
+
+    void InitOutputPaths();
 
     const uint32 GetDeviceNodeIndex() { return m_deviceNodeIndex; }
 

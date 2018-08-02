@@ -70,6 +70,14 @@ enum DepthStencilCompressionState : uint32
     DepthStencilCompressionStateCount
 };
 
+// Enumeration of depth-stencil TC Compatibility support modes.
+enum Gfx8TcCompatibleResolveDst : uint32
+{
+    Gfx8TcCompatibleResolveDstDepthOnly = 0x00000001,
+    Gfx8TcCompatibleResolveDstStencilOnly = 0x00000002,
+    Gfx8TcCompatibleResolveDstDepthAndStencil = 0x00000004,
+};
+
 // Information used to determine the color compression state for an Image layout.
 struct ColorLayoutToState
 {

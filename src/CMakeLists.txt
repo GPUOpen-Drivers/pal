@@ -166,13 +166,12 @@ if(UNIX)
     if(NOT DEFINED DK_XCB)
         if(DEFINED GLOBAL_ROOT_DK_DIR)
             if(TARGET_ARCHITECTURE_BITS EQUAL 64)
-                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.10_64a)
+                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.13_64a)
             elseif(TARGET_ARCHITECTURE_BITS EQUAL 32)
-                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.10_x86)
+                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.13_x86)
             endif()
             target_include_directories(pal PUBLIC ${DK_XCB}/include)
         else()
-            #find_package(XCB REQUIRED COMPONENTS XCB DRI2 DRI3 PRESENT)
             find_package(XCB)
             set(DK_XCB ${XCB_INCLUDE_DIRS})
             target_include_directories(pal PUBLIC ${DK_XCB})
@@ -248,6 +247,7 @@ if(PAL_BUILD_CORE)
         core/internalMemMgr.cpp
         core/masterQueueSemaphore.cpp
         core/openedQueueSemaphore.cpp
+        core/palSettingsLoader.cpp
         core/perfCounter.cpp
         core/perfExperiment.cpp
         core/perfTrace.cpp
@@ -319,9 +319,6 @@ if(PAL_BUILD_CORE)
             )
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
         endif()
-        target_sources(pal PRIVATE
-            core/os/lnx/display/displayWindowSystem.cpp
-        )
     endif()
 
 ### PAL core/hw ################################################################
@@ -634,12 +631,6 @@ if(UNIX)
 endif()
 
 ### PAL Auto-generated Files ###########################################################################################
-if(DEFINED ISV_BUILD)
-    set(REGISTRY_KEY_HASH_ALGORITHM ${ISV_BUILD})
-else()
-    set(REGISTRY_KEY_HASH_ALGORITHM 0)
-endif()
-
 set(GEN_TOOLS_DIR ${PROJECT_SOURCE_DIR}/tools/generate)
 set(GEN_SETTINGS  ${GEN_TOOLS_DIR}/genSettingsCode.py)
 
@@ -662,14 +653,14 @@ if(PAL_BUILD_CORE)
 
     add_custom_command(
         OUTPUT ${SETTINGS_DIR}/g_palSettings.cpp ${SETTINGS_DIR}/g_palSettings.h
-        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${SETTINGS_CFG_DIR}/settings.cfg ${SETTINGS_DIR}/ g_palSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings.cfg
-        COMMENT "Generating settings code from settings.cfg"
+        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${SETTINGS_CFG_DIR}/settings_core.json ${SETTINGS_DIR}/ palSettings
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
+        COMMENT "Generating settings code from settings_core.json"
     )
 
     add_custom_target(
         RunSettingsGenerator
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings.cfg
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
         COMMENT "Checking if re-generation is required for settings"
     )
 
@@ -699,14 +690,14 @@ if(PAL_BUILD_CORE)
 
             add_custom_command(
                 OUTPUT ${GFX6_DIR}/g_gfx6PalSettings.cpp ${GFX6_DIR}/g_gfx6PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg ${GFX6_DIR}/ g_gfx6PalSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg
-                COMMENT "Generating gfx6Settings code from gfx6Settings.cfg"
+                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX6_CFG_DIR}/settings_gfx6.json ${GFX6_DIR}/ gfx6PalSettings
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
+                COMMENT "Generating gfx6Settings code from settings_gfx6.json"
             )
 
             add_custom_target(
                 RunGfx6SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
                 COMMENT "Checking if re-generation is required for gfx6Settings"
             )
         endif()
@@ -718,14 +709,14 @@ if(PAL_BUILD_CORE)
 
             add_custom_command(
                 OUTPUT ${GFX9_DIR}/g_gfx9PalSettings.cpp ${GFX9_DIR}/g_gfx9PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg ${GFX9_DIR}/ g_gfx9PalSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg
-                COMMENT "Generating gfx9Settings code from gfx9Settings.cfg"
+                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX9_CFG_DIR}/settings_gfx9.json ${GFX9_DIR}/ gfx9PalSettings
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
+                COMMENT "Generating gfx9Settings code from settings_gfx9.json"
             )
 
             add_custom_target(
                 RunGfx9SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
                 COMMENT "Checking if re-generation is required for gfx9Settings"
             )
         endif()

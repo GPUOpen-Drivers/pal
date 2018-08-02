@@ -698,7 +698,7 @@ Result Image::Finalize(
                 }
             }
 
-            if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
+            if ((m_createInfo.flags.repetitiveResolve != 0) || (m_device.Settings().forceFixedFuncColorResolve != 0))
             {
                 // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
                 // surface.
@@ -814,11 +814,6 @@ Result Image::Finalize(
             {
                 InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
             }
-
-            // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
-            // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
-            // CPU cycles required to set up the fast clear eliminate.
-            m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -1098,6 +1093,11 @@ void Image::InitFastClearEliminateMetaData(
 
     // Update the layout information against the fast-clear eliminate metadata.
     UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearEliminateMetaDataOffset, PredicationAlign);
+
+    // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
+    // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
+    // CPU cycles required to set up the fast clear eliminate.
+    m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
 }
 
 // =====================================================================================================================
@@ -2471,7 +2471,7 @@ uint32 Image::ComputeBaseTileSwizzle(
         (Parent()->IsPrivateScreenPresent() == false))
     {
         // Only compute a tile swizzle value if it's enabled for this kind of image in the settings.
-        const uint32 enableFlags = GetGfx6Settings(m_device).tileSwizzleMode;
+        const uint32 enableFlags = m_device.Settings().tileSwizzleMode;
         const bool   isEnabled   = ((TestAnyFlagSet(enableFlags, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
                                     (TestAnyFlagSet(enableFlags, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
                                     (TestAnyFlagSet(enableFlags, TileSwizzleShaderRes) &&

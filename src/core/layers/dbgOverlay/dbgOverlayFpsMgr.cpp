@@ -92,7 +92,7 @@ FpsMgr::~FpsMgr()
         m_submitTimeList.Erase(&iter);
     }
 
-    if ((m_pDevice != nullptr) && (m_pDevice->GetDbgOverlaySettings().debugUsageLogEnable))
+    if ((m_pDevice != nullptr) && (m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.usageLogEnable))
     {
         Result result = DumpUsageLogs();
         PAL_ASSERT(result == Result::Success);
@@ -121,8 +121,8 @@ Result FpsMgr::DumpUsageLogs()
         Util::Snprintf(&fileNameAndPath[0],
                        sizeof(fileNameAndPath),
                        "%s/%s",
-                       &m_pDevice->GetDbgOverlaySettings().debugUsageLogDirectory[0],
-                       &m_pDevice->GetDbgOverlaySettings().debugUsageLogFilename);
+                       &m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.usageLogDirectory[0],
+                       &m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.usageLogFilename);
 
         File usageLogFile;
         result = usageLogFile.Open(&fileNameAndPath[0], FileAccessAppend);
@@ -451,12 +451,13 @@ void FpsMgr::GetBenchmarkString(
         {
             PAL_ASSERT(m_pDevice != nullptr);
             // Check if the benchmark should be ended due to a settings-imposed maximum time.
-            const uint32 maxBenchmarkTime = m_pDevice->GetDbgOverlaySettings().maxBenchmarkTime;
+            const uint32 maxBenchmarkTime = m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.maxBenchmarkTime;
             if ((maxBenchmarkTime != 0) && (time >= maxBenchmarkTime))
             {
                 m_benchmarkActive = false;
 
-                if ((m_pFrameTimeLog != nullptr) && m_pDevice->GetDbgOverlaySettings().logFrameStats)
+                if ((m_pFrameTimeLog != nullptr) &&
+                    m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.logFrameStats)
                 {
                     DumpFrameLogs();
                 }
@@ -484,7 +485,7 @@ void FpsMgr::GetBenchmarkString(
 void FpsMgr::UpdateBenchmark()
 {
     PAL_ASSERT(m_pDevice != nullptr);
-    const bool logFrameStats = m_pDevice->GetDbgOverlaySettings().logFrameStats;
+    const bool logFrameStats = m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.logFrameStats;
 
     if (m_benchmarkActive)
     {
@@ -494,7 +495,7 @@ void FpsMgr::UpdateBenchmark()
         // If logging frame times and FPS, save off current frame end time (in ms).
         if (logFrameStats                &&
             (m_pFrameTimeLog != nullptr) &&
-            (m_benchmarkFrames < m_pDevice->GetDbgOverlaySettings().maxLoggedFrames))
+            (m_benchmarkFrames < m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.maxLoggedFrames))
         {
             const float timeMs = static_cast<float>((m_benchmarkCounter[CurrentQuery] -
                                  m_benchmarkCounter[LastQuery]) /
@@ -529,7 +530,7 @@ void FpsMgr::UpdateBenchmark()
             {
                 m_pFrameTimeLog =
                     PAL_NEW_ARRAY(float,
-                                  m_pDevice->GetDbgOverlaySettings().maxLoggedFrames,
+                                  m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.maxLoggedFrames,
                                   m_pPlatform,
                                   SystemAllocType::AllocInternal);
                 PAL_ASSERT(m_pFrameTimeLog != nullptr);
@@ -553,7 +554,7 @@ void FpsMgr::DumpFrameLogs()
     Util::Snprintf(buf,
                    BufferSize,
                    "%s/timelog_%05d.csv",
-                   m_pDevice->GetDbgOverlaySettings().frameStatsLogDirectory,
+                   m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.frameStatsLogDirectory,
                    logId);
 
     File timeLogFile;
@@ -566,7 +567,7 @@ void FpsMgr::DumpFrameLogs()
     Util::Snprintf(buf,
                    BufferSize,
                    "%s/fpslog_%05d.csv",
-                   m_pDevice->GetDbgOverlaySettings().frameStatsLogDirectory,
+                   m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.frameStatsLogDirectory,
                    logId);
 
     File fpsLogFile;
@@ -582,7 +583,7 @@ void FpsMgr::DumpFrameLogs()
     float  fpsSampleEndTime  = FpsSampleTime;
     uint32 framesInSample    = 0;
 
-    const uint32 loggedFrames = Min(m_benchmarkFrames, m_pDevice->GetDbgOverlaySettings().maxLoggedFrames);
+    const uint32 loggedFrames = Min(m_benchmarkFrames, m_pDevice->GetDbgOverlaySettings().overlayBenchmarkConfig.maxLoggedFrames);
     for (uint32 i = 0; i < loggedFrames; i++)
     {
         Util::Snprintf(buf, BufferSize, "%d, %.3f\n", i, m_pFrameTimeLog[i]);
@@ -614,7 +615,7 @@ void FpsMgr::DumpFrameLogs()
 DebugOverlayLocation FpsMgr::GetDebugOverlayLocation()
 {
     PAL_ASSERT(m_pDevice != nullptr);
-    DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayLocation;
+    DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayConfig.overlayLocation;
 
     if (Util::IsKeyPressed(Util::KeyCode::F10, &m_prevDebugKeyState))
     {
@@ -628,7 +629,7 @@ DebugOverlayLocation FpsMgr::GetDebugOverlayLocation()
 DebugOverlayLocation FpsMgr::GetTimeGraphLocation()
 {
     PAL_ASSERT(m_pDevice != nullptr);
-    const DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayLocation;
+    const DebugOverlayLocation overlayLocation = m_pDevice->GetDbgOverlaySettings().debugOverlayConfig.overlayLocation;
     DebugOverlayLocation timeGraphLocation = DebugOverlayLowerRight;
 
     if ((overlayLocation == DebugOverlayLowerRight) || (overlayLocation == DebugOverlayUpperRight))

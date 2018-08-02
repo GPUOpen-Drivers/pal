@@ -58,7 +58,7 @@ PerfExperiment::PerfExperiment(
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_spiConfigCntlDefault = mmSPI_CONFIG_CNTL_DEFAULT__GFX09;
+        m_spiConfigCntlDefault = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
     }
 }
 
@@ -151,6 +151,16 @@ Result PerfExperiment::ReserveCounterResource(
 }
 
 // =====================================================================================================================
+void PerfExperiment::SetCntrRate(
+    uint32  rate)
+{
+    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        m_sqPerfCounterCtrl.gfx09.CNTR_RATE = rate;
+    }
+}
+
+// =====================================================================================================================
 // Checks that a performance counter resource is available for the specified counter create info. If the resource is
 // available, instantiates a new GcnPerfCounter object for the caller to use.
 //
@@ -212,7 +222,8 @@ Result PerfExperiment::CreateCounter(
                 m_sqPerfCounterCtrl.bits.HS_EN |= 1;
                 m_sqPerfCounterCtrl.bits.LS_EN |= 1;
                 m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+                SetCntrRate(SqDefaultCounterRate);
 
                 // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
                 PAL_ALERT(HasSqCounters());
@@ -228,7 +239,8 @@ Result PerfExperiment::CreateCounter(
                 m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+                SetCntrRate(SqDefaultCounterRate);
 
                 if (m_gfxLevel == GfxIpLevel::GfxIp9)
                 {
@@ -405,7 +417,7 @@ void PerfExperiment::UpdateCounterFlags(
         m_sqPerfCounterCtrl.bits.HS_EN |= 1;
         m_sqPerfCounterCtrl.bits.LS_EN |= 1;
         m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+        SetCntrRate(SqDefaultCounterRate);
 
         // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
         PAL_ALERT(HasSqCounters());
@@ -421,11 +433,10 @@ void PerfExperiment::UpdateCounterFlags(
         m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
         m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
         m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+        SetCntrRate(SqDefaultCounterRate);
 
         // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-        PAL_ALERT((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
-                  (HasTaCounters()  ||
+        PAL_ALERT((HasTaCounters()  ||
                    HasTdCounters()  ||
                    HasTcpCounters() ||
                    HasTccCounters() ||
@@ -456,7 +467,7 @@ void PerfExperiment::IssueBegin(
         // SQ tests require rlc_perfom_clk_cntl set BEFORE spiConfigCntl
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 1, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
         }
     }
 
@@ -702,7 +713,7 @@ void PerfExperiment::IssueEnd(
         // SQ tests require RLC_PERFMON_CLK_CNTL set to work
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 0, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 0, pCmdSpace);
         }
     }
 
@@ -871,6 +882,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
     uint32*    pCmdSpace
     ) const
 {
+    const auto&      device     = *(m_device.Parent());
     const auto&      cmdUtil    = m_device.CmdUtil();
     const auto&      regInfo    = cmdUtil.GetRegInfo();
     const EngineType engineType = pCmdStream->GetEngineType();
@@ -932,7 +944,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         if (HasAtcL2Counters())
         {
             // This has to be set for any ATC L2 perf counters to work.
-            regATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09  atcL2PerfCntrResultCntl = {};
+            regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
             atcL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
             pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcL2PerfResultCntl,
@@ -943,7 +955,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         if (HasMcVmL2Counters())
         {
             // This has to be set for any MC VM L2 perf counters to work.
-            regMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09  mcVmL2PerfCntrResultCntl = {};
+            regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
             mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
             pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmMcVmL2PerfResultCntl,
@@ -982,9 +994,20 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL             = RmiEnSelOn;
         rmiPerfCounterCntl.bits.TC_PERF_EN_SEL                      = RmiEnSelOn;
         rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK0             = RmiEventWindowMask0Default;
-        rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK1             = RmiEventWindowMask1Default;
         rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = RmiChannelIdAll;
         rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = RmiBurstlengthThresholdDefault;
+
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            if (device.ChipProperties().familyId == FAMILY_AI)
+            {
+                rmiPerfCounterCntl.vega.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
+            }
+            else if (IsRaven(device))
+            {
+                rmiPerfCounterCntl.rv1x.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
+            }
+        }
 
         if (restart == false)
         {
@@ -1085,13 +1108,13 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     regGCEA_PERFCOUNTER_RSLT_CNTL  gceaPerfCntrResultCntl = {};
     gceaPerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the EA block perf counters.
 
-    regMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09  mcVmL2PerfCntrResultCntl = {};
+    regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
     mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the MC VM L2 block perf counters.
 
     regATC_PERFCOUNTER_RSLT_CNTL  atcPerfCntrResultCntl = {};
     atcPerfCntrResultCntl.bits.ENABLE_ANY    = 0; // halt all of the ATC block perf counters.
 
-    regATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09  atcL2PerfCntrResultCntl = {};
+    regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
     atcL2PerfCntrResultCntl.bits.ENABLE_ANY  = 0; // halt all of the ATC L2 block perf counters.
 
     regRPB_PERFCOUNTER_RSLT_CNTL  rpbPerfCntrResultCntl = {};
@@ -1294,9 +1317,9 @@ uint32* PerfExperiment::WriteResetGrbmGfxIndex(
 {
     PAL_ASSERT(HasIndexedCounters() || HasThreadTraces() || HasSpmTrace());
 
-    regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+    regGRBM_GFX_INDEX grbmGfxIndex = {};
     grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
-    grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+    grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
     return pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,

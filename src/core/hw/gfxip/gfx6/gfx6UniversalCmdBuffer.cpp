@@ -220,6 +220,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_workaroundState(&device, IsNested()),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
+    const PalSettings&     coreSettings    = m_device.CoreSettings();
     const Gfx6PalSettings& settings        = m_device.Settings();
     const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
 
@@ -239,7 +240,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                        CmdBufferEngineSupport::CpDma);
 
     // Setup all of our cached settings checks.
-    m_cachedSettings.tossPointMode              = static_cast<uint32>(settings.tossPointMode);
+    m_cachedSettings.tossPointMode              = static_cast<uint32>(coreSettings.tossPointMode);
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
@@ -261,8 +262,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
     }
 
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerSqttOff) &&
+                             (Util::TestAnyFlagSet(coreSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+                             (TestAnyFlagSet(coreSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+                             (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
                                             m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
@@ -1045,13 +1048,7 @@ void UniversalCmdBuffer::CmdSetIndirectUserData(
     // All this method needs to do is update the CPU-side copy of the indirect user-data table and upload the new
     // data to CE RAM. It will be validated at Draw- or Dispatch-time
     uint32* pDst = (m_indirectUserDataInfo[tableId].pData + dwordOffset);
-    auto*   pSrc = static_cast<const uint32*>(pSrcData);
-    for (uint32 i = 0; i < dwordSize; ++i)
-    {
-        *pDst = *pSrc;
-        ++pDst;
-        ++pSrc;
-    }
+    memcpy(pDst, pSrcData, dwordSize * sizeof(uint32));
 
     uint32* pCeCmdSpace = m_ceCmdStream.ReserveCommands();
 
@@ -3627,7 +3624,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const auto*const pDsView =
         static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
 
-    const auto& dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     // If we're about to launch a draw we better have a pipeline bound.
     PAL_ASSERT(pPipeline != nullptr);
@@ -3693,7 +3690,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                 pDepthState,
                 pBlendState,
                 MayHaveActiveQueries(),
-                static_cast<Gfx7OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
+                static_cast<OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
         }
         if (m_state.flags.optimizeLinearGfxCpy)
         {

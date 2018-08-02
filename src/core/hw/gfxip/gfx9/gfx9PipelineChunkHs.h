@@ -92,15 +92,11 @@ private:
 
         PM4_ME_SET_SH_REG             hdrSpiShaderPgm;
         regSPI_SHADER_PGM_RSRC1_HS    spiShaderPgmRsrc1Hs;
-        SpiShaderPgmRsrc2Hs           spiShaderPgmRsrc2Hs;
+        regSPI_SHADER_PGM_RSRC2_HS    spiShaderPgmRsrc2Hs;
 
         PM4_ME_SET_SH_REG             hdrSpiShaderPgmLs;
         regSPI_SHADER_PGM_LO_LS       spiShaderPgmLoLs;
         regSPI_SHADER_PGM_HI_LS       spiShaderPgmHiLs;
-
-        // Checksum register is optional, as not all GFX9+ hardware uses it.
-        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
-        regSPI_SHADER_PGM_CHKSUM_HS       spiShaderPgmChksumHs;
 
         // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
         // actual commands contained within.
@@ -111,7 +107,7 @@ private:
     struct Pm4ImageShDynamic
     {
         PM4_ME_SET_SH_REG_INDEX            hdrPgmRsrc3Hs;
-        SpiShaderPgmRsrc3Hs                spiShaderPgmRsrc3Hs;
+        regSPI_SHADER_PGM_RSRC3_HS         spiShaderPgmRsrc3Hs;
 
         // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
         // actual commands contained within.

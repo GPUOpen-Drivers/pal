@@ -85,6 +85,7 @@ struct RegisterInfo
     uint16  mmSqThreadTraceMode;
     uint16  mmSqThreadTraceWptr;
     uint16  mmSqThreadTraceStatus;
+    uint16  mmSqThreadTraceHiWater;
     uint16  mmSrbmPerfmonCntl;
 };
 

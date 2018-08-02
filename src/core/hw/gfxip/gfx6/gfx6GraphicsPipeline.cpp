@@ -158,13 +158,13 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
     const DepthStencilState* pDepthStencilState,
     const ColorBlendState*   pBlendState,
     uint32                   hasActiveQueries,
-    Gfx7OutOfOrderPrimMode   gfx7EnableOutOfOrderPrimitives
+    OutOfOrderPrimMode       gfx7EnableOutOfOrderPrimitives
     ) const
 {
     bool enableOutOfOrderPrims = true;
 
-    if ((gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimSafe) ||
-        (gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimAggressive))
+    if ((gfx7EnableOutOfOrderPrimitives == OutOfOrderPrimSafe) ||
+        (gfx7EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive))
     {
         if (PsUsesUavs() || pDepthStencilState == nullptr)
         {
@@ -187,7 +187,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
 
             bool canDepthStencilRunOutOfOrder = false;
 
-            if ((gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimSafe) && (hasActiveQueries != 0))
+            if ((gfx7EnableOutOfOrderPrimitives == OutOfOrderPrimSafe) && (hasActiveQueries != 0))
             {
                 canDepthStencilRunOutOfOrder = !isDepthStencilWriteEnabled;
             }
@@ -206,7 +206,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
             else
             {
                 const bool canRenderTargetRunOutOfOrder =
-                    (gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimAggressive) &&
+                    (gfx7EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive) &&
                     (pDepthStencilState->DepthForcesOrdering());
 
                 if (pBlendState != nullptr)
@@ -219,7 +219,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
                             // primitives for commutative blending with aggressive setting.
                             const bool canBlendingRunOutOfOrder =
                                 (pBlendState->IsBlendCommutative(i) &&
-                                (gfx7EnableOutOfOrderPrimitives == Gfx7OutOfOrderPrimAggressive));
+                                (gfx7EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive));
 
                             // We cannot enable out of order primitives if
                             //   1. If blending is off and depth ordering of the samples is not enforced.
@@ -240,7 +240,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
             }
         }
     }
-    else if (gfx7EnableOutOfOrderPrimitives != Gfx7OutOfOrderPrimAlways)
+    else if (gfx7EnableOutOfOrderPrimitives != OutOfOrderPrimAlways)
     {
         enableOutOfOrderPrims = false;
     }
@@ -863,7 +863,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // independent class because they cannot be overridden by altering the pipeline creation info.
     if (IsInternal() == false)
     {
-        switch (settings.tossPointMode)
+        switch (m_pDevice->Parent()->Settings().tossPointMode)
         {
         case TossPointAfterPs:
             // This toss point is used to disable all color buffer writes.
@@ -882,7 +882,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     m_paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark, settings.gfx7OutOfOrderWatermark);
 
     if (createInfo.rsState.outOfOrderPrimsEnable &&
-        (m_pDevice->Settings().gfx7EnableOutOfOrderPrimitives != Gfx7OutOfOrderPrimDisable))
+        (m_pDevice->Settings().gfx7EnableOutOfOrderPrimitives != OutOfOrderPrimDisable))
     {
         m_paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
     }

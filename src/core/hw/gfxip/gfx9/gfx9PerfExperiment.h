@@ -125,6 +125,7 @@ private:
     void InitBlockUsage();
 
     Result ReserveCounterResource(const PerfCounterInfo& info, uint32* pCounterId, uint32* pCounterSubId);
+    void   SetCntrRate(uint32  rate);
 
     void IssuePause(CmdStream* pCmdStream) const;
     void IssueResume(CmdStream* pCmdStream) const;

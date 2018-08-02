@@ -46,12 +46,11 @@
 #include "palTextWriterImpl.h"
 #include <limits.h>
 
-#if PAL_BUILD_GPUOPEN
+// Dev Driver includes
 #include "msgChannel.h"
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
-#endif
 
 using namespace Util;
 
@@ -207,9 +206,7 @@ Device::Device(
     m_attachedScreenCount(attachedScreenCount),
     m_pGfxDevice(nullptr),
     m_pOssDevice(nullptr),
-#if PAL_BUILD_GPUOPEN
     m_pTextWriter(nullptr),
-#endif
     m_devDriverClientId(0),
     m_pFormatPropertiesTable(nullptr),
     m_perPipelineBindPointGds(false),
@@ -257,6 +254,8 @@ Device::Device(
     memset(&m_flags, 0, sizeof(m_flags));
     memset(&m_bigSoftwareRelease, 0, sizeof(m_bigSoftwareRelease));
     memset(&m_virtualDisplayCaps, 0, sizeof(m_virtualDisplayCaps));
+    memset(&m_cacheFilePath,      0, sizeof(m_cacheFilePath));
+    memset(&m_debugFilePath,      0, sizeof(m_debugFilePath));
 }
 
 // =====================================================================================================================
@@ -326,12 +325,10 @@ Result Device::Cleanup()
 
     Result result = Result::Success;
 
-#if PAL_BUILD_GPUOPEN
     if (m_pTextWriter != nullptr)
     {
         PAL_SAFE_DELETE(m_pTextWriter, m_pPlatform);
     }
-#endif
 
     if (m_pGfxDevice != nullptr)
     {
@@ -498,6 +495,12 @@ Result Device::HwlEarlyInit()
         break;
     }
 #endif
+
+    if ((result == Result::Success) && (m_pGfxDevice != nullptr))
+    {
+        PAL_ASSERT(m_pSettingsLoader != nullptr);
+        result = m_pGfxDevice->InitHwlSettings(m_pSettingsLoader->GetSettingsPtr());
+    }
 
 #if PAL_BUILD_OSS
     if (result == Result::Success)
@@ -676,7 +679,7 @@ void Device::InitMemoryHeapProperties()
 }
 
 // =====================================================================================================================
-// Initializes the Pal setting structure
+// Initializes the Pal setting structures
 Result Device::InitSettings()
 {
     Result ret = Result::Success;
@@ -684,25 +687,7 @@ Result Device::InitSettings()
     // Make sure we only initialize settings once
     if (m_pSettingsLoader == nullptr)
     {
-        switch (m_chipProperties.gfxLevel)
-        {
-#if PAL_BUILD_GFX6
-        case GfxIpLevel::GfxIp6:
-        case GfxIpLevel::GfxIp7:
-        case GfxIpLevel::GfxIp8:
-        case GfxIpLevel::GfxIp8_1:
-            m_pSettingsLoader = Gfx6::CreateSettingsLoader(this);
-            break;
-#endif
-#if PAL_BUILD_GFX9
-        case GfxIpLevel::GfxIp9:
-            m_pSettingsLoader = Gfx9::CreateSettingsLoader(this);
-            break;
-#endif // PAL_BUILD_GFX9
-        case GfxIpLevel::None:
-        default:
-            break;
-        }
+        m_pSettingsLoader = PAL_NEW(Pal::SettingsLoader, GetPlatform(), AllocInternal)(this);
 
         if (m_pSettingsLoader == nullptr)
         {
@@ -1144,73 +1129,91 @@ void Device::CopyLayerSettings()
     m_cmdBufLoggerSettings.cmdBufferLoggerFlags = settings.cmdBufferLoggerFlags;
 
     // Debug Overlay Layer
-    m_dbgOverlaySettings.visualConfirmEnabled       = settings.visualConfirmEnabled;
-    m_dbgOverlaySettings.timeGraphEnabled           = settings.timeGraphEnabled;
-    m_dbgOverlaySettings.debugOverlayLocation       = settings.debugOverlayLocation;
-    m_dbgOverlaySettings.timeGraphGridLineColor     = settings.timeGraphGpuLineColor;
-    m_dbgOverlaySettings.timeGraphCpuLineColor      = settings.timeGraphCpuLineColor;
-    m_dbgOverlaySettings.timeGraphGpuLineColor      = settings.timeGraphGpuLineColor;
-    m_dbgOverlaySettings.maxBenchmarkTime           = settings.maxBenchmarkTime;
-    m_dbgOverlaySettings.debugUsageLogEnable        = settings.debugUsageLogEnable;
-    m_dbgOverlaySettings.logFrameStats              = settings.logFrameStats;
-    m_dbgOverlaySettings.maxLoggedFrames            = settings.maxLoggedFrames;
-    m_dbgOverlaySettings.overlayCombineNonLocal     = settings.overlayCombineNonLocal;
-    m_dbgOverlaySettings.overlayReportCmdAllocator  = settings.overlayReportCmdAllocator;
-    m_dbgOverlaySettings.overlayReportExternal      = settings.overlayReportExternal;
-    m_dbgOverlaySettings.overlayReportInternal      = settings.overlayReportInternal;
-    m_dbgOverlaySettings.printFrameNumber           = settings.printFrameNumber;
+    DebugOverlayConfig* pOverlayCfg = &m_dbgOverlaySettings.debugOverlayConfig;
+    pOverlayCfg->visualConfirmEnabled = settings.debugOverlayConfig.visualConfirmEnabled;
+    pOverlayCfg->timeGraphEnabled     = settings.debugOverlayConfig.timeGraphEnabled;
+    pOverlayCfg->overlayLocation      = settings.debugOverlayConfig.overlayLocation;
+    pOverlayCfg->printFrameNumber     = settings.debugOverlayConfig.printFrameNumber;
 
-    Strncpy(m_dbgOverlaySettings.debugUsageLogDirectory, settings.debugUsageLogDirectory, MaxPathStrLen);
-    Strncpy(m_dbgOverlaySettings.debugUsageLogFilename, settings.debugUsageLogFilename, MaxPathStrLen);
-    Strncpy(m_dbgOverlaySettings.frameStatsLogDirectory, settings.frameStatsLogDirectory, MaxPathStrLen);
-    Strncpy(m_dbgOverlaySettings.renderedByString, settings.renderedByString, MaxMiscStrLen);
-    Strncpy(m_dbgOverlaySettings.miscellaneousDebugString, settings.miscellaneousDebugString, MaxMiscStrLen);
+    OverlayBenchmarkConfig* pBenchmarkCfg = &m_dbgOverlaySettings.overlayBenchmarkConfig;
+    pBenchmarkCfg->maxBenchmarkTime = settings.overlayBenchmarkConfig.maxBenchmarkTime;
+    pBenchmarkCfg->usageLogEnable   = settings.overlayBenchmarkConfig.usageLogEnable;
+    pBenchmarkCfg->logFrameStats    = settings.overlayBenchmarkConfig.logFrameStats;
+    pBenchmarkCfg->maxLoggedFrames  = settings.overlayBenchmarkConfig.maxLoggedFrames;
+
+    TimeGraphConfig* pTimeGraphCfg = &m_dbgOverlaySettings.timeGraphConfig;
+    pTimeGraphCfg->gridLineColor = settings.timeGraphConfig.gridLineColor;
+    pTimeGraphCfg->cpuLineColor  = settings.timeGraphConfig.cpuLineColor;
+    pTimeGraphCfg->gpuLineColor  = settings.timeGraphConfig.gpuLineColor;
+
+    OverlayMemoryInfoConfig* pMemCfg = &m_dbgOverlaySettings.overlayMemoryInfoConfig;
+    pMemCfg->combineNonLocal    = settings.overlayMemoryInfoConfig.combineNonLocal;
+    pMemCfg->reportCmdAllocator = settings.overlayMemoryInfoConfig.reportCmdAllocator;
+    pMemCfg->reportExternal     = settings.overlayMemoryInfoConfig.reportExternal;
+    pMemCfg->reportInternal     = settings.overlayMemoryInfoConfig.reportInternal;
+
+    Strncpy(pBenchmarkCfg->usageLogDirectory, settings.overlayBenchmarkConfig.usageLogDirectory, MaxPathStrLen);
+    Strncpy(pBenchmarkCfg->usageLogFilename, settings.overlayBenchmarkConfig.usageLogFilename, MaxPathStrLen);
+    Strncpy(pBenchmarkCfg->frameStatsLogDirectory,
+            settings.overlayBenchmarkConfig.frameStatsLogDirectory,
+            MaxPathStrLen);
+
+    Strncpy(pOverlayCfg->renderedByString, settings.debugOverlayConfig.renderedByString, MaxMiscStrLen);
+    Strncpy(pOverlayCfg->miscellaneousDebugString, settings.debugOverlayConfig.miscellaneousDebugString, MaxMiscStrLen);
 
     // GPU Profiler Layer
-    m_gpuProfilerSettings.gpuProfilerStartFrame                     = settings.gpuProfilerStartFrame;
-    m_gpuProfilerSettings.gpuProfilerFrameCount                     = settings.gpuProfilerFrameCount;
-    m_gpuProfilerSettings.gpuProfilerRecordPipelineStats            = settings.gpuProfilerRecordPipelineStats;
-    m_gpuProfilerSettings.gpuProfilerBreakSubmitBatches             = settings.gpuProfilerBreakSubmitBatches;
-    m_gpuProfilerSettings.gpuProfilerCacheFlushOnCounterCollection  = settings.gpuProfilerCacheFlushOnCounterCollection;
-    m_gpuProfilerSettings.gpuProfilerGranularity                    = settings.gpuProfilerGranularity;
-    m_gpuProfilerSettings.gpuProfilerSqThreadTraceTokenMask         = settings.gpuProfilerSqThreadTraceTokenMask;
-    m_gpuProfilerSettings.gpuProfilerSqttPipelineHash               = settings.gpuProfilerSqttPipelineHash;
-    m_gpuProfilerSettings.gpuProfilerSqttVsHash.upper               = settings.gpuProfilerSqttVsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttVsHash.lower               = settings.gpuProfilerSqttVsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttHsHash.upper               = settings.gpuProfilerSqttHsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttHsHash.lower               = settings.gpuProfilerSqttHsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttDsHash.upper               = settings.gpuProfilerSqttDsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttDsHash.lower               = settings.gpuProfilerSqttDsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttGsHash.upper               = settings.gpuProfilerSqttGsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttGsHash.lower               = settings.gpuProfilerSqttGsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttPsHash.upper               = settings.gpuProfilerSqttPsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttPsHash.lower               = settings.gpuProfilerSqttPsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttCsHash.upper               = settings.gpuProfilerSqttCsHashHi;
-    m_gpuProfilerSettings.gpuProfilerSqttCsHash.lower               = settings.gpuProfilerSqttCsHashLo;
-    m_gpuProfilerSettings.gpuProfilerSqttMaxDraws                   = settings.gpuProfilerSqttMaxDraws;
-    m_gpuProfilerSettings.gpuProfilerSqttBufferSize                 = settings.gpuProfilerSqttBufferSize;
+    GpuProfilerConfig* pProfilerCfg = &m_gpuProfilerSettings.profilerConfig;
+    pProfilerCfg->startFrame          = settings.gpuProfilerConfig.startFrame;
+    pProfilerCfg->frameCount          = settings.gpuProfilerConfig.frameCount;
+    pProfilerCfg->recordPipelineStats = settings.gpuProfilerConfig.recordPipelineStats;
+    pProfilerCfg->breakSubmitBatches  = settings.gpuProfilerConfig.breakSubmitBatches;
+    pProfilerCfg->traceModeMask       = settings.gpuProfilerConfig.traceModeMask;
 
-    Strncpy(m_gpuProfilerSettings.gpuProfilerLogDirectory, settings.gpuProfilerLogDirectory, MaxPathStrLen);
-    Strncpy(m_gpuProfilerSettings.gpuProfilerGlobalPerfCounterConfigFile,
-            settings. gpuProfilerGlobalPerfCounterConfigFile,
+    GpuProfilerPerfCounterConfig* pPerfCounterCfg = &m_gpuProfilerSettings.perfCounterConfig;
+    pPerfCounterCfg->granularity                   = settings.gpuProfilerPerfCounterConfig.granularity;
+    pPerfCounterCfg->cacheFlushOnCounterCollection =
+        settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
+
+    GpuProfilerSqttConfig* pSqttCfg = &m_gpuProfilerSettings.sqttConfig;
+    pSqttCfg->tokenMask    = settings.gpuProfilerSqttConfig.tokenMask;
+    pSqttCfg->pipelineHash = settings.gpuProfilerSqttConfig.pipelineHash;
+    pSqttCfg->vsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
+    pSqttCfg->vsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;
+    pSqttCfg->hsHash.upper = settings.gpuProfilerSqttConfig.hsHashHi;
+    pSqttCfg->hsHash.lower = settings.gpuProfilerSqttConfig.hsHashLo;
+    pSqttCfg->dsHash.upper = settings.gpuProfilerSqttConfig.dsHashHi;
+    pSqttCfg->dsHash.lower = settings.gpuProfilerSqttConfig.dsHashLo;
+    pSqttCfg->gsHash.upper = settings.gpuProfilerSqttConfig.gsHashHi;
+    pSqttCfg->gsHash.lower = settings.gpuProfilerSqttConfig.gsHashLo;
+    pSqttCfg->psHash.upper = settings.gpuProfilerSqttConfig.psHashHi;
+    pSqttCfg->psHash.lower = settings.gpuProfilerSqttConfig.psHashLo;
+    pSqttCfg->csHash.upper = settings.gpuProfilerSqttConfig.csHashHi;
+    pSqttCfg->csHash.lower = settings.gpuProfilerSqttConfig.csHashLo;
+    pSqttCfg->maxDraws     = settings.gpuProfilerSqttConfig.maxDraws;
+    pSqttCfg->bufferSize   = settings.gpuProfilerSqttConfig.bufferSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    pSqttCfg->stallMode    = settings.gpuProfilerSqttConfig.stallBehavior;
+#endif
+
+    Strncpy(pProfilerCfg->logDirectory, settings.gpuProfilerConfig.logDirectory, MaxPathStrLen);
+    Strncpy(pPerfCounterCfg->globalPerfCounterConfigFile,
+            settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile,
             MaxFileNameStrLen);
-
-    m_gpuProfilerSettings.gpuProfilerTraceModeMask = settings.gpuProfilerTraceModeMask;
 
     // GpuProfiler Spm trace config settings.
-    Strncpy(m_gpuProfilerSettings.gpuProfilerSpmPerfCounterConfigFile,
-            settings.gpuProfilerSpmPerfCounterConfigFile,
+    GpuProfilerSpmConfig* pSpmCfg = &m_gpuProfilerSettings.spmConfig;
+    pSpmCfg->spmTraceBufferSize = settings.gpuProfilerSpmConfig.spmBufferSize;
+    pSpmCfg->spmTraceInterval   = settings.gpuProfilerSpmConfig.spmTraceInterval;
+
+    Strncpy(pSpmCfg->spmPerfCounterConfigFile,
+            settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile,
             MaxFileNameStrLen);
 
-    m_gpuProfilerSettings.gpuProfilerSpmTraceBufferSize = settings.gpuProfilerSpmBufferSize;
-    m_gpuProfilerSettings.gpuProfilerSpmTraceInterval   = settings.gpuProfilerSpmTraceInterval;
-
     // Interface Logger Layer
-
-    m_interfaceLoggerSettings.interfaceLoggerMultithreaded  = settings.interfaceLoggerMultithreaded;
-    m_interfaceLoggerSettings.interfaceLoggerBasePreset     = settings.interfaceLoggerBasePreset;
-    m_interfaceLoggerSettings.interfaceLoggerElevatedPreset = settings.interfaceLoggerElevatedPreset;
-    Strncpy(m_interfaceLoggerSettings.interfaceLoggerDirectory, settings.interfaceLoggerDirectory, MaxPathStrLen);
+    m_interfaceLoggerSettings.basePreset = settings.interfaceLoggerConfig.basePreset;
+    m_interfaceLoggerSettings.elevatedPreset = settings.interfaceLoggerConfig.elevatedPreset;
+    m_interfaceLoggerSettings.multithreaded = settings.interfaceLoggerConfig.multithreaded;
+    Strncpy(m_interfaceLoggerSettings.logDirectory, settings.interfaceLoggerConfig.logDirectory, MaxPathStrLen);
 
 }
 
@@ -1475,7 +1478,6 @@ Result Device::Finalize(
         result = CreateEngines(finalizeInfo);
     }
 
-#if PAL_BUILD_GPUOPEN
     // If developer mode is enabled we need to initialize some internal resources.
     if ((result == Result::Success) && m_pPlatform->IsDeveloperModeEnabled())
     {
@@ -1490,7 +1492,6 @@ Result Device::Finalize(
         m_pTextWriter = PAL_NEW(GpuUtil::TextWriter<Platform>, m_pPlatform, AllocInternal)(this, m_pPlatform);
         result        = (m_pTextWriter != nullptr) ? m_pTextWriter->Init() : Result::ErrorOutOfMemory;
     }
-#endif
 
     m_texOptLevel = finalizeInfo.internalTexOptLevel;
 
@@ -3677,7 +3678,8 @@ Platform* Device::GetPlatform() const
 // Fills out the pal settings structure
 const PalSettings& Device::Settings() const
 {
-    return *m_pSettingsLoader->GetSettings();
+    PAL_ASSERT(m_pSettingsLoader != nullptr);
+    return m_pSettingsLoader->GetSettings();
 }
 
 // =====================================================================================================================
@@ -3692,7 +3694,19 @@ PalPublicSettings* Device::GetPublicSettings()
 // stored and when it was loaded.
 Util::MetroHash::Hash Device::GetSettingsHash() const
 {
-    return m_pSettingsLoader->GetSettingsHash();
+    PAL_ASSERT(m_pSettingsLoader != nullptr);
+
+    // We just combine the core and Hwl hashes by XOR'ing each DWORD
+    auto returnHash = m_pSettingsLoader->GetSettingsHash();
+    if (m_pGfxDevice != nullptr)
+    {
+        auto hwlHash = m_pGfxDevice->GetSettingsHash();
+        for (uint8 i=0; i<4; i++)
+        {
+            returnHash.dwords[i] ^= hwlHash.dwords[i];
+        }
+    }
+    return returnHash;
 }
 
 // =====================================================================================================================
@@ -4001,7 +4015,6 @@ void Device::ApplyDevOverlay(
     PAL_ASSERT(m_pPlatform->IsDeveloperModeEnabled());
     PAL_ASSERT(pCmdBuffer != nullptr);
 
-#if PAL_BUILD_GPUOPEN
     // Get the developer mode driver server
     DevDriver::DevDriverServer* pDevDriverServer = m_pPlatform->GetDevDriverServer();
     // This pointer should never be null if developer mode is enabled
@@ -4163,7 +4176,6 @@ void Device::ApplyDevOverlay(
     barrier.reason          = Developer::BarrierReasonDevDriverOverlay;
 
     pCmdBuffer->CmdBarrier(barrier);
-#endif
 }
 
 // =====================================================================================================================

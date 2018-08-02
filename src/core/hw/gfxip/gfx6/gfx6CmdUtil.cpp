@@ -314,6 +314,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceMode      = mmSQ_THREAD_TRACE_MODE__SI__CI;
         m_registerInfo.mmSqThreadTraceWptr      = mmSQ_THREAD_TRACE_WPTR__SI__CI;
         m_registerInfo.mmSqThreadTraceStatus    = mmSQ_THREAD_TRACE_STATUS__SI__CI;
+        m_registerInfo.mmSqThreadTraceHiWater   = mmSQ_THREAD_TRACE_HIWATER__SI__CI;
         m_registerInfo.mmSrbmPerfmonCntl        = mmSRBM_PERFMON_CNTL__SI__CI;
         break;
 
@@ -334,6 +335,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceMode      = mmSQ_THREAD_TRACE_MODE__SI__CI;
         m_registerInfo.mmSqThreadTraceWptr      = mmSQ_THREAD_TRACE_WPTR__SI__CI;
         m_registerInfo.mmSqThreadTraceStatus    = mmSQ_THREAD_TRACE_STATUS__SI__CI;
+        m_registerInfo.mmSqThreadTraceHiWater   = mmSQ_THREAD_TRACE_HIWATER__SI__CI;
         m_registerInfo.mmSrbmPerfmonCntl        = mmSRBM_PERFMON_CNTL__SI__CI;
         break;
 
@@ -355,6 +357,7 @@ CmdUtil::CmdUtil(
         m_registerInfo.mmSqThreadTraceMode      = mmSQ_THREAD_TRACE_MODE__VI;
         m_registerInfo.mmSqThreadTraceWptr      = mmSQ_THREAD_TRACE_WPTR__VI;
         m_registerInfo.mmSqThreadTraceStatus    = mmSQ_THREAD_TRACE_STATUS__VI;
+        m_registerInfo.mmSqThreadTraceHiWater   = mmSQ_THREAD_TRACE_HIWATER__VI;
         m_registerInfo.mmSrbmPerfmonCntl        = mmSRBM_PERFMON_CNTL__VI;
         break;
 

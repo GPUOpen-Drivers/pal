@@ -25,6553 +25,2563 @@
 
 #pragma once
 
-#define cfgnbif_gpu_ADAPTER_ID_W_epf__GFX09             0x0013
-#define cfgnbif_gpu_ADAPTER_ID_epf__GFX09               0x000B
-#define cfgnbif_gpu_ADAPTER_ID_epvf                     0x000B
-#define cfgnbif_gpu_BASE_ADDR_1_epf__GFX09              0x0004
-#define cfgnbif_gpu_BASE_ADDR_1_epvf                    0x0004
-#define cfgnbif_gpu_BASE_ADDR_1_swds__GFX09             0x0004
-#define cfgnbif_gpu_BASE_ADDR_2_epf__GFX09              0x0005
-#define cfgnbif_gpu_BASE_ADDR_2_epvf                    0x0005
-#define cfgnbif_gpu_BASE_ADDR_3_epf__GFX09              0x0006
-#define cfgnbif_gpu_BASE_ADDR_3_epvf                    0x0006
-#define cfgnbif_gpu_BASE_ADDR_4_epf__GFX09              0x0007
-#define cfgnbif_gpu_BASE_ADDR_4_epvf                    0x0007
-#define cfgnbif_gpu_BASE_ADDR_5_epf__GFX09              0x0008
-#define cfgnbif_gpu_BASE_ADDR_5_epvf                    0x0008
-#define cfgnbif_gpu_BASE_ADDR_6_epf__GFX09              0x0009
-#define cfgnbif_gpu_BASE_ADDR_6_epvf                    0x0009
-#define cfgnbif_gpu_BASE_CLASS_epf__GFX09               0x0002
-#define cfgnbif_gpu_BASE_CLASS_epvf                     0x0002
-#define cfgnbif_gpu_BASE_CLASS_swds__GFX09              0x0002
-#define cfgnbif_gpu_BIST_epf__GFX09                     0x0003
-#define cfgnbif_gpu_BIST_epvf                           0x0003
-#define cfgnbif_gpu_BIST_swds__GFX09                    0x0003
-#define cfgnbif_gpu_CACHE_LINE_epf__GFX09               0x0003
-#define cfgnbif_gpu_CACHE_LINE_epvf                     0x0003
-#define cfgnbif_gpu_CACHE_LINE_swds__GFX09              0x0003
-#define cfgnbif_gpu_CAP_PTR_epf__GFX09                  0x000D
-#define cfgnbif_gpu_CAP_PTR_epvf                        0x000D
-#define cfgnbif_gpu_CAP_PTR_swds__GFX09                 0x000D
-#define cfgnbif_gpu_COMMAND_epf__GFX09                  0x0001
-#define cfgnbif_gpu_COMMAND_epvf                        0x0001
-#define cfgnbif_gpu_COMMAND_swds__GFX09                 0x0001
-#define cfgnbif_gpu_DEVICE_CAP2_epf__GFX09              0x0022
-#define cfgnbif_gpu_DEVICE_CAP2_epvf                    0x0022
-#define cfgnbif_gpu_DEVICE_CAP2_swds__GFX09             0x001F
-#define cfgnbif_gpu_DEVICE_CAP_epf__GFX09               0x001A
-#define cfgnbif_gpu_DEVICE_CAP_epvf                     0x001A
-#define cfgnbif_gpu_DEVICE_CAP_swds__GFX09              0x0017
-#define cfgnbif_gpu_DEVICE_CNTL2_epf__GFX09             0x0023
-#define cfgnbif_gpu_DEVICE_CNTL2_epvf                   0x0023
-#define cfgnbif_gpu_DEVICE_CNTL2_swds__GFX09            0x0020
-#define cfgnbif_gpu_DEVICE_CNTL_epf__GFX09              0x001B
-#define cfgnbif_gpu_DEVICE_CNTL_epvf                    0x001B
-#define cfgnbif_gpu_DEVICE_CNTL_swds__GFX09             0x0018
-#define cfgnbif_gpu_DEVICE_ID_epf__GFX09                0x0000
-#define cfgnbif_gpu_DEVICE_ID_epvf                      0x0000
-#define cfgnbif_gpu_DEVICE_ID_swds__GFX09               0x0000
-#define cfgnbif_gpu_DEVICE_STATUS2_epf__GFX09           0x0023
-#define cfgnbif_gpu_DEVICE_STATUS2_epvf                 0x0023
-#define cfgnbif_gpu_DEVICE_STATUS2_swds__GFX09          0x0020
-#define cfgnbif_gpu_DEVICE_STATUS_epf__GFX09            0x001B
-#define cfgnbif_gpu_DEVICE_STATUS_epvf                  0x001B
-#define cfgnbif_gpu_DEVICE_STATUS_swds__GFX09           0x0018
-#define cfgnbif_gpu_HEADER_epf__GFX09                   0x0003
-#define cfgnbif_gpu_HEADER_epvf                         0x0003
-#define cfgnbif_gpu_HEADER_swds__GFX09                  0x0003
-#define cfgnbif_gpu_INTERRUPT_LINE_epf__GFX09           0x000F
-#define cfgnbif_gpu_INTERRUPT_LINE_epvf                 0x000F
-#define cfgnbif_gpu_INTERRUPT_LINE_swds__GFX09          0x000F
-#define cfgnbif_gpu_INTERRUPT_PIN_epf__GFX09            0x000F
-#define cfgnbif_gpu_INTERRUPT_PIN_epvf                  0x000F
-#define cfgnbif_gpu_INTERRUPT_PIN_swds__GFX09           0x000F
-#define cfgnbif_gpu_IO_BASE_LIMIT_HI_swds__GFX09        0x000C
-#define cfgnbif_gpu_IO_BASE_LIMIT_swds__GFX09           0x0007
-#define cfgnbif_gpu_IRQ_BRIDGE_CNTL_swds__GFX09         0x000F
-#define cfgnbif_gpu_LATENCY_epf__GFX09                  0x0003
-#define cfgnbif_gpu_LATENCY_epvf                        0x0003
-#define cfgnbif_gpu_LATENCY_swds__GFX09                 0x0003
-#define cfgnbif_gpu_LINK_CAP2_epf__GFX09                0x0024
-#define cfgnbif_gpu_LINK_CAP2_epvf                      0x0024
-#define cfgnbif_gpu_LINK_CAP2_swds__GFX09               0x0021
-#define cfgnbif_gpu_LINK_CAP_epf__GFX09                 0x001C
-#define cfgnbif_gpu_LINK_CAP_epvf                       0x001C
-#define cfgnbif_gpu_LINK_CAP_swds__GFX09                0x0019
-#define cfgnbif_gpu_LINK_CNTL2_epf__GFX09               0x0025
-#define cfgnbif_gpu_LINK_CNTL2_epvf                     0x0025
-#define cfgnbif_gpu_LINK_CNTL2_swds__GFX09              0x0022
-#define cfgnbif_gpu_LINK_CNTL_epf__GFX09                0x001D
-#define cfgnbif_gpu_LINK_CNTL_epvf                      0x001D
-#define cfgnbif_gpu_LINK_CNTL_swds__GFX09               0x001A
-#define cfgnbif_gpu_LINK_STATUS2_epf__GFX09             0x0025
-#define cfgnbif_gpu_LINK_STATUS2_epvf                   0x0025
-#define cfgnbif_gpu_LINK_STATUS2_swds__GFX09            0x0022
-#define cfgnbif_gpu_LINK_STATUS_epf__GFX09              0x001D
-#define cfgnbif_gpu_LINK_STATUS_epvf                    0x001D
-#define cfgnbif_gpu_LINK_STATUS_swds__GFX09             0x001A
-#define cfgnbif_gpu_MAX_LATENCY_epf__GFX09              0x000F
-#define cfgnbif_gpu_MEM_BASE_LIMIT_swds__GFX09          0x0008
-#define cfgnbif_gpu_MIN_GRANT_epf__GFX09                0x000F
-#define cfgnbif_gpu_MSIX_CAP_LIST_epf__GFX09            0x0030
-#define cfgnbif_gpu_MSIX_CAP_LIST_epvf                  0x0030
-#define cfgnbif_gpu_MSIX_MSG_CNTL_epf__GFX09            0x0030
-#define cfgnbif_gpu_MSIX_MSG_CNTL_epvf                  0x0030
-#define cfgnbif_gpu_MSIX_PBA_epf__GFX09                 0x0032
-#define cfgnbif_gpu_MSIX_PBA_epvf                       0x0032
-#define cfgnbif_gpu_MSIX_TABLE_epf__GFX09               0x0031
-#define cfgnbif_gpu_MSIX_TABLE_epvf                     0x0031
-#define cfgnbif_gpu_MSI_CAP_LIST_epf__GFX09             0x0028
-#define cfgnbif_gpu_MSI_CAP_LIST_epvf                   0x0028
-#define cfgnbif_gpu_MSI_CAP_LIST_swds__GFX09            0x0028
-#define cfgnbif_gpu_MSI_MASK_64_epf__GFX09              0x002C
-#define cfgnbif_gpu_MSI_MASK_64_epvf                    0x002C
-#define cfgnbif_gpu_MSI_MASK_epf__GFX09                 0x002B
-#define cfgnbif_gpu_MSI_MASK_epvf                       0x002B
-#define cfgnbif_gpu_MSI_MSG_ADDR_HI_epf__GFX09          0x002A
-#define cfgnbif_gpu_MSI_MSG_ADDR_HI_epvf                0x002A
-#define cfgnbif_gpu_MSI_MSG_ADDR_HI_swds__GFX09         0x002A
-#define cfgnbif_gpu_MSI_MSG_ADDR_LO_epf__GFX09          0x0029
-#define cfgnbif_gpu_MSI_MSG_ADDR_LO_epvf                0x0029
-#define cfgnbif_gpu_MSI_MSG_ADDR_LO_swds__GFX09         0x0029
-#define cfgnbif_gpu_MSI_MSG_CNTL_epf__GFX09             0x0028
-#define cfgnbif_gpu_MSI_MSG_CNTL_epvf                   0x0028
-#define cfgnbif_gpu_MSI_MSG_CNTL_swds__GFX09            0x0028
-#define cfgnbif_gpu_MSI_MSG_DATA_64_epf__GFX09          0x002B
-#define cfgnbif_gpu_MSI_MSG_DATA_64_epvf                0x002B
-#define cfgnbif_gpu_MSI_MSG_DATA_64_swds__GFX09         0x002B
-#define cfgnbif_gpu_MSI_MSG_DATA_epf__GFX09             0x002A
-#define cfgnbif_gpu_MSI_MSG_DATA_epvf                   0x002A
-#define cfgnbif_gpu_MSI_MSG_DATA_swds__GFX09            0x002A
-#define cfgnbif_gpu_MSI_PENDING_64_epf__GFX09           0x002D
-#define cfgnbif_gpu_MSI_PENDING_64_epvf                 0x002D
-#define cfgnbif_gpu_MSI_PENDING_epf__GFX09              0x002C
-#define cfgnbif_gpu_MSI_PENDING_epvf                    0x002C
-#define cfgnbif_gpu_PCIE_ACS_CAP_epf__GFX09             0x00A9
-#define cfgnbif_gpu_PCIE_ACS_CAP_swds__GFX09            0x00A9
-#define cfgnbif_gpu_PCIE_ACS_CNTL_epf__GFX09            0x00A9
-#define cfgnbif_gpu_PCIE_ACS_CNTL_swds__GFX09           0x00A9
-#define cfgnbif_gpu_PCIE_ACS_ENH_CAP_LIST_epf__GFX09    0x00A8
-#define cfgnbif_gpu_PCIE_ACS_ENH_CAP_LIST_swds__GFX09   0x00A8
-#define cfgnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epf__GFX09    0x005A
-#define cfgnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epvf          0x005A
-#define cfgnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_swds__GFX09   0x005A
-#define cfgnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epf__GFX09 0x0054
-#define cfgnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epvf  0x0054
-#define cfgnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_swds__GFX09 0x0054
-#define cfgnbif_gpu_PCIE_ARI_CAP_epf__GFX09             0x00CB
-#define cfgnbif_gpu_PCIE_ARI_CAP_epvf                   0x00CB
-#define cfgnbif_gpu_PCIE_ARI_CNTL_epf__GFX09            0x00CB
-#define cfgnbif_gpu_PCIE_ARI_CNTL_epvf                  0x00CB
-#define cfgnbif_gpu_PCIE_ARI_ENH_CAP_LIST_epf__GFX09    0x00CA
-#define cfgnbif_gpu_PCIE_ARI_ENH_CAP_LIST_epvf          0x00CA
-#define cfgnbif_gpu_PCIE_ATS_CAP_epf__GFX09             0x00AD
-#define cfgnbif_gpu_PCIE_ATS_CAP_epvf                   0x00AD
-#define cfgnbif_gpu_PCIE_ATS_CNTL_epf__GFX09            0x00AD
-#define cfgnbif_gpu_PCIE_ATS_CNTL_epvf                  0x00AD
-#define cfgnbif_gpu_PCIE_ATS_ENH_CAP_LIST_epf__GFX09    0x00AC
-#define cfgnbif_gpu_PCIE_ATS_ENH_CAP_LIST_epvf          0x00AC
-#define cfgnbif_gpu_PCIE_BAR1_CAP_epf__GFX09            0x0081
-#define cfgnbif_gpu_PCIE_BAR1_CNTL_epf__GFX09           0x0082
-#define cfgnbif_gpu_PCIE_BAR2_CAP_epf__GFX09            0x0083
-#define cfgnbif_gpu_PCIE_BAR2_CNTL_epf__GFX09           0x0084
-#define cfgnbif_gpu_PCIE_BAR3_CAP_epf__GFX09            0x0085
-#define cfgnbif_gpu_PCIE_BAR3_CNTL_epf__GFX09           0x0086
-#define cfgnbif_gpu_PCIE_BAR4_CAP_epf__GFX09            0x0087
-#define cfgnbif_gpu_PCIE_BAR4_CNTL_epf__GFX09           0x0088
-#define cfgnbif_gpu_PCIE_BAR5_CAP_epf__GFX09            0x0089
-#define cfgnbif_gpu_PCIE_BAR5_CNTL_epf__GFX09           0x008A
-#define cfgnbif_gpu_PCIE_BAR6_CAP_epf__GFX09            0x008B
-#define cfgnbif_gpu_PCIE_BAR6_CNTL_epf__GFX09           0x008C
-#define cfgnbif_gpu_PCIE_BAR_ENH_CAP_LIST_epf__GFX09    0x0080
-#define cfgnbif_gpu_PCIE_CAP_LIST_epf__GFX09            0x0019
-#define cfgnbif_gpu_PCIE_CAP_LIST_epvf                  0x0019
-#define cfgnbif_gpu_PCIE_CAP_LIST_swds__GFX09           0x0016
-#define cfgnbif_gpu_PCIE_CAP_epf__GFX09                 0x0019
-#define cfgnbif_gpu_PCIE_CAP_epvf                       0x0019
-#define cfgnbif_gpu_PCIE_CAP_swds__GFX09                0x0016
-#define cfgnbif_gpu_PCIE_CORR_ERR_MASK_epf__GFX09       0x0059
-#define cfgnbif_gpu_PCIE_CORR_ERR_MASK_epvf             0x0059
-#define cfgnbif_gpu_PCIE_CORR_ERR_MASK_swds__GFX09      0x0059
-#define cfgnbif_gpu_PCIE_CORR_ERR_STATUS_epf__GFX09     0x0058
-#define cfgnbif_gpu_PCIE_CORR_ERR_STATUS_epvf           0x0058
-#define cfgnbif_gpu_PCIE_CORR_ERR_STATUS_swds__GFX09    0x0058
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_epf__GFX09  0x0051
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_swds__GFX09 0x0051
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_epf__GFX09  0x0052
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_swds__GFX09 0x0052
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_epf__GFX09 0x0050
-#define cfgnbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_swds__GFX09 0x0050
-#define cfgnbif_gpu_PCIE_DPA_CAP_epf__GFX09             0x0095
-#define cfgnbif_gpu_PCIE_DPA_CNTL_epf__GFX09            0x0097
-#define cfgnbif_gpu_PCIE_DPA_ENH_CAP_LIST_epf__GFX09    0x0094
-#define cfgnbif_gpu_PCIE_DPA_LATENCY_INDICATOR_epf__GFX09 0x0096
-#define cfgnbif_gpu_PCIE_DPA_STATUS_epf__GFX09          0x0097
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_0_epf__GFX09 0x0098
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_1_epf__GFX09 0x0098
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_2_epf__GFX09 0x0098
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_3_epf__GFX09 0x0098
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_4_epf__GFX09 0x0099
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_5_epf__GFX09 0x0099
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_6_epf__GFX09 0x0099
-#define cfgnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_7_epf__GFX09 0x0099
-#define cfgnbif_gpu_PCIE_HDR_LOG0_epf__GFX09            0x005B
-#define cfgnbif_gpu_PCIE_HDR_LOG0_epvf                  0x005B
-#define cfgnbif_gpu_PCIE_HDR_LOG0_swds__GFX09           0x005B
-#define cfgnbif_gpu_PCIE_HDR_LOG1_epf__GFX09            0x005C
-#define cfgnbif_gpu_PCIE_HDR_LOG1_epvf                  0x005C
-#define cfgnbif_gpu_PCIE_HDR_LOG1_swds__GFX09           0x005C
-#define cfgnbif_gpu_PCIE_HDR_LOG2_epf__GFX09            0x005D
-#define cfgnbif_gpu_PCIE_HDR_LOG2_epvf                  0x005D
-#define cfgnbif_gpu_PCIE_HDR_LOG2_swds__GFX09           0x005D
-#define cfgnbif_gpu_PCIE_HDR_LOG3_epf__GFX09            0x005E
-#define cfgnbif_gpu_PCIE_HDR_LOG3_epvf                  0x005E
-#define cfgnbif_gpu_PCIE_HDR_LOG3_swds__GFX09           0x005E
-#define cfgnbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_epf__GFX09 0x009F
-#define cfgnbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_swds__GFX09 0x009F
-#define cfgnbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_epf__GFX09 0x00A4
-#define cfgnbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_swds__GFX09 0x00A4
-#define cfgnbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_epf__GFX09 0x00A4
-#define cfgnbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_swds__GFX09 0x00A4
-#define cfgnbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_epf__GFX09 0x00A5
-#define cfgnbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_swds__GFX09 0x00A5
-#define cfgnbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_epf__GFX09 0x00A5
-#define cfgnbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_swds__GFX09 0x00A5
-#define cfgnbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_epf__GFX09 0x00A6
-#define cfgnbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_swds__GFX09 0x00A6
-#define cfgnbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_epf__GFX09 0x00A6
-#define cfgnbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_swds__GFX09 0x00A6
-#define cfgnbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_epf__GFX09 0x009F
-#define cfgnbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_swds__GFX09 0x009F
-#define cfgnbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_epf__GFX09 0x00A0
-#define cfgnbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_swds__GFX09 0x00A0
-#define cfgnbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_epf__GFX09 0x00A0
-#define cfgnbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_swds__GFX09 0x00A0
-#define cfgnbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_epf__GFX09 0x00A1
-#define cfgnbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_swds__GFX09 0x00A1
-#define cfgnbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_epf__GFX09 0x00A1
-#define cfgnbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_swds__GFX09 0x00A1
-#define cfgnbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_epf__GFX09 0x00A2
-#define cfgnbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_swds__GFX09 0x00A2
-#define cfgnbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_epf__GFX09 0x00A2
-#define cfgnbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_swds__GFX09 0x00A2
-#define cfgnbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_epf__GFX09 0x00A3
-#define cfgnbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_swds__GFX09 0x00A3
-#define cfgnbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_epf__GFX09 0x00A3
-#define cfgnbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_swds__GFX09 0x00A3
-#define cfgnbif_gpu_PCIE_LANE_ERROR_STATUS_epf__GFX09   0x009E
-#define cfgnbif_gpu_PCIE_LANE_ERROR_STATUS_swds__GFX09  0x009E
-#define cfgnbif_gpu_PCIE_LINK_CNTL3_epf__GFX09          0x009D
-#define cfgnbif_gpu_PCIE_LINK_CNTL3_swds__GFX09         0x009D
-#define cfgnbif_gpu_PCIE_LTR_CAP_epf__GFX09             0x00C9
-#define cfgnbif_gpu_PCIE_LTR_ENH_CAP_LIST_epf__GFX09    0x00C8
-#define cfgnbif_gpu_PCIE_MC_ADDR0_epf__GFX09            0x00BE
-#define cfgnbif_gpu_PCIE_MC_ADDR1_epf__GFX09            0x00BF
-#define cfgnbif_gpu_PCIE_MC_BLOCK_ALL0_epf__GFX09       0x00C2
-#define cfgnbif_gpu_PCIE_MC_BLOCK_ALL1_epf__GFX09       0x00C3
-#define cfgnbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_0_epf__GFX09 0x00C4
-#define cfgnbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_1_epf__GFX09 0x00C5
-#define cfgnbif_gpu_PCIE_MC_CAP_epf__GFX09              0x00BD
-#define cfgnbif_gpu_PCIE_MC_CNTL_epf__GFX09             0x00BD
-#define cfgnbif_gpu_PCIE_MC_ENH_CAP_LIST_epf__GFX09     0x00BC
-#define cfgnbif_gpu_PCIE_MC_RCV0_epf__GFX09             0x00C0
-#define cfgnbif_gpu_PCIE_MC_RCV1_epf__GFX09             0x00C1
-#define cfgnbif_gpu_PCIE_OUTSTAND_PAGE_REQ_ALLOC_epf__GFX09 0x00B3
-#define cfgnbif_gpu_PCIE_OUTSTAND_PAGE_REQ_CAPACITY_epf__GFX09 0x00B2
-#define cfgnbif_gpu_PCIE_PAGE_REQ_CNTL_epf__GFX09       0x00B1
-#define cfgnbif_gpu_PCIE_PAGE_REQ_ENH_CAP_LIST_epf__GFX09 0x00B0
-#define cfgnbif_gpu_PCIE_PAGE_REQ_STATUS_epf__GFX09     0x00B1
-#define cfgnbif_gpu_PCIE_PASID_CAP_epf__GFX09           0x00B5
-#define cfgnbif_gpu_PCIE_PASID_CNTL_epf__GFX09          0x00B5
-#define cfgnbif_gpu_PCIE_PASID_ENH_CAP_LIST_epf__GFX09  0x00B4
-#define cfgnbif_gpu_PCIE_PORT_VC_CAP_REG1_epf__GFX09    0x0045
-#define cfgnbif_gpu_PCIE_PORT_VC_CAP_REG1_swds__GFX09   0x0045
-#define cfgnbif_gpu_PCIE_PORT_VC_CAP_REG2_epf__GFX09    0x0046
-#define cfgnbif_gpu_PCIE_PORT_VC_CAP_REG2_swds__GFX09   0x0046
-#define cfgnbif_gpu_PCIE_PORT_VC_CNTL_epf__GFX09        0x0047
-#define cfgnbif_gpu_PCIE_PORT_VC_CNTL_swds__GFX09       0x0047
-#define cfgnbif_gpu_PCIE_PORT_VC_STATUS_epf__GFX09      0x0047
-#define cfgnbif_gpu_PCIE_PORT_VC_STATUS_swds__GFX09     0x0047
-#define cfgnbif_gpu_PCIE_PWR_BUDGET_CAP_epf__GFX09      0x0093
-#define cfgnbif_gpu_PCIE_PWR_BUDGET_DATA_SELECT_epf__GFX09 0x0091
-#define cfgnbif_gpu_PCIE_PWR_BUDGET_DATA_epf__GFX09     0x0092
-#define cfgnbif_gpu_PCIE_PWR_BUDGET_ENH_CAP_LIST_epf__GFX09 0x0090
-#define cfgnbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_epf__GFX09 0x009C
-#define cfgnbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_swds__GFX09 0x009C
-#define cfgnbif_gpu_PCIE_SRIOV_CAP_epf__GFX09           0x00CD
-#define cfgnbif_gpu_PCIE_SRIOV_CONTROL_epf__GFX09       0x00CE
-#define cfgnbif_gpu_PCIE_SRIOV_ENH_CAP_LIST_epf__GFX09  0x00CC
-#define cfgnbif_gpu_PCIE_SRIOV_FIRST_VF_OFFSET_epf__GFX09 0x00D1
-#define cfgnbif_gpu_PCIE_SRIOV_FUNC_DEP_LINK_epf__GFX09 0x00D0
-#define cfgnbif_gpu_PCIE_SRIOV_INITIAL_VFS_epf__GFX09   0x00CF
-#define cfgnbif_gpu_PCIE_SRIOV_NUM_VFS_epf__GFX09       0x00D0
-#define cfgnbif_gpu_PCIE_SRIOV_STATUS_epf__GFX09        0x00CE
-#define cfgnbif_gpu_PCIE_SRIOV_SUPPORTED_PAGE_SIZE_epf__GFX09 0x00D3
-#define cfgnbif_gpu_PCIE_SRIOV_SYSTEM_PAGE_SIZE_epf__GFX09 0x00D4
-#define cfgnbif_gpu_PCIE_SRIOV_TOTAL_VFS_epf__GFX09     0x00CF
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_0_epf__GFX09 0x00D5
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_1_epf__GFX09 0x00D6
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_2_epf__GFX09 0x00D7
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_3_epf__GFX09 0x00D8
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_4_epf__GFX09 0x00D9
-#define cfgnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_5_epf__GFX09 0x00DA
-#define cfgnbif_gpu_PCIE_SRIOV_VF_DEVICE_ID_epf__GFX09  0x00D2
-#define cfgnbif_gpu_PCIE_SRIOV_VF_MIGRATION_STATE_ARRAY_OFFSET_epf__GFX09 0x00DB
-#define cfgnbif_gpu_PCIE_SRIOV_VF_STRIDE_epf__GFX09     0x00D1
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG0_epf__GFX09     0x0062
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG0_epvf           0x0062
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG0_swds__GFX09    0x0062
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG1_epf__GFX09     0x0063
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG1_epvf           0x0063
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG1_swds__GFX09    0x0063
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG2_epf__GFX09     0x0064
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG2_epvf           0x0064
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG2_swds__GFX09    0x0064
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG3_epf__GFX09     0x0065
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG3_epvf           0x0065
-#define cfgnbif_gpu_PCIE_TLP_PREFIX_LOG3_swds__GFX09    0x0065
-#define cfgnbif_gpu_PCIE_TPH_REQR_CAP_epf__GFX09        0x00B9
-#define cfgnbif_gpu_PCIE_TPH_REQR_CNTL_epf__GFX09       0x00BA
-#define cfgnbif_gpu_PCIE_TPH_REQR_ENH_CAP_LIST_epf__GFX09 0x00B8
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_MASK_epf__GFX09     0x0056
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_MASK_epvf           0x0056
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_MASK_swds__GFX09    0x0056
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epf__GFX09 0x0057
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epvf       0x0057
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_swds__GFX09 0x0057
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_STATUS_epf__GFX09   0x0055
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_STATUS_epvf         0x0055
-#define cfgnbif_gpu_PCIE_UNCORR_ERR_STATUS_swds__GFX09  0x0055
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_CAP_epf__GFX09    0x0048
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_CAP_swds__GFX09   0x0048
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_CNTL_epf__GFX09   0x0049
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_CNTL_swds__GFX09  0x0049
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_STATUS_epf__GFX09 0x004A
-#define cfgnbif_gpu_PCIE_VC0_RESOURCE_STATUS_swds__GFX09 0x004A
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_CAP_epf__GFX09    0x004B
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_CAP_swds__GFX09   0x004B
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_CNTL_epf__GFX09   0x004C
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_CNTL_swds__GFX09  0x004C
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_STATUS_epf__GFX09 0x004D
-#define cfgnbif_gpu_PCIE_VC1_RESOURCE_STATUS_swds__GFX09 0x004D
-#define cfgnbif_gpu_PCIE_VC_ENH_CAP_LIST_epf__GFX09     0x0044
-#define cfgnbif_gpu_PCIE_VC_ENH_CAP_LIST_swds__GFX09    0x0044
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC1_epf__GFX09    0x0042
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC1_epvf          0x0042
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC1_swds__GFX09   0x0042
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC2_epf__GFX09    0x0043
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC2_epvf          0x0043
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC2_swds__GFX09   0x0043
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV_epf__GFX09 0x0100
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epf__GFX09 0x0040
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epvf 0x0040
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_swds__GFX09 0x0040
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CONTEXT_epf__GFX09 0x0109
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW0_epf__GFX09 0x0134
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW1_epf__GFX09 0x0135
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW2_epf__GFX09 0x0136
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW3_epf__GFX09 0x0137
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW4_epf__GFX09 0x0138
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW5_epf__GFX09 0x0139
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW6_epf__GFX09 0x013A
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW7_epf__GFX09 0x013B
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW8_epf__GFX09 0x013C
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW0_epf__GFX09 0x0106
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW1_epf__GFX09 0x0107
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW2_epf__GFX09 0x0108
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_ENABLE_epf__GFX09 0x0103
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_STATUS_epf__GFX09 0x0104
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_OFFSETS_epf__GFX09 0x010B
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_CONTROL_epf__GFX09 0x0105
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_SRIOV_SHADOW_epf__GFX09 0x0102
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_TOTAL_FB_epf__GFX09 0x010A
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW0_epf__GFX09 0x011C
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW1_epf__GFX09 0x011D
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW2_epf__GFX09 0x011E
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW3_epf__GFX09 0x011F
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW4_epf__GFX09 0x0120
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW5_epf__GFX09 0x0121
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW6_epf__GFX09 0x0122
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW7_epf__GFX09 0x0123
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW8_epf__GFX09 0x0124
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW0_epf__GFX09 0x0128
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW1_epf__GFX09 0x0129
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW2_epf__GFX09 0x012A
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW3_epf__GFX09 0x012B
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW4_epf__GFX09 0x012C
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW5_epf__GFX09 0x012D
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW6_epf__GFX09 0x012E
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW7_epf__GFX09 0x012F
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW8_epf__GFX09 0x0130
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF0_FB_epf__GFX09 0x010C
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF10_FB_epf__GFX09 0x0116
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF11_FB_epf__GFX09 0x0117
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF12_FB_epf__GFX09 0x0118
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF13_FB_epf__GFX09 0x0119
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF14_FB_epf__GFX09 0x011A
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF15_FB_epf__GFX09 0x011B
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF1_FB_epf__GFX09 0x010D
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF2_FB_epf__GFX09 0x010E
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF3_FB_epf__GFX09 0x010F
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF4_FB_epf__GFX09 0x0110
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF5_FB_epf__GFX09 0x0111
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF6_FB_epf__GFX09 0x0112
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF7_FB_epf__GFX09 0x0113
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF8_FB_epf__GFX09 0x0114
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF9_FB_epf__GFX09 0x0115
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_epf__GFX09 0x0101
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epf__GFX09 0x0041
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epvf       0x0041
-#define cfgnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_swds__GFX09 0x0041
-#define cfgnbif_gpu_PMI_CAP_LIST_epf__GFX09             0x0014
-#define cfgnbif_gpu_PMI_CAP_LIST_swds__GFX09            0x0014
-#define cfgnbif_gpu_PMI_CAP_epf__GFX09                  0x0014
-#define cfgnbif_gpu_PMI_CAP_swds__GFX09                 0x0014
-#define cfgnbif_gpu_PMI_STATUS_CNTL_epf__GFX09          0x0015
-#define cfgnbif_gpu_PMI_STATUS_CNTL_swds__GFX09         0x0015
-#define cfgnbif_gpu_PREF_BASE_LIMIT_swds__GFX09         0x0009
-#define cfgnbif_gpu_PREF_BASE_UPPER_swds__GFX09         0x000A
-#define cfgnbif_gpu_PREF_LIMIT_UPPER_swds__GFX09        0x000B
-#define cfgnbif_gpu_PROG_INTERFACE_epf__GFX09           0x0002
-#define cfgnbif_gpu_PROG_INTERFACE_epvf                 0x0002
-#define cfgnbif_gpu_PROG_INTERFACE_swds__GFX09          0x0002
-#define cfgnbif_gpu_REVISION_ID_epf__GFX09              0x0002
-#define cfgnbif_gpu_REVISION_ID_epvf                    0x0002
-#define cfgnbif_gpu_REVISION_ID_swds__GFX09             0x0002
-#define cfgnbif_gpu_ROM_BASE_ADDR_epf__GFX09            0x000C
-#define cfgnbif_gpu_ROM_BASE_ADDR_epvf                  0x000C
-#define cfgnbif_gpu_SECONDARY_STATUS_swds__GFX09        0x0007
-#define cfgnbif_gpu_SHADOW_BASE_ADDR_1                  0x0004
-#define cfgnbif_gpu_SHADOW_BASE_ADDR_2                  0x0005
-#define cfgnbif_gpu_SHADOW_COMMAND                      0x0001
-#define cfgnbif_gpu_SHADOW_IO_BASE_LIMIT                0x0007
-#define cfgnbif_gpu_SHADOW_IO_BASE_LIMIT_HI             0x000C
-#define cfgnbif_gpu_SHADOW_IRQ_BRIDGE_CNTL              0x000F
-#define cfgnbif_gpu_SHADOW_MEM_BASE_LIMIT               0x0008
-#define cfgnbif_gpu_SHADOW_PREF_BASE_LIMIT              0x0009
-#define cfgnbif_gpu_SHADOW_PREF_BASE_UPPER              0x000A
-#define cfgnbif_gpu_SHADOW_PREF_LIMIT_UPPER             0x000B
-#define cfgnbif_gpu_SHADOW_SUB_BUS_NUMBER_LATENCY       0x0006
-#define cfgnbif_gpu_SLOT_CAP2_epf__GFX09                0x0026
-#define cfgnbif_gpu_SLOT_CAP2_epvf                      0x0026
-#define cfgnbif_gpu_SLOT_CAP2_swds__GFX09               0x0023
-#define cfgnbif_gpu_SLOT_CAP_swds__GFX09                0x001B
-#define cfgnbif_gpu_SLOT_CNTL2_epf__GFX09               0x0027
-#define cfgnbif_gpu_SLOT_CNTL2_epvf                     0x0027
-#define cfgnbif_gpu_SLOT_CNTL2_swds__GFX09              0x0024
-#define cfgnbif_gpu_SLOT_CNTL_swds__GFX09               0x001C
-#define cfgnbif_gpu_SLOT_STATUS2_epf__GFX09             0x0027
-#define cfgnbif_gpu_SLOT_STATUS2_epvf                   0x0027
-#define cfgnbif_gpu_SLOT_STATUS2_swds__GFX09            0x0024
-#define cfgnbif_gpu_SLOT_STATUS_swds__GFX09             0x001C
-#define cfgnbif_gpu_SSID_CAP_LIST_swds__GFX09           0x0030
-#define cfgnbif_gpu_SSID_CAP_swds__GFX09                0x0031
-#define cfgnbif_gpu_STATUS_epf__GFX09                   0x0001
-#define cfgnbif_gpu_STATUS_epvf                         0x0001
-#define cfgnbif_gpu_STATUS_swds__GFX09                  0x0001
-#define cfgnbif_gpu_SUB_BUS_NUMBER_LATENCY_swds__GFX09  0x0006
-#define cfgnbif_gpu_SUB_CLASS_epf__GFX09                0x0002
-#define cfgnbif_gpu_SUB_CLASS_epvf                      0x0002
-#define cfgnbif_gpu_SUB_CLASS_swds__GFX09               0x0002
-#define cfgnbif_gpu_VENDOR_CAP_LIST_epf__GFX09          0x0012
-#define cfgnbif_gpu_VENDOR_ID_epf__GFX09                0x0000
-#define cfgnbif_gpu_VENDOR_ID_epvf                      0x0000
-#define cfgnbif_gpu_VENDOR_ID_swds__GFX09               0x0000
-#define ionbif_gpu_MM_DATA                              0x0001
-#define ionbif_gpu_MM_INDEX                             0x0000
-#define ionbif_gpu_MM_INDEX_HI                          0x0006
-#define mmATC_L2_CACHE_DATA0__GFX09                     0x2804
-#define mmATC_L2_CACHE_DATA1__GFX09                     0x2805
-#define mmATC_L2_CACHE_DATA2__GFX09                     0x2806
-#define mmATC_L2_CGTT_CLK_CTRL__GFX09                   0x280C
-#define mmATC_L2_CNTL__GFX09                            0x2800
-#define mmATC_L2_CNTL2__GFX09                           0x2801
-#define mmATC_L2_CNTL3__GFX09                           0x2807
-#define mmATC_L2_MEM_POWER_LS__GFX09                    0x280B
-#define mmATC_L2_MISC_CG__GFX09                         0x280A
-#define mmATC_L2_PERFCOUNTER0_CFG__GFX09                0xDD40
-#define mmATC_L2_PERFCOUNTER1_CFG__GFX09                0xDD41
-#define mmATC_L2_PERFCOUNTER_HI__GFX09                  0xD501
-#define mmATC_L2_PERFCOUNTER_LO__GFX09                  0xD500
-#define mmATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09           0xDD42
-#define mmATC_L2_STATUS__GFX09                          0x2808
-#define mmATC_L2_STATUS2__GFX09                         0x2809
-#define mmBCI_DEBUG_READ                                0x24EB
-#define mmCB_BLEND0_CONTROL                             0xA1E0
-#define mmCB_BLEND1_CONTROL                             0xA1E1
-#define mmCB_BLEND2_CONTROL                             0xA1E2
-#define mmCB_BLEND3_CONTROL                             0xA1E3
-#define mmCB_BLEND4_CONTROL                             0xA1E4
-#define mmCB_BLEND5_CONTROL                             0xA1E5
-#define mmCB_BLEND6_CONTROL                             0xA1E6
-#define mmCB_BLEND7_CONTROL                             0xA1E7
-#define mmCB_BLEND_ALPHA                                0xA108
-#define mmCB_BLEND_BLUE                                 0xA107
-#define mmCB_BLEND_GREEN                                0xA106
-#define mmCB_BLEND_RED                                  0xA105
-#define mmCB_CGTT_SCLK_CTRL                             0xF0A8
-#define mmCB_COLOR0_ATTRIB                              0xA31D
-#define mmCB_COLOR0_BASE                                0xA318
-#define mmCB_COLOR0_CLEAR_WORD0                         0xA323
-#define mmCB_COLOR0_CLEAR_WORD1                         0xA324
-#define mmCB_COLOR0_CMASK                               0xA31F
-#define mmCB_COLOR0_DCC_BASE                            0xA325
-#define mmCB_COLOR0_DCC_CONTROL                         0xA31E
-#define mmCB_COLOR0_FMASK                               0xA321
-#define mmCB_COLOR0_INFO                                0xA31C
-#define mmCB_COLOR0_VIEW                                0xA31B
-#define mmCB_COLOR1_ATTRIB                              0xA32C
-#define mmCB_COLOR1_BASE                                0xA327
-#define mmCB_COLOR1_CLEAR_WORD0                         0xA332
-#define mmCB_COLOR1_CLEAR_WORD1                         0xA333
-#define mmCB_COLOR1_CMASK                               0xA32E
-#define mmCB_COLOR1_DCC_BASE                            0xA334
-#define mmCB_COLOR1_DCC_CONTROL                         0xA32D
-#define mmCB_COLOR1_FMASK                               0xA330
-#define mmCB_COLOR1_INFO                                0xA32B
-#define mmCB_COLOR1_VIEW                                0xA32A
-#define mmCB_COLOR2_ATTRIB                              0xA33B
-#define mmCB_COLOR2_BASE                                0xA336
-#define mmCB_COLOR2_CLEAR_WORD0                         0xA341
-#define mmCB_COLOR2_CLEAR_WORD1                         0xA342
-#define mmCB_COLOR2_CMASK                               0xA33D
-#define mmCB_COLOR2_DCC_BASE                            0xA343
-#define mmCB_COLOR2_DCC_CONTROL                         0xA33C
-#define mmCB_COLOR2_FMASK                               0xA33F
-#define mmCB_COLOR2_INFO                                0xA33A
-#define mmCB_COLOR2_VIEW                                0xA339
-#define mmCB_COLOR3_ATTRIB                              0xA34A
-#define mmCB_COLOR3_BASE                                0xA345
-#define mmCB_COLOR3_CLEAR_WORD0                         0xA350
-#define mmCB_COLOR3_CLEAR_WORD1                         0xA351
-#define mmCB_COLOR3_CMASK                               0xA34C
-#define mmCB_COLOR3_DCC_BASE                            0xA352
-#define mmCB_COLOR3_DCC_CONTROL                         0xA34B
-#define mmCB_COLOR3_FMASK                               0xA34E
-#define mmCB_COLOR3_INFO                                0xA349
-#define mmCB_COLOR3_VIEW                                0xA348
-#define mmCB_COLOR4_ATTRIB                              0xA359
-#define mmCB_COLOR4_BASE                                0xA354
-#define mmCB_COLOR4_CLEAR_WORD0                         0xA35F
-#define mmCB_COLOR4_CLEAR_WORD1                         0xA360
-#define mmCB_COLOR4_CMASK                               0xA35B
-#define mmCB_COLOR4_DCC_BASE                            0xA361
-#define mmCB_COLOR4_DCC_CONTROL                         0xA35A
-#define mmCB_COLOR4_FMASK                               0xA35D
-#define mmCB_COLOR4_INFO                                0xA358
-#define mmCB_COLOR4_VIEW                                0xA357
-#define mmCB_COLOR5_ATTRIB                              0xA368
-#define mmCB_COLOR5_BASE                                0xA363
-#define mmCB_COLOR5_CLEAR_WORD0                         0xA36E
-#define mmCB_COLOR5_CLEAR_WORD1                         0xA36F
-#define mmCB_COLOR5_CMASK                               0xA36A
-#define mmCB_COLOR5_DCC_BASE                            0xA370
-#define mmCB_COLOR5_DCC_CONTROL                         0xA369
-#define mmCB_COLOR5_FMASK                               0xA36C
-#define mmCB_COLOR5_INFO                                0xA367
-#define mmCB_COLOR5_VIEW                                0xA366
-#define mmCB_COLOR6_ATTRIB                              0xA377
-#define mmCB_COLOR6_BASE                                0xA372
-#define mmCB_COLOR6_CLEAR_WORD0                         0xA37D
-#define mmCB_COLOR6_CLEAR_WORD1                         0xA37E
-#define mmCB_COLOR6_CMASK                               0xA379
-#define mmCB_COLOR6_DCC_BASE                            0xA37F
-#define mmCB_COLOR6_DCC_CONTROL                         0xA378
-#define mmCB_COLOR6_FMASK                               0xA37B
-#define mmCB_COLOR6_INFO                                0xA376
-#define mmCB_COLOR6_VIEW                                0xA375
-#define mmCB_COLOR7_ATTRIB                              0xA386
-#define mmCB_COLOR7_BASE                                0xA381
-#define mmCB_COLOR7_CLEAR_WORD0                         0xA38C
-#define mmCB_COLOR7_CLEAR_WORD1                         0xA38D
-#define mmCB_COLOR7_CMASK                               0xA388
-#define mmCB_COLOR7_DCC_BASE                            0xA38E
-#define mmCB_COLOR7_DCC_CONTROL                         0xA387
-#define mmCB_COLOR7_FMASK                               0xA38A
-#define mmCB_COLOR7_INFO                                0xA385
-#define mmCB_COLOR7_VIEW                                0xA384
-#define mmCB_COLOR_CONTROL                              0xA202
-#define mmCB_DCC_CONTROL                                0xA109
-#define mmCB_HW_CONTROL_3                               0x2683
-#define mmCB_MRT0_EPITCH__GFX09                         0xA1E8
-#define mmCB_MRT1_EPITCH__GFX09                         0xA1E9
-#define mmCB_MRT2_EPITCH__GFX09                         0xA1EA
-#define mmCB_MRT3_EPITCH__GFX09                         0xA1EB
-#define mmCB_MRT4_EPITCH__GFX09                         0xA1EC
-#define mmCB_MRT5_EPITCH__GFX09                         0xA1ED
-#define mmCB_MRT6_EPITCH__GFX09                         0xA1EE
-#define mmCB_MRT7_EPITCH__GFX09                         0xA1EF
-#define mmCB_PERFCOUNTER0_HI                            0xD407
-#define mmCB_PERFCOUNTER0_LO                            0xD406
-#define mmCB_PERFCOUNTER0_SELECT                        0xDC01
-#define mmCB_PERFCOUNTER0_SELECT1                       0xDC02
-#define mmCB_PERFCOUNTER1_HI                            0xD409
-#define mmCB_PERFCOUNTER1_LO                            0xD408
-#define mmCB_PERFCOUNTER1_SELECT                        0xDC03
-#define mmCB_PERFCOUNTER2_HI                            0xD40B
-#define mmCB_PERFCOUNTER2_LO                            0xD40A
-#define mmCB_PERFCOUNTER2_SELECT                        0xDC04
-#define mmCB_PERFCOUNTER3_HI                            0xD40D
-#define mmCB_PERFCOUNTER3_LO                            0xD40C
-#define mmCB_PERFCOUNTER3_SELECT                        0xDC05
-#define mmCB_PERFCOUNTER_FILTER                         0xDC00
-#define mmCB_SHADER_MASK                                0xA08F
-#define mmCB_TARGET_MASK                                0xA08E
-#define mmCC_GC_EDC_CONFIG                              0x3098
-#define mmCC_GC_PRIM_CONFIG                             0x2240
-#define mmCC_GC_SHADER_ARRAY_CONFIG                     0x226F
-#define mmCC_GC_SHADER_RATE_CONFIG                      0x2312
-#define mmCC_RB_BACKEND_DISABLE                         0x263D
-#define mmCC_RB_DAISY_CHAIN                             0x2641
-#define mmCC_RB_REDUNDANCY                              0x263C
-#define mmCGTS_CU0_LDS_SQ_CTRL_REG__GFX09               0xF009
-#define mmCGTS_CU0_SP0_CTRL_REG__GFX09                  0xF008
-#define mmCGTS_CU0_SP1_CTRL_REG__GFX09                  0xF00B
-#define mmCGTS_CU0_TA_SQC_CTRL_REG__GFX09               0xF00A
-#define mmCGTS_CU0_TCPI_CTRL_REG__GFX09                 0xF058
-#define mmCGTS_CU0_TD_TCP_CTRL_REG__GFX09               0xF00C
-#define mmCGTS_CU10_LDS_SQ_CTRL_REG__GFX09              0xF03B
-#define mmCGTS_CU10_SP0_CTRL_REG__GFX09                 0xF03A
-#define mmCGTS_CU10_SP1_CTRL_REG__GFX09                 0xF03D
-#define mmCGTS_CU10_TA_SQC_CTRL_REG__GFX09              0xF03C
-#define mmCGTS_CU10_TCPI_CTRL_REG__GFX09                0xF062
-#define mmCGTS_CU10_TD_TCP_CTRL_REG__GFX09              0xF03E
-#define mmCGTS_CU11_LDS_SQ_CTRL_REG__GFX09              0xF040
-#define mmCGTS_CU11_SP0_CTRL_REG__GFX09                 0xF03F
-#define mmCGTS_CU11_SP1_CTRL_REG__GFX09                 0xF042
-#define mmCGTS_CU11_TA_SQC_CTRL_REG__GFX09              0xF041
-#define mmCGTS_CU11_TCPI_CTRL_REG__GFX09                0xF063
-#define mmCGTS_CU11_TD_TCP_CTRL_REG__GFX09              0xF043
-#define mmCGTS_CU12_LDS_SQ_CTRL_REG__GFX09              0xF045
-#define mmCGTS_CU12_SP0_CTRL_REG__GFX09                 0xF044
-#define mmCGTS_CU12_SP1_CTRL_REG__GFX09                 0xF047
-#define mmCGTS_CU12_TA_SQC_CTRL_REG__GFX09              0xF046
-#define mmCGTS_CU12_TCPI_CTRL_REG__GFX09                0xF064
-#define mmCGTS_CU12_TD_TCP_CTRL_REG__GFX09              0xF048
-#define mmCGTS_CU13_LDS_SQ_CTRL_REG__GFX09              0xF04A
-#define mmCGTS_CU13_SP0_CTRL_REG__GFX09                 0xF049
-#define mmCGTS_CU13_SP1_CTRL_REG__GFX09                 0xF04C
-#define mmCGTS_CU13_TA_SQC_CTRL_REG__GFX09              0xF04B
-#define mmCGTS_CU13_TCPI_CTRL_REG__GFX09                0xF065
-#define mmCGTS_CU13_TD_TCP_CTRL_REG__GFX09              0xF04D
-#define mmCGTS_CU14_LDS_SQ_CTRL_REG__GFX09              0xF04F
-#define mmCGTS_CU14_SP0_CTRL_REG__GFX09                 0xF04E
-#define mmCGTS_CU14_SP1_CTRL_REG__GFX09                 0xF051
-#define mmCGTS_CU14_TA_SQC_CTRL_REG__GFX09              0xF050
-#define mmCGTS_CU14_TCPI_CTRL_REG__GFX09                0xF066
-#define mmCGTS_CU14_TD_TCP_CTRL_REG__GFX09              0xF052
-#define mmCGTS_CU15_LDS_SQ_CTRL_REG__GFX09              0xF054
-#define mmCGTS_CU15_SP0_CTRL_REG__GFX09                 0xF053
-#define mmCGTS_CU15_SP1_CTRL_REG__GFX09                 0xF056
-#define mmCGTS_CU15_TA_SQC_CTRL_REG__GFX09              0xF055
-#define mmCGTS_CU15_TCPI_CTRL_REG__GFX09                0xF067
-#define mmCGTS_CU15_TD_TCP_CTRL_REG__GFX09              0xF057
-#define mmCGTS_CU1_LDS_SQ_CTRL_REG__GFX09               0xF00E
-#define mmCGTS_CU1_SP0_CTRL_REG__GFX09                  0xF00D
-#define mmCGTS_CU1_SP1_CTRL_REG__GFX09                  0xF010
-#define mmCGTS_CU1_TA_SQC_CTRL_REG__GFX09               0xF00F
-#define mmCGTS_CU1_TCPI_CTRL_REG__GFX09                 0xF059
-#define mmCGTS_CU1_TD_TCP_CTRL_REG__GFX09               0xF011
-#define mmCGTS_CU2_LDS_SQ_CTRL_REG__GFX09               0xF013
-#define mmCGTS_CU2_SP0_CTRL_REG__GFX09                  0xF012
-#define mmCGTS_CU2_SP1_CTRL_REG__GFX09                  0xF015
-#define mmCGTS_CU2_TA_SQC_CTRL_REG__GFX09               0xF014
-#define mmCGTS_CU2_TCPI_CTRL_REG__GFX09                 0xF05A
-#define mmCGTS_CU2_TD_TCP_CTRL_REG__GFX09               0xF016
-#define mmCGTS_CU3_LDS_SQ_CTRL_REG__GFX09               0xF018
-#define mmCGTS_CU3_SP0_CTRL_REG__GFX09                  0xF017
-#define mmCGTS_CU3_SP1_CTRL_REG__GFX09                  0xF01A
-#define mmCGTS_CU3_TA_SQC_CTRL_REG__GFX09               0xF019
-#define mmCGTS_CU3_TCPI_CTRL_REG__GFX09                 0xF05B
-#define mmCGTS_CU3_TD_TCP_CTRL_REG__GFX09               0xF01B
-#define mmCGTS_CU4_LDS_SQ_CTRL_REG__GFX09               0xF01D
-#define mmCGTS_CU4_SP0_CTRL_REG__GFX09                  0xF01C
-#define mmCGTS_CU4_SP1_CTRL_REG__GFX09                  0xF01F
-#define mmCGTS_CU4_TA_SQC_CTRL_REG__GFX09               0xF01E
-#define mmCGTS_CU4_TCPI_CTRL_REG__GFX09                 0xF05C
-#define mmCGTS_CU4_TD_TCP_CTRL_REG__GFX09               0xF020
-#define mmCGTS_CU5_LDS_SQ_CTRL_REG__GFX09               0xF022
-#define mmCGTS_CU5_SP0_CTRL_REG__GFX09                  0xF021
-#define mmCGTS_CU5_SP1_CTRL_REG__GFX09                  0xF024
-#define mmCGTS_CU5_TA_SQC_CTRL_REG__GFX09               0xF023
-#define mmCGTS_CU5_TCPI_CTRL_REG__GFX09                 0xF05D
-#define mmCGTS_CU5_TD_TCP_CTRL_REG__GFX09               0xF025
-#define mmCGTS_CU6_LDS_SQ_CTRL_REG__GFX09               0xF027
-#define mmCGTS_CU6_SP0_CTRL_REG__GFX09                  0xF026
-#define mmCGTS_CU6_SP1_CTRL_REG__GFX09                  0xF029
-#define mmCGTS_CU6_TA_SQC_CTRL_REG__GFX09               0xF028
-#define mmCGTS_CU6_TCPI_CTRL_REG__GFX09                 0xF05E
-#define mmCGTS_CU6_TD_TCP_CTRL_REG__GFX09               0xF02A
-#define mmCGTS_CU7_LDS_SQ_CTRL_REG__GFX09               0xF02C
-#define mmCGTS_CU7_SP0_CTRL_REG__GFX09                  0xF02B
-#define mmCGTS_CU7_SP1_CTRL_REG__GFX09                  0xF02E
-#define mmCGTS_CU7_TA_SQC_CTRL_REG__GFX09               0xF02D
-#define mmCGTS_CU7_TCPI_CTRL_REG__GFX09                 0xF05F
-#define mmCGTS_CU7_TD_TCP_CTRL_REG__GFX09               0xF02F
-#define mmCGTS_CU8_LDS_SQ_CTRL_REG__GFX09               0xF031
-#define mmCGTS_CU8_SP0_CTRL_REG__GFX09                  0xF030
-#define mmCGTS_CU8_SP1_CTRL_REG__GFX09                  0xF033
-#define mmCGTS_CU8_TA_SQC_CTRL_REG__GFX09               0xF032
-#define mmCGTS_CU8_TCPI_CTRL_REG__GFX09                 0xF060
-#define mmCGTS_CU8_TD_TCP_CTRL_REG__GFX09               0xF034
-#define mmCGTS_CU9_LDS_SQ_CTRL_REG__GFX09               0xF036
-#define mmCGTS_CU9_SP0_CTRL_REG__GFX09                  0xF035
-#define mmCGTS_CU9_SP1_CTRL_REG__GFX09                  0xF038
-#define mmCGTS_CU9_TA_SQC_CTRL_REG__GFX09               0xF037
-#define mmCGTS_CU9_TCPI_CTRL_REG__GFX09                 0xF061
-#define mmCGTS_CU9_TD_TCP_CTRL_REG__GFX09               0xF039
-#define mmCGTS_SM_CTRL_REG__GFX09                       0xF000
-#define mmCGTT_BCI_CLK_CTRL                             0xF082
-#define mmCGTT_CPC_CLK_CTRL                             0xF0B2
-#define mmCGTT_CPF_CLK_CTRL                             0xF0B1
-#define mmCGTT_CP_CLK_CTRL                              0xF0B0
-#define mmCGTT_GDS_CLK_CTRL                             0xF0A0
-#define mmCGTT_IA_CLK_CTRL                              0xF085
-#define mmCGTT_PA_CLK_CTRL                              0xF088
-#define mmCGTT_PC_CLK_CTRL                              0xF081
-#define mmCGTT_RLC_CLK_CTRL                             0xF0B5
-#define mmCGTT_SC_CLK_CTRL0                             0xF089
-#define mmCGTT_SC_CLK_CTRL1                             0xF08A
-#define mmCGTT_SPI_CLK_CTRL                             0xF080
-#define mmCGTT_SQG_CLK_CTRL                             0xF08D
-#define mmCGTT_SQ_CLK_CTRL                              0xF08C
-#define mmCGTT_SX_CLK_CTRL0                             0xF094
-#define mmCGTT_SX_CLK_CTRL1                             0xF095
-#define mmCGTT_SX_CLK_CTRL2                             0xF096
-#define mmCGTT_SX_CLK_CTRL3                             0xF097
-#define mmCGTT_SX_CLK_CTRL4                             0xF098
-#define mmCGTT_TCI_CLK_CTRL                             0xF09F
-#define mmCGTT_TCPF_CLK_CTRL                            0xF0C1
-#define mmCGTT_TCPI_CLK_CTRL                            0xF09E
-#define mmCGTT_VGT_CLK_CTRL                             0xF084
-#define mmCGTT_WD_CLK_CTRL                              0xF086
-#define mmCOHER_DEST_BASE_0                             0xA092
-#define mmCOHER_DEST_BASE_1                             0xA093
-#define mmCOHER_DEST_BASE_2                             0xA07E
-#define mmCOHER_DEST_BASE_3                             0xA07F
-#define mmCOHER_DEST_BASE_HI_0                          0xA07A
-#define mmCOHER_DEST_BASE_HI_1                          0xA07B
-#define mmCOHER_DEST_BASE_HI_2                          0xA07C
-#define mmCOHER_DEST_BASE_HI_3                          0xA07D
-#define mmCOMPUTE_DIM_X                                 0x2E01
-#define mmCOMPUTE_DIM_Y                                 0x2E02
-#define mmCOMPUTE_DIM_Z                                 0x2E03
-#define mmCOMPUTE_DISPATCH_ID                           0x2E20
-#define mmCOMPUTE_DISPATCH_INITIATOR                    0x2E00
-#define mmCOMPUTE_DISPATCH_PKT_ADDR_HI                  0x2E0F
-#define mmCOMPUTE_DISPATCH_PKT_ADDR_LO                  0x2E0E
-#define mmCOMPUTE_DISPATCH_SCRATCH_BASE_HI              0x2E11
-#define mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO              0x2E10
-#define mmCOMPUTE_MISC_RESERVED                         0x2E1F
-#define mmCOMPUTE_NOWHERE                               0x2E7F
-#define mmCOMPUTE_NUM_THREAD_X                          0x2E07
-#define mmCOMPUTE_NUM_THREAD_Y                          0x2E08
-#define mmCOMPUTE_NUM_THREAD_Z                          0x2E09
-#define mmCOMPUTE_PERFCOUNT_ENABLE                      0x2E0B
-#define mmCOMPUTE_PGM_HI                                0x2E0D
-#define mmCOMPUTE_PGM_LO                                0x2E0C
-#define mmCOMPUTE_PGM_RSRC1                             0x2E12
-#define mmCOMPUTE_PGM_RSRC2                             0x2E13
-#define mmCOMPUTE_PIPELINESTAT_ENABLE                   0x2E0A
-#define mmCOMPUTE_RESOURCE_LIMITS                       0x2E15
-#define mmCOMPUTE_RESTART_X                             0x2E1B
-#define mmCOMPUTE_RESTART_Y                             0x2E1C
-#define mmCOMPUTE_RESTART_Z                             0x2E1D
-#define mmCOMPUTE_SHADER_CHKSUM                         0x2E2A
-#define mmCOMPUTE_START_X                               0x2E04
-#define mmCOMPUTE_START_Y                               0x2E05
-#define mmCOMPUTE_START_Z                               0x2E06
-#define mmCOMPUTE_STATIC_THREAD_MGMT_SE0                0x2E16
-#define mmCOMPUTE_STATIC_THREAD_MGMT_SE1                0x2E17
-#define mmCOMPUTE_STATIC_THREAD_MGMT_SE2                0x2E19
-#define mmCOMPUTE_STATIC_THREAD_MGMT_SE3                0x2E1A
-#define mmCOMPUTE_THREADGROUP_ID                        0x2E21
-#define mmCOMPUTE_THREAD_TRACE_ENABLE                   0x2E1E
-#define mmCOMPUTE_TMPRING_SIZE                          0x2E18
-#define mmCOMPUTE_USER_DATA_0                           0x2E40
-#define mmCOMPUTE_USER_DATA_1                           0x2E41
-#define mmCOMPUTE_USER_DATA_10                          0x2E4A
-#define mmCOMPUTE_USER_DATA_11                          0x2E4B
-#define mmCOMPUTE_USER_DATA_12                          0x2E4C
-#define mmCOMPUTE_USER_DATA_13                          0x2E4D
-#define mmCOMPUTE_USER_DATA_14                          0x2E4E
-#define mmCOMPUTE_USER_DATA_15                          0x2E4F
-#define mmCOMPUTE_USER_DATA_2                           0x2E42
-#define mmCOMPUTE_USER_DATA_3                           0x2E43
-#define mmCOMPUTE_USER_DATA_4                           0x2E44
-#define mmCOMPUTE_USER_DATA_5                           0x2E45
-#define mmCOMPUTE_USER_DATA_6                           0x2E46
-#define mmCOMPUTE_USER_DATA_7                           0x2E47
-#define mmCOMPUTE_USER_DATA_8                           0x2E48
-#define mmCOMPUTE_USER_DATA_9                           0x2E49
-#define mmCOMPUTE_VMID                                  0x2E14
-#define mmCPC_INT_ADDR                                  0x3039
-#define mmCPC_INT_CNTL                                  0x30B4
-#define mmCPC_INT_CNTX_ID                               0x30B7
-#define mmCPC_INT_INFO                                  0x3037
-#define mmCPC_INT_PASID                                 0x303A
-#define mmCPC_INT_STATUS                                0x30B5
-#define mmCPC_LATENCY_STATS_DATA                        0xD00E
-#define mmCPC_LATENCY_STATS_SELECT                      0xD80E
-#define mmCPC_PERFCOUNTER0_HI                           0xD007
-#define mmCPC_PERFCOUNTER0_LO                           0xD006
-#define mmCPC_PERFCOUNTER0_SELECT                       0xD809
-#define mmCPC_PERFCOUNTER0_SELECT1                      0xD804
-#define mmCPC_PERFCOUNTER1_HI                           0xD005
-#define mmCPC_PERFCOUNTER1_LO                           0xD004
-#define mmCPC_PERFCOUNTER1_SELECT                       0xD803
-#define mmCPC_UTCL1_CNTL                                0x303D
-#define mmCPC_UTCL1_ERROR                               0x305F
-#define mmCPC_UTCL1_STATUS                              0x31B5
-#define mmCPF_LATENCY_STATS_DATA                        0xD00C
-#define mmCPF_LATENCY_STATS_SELECT                      0xD80C
-#define mmCPF_PERFCOUNTER0_HI                           0xD00B
-#define mmCPF_PERFCOUNTER0_LO                           0xD00A
-#define mmCPF_PERFCOUNTER0_SELECT                       0xD807
-#define mmCPF_PERFCOUNTER0_SELECT1                      0xD806
-#define mmCPF_PERFCOUNTER1_HI                           0xD009
-#define mmCPF_PERFCOUNTER1_LO                           0xD008
-#define mmCPF_PERFCOUNTER1_SELECT                       0xD805
-#define mmCPF_TC_PERF_COUNTER_WINDOW_SELECT             0xD80A
-#define mmCPF_UTCL1_CNTL                                0x303E
-#define mmCPF_UTCL1_STATUS                              0x31B6
-#define mmCPG_LATENCY_STATS_DATA                        0xD00D
-#define mmCPG_LATENCY_STATS_SELECT                      0xD80D
-#define mmCPG_PERFCOUNTER0_HI                           0xD003
-#define mmCPG_PERFCOUNTER0_LO                           0xD002
-#define mmCPG_PERFCOUNTER0_SELECT                       0xD802
-#define mmCPG_PERFCOUNTER0_SELECT1                      0xD801
-#define mmCPG_PERFCOUNTER1_HI                           0xD001
-#define mmCPG_PERFCOUNTER1_LO                           0xD000
-#define mmCPG_PERFCOUNTER1_SELECT                       0xD800
-#define mmCPG_TC_PERF_COUNTER_WINDOW_SELECT             0xD80B
-#define mmCPG_UTCL1_CNTL                                0x303C
-#define mmCPG_UTCL1_ERROR                               0x305E
-#define mmCPG_UTCL1_STATUS                              0x31B4
-#define mmCP_APPEND_ADDR_HI                             0xC059
-#define mmCP_APPEND_ADDR_LO                             0xC058
-#define mmCP_APPEND_DATA_HI                             0xC04C
-#define mmCP_APPEND_DATA_LO                             0xC05A
-#define mmCP_APPEND_LAST_CS_FENCE_HI                    0xC04D
-#define mmCP_APPEND_LAST_CS_FENCE_LO                    0xC05B
-#define mmCP_APPEND_LAST_PS_FENCE_HI                    0xC04E
-#define mmCP_APPEND_LAST_PS_FENCE_LO                    0xC05C
-#define mmCP_AQL_SMM_STATUS                             0x303F
-#define mmCP_ATOMIC_PREOP_HI                            0xC05E
-#define mmCP_ATOMIC_PREOP_LO                            0xC05D
-#define mmCP_BUSY_STAT                                  0x219F
-#define mmCP_CEQ1_AVAIL                                 0x21E6
-#define mmCP_CEQ2_AVAIL                                 0x21E7
-#define mmCP_CE_COMPARE_COUNT                           0x20C0
-#define mmCP_CE_COMPLETION_STATUS                       0xC0ED
-#define mmCP_CE_COUNTER                                 0xC09A
-#define mmCP_CE_DE_COUNT                                0x20C1
-#define mmCP_CE_HEADER_DUMP                             0x21A4
-#define mmCP_CE_IB1_BASE_HI                             0xC0C7
-#define mmCP_CE_IB1_BASE_LO                             0xC0C6
-#define mmCP_CE_IB1_BUFSZ                               0xC0C8
-#define mmCP_CE_IB1_CMD_BUFSZ                           0xC0BE
-#define mmCP_CE_IB1_OFFSET                              0xC098
-#define mmCP_CE_IB2_BASE_HI                             0xC0CA
-#define mmCP_CE_IB2_BASE_LO                             0xC0C9
-#define mmCP_CE_IB2_BUFSZ                               0xC0CB
-#define mmCP_CE_IB2_CMD_BUFSZ                           0xC0BF
-#define mmCP_CE_IB2_OFFSET                              0xC099
-#define mmCP_CE_INIT_BASE_HI                            0xC0C4
-#define mmCP_CE_INIT_BASE_LO                            0xC0C3
-#define mmCP_CE_INIT_BUFSZ                              0xC0C5
-#define mmCP_CE_INIT_CMD_BUFSZ                          0xC0BD
-#define mmCP_CE_INSTR_PNTR                              0x21A7
-#define mmCP_CE_INTR_ROUTINE_START                      0x30A8
-#define mmCP_CE_METADATA_BASE_ADDR                      0xC0F2
-#define mmCP_CE_METADATA_BASE_ADDR_HI                   0xC0F3
-#define mmCP_CE_PRGRM_CNTR_START                        0x30A3
-#define mmCP_CE_RB_OFFSET__GFX09                        0xC09B
-#define mmCP_CE_ROQ_IB1_STAT                            0x21E9
-#define mmCP_CE_ROQ_IB2_STAT                            0x21EA
-#define mmCP_CE_ROQ_RB_STAT                             0x21E8
-#define mmCP_CE_UCODE_ADDR                              0xF818
-#define mmCP_CE_UCODE_DATA                              0xF819
-#define mmCP_CMD_DATA                                   0x21DF
-#define mmCP_CMD_INDEX                                  0x21DE
-#define mmCP_CNTX_STAT                                  0x21B8
-#define mmCP_COHER_BASE                                 0xC07E
-#define mmCP_COHER_BASE_HI                              0xC079
-#define mmCP_COHER_CNTL                                 0xC07C
-#define mmCP_COHER_SIZE                                 0xC07D
-#define mmCP_COHER_SIZE_HI                              0xC08C
-#define mmCP_COHER_START_DELAY                          0xC07B
-#define mmCP_COHER_STATUS                               0xC07F
-#define mmCP_CONTEXT_CNTL                               0x30AD
-#define mmCP_CPC_BUSY_STAT                              0x2085
-#define mmCP_CPC_GFX_CNTL                               0x31BA
-#define mmCP_CPC_GRBM_FREE_COUNT                        0x208B
-#define mmCP_CPC_HALT_HYST_COUNT                        0x20A7
-#define mmCP_CPC_MGCG_SYNC_CNTL                         0x3036
-#define mmCP_CPC_SCRATCH_DATA                           0x2091
-#define mmCP_CPC_SCRATCH_INDEX                          0x2090
-#define mmCP_CPC_STALLED_STAT1                          0x2086
-#define mmCP_CPC_STATUS                                 0x2084
-#define mmCP_CPF_BUSY_STAT                              0x2088
-#define mmCP_CPF_DEBUG                                  0x3080
-#define mmCP_CPF_GRBM_FREE_COUNT                        0x2092
-#define mmCP_CPF_STALLED_STAT1                          0x2089
-#define mmCP_CPF_STATUS                                 0x2087
-#define mmCP_CSF_STAT                                   0x21B4
-#define mmCP_DEVICE_ID                                  0x304B
-#define mmCP_DE_CE_COUNT                                0x20C2
-#define mmCP_DE_DE_COUNT                                0x20C4
-#define mmCP_DE_LAST_INVAL_COUNT                        0x20C3
-#define mmCP_DFY_ADDR_HI                                0x3022
-#define mmCP_DFY_ADDR_LO                                0x3023
-#define mmCP_DFY_CMD                                    0x3034
-#define mmCP_DFY_CNTL                                   0x3020
-#define mmCP_DFY_DATA_0                                 0x3024
-#define mmCP_DFY_DATA_1                                 0x3025
-#define mmCP_DFY_DATA_10                                0x302E
-#define mmCP_DFY_DATA_11                                0x302F
-#define mmCP_DFY_DATA_12                                0x3030
-#define mmCP_DFY_DATA_13                                0x3031
-#define mmCP_DFY_DATA_14                                0x3032
-#define mmCP_DFY_DATA_15                                0x3033
-#define mmCP_DFY_DATA_2                                 0x3026
-#define mmCP_DFY_DATA_3                                 0x3027
-#define mmCP_DFY_DATA_4                                 0x3028
-#define mmCP_DFY_DATA_5                                 0x3029
-#define mmCP_DFY_DATA_6                                 0x302A
-#define mmCP_DFY_DATA_7                                 0x302B
-#define mmCP_DFY_DATA_8                                 0x302C
-#define mmCP_DFY_DATA_9                                 0x302D
-#define mmCP_DFY_STAT                                   0x3021
-#define mmCP_DISPATCH_INDR_ADDR                         0xC0F6
-#define mmCP_DISPATCH_INDR_ADDR_HI                      0xC0F7
-#define mmCP_DMA_CNTL                                   0xC08A
-#define mmCP_DMA_ME_COMMAND                             0xC084
-#define mmCP_DMA_ME_CONTROL                             0xC078
-#define mmCP_DMA_ME_DST_ADDR                            0xC082
-#define mmCP_DMA_ME_DST_ADDR_HI                         0xC083
-#define mmCP_DMA_ME_SRC_ADDR                            0xC080
-#define mmCP_DMA_ME_SRC_ADDR_HI                         0xC081
-#define mmCP_DMA_PFP_COMMAND                            0xC089
-#define mmCP_DMA_PFP_CONTROL                            0xC077
-#define mmCP_DMA_PFP_DST_ADDR                           0xC087
-#define mmCP_DMA_PFP_DST_ADDR_HI                        0xC088
-#define mmCP_DMA_PFP_SRC_ADDR                           0xC085
-#define mmCP_DMA_PFP_SRC_ADDR_HI                        0xC086
-#define mmCP_DMA_READ_TAGS                              0xC08B
-#define mmCP_DRAW_INDX_INDR_ADDR                        0xC0F4
-#define mmCP_DRAW_INDX_INDR_ADDR_HI                     0xC0F5
-#define mmCP_DRAW_OBJECT                                0xD810
-#define mmCP_DRAW_OBJECT_COUNTER                        0xD811
-#define mmCP_DRAW_WINDOW_CNTL                           0xD815
-#define mmCP_DRAW_WINDOW_HI                             0xD813
-#define mmCP_DRAW_WINDOW_LO                             0xD814
-#define mmCP_DRAW_WINDOW_MASK_HI                        0xD812
-#define mmCP_ECC_FIRSTOCCURRENCE                        0x307A
-#define mmCP_ECC_FIRSTOCCURRENCE_RING0                  0x307B
-#define mmCP_ECC_FIRSTOCCURRENCE_RING1                  0x307C
-#define mmCP_ECC_FIRSTOCCURRENCE_RING2                  0x307D
-#define mmCP_EOPQ_WAIT_TIME                             0x3035
-#define mmCP_EOP_DONE_ADDR_HI                           0xC001
-#define mmCP_EOP_DONE_ADDR_LO                           0xC000
-#define mmCP_EOP_DONE_CNTX_ID                           0xC0D7
-#define mmCP_EOP_DONE_DATA_CNTL                         0xC0D6
-#define mmCP_EOP_DONE_DATA_HI                           0xC003
-#define mmCP_EOP_DONE_DATA_LO                           0xC002
-#define mmCP_EOP_DONE_EVENT_CNTL                        0xC0D5
-#define mmCP_EOP_LAST_FENCE_HI                          0xC005
-#define mmCP_EOP_LAST_FENCE_LO                          0xC004
-#define mmCP_FATAL_ERROR                                0x3050
-#define mmCP_GDS_ATOMIC0_PREOP_HI                       0xC060
-#define mmCP_GDS_ATOMIC0_PREOP_LO                       0xC05F
-#define mmCP_GDS_ATOMIC1_PREOP_HI                       0xC062
-#define mmCP_GDS_ATOMIC1_PREOP_LO                       0xC061
-#define mmCP_GDS_BKUP_ADDR                              0xC0FB
-#define mmCP_GDS_BKUP_ADDR_HI                           0xC0FC
-#define mmCP_GFX_ERROR                                  0x303B
-#define mmCP_GRBM_FREE_COUNT                            0x21A3
-#define mmCP_HYP_CE_UCODE_ADDR                          0xF818
-#define mmCP_HYP_CE_UCODE_DATA                          0xF819
-#define mmCP_HYP_MEC1_UCODE_ADDR                        0xF81A
-#define mmCP_HYP_MEC1_UCODE_DATA                        0xF81B
-#define mmCP_HYP_MEC2_UCODE_ADDR                        0xF81C
-#define mmCP_HYP_MEC2_UCODE_DATA                        0xF81D
-#define mmCP_HYP_ME_UCODE_ADDR                          0xF816
-#define mmCP_HYP_ME_UCODE_DATA                          0xF817
-#define mmCP_HYP_PFP_UCODE_ADDR                         0xF814
-#define mmCP_HYP_PFP_UCODE_DATA                         0xF815
-#define mmCP_IB1_BASE_HI                                0xC0CD
-#define mmCP_IB1_BASE_LO                                0xC0CC
-#define mmCP_IB1_BUFSZ                                  0xC0CE
-#define mmCP_IB1_CMD_BUFSZ                              0xC0C0
-#define mmCP_IB1_OFFSET                                 0xC092
-#define mmCP_IB1_PREAMBLE_BEGIN                         0xC094
-#define mmCP_IB1_PREAMBLE_END                           0xC095
-#define mmCP_IB2_BASE_HI                                0xC0D0
-#define mmCP_IB2_BASE_LO                                0xC0CF
-#define mmCP_IB2_BUFSZ                                  0xC0D1
-#define mmCP_IB2_CMD_BUFSZ                              0xC0C1
-#define mmCP_IB2_OFFSET                                 0xC093
-#define mmCP_IB2_PREAMBLE_BEGIN                         0xC096
-#define mmCP_IB2_PREAMBLE_END                           0xC097
-#define mmCP_INDEX_BASE_ADDR                            0xC0F8
-#define mmCP_INDEX_BASE_ADDR_HI                         0xC0F9
-#define mmCP_INDEX_TYPE                                 0xC0FA
-#define mmCP_INT_CNTL                                   0x3049
-#define mmCP_INT_CNTL_RING0                             0x306A
-#define mmCP_INT_CNTL_RING1                             0x306B
-#define mmCP_INT_CNTL_RING2                             0x306C
-#define mmCP_INT_STATUS                                 0x304A
-#define mmCP_INT_STATUS_RING0                           0x306D
-#define mmCP_INT_STATUS_RING1                           0x306E
-#define mmCP_INT_STATUS_RING2                           0x306F
-#define mmCP_INT_STAT_DEBUG                             0x21F7
-#define mmCP_IQ_WAIT_TIME1                              0x30AF
-#define mmCP_IQ_WAIT_TIME2                              0x30B0
-#define mmCP_MAX_CONTEXT                                0x30AE
-#define mmCP_ME0_PIPE0_PRIORITY                         0x304D
-#define mmCP_ME0_PIPE0_VMID                             0x3052
-#define mmCP_ME0_PIPE1_PRIORITY                         0x304E
-#define mmCP_ME0_PIPE1_VMID                             0x3053
-#define mmCP_ME0_PIPE2_PRIORITY                         0x304F
-#define mmCP_ME0_PIPE_PRIORITY_CNTS                     0x304C
-#define mmCP_ME1_INT_STAT_DEBUG                         0x3095
-#define mmCP_ME1_PIPE0_INT_CNTL                         0x3085
-#define mmCP_ME1_PIPE0_INT_STATUS                       0x308D
-#define mmCP_ME1_PIPE0_PRIORITY                         0x309A
-#define mmCP_ME1_PIPE1_INT_CNTL                         0x3086
-#define mmCP_ME1_PIPE1_INT_STATUS                       0x308E
-#define mmCP_ME1_PIPE1_PRIORITY                         0x309B
-#define mmCP_ME1_PIPE2_INT_CNTL                         0x3087
-#define mmCP_ME1_PIPE2_INT_STATUS                       0x308F
-#define mmCP_ME1_PIPE2_PRIORITY                         0x309C
-#define mmCP_ME1_PIPE3_INT_CNTL                         0x3088
-#define mmCP_ME1_PIPE3_INT_STATUS                       0x3090
-#define mmCP_ME1_PIPE3_PRIORITY                         0x309D
-#define mmCP_ME1_PIPE_PRIORITY_CNTS                     0x3099
-#define mmCP_ME2_INT_STAT_DEBUG                         0x3096
-#define mmCP_ME2_PIPE0_INT_CNTL                         0x3089
-#define mmCP_ME2_PIPE0_INT_STATUS                       0x3091
-#define mmCP_ME2_PIPE0_PRIORITY                         0x309F
-#define mmCP_ME2_PIPE1_INT_CNTL                         0x308A
-#define mmCP_ME2_PIPE1_INT_STATUS                       0x3092
-#define mmCP_ME2_PIPE1_PRIORITY                         0x30A0
-#define mmCP_ME2_PIPE2_INT_CNTL                         0x308B
-#define mmCP_ME2_PIPE2_INT_STATUS                       0x3093
-#define mmCP_ME2_PIPE2_PRIORITY                         0x30A1
-#define mmCP_ME2_PIPE3_INT_CNTL                         0x308C
-#define mmCP_ME2_PIPE3_INT_STATUS                       0x3094
-#define mmCP_ME2_PIPE3_PRIORITY                         0x30A2
-#define mmCP_ME2_PIPE_PRIORITY_CNTS                     0x309E
-#define mmCP_MEC1_F32_INT_DIS                           0x30BD
-#define mmCP_MEC1_INSTR_PNTR                            0x21A8
-#define mmCP_MEC1_INTR_ROUTINE_START                    0x30AB
-#define mmCP_MEC1_PRGRM_CNTR_START                      0x30A6
-#define mmCP_MEC2_F32_INT_DIS                           0x30BE
-#define mmCP_MEC2_INSTR_PNTR                            0x21A9
-#define mmCP_MEC2_INTR_ROUTINE_START                    0x30AC
-#define mmCP_MEC2_PRGRM_CNTR_START                      0x30A7
-#define mmCP_MEC_CNTL                                   0x208D
-#define mmCP_MEC_DOORBELL_RANGE_LOWER                   0x305C
-#define mmCP_MEC_DOORBELL_RANGE_UPPER                   0x305D
-#define mmCP_MEC_ME1_HEADER_DUMP                        0x208E
-#define mmCP_MEC_ME1_UCODE_ADDR                         0xF81A
-#define mmCP_MEC_ME1_UCODE_DATA                         0xF81B
-#define mmCP_MEC_ME2_HEADER_DUMP                        0x208F
-#define mmCP_MEC_ME2_UCODE_ADDR                         0xF81C
-#define mmCP_MEC_ME2_UCODE_DATA                         0xF81D
-#define mmCP_MEM_SLP_CNTL                               0x3079
-#define mmCP_MEQ_AVAIL                                  0x21DD
-#define mmCP_MEQ_STAT                                   0x21E5
-#define mmCP_MEQ_STQ_THRESHOLD                          0x21BD
-#define mmCP_MEQ_THRESHOLDS                             0x21D9
-#define mmCP_ME_ATOMIC_PREOP_HI                         0xC05E
-#define mmCP_ME_ATOMIC_PREOP_LO                         0xC05D
-#define mmCP_ME_CNTL                                    0x21B6
-#define mmCP_ME_COHER_BASE                              0xC101
-#define mmCP_ME_COHER_BASE_HI                           0xC102
-#define mmCP_ME_COHER_CNTL                              0xC0FE
-#define mmCP_ME_COHER_SIZE                              0xC0FF
-#define mmCP_ME_COHER_SIZE_HI                           0xC100
-#define mmCP_ME_COHER_STATUS                            0xC103
-#define mmCP_ME_GDS_ATOMIC0_PREOP_HI                    0xC060
-#define mmCP_ME_GDS_ATOMIC0_PREOP_LO                    0xC05F
-#define mmCP_ME_GDS_ATOMIC1_PREOP_HI                    0xC062
-#define mmCP_ME_GDS_ATOMIC1_PREOP_LO                    0xC061
-#define mmCP_ME_HEADER_DUMP                             0x21A1
-#define mmCP_ME_INSTR_PNTR                              0x21A6
-#define mmCP_ME_INTR_ROUTINE_START                      0x30AA
-#define mmCP_ME_MC_RADDR_HI                             0xC06E
-#define mmCP_ME_MC_RADDR_LO                             0xC06D
-#define mmCP_ME_MC_WADDR_HI                             0xC06A
-#define mmCP_ME_MC_WADDR_LO                             0xC069
-#define mmCP_ME_MC_WDATA_HI                             0xC06C
-#define mmCP_ME_MC_WDATA_LO                             0xC06B
-#define mmCP_ME_PREEMPTION                              0x21B9
-#define mmCP_ME_PRGRM_CNTR_START                        0x30A5
-#define mmCP_ME_RAM_DATA                                0xF817
-#define mmCP_ME_RAM_RADDR                               0xF816
-#define mmCP_ME_RAM_WADDR                               0xF816
-#define mmCP_NUM_PRIM_NEEDED_COUNT0_HI                  0xC00B
-#define mmCP_NUM_PRIM_NEEDED_COUNT0_LO                  0xC00A
-#define mmCP_NUM_PRIM_NEEDED_COUNT1_HI                  0xC00F
-#define mmCP_NUM_PRIM_NEEDED_COUNT1_LO                  0xC00E
-#define mmCP_NUM_PRIM_NEEDED_COUNT2_HI                  0xC013
-#define mmCP_NUM_PRIM_NEEDED_COUNT2_LO                  0xC012
-#define mmCP_NUM_PRIM_NEEDED_COUNT3_HI                  0xC017
-#define mmCP_NUM_PRIM_NEEDED_COUNT3_LO                  0xC016
-#define mmCP_NUM_PRIM_WRITTEN_COUNT0_HI                 0xC009
-#define mmCP_NUM_PRIM_WRITTEN_COUNT0_LO                 0xC008
-#define mmCP_NUM_PRIM_WRITTEN_COUNT1_HI                 0xC00D
-#define mmCP_NUM_PRIM_WRITTEN_COUNT1_LO                 0xC00C
-#define mmCP_NUM_PRIM_WRITTEN_COUNT2_HI                 0xC011
-#define mmCP_NUM_PRIM_WRITTEN_COUNT2_LO                 0xC010
-#define mmCP_NUM_PRIM_WRITTEN_COUNT3_HI                 0xC015
-#define mmCP_NUM_PRIM_WRITTEN_COUNT3_LO                 0xC014
-#define mmCP_PA_CINVOC_COUNT_HI                         0xC029
-#define mmCP_PA_CINVOC_COUNT_LO                         0xC028
-#define mmCP_PA_CPRIM_COUNT_HI                          0xC02B
-#define mmCP_PA_CPRIM_COUNT_LO                          0xC02A
-#define mmCP_PERFMON_CNTL                               0xD808
-#define mmCP_PERFMON_CNTX_CNTL                          0xA0D8
-#define mmCP_PFP_ATOMIC_PREOP_HI                        0xC053
-#define mmCP_PFP_ATOMIC_PREOP_LO                        0xC052
-#define mmCP_PFP_COMPLETION_STATUS                      0xC0EC
-#define mmCP_PFP_GDS_ATOMIC0_PREOP_HI                   0xC055
-#define mmCP_PFP_GDS_ATOMIC0_PREOP_LO                   0xC054
-#define mmCP_PFP_GDS_ATOMIC1_PREOP_HI                   0xC057
-#define mmCP_PFP_GDS_ATOMIC1_PREOP_LO                   0xC056
-#define mmCP_PFP_HEADER_DUMP                            0x21A2
-#define mmCP_PFP_IB_CONTROL                             0xC08D
-#define mmCP_PFP_INSTR_PNTR                             0x21A5
-#define mmCP_PFP_INTR_ROUTINE_START                     0x30A9
-#define mmCP_PFP_LOAD_CONTROL                           0xC08E
-#define mmCP_PFP_METADATA_BASE_ADDR                     0xC0F0
-#define mmCP_PFP_METADATA_BASE_ADDR_HI                  0xC0F1
-#define mmCP_PFP_PRGRM_CNTR_START                       0x30A4
-#define mmCP_PFP_UCODE_ADDR                             0xF814
-#define mmCP_PFP_UCODE_DATA                             0xF815
-#define mmCP_PIPEID                                     0xA0D9
-#define mmCP_PIPE_STATS_ADDR_HI                         0xC019
-#define mmCP_PIPE_STATS_ADDR_LO                         0xC018
-#define mmCP_PIPE_STATS_CONTROL                         0xC03D
-#define mmCP_PQ_STATUS                                  0x30B8
-#define mmCP_PQ_WPTR_POLL_CNTL                          0x3083
-#define mmCP_PQ_WPTR_POLL_CNTL1                         0x3084
-#define mmCP_PRED_NOT_VISIBLE                           0xC0EE
-#define mmCP_PRT_LOD_STATS_CNTL0                        0x20AD
-#define mmCP_PRT_LOD_STATS_CNTL1                        0x20AE
-#define mmCP_PRT_LOD_STATS_CNTL2                        0x20AF
-#define mmCP_PRT_LOD_STATS_CNTL3                        0x20B0
-#define mmCP_PWR_CNTL                                   0x3078
-#define mmCP_QUEUE_THRESHOLDS                           0x21D8
-#define mmCP_RB0_BASE                                   0x3040
-#define mmCP_RB0_BASE_HI                                0x30B1
-#define mmCP_RB0_BUFSZ_MASK                             0x3045
-#define mmCP_RB0_CNTL                                   0x3041
-#define mmCP_RB0_RPTR                                   0x21C0
-#define mmCP_RB0_RPTR_ADDR                              0x3043
-#define mmCP_RB0_RPTR_ADDR_HI                           0x3044
-#define mmCP_RB0_WPTR                                   0x3054
-#define mmCP_RB0_WPTR_HI                                0x3055
-#define mmCP_RB1_BASE                                   0x3060
-#define mmCP_RB1_BASE_HI                                0x30B2
-#define mmCP_RB1_CNTL                                   0x3061
-#define mmCP_RB1_RPTR                                   0x21BF
-#define mmCP_RB1_RPTR_ADDR                              0x3062
-#define mmCP_RB1_RPTR_ADDR_HI                           0x3063
-#define mmCP_RB1_WPTR                                   0x3056
-#define mmCP_RB1_WPTR_HI                                0x3057
-#define mmCP_RB2_BASE                                   0x3065
-#define mmCP_RB2_CNTL                                   0x3066
-#define mmCP_RB2_RPTR                                   0x21BE
-#define mmCP_RB2_RPTR_ADDR                              0x3067
-#define mmCP_RB2_RPTR_ADDR_HI                           0x3068
-#define mmCP_RB2_WPTR                                   0x3058
-#define mmCP_RB_BASE                                    0x3040
-#define mmCP_RB_BUFSZ_MASK                              0x3045
-#define mmCP_RB_CNTL                                    0x3041
-#define mmCP_RB_DOORBELL_CLEAR                          0x3188
-#define mmCP_RB_DOORBELL_CONTROL_SCH_0__GFX09           0x3180
-#define mmCP_RB_DOORBELL_CONTROL_SCH_1__GFX09           0x3181
-#define mmCP_RB_DOORBELL_CONTROL_SCH_2__GFX09           0x3182
-#define mmCP_RB_DOORBELL_CONTROL_SCH_3__GFX09           0x3183
-#define mmCP_RB_DOORBELL_CONTROL_SCH_4__GFX09           0x3184
-#define mmCP_RB_DOORBELL_CONTROL_SCH_5__GFX09           0x3185
-#define mmCP_RB_DOORBELL_CONTROL_SCH_6__GFX09           0x3186
-#define mmCP_RB_DOORBELL_CONTROL_SCH_7__GFX09           0x3187
-#define mmCP_RB_DOORBELL_RANGE_LOWER                    0x305A
-#define mmCP_RB_DOORBELL_RANGE_UPPER                    0x305B
-#define mmCP_RB_OFFSET                                  0xC091
-#define mmCP_RB_RPTR                                    0x21C0
-#define mmCP_RB_RPTR_ADDR                               0x3043
-#define mmCP_RB_RPTR_ADDR_HI                            0x3044
-#define mmCP_RB_RPTR_WR                                 0x3042
-#define mmCP_RB_STATUS                                  0x31A3
-#define mmCP_RB_VMID                                    0x3051
-#define mmCP_RB_WPTR                                    0x3054
-#define mmCP_RB_WPTR_DELAY                              0x21C1
-#define mmCP_RB_WPTR_HI                                 0x3055
-#define mmCP_RB_WPTR_POLL_CNTL                          0x21C2
-#define mmCP_RING0_PRIORITY                             0x304D
-#define mmCP_RING1_PRIORITY                             0x304E
-#define mmCP_RING2_PRIORITY                             0x304F
-#define mmCP_RINGID                                     0xA0D9
-#define mmCP_RING_PRIORITY_CNTS                         0x304C
-#define mmCP_ROQ1_THRESHOLDS                            0x21D5
-#define mmCP_ROQ2_AVAIL                                 0x21DC
-#define mmCP_ROQ2_THRESHOLDS                            0x21D6
-#define mmCP_ROQ_AVAIL                                  0x21DA
-#define mmCP_ROQ_IB1_STAT                               0x21E1
-#define mmCP_ROQ_IB2_STAT                               0x21E2
-#define mmCP_ROQ_RB_STAT                                0x21E0
-#define mmCP_ROQ_THRESHOLDS                             0x21BC
-#define mmCP_SAMPLE_STATUS                              0xC0FD
-#define mmCP_SCRATCH_DATA                               0xC090
-#define mmCP_SCRATCH_INDEX                              0xC08F
-#define mmCP_SC_PSINVOC_COUNT0_HI                       0xC02D
-#define mmCP_SC_PSINVOC_COUNT0_LO                       0xC02C
-#define mmCP_SC_PSINVOC_COUNT1_HI                       0xC02F
-#define mmCP_SC_PSINVOC_COUNT1_LO                       0xC02E
-#define mmCP_SD_CNTL                                    0x31B7
-#define mmCP_SEM_WAIT_TIMER                             0xC06F
-#define mmCP_SIG_SEM_ADDR_HI                            0xC071
-#define mmCP_SIG_SEM_ADDR_LO                            0xC070
-#define mmCP_SOFT_RESET_CNTL                            0x31B9
-#define mmCP_STALLED_STAT1                              0x219D
-#define mmCP_STALLED_STAT2                              0x219E
-#define mmCP_STALLED_STAT3                              0x219C
-#define mmCP_STAT                                       0x21A0
-#define mmCP_STQ_AVAIL                                  0x21DB
-#define mmCP_STQ_STAT                                   0x21E3
-#define mmCP_STQ_THRESHOLDS                             0x21D7
-#define mmCP_STQ_WR_STAT                                0x21E4
-#define mmCP_STREAM_OUT_ADDR_HI                         0xC007
-#define mmCP_STREAM_OUT_ADDR_LO                         0xC006
-#define mmCP_STREAM_OUT_CONTROL                         0xC03E
-#define mmCP_STRMOUT_CNTL                               0xC03F
-#define mmCP_ST_BASE_HI                                 0xC0D3
-#define mmCP_ST_BASE_LO                                 0xC0D2
-#define mmCP_ST_BUFSZ                                   0xC0D4
-#define mmCP_ST_CMD_BUFSZ                               0xC0C2
-#define mmCP_VGT_CSINVOC_COUNT_HI                       0xC031
-#define mmCP_VGT_CSINVOC_COUNT_LO                       0xC030
-#define mmCP_VGT_DSINVOC_COUNT_HI                       0xC027
-#define mmCP_VGT_DSINVOC_COUNT_LO                       0xC026
-#define mmCP_VGT_GSINVOC_COUNT_HI                       0xC023
-#define mmCP_VGT_GSINVOC_COUNT_LO                       0xC022
-#define mmCP_VGT_GSPRIM_COUNT_HI                        0xC01F
-#define mmCP_VGT_GSPRIM_COUNT_LO                        0xC01E
-#define mmCP_VGT_HSINVOC_COUNT_HI                       0xC025
-#define mmCP_VGT_HSINVOC_COUNT_LO                       0xC024
-#define mmCP_VGT_IAPRIM_COUNT_HI                        0xC01D
-#define mmCP_VGT_IAPRIM_COUNT_LO                        0xC01C
-#define mmCP_VGT_IAVERT_COUNT_HI                        0xC01B
-#define mmCP_VGT_IAVERT_COUNT_LO                        0xC01A
-#define mmCP_VGT_VSINVOC_COUNT_HI                       0xC021
-#define mmCP_VGT_VSINVOC_COUNT_LO                       0xC020
-#define mmCP_VIRT_STATUS                                0x3038
-#define mmCP_VMID                                       0xA0DA
-#define mmCP_VMID_PREEMPT                               0x30B6
-#define mmCP_VMID_RESET                                 0x30B3
-#define mmCP_VMID_STATUS                                0x30BF
-#define mmCP_WAIT_REG_MEM_TIMEOUT                       0xC074
-#define mmCP_WAIT_SEM_ADDR_HI                           0xC076
-#define mmCP_WAIT_SEM_ADDR_LO                           0xC075
-#define mmCS_COPY_STATE                                 0xA1F3
-#define mmDB_ALPHA_TO_MASK                              0xA2DC
-#define mmDB_CGTT_CLK_CTRL_0                            0xF0A4
-#define mmDB_COUNT_CONTROL                              0xA001
-#define mmDB_CREDIT_LIMIT                               0x2614
-#define mmDB_DEBUG                                      0x260C
-#define mmDB_DEBUG2                                     0x260D
-#define mmDB_DEBUG3                                     0x260E
-#define mmDB_DEBUG4                                     0x260F
-#define mmDB_DEPTH_BOUNDS_MAX                           0xA009
-#define mmDB_DEPTH_BOUNDS_MIN                           0xA008
-#define mmDB_DEPTH_CLEAR                                0xA00B
-#define mmDB_DEPTH_CONTROL                              0xA200
-#define mmDB_DEPTH_VIEW                                 0xA002
-#define mmDB_DFSM_CONFIG                                0x2630
-#define mmDB_DFSM_FLUSH_AUX_EVENT                       0x2636
-#define mmDB_DFSM_FLUSH_ENABLE                          0x2635
-#define mmDB_DFSM_PRIMS_IN_FLIGHT                       0x2633
-#define mmDB_DFSM_TILES_IN_FLIGHT                       0x2632
-#define mmDB_DFSM_WATCHDOG                              0x2634
-#define mmDB_DFSM_WATERMARK__GFX09                      0x2631
-#define mmDB_EQAA                                       0xA201
-#define mmDB_FIFO_DEPTH1                                0x2618
-#define mmDB_FIFO_DEPTH2                                0x2619
-#define mmDB_FREE_CACHELINES                            0x2617
-#define mmDB_HTILE_DATA_BASE                            0xA005
-#define mmDB_HTILE_SURFACE                              0xA2AF
-#define mmDB_MEM_ARB_WATERMARKS                         0x261C
-#define mmDB_OCCLUSION_COUNT0_HI                        0xC3C1
-#define mmDB_OCCLUSION_COUNT0_LOW                       0xC3C0
-#define mmDB_OCCLUSION_COUNT1_HI                        0xC3C3
-#define mmDB_OCCLUSION_COUNT1_LOW                       0xC3C2
-#define mmDB_OCCLUSION_COUNT2_HI                        0xC3C5
-#define mmDB_OCCLUSION_COUNT2_LOW                       0xC3C4
-#define mmDB_OCCLUSION_COUNT3_HI                        0xC3C7
-#define mmDB_OCCLUSION_COUNT3_LOW                       0xC3C6
-#define mmDB_PERFCOUNTER0_HI                            0xD441
-#define mmDB_PERFCOUNTER0_LO                            0xD440
-#define mmDB_PERFCOUNTER0_SELECT                        0xDC40
-#define mmDB_PERFCOUNTER0_SELECT1                       0xDC41
-#define mmDB_PERFCOUNTER1_HI                            0xD443
-#define mmDB_PERFCOUNTER1_LO                            0xD442
-#define mmDB_PERFCOUNTER1_SELECT                        0xDC42
-#define mmDB_PERFCOUNTER1_SELECT1                       0xDC43
-#define mmDB_PERFCOUNTER2_HI                            0xD445
-#define mmDB_PERFCOUNTER2_LO                            0xD444
-#define mmDB_PERFCOUNTER2_SELECT                        0xDC44
-#define mmDB_PERFCOUNTER3_HI                            0xD447
-#define mmDB_PERFCOUNTER3_LO                            0xD446
-#define mmDB_PERFCOUNTER3_SELECT                        0xDC46
-#define mmDB_PRELOAD_CONTROL                            0xA2B2
-#define mmDB_RENDER_CONTROL                             0xA000
-#define mmDB_RENDER_OVERRIDE                            0xA003
-#define mmDB_RENDER_OVERRIDE2                           0xA004
-#define mmDB_RING_CONTROL                               0x261B
-#define mmDB_RMI_CACHE_POLICY__GFX09                    0x261E
-#define mmDB_SHADER_CONTROL                             0xA203
-#define mmDB_SRESULTS_COMPARE_STATE0                    0xA2B0
-#define mmDB_SRESULTS_COMPARE_STATE1                    0xA2B1
-#define mmDB_STENCILREFMASK                             0xA10C
-#define mmDB_STENCILREFMASK_BF                          0xA10D
-#define mmDB_STENCIL_CLEAR                              0xA00A
-#define mmDB_STENCIL_CONTROL                            0xA10B
-#define mmDB_STENCIL_INFO2__GFX09                       0xA01B
-#define mmDB_SUBTILE_CONTROL                            0x2616
-#define mmDB_WATERMARKS                                 0x2615
-#define mmDB_ZPASS_COUNT_HI                             0xC3FF
-#define mmDB_ZPASS_COUNT_LOW                            0xC3FE
-#define mmDB_Z_INFO2__GFX09                             0xA01A
-#define mmDB_Z_WRITE_BASE                               0xA014
-#define mmDIDT_IND_DATA                                 0x3281
-#define mmDIDT_IND_INDEX                                0x3280
-#define mmGB_ADDR_CONFIG                                0x263E
-#define mmGB_ADDR_CONFIG_READ                           0x2642
-#define mmGB_BACKEND_MAP                                0x263F
-#define mmGB_EDC_MODE                                   0x307E
-#define mmGB_GPU_ID                                     0x2640
-#define mmGB_MACROTILE_MODE0                            0x2664
-#define mmGB_MACROTILE_MODE1                            0x2665
-#define mmGB_MACROTILE_MODE10                           0x266E
-#define mmGB_MACROTILE_MODE11                           0x266F
-#define mmGB_MACROTILE_MODE12                           0x2670
-#define mmGB_MACROTILE_MODE13                           0x2671
-#define mmGB_MACROTILE_MODE14                           0x2672
-#define mmGB_MACROTILE_MODE15                           0x2673
-#define mmGB_MACROTILE_MODE2                            0x2666
-#define mmGB_MACROTILE_MODE3                            0x2667
-#define mmGB_MACROTILE_MODE4                            0x2668
-#define mmGB_MACROTILE_MODE5                            0x2669
-#define mmGB_MACROTILE_MODE6                            0x266A
-#define mmGB_MACROTILE_MODE7                            0x266B
-#define mmGB_MACROTILE_MODE8                            0x266C
-#define mmGB_MACROTILE_MODE9                            0x266D
-#define mmGB_TILE_MODE0                                 0x2644
-#define mmGB_TILE_MODE1                                 0x2645
-#define mmGB_TILE_MODE10                                0x264E
-#define mmGB_TILE_MODE11                                0x264F
-#define mmGB_TILE_MODE12                                0x2650
-#define mmGB_TILE_MODE13                                0x2651
-#define mmGB_TILE_MODE14                                0x2652
-#define mmGB_TILE_MODE15                                0x2653
-#define mmGB_TILE_MODE16                                0x2654
-#define mmGB_TILE_MODE17                                0x2655
-#define mmGB_TILE_MODE18                                0x2656
-#define mmGB_TILE_MODE19                                0x2657
-#define mmGB_TILE_MODE2                                 0x2646
-#define mmGB_TILE_MODE20                                0x2658
-#define mmGB_TILE_MODE21                                0x2659
-#define mmGB_TILE_MODE22                                0x265A
-#define mmGB_TILE_MODE23                                0x265B
-#define mmGB_TILE_MODE24                                0x265C
-#define mmGB_TILE_MODE25                                0x265D
-#define mmGB_TILE_MODE26                                0x265E
-#define mmGB_TILE_MODE27                                0x265F
-#define mmGB_TILE_MODE28                                0x2660
-#define mmGB_TILE_MODE29                                0x2661
-#define mmGB_TILE_MODE3                                 0x2647
-#define mmGB_TILE_MODE30                                0x2662
-#define mmGB_TILE_MODE31                                0x2663
-#define mmGB_TILE_MODE4                                 0x2648
-#define mmGB_TILE_MODE5                                 0x2649
-#define mmGB_TILE_MODE6                                 0x264A
-#define mmGB_TILE_MODE7                                 0x264B
-#define mmGB_TILE_MODE8                                 0x264C
-#define mmGB_TILE_MODE9                                 0x264D
-#define mmGCEA_CGTT_CLK_CTRL                            0xF0C4
-#define mmGC_CAC_CTRL_1                                 0x3284
-#define mmGC_CAC_CTRL_2                                 0x3285
-#define mmGC_DIDT_DROOP_CTRL__GFX09                     0x3298
-#define mmGC_DIDT_WEIGHT_1__GFX09                       0x3292
-#define mmGC_EDC_DROOP_CTRL__GFX09                      0x3299
-#define mmGC_PRIV_MODE                                  0x3048
-#define mmGC_USER_PRIM_CONFIG                           0x2241
-#define mmGC_USER_RB_BACKEND_DISABLE                    0x26DF
-#define mmGC_USER_RB_REDUNDANCY                         0x26DE
-#define mmGC_USER_SHADER_ARRAY_CONFIG                   0x2270
-#define mmGC_USER_SHADER_RATE_CONFIG                    0x2313
-#define mmGDS_ATOM_BASE                                 0xC40C
-#define mmGDS_ATOM_CNTL                                 0xC40A
-#define mmGDS_ATOM_COMPLETE                             0xC40B
-#define mmGDS_ATOM_DST                                  0xC410
-#define mmGDS_ATOM_OFFSET0                              0xC40E
-#define mmGDS_ATOM_OFFSET1                              0xC40F
-#define mmGDS_ATOM_OP                                   0xC411
-#define mmGDS_ATOM_READ0                                0xC416
-#define mmGDS_ATOM_READ0_U                              0xC417
-#define mmGDS_ATOM_READ1                                0xC418
-#define mmGDS_ATOM_READ1_U                              0xC419
-#define mmGDS_ATOM_SIZE                                 0xC40D
-#define mmGDS_ATOM_SRC0                                 0xC412
-#define mmGDS_ATOM_SRC0_U                               0xC413
-#define mmGDS_ATOM_SRC1                                 0xC414
-#define mmGDS_ATOM_SRC1_U                               0xC415
-#define mmGDS_CNTL_STATUS                               0x25C1
-#define mmGDS_COMPUTE_MAX_WAVE_ID                       0x3348
-#define mmGDS_CONFIG                                    0x25C0
-#define mmGDS_CS_CTXSW_CNT0                             0x334E
-#define mmGDS_CS_CTXSW_CNT1                             0x334F
-#define mmGDS_CS_CTXSW_CNT2                             0x3350
-#define mmGDS_CS_CTXSW_CNT3                             0x3351
-#define mmGDS_CS_CTXSW_STATUS                           0x334D
-#define mmGDS_DSM_CNTL                                  0x25CA
-#define mmGDS_DSM_CNTL2                                 0x25CD
-#define mmGDS_EDC_CNT                                   0x25C5
-#define mmGDS_EDC_GRBM_CNT                              0x25C6
-#define mmGDS_EDC_OA_DED                                0x25C7
-#define mmGDS_EDC_OA_PHY_CNT                            0x25CB
-#define mmGDS_EDC_OA_PIPE_CNT                           0x25CC
-#define mmGDS_GFX_CTXSW_STATUS                          0x3352
-#define mmGDS_GS_CTXSW_CNT0                             0x3377
-#define mmGDS_GS_CTXSW_CNT1                             0x3378
-#define mmGDS_GS_CTXSW_CNT2                             0x3379
-#define mmGDS_GS_CTXSW_CNT3                             0x337A
-#define mmGDS_GWS_RESET0                                0x3344
-#define mmGDS_GWS_RESET1                                0x3345
-#define mmGDS_GWS_RESOURCE                              0xC41B
-#define mmGDS_GWS_RESOURCE_CNT                          0xC41C
-#define mmGDS_GWS_RESOURCE_CNTL                         0xC41A
-#define mmGDS_GWS_RESOURCE_RESET                        0x3346
-#define mmGDS_GWS_VMID0                                 0x3320
-#define mmGDS_GWS_VMID1                                 0x3321
-#define mmGDS_GWS_VMID10                                0x332A
-#define mmGDS_GWS_VMID11                                0x332B
-#define mmGDS_GWS_VMID12                                0x332C
-#define mmGDS_GWS_VMID13                                0x332D
-#define mmGDS_GWS_VMID14                                0x332E
-#define mmGDS_GWS_VMID15                                0x332F
-#define mmGDS_GWS_VMID2                                 0x3322
-#define mmGDS_GWS_VMID3                                 0x3323
-#define mmGDS_GWS_VMID4                                 0x3324
-#define mmGDS_GWS_VMID5                                 0x3325
-#define mmGDS_GWS_VMID6                                 0x3326
-#define mmGDS_GWS_VMID7                                 0x3327
-#define mmGDS_GWS_VMID8                                 0x3328
-#define mmGDS_GWS_VMID9                                 0x3329
-#define mmGDS_OA_ADDRESS                                0xC41F
-#define mmGDS_OA_CGPG_RESTORE                           0x334C
-#define mmGDS_OA_CNTL                                   0xC41D
-#define mmGDS_OA_COUNTER                                0xC41E
-#define mmGDS_OA_INCDEC                                 0xC420
-#define mmGDS_OA_RESET                                  0x334A
-#define mmGDS_OA_RESET_MASK                             0x3349
-#define mmGDS_OA_RING_SIZE                              0xC421
-#define mmGDS_OA_VMID0                                  0x3330
-#define mmGDS_OA_VMID1                                  0x3331
-#define mmGDS_OA_VMID10                                 0x333A
-#define mmGDS_OA_VMID11                                 0x333B
-#define mmGDS_OA_VMID12                                 0x333C
-#define mmGDS_OA_VMID13                                 0x333D
-#define mmGDS_OA_VMID14                                 0x333E
-#define mmGDS_OA_VMID15                                 0x333F
-#define mmGDS_OA_VMID2                                  0x3332
-#define mmGDS_OA_VMID3                                  0x3333
-#define mmGDS_OA_VMID4                                  0x3334
-#define mmGDS_OA_VMID5                                  0x3335
-#define mmGDS_OA_VMID6                                  0x3336
-#define mmGDS_OA_VMID7                                  0x3337
-#define mmGDS_OA_VMID8                                  0x3338
-#define mmGDS_OA_VMID9                                  0x3339
-#define mmGDS_PERFCOUNTER0_HI                           0xD281
-#define mmGDS_PERFCOUNTER0_LO                           0xD280
-#define mmGDS_PERFCOUNTER0_SELECT                       0xDA80
-#define mmGDS_PERFCOUNTER0_SELECT1                      0xDA84
-#define mmGDS_PERFCOUNTER1_HI                           0xD283
-#define mmGDS_PERFCOUNTER1_LO                           0xD282
-#define mmGDS_PERFCOUNTER1_SELECT                       0xDA81
-#define mmGDS_PERFCOUNTER2_HI                           0xD285
-#define mmGDS_PERFCOUNTER2_LO                           0xD284
-#define mmGDS_PERFCOUNTER2_SELECT                       0xDA82
-#define mmGDS_PERFCOUNTER3_HI                           0xD287
-#define mmGDS_PERFCOUNTER3_LO                           0xD286
-#define mmGDS_PERFCOUNTER3_SELECT                       0xDA83
-#define mmGDS_PROTECTION_FAULT                          0x25C3
-#define mmGDS_PS0_CTXSW_CNT0__GFX09                     0x3357
-#define mmGDS_PS0_CTXSW_CNT1__GFX09                     0x3358
-#define mmGDS_PS0_CTXSW_CNT2__GFX09                     0x3359
-#define mmGDS_PS0_CTXSW_CNT3__GFX09                     0x335A
-#define mmGDS_PS1_CTXSW_CNT0__GFX09                     0x335B
-#define mmGDS_PS1_CTXSW_CNT1__GFX09                     0x335C
-#define mmGDS_PS1_CTXSW_CNT2__GFX09                     0x335D
-#define mmGDS_PS1_CTXSW_CNT3__GFX09                     0x335E
-#define mmGDS_PS2_CTXSW_CNT0__GFX09                     0x335F
-#define mmGDS_PS2_CTXSW_CNT1__GFX09                     0x3360
-#define mmGDS_PS2_CTXSW_CNT2__GFX09                     0x3361
-#define mmGDS_PS2_CTXSW_CNT3__GFX09                     0x3362
-#define mmGDS_PS3_CTXSW_CNT0__GFX09                     0x3363
-#define mmGDS_PS3_CTXSW_CNT1__GFX09                     0x3364
-#define mmGDS_PS3_CTXSW_CNT2__GFX09                     0x3365
-#define mmGDS_PS3_CTXSW_CNT3__GFX09                     0x3366
-#define mmGDS_PS4_CTXSW_CNT0__GFX09                     0x3367
-#define mmGDS_PS4_CTXSW_CNT1__GFX09                     0x3368
-#define mmGDS_PS4_CTXSW_CNT2__GFX09                     0x3369
-#define mmGDS_PS4_CTXSW_CNT3__GFX09                     0x336A
-#define mmGDS_PS5_CTXSW_CNT0__GFX09                     0x336B
-#define mmGDS_PS5_CTXSW_CNT1__GFX09                     0x336C
-#define mmGDS_PS5_CTXSW_CNT2__GFX09                     0x336D
-#define mmGDS_PS5_CTXSW_CNT3__GFX09                     0x336E
-#define mmGDS_PS6_CTXSW_CNT0__GFX09                     0x336F
-#define mmGDS_PS6_CTXSW_CNT1__GFX09                     0x3370
-#define mmGDS_PS6_CTXSW_CNT2__GFX09                     0x3371
-#define mmGDS_PS6_CTXSW_CNT3__GFX09                     0x3372
-#define mmGDS_PS7_CTXSW_CNT0__GFX09                     0x3373
-#define mmGDS_PS7_CTXSW_CNT1__GFX09                     0x3374
-#define mmGDS_PS7_CTXSW_CNT2__GFX09                     0x3375
-#define mmGDS_PS7_CTXSW_CNT3__GFX09                     0x3376
-#define mmGDS_RD_ADDR                                   0xC400
-#define mmGDS_RD_BURST_ADDR                             0xC402
-#define mmGDS_RD_BURST_COUNT                            0xC403
-#define mmGDS_RD_BURST_DATA                             0xC404
-#define mmGDS_RD_DATA                                   0xC401
-#define mmGDS_VMID0_BASE                                0x3300
-#define mmGDS_VMID0_SIZE                                0x3301
-#define mmGDS_VMID10_BASE                               0x3314
-#define mmGDS_VMID10_SIZE                               0x3315
-#define mmGDS_VMID11_BASE                               0x3316
-#define mmGDS_VMID11_SIZE                               0x3317
-#define mmGDS_VMID12_BASE                               0x3318
-#define mmGDS_VMID12_SIZE                               0x3319
-#define mmGDS_VMID13_BASE                               0x331A
-#define mmGDS_VMID13_SIZE                               0x331B
-#define mmGDS_VMID14_BASE                               0x331C
-#define mmGDS_VMID14_SIZE                               0x331D
-#define mmGDS_VMID15_BASE                               0x331E
-#define mmGDS_VMID15_SIZE                               0x331F
-#define mmGDS_VMID1_BASE                                0x3302
-#define mmGDS_VMID1_SIZE                                0x3303
-#define mmGDS_VMID2_BASE                                0x3304
-#define mmGDS_VMID2_SIZE                                0x3305
-#define mmGDS_VMID3_BASE                                0x3306
-#define mmGDS_VMID3_SIZE                                0x3307
-#define mmGDS_VMID4_BASE                                0x3308
-#define mmGDS_VMID4_SIZE                                0x3309
-#define mmGDS_VMID5_BASE                                0x330A
-#define mmGDS_VMID5_SIZE                                0x330B
-#define mmGDS_VMID6_BASE                                0x330C
-#define mmGDS_VMID6_SIZE                                0x330D
-#define mmGDS_VMID7_BASE                                0x330E
-#define mmGDS_VMID7_SIZE                                0x330F
-#define mmGDS_VMID8_BASE                                0x3310
-#define mmGDS_VMID8_SIZE                                0x3311
-#define mmGDS_VMID9_BASE                                0x3312
-#define mmGDS_VMID9_SIZE                                0x3313
-#define mmGDS_VM_PROTECTION_FAULT                       0x25C4
-#define mmGDS_VS_CTXSW_CNT0                             0x3353
-#define mmGDS_VS_CTXSW_CNT1                             0x3354
-#define mmGDS_VS_CTXSW_CNT2                             0x3355
-#define mmGDS_VS_CTXSW_CNT3                             0x3356
-#define mmGDS_WD_GDS_CSB                                0x25CE
-#define mmGDS_WRITE_COMPLETE                            0xC409
-#define mmGDS_WR_ADDR                                   0xC405
-#define mmGDS_WR_BURST_ADDR                             0xC407
-#define mmGDS_WR_BURST_DATA                             0xC408
-#define mmGDS_WR_DATA                                   0xC406
-#define mmGFX_COPY_STATE                                0xA1F4
-#define mmGFX_PIPE_CONTROL                              0x226D
-#define mmGRBM_CAM_DATA                                 0xFA05
-#define mmGRBM_CAM_INDEX                                0xFA04
-#define mmGRBM_CHICKEN_BITS                             0x2029
-#define mmGRBM_CHIP_REVISION                            0x2021
-#define mmGRBM_CNTL                                     0x2000
-#define mmGRBM_DSM_BYPASS                               0x201E
-#define mmGRBM_GFX_CLKEN_CNTL                           0x200C
-#define mmGRBM_GFX_CNTL                                 0x2022
-#define mmGRBM_GFX_CNTL_SR_DATA                         0xFA03
-#define mmGRBM_GFX_CNTL_SR_SELECT                       0xFA02
-#define mmGRBM_GFX_INDEX                                0xC200
-#define mmGRBM_GFX_INDEX_SR_DATA                        0xFA01
-#define mmGRBM_GFX_INDEX_SR_SELECT                      0xFA00
-#define mmGRBM_HYP_CAM_DATA                             0xFA05
-#define mmGRBM_HYP_CAM_INDEX                            0xFA04
-#define mmGRBM_IH_CREDIT                                0x2024
-#define mmGRBM_INT_CNTL                                 0x2018
-#define mmGRBM_IOV_ERROR                                0x2020
-#define mmGRBM_NOWHERE                                  0x203F
-#define mmGRBM_PERFCOUNTER0_HI                          0xD041
-#define mmGRBM_PERFCOUNTER0_LO                          0xD040
-#define mmGRBM_PERFCOUNTER0_SELECT                      0xD840
-#define mmGRBM_PERFCOUNTER1_HI                          0xD044
-#define mmGRBM_PERFCOUNTER1_LO                          0xD043
-#define mmGRBM_PERFCOUNTER1_SELECT                      0xD841
-#define mmGRBM_PWR_CNTL                                 0x2003
-#define mmGRBM_PWR_CNTL2                                0x2025
-#define mmGRBM_READ_ERROR                               0x2016
-#define mmGRBM_READ_ERROR2                              0x2017
-#define mmGRBM_RSMU_CFG                                 0x2023
-#define mmGRBM_RSMU_READ_ERROR                          0x2028
-#define mmGRBM_SCRATCH_REG0                             0x2040
-#define mmGRBM_SCRATCH_REG1                             0x2041
-#define mmGRBM_SCRATCH_REG2                             0x2042
-#define mmGRBM_SCRATCH_REG3                             0x2043
-#define mmGRBM_SCRATCH_REG4                             0x2044
-#define mmGRBM_SCRATCH_REG5                             0x2045
-#define mmGRBM_SCRATCH_REG6                             0x2046
-#define mmGRBM_SCRATCH_REG7                             0x2047
-#define mmGRBM_SE0_PERFCOUNTER_HI                       0xD046
-#define mmGRBM_SE0_PERFCOUNTER_LO                       0xD045
-#define mmGRBM_SE0_PERFCOUNTER_SELECT                   0xD842
-#define mmGRBM_SE1_PERFCOUNTER_HI                       0xD048
-#define mmGRBM_SE1_PERFCOUNTER_LO                       0xD047
-#define mmGRBM_SE1_PERFCOUNTER_SELECT                   0xD843
-#define mmGRBM_SE2_PERFCOUNTER_HI                       0xD04A
-#define mmGRBM_SE2_PERFCOUNTER_LO                       0xD049
-#define mmGRBM_SE2_PERFCOUNTER_SELECT                   0xD844
-#define mmGRBM_SE3_PERFCOUNTER_HI                       0xD04C
-#define mmGRBM_SE3_PERFCOUNTER_LO                       0xD04B
-#define mmGRBM_SE3_PERFCOUNTER_SELECT                   0xD845
-#define mmGRBM_SKEW_CNTL                                0x2001
-#define mmGRBM_SOFT_RESET                               0x2008
-#define mmGRBM_STATUS                                   0x2004
-#define mmGRBM_STATUS2                                  0x2002
-#define mmGRBM_STATUS_SE0                               0x2005
-#define mmGRBM_STATUS_SE1                               0x2006
-#define mmGRBM_STATUS_SE2                               0x200E
-#define mmGRBM_STATUS_SE3                               0x200F
-#define mmGRBM_TRAP_ADDR                                0x201A
-#define mmGRBM_TRAP_ADDR_MSK                            0x201B
-#define mmGRBM_TRAP_OP                                  0x2019
-#define mmGRBM_TRAP_WD                                  0x201C
-#define mmGRBM_TRAP_WD_MSK                              0x201D
-#define mmGRBM_UTCL2_INVAL_RANGE_END                    0x2027
-#define mmGRBM_UTCL2_INVAL_RANGE_START                  0x2026
-#define mmGRBM_WAIT_IDLE_CLOCKS                         0x200D
-#define mmGRBM_WRITE_ERROR                              0x201F
-#define mmIA_CNTL_STATUS__GFX09                         0x2237
-#define mmIA_ENHANCE                                    0xA29C
-#define mmIA_PERFCOUNTER0_HI__GFX09                     0xD089
-#define mmIA_PERFCOUNTER0_LO__GFX09                     0xD088
-#define mmIA_PERFCOUNTER0_SELECT__GFX09                 0xD884
-#define mmIA_PERFCOUNTER0_SELECT1__GFX09                0xD888
-#define mmIA_PERFCOUNTER1_HI__GFX09                     0xD08B
-#define mmIA_PERFCOUNTER1_LO__GFX09                     0xD08A
-#define mmIA_PERFCOUNTER1_SELECT__GFX09                 0xD885
-#define mmIA_PERFCOUNTER2_HI__GFX09                     0xD08D
-#define mmIA_PERFCOUNTER2_LO__GFX09                     0xD08C
-#define mmIA_PERFCOUNTER2_SELECT__GFX09                 0xD886
-#define mmIA_PERFCOUNTER3_HI__GFX09                     0xD08F
-#define mmIA_PERFCOUNTER3_LO__GFX09                     0xD08E
-#define mmIA_PERFCOUNTER3_SELECT__GFX09                 0xD887
-#define mmIA_UTCL1_CNTL                                 0x2246
-#define mmIA_UTCL1_STATUS                               0x2247
-#define mmIH_ACTIVE_FCN_ID                              0x1220
-#define mmIH_CHICKEN                                    0x122C
-#define mmIH_CID_REMAP_DATA                             0x122B
-#define mmIH_CID_REMAP_INDEX                            0x122A
-#define mmIH_CLIENT_CFG                                 0x1224
-#define mmIH_CLIENT_CFG_DATA                            0x1229
-#define mmIH_CLIENT_CFG_INDEX                           0x1228
-#define mmIH_CLIENT_CREDIT_ERROR                        0x1181
-#define mmIH_CLK_CTRL                                   0x117B
-#define mmIH_CNTL                                       0x1160
-#define mmIH_CNTL2                                      0x1161
-#define mmIH_COOKIE_0                                   0x10C0
-#define mmIH_COOKIE_1                                   0x10C1
-#define mmIH_COOKIE_2                                   0x10C2
-#define mmIH_COOKIE_3                                   0x10C3
-#define mmIH_COOKIE_4                                   0x10C4
-#define mmIH_COOKIE_5                                   0x10C5
-#define mmIH_COOKIE_6                                   0x10C6
-#define mmIH_COOKIE_7                                   0x10C7
-#define mmIH_DOORBELL_RPTR                              0x1127
-#define mmIH_DSM_MATCH_DATA_CONTROL                     0x116B
-#define mmIH_DSM_MATCH_FCN_ID                           0x116C
-#define mmIH_DSM_MATCH_FIELD_CONTROL                    0x116A
-#define mmIH_DSM_MATCH_VALUE_BIT_31_0                   0x1167
-#define mmIH_DSM_MATCH_VALUE_BIT_63_32                  0x1168
-#define mmIH_DSM_MATCH_VALUE_BIT_95_64                  0x1169
-#define mmIH_GPU_IOV_VIOLATION_LOG                      0x1182
-#define mmIH_INT_FLAGS                                  0x117C
-#define mmIH_INT_FLOOD_CNTL                             0x1175
-#define mmIH_INT_FLOOD_STATUS                           0x1179
-#define mmIH_LAST_INT_INFO0                             0x117D
-#define mmIH_LAST_INT_INFO1                             0x117E
-#define mmIH_LAST_INT_INFO2                             0x117F
-#define mmIH_LIMIT_INT_RATE_CNTL                        0x116D
-#define mmIH_MMHUB_CNTL                                 0x122D
-#define mmIH_PERFCOUNTER0_RESULT                        0x1164
-#define mmIH_PERFCOUNTER1_RESULT                        0x1165
-#define mmIH_PERFMON_CNTL                               0x1163
-#define mmIH_RB0_INT_FLOOD_STATUS                       0x1176
-#define mmIH_RB1_INT_FLOOD_STATUS                       0x1177
-#define mmIH_RB2_INT_FLOOD_STATUS                       0x1178
-#define mmIH_RB_BASE                                    0x1121
-#define mmIH_RB_BASE_HI                                 0x1122
-#define mmIH_RB_CNTL                                    0x1120
-#define mmIH_RB_RPTR                                    0x1123
-#define mmIH_RB_WPTR                                    0x1124
-#define mmIH_RB_WPTR_ADDR_HI                            0x1125
-#define mmIH_RB_WPTR_ADDR_LO                            0x1126
-#define mmIH_REGISTER_LAST_PART0                        0x10DF
-#define mmIH_REGISTER_LAST_PART1                        0x123F
-#define mmIH_REGISTER_LAST_PART2                        0x119F
-#define mmIH_SCRATCH                                    0x1180
-#define mmIH_STATUS                                     0x1162
-#define mmIH_STORM_CLIENT_LIST_CNTL                     0x117A
-#define mmIH_VF_RB1_STATUS                              0x1170
-#define mmIH_VF_RB1_STATUS2                             0x1171
-#define mmIH_VF_RB2_STATUS                              0x1172
-#define mmIH_VF_RB2_STATUS2                             0x1173
-#define mmIH_VF_RB_STATUS                               0x116E
-#define mmIH_VF_RB_STATUS2                              0x116F
-#define mmIH_VIRT_RESET_REQ                             0x1221
-#define mmIH_VMID_0_LUT                                 0x10A0
-#define mmIH_VMID_0_LUT_MM                              0x10B0
-#define mmIH_VMID_10_LUT                                0x10AA
-#define mmIH_VMID_10_LUT_MM                             0x10BA
-#define mmIH_VMID_11_LUT                                0x10AB
-#define mmIH_VMID_11_LUT_MM                             0x10BB
-#define mmIH_VMID_12_LUT                                0x10AC
-#define mmIH_VMID_12_LUT_MM                             0x10BC
-#define mmIH_VMID_13_LUT                                0x10AD
-#define mmIH_VMID_13_LUT_MM                             0x10BD
-#define mmIH_VMID_14_LUT                                0x10AE
-#define mmIH_VMID_14_LUT_MM                             0x10BE
-#define mmIH_VMID_15_LUT                                0x10AF
-#define mmIH_VMID_15_LUT_MM                             0x10BF
-#define mmIH_VMID_1_LUT                                 0x10A1
-#define mmIH_VMID_1_LUT_MM                              0x10B1
-#define mmIH_VMID_2_LUT                                 0x10A2
-#define mmIH_VMID_2_LUT_MM                              0x10B2
-#define mmIH_VMID_3_LUT                                 0x10A3
-#define mmIH_VMID_3_LUT_MM                              0x10B3
-#define mmIH_VMID_4_LUT                                 0x10A4
-#define mmIH_VMID_4_LUT_MM                              0x10B4
-#define mmIH_VMID_5_LUT                                 0x10A5
-#define mmIH_VMID_5_LUT_MM                              0x10B5
-#define mmIH_VMID_6_LUT                                 0x10A6
-#define mmIH_VMID_6_LUT_MM                              0x10B6
-#define mmIH_VMID_7_LUT                                 0x10A7
-#define mmIH_VMID_7_LUT_MM                              0x10B7
-#define mmIH_VMID_8_LUT                                 0x10A8
-#define mmIH_VMID_8_LUT_MM                              0x10B8
-#define mmIH_VMID_9_LUT                                 0x10A9
-#define mmIH_VMID_9_LUT_MM                              0x10B9
-#define mmLDS_CONFIG                                    0x2302
-#define mmMC_MEM_POWER_LS__GFX09                        0x2970
-#define mmMC_SHARED_VIRT_RESET_REQ__GFX09               0x296F
-#define mmMC_VM_AGP_BASE__GFX09                         0x2984
-#define mmMC_VM_AGP_BOT__GFX09                          0x2983
-#define mmMC_VM_AGP_TOP__GFX09                          0x2982
-#define mmMC_VM_APT_CNTL__GFX09                         0x2973
-#define mmMC_VM_CACHEABLE_DRAM_ADDRESS_END__GFX09       0x2972
-#define mmMC_VM_CACHEABLE_DRAM_ADDRESS_START__GFX09     0x2971
-#define mmMC_VM_FB_LOCATION_BASE__GFX09                 0x2980
-#define mmMC_VM_FB_LOCATION_TOP__GFX09                  0x2981
-#define mmMC_VM_FB_OFFSET__GFX09                        0x296B
-#define mmMC_VM_FB_SIZE_OFFSET_VF0__GFX09               0xFA80
-#define mmMC_VM_FB_SIZE_OFFSET_VF1__GFX09               0xFA81
-#define mmMC_VM_FB_SIZE_OFFSET_VF10__GFX09              0xFA8A
-#define mmMC_VM_FB_SIZE_OFFSET_VF11__GFX09              0xFA8B
-#define mmMC_VM_FB_SIZE_OFFSET_VF12__GFX09              0xFA8C
-#define mmMC_VM_FB_SIZE_OFFSET_VF13__GFX09              0xFA8D
-#define mmMC_VM_FB_SIZE_OFFSET_VF14__GFX09              0xFA8E
-#define mmMC_VM_FB_SIZE_OFFSET_VF15__GFX09              0xFA8F
-#define mmMC_VM_FB_SIZE_OFFSET_VF2__GFX09               0xFA82
-#define mmMC_VM_FB_SIZE_OFFSET_VF3__GFX09               0xFA83
-#define mmMC_VM_FB_SIZE_OFFSET_VF4__GFX09               0xFA84
-#define mmMC_VM_FB_SIZE_OFFSET_VF5__GFX09               0xFA85
-#define mmMC_VM_FB_SIZE_OFFSET_VF6__GFX09               0xFA86
-#define mmMC_VM_FB_SIZE_OFFSET_VF7__GFX09               0xFA87
-#define mmMC_VM_FB_SIZE_OFFSET_VF8__GFX09               0xFA88
-#define mmMC_VM_FB_SIZE_OFFSET_VF9__GFX09               0xFA89
-#define mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09              0xDD4C
-#define mmMC_VM_L2_PERFCOUNTER1_CFG__GFX09              0xDD4D
-#define mmMC_VM_L2_PERFCOUNTER2_CFG__GFX09              0xDD4E
-#define mmMC_VM_L2_PERFCOUNTER3_CFG__GFX09              0xDD4F
-#define mmMC_VM_L2_PERFCOUNTER4_CFG__GFX09              0xDD50
-#define mmMC_VM_L2_PERFCOUNTER5_CFG__GFX09              0xDD51
-#define mmMC_VM_L2_PERFCOUNTER6_CFG__GFX09              0xDD52
-#define mmMC_VM_L2_PERFCOUNTER7_CFG__GFX09              0xDD53
-#define mmMC_VM_L2_PERFCOUNTER_HI__GFX09                0xD509
-#define mmMC_VM_L2_PERFCOUNTER_LO__GFX09                0xD508
-#define mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09         0xDD54
-#define mmMC_VM_LOCAL_HBM_ADDRESS_END__GFX09            0x2975
-#define mmMC_VM_LOCAL_HBM_ADDRESS_LOCK_CNTL__GFX09      0x2976
-#define mmMC_VM_LOCAL_HBM_ADDRESS_START__GFX09          0x2974
-#define mmMC_VM_MARC_BASE_HI_0__GFX09                   0xFA95
-#define mmMC_VM_MARC_BASE_HI_1__GFX09                   0xFA96
-#define mmMC_VM_MARC_BASE_HI_2__GFX09                   0xFA97
-#define mmMC_VM_MARC_BASE_HI_3__GFX09                   0xFA98
-#define mmMC_VM_MARC_BASE_LO_0__GFX09                   0xFA91
-#define mmMC_VM_MARC_BASE_LO_1__GFX09                   0xFA92
-#define mmMC_VM_MARC_BASE_LO_2__GFX09                   0xFA93
-#define mmMC_VM_MARC_BASE_LO_3__GFX09                   0xFA94
-#define mmMC_VM_MARC_LEN_HI_0__GFX09                    0xFAA5
-#define mmMC_VM_MARC_LEN_HI_1__GFX09                    0xFAA6
-#define mmMC_VM_MARC_LEN_HI_2__GFX09                    0xFAA7
-#define mmMC_VM_MARC_LEN_HI_3__GFX09                    0xFAA8
-#define mmMC_VM_MARC_LEN_LO_0__GFX09                    0xFAA1
-#define mmMC_VM_MARC_LEN_LO_1__GFX09                    0xFAA2
-#define mmMC_VM_MARC_LEN_LO_2__GFX09                    0xFAA3
-#define mmMC_VM_MARC_LEN_LO_3__GFX09                    0xFAA4
-#define mmMC_VM_MARC_RELOC_HI_0__GFX09                  0xFA9D
-#define mmMC_VM_MARC_RELOC_HI_1__GFX09                  0xFA9E
-#define mmMC_VM_MARC_RELOC_HI_2__GFX09                  0xFA9F
-#define mmMC_VM_MARC_RELOC_HI_3__GFX09                  0xFAA0
-#define mmMC_VM_MARC_RELOC_LO_0__GFX09                  0xFA99
-#define mmMC_VM_MARC_RELOC_LO_1__GFX09                  0xFA9A
-#define mmMC_VM_MARC_RELOC_LO_2__GFX09                  0xFA9B
-#define mmMC_VM_MARC_RELOC_LO_3__GFX09                  0xFA9C
-#define mmMC_VM_MX_L1_TLB_CNTL__GFX09                   0x2987
-#define mmMC_VM_NB_LOWER_TOP_OF_DRAM2__GFX09            0x2969
-#define mmMC_VM_NB_MMIOBASE__GFX09                      0x2964
-#define mmMC_VM_NB_MMIOLIMIT__GFX09                     0x2965
-#define mmMC_VM_NB_PCI_ARB__GFX09                       0x2967
-#define mmMC_VM_NB_PCI_CTRL__GFX09                      0x2966
-#define mmMC_VM_NB_TOP_OF_DRAM_SLOT1__GFX09             0x2968
-#define mmMC_VM_NB_UPPER_TOP_OF_DRAM2__GFX09            0x296A
-#define mmMC_VM_STEERING__GFX09                         0x296E
-#define mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB__GFX09 0x296C
-#define mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB__GFX09 0x296D
-#define mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR__GFX09        0x2986
-#define mmMC_VM_SYSTEM_APERTURE_LOW_ADDR__GFX09         0x2985
-#define mmMP0_SMN_ACTIVE_FCN_ID__GFX09                  0x160C0
-#define mmMP0_SMN_C2PMSG_100__GFX09                     0x160A4
-#define mmMP0_SMN_C2PMSG_101__GFX09                     0x160A5
-#define mmMP0_SMN_C2PMSG_102__GFX09                     0x160A6
-#define mmMP0_SMN_C2PMSG_103__GFX09                     0x160A7
-#define mmMP0_SMN_C2PMSG_32                             0x16060
-#define mmMP0_SMN_C2PMSG_33                             0x16061
-#define mmMP0_SMN_C2PMSG_34                             0x16062
-#define mmMP0_SMN_C2PMSG_35                             0x16063
-#define mmMP0_SMN_C2PMSG_36                             0x16064
-#define mmMP0_SMN_C2PMSG_37                             0x16065
-#define mmMP0_SMN_C2PMSG_38                             0x16066
-#define mmMP0_SMN_C2PMSG_39                             0x16067
-#define mmMP0_SMN_C2PMSG_40                             0x16068
-#define mmMP0_SMN_C2PMSG_41                             0x16069
-#define mmMP0_SMN_C2PMSG_42                             0x1606A
-#define mmMP0_SMN_C2PMSG_43                             0x1606B
-#define mmMP0_SMN_C2PMSG_44                             0x1606C
-#define mmMP0_SMN_C2PMSG_45                             0x1606D
-#define mmMP0_SMN_C2PMSG_46                             0x1606E
-#define mmMP0_SMN_C2PMSG_47                             0x1606F
-#define mmMP0_SMN_C2PMSG_48                             0x16070
-#define mmMP0_SMN_C2PMSG_49                             0x16071
-#define mmMP0_SMN_C2PMSG_50                             0x16072
-#define mmMP0_SMN_C2PMSG_51                             0x16073
-#define mmMP0_SMN_C2PMSG_52                             0x16074
-#define mmMP0_SMN_C2PMSG_53                             0x16075
-#define mmMP0_SMN_C2PMSG_54                             0x16076
-#define mmMP0_SMN_C2PMSG_55                             0x16077
-#define mmMP0_SMN_C2PMSG_56                             0x16078
-#define mmMP0_SMN_C2PMSG_57                             0x16079
-#define mmMP0_SMN_C2PMSG_58                             0x1607A
-#define mmMP0_SMN_C2PMSG_59                             0x1607B
-#define mmMP0_SMN_C2PMSG_60                             0x1607C
-#define mmMP0_SMN_C2PMSG_61                             0x1607D
-#define mmMP0_SMN_C2PMSG_62                             0x1607E
-#define mmMP0_SMN_C2PMSG_63                             0x1607F
-#define mmMP0_SMN_C2PMSG_64                             0x16080
-#define mmMP0_SMN_C2PMSG_65                             0x16081
-#define mmMP0_SMN_C2PMSG_66                             0x16082
-#define mmMP0_SMN_C2PMSG_67                             0x16083
-#define mmMP0_SMN_C2PMSG_68                             0x16084
-#define mmMP0_SMN_C2PMSG_69                             0x16085
-#define mmMP0_SMN_C2PMSG_70                             0x16086
-#define mmMP0_SMN_C2PMSG_71                             0x16087
-#define mmMP0_SMN_C2PMSG_72                             0x16088
-#define mmMP0_SMN_C2PMSG_73                             0x16089
-#define mmMP0_SMN_C2PMSG_74                             0x1608A
-#define mmMP0_SMN_C2PMSG_75                             0x1608B
-#define mmMP0_SMN_C2PMSG_76                             0x1608C
-#define mmMP0_SMN_C2PMSG_77                             0x1608D
-#define mmMP0_SMN_C2PMSG_78                             0x1608E
-#define mmMP0_SMN_C2PMSG_79                             0x1608F
-#define mmMP0_SMN_C2PMSG_80                             0x16090
-#define mmMP0_SMN_C2PMSG_81                             0x16091
-#define mmMP0_SMN_C2PMSG_82                             0x16092
-#define mmMP0_SMN_C2PMSG_83                             0x16093
-#define mmMP0_SMN_C2PMSG_84                             0x16094
-#define mmMP0_SMN_C2PMSG_85                             0x16095
-#define mmMP0_SMN_C2PMSG_86                             0x16096
-#define mmMP0_SMN_C2PMSG_87                             0x16097
-#define mmMP0_SMN_C2PMSG_88                             0x16098
-#define mmMP0_SMN_C2PMSG_89                             0x16099
-#define mmMP0_SMN_C2PMSG_90                             0x1609A
-#define mmMP0_SMN_C2PMSG_91                             0x1609B
-#define mmMP0_SMN_C2PMSG_92                             0x1609C
-#define mmMP0_SMN_C2PMSG_93                             0x1609D
-#define mmMP0_SMN_C2PMSG_94                             0x1609E
-#define mmMP0_SMN_C2PMSG_95                             0x1609F
-#define mmMP0_SMN_C2PMSG_96__GFX09                      0x160A0
-#define mmMP0_SMN_C2PMSG_97__GFX09                      0x160A1
-#define mmMP0_SMN_C2PMSG_98__GFX09                      0x160A2
-#define mmMP0_SMN_C2PMSG_99__GFX09                      0x160A3
-#define mmMP0_SMN_IH_CREDIT__GFX09                      0x160C1
-#define mmMP0_SMN_IH_SW_INT__GFX09                      0x160C2
-#define mmMP0_SMN_IH_SW_INT_CTRL__GFX09                 0x160C3
-#define mmMP1_SMN_ACP2MP_RESP                           0x16240
-#define mmMP1_SMN_ACTIVE_FCN_ID__GFX09                  0x162C0
-#define mmMP1_SMN_C2PMSG_100__GFX09                     0x162A4
-#define mmMP1_SMN_C2PMSG_101__GFX09                     0x162A5
-#define mmMP1_SMN_C2PMSG_102__GFX09                     0x162A6
-#define mmMP1_SMN_C2PMSG_103__GFX09                     0x162A7
-#define mmMP1_SMN_C2PMSG_32                             0x16260
-#define mmMP1_SMN_C2PMSG_33                             0x16261
-#define mmMP1_SMN_C2PMSG_34                             0x16262
-#define mmMP1_SMN_C2PMSG_35                             0x16263
-#define mmMP1_SMN_C2PMSG_36                             0x16264
-#define mmMP1_SMN_C2PMSG_37                             0x16265
-#define mmMP1_SMN_C2PMSG_38                             0x16266
-#define mmMP1_SMN_C2PMSG_39                             0x16267
-#define mmMP1_SMN_C2PMSG_40                             0x16268
-#define mmMP1_SMN_C2PMSG_41                             0x16269
-#define mmMP1_SMN_C2PMSG_42                             0x1626A
-#define mmMP1_SMN_C2PMSG_43                             0x1626B
-#define mmMP1_SMN_C2PMSG_44                             0x1626C
-#define mmMP1_SMN_C2PMSG_45                             0x1626D
-#define mmMP1_SMN_C2PMSG_46                             0x1626E
-#define mmMP1_SMN_C2PMSG_47                             0x1626F
-#define mmMP1_SMN_C2PMSG_48                             0x16270
-#define mmMP1_SMN_C2PMSG_49                             0x16271
-#define mmMP1_SMN_C2PMSG_50                             0x16272
-#define mmMP1_SMN_C2PMSG_51                             0x16273
-#define mmMP1_SMN_C2PMSG_52                             0x16274
-#define mmMP1_SMN_C2PMSG_53                             0x16275
-#define mmMP1_SMN_C2PMSG_54                             0x16276
-#define mmMP1_SMN_C2PMSG_55                             0x16277
-#define mmMP1_SMN_C2PMSG_56                             0x16278
-#define mmMP1_SMN_C2PMSG_57                             0x16279
-#define mmMP1_SMN_C2PMSG_58                             0x1627A
-#define mmMP1_SMN_C2PMSG_59                             0x1627B
-#define mmMP1_SMN_C2PMSG_60                             0x1627C
-#define mmMP1_SMN_C2PMSG_61                             0x1627D
-#define mmMP1_SMN_C2PMSG_62                             0x1627E
-#define mmMP1_SMN_C2PMSG_63                             0x1627F
-#define mmMP1_SMN_C2PMSG_64                             0x16280
-#define mmMP1_SMN_C2PMSG_65                             0x16281
-#define mmMP1_SMN_C2PMSG_66                             0x16282
-#define mmMP1_SMN_C2PMSG_67                             0x16283
-#define mmMP1_SMN_C2PMSG_68                             0x16284
-#define mmMP1_SMN_C2PMSG_69                             0x16285
-#define mmMP1_SMN_C2PMSG_70                             0x16286
-#define mmMP1_SMN_C2PMSG_71                             0x16287
-#define mmMP1_SMN_C2PMSG_72                             0x16288
-#define mmMP1_SMN_C2PMSG_73                             0x16289
-#define mmMP1_SMN_C2PMSG_74                             0x1628A
-#define mmMP1_SMN_C2PMSG_75                             0x1628B
-#define mmMP1_SMN_C2PMSG_76                             0x1628C
-#define mmMP1_SMN_C2PMSG_77                             0x1628D
-#define mmMP1_SMN_C2PMSG_78                             0x1628E
-#define mmMP1_SMN_C2PMSG_79                             0x1628F
-#define mmMP1_SMN_C2PMSG_80                             0x16290
-#define mmMP1_SMN_C2PMSG_81                             0x16291
-#define mmMP1_SMN_C2PMSG_82                             0x16292
-#define mmMP1_SMN_C2PMSG_83                             0x16293
-#define mmMP1_SMN_C2PMSG_84                             0x16294
-#define mmMP1_SMN_C2PMSG_85                             0x16295
-#define mmMP1_SMN_C2PMSG_86                             0x16296
-#define mmMP1_SMN_C2PMSG_87                             0x16297
-#define mmMP1_SMN_C2PMSG_88                             0x16298
-#define mmMP1_SMN_C2PMSG_89                             0x16299
-#define mmMP1_SMN_C2PMSG_90                             0x1629A
-#define mmMP1_SMN_C2PMSG_91                             0x1629B
-#define mmMP1_SMN_C2PMSG_92                             0x1629C
-#define mmMP1_SMN_C2PMSG_93                             0x1629D
-#define mmMP1_SMN_C2PMSG_94                             0x1629E
-#define mmMP1_SMN_C2PMSG_95                             0x1629F
-#define mmMP1_SMN_C2PMSG_96__GFX09                      0x162A0
-#define mmMP1_SMN_C2PMSG_97__GFX09                      0x162A1
-#define mmMP1_SMN_C2PMSG_98__GFX09                      0x162A2
-#define mmMP1_SMN_C2PMSG_99__GFX09                      0x162A3
-#define mmMP1_SMN_DC2MP_RESP                            0x16241
-#define mmMP1_SMN_EXT_SCRATCH0__GFX09                   0x163C0
-#define mmMP1_SMN_EXT_SCRATCH1__GFX09                   0x163C1
-#define mmMP1_SMN_EXT_SCRATCH2__GFX09                   0x163C2
-#define mmMP1_SMN_EXT_SCRATCH3__GFX09                   0x163C3
-#define mmMP1_SMN_EXT_SCRATCH4__GFX09                   0x163C4
-#define mmMP1_SMN_EXT_SCRATCH5__GFX09                   0x163C5
-#define mmMP1_SMN_EXT_SCRATCH6__GFX09                   0x163C6
-#define mmMP1_SMN_EXT_SCRATCH7__GFX09                   0x163C7
-#define mmMP1_SMN_EXT_SCRATCH8__GFX09                   0x163C8
-#define mmMP1_SMN_IH_CREDIT__GFX09                      0x162C1
-#define mmMP1_SMN_IH_SW_INT__GFX09                      0x162C2
-#define mmMP1_SMN_PUB_CTRL__GFX09                       0x162C5
-#define mmMP1_SMN_RLC2MP_RESP                           0x16244
-#define mmMP1_SMN_UVD2MP_RESP                           0x16242
-#define mmMP1_SMN_VCE2MP_RESP                           0x16243
-#define mmPA_CL_CLIP_CNTL                               0xA204
-#define mmPA_CL_CNTL_STATUS                             0x2284
-#define mmPA_CL_ENHANCE                                 0x2285
-#define mmPA_CL_GB_HORZ_CLIP_ADJ                        0xA2FC
-#define mmPA_CL_GB_HORZ_DISC_ADJ                        0xA2FD
-#define mmPA_CL_GB_VERT_CLIP_ADJ                        0xA2FA
-#define mmPA_CL_GB_VERT_DISC_ADJ                        0xA2FB
-#define mmPA_CL_NANINF_CNTL                             0xA208
-#define mmPA_CL_NGG_CNTL                                0xA20E
-#define mmPA_CL_POINT_CULL_RAD                          0xA1F8
-#define mmPA_CL_POINT_SIZE                              0xA1F7
-#define mmPA_CL_POINT_X_RAD                             0xA1F5
-#define mmPA_CL_POINT_Y_RAD                             0xA1F6
-#define mmPA_CL_RESET_DEBUG                             0x2286
-#define mmPA_CL_UCP_0_W                                 0xA172
-#define mmPA_CL_UCP_0_X                                 0xA16F
-#define mmPA_CL_UCP_0_Y                                 0xA170
-#define mmPA_CL_UCP_0_Z                                 0xA171
-#define mmPA_CL_UCP_1_W                                 0xA176
-#define mmPA_CL_UCP_1_X                                 0xA173
-#define mmPA_CL_UCP_1_Y                                 0xA174
-#define mmPA_CL_UCP_1_Z                                 0xA175
-#define mmPA_CL_UCP_2_W                                 0xA17A
-#define mmPA_CL_UCP_2_X                                 0xA177
-#define mmPA_CL_UCP_2_Y                                 0xA178
-#define mmPA_CL_UCP_2_Z                                 0xA179
-#define mmPA_CL_UCP_3_W                                 0xA17E
-#define mmPA_CL_UCP_3_X                                 0xA17B
-#define mmPA_CL_UCP_3_Y                                 0xA17C
-#define mmPA_CL_UCP_3_Z                                 0xA17D
-#define mmPA_CL_UCP_4_W                                 0xA182
-#define mmPA_CL_UCP_4_X                                 0xA17F
-#define mmPA_CL_UCP_4_Y                                 0xA180
-#define mmPA_CL_UCP_4_Z                                 0xA181
-#define mmPA_CL_UCP_5_W                                 0xA186
-#define mmPA_CL_UCP_5_X                                 0xA183
-#define mmPA_CL_UCP_5_Y                                 0xA184
-#define mmPA_CL_UCP_5_Z                                 0xA185
-#define mmPA_CL_VPORT_XOFFSET                           0xA110
-#define mmPA_CL_VPORT_XOFFSET_1                         0xA116
-#define mmPA_CL_VPORT_XOFFSET_10                        0xA14C
-#define mmPA_CL_VPORT_XOFFSET_11                        0xA152
-#define mmPA_CL_VPORT_XOFFSET_12                        0xA158
-#define mmPA_CL_VPORT_XOFFSET_13                        0xA15E
-#define mmPA_CL_VPORT_XOFFSET_14                        0xA164
-#define mmPA_CL_VPORT_XOFFSET_15                        0xA16A
-#define mmPA_CL_VPORT_XOFFSET_2                         0xA11C
-#define mmPA_CL_VPORT_XOFFSET_3                         0xA122
-#define mmPA_CL_VPORT_XOFFSET_4                         0xA128
-#define mmPA_CL_VPORT_XOFFSET_5                         0xA12E
-#define mmPA_CL_VPORT_XOFFSET_6                         0xA134
-#define mmPA_CL_VPORT_XOFFSET_7                         0xA13A
-#define mmPA_CL_VPORT_XOFFSET_8                         0xA140
-#define mmPA_CL_VPORT_XOFFSET_9                         0xA146
-#define mmPA_CL_VPORT_XSCALE                            0xA10F
-#define mmPA_CL_VPORT_XSCALE_1                          0xA115
-#define mmPA_CL_VPORT_XSCALE_10                         0xA14B
-#define mmPA_CL_VPORT_XSCALE_11                         0xA151
-#define mmPA_CL_VPORT_XSCALE_12                         0xA157
-#define mmPA_CL_VPORT_XSCALE_13                         0xA15D
-#define mmPA_CL_VPORT_XSCALE_14                         0xA163
-#define mmPA_CL_VPORT_XSCALE_15                         0xA169
-#define mmPA_CL_VPORT_XSCALE_2                          0xA11B
-#define mmPA_CL_VPORT_XSCALE_3                          0xA121
-#define mmPA_CL_VPORT_XSCALE_4                          0xA127
-#define mmPA_CL_VPORT_XSCALE_5                          0xA12D
-#define mmPA_CL_VPORT_XSCALE_6                          0xA133
-#define mmPA_CL_VPORT_XSCALE_7                          0xA139
-#define mmPA_CL_VPORT_XSCALE_8                          0xA13F
-#define mmPA_CL_VPORT_XSCALE_9                          0xA145
-#define mmPA_CL_VPORT_YOFFSET                           0xA112
-#define mmPA_CL_VPORT_YOFFSET_1                         0xA118
-#define mmPA_CL_VPORT_YOFFSET_10                        0xA14E
-#define mmPA_CL_VPORT_YOFFSET_11                        0xA154
-#define mmPA_CL_VPORT_YOFFSET_12                        0xA15A
-#define mmPA_CL_VPORT_YOFFSET_13                        0xA160
-#define mmPA_CL_VPORT_YOFFSET_14                        0xA166
-#define mmPA_CL_VPORT_YOFFSET_15                        0xA16C
-#define mmPA_CL_VPORT_YOFFSET_2                         0xA11E
-#define mmPA_CL_VPORT_YOFFSET_3                         0xA124
-#define mmPA_CL_VPORT_YOFFSET_4                         0xA12A
-#define mmPA_CL_VPORT_YOFFSET_5                         0xA130
-#define mmPA_CL_VPORT_YOFFSET_6                         0xA136
-#define mmPA_CL_VPORT_YOFFSET_7                         0xA13C
-#define mmPA_CL_VPORT_YOFFSET_8                         0xA142
-#define mmPA_CL_VPORT_YOFFSET_9                         0xA148
-#define mmPA_CL_VPORT_YSCALE                            0xA111
-#define mmPA_CL_VPORT_YSCALE_1                          0xA117
-#define mmPA_CL_VPORT_YSCALE_10                         0xA14D
-#define mmPA_CL_VPORT_YSCALE_11                         0xA153
-#define mmPA_CL_VPORT_YSCALE_12                         0xA159
-#define mmPA_CL_VPORT_YSCALE_13                         0xA15F
-#define mmPA_CL_VPORT_YSCALE_14                         0xA165
-#define mmPA_CL_VPORT_YSCALE_15                         0xA16B
-#define mmPA_CL_VPORT_YSCALE_2                          0xA11D
-#define mmPA_CL_VPORT_YSCALE_3                          0xA123
-#define mmPA_CL_VPORT_YSCALE_4                          0xA129
-#define mmPA_CL_VPORT_YSCALE_5                          0xA12F
-#define mmPA_CL_VPORT_YSCALE_6                          0xA135
-#define mmPA_CL_VPORT_YSCALE_7                          0xA13B
-#define mmPA_CL_VPORT_YSCALE_8                          0xA141
-#define mmPA_CL_VPORT_YSCALE_9                          0xA147
-#define mmPA_CL_VPORT_ZOFFSET                           0xA114
-#define mmPA_CL_VPORT_ZOFFSET_1                         0xA11A
-#define mmPA_CL_VPORT_ZOFFSET_10                        0xA150
-#define mmPA_CL_VPORT_ZOFFSET_11                        0xA156
-#define mmPA_CL_VPORT_ZOFFSET_12                        0xA15C
-#define mmPA_CL_VPORT_ZOFFSET_13                        0xA162
-#define mmPA_CL_VPORT_ZOFFSET_14                        0xA168
-#define mmPA_CL_VPORT_ZOFFSET_15                        0xA16E
-#define mmPA_CL_VPORT_ZOFFSET_2                         0xA120
-#define mmPA_CL_VPORT_ZOFFSET_3                         0xA126
-#define mmPA_CL_VPORT_ZOFFSET_4                         0xA12C
-#define mmPA_CL_VPORT_ZOFFSET_5                         0xA132
-#define mmPA_CL_VPORT_ZOFFSET_6                         0xA138
-#define mmPA_CL_VPORT_ZOFFSET_7                         0xA13E
-#define mmPA_CL_VPORT_ZOFFSET_8                         0xA144
-#define mmPA_CL_VPORT_ZOFFSET_9                         0xA14A
-#define mmPA_CL_VPORT_ZSCALE                            0xA113
-#define mmPA_CL_VPORT_ZSCALE_1                          0xA119
-#define mmPA_CL_VPORT_ZSCALE_10                         0xA14F
-#define mmPA_CL_VPORT_ZSCALE_11                         0xA155
-#define mmPA_CL_VPORT_ZSCALE_12                         0xA15B
-#define mmPA_CL_VPORT_ZSCALE_13                         0xA161
-#define mmPA_CL_VPORT_ZSCALE_14                         0xA167
-#define mmPA_CL_VPORT_ZSCALE_15                         0xA16D
-#define mmPA_CL_VPORT_ZSCALE_2                          0xA11F
-#define mmPA_CL_VPORT_ZSCALE_3                          0xA125
-#define mmPA_CL_VPORT_ZSCALE_4                          0xA12B
-#define mmPA_CL_VPORT_ZSCALE_5                          0xA131
-#define mmPA_CL_VPORT_ZSCALE_6                          0xA137
-#define mmPA_CL_VPORT_ZSCALE_7                          0xA13D
-#define mmPA_CL_VPORT_ZSCALE_8                          0xA143
-#define mmPA_CL_VPORT_ZSCALE_9                          0xA149
-#define mmPA_CL_VS_OUT_CNTL                             0xA207
-#define mmPA_CL_VTE_CNTL                                0xA206
-#define mmPA_SC_AA_CONFIG                               0xA2F8
-#define mmPA_SC_AA_MASK_X0Y0_X1Y0                       0xA30E
-#define mmPA_SC_AA_MASK_X0Y1_X1Y1                       0xA30F
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0             0xA2FE
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_1             0xA2FF
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_2             0xA300
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_3             0xA301
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_0             0xA306
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_1             0xA307
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_2             0xA308
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_3             0xA309
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_0             0xA302
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_1             0xA303
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_2             0xA304
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_3             0xA305
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_0             0xA30A
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_1             0xA30B
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_2             0xA30C
-#define mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3             0xA30D
-#define mmPA_SC_BINNER_CNTL_0                           0xA311
-#define mmPA_SC_BINNER_CNTL_1                           0xA312
-#define mmPA_SC_BINNER_EVENT_CNTL_0                     0x22CC
-#define mmPA_SC_BINNER_EVENT_CNTL_1                     0x22CD
-#define mmPA_SC_BINNER_EVENT_CNTL_2                     0x22CE
-#define mmPA_SC_BINNER_EVENT_CNTL_3                     0x22CF
-#define mmPA_SC_BINNER_PERF_CNTL_0                      0x22D1
-#define mmPA_SC_BINNER_PERF_CNTL_1                      0x22D2
-#define mmPA_SC_BINNER_PERF_CNTL_2                      0x22D3
-#define mmPA_SC_BINNER_PERF_CNTL_3                      0x22D4
-#define mmPA_SC_BINNER_TIMEOUT_COUNTER                  0x22D0
-#define mmPA_SC_CENTROID_PRIORITY_0                     0xA2F5
-#define mmPA_SC_CENTROID_PRIORITY_1                     0xA2F6
-#define mmPA_SC_CLIPRECT_0_BR                           0xA085
-#define mmPA_SC_CLIPRECT_0_TL                           0xA084
-#define mmPA_SC_CLIPRECT_1_BR                           0xA087
-#define mmPA_SC_CLIPRECT_1_TL                           0xA086
-#define mmPA_SC_CLIPRECT_2_BR                           0xA089
-#define mmPA_SC_CLIPRECT_2_TL                           0xA088
-#define mmPA_SC_CLIPRECT_3_BR                           0xA08B
-#define mmPA_SC_CLIPRECT_3_TL                           0xA08A
-#define mmPA_SC_CLIPRECT_RULE                           0xA083
-#define mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL         0xA313
-#define mmPA_SC_DSM_CNTL                                0x22FE
-#define mmPA_SC_EDGERULE                                0xA08C
-#define mmPA_SC_ENHANCE                                 0x22FC
-#define mmPA_SC_ENHANCE_1                               0x22FD
-#define mmPA_SC_FIFO_DEPTH_CNTL                         0x2295
-#define mmPA_SC_FIFO_SIZE                               0x22F3
-#define mmPA_SC_FORCE_EOV_MAX_CNTS                      0x22C9
-#define mmPA_SC_FOV_WINDOW_LR                           0xA0EB
-#define mmPA_SC_FOV_WINDOW_TB                           0xA0EC
-#define mmPA_SC_GENERIC_SCISSOR_BR                      0xA091
-#define mmPA_SC_GENERIC_SCISSOR_TL                      0xA090
-#define mmPA_SC_HORIZ_GRID                              0xA0EA
-#define mmPA_SC_HP3D_TRAP_SCREEN_COUNT                  0xC2AC
-#define mmPA_SC_HP3D_TRAP_SCREEN_H                      0xC2A9
-#define mmPA_SC_HP3D_TRAP_SCREEN_HV_EN                  0xC2A8
-#define mmPA_SC_HP3D_TRAP_SCREEN_HV_LOCK                0x22C1
-#define mmPA_SC_HP3D_TRAP_SCREEN_OCCURRENCE             0xC2AB
-#define mmPA_SC_HP3D_TRAP_SCREEN_V                      0xC2AA
-#define mmPA_SC_IF_FIFO_SIZE                            0x22F5
-#define mmPA_SC_LEFT_VERT_GRID                          0xA0E9
-#define mmPA_SC_LINE_CNTL                               0xA2F7
-#define mmPA_SC_LINE_STIPPLE                            0xA283
-#define mmPA_SC_LINE_STIPPLE_STATE                      0xC281
-#define mmPA_SC_MODE_CNTL_0                             0xA292
-#define mmPA_SC_MODE_CNTL_1                             0xA293
-#define mmPA_SC_NGG_MODE_CNTL                           0xA314
-#define mmPA_SC_P3D_TRAP_SCREEN_COUNT                   0xC2A4
-#define mmPA_SC_P3D_TRAP_SCREEN_H                       0xC2A1
-#define mmPA_SC_P3D_TRAP_SCREEN_HV_EN                   0xC2A0
-#define mmPA_SC_P3D_TRAP_SCREEN_HV_LOCK                 0x22C0
-#define mmPA_SC_P3D_TRAP_SCREEN_OCCURRENCE              0xC2A3
-#define mmPA_SC_P3D_TRAP_SCREEN_V                       0xC2A2
-#define mmPA_SC_PERFCOUNTER0_HI                         0xD141
-#define mmPA_SC_PERFCOUNTER0_LO                         0xD140
-#define mmPA_SC_PERFCOUNTER0_SELECT                     0xD940
-#define mmPA_SC_PERFCOUNTER0_SELECT1                    0xD941
-#define mmPA_SC_PERFCOUNTER1_HI                         0xD143
-#define mmPA_SC_PERFCOUNTER1_LO                         0xD142
-#define mmPA_SC_PERFCOUNTER1_SELECT                     0xD942
-#define mmPA_SC_PERFCOUNTER2_HI                         0xD145
-#define mmPA_SC_PERFCOUNTER2_LO                         0xD144
-#define mmPA_SC_PERFCOUNTER2_SELECT                     0xD943
-#define mmPA_SC_PERFCOUNTER3_HI                         0xD147
-#define mmPA_SC_PERFCOUNTER3_LO                         0xD146
-#define mmPA_SC_PERFCOUNTER3_SELECT                     0xD944
-#define mmPA_SC_PERFCOUNTER4_HI                         0xD149
-#define mmPA_SC_PERFCOUNTER4_LO                         0xD148
-#define mmPA_SC_PERFCOUNTER4_SELECT                     0xD945
-#define mmPA_SC_PERFCOUNTER5_HI                         0xD14B
-#define mmPA_SC_PERFCOUNTER5_LO                         0xD14A
-#define mmPA_SC_PERFCOUNTER5_SELECT                     0xD946
-#define mmPA_SC_PERFCOUNTER6_HI                         0xD14D
-#define mmPA_SC_PERFCOUNTER6_LO                         0xD14C
-#define mmPA_SC_PERFCOUNTER6_SELECT                     0xD947
-#define mmPA_SC_PERFCOUNTER7_HI                         0xD14F
-#define mmPA_SC_PERFCOUNTER7_LO                         0xD14E
-#define mmPA_SC_PERFCOUNTER7_SELECT                     0xD948
-#define mmPA_SC_PKR_WAVE_TABLE_CNTL                     0x22F8
-#define mmPA_SC_RASTER_CONFIG                           0xA0D4
-#define mmPA_SC_RASTER_CONFIG_1                         0xA0D5
-#define mmPA_SC_RIGHT_VERT_GRID                         0xA0E8
-#define mmPA_SC_SCREEN_EXTENT_CONTROL                   0xA0D6
-#define mmPA_SC_SCREEN_EXTENT_MAX_0                     0xC285
-#define mmPA_SC_SCREEN_EXTENT_MAX_1                     0xC28B
-#define mmPA_SC_SCREEN_EXTENT_MIN_0                     0xC284
-#define mmPA_SC_SCREEN_EXTENT_MIN_1                     0xC286
-#define mmPA_SC_SCREEN_SCISSOR_BR                       0xA00D
-#define mmPA_SC_SCREEN_SCISSOR_TL                       0xA00C
-#define mmPA_SC_SHADER_CONTROL                          0xA310
-#define mmPA_SC_TILE_STEERING_CREST_OVERRIDE            0x22FF
-#define mmPA_SC_TILE_STEERING_OVERRIDE                  0xA0D7
-#define mmPA_SC_TRAP_SCREEN_COUNT                       0xC2B4
-#define mmPA_SC_TRAP_SCREEN_H                           0xC2B1
-#define mmPA_SC_TRAP_SCREEN_HV_EN                       0xC2B0
-#define mmPA_SC_TRAP_SCREEN_HV_LOCK                     0x22C2
-#define mmPA_SC_TRAP_SCREEN_OCCURRENCE                  0xC2B3
-#define mmPA_SC_TRAP_SCREEN_V                           0xC2B2
-#define mmPA_SC_VPORT_SCISSOR_0_BR                      0xA095
-#define mmPA_SC_VPORT_SCISSOR_0_TL                      0xA094
-#define mmPA_SC_VPORT_SCISSOR_10_BR                     0xA0A9
-#define mmPA_SC_VPORT_SCISSOR_10_TL                     0xA0A8
-#define mmPA_SC_VPORT_SCISSOR_11_BR                     0xA0AB
-#define mmPA_SC_VPORT_SCISSOR_11_TL                     0xA0AA
-#define mmPA_SC_VPORT_SCISSOR_12_BR                     0xA0AD
-#define mmPA_SC_VPORT_SCISSOR_12_TL                     0xA0AC
-#define mmPA_SC_VPORT_SCISSOR_13_BR                     0xA0AF
-#define mmPA_SC_VPORT_SCISSOR_13_TL                     0xA0AE
-#define mmPA_SC_VPORT_SCISSOR_14_BR                     0xA0B1
-#define mmPA_SC_VPORT_SCISSOR_14_TL                     0xA0B0
-#define mmPA_SC_VPORT_SCISSOR_15_BR                     0xA0B3
-#define mmPA_SC_VPORT_SCISSOR_15_TL                     0xA0B2
-#define mmPA_SC_VPORT_SCISSOR_1_BR                      0xA097
-#define mmPA_SC_VPORT_SCISSOR_1_TL                      0xA096
-#define mmPA_SC_VPORT_SCISSOR_2_BR                      0xA099
-#define mmPA_SC_VPORT_SCISSOR_2_TL                      0xA098
-#define mmPA_SC_VPORT_SCISSOR_3_BR                      0xA09B
-#define mmPA_SC_VPORT_SCISSOR_3_TL                      0xA09A
-#define mmPA_SC_VPORT_SCISSOR_4_BR                      0xA09D
-#define mmPA_SC_VPORT_SCISSOR_4_TL                      0xA09C
-#define mmPA_SC_VPORT_SCISSOR_5_BR                      0xA09F
-#define mmPA_SC_VPORT_SCISSOR_5_TL                      0xA09E
-#define mmPA_SC_VPORT_SCISSOR_6_BR                      0xA0A1
-#define mmPA_SC_VPORT_SCISSOR_6_TL                      0xA0A0
-#define mmPA_SC_VPORT_SCISSOR_7_BR                      0xA0A3
-#define mmPA_SC_VPORT_SCISSOR_7_TL                      0xA0A2
-#define mmPA_SC_VPORT_SCISSOR_8_BR                      0xA0A5
-#define mmPA_SC_VPORT_SCISSOR_8_TL                      0xA0A4
-#define mmPA_SC_VPORT_SCISSOR_9_BR                      0xA0A7
-#define mmPA_SC_VPORT_SCISSOR_9_TL                      0xA0A6
-#define mmPA_SC_VPORT_ZMAX_0                            0xA0B5
-#define mmPA_SC_VPORT_ZMAX_1                            0xA0B7
-#define mmPA_SC_VPORT_ZMAX_10                           0xA0C9
-#define mmPA_SC_VPORT_ZMAX_11                           0xA0CB
-#define mmPA_SC_VPORT_ZMAX_12                           0xA0CD
-#define mmPA_SC_VPORT_ZMAX_13                           0xA0CF
-#define mmPA_SC_VPORT_ZMAX_14                           0xA0D1
-#define mmPA_SC_VPORT_ZMAX_15                           0xA0D3
-#define mmPA_SC_VPORT_ZMAX_2                            0xA0B9
-#define mmPA_SC_VPORT_ZMAX_3                            0xA0BB
-#define mmPA_SC_VPORT_ZMAX_4                            0xA0BD
-#define mmPA_SC_VPORT_ZMAX_5                            0xA0BF
-#define mmPA_SC_VPORT_ZMAX_6                            0xA0C1
-#define mmPA_SC_VPORT_ZMAX_7                            0xA0C3
-#define mmPA_SC_VPORT_ZMAX_8                            0xA0C5
-#define mmPA_SC_VPORT_ZMAX_9                            0xA0C7
-#define mmPA_SC_VPORT_ZMIN_0                            0xA0B4
-#define mmPA_SC_VPORT_ZMIN_1                            0xA0B6
-#define mmPA_SC_VPORT_ZMIN_10                           0xA0C8
-#define mmPA_SC_VPORT_ZMIN_11                           0xA0CA
-#define mmPA_SC_VPORT_ZMIN_12                           0xA0CC
-#define mmPA_SC_VPORT_ZMIN_13                           0xA0CE
-#define mmPA_SC_VPORT_ZMIN_14                           0xA0D0
-#define mmPA_SC_VPORT_ZMIN_15                           0xA0D2
-#define mmPA_SC_VPORT_ZMIN_2                            0xA0B8
-#define mmPA_SC_VPORT_ZMIN_3                            0xA0BA
-#define mmPA_SC_VPORT_ZMIN_4                            0xA0BC
-#define mmPA_SC_VPORT_ZMIN_5                            0xA0BE
-#define mmPA_SC_VPORT_ZMIN_6                            0xA0C0
-#define mmPA_SC_VPORT_ZMIN_7                            0xA0C2
-#define mmPA_SC_VPORT_ZMIN_8                            0xA0C4
-#define mmPA_SC_VPORT_ZMIN_9                            0xA0C6
-#define mmPA_SC_WINDOW_OFFSET                           0xA080
-#define mmPA_SC_WINDOW_SCISSOR_BR                       0xA082
-#define mmPA_SC_WINDOW_SCISSOR_TL                       0xA081
-#define mmPA_SIDEBAND_REQUEST_DELAYS                    0x22FB
-#define mmPA_SU_CNTL_STATUS                             0x2294
-#define mmPA_SU_HARDWARE_SCREEN_OFFSET                  0xA08D
-#define mmPA_SU_LINE_CNTL                               0xA282
-#define mmPA_SU_LINE_STIPPLE_CNTL                       0xA209
-#define mmPA_SU_LINE_STIPPLE_SCALE                      0xA20A
-#define mmPA_SU_LINE_STIPPLE_VALUE                      0xC280
-#define mmPA_SU_OVER_RASTERIZATION_CNTL                 0xA20F
-#define mmPA_SU_PERFCOUNTER0_HI                         0xD101
-#define mmPA_SU_PERFCOUNTER0_LO                         0xD100
-#define mmPA_SU_PERFCOUNTER0_SELECT                     0xD900
-#define mmPA_SU_PERFCOUNTER0_SELECT1                    0xD901
-#define mmPA_SU_PERFCOUNTER1_HI                         0xD103
-#define mmPA_SU_PERFCOUNTER1_LO                         0xD102
-#define mmPA_SU_PERFCOUNTER1_SELECT                     0xD902
-#define mmPA_SU_PERFCOUNTER1_SELECT1                    0xD903
-#define mmPA_SU_PERFCOUNTER2_HI                         0xD105
-#define mmPA_SU_PERFCOUNTER2_LO                         0xD104
-#define mmPA_SU_PERFCOUNTER2_SELECT                     0xD904
-#define mmPA_SU_PERFCOUNTER3_HI                         0xD107
-#define mmPA_SU_PERFCOUNTER3_LO                         0xD106
-#define mmPA_SU_POINT_MINMAX                            0xA281
-#define mmPA_SU_POINT_SIZE                              0xA280
-#define mmPA_SU_POLY_OFFSET_BACK_OFFSET                 0xA2E3
-#define mmPA_SU_POLY_OFFSET_BACK_SCALE                  0xA2E2
-#define mmPA_SU_POLY_OFFSET_CLAMP                       0xA2DF
-#define mmPA_SU_POLY_OFFSET_DB_FMT_CNTL                 0xA2DE
-#define mmPA_SU_POLY_OFFSET_FRONT_OFFSET                0xA2E1
-#define mmPA_SU_POLY_OFFSET_FRONT_SCALE                 0xA2E0
-#define mmPA_SU_PRIM_FILTER_CNTL                        0xA20B
-#define mmPA_SU_SC_MODE_CNTL                            0xA205
-#define mmPA_SU_SMALL_PRIM_FILTER_CNTL                  0xA20C
-#define mmPA_SU_VTX_CNTL                                0xA2F9
-#define mmPA_UTCL1_CNTL1__GFX09                         0x22F9
-#define mmPA_UTCL1_CNTL2__GFX09                         0x22FA
-#define mmRAS_BCI_SIGNATURE0                            0x339E
-#define mmRAS_BCI_SIGNATURE1                            0x339F
-#define mmRAS_CB_SIGNATURE0                             0x339D
-#define mmRAS_DB_SIGNATURE0                             0x338B
-#define mmRAS_IA_SIGNATURE0                             0x3397
-#define mmRAS_IA_SIGNATURE1                             0x3398
-#define mmRAS_PA_SIGNATURE0                             0x338C
-#define mmRAS_SC_SIGNATURE0                             0x338F
-#define mmRAS_SC_SIGNATURE1                             0x3390
-#define mmRAS_SC_SIGNATURE2                             0x3391
-#define mmRAS_SC_SIGNATURE3                             0x3392
-#define mmRAS_SC_SIGNATURE4                             0x3393
-#define mmRAS_SC_SIGNATURE5                             0x3394
-#define mmRAS_SC_SIGNATURE6                             0x3395
-#define mmRAS_SC_SIGNATURE7                             0x3396
-#define mmRAS_SIGNATURE_CONTROL                         0x3380
-#define mmRAS_SIGNATURE_MASK                            0x3381
-#define mmRAS_SPI_SIGNATURE0                            0x3399
-#define mmRAS_SPI_SIGNATURE1                            0x339A
-#define mmRAS_SQ_SIGNATURE0                             0x338E
-#define mmRAS_SX_SIGNATURE0                             0x3382
-#define mmRAS_SX_SIGNATURE1                             0x3383
-#define mmRAS_SX_SIGNATURE2                             0x3384
-#define mmRAS_SX_SIGNATURE3                             0x3385
-#define mmRAS_TA_SIGNATURE0                             0x339B
-#define mmRAS_TA_SIGNATURE1                             0x33A0
-#define mmRAS_TD_SIGNATURE0                             0x339C
-#define mmRAS_VGT_SIGNATURE0                            0x338D
-#define mmRLC_AUTO_PG_CTRL                              0xEC55
-#define mmRLC_CAPTURE_GPU_CLOCK_COUNT                   0xEC26
-#define mmRLC_CGCG_CGLS_CTRL                            0xEC49
-#define mmRLC_CGCG_CGLS_CTRL_3D                         0xECC5
-#define mmRLC_CGCG_RAMP_CTRL                            0xEC4A
-#define mmRLC_CGCG_RAMP_CTRL_3D                         0xECC6
-#define mmRLC_CGTT_MGCG_OVERRIDE                        0xEC48
-#define mmRLC_CLK_CNTL                                  0xFB31
-#define mmRLC_CNTL                                      0xEC00
-#define mmRLC_CP_EOF_INT                                0xECCA
-#define mmRLC_CP_EOF_INT_CNT                            0xECCB
-#define mmRLC_CP_SCHEDULERS                             0xECAA
-#define mmRLC_CSIB_ADDR_HI                              0xECA3
-#define mmRLC_CSIB_ADDR_LO                              0xECA2
-#define mmRLC_CSIB_LENGTH                               0xECA4
-#define mmRLC_CU_STATUS__GFX09                          0xEC4E
-#define mmRLC_DSM_TRIG__GFX09                           0xECD3
-#define mmRLC_DS_CNTL__GFX09                            0xECDB
-#define mmRLC_DYN_PG_REQUEST                            0xEC4C
-#define mmRLC_DYN_PG_STATUS                             0xEC4B
-#define mmRLC_GFX_RM_CNTL                               0xF0B6
-#define mmRLC_GPM_CP_DMA_COMPLETE_T0                    0xEC29
-#define mmRLC_GPM_CP_DMA_COMPLETE_T1                    0xEC2A
-#define mmRLC_GPM_GENERAL_0                             0xEC63
-#define mmRLC_GPM_GENERAL_1                             0xEC64
-#define mmRLC_GPM_GENERAL_10                            0xECAF
-#define mmRLC_GPM_GENERAL_11                            0xECB0
-#define mmRLC_GPM_GENERAL_12                            0xECB1
-#define mmRLC_GPM_GENERAL_2                             0xEC65
-#define mmRLC_GPM_GENERAL_3                             0xEC66
-#define mmRLC_GPM_GENERAL_4                             0xEC67
-#define mmRLC_GPM_GENERAL_5                             0xEC68
-#define mmRLC_GPM_GENERAL_6                             0xEC69
-#define mmRLC_GPM_GENERAL_7                             0xEC6A
-#define mmRLC_GPM_GENERAL_8                             0xECAD
-#define mmRLC_GPM_GENERAL_9                             0xECAE
-#define mmRLC_GPM_INT_DISABLE_TH0                       0xEC7C
-#define mmRLC_GPM_INT_DISABLE_TH1__GFX09                0xEC7D
-#define mmRLC_GPM_INT_FORCE_TH0                         0xEC7E
-#define mmRLC_GPM_INT_FORCE_TH1__GFX09                  0xEC7F
-#define mmRLC_GPM_LOG_CONT                              0xEC7B
-#define mmRLC_GPM_LOG_SIZE                              0xEC77
-#define mmRLC_GPM_PERF_COUNT_0                          0xC140
-#define mmRLC_GPM_PERF_COUNT_1                          0xC141
-#define mmRLC_GPM_THREAD_ENABLE                         0xEC45
-#define mmRLC_GPM_THREAD_PRIORITY                       0xEC44
-#define mmRLC_GPM_THREAD_RESET                          0xEC28
-#define mmRLC_GPM_TIMER_CTRL                            0xEC11
-#define mmRLC_GPM_TIMER_INT_0                           0xEC0E
-#define mmRLC_GPM_TIMER_INT_1                           0xEC0F
-#define mmRLC_GPM_TIMER_INT_2                           0xEC10
-#define mmRLC_GPM_TIMER_INT_3                           0xEC15
-#define mmRLC_GPM_TIMER_STAT                            0xEC13
-#define mmRLC_GPM_UTCL1_CNTL_0                          0xECB2
-#define mmRLC_GPM_UTCL1_CNTL_1                          0xECB3
-#define mmRLC_GPM_UTCL1_CNTL_2                          0xECB4
-#define mmRLC_GPM_UTCL1_TH0_ERROR_1                     0xECBE
-#define mmRLC_GPM_UTCL1_TH0_ERROR_2                     0xECC0
-#define mmRLC_GPM_UTCL1_TH1_ERROR_1                     0xECC1
-#define mmRLC_GPM_UTCL1_TH1_ERROR_2                     0xECC2
-#define mmRLC_GPM_UTCL1_TH2_ERROR_1                     0xECC3
-#define mmRLC_GPM_UTCL1_TH2_ERROR_2                     0xECC4
-#define mmRLC_GPR_REG1                                  0xEC79
-#define mmRLC_GPR_REG2                                  0xEC7A
-#define mmRLC_GPU_CLOCK_32                              0xEC42
-#define mmRLC_GPU_CLOCK_32_RES_SEL                      0xEC41
-#define mmRLC_GPU_CLOCK_COUNT_LSB                       0xEC24
-#define mmRLC_GPU_CLOCK_COUNT_MSB                       0xEC25
-#define mmRLC_GPU_IOV_ACTIVE_FCN_ID                     0xFB39
-#define mmRLC_GPU_IOV_CFG_REG1                          0xFB35
-#define mmRLC_GPU_IOV_CFG_REG2                          0xFB36
-#define mmRLC_GPU_IOV_CFG_REG6                          0xFB06
-#define mmRLC_GPU_IOV_CFG_REG8                          0xFB20
-#define mmRLC_GPU_IOV_F32_CNTL                          0xFB46
-#define mmRLC_GPU_IOV_F32_RESET                         0xFB47
-#define mmRLC_GPU_IOV_INT_DISABLE                       0xFB4E
-#define mmRLC_GPU_IOV_INT_FORCE                         0xFB4F
-#define mmRLC_GPU_IOV_PERF_CNT_CNTL                     0xDCC3
-#define mmRLC_GPU_IOV_PERF_CNT_RD_ADDR                  0xDCC6
-#define mmRLC_GPU_IOV_PERF_CNT_RD_DATA                  0xDCC7
-#define mmRLC_GPU_IOV_PERF_CNT_WR_ADDR                  0xDCC4
-#define mmRLC_GPU_IOV_PERF_CNT_WR_DATA                  0xDCC5
-#define mmRLC_GPU_IOV_RLC_RESPONSE                      0xFB4D
-#define mmRLC_GPU_IOV_SCH_0                             0xFB38
-#define mmRLC_GPU_IOV_SCH_1                             0xFB3B
-#define mmRLC_GPU_IOV_SCH_2                             0xFB3C
-#define mmRLC_GPU_IOV_SCH_3                             0xFB3A
-#define mmRLC_GPU_IOV_SCH_BLOCK                         0xFB34
-#define mmRLC_GPU_IOV_SDMA0_BUSY_STATUS                 0xFB50
-#define mmRLC_GPU_IOV_SDMA0_STATUS                      0xFB48
-#define mmRLC_GPU_IOV_SDMA1_BUSY_STATUS                 0xFB51
-#define mmRLC_GPU_IOV_SDMA1_STATUS                      0xFB49
-#define mmRLC_GPU_IOV_SMU_RESPONSE                      0xFB4A
-#define mmRLC_GPU_IOV_VF_DOORBELL_STATUS                0xFB2A
-#define mmRLC_GPU_IOV_VF_DOORBELL_STATUS_CLR            0xFB2C
-#define mmRLC_GPU_IOV_VF_DOORBELL_STATUS_SET            0xFB2B
-#define mmRLC_GPU_IOV_VF_ENABLE                         0xFB00
-#define mmRLC_GPU_IOV_VF_MASK                           0xFB2D
-#define mmRLC_GPU_IOV_VIRT_RESET_REQ                    0xFB4C
-#define mmRLC_GPU_IOV_VM_BUSY_STATUS                    0xFB37
-#define mmRLC_INT_STAT                                  0xEC18
-#define mmRLC_JUMP_TABLE_RESTORE                        0xEC1E
-#define mmRLC_LBPW_CU_STAT__GFX09                       0xECDA
-#define mmRLC_LB_ALWAYS_ACTIVE_CU_MASK__GFX09           0xEC50
-#define mmRLC_LB_CNTL                                   0xEC19
-#define mmRLC_LB_CNTR_INIT__GFX09                       0xEC1B
-#define mmRLC_LB_CNTR_MAX__GFX09                        0xEC12
-#define mmRLC_LB_INIT_CU_MASK__GFX09                    0xEC4F
-#define mmRLC_LB_PARAMS                                 0xEC51
-#define mmRLC_LB_THR_CONFIG_1__GFX09                    0xECBF
-#define mmRLC_LB_THR_CONFIG_2__GFX09                    0xECB8
-#define mmRLC_LB_THR_CONFIG_3__GFX09                    0xECB9
-#define mmRLC_LB_THR_CONFIG_4__GFX09                    0xECBA
-#define mmRLC_LOAD_BALANCE_CNTR__GFX09                  0xEC1C
-#define mmRLC_MAX_PG_CU__GFX09                          0xEC54
-#define mmRLC_MEM_SLP_CNTL                              0xEC06
-#define mmRLC_MGCG_CTRL                                 0xEC1A
-#define mmRLC_PERFCOUNTER0_HI                           0xD481
-#define mmRLC_PERFCOUNTER0_LO                           0xD480
-#define mmRLC_PERFCOUNTER0_SELECT                       0xDCC1
-#define mmRLC_PERFCOUNTER1_HI                           0xD483
-#define mmRLC_PERFCOUNTER1_LO                           0xD482
-#define mmRLC_PERFCOUNTER1_SELECT                       0xDCC2
-#define mmRLC_PERFMON_CNTL                              0xDCC0
-#define mmRLC_PG_ALWAYS_ON_CU_MASK__GFX09               0xEC53
-#define mmRLC_PG_CNTL                                   0xEC43
-#define mmRLC_PG_DELAY                                  0xEC4D
-#define mmRLC_PG_DELAY_2                                0xEC1F
-#define mmRLC_PG_DELAY_3                                0xEC78
-#define mmRLC_PREWALKER_UTCL1_ADDR_LSB                  0xECCF
-#define mmRLC_PREWALKER_UTCL1_ADDR_MSB                  0xECD0
-#define mmRLC_PREWALKER_UTCL1_CNTL                      0xECCD
-#define mmRLC_PREWALKER_UTCL1_SIZE_LSB                  0xECD1
-#define mmRLC_PREWALKER_UTCL1_SIZE_MSB                  0xECD2
-#define mmRLC_PREWALKER_UTCL1_TRIG                      0xECCE
-#define mmRLC_R2I_CNTL_0                                0xECD5
-#define mmRLC_R2I_CNTL_1                                0xECD6
-#define mmRLC_R2I_CNTL_2                                0xECD7
-#define mmRLC_R2I_CNTL_3                                0xECD8
-#define mmRLC_REFCLOCK_TIMESTAMP_LSB                    0xEC0C
-#define mmRLC_REFCLOCK_TIMESTAMP_MSB                    0xEC0D
-#define mmRLC_RLCV_COMMAND                              0xEC0A
-#define mmRLC_RLCV_SAFE_MODE                            0xEC08
-#define mmRLC_RLCV_TIMER_CTRL                           0xFB26
-#define mmRLC_RLCV_TIMER_INT_0                          0xFB25
-#define mmRLC_RLCV_TIMER_STAT                           0xFB27
-#define mmRLC_SAFE_MODE                                 0xEC05
-#define mmRLC_SEMAPHORE_0                               0xECC7
-#define mmRLC_SEMAPHORE_1                               0xECC8
-#define mmRLC_SERDES_CU_MASTER_BUSY__GFX09              0xEC61
-#define mmRLC_SERDES_NONCU_MASTER_BUSY__GFX09           0xEC62
-#define mmRLC_SERDES_NONCU_MASTER_BUSY_1__GFX09         0xEC17
-#define mmRLC_SERDES_RD_DATA_0                          0xEC5A
-#define mmRLC_SERDES_RD_DATA_1                          0xEC5B
-#define mmRLC_SERDES_RD_DATA_2                          0xEC5C
-#define mmRLC_SERDES_RD_MASTER_INDEX__GFX09             0xEC59
-#define mmRLC_SERDES_WR_CTRL__GFX09                     0xEC5F
-#define mmRLC_SERDES_WR_CU_MASTER_MASK__GFX09           0xEC5D
-#define mmRLC_SERDES_WR_DATA__GFX09                     0xEC60
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK__GFX09        0xEC5E
-#define mmRLC_SERDES_WR_NONCU_MASTER_MASK_1__GFX09      0xEC16
-#define mmRLC_SMU_ARGUMENT_1                            0xECAB
-#define mmRLC_SMU_ARGUMENT_2                            0xECAC
-#define mmRLC_SMU_COMMAND                               0xECA9
-#define mmRLC_SMU_GRBM_REG_SAVE_CTRL                    0xEC56
-#define mmRLC_SMU_MESSAGE                               0xEC76
-#define mmRLC_SMU_SAFE_MODE                             0xEC09
-#define mmRLC_SPARE_INT                                 0xECCC
-#define mmRLC_SPM_CBR0_PERFMON_SAMPLE_DELAY__GFX09      0xDCA1
-#define mmRLC_SPM_CBR1_PERFMON_SAMPLE_DELAY__GFX09      0xDCA2
-#define mmRLC_SPM_CB_PERFMON_SAMPLE_DELAY__GFX09        0xDC8A
-#define mmRLC_SPM_CPC_PERFMON_SAMPLE_DELAY__GFX09       0xDC88
-#define mmRLC_SPM_CPF_PERFMON_SAMPLE_DELAY__GFX09       0xDC89
-#define mmRLC_SPM_CPG_PERFMON_SAMPLE_DELAY__GFX09       0xDC87
-#define mmRLC_SPM_DBR0_PERFMON_SAMPLE_DELAY__GFX09      0xDC9F
-#define mmRLC_SPM_DBR1_PERFMON_SAMPLE_DELAY__GFX09      0xDCA0
-#define mmRLC_SPM_DB_PERFMON_SAMPLE_DELAY__GFX09        0xDC8B
-#define mmRLC_SPM_GDS_PERFMON_SAMPLE_DELAY__GFX09       0xDC8D
-#define mmRLC_SPM_IA_PERFMON_SAMPLE_DELAY__GFX09        0xDC8E
-#define mmRLC_SPM_INT_CNTL                              0xEC72
-#define mmRLC_SPM_INT_STATUS                            0xEC73
-#define mmRLC_SPM_MC_CNTL                               0xEC71
-#define mmRLC_SPM_PA_PERFMON_SAMPLE_DELAY__GFX09        0xDC8C
-#define mmRLC_SPM_PERFMON_CNTL                          0xDC80
-#define mmRLC_SPM_PERFMON_RING_BASE_HI                  0xDC82
-#define mmRLC_SPM_PERFMON_RING_BASE_LO                  0xDC81
-#define mmRLC_SPM_PERFMON_RING_SIZE                     0xDC83
-#define mmRLC_SPM_PERFMON_SEGMENT_SIZE                  0xDC84
-#define mmRLC_SPM_RMI_PERFMON_SAMPLE_DELAY__GFX09       0xDCA3
-#define mmRLC_SPM_SC_PERFMON_SAMPLE_DELAY__GFX09        0xDC90
-#define mmRLC_SPM_SPI_PERFMON_SAMPLE_DELAY__GFX09       0xDC97
-#define mmRLC_SPM_SQG_PERFMON_SAMPLE_DELAY__GFX09       0xDC98
-#define mmRLC_SPM_SX_PERFMON_SAMPLE_DELAY__GFX09        0xDC9A
-#define mmRLC_SPM_TA_PERFMON_SAMPLE_DELAY__GFX09        0xDC94
-#define mmRLC_SPM_TCA_PERFMON_SAMPLE_DELAY__GFX09       0xDC92
-#define mmRLC_SPM_TCC_PERFMON_SAMPLE_DELAY__GFX09       0xDC91
-#define mmRLC_SPM_TCP_PERFMON_SAMPLE_DELAY__GFX09       0xDC93
-#define mmRLC_SPM_TD_PERFMON_SAMPLE_DELAY__GFX09        0xDC95
-#define mmRLC_SPM_UTCL1_CNTL                            0xECB5
-#define mmRLC_SPM_UTCL1_ERROR_1                         0xECBC
-#define mmRLC_SPM_UTCL1_ERROR_2                         0xECBD
-#define mmRLC_SPM_VGT_PERFMON_SAMPLE_DELAY__GFX09       0xDC96
-#define mmRLC_SRM_CNTL                                  0xEC80
-#define mmRLC_SRM_GPM_ABORT                             0xEC9C
-#define mmRLC_SRM_GPM_COMMAND                           0xEC87
-#define mmRLC_SRM_GPM_COMMAND_STATUS                    0xEC88
-#define mmRLC_SRM_INDEX_CNTL_ADDR_0                     0xEC8B
-#define mmRLC_SRM_INDEX_CNTL_ADDR_1                     0xEC8C
-#define mmRLC_SRM_INDEX_CNTL_ADDR_2                     0xEC8D
-#define mmRLC_SRM_INDEX_CNTL_ADDR_3                     0xEC8E
-#define mmRLC_SRM_INDEX_CNTL_ADDR_4                     0xEC8F
-#define mmRLC_SRM_INDEX_CNTL_ADDR_5                     0xEC90
-#define mmRLC_SRM_INDEX_CNTL_ADDR_6                     0xEC91
-#define mmRLC_SRM_INDEX_CNTL_ADDR_7                     0xEC92
-#define mmRLC_SRM_INDEX_CNTL_DATA_0                     0xEC93
-#define mmRLC_SRM_INDEX_CNTL_DATA_1                     0xEC94
-#define mmRLC_SRM_INDEX_CNTL_DATA_2                     0xEC95
-#define mmRLC_SRM_INDEX_CNTL_DATA_3                     0xEC96
-#define mmRLC_SRM_INDEX_CNTL_DATA_4                     0xEC97
-#define mmRLC_SRM_INDEX_CNTL_DATA_5                     0xEC98
-#define mmRLC_SRM_INDEX_CNTL_DATA_6                     0xEC99
-#define mmRLC_SRM_INDEX_CNTL_DATA_7                     0xEC9A
-#define mmRLC_SRM_RLCV_COMMAND                          0xEC89
-#define mmRLC_SRM_RLCV_COMMAND_STATUS                   0xEC8A
-#define mmRLC_SRM_STAT                                  0xEC9B
-#define mmRLC_STAT                                      0xEC04
-#define mmRLC_STATIC_PG_STATUS                          0xEC6E
-#define mmRLC_THREAD1_DELAY__GFX09                      0xEC52
-#define mmRLC_UCODE_CNTL                                0xEC27
-#define mmRLC_UTCL1_STATUS                              0xECD4
-#define mmRLC_UTCL1_STATUS_2                            0xECB6
-#define mmRLC_UTCL2_CNTL__GFX09                         0xECD9
-#define mmRMI_CGTT_SCLK_CTRL                            0xF0C0
-#define mmRMI_CLOCK_CNTRL                               0x2796
-#define mmRMI_DEMUX_CNTL                                0x278A
-#define mmRMI_GENERAL_CNTL                              0x2780
-#define mmRMI_GENERAL_CNTL1                             0x2781
-#define mmRMI_GENERAL_STATUS                            0x2782
-#define mmRMI_PERFCOUNTER0_HI                           0xD4C1
-#define mmRMI_PERFCOUNTER0_LO                           0xD4C0
-#define mmRMI_PERFCOUNTER0_SELECT                       0xDD00
-#define mmRMI_PERFCOUNTER0_SELECT1                      0xDD01
-#define mmRMI_PERFCOUNTER1_HI                           0xD4C3
-#define mmRMI_PERFCOUNTER1_LO                           0xD4C2
-#define mmRMI_PERFCOUNTER1_SELECT                       0xDD02
-#define mmRMI_PERFCOUNTER2_HI                           0xD4C5
-#define mmRMI_PERFCOUNTER2_LO                           0xD4C4
-#define mmRMI_PERFCOUNTER2_SELECT                       0xDD03
-#define mmRMI_PERFCOUNTER2_SELECT1                      0xDD04
-#define mmRMI_PERFCOUNTER3_HI                           0xD4C7
-#define mmRMI_PERFCOUNTER3_LO                           0xD4C6
-#define mmRMI_PERFCOUNTER3_SELECT                       0xDD05
-#define mmRMI_PERF_COUNTER_CNTL                         0xDD06
-#define mmRMI_PROBE_POP_LOGIC_CNTL                      0x2788
-#define mmRMI_SCOREBOARD_CNTL                           0x2790
-#define mmRMI_SCOREBOARD_STATUS0                        0x2791
-#define mmRMI_SCOREBOARD_STATUS1                        0x2792
-#define mmRMI_SCOREBOARD_STATUS2                        0x2793
-#define mmRMI_SUBBLOCK_STATUS0                          0x2783
-#define mmRMI_SUBBLOCK_STATUS1                          0x2784
-#define mmRMI_SUBBLOCK_STATUS2                          0x2785
-#define mmRMI_SUBBLOCK_STATUS3                          0x2786
-#define mmRMI_TCIW_FORMATTER0_CNTL                      0x278E
-#define mmRMI_TCIW_FORMATTER1_CNTL                      0x278F
-#define mmRMI_UTCL1_CNTL1                               0x278B
-#define mmRMI_UTCL1_CNTL2                               0x278C
-#define mmRMI_UTCL1_STATUS                              0x2797
-#define mmRMI_UTC_UNIT_CONFIG                           0x278D
-#define mmRMI_UTC_XNACK_N_MISC_CNTL                     0x2789
-#define mmRMI_XBAR_ARBITER_CONFIG                       0x2794
-#define mmRMI_XBAR_ARBITER_CONFIG_1                     0x2795
-#define mmRMI_XBAR_CONFIG                               0x2787
-#define mmSCRATCH_ADDR                                  0xC051
-#define mmSCRATCH_REG0                                  0xC040
-#define mmSCRATCH_REG1                                  0xC041
-#define mmSCRATCH_REG2                                  0xC042
-#define mmSCRATCH_REG3                                  0xC043
-#define mmSCRATCH_REG4                                  0xC044
-#define mmSCRATCH_REG5                                  0xC045
-#define mmSCRATCH_REG6                                  0xC046
-#define mmSCRATCH_REG7                                  0xC047
-#define mmSCRATCH_UMSK                                  0xC050
-#define mmSDMA0_ATOMIC_CNTL                             0x1299
-#define mmSDMA0_ATOMIC_PREOP_HI                         0x129B
-#define mmSDMA0_ATOMIC_PREOP_LO                         0x129A
-#define mmSDMA0_BA_THRESHOLD                            0x1293
-#define mmSDMA0_CHICKEN_BITS                            0x127D
-#define mmSDMA0_CHICKEN_BITS_2                          0x12AB
-#define mmSDMA0_CLK_CTRL                                0x127B
-#define mmSDMA0_CNTL                                    0x127C
-#define mmSDMA0_CONTEXT_GROUP_BOUNDARY__GFX09           0x1279
-#define mmSDMA0_CRD_CNTL                                0x12BB
-#define mmSDMA0_EA_DBIT_ADDR_DATA                       0x12C0
-#define mmSDMA0_EA_DBIT_ADDR_INDEX                      0x12C1
-#define mmSDMA0_EDC_CONFIG                              0x1292
-#define mmSDMA0_EDC_COUNTER                             0x1296
-#define mmSDMA0_EDC_COUNTER_CLEAR                       0x1297
-#define mmSDMA0_ERROR_LOG                               0x12B0
-#define mmSDMA0_F32_CNTL                                0x128A
-#define mmSDMA0_F32_COUNTER                             0x12B5
-#define mmSDMA0_FREEZE                                  0x128B
-#define mmSDMA0_GB_ADDR_CONFIG                          0x127E
-#define mmSDMA0_GB_ADDR_CONFIG_READ                     0x127F
-#define mmSDMA0_GFX_CONTEXT_CNTL                        0x12F3
-#define mmSDMA0_GFX_CONTEXT_STATUS                      0x12F1
-#define mmSDMA0_GFX_CSA_ADDR_HI                         0x130D
-#define mmSDMA0_GFX_CSA_ADDR_LO                         0x130C
-#define mmSDMA0_GFX_DOORBELL                            0x12F2
-#define mmSDMA0_GFX_DOORBELL_LOG                        0x1309
-#define mmSDMA0_GFX_DOORBELL_OFFSET                     0x130B
-#define mmSDMA0_GFX_DUMMY_REG                           0x1311
-#define mmSDMA0_GFX_IB_BASE_HI                          0x12EE
-#define mmSDMA0_GFX_IB_BASE_LO                          0x12ED
-#define mmSDMA0_GFX_IB_CNTL                             0x12EA
-#define mmSDMA0_GFX_IB_OFFSET                           0x12EC
-#define mmSDMA0_GFX_IB_RPTR                             0x12EB
-#define mmSDMA0_GFX_IB_SIZE                             0x12EF
-#define mmSDMA0_GFX_IB_SUB_REMAIN                       0x130F
-#define mmSDMA0_GFX_MIDCMD_CNTL                         0x1329
-#define mmSDMA0_GFX_MIDCMD_DATA0                        0x1320
-#define mmSDMA0_GFX_MIDCMD_DATA1                        0x1321
-#define mmSDMA0_GFX_MIDCMD_DATA2                        0x1322
-#define mmSDMA0_GFX_MIDCMD_DATA3                        0x1323
-#define mmSDMA0_GFX_MIDCMD_DATA4                        0x1324
-#define mmSDMA0_GFX_MIDCMD_DATA5                        0x1325
-#define mmSDMA0_GFX_MIDCMD_DATA6                        0x1326
-#define mmSDMA0_GFX_MIDCMD_DATA7                        0x1327
-#define mmSDMA0_GFX_MIDCMD_DATA8                        0x1328
-#define mmSDMA0_GFX_MINOR_PTR_UPDATE                    0x1315
-#define mmSDMA0_GFX_PREEMPT                             0x1310
-#define mmSDMA0_GFX_RB_AQL_CNTL                         0x1314
-#define mmSDMA0_GFX_RB_BASE                             0x12E1
-#define mmSDMA0_GFX_RB_BASE_HI                          0x12E2
-#define mmSDMA0_GFX_RB_CNTL                             0x12E0
-#define mmSDMA0_GFX_RB_RPTR                             0x12E3
-#define mmSDMA0_GFX_RB_RPTR_ADDR_HI                     0x12E8
-#define mmSDMA0_GFX_RB_RPTR_ADDR_LO                     0x12E9
-#define mmSDMA0_GFX_RB_RPTR_HI                          0x12E4
-#define mmSDMA0_GFX_RB_WPTR                             0x12E5
-#define mmSDMA0_GFX_RB_WPTR_HI                          0x12E6
-#define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI                0x1312
-#define mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO                0x1313
-#define mmSDMA0_GFX_RB_WPTR_POLL_CNTL                   0x12E7
-#define mmSDMA0_GFX_SKIP_CNTL                           0x12F0
-#define mmSDMA0_GFX_STATUS                              0x1308
-#define mmSDMA0_GFX_WATERMARK                           0x130A
-#define mmSDMA0_GPU_IOV_VIOLATION_LOG                   0x12BD
-#define mmSDMA0_HBM_PAGE_CONFIG                         0x1288
-#define mmSDMA0_IB_OFFSET_FETCH                         0x1283
-#define mmSDMA0_ID                                      0x1294
-#define mmSDMA0_MMHUB_CNTL__GFX09                       0x1273
-#define mmSDMA0_MMHUB_TRUSTLVL__GFX09                   0x12BC
-#define mmSDMA0_PAGE_CONTEXT_STATUS                     0x1351
-#define mmSDMA0_PAGE_CSA_ADDR_HI                        0x136D
-#define mmSDMA0_PAGE_CSA_ADDR_LO                        0x136C
-#define mmSDMA0_PAGE_DOORBELL                           0x1352
-#define mmSDMA0_PAGE_DOORBELL_LOG                       0x1369
-#define mmSDMA0_PAGE_DOORBELL_OFFSET                    0x136B
-#define mmSDMA0_PAGE_DUMMY_REG                          0x1371
-#define mmSDMA0_PAGE_IB_BASE_HI                         0x134E
-#define mmSDMA0_PAGE_IB_BASE_LO                         0x134D
-#define mmSDMA0_PAGE_IB_CNTL                            0x134A
-#define mmSDMA0_PAGE_IB_OFFSET                          0x134C
-#define mmSDMA0_PAGE_IB_RPTR                            0x134B
-#define mmSDMA0_PAGE_IB_SIZE                            0x134F
-#define mmSDMA0_PAGE_IB_SUB_REMAIN                      0x136F
-#define mmSDMA0_PAGE_MIDCMD_CNTL                        0x1389
-#define mmSDMA0_PAGE_MIDCMD_DATA0                       0x1380
-#define mmSDMA0_PAGE_MIDCMD_DATA1                       0x1381
-#define mmSDMA0_PAGE_MIDCMD_DATA2                       0x1382
-#define mmSDMA0_PAGE_MIDCMD_DATA3                       0x1383
-#define mmSDMA0_PAGE_MIDCMD_DATA4                       0x1384
-#define mmSDMA0_PAGE_MIDCMD_DATA5                       0x1385
-#define mmSDMA0_PAGE_MIDCMD_DATA6                       0x1386
-#define mmSDMA0_PAGE_MIDCMD_DATA7                       0x1387
-#define mmSDMA0_PAGE_MIDCMD_DATA8                       0x1388
-#define mmSDMA0_PAGE_MINOR_PTR_UPDATE                   0x1375
-#define mmSDMA0_PAGE_PREEMPT                            0x1370
-#define mmSDMA0_PAGE_RB_AQL_CNTL                        0x1374
-#define mmSDMA0_PAGE_RB_BASE                            0x1341
-#define mmSDMA0_PAGE_RB_BASE_HI                         0x1342
-#define mmSDMA0_PAGE_RB_CNTL                            0x1340
-#define mmSDMA0_PAGE_RB_RPTR                            0x1343
-#define mmSDMA0_PAGE_RB_RPTR_ADDR_HI                    0x1348
-#define mmSDMA0_PAGE_RB_RPTR_ADDR_LO                    0x1349
-#define mmSDMA0_PAGE_RB_RPTR_HI                         0x1344
-#define mmSDMA0_PAGE_RB_WPTR                            0x1345
-#define mmSDMA0_PAGE_RB_WPTR_HI                         0x1346
-#define mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_HI               0x1372
-#define mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_LO               0x1373
-#define mmSDMA0_PAGE_RB_WPTR_POLL_CNTL                  0x1347
-#define mmSDMA0_PAGE_SKIP_CNTL                          0x1350
-#define mmSDMA0_PAGE_STATUS                             0x1368
-#define mmSDMA0_PAGE_WATERMARK                          0x136A
-#define mmSDMA0_PERFCOUNTER0_RESULT                     0x12B8
-#define mmSDMA0_PERFCOUNTER1_RESULT                     0x12B9
-#define mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE             0x12BA
-#define mmSDMA0_PERFMON_CNTL                            0x12B7
-#define mmSDMA0_PHASE0_QUANTUM                          0x128C
-#define mmSDMA0_PHASE1_QUANTUM                          0x128D
-#define mmSDMA0_PHASE2_QUANTUM                          0x12AF
-#define mmSDMA0_PHYSICAL_ADDR_HI                        0x12AE
-#define mmSDMA0_PHYSICAL_ADDR_LO                        0x12AD
-#define mmSDMA0_POWER_CNTL                              0x127A
-#define mmSDMA0_POWER_CNTL_IDLE                         0x12A9
-#define mmSDMA0_PROGRAM                                 0x1284
-#define mmSDMA0_PUB_DUMMY_REG0                          0x12B1
-#define mmSDMA0_PUB_DUMMY_REG1                          0x12B2
-#define mmSDMA0_PUB_DUMMY_REG2                          0x12B3
-#define mmSDMA0_PUB_DUMMY_REG3                          0x12B4
-#define mmSDMA0_RB_RPTR_FETCH                           0x1282
-#define mmSDMA0_RB_RPTR_FETCH_HI                        0x1280
-#define mmSDMA0_RD_BURST_CNTL                           0x1287
-#define mmSDMA0_RELAX_ORDERING_LUT                      0x12AA
-#define mmSDMA0_RLC0_CONTEXT_STATUS                     0x13B1
-#define mmSDMA0_RLC0_CSA_ADDR_HI                        0x13CD
-#define mmSDMA0_RLC0_CSA_ADDR_LO                        0x13CC
-#define mmSDMA0_RLC0_DOORBELL                           0x13B2
-#define mmSDMA0_RLC0_DOORBELL_LOG                       0x13C9
-#define mmSDMA0_RLC0_DOORBELL_OFFSET                    0x13CB
-#define mmSDMA0_RLC0_DUMMY_REG                          0x13D1
-#define mmSDMA0_RLC0_IB_BASE_HI                         0x13AE
-#define mmSDMA0_RLC0_IB_BASE_LO                         0x13AD
-#define mmSDMA0_RLC0_IB_CNTL                            0x13AA
-#define mmSDMA0_RLC0_IB_OFFSET                          0x13AC
-#define mmSDMA0_RLC0_IB_RPTR                            0x13AB
-#define mmSDMA0_RLC0_IB_SIZE                            0x13AF
-#define mmSDMA0_RLC0_IB_SUB_REMAIN                      0x13CF
-#define mmSDMA0_RLC0_MIDCMD_CNTL                        0x13E9
-#define mmSDMA0_RLC0_MIDCMD_DATA0                       0x13E0
-#define mmSDMA0_RLC0_MIDCMD_DATA1                       0x13E1
-#define mmSDMA0_RLC0_MIDCMD_DATA2                       0x13E2
-#define mmSDMA0_RLC0_MIDCMD_DATA3                       0x13E3
-#define mmSDMA0_RLC0_MIDCMD_DATA4                       0x13E4
-#define mmSDMA0_RLC0_MIDCMD_DATA5                       0x13E5
-#define mmSDMA0_RLC0_MIDCMD_DATA6                       0x13E6
-#define mmSDMA0_RLC0_MIDCMD_DATA7                       0x13E7
-#define mmSDMA0_RLC0_MIDCMD_DATA8                       0x13E8
-#define mmSDMA0_RLC0_MINOR_PTR_UPDATE                   0x13D5
-#define mmSDMA0_RLC0_PREEMPT                            0x13D0
-#define mmSDMA0_RLC0_RB_AQL_CNTL                        0x13D4
-#define mmSDMA0_RLC0_RB_BASE                            0x13A1
-#define mmSDMA0_RLC0_RB_BASE_HI                         0x13A2
-#define mmSDMA0_RLC0_RB_CNTL                            0x13A0
-#define mmSDMA0_RLC0_RB_RPTR                            0x13A3
-#define mmSDMA0_RLC0_RB_RPTR_ADDR_HI                    0x13A8
-#define mmSDMA0_RLC0_RB_RPTR_ADDR_LO                    0x13A9
-#define mmSDMA0_RLC0_RB_RPTR_HI                         0x13A4
-#define mmSDMA0_RLC0_RB_WPTR                            0x13A5
-#define mmSDMA0_RLC0_RB_WPTR_HI                         0x13A6
-#define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_HI               0x13D2
-#define mmSDMA0_RLC0_RB_WPTR_POLL_ADDR_LO               0x13D3
-#define mmSDMA0_RLC0_RB_WPTR_POLL_CNTL                  0x13A7
-#define mmSDMA0_RLC0_SKIP_CNTL                          0x13B0
-#define mmSDMA0_RLC0_STATUS                             0x13C8
-#define mmSDMA0_RLC0_WATERMARK                          0x13CA
-#define mmSDMA0_RLC1_CONTEXT_STATUS                     0x1411
-#define mmSDMA0_RLC1_CSA_ADDR_HI                        0x142D
-#define mmSDMA0_RLC1_CSA_ADDR_LO                        0x142C
-#define mmSDMA0_RLC1_DOORBELL                           0x1412
-#define mmSDMA0_RLC1_DOORBELL_LOG                       0x1429
-#define mmSDMA0_RLC1_DOORBELL_OFFSET                    0x142B
-#define mmSDMA0_RLC1_DUMMY_REG                          0x1431
-#define mmSDMA0_RLC1_IB_BASE_HI                         0x140E
-#define mmSDMA0_RLC1_IB_BASE_LO                         0x140D
-#define mmSDMA0_RLC1_IB_CNTL                            0x140A
-#define mmSDMA0_RLC1_IB_OFFSET                          0x140C
-#define mmSDMA0_RLC1_IB_RPTR                            0x140B
-#define mmSDMA0_RLC1_IB_SIZE                            0x140F
-#define mmSDMA0_RLC1_IB_SUB_REMAIN                      0x142F
-#define mmSDMA0_RLC1_MIDCMD_CNTL                        0x1449
-#define mmSDMA0_RLC1_MIDCMD_DATA0                       0x1440
-#define mmSDMA0_RLC1_MIDCMD_DATA1                       0x1441
-#define mmSDMA0_RLC1_MIDCMD_DATA2                       0x1442
-#define mmSDMA0_RLC1_MIDCMD_DATA3                       0x1443
-#define mmSDMA0_RLC1_MIDCMD_DATA4                       0x1444
-#define mmSDMA0_RLC1_MIDCMD_DATA5                       0x1445
-#define mmSDMA0_RLC1_MIDCMD_DATA6                       0x1446
-#define mmSDMA0_RLC1_MIDCMD_DATA7                       0x1447
-#define mmSDMA0_RLC1_MIDCMD_DATA8                       0x1448
-#define mmSDMA0_RLC1_MINOR_PTR_UPDATE                   0x1435
-#define mmSDMA0_RLC1_PREEMPT                            0x1430
-#define mmSDMA0_RLC1_RB_AQL_CNTL                        0x1434
-#define mmSDMA0_RLC1_RB_BASE                            0x1401
-#define mmSDMA0_RLC1_RB_BASE_HI                         0x1402
-#define mmSDMA0_RLC1_RB_CNTL                            0x1400
-#define mmSDMA0_RLC1_RB_RPTR                            0x1403
-#define mmSDMA0_RLC1_RB_RPTR_ADDR_HI                    0x1408
-#define mmSDMA0_RLC1_RB_RPTR_ADDR_LO                    0x1409
-#define mmSDMA0_RLC1_RB_RPTR_HI                         0x1404
-#define mmSDMA0_RLC1_RB_WPTR                            0x1405
-#define mmSDMA0_RLC1_RB_WPTR_HI                         0x1406
-#define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_HI               0x1432
-#define mmSDMA0_RLC1_RB_WPTR_POLL_ADDR_LO               0x1433
-#define mmSDMA0_RLC1_RB_WPTR_POLL_CNTL                  0x1407
-#define mmSDMA0_RLC1_SKIP_CNTL                          0x1410
-#define mmSDMA0_RLC1_STATUS                             0x1428
-#define mmSDMA0_RLC1_WATERMARK                          0x142A
-#define mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL                0x1281
-#define mmSDMA0_STATUS1_REG                             0x1286
-#define mmSDMA0_STATUS2_REG                             0x1298
-#define mmSDMA0_STATUS3_REG                             0x12AC
-#define mmSDMA0_STATUS_REG                              0x1285
-#define mmSDMA0_UCODE_CHECKSUM                          0x1289
-#define mmSDMA0_ULV_CNTL__GFX09                         0x12BE
-#define mmSDMA0_UNBREAKABLE                             0x12B6
-#define mmSDMA0_UTCL1_CNTL                              0x129C
-#define mmSDMA0_UTCL1_INV0                              0x12A0
-#define mmSDMA0_UTCL1_INV1                              0x12A1
-#define mmSDMA0_UTCL1_INV2                              0x12A2
-#define mmSDMA0_UTCL1_PAGE                              0x12A8
-#define mmSDMA0_UTCL1_RD_STATUS                         0x129E
-#define mmSDMA0_UTCL1_RD_XNACK0                         0x12A3
-#define mmSDMA0_UTCL1_RD_XNACK1                         0x12A4
-#define mmSDMA0_UTCL1_TIMEOUT                           0x12A7
-#define mmSDMA0_UTCL1_WATERMK                           0x129D
-#define mmSDMA0_UTCL1_WR_STATUS                         0x129F
-#define mmSDMA0_UTCL1_WR_XNACK0                         0x12A5
-#define mmSDMA0_UTCL1_WR_XNACK1                         0x12A6
-#define mmSDMA0_VERSION                                 0x1295
-#define mmSDMA1_CONTEXT_GROUP_BOUNDARY__GFX09           0x1479
-#define mmSDMA1_MMHUB_CNTL__GFX09                       0x1473
-#define mmSDMA1_MMHUB_TRUSTLVL__GFX09                   0x14BC
-#define mmSDMA1_ULV_CNTL__GFX09                         0x14BE
-#define mmSDMA_PGFSM_CONFIG                             0x128F
-#define mmSDMA_PGFSM_READ                               0x1291
-#define mmSDMA_PGFSM_WRITE                              0x1290
-#define mmSDMA_POWER_GATING                             0x128E
-#define mmSEM_ACTIVE_FCN_ID                             0x1240
-#define mmSEM_ATOMIC_OP_LUT                             0x1252
-#define mmSEM_CHICKEN_BITS                              0x11AC
-#define mmSEM_CHICKEN_BITS2                             0x1254
-#define mmSEM_CID_REMAP_DATA                            0x1251
-#define mmSEM_CID_REMAP_INDEX                           0x1250
-#define mmSEM_CLK_CTRL                                  0x11A0
-#define mmSEM_EDC_CONFIG                                0x1253
-#define mmSEM_GPU_IOV_VIOLATION_LOG                     0x11AE
-#define mmSEM_MAILBOX                                   0x11AA
-#define mmSEM_MAILBOX_CLIENTCONFIG                      0x11A9
-#define mmSEM_MAILBOX_CLIENTCONFIG_EXTRA                0x11AD
-#define mmSEM_MAILBOX_CONTROL                           0x11AB
-#define mmSEM_MCIF_CONFIG                               0x11A4
-#define mmSEM_MMHUB_CNTL                                0x1255
-#define mmSEM_OUTSTANDING_THRESHOLD                     0x11AF
-#define mmSEM_PERFCOUNTER0_RESULT                       0x11A6
-#define mmSEM_PERFCOUNTER1_RESULT                       0x11A7
-#define mmSEM_PERFMON_CNTL                              0x11A5
-#define mmSEM_REGISTER_LAST_PART0                       0x111F
-#define mmSEM_REGISTER_LAST_PART1                       0x125F
-#define mmSEM_REGISTER_LAST_PART2                       0x121F
-#define mmSEM_REQ_INPUT_0                               0x10E0
-#define mmSEM_REQ_INPUT_1                               0x10E1
-#define mmSEM_REQ_INPUT_2                               0x10E2
-#define mmSEM_REQ_INPUT_3                               0x10E3
-#define mmSEM_RESP_ACP                                  0x1248
-#define mmSEM_RESP_GC                                   0x124C
-#define mmSEM_RESP_ISP                                  0x1249
-#define mmSEM_RESP_SDMA0                                0x1244
-#define mmSEM_RESP_SDMA1                                0x1245
-#define mmSEM_RESP_UVD                                  0x1246
-#define mmSEM_RESP_VCE_0                                0x1247
-#define mmSEM_RESP_VCE_1                                0x124A
-#define mmSEM_RESP_VP8                                  0x124B
-#define mmSEM_STATUS                                    0x11A8
-#define mmSEM_UTCL2_TRAN_EN_LUT                         0x11A3
-#define mmSEM_UTC_CONFIG                                0x11A2
-#define mmSEM_UTC_CREDIT                                0x11A1
-#define mmSEM_VIRT_RESET_REQ                            0x1241
-#define mmSH_MEM_BASES                                  0x230A
-#define mmSH_MEM_CONFIG                                 0x230D
-#define mmSMU_RLC_RESPONSE                              0xEC07
-#define mmSPIS_DEBUG_READ                               0x24EA
-#define mmSPI_ARB_CNTL_0                                0x31FD
-#define mmSPI_ARB_CYCLES_0                              0x31C1
-#define mmSPI_ARB_CYCLES_1                              0x31C2
-#define mmSPI_ARB_PRIORITY                              0x31C0
-#define mmSPI_BARYC_CNTL                                0xA1B8
-#define mmSPI_CDBG_SYS_CS0                              0x31C5
-#define mmSPI_CDBG_SYS_CS1                              0x31C6
-#define mmSPI_CDBG_SYS_GFX                              0x31C3
-#define mmSPI_CDBG_SYS_HP3D                             0x31C4
-#define mmSPI_COMPUTE_QUEUE_RESET                       0x31DB
-#define mmSPI_COMPUTE_WF_CTX_SAVE                       0x31FC
-#define mmSPI_CONFIG_PS_CU_EN__GFX09                    0x2452
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_0                     0x24DC
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_1                     0x24DD
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_2                     0x24DE
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_3                     0x24DF
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_4                     0x24E0
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_5                     0x24E1
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_6                     0x24E2
-#define mmSPI_CSQ_WF_ACTIVE_COUNT_7                     0x24E3
-#define mmSPI_CSQ_WF_ACTIVE_STATUS                      0x24DB
-#define mmSPI_DEBUG_BUSY                                0x2450
-#define mmSPI_DEBUG_READ                                0x2442
-#define mmSPI_DSM_CNTL                                  0x2443
-#define mmSPI_DSM_CNTL2                                 0x2444
-#define mmSPI_EDC_CNT                                   0x2445
-#define mmSPI_GDBG_TRAP_CONFIG                          0x31D2
-#define mmSPI_GDBG_TRAP_DATA0                           0x31D8
-#define mmSPI_GDBG_TRAP_DATA1                           0x31D9
-#define mmSPI_GDBG_TRAP_MASK                            0x31D3
-#define mmSPI_GDBG_WAVE_CNTL                            0x31D1
-#define mmSPI_GDBG_WAVE_CNTL2                           0x31D4
-#define mmSPI_GDBG_WAVE_CNTL3                           0x31D5
-#define mmSPI_GDS_CREDITS                               0x24D8
-#define mmSPI_GFX_CNTL                                  0x243C
-#define mmSPI_INTERP_CONTROL_0                          0xA1B5
-#define mmSPI_LB_CTR_CTRL                               0x24D4
-#define mmSPI_LB_CU_MASK__GFX09                         0x24D5
-#define mmSPI_LB_DATA_PERCU_WAVE_CS__GFX09              0x24E7
-#define mmSPI_LB_DATA_PERCU_WAVE_HSGS__GFX09            0x24E5
-#define mmSPI_LB_DATA_PERCU_WAVE_VSPS__GFX09            0x24E6
-#define mmSPI_LB_DATA_REG                               0x24D6
-#define mmSPI_LB_DATA_WAVES                             0x24E4
-#define mmSPI_P0_TRAP_SCREEN_GPR_MIN                    0x24F0
-#define mmSPI_P0_TRAP_SCREEN_PSBA_HI                    0x24ED
-#define mmSPI_P0_TRAP_SCREEN_PSBA_LO                    0x24EC
-#define mmSPI_P0_TRAP_SCREEN_PSMA_HI                    0x24EF
-#define mmSPI_P0_TRAP_SCREEN_PSMA_LO                    0x24EE
-#define mmSPI_P1_TRAP_SCREEN_GPR_MIN                    0x24F5
-#define mmSPI_P1_TRAP_SCREEN_PSBA_HI                    0x24F2
-#define mmSPI_P1_TRAP_SCREEN_PSBA_LO                    0x24F1
-#define mmSPI_P1_TRAP_SCREEN_PSMA_HI                    0x24F4
-#define mmSPI_P1_TRAP_SCREEN_PSMA_LO                    0x24F3
-#define mmSPI_PERFCOUNTER0_HI                           0xD180
-#define mmSPI_PERFCOUNTER0_LO                           0xD181
-#define mmSPI_PERFCOUNTER0_SELECT                       0xD980
-#define mmSPI_PERFCOUNTER0_SELECT1                      0xD984
-#define mmSPI_PERFCOUNTER1_HI                           0xD182
-#define mmSPI_PERFCOUNTER1_LO                           0xD183
-#define mmSPI_PERFCOUNTER1_SELECT                       0xD981
-#define mmSPI_PERFCOUNTER1_SELECT1                      0xD985
-#define mmSPI_PERFCOUNTER2_HI                           0xD184
-#define mmSPI_PERFCOUNTER2_LO                           0xD185
-#define mmSPI_PERFCOUNTER2_SELECT                       0xD982
-#define mmSPI_PERFCOUNTER2_SELECT1                      0xD986
-#define mmSPI_PERFCOUNTER3_HI                           0xD186
-#define mmSPI_PERFCOUNTER3_LO                           0xD187
-#define mmSPI_PERFCOUNTER3_SELECT                       0xD983
-#define mmSPI_PERFCOUNTER3_SELECT1                      0xD987
-#define mmSPI_PERFCOUNTER4_HI                           0xD188
-#define mmSPI_PERFCOUNTER4_LO                           0xD189
-#define mmSPI_PERFCOUNTER4_SELECT                       0xD988
-#define mmSPI_PERFCOUNTER5_HI                           0xD18A
-#define mmSPI_PERFCOUNTER5_LO                           0xD18B
-#define mmSPI_PERFCOUNTER5_SELECT                       0xD989
-#define mmSPI_PERFCOUNTER_BINS                          0xD98A
-#define mmSPI_PG_ENABLE_STATIC_CU_MASK__GFX09           0x24D7
-#define mmSPI_PS_INPUT_ADDR                             0xA1B4
-#define mmSPI_PS_INPUT_CNTL_0                           0xA191
-#define mmSPI_PS_INPUT_CNTL_1                           0xA192
-#define mmSPI_PS_INPUT_CNTL_10                          0xA19B
-#define mmSPI_PS_INPUT_CNTL_11                          0xA19C
-#define mmSPI_PS_INPUT_CNTL_12                          0xA19D
-#define mmSPI_PS_INPUT_CNTL_13                          0xA19E
-#define mmSPI_PS_INPUT_CNTL_14                          0xA19F
-#define mmSPI_PS_INPUT_CNTL_15                          0xA1A0
-#define mmSPI_PS_INPUT_CNTL_16                          0xA1A1
-#define mmSPI_PS_INPUT_CNTL_17                          0xA1A2
-#define mmSPI_PS_INPUT_CNTL_18                          0xA1A3
-#define mmSPI_PS_INPUT_CNTL_19                          0xA1A4
-#define mmSPI_PS_INPUT_CNTL_2                           0xA193
-#define mmSPI_PS_INPUT_CNTL_20                          0xA1A5
-#define mmSPI_PS_INPUT_CNTL_21                          0xA1A6
-#define mmSPI_PS_INPUT_CNTL_22                          0xA1A7
-#define mmSPI_PS_INPUT_CNTL_23                          0xA1A8
-#define mmSPI_PS_INPUT_CNTL_24                          0xA1A9
-#define mmSPI_PS_INPUT_CNTL_25                          0xA1AA
-#define mmSPI_PS_INPUT_CNTL_26                          0xA1AB
-#define mmSPI_PS_INPUT_CNTL_27                          0xA1AC
-#define mmSPI_PS_INPUT_CNTL_28                          0xA1AD
-#define mmSPI_PS_INPUT_CNTL_29                          0xA1AE
-#define mmSPI_PS_INPUT_CNTL_3                           0xA194
-#define mmSPI_PS_INPUT_CNTL_30                          0xA1AF
-#define mmSPI_PS_INPUT_CNTL_31                          0xA1B0
-#define mmSPI_PS_INPUT_CNTL_4                           0xA195
-#define mmSPI_PS_INPUT_CNTL_5                           0xA196
-#define mmSPI_PS_INPUT_CNTL_6                           0xA197
-#define mmSPI_PS_INPUT_CNTL_7                           0xA198
-#define mmSPI_PS_INPUT_CNTL_8                           0xA199
-#define mmSPI_PS_INPUT_CNTL_9                           0xA19A
-#define mmSPI_PS_INPUT_ENA                              0xA1B3
-#define mmSPI_PS_IN_CONTROL                             0xA1B6
-#define mmSPI_PS_MAX_WAVE_ID                            0x243A
-#define mmSPI_RESET_DEBUG                               0x31DA
-#define mmSPI_RESOURCE_RESERVE_CU_0                     0x31DC
-#define mmSPI_RESOURCE_RESERVE_CU_1                     0x31DD
-#define mmSPI_RESOURCE_RESERVE_CU_10                    0x31F0
-#define mmSPI_RESOURCE_RESERVE_CU_11                    0x31F1
-#define mmSPI_RESOURCE_RESERVE_CU_12                    0x31F4
-#define mmSPI_RESOURCE_RESERVE_CU_13                    0x31F5
-#define mmSPI_RESOURCE_RESERVE_CU_14                    0x31F6
-#define mmSPI_RESOURCE_RESERVE_CU_15                    0x31F7
-#define mmSPI_RESOURCE_RESERVE_CU_2                     0x31DE
-#define mmSPI_RESOURCE_RESERVE_CU_3                     0x31DF
-#define mmSPI_RESOURCE_RESERVE_CU_4                     0x31E0
-#define mmSPI_RESOURCE_RESERVE_CU_5                     0x31E1
-#define mmSPI_RESOURCE_RESERVE_CU_6                     0x31E2
-#define mmSPI_RESOURCE_RESERVE_CU_7                     0x31E3
-#define mmSPI_RESOURCE_RESERVE_CU_8                     0x31E4
-#define mmSPI_RESOURCE_RESERVE_CU_9                     0x31E5
-#define mmSPI_RESOURCE_RESERVE_EN_CU_0                  0x31E6
-#define mmSPI_RESOURCE_RESERVE_EN_CU_1                  0x31E7
-#define mmSPI_RESOURCE_RESERVE_EN_CU_10                 0x31F2
-#define mmSPI_RESOURCE_RESERVE_EN_CU_11                 0x31F3
-#define mmSPI_RESOURCE_RESERVE_EN_CU_12                 0x31F8
-#define mmSPI_RESOURCE_RESERVE_EN_CU_13                 0x31F9
-#define mmSPI_RESOURCE_RESERVE_EN_CU_14                 0x31FA
-#define mmSPI_RESOURCE_RESERVE_EN_CU_15                 0x31FB
-#define mmSPI_RESOURCE_RESERVE_EN_CU_2                  0x31E8
-#define mmSPI_RESOURCE_RESERVE_EN_CU_3                  0x31E9
-#define mmSPI_RESOURCE_RESERVE_EN_CU_4                  0x31EA
-#define mmSPI_RESOURCE_RESERVE_EN_CU_5                  0x31EB
-#define mmSPI_RESOURCE_RESERVE_EN_CU_6                  0x31EC
-#define mmSPI_RESOURCE_RESERVE_EN_CU_7                  0x31ED
-#define mmSPI_RESOURCE_RESERVE_EN_CU_8                  0x31EE
-#define mmSPI_RESOURCE_RESERVE_EN_CU_9                  0x31EF
-#define mmSPI_SHADER_COL_FORMAT                         0xA1C5
-#define mmSPI_SHADER_LATE_ALLOC_VS                      0x2C47
-#define mmSPI_SHADER_PGM_CHKSUM_GS                      0x2C80
-#define mmSPI_SHADER_PGM_CHKSUM_HS                      0x2D00
-#define mmSPI_SHADER_PGM_CHKSUM_PS                      0x2C06
-#define mmSPI_SHADER_PGM_CHKSUM_VS                      0x2C45
-#define mmSPI_SHADER_PGM_HI_GS                          0x2C89
-#define mmSPI_SHADER_PGM_HI_HS                          0x2D09
-#define mmSPI_SHADER_PGM_HI_PS                          0x2C09
-#define mmSPI_SHADER_PGM_HI_VS                          0x2C49
-#define mmSPI_SHADER_PGM_LO_GS                          0x2C88
-#define mmSPI_SHADER_PGM_LO_HS                          0x2D08
-#define mmSPI_SHADER_PGM_LO_PS                          0x2C08
-#define mmSPI_SHADER_PGM_LO_VS                          0x2C48
-#define mmSPI_SHADER_PGM_RSRC1_GS                       0x2C8A
-#define mmSPI_SHADER_PGM_RSRC1_HS                       0x2D0A
-#define mmSPI_SHADER_PGM_RSRC1_PS                       0x2C0A
-#define mmSPI_SHADER_PGM_RSRC1_VS                       0x2C4A
-#define mmSPI_SHADER_PGM_RSRC2_GS                       0x2C8B
-#define mmSPI_SHADER_PGM_RSRC2_HS                       0x2D0B
-#define mmSPI_SHADER_PGM_RSRC2_PS                       0x2C0B
-#define mmSPI_SHADER_PGM_RSRC2_VS                       0x2C4B
-#define mmSPI_SHADER_PGM_RSRC3_GS                       0x2C87
-#define mmSPI_SHADER_PGM_RSRC3_HS                       0x2D07
-#define mmSPI_SHADER_PGM_RSRC3_PS                       0x2C07
-#define mmSPI_SHADER_PGM_RSRC3_VS                       0x2C46
-#define mmSPI_SHADER_PGM_RSRC4_GS                       0x2C81
-#define mmSPI_SHADER_PGM_RSRC4_HS                       0x2D01
-#define mmSPI_SHADER_POS_FORMAT                         0xA1C3
-#define mmSPI_SHADER_USER_DATA_ADDR_HI_GS               0x2C83
-#define mmSPI_SHADER_USER_DATA_ADDR_HI_HS               0x2D03
-#define mmSPI_SHADER_USER_DATA_ADDR_LO_GS               0x2C82
-#define mmSPI_SHADER_USER_DATA_ADDR_LO_HS               0x2D02
-#define mmSPI_SHADER_USER_DATA_COMMON_0__GFX09          0x2D4C
-#define mmSPI_SHADER_USER_DATA_COMMON_1__GFX09          0x2D4D
-#define mmSPI_SHADER_USER_DATA_COMMON_10__GFX09         0x2D56
-#define mmSPI_SHADER_USER_DATA_COMMON_11__GFX09         0x2D57
-#define mmSPI_SHADER_USER_DATA_COMMON_12__GFX09         0x2D58
-#define mmSPI_SHADER_USER_DATA_COMMON_13__GFX09         0x2D59
-#define mmSPI_SHADER_USER_DATA_COMMON_14__GFX09         0x2D5A
-#define mmSPI_SHADER_USER_DATA_COMMON_15__GFX09         0x2D5B
-#define mmSPI_SHADER_USER_DATA_COMMON_16__GFX09         0x2D5C
-#define mmSPI_SHADER_USER_DATA_COMMON_17__GFX09         0x2D5D
-#define mmSPI_SHADER_USER_DATA_COMMON_18__GFX09         0x2D5E
-#define mmSPI_SHADER_USER_DATA_COMMON_19__GFX09         0x2D5F
-#define mmSPI_SHADER_USER_DATA_COMMON_2__GFX09          0x2D4E
-#define mmSPI_SHADER_USER_DATA_COMMON_20__GFX09         0x2D60
-#define mmSPI_SHADER_USER_DATA_COMMON_21__GFX09         0x2D61
-#define mmSPI_SHADER_USER_DATA_COMMON_22__GFX09         0x2D62
-#define mmSPI_SHADER_USER_DATA_COMMON_23__GFX09         0x2D63
-#define mmSPI_SHADER_USER_DATA_COMMON_24__GFX09         0x2D64
-#define mmSPI_SHADER_USER_DATA_COMMON_25__GFX09         0x2D65
-#define mmSPI_SHADER_USER_DATA_COMMON_26__GFX09         0x2D66
-#define mmSPI_SHADER_USER_DATA_COMMON_27__GFX09         0x2D67
-#define mmSPI_SHADER_USER_DATA_COMMON_28__GFX09         0x2D68
-#define mmSPI_SHADER_USER_DATA_COMMON_29__GFX09         0x2D69
-#define mmSPI_SHADER_USER_DATA_COMMON_3__GFX09          0x2D4F
-#define mmSPI_SHADER_USER_DATA_COMMON_30__GFX09         0x2D6A
-#define mmSPI_SHADER_USER_DATA_COMMON_31__GFX09         0x2D6B
-#define mmSPI_SHADER_USER_DATA_COMMON_4__GFX09          0x2D50
-#define mmSPI_SHADER_USER_DATA_COMMON_5__GFX09          0x2D51
-#define mmSPI_SHADER_USER_DATA_COMMON_6__GFX09          0x2D52
-#define mmSPI_SHADER_USER_DATA_COMMON_7__GFX09          0x2D53
-#define mmSPI_SHADER_USER_DATA_COMMON_8__GFX09          0x2D54
-#define mmSPI_SHADER_USER_DATA_COMMON_9__GFX09          0x2D55
-#define mmSPI_SHADER_USER_DATA_ES_0                     0x2CCC
-#define mmSPI_SHADER_USER_DATA_ES_1                     0x2CCD
-#define mmSPI_SHADER_USER_DATA_ES_10                    0x2CD6
-#define mmSPI_SHADER_USER_DATA_ES_11                    0x2CD7
-#define mmSPI_SHADER_USER_DATA_ES_12                    0x2CD8
-#define mmSPI_SHADER_USER_DATA_ES_13                    0x2CD9
-#define mmSPI_SHADER_USER_DATA_ES_14                    0x2CDA
-#define mmSPI_SHADER_USER_DATA_ES_15                    0x2CDB
-#define mmSPI_SHADER_USER_DATA_ES_16__GFX09             0x2CDC
-#define mmSPI_SHADER_USER_DATA_ES_17__GFX09             0x2CDD
-#define mmSPI_SHADER_USER_DATA_ES_18__GFX09             0x2CDE
-#define mmSPI_SHADER_USER_DATA_ES_19__GFX09             0x2CDF
-#define mmSPI_SHADER_USER_DATA_ES_2                     0x2CCE
-#define mmSPI_SHADER_USER_DATA_ES_20__GFX09             0x2CE0
-#define mmSPI_SHADER_USER_DATA_ES_21__GFX09             0x2CE1
-#define mmSPI_SHADER_USER_DATA_ES_22__GFX09             0x2CE2
-#define mmSPI_SHADER_USER_DATA_ES_23__GFX09             0x2CE3
-#define mmSPI_SHADER_USER_DATA_ES_24__GFX09             0x2CE4
-#define mmSPI_SHADER_USER_DATA_ES_25__GFX09             0x2CE5
-#define mmSPI_SHADER_USER_DATA_ES_26__GFX09             0x2CE6
-#define mmSPI_SHADER_USER_DATA_ES_27__GFX09             0x2CE7
-#define mmSPI_SHADER_USER_DATA_ES_28__GFX09             0x2CE8
-#define mmSPI_SHADER_USER_DATA_ES_29__GFX09             0x2CE9
-#define mmSPI_SHADER_USER_DATA_ES_3                     0x2CCF
-#define mmSPI_SHADER_USER_DATA_ES_30__GFX09             0x2CEA
-#define mmSPI_SHADER_USER_DATA_ES_31__GFX09             0x2CEB
-#define mmSPI_SHADER_USER_DATA_ES_4                     0x2CD0
-#define mmSPI_SHADER_USER_DATA_ES_5                     0x2CD1
-#define mmSPI_SHADER_USER_DATA_ES_6                     0x2CD2
-#define mmSPI_SHADER_USER_DATA_ES_7                     0x2CD3
-#define mmSPI_SHADER_USER_DATA_ES_8                     0x2CD4
-#define mmSPI_SHADER_USER_DATA_ES_9                     0x2CD5
-#define mmSPI_SHADER_USER_DATA_LS_16__GFX09             0x2D1C
-#define mmSPI_SHADER_USER_DATA_LS_17__GFX09             0x2D1D
-#define mmSPI_SHADER_USER_DATA_LS_18__GFX09             0x2D1E
-#define mmSPI_SHADER_USER_DATA_LS_19__GFX09             0x2D1F
-#define mmSPI_SHADER_USER_DATA_LS_20__GFX09             0x2D20
-#define mmSPI_SHADER_USER_DATA_LS_21__GFX09             0x2D21
-#define mmSPI_SHADER_USER_DATA_LS_22__GFX09             0x2D22
-#define mmSPI_SHADER_USER_DATA_LS_23__GFX09             0x2D23
-#define mmSPI_SHADER_USER_DATA_LS_24__GFX09             0x2D24
-#define mmSPI_SHADER_USER_DATA_LS_25__GFX09             0x2D25
-#define mmSPI_SHADER_USER_DATA_LS_26__GFX09             0x2D26
-#define mmSPI_SHADER_USER_DATA_LS_27__GFX09             0x2D27
-#define mmSPI_SHADER_USER_DATA_LS_28__GFX09             0x2D28
-#define mmSPI_SHADER_USER_DATA_LS_29__GFX09             0x2D29
-#define mmSPI_SHADER_USER_DATA_LS_30__GFX09             0x2D2A
-#define mmSPI_SHADER_USER_DATA_LS_31__GFX09             0x2D2B
-#define mmSPI_SHADER_USER_DATA_PS_0                     0x2C0C
-#define mmSPI_SHADER_USER_DATA_PS_1                     0x2C0D
-#define mmSPI_SHADER_USER_DATA_PS_10                    0x2C16
-#define mmSPI_SHADER_USER_DATA_PS_11                    0x2C17
-#define mmSPI_SHADER_USER_DATA_PS_12                    0x2C18
-#define mmSPI_SHADER_USER_DATA_PS_13                    0x2C19
-#define mmSPI_SHADER_USER_DATA_PS_14                    0x2C1A
-#define mmSPI_SHADER_USER_DATA_PS_15                    0x2C1B
-#define mmSPI_SHADER_USER_DATA_PS_16                    0x2C1C
-#define mmSPI_SHADER_USER_DATA_PS_17                    0x2C1D
-#define mmSPI_SHADER_USER_DATA_PS_18                    0x2C1E
-#define mmSPI_SHADER_USER_DATA_PS_19                    0x2C1F
-#define mmSPI_SHADER_USER_DATA_PS_2                     0x2C0E
-#define mmSPI_SHADER_USER_DATA_PS_20                    0x2C20
-#define mmSPI_SHADER_USER_DATA_PS_21                    0x2C21
-#define mmSPI_SHADER_USER_DATA_PS_22                    0x2C22
-#define mmSPI_SHADER_USER_DATA_PS_23                    0x2C23
-#define mmSPI_SHADER_USER_DATA_PS_24                    0x2C24
-#define mmSPI_SHADER_USER_DATA_PS_25                    0x2C25
-#define mmSPI_SHADER_USER_DATA_PS_26                    0x2C26
-#define mmSPI_SHADER_USER_DATA_PS_27                    0x2C27
-#define mmSPI_SHADER_USER_DATA_PS_28                    0x2C28
-#define mmSPI_SHADER_USER_DATA_PS_29                    0x2C29
-#define mmSPI_SHADER_USER_DATA_PS_3                     0x2C0F
-#define mmSPI_SHADER_USER_DATA_PS_30                    0x2C2A
-#define mmSPI_SHADER_USER_DATA_PS_31                    0x2C2B
-#define mmSPI_SHADER_USER_DATA_PS_4                     0x2C10
-#define mmSPI_SHADER_USER_DATA_PS_5                     0x2C11
-#define mmSPI_SHADER_USER_DATA_PS_6                     0x2C12
-#define mmSPI_SHADER_USER_DATA_PS_7                     0x2C13
-#define mmSPI_SHADER_USER_DATA_PS_8                     0x2C14
-#define mmSPI_SHADER_USER_DATA_PS_9                     0x2C15
-#define mmSPI_SHADER_USER_DATA_VS_0                     0x2C4C
-#define mmSPI_SHADER_USER_DATA_VS_1                     0x2C4D
-#define mmSPI_SHADER_USER_DATA_VS_10                    0x2C56
-#define mmSPI_SHADER_USER_DATA_VS_11                    0x2C57
-#define mmSPI_SHADER_USER_DATA_VS_12                    0x2C58
-#define mmSPI_SHADER_USER_DATA_VS_13                    0x2C59
-#define mmSPI_SHADER_USER_DATA_VS_14                    0x2C5A
-#define mmSPI_SHADER_USER_DATA_VS_15                    0x2C5B
-#define mmSPI_SHADER_USER_DATA_VS_16                    0x2C5C
-#define mmSPI_SHADER_USER_DATA_VS_17                    0x2C5D
-#define mmSPI_SHADER_USER_DATA_VS_18                    0x2C5E
-#define mmSPI_SHADER_USER_DATA_VS_19                    0x2C5F
-#define mmSPI_SHADER_USER_DATA_VS_2                     0x2C4E
-#define mmSPI_SHADER_USER_DATA_VS_20                    0x2C60
-#define mmSPI_SHADER_USER_DATA_VS_21                    0x2C61
-#define mmSPI_SHADER_USER_DATA_VS_22                    0x2C62
-#define mmSPI_SHADER_USER_DATA_VS_23                    0x2C63
-#define mmSPI_SHADER_USER_DATA_VS_24                    0x2C64
-#define mmSPI_SHADER_USER_DATA_VS_25                    0x2C65
-#define mmSPI_SHADER_USER_DATA_VS_26                    0x2C66
-#define mmSPI_SHADER_USER_DATA_VS_27                    0x2C67
-#define mmSPI_SHADER_USER_DATA_VS_28                    0x2C68
-#define mmSPI_SHADER_USER_DATA_VS_29                    0x2C69
-#define mmSPI_SHADER_USER_DATA_VS_3                     0x2C4F
-#define mmSPI_SHADER_USER_DATA_VS_30                    0x2C6A
-#define mmSPI_SHADER_USER_DATA_VS_31                    0x2C6B
-#define mmSPI_SHADER_USER_DATA_VS_4                     0x2C50
-#define mmSPI_SHADER_USER_DATA_VS_5                     0x2C51
-#define mmSPI_SHADER_USER_DATA_VS_6                     0x2C52
-#define mmSPI_SHADER_USER_DATA_VS_7                     0x2C53
-#define mmSPI_SHADER_USER_DATA_VS_8                     0x2C54
-#define mmSPI_SHADER_USER_DATA_VS_9                     0x2C55
-#define mmSPI_SHADER_Z_FORMAT                           0xA1C4
-#define mmSPI_START_PHASE                               0x243B
-#define mmSPI_SX_EXPORT_BUFFER_SIZES                    0x24D9
-#define mmSPI_SX_SCOREBOARD_BUFFER_SIZES                0x24DA
-#define mmSPI_TMPRING_SIZE                              0xA1BA
-#define mmSPI_VS_OUT_CONFIG                             0xA1B1
-#define mmSPI_WCL_PIPE_PERCENT_CS0                      0x31C9
-#define mmSPI_WCL_PIPE_PERCENT_CS1                      0x31CA
-#define mmSPI_WCL_PIPE_PERCENT_CS2                      0x31CB
-#define mmSPI_WCL_PIPE_PERCENT_CS3                      0x31CC
-#define mmSPI_WCL_PIPE_PERCENT_CS4                      0x31CD
-#define mmSPI_WCL_PIPE_PERCENT_CS5                      0x31CE
-#define mmSPI_WCL_PIPE_PERCENT_CS6                      0x31CF
-#define mmSPI_WCL_PIPE_PERCENT_CS7                      0x31D0
-#define mmSPI_WCL_PIPE_PERCENT_GFX                      0x31C7
-#define mmSPI_WCL_PIPE_PERCENT_HP3D                     0x31C8
-#define mmSPI_WF_LIFETIME_CNTL                          0x24AA
-#define mmSPI_WF_LIFETIME_DEBUG                         0x24CA
-#define mmSPI_WF_LIFETIME_LIMIT_0                       0x24AB
-#define mmSPI_WF_LIFETIME_LIMIT_1                       0x24AC
-#define mmSPI_WF_LIFETIME_LIMIT_2                       0x24AD
-#define mmSPI_WF_LIFETIME_LIMIT_3                       0x24AE
-#define mmSPI_WF_LIFETIME_LIMIT_4                       0x24AF
-#define mmSPI_WF_LIFETIME_LIMIT_5                       0x24B0
-#define mmSPI_WF_LIFETIME_LIMIT_6                       0x24B1
-#define mmSPI_WF_LIFETIME_LIMIT_7                       0x24B2
-#define mmSPI_WF_LIFETIME_LIMIT_8                       0x24B3
-#define mmSPI_WF_LIFETIME_LIMIT_9                       0x24B4
-#define mmSPI_WF_LIFETIME_STATUS_0                      0x24B5
-#define mmSPI_WF_LIFETIME_STATUS_1                      0x24B6
-#define mmSPI_WF_LIFETIME_STATUS_10                     0x24BF
-#define mmSPI_WF_LIFETIME_STATUS_11                     0x24C0
-#define mmSPI_WF_LIFETIME_STATUS_12                     0x24C1
-#define mmSPI_WF_LIFETIME_STATUS_13                     0x24C2
-#define mmSPI_WF_LIFETIME_STATUS_14                     0x24C3
-#define mmSPI_WF_LIFETIME_STATUS_15                     0x24C4
-#define mmSPI_WF_LIFETIME_STATUS_16                     0x24C5
-#define mmSPI_WF_LIFETIME_STATUS_17                     0x24C6
-#define mmSPI_WF_LIFETIME_STATUS_18                     0x24C7
-#define mmSPI_WF_LIFETIME_STATUS_19                     0x24C8
-#define mmSPI_WF_LIFETIME_STATUS_2                      0x24B7
-#define mmSPI_WF_LIFETIME_STATUS_20                     0x24C9
-#define mmSPI_WF_LIFETIME_STATUS_3                      0x24B8
-#define mmSPI_WF_LIFETIME_STATUS_4                      0x24B9
-#define mmSPI_WF_LIFETIME_STATUS_5                      0x24BA
-#define mmSPI_WF_LIFETIME_STATUS_6                      0x24BB
-#define mmSPI_WF_LIFETIME_STATUS_7                      0x24BC
-#define mmSPI_WF_LIFETIME_STATUS_8                      0x24BD
-#define mmSPI_WF_LIFETIME_STATUS_9                      0x24BE
-#define mmSQC_CACHES                                    0xC348
-#define mmSQC_CONFIG                                    0x2301
-#define mmSQC_DCACHE_UTCL1_CNTL1__GFX09                 0x23D5
-#define mmSQC_DCACHE_UTCL1_CNTL2__GFX09                 0x23D6
-#define mmSQC_DCACHE_UTCL1_STATUS__GFX09                0x23D8
-#define mmSQC_DSM_CNTL__GFX09                           0x2320
-#define mmSQC_DSM_CNTL2__GFX09                          0x2325
-#define mmSQC_DSM_CNTL2A__GFX09                         0x2326
-#define mmSQC_DSM_CNTL2B__GFX09                         0x2327
-#define mmSQC_DSM_CNTLA__GFX09                          0x2321
-#define mmSQC_DSM_CNTLB__GFX09                          0x2322
-#define mmSQC_EDC_CNT__GFX09                            0x23A2
-#define mmSQC_EDC_CNT2__GFX09                           0x232C
-#define mmSQC_EDC_CNT3__GFX09                           0x232D
-#define mmSQC_EDC_FUE_CNTL__GFX09                       0x232B
-#define mmSQC_ICACHE_UTCL1_CNTL1__GFX09                 0x23D3
-#define mmSQC_ICACHE_UTCL1_CNTL2__GFX09                 0x23D4
-#define mmSQC_ICACHE_UTCL1_STATUS__GFX09                0x23D7
-#define mmSQC_WRITEBACK                                 0xC349
-#define mmSQ_ALU_CLK_CTRL                               0xF08E
-#define mmSQ_BUF_RSRC_WORD0__GFX09                      0x23C0
-#define mmSQ_BUF_RSRC_WORD1__GFX09                      0x23C1
-#define mmSQ_BUF_RSRC_WORD2__GFX09                      0x23C2
-#define mmSQ_BUF_RSRC_WORD3__GFX09                      0x23C3
-#define mmSQ_CMD                                        0x237B
-#define mmSQ_CMD_TIMESTAMP__GFX09                       0x2375
-#define mmSQ_CONFIG                                     0x2300
-#define mmSQ_DSM_CNTL                                   0x2306
-#define mmSQ_DSM_CNTL2                                  0x2307
-#define mmSQ_DS_0__GFX09                                0x237F
-#define mmSQ_DS_1__GFX09                                0x237F
-#define mmSQ_EDC_CNT                                    0x23A6
-#define mmSQ_EDC_DED_CNT__GFX09                         0x23A4
-#define mmSQ_EDC_FUE_CNTL                               0x23A7
-#define mmSQ_EDC_INFO__GFX09                            0x23A5
-#define mmSQ_EDC_SEC_CNT__GFX09                         0x23A3
-#define mmSQ_EXP_0__GFX09                               0x237F
-#define mmSQ_EXP_1__GFX09                               0x237F
-#define mmSQ_FIFO_SIZES                                 0x2305
-#define mmSQ_FLAT_0__GFX09                              0x237F
-#define mmSQ_FLAT_1__GFX09                              0x237F
-#define mmSQ_FLAT_SCRATCH_WORD0__GFX09                  0x23D0
-#define mmSQ_FLAT_SCRATCH_WORD1__GFX09                  0x23D1
-#define mmSQ_GLBL_0__GFX09                              0x237F
-#define mmSQ_GLBL_1__GFX09                              0x237F
-#define mmSQ_IMG_RSRC_WORD0__GFX09                      0x23C4
-#define mmSQ_IMG_RSRC_WORD1__GFX09                      0x23C5
-#define mmSQ_IMG_RSRC_WORD2__GFX09                      0x23C6
-#define mmSQ_IMG_RSRC_WORD3__GFX09                      0x23C7
-#define mmSQ_IMG_RSRC_WORD4__GFX09                      0x23C8
-#define mmSQ_IMG_RSRC_WORD5__GFX09                      0x23C9
-#define mmSQ_IMG_RSRC_WORD6__GFX09                      0x23CA
-#define mmSQ_IMG_RSRC_WORD7__GFX09                      0x23CB
-#define mmSQ_IMG_SAMP_WORD0__GFX09                      0x23CC
-#define mmSQ_IMG_SAMP_WORD1__GFX09                      0x23CD
-#define mmSQ_IMG_SAMP_WORD2__GFX09                      0x23CE
-#define mmSQ_IMG_SAMP_WORD3__GFX09                      0x23CF
-#define mmSQ_IND_DATA                                   0x2379
-#define mmSQ_IND_INDEX                                  0x2378
-#define mmSQ_INST__GFX09                                0x237F
-#define mmSQ_INTERRUPT_AUTO_MASK                        0x2314
-#define mmSQ_INTERRUPT_MSG_CTRL                         0x2315
-#define mmSQ_LB_CTR0_CU__GFX09                          0x239E
-#define mmSQ_LB_CTR1_CU__GFX09                          0x239F
-#define mmSQ_LB_CTR2_CU__GFX09                          0x23A0
-#define mmSQ_LB_CTR3_CU__GFX09                          0x23A1
-#define mmSQ_LB_CTR_CTRL                                0x2398
-#define mmSQ_LB_CTR_SEL__GFX09                          0x239D
-#define mmSQ_LB_DATA0                                   0x2399
-#define mmSQ_LB_DATA1                                   0x239A
-#define mmSQ_LB_DATA2                                   0x239B
-#define mmSQ_LB_DATA3                                   0x239C
-#define mmSQ_LDS_CLK_CTRL                               0xF090
-#define mmSQ_M0_GPR_IDX_WORD__GFX09                     0x23D2
-#define mmSQ_MIMG_0__GFX09                              0x237F
-#define mmSQ_MIMG_1__GFX09                              0x237F
-#define mmSQ_MTBUF_0__GFX09                             0x237F
-#define mmSQ_MTBUF_1__GFX09                             0x237F
-#define mmSQ_MUBUF_0__GFX09                             0x237F
-#define mmSQ_MUBUF_1__GFX09                             0x237F
-#define mmSQ_PERFCOUNTER0_HI                            0xD1C1
-#define mmSQ_PERFCOUNTER0_LO                            0xD1C0
-#define mmSQ_PERFCOUNTER0_SELECT                        0xD9C0
-#define mmSQ_PERFCOUNTER10_HI                           0xD1D5
-#define mmSQ_PERFCOUNTER10_LO                           0xD1D4
-#define mmSQ_PERFCOUNTER10_SELECT                       0xD9CA
-#define mmSQ_PERFCOUNTER11_HI                           0xD1D7
-#define mmSQ_PERFCOUNTER11_LO                           0xD1D6
-#define mmSQ_PERFCOUNTER11_SELECT                       0xD9CB
-#define mmSQ_PERFCOUNTER12_HI                           0xD1D9
-#define mmSQ_PERFCOUNTER12_LO                           0xD1D8
-#define mmSQ_PERFCOUNTER12_SELECT                       0xD9CC
-#define mmSQ_PERFCOUNTER13_HI                           0xD1DB
-#define mmSQ_PERFCOUNTER13_LO                           0xD1DA
-#define mmSQ_PERFCOUNTER13_SELECT                       0xD9CD
-#define mmSQ_PERFCOUNTER14_HI                           0xD1DD
-#define mmSQ_PERFCOUNTER14_LO                           0xD1DC
-#define mmSQ_PERFCOUNTER14_SELECT                       0xD9CE
-#define mmSQ_PERFCOUNTER15_HI                           0xD1DF
-#define mmSQ_PERFCOUNTER15_LO                           0xD1DE
-#define mmSQ_PERFCOUNTER15_SELECT                       0xD9CF
-#define mmSQ_PERFCOUNTER1_HI                            0xD1C3
-#define mmSQ_PERFCOUNTER1_LO                            0xD1C2
-#define mmSQ_PERFCOUNTER1_SELECT                        0xD9C1
-#define mmSQ_PERFCOUNTER2_HI                            0xD1C5
-#define mmSQ_PERFCOUNTER2_LO                            0xD1C4
-#define mmSQ_PERFCOUNTER2_SELECT                        0xD9C2
-#define mmSQ_PERFCOUNTER3_HI                            0xD1C7
-#define mmSQ_PERFCOUNTER3_LO                            0xD1C6
-#define mmSQ_PERFCOUNTER3_SELECT                        0xD9C3
-#define mmSQ_PERFCOUNTER4_HI                            0xD1C9
-#define mmSQ_PERFCOUNTER4_LO                            0xD1C8
-#define mmSQ_PERFCOUNTER4_SELECT                        0xD9C4
-#define mmSQ_PERFCOUNTER5_HI                            0xD1CB
-#define mmSQ_PERFCOUNTER5_LO                            0xD1CA
-#define mmSQ_PERFCOUNTER5_SELECT                        0xD9C5
-#define mmSQ_PERFCOUNTER6_HI                            0xD1CD
-#define mmSQ_PERFCOUNTER6_LO                            0xD1CC
-#define mmSQ_PERFCOUNTER6_SELECT                        0xD9C6
-#define mmSQ_PERFCOUNTER7_HI                            0xD1CF
-#define mmSQ_PERFCOUNTER7_LO                            0xD1CE
-#define mmSQ_PERFCOUNTER7_SELECT                        0xD9C7
-#define mmSQ_PERFCOUNTER8_HI                            0xD1D1
-#define mmSQ_PERFCOUNTER8_LO                            0xD1D0
-#define mmSQ_PERFCOUNTER8_SELECT                        0xD9C8
-#define mmSQ_PERFCOUNTER9_HI                            0xD1D3
-#define mmSQ_PERFCOUNTER9_LO                            0xD1D2
-#define mmSQ_PERFCOUNTER9_SELECT                        0xD9C9
-#define mmSQ_PERFCOUNTER_CTRL                           0xD9E0
-#define mmSQ_PERFCOUNTER_CTRL2                          0xD9E2
-#define mmSQ_PERFCOUNTER_MASK__GFX09                    0xD9E1
-#define mmSQ_POWER_THROTTLE__GFX09                      0xF091
-#define mmSQ_POWER_THROTTLE2__GFX09                     0xF092
-#define mmSQ_RANDOM_WAVE_PRI                            0x2303
-#define mmSQ_REG_CREDITS__GFX09                         0x2304
-#define mmSQ_REG_TIMESTAMP__GFX09                       0x2374
-#define mmSQ_RUNTIME_CONFIG                             0x2308
-#define mmSQ_SCRATCH_0__GFX09                           0x237F
-#define mmSQ_SCRATCH_1__GFX09                           0x237F
-#define mmSQ_SHADER_TBA_HI                              0x231D
-#define mmSQ_SHADER_TBA_LO                              0x231C
-#define mmSQ_SHADER_TMA_HI                              0x231F
-#define mmSQ_SHADER_TMA_LO                              0x231E
-#define mmSQ_SMEM_0__GFX09                              0x237F
-#define mmSQ_SMEM_1__GFX09                              0x237F
-#define mmSQ_SOP1__GFX09                                0x237F
-#define mmSQ_SOP2__GFX09                                0x237F
-#define mmSQ_SOPC__GFX09                                0x237F
-#define mmSQ_SOPK__GFX09                                0x237F
-#define mmSQ_SOPP__GFX09                                0x237F
-#define mmSQ_TEX_CLK_CTRL                               0xF08F
-#define mmSQ_THREAD_TRACE_BASE__GFX09                   0xC330
-#define mmSQ_THREAD_TRACE_BASE2__GFX09                  0xC337
-#define mmSQ_THREAD_TRACE_CNTR__GFX09                   0xC33C
-#define mmSQ_THREAD_TRACE_HIWATER__GFX09                0xC33B
-#define mmSQ_THREAD_TRACE_MODE__GFX09                   0xC336
-#define mmSQ_THREAD_TRACE_PERF_MASK__GFX09              0xC334
-#define mmSQ_THREAD_TRACE_SIZE__GFX09                   0xC331
-#define mmSQ_THREAD_TRACE_TOKEN_MASK2__GFX09            0xC338
-#define mmSQ_THREAD_TRACE_USERDATA_0                    0xC340
-#define mmSQ_THREAD_TRACE_USERDATA_1                    0xC341
-#define mmSQ_THREAD_TRACE_USERDATA_2                    0xC342
-#define mmSQ_THREAD_TRACE_USERDATA_3                    0xC343
-#define mmSQ_THREAD_TRACE_WORD_CMN__GFX09               0x23B0
-#define mmSQ_THREAD_TRACE_WORD_EVENT__GFX09             0x23B0
-#define mmSQ_THREAD_TRACE_WORD_INST__GFX09              0x23B0
-#define mmSQ_THREAD_TRACE_WORD_INST_PC_1_OF_2__GFX09    0x23B0
-#define mmSQ_THREAD_TRACE_WORD_INST_PC_2_OF_2__GFX09    0x23B1
-#define mmSQ_THREAD_TRACE_WORD_INST_USERDATA_1_OF_2__GFX09 0x23B0
-#define mmSQ_THREAD_TRACE_WORD_INST_USERDATA_2_OF_2__GFX09 0x23B1
-#define mmSQ_THREAD_TRACE_WORD_ISSUE__GFX09             0x23B0
-#define mmSQ_THREAD_TRACE_WORD_MISC__GFX09              0x23B0
-#define mmSQ_THREAD_TRACE_WORD_PERF_1_OF_2__GFX09       0x23B0
-#define mmSQ_THREAD_TRACE_WORD_PERF_2_OF_2__GFX09       0x23B1
-#define mmSQ_THREAD_TRACE_WORD_REG_1_OF_2__GFX09        0x23B0
-#define mmSQ_THREAD_TRACE_WORD_REG_2_OF_2__GFX09        0x23B0
-#define mmSQ_THREAD_TRACE_WORD_REG_CS_1_OF_2__GFX09     0x23B0
-#define mmSQ_THREAD_TRACE_WORD_REG_CS_2_OF_2__GFX09     0x23B0
-#define mmSQ_THREAD_TRACE_WORD_TIMESTAMP_1_OF_2__GFX09  0x23B0
-#define mmSQ_THREAD_TRACE_WORD_TIMESTAMP_2_OF_2__GFX09  0x23B1
-#define mmSQ_THREAD_TRACE_WORD_WAVE__GFX09              0x23B0
-#define mmSQ_THREAD_TRACE_WORD_WAVE_START__GFX09        0x23B0
-#define mmSQ_TIME_HI                                    0x237C
-#define mmSQ_TIME_LO                                    0x237D
-#define mmSQ_UTCL1_CNTL1__GFX09                         0x2317
-#define mmSQ_UTCL1_CNTL2__GFX09                         0x2318
-#define mmSQ_UTCL1_STATUS__GFX09                        0x2319
-#define mmSQ_VINTRP__GFX09                              0x237F
-#define mmSQ_VOP1__GFX09                                0x237F
-#define mmSQ_VOP2__GFX09                                0x237F
-#define mmSQ_VOP3P_0__GFX09                             0x237F
-#define mmSQ_VOP3P_1__GFX09                             0x237F
-#define mmSQ_VOP3_0__GFX09                              0x237F
-#define mmSQ_VOP3_0_SDST_ENC__GFX09                     0x237F
-#define mmSQ_VOP3_1__GFX09                              0x237F
-#define mmSQ_VOPC__GFX09                                0x237F
-#define mmSQ_VOP_DPP__GFX09                             0x237F
-#define mmSQ_VOP_SDWA__GFX09                            0x237F
-#define mmSQ_VOP_SDWA_SDST_ENC__GFX09                   0x237F
-#define mmSQ_WREXEC_EXEC_HI                             0x23B1
-#define mmSQ_WREXEC_EXEC_LO                             0x23B1
-#define mmSX_BLEND_OPT_CONTROL                          0xA1D7
-#define mmSX_BLEND_OPT_EPSILON                          0xA1D6
-#define mmSX_DEBUG_BUSY                                 0x2414
-#define mmSX_DEBUG_BUSY_2                               0x2415
-#define mmSX_DEBUG_BUSY_3                               0x2416
-#define mmSX_DEBUG_BUSY_4                               0x2417
-#define mmSX_MRT0_BLEND_OPT                             0xA1D8
-#define mmSX_MRT1_BLEND_OPT                             0xA1D9
-#define mmSX_MRT2_BLEND_OPT                             0xA1DA
-#define mmSX_MRT3_BLEND_OPT                             0xA1DB
-#define mmSX_MRT4_BLEND_OPT                             0xA1DC
-#define mmSX_MRT5_BLEND_OPT                             0xA1DD
-#define mmSX_MRT6_BLEND_OPT                             0xA1DE
-#define mmSX_MRT7_BLEND_OPT                             0xA1DF
-#define mmSX_PERFCOUNTER0_HI                            0xD241
-#define mmSX_PERFCOUNTER0_LO                            0xD240
-#define mmSX_PERFCOUNTER0_SELECT                        0xDA40
-#define mmSX_PERFCOUNTER0_SELECT1                       0xDA44
-#define mmSX_PERFCOUNTER1_HI                            0xD243
-#define mmSX_PERFCOUNTER1_LO                            0xD242
-#define mmSX_PERFCOUNTER1_SELECT                        0xDA41
-#define mmSX_PERFCOUNTER1_SELECT1                       0xDA45
-#define mmSX_PERFCOUNTER2_HI                            0xD245
-#define mmSX_PERFCOUNTER2_LO                            0xD244
-#define mmSX_PERFCOUNTER2_SELECT                        0xDA42
-#define mmSX_PERFCOUNTER3_HI                            0xD247
-#define mmSX_PERFCOUNTER3_LO                            0xD246
-#define mmSX_PERFCOUNTER3_SELECT                        0xDA43
-#define mmSX_PS_DOWNCONVERT                             0xA1D5
-#define mmTA_BC_BASE_ADDR                               0xA020
-#define mmTA_BC_BASE_ADDR_HI                            0xA021
-#define mmTA_CGTT_CTRL                                  0xF09D
-#define mmTA_CNTL                                       0x2541
-#define mmTA_CNTL_AUX                                   0x2542
-#define mmTA_CS_BC_BASE_ADDR                            0xC380
-#define mmTA_CS_BC_BASE_ADDR_HI                         0xC381
-#define mmTA_PERFCOUNTER0_HI                            0xD2C1
-#define mmTA_PERFCOUNTER0_LO                            0xD2C0
-#define mmTA_PERFCOUNTER0_SELECT                        0xDAC0
-#define mmTA_PERFCOUNTER0_SELECT1                       0xDAC1
-#define mmTA_PERFCOUNTER1_HI                            0xD2C3
-#define mmTA_PERFCOUNTER1_LO                            0xD2C2
-#define mmTA_PERFCOUNTER1_SELECT                        0xDAC2
-#define mmTA_RESERVED_010C                              0x2543
-#define mmTA_SCRATCH                                    0x2564
-#define mmTA_STATUS                                     0x2548
-#define mmTCA_BURST_CTRL__GFX09                         0x2BC2
-#define mmTCA_BURST_MASK__GFX09                         0x2BC1
-#define mmTCA_CGTT_SCLK_CTRL__GFX09                     0xF0AD
-#define mmTCA_CTRL__GFX09                               0x2BC0
-#define mmTCA_DSM_CNTL__GFX09                           0x2BC3
-#define mmTCA_DSM_CNTL2__GFX09                          0x2BC4
-#define mmTCA_EDC_CNT__GFX09                            0x2BC5
-#define mmTCA_PERFCOUNTER0_HI__GFX09                    0xD391
-#define mmTCA_PERFCOUNTER0_LO__GFX09                    0xD390
-#define mmTCA_PERFCOUNTER0_SELECT__GFX09                0xDB90
-#define mmTCA_PERFCOUNTER0_SELECT1__GFX09               0xDB91
-#define mmTCA_PERFCOUNTER1_HI__GFX09                    0xD393
-#define mmTCA_PERFCOUNTER1_LO__GFX09                    0xD392
-#define mmTCA_PERFCOUNTER1_SELECT__GFX09                0xDB92
-#define mmTCA_PERFCOUNTER1_SELECT1__GFX09               0xDB93
-#define mmTCA_PERFCOUNTER2_HI__GFX09                    0xD395
-#define mmTCA_PERFCOUNTER2_LO__GFX09                    0xD394
-#define mmTCA_PERFCOUNTER2_SELECT__GFX09                0xDB94
-#define mmTCA_PERFCOUNTER3_HI__GFX09                    0xD397
-#define mmTCA_PERFCOUNTER3_LO__GFX09                    0xD396
-#define mmTCA_PERFCOUNTER3_SELECT__GFX09                0xDB95
-#define mmTCC_CGTT_SCLK_CTRL__GFX09                     0xF0AC
-#define mmTCC_CTRL__GFX09                               0x2B80
-#define mmTCC_CTRL2__GFX09                              0x2B81
-#define mmTCC_DSM_CNTL__GFX09                           0x2B86
-#define mmTCC_DSM_CNTL2__GFX09                          0x2B88
-#define mmTCC_DSM_CNTL2A__GFX09                         0x2B89
-#define mmTCC_DSM_CNTL2B__GFX09                         0x2B8A
-#define mmTCC_DSM_CNTLA__GFX09                          0x2B87
-#define mmTCC_EDC_CNT__GFX09                            0x2B82
-#define mmTCC_EDC_CNT2__GFX09                           0x2B83
-#define mmTCC_EXE_DISABLE__GFX09                        0x2B85
-#define mmTCC_PERFCOUNTER0_HI__GFX09                    0xD381
-#define mmTCC_PERFCOUNTER0_LO__GFX09                    0xD380
-#define mmTCC_PERFCOUNTER0_SELECT__GFX09                0xDB80
-#define mmTCC_PERFCOUNTER0_SELECT1__GFX09               0xDB81
-#define mmTCC_PERFCOUNTER1_HI__GFX09                    0xD383
-#define mmTCC_PERFCOUNTER1_LO__GFX09                    0xD382
-#define mmTCC_PERFCOUNTER1_SELECT__GFX09                0xDB82
-#define mmTCC_PERFCOUNTER1_SELECT1__GFX09               0xDB83
-#define mmTCC_PERFCOUNTER2_HI__GFX09                    0xD385
-#define mmTCC_PERFCOUNTER2_LO__GFX09                    0xD384
-#define mmTCC_PERFCOUNTER2_SELECT__GFX09                0xDB84
-#define mmTCC_PERFCOUNTER3_HI__GFX09                    0xD387
-#define mmTCC_PERFCOUNTER3_LO__GFX09                    0xD386
-#define mmTCC_PERFCOUNTER3_SELECT__GFX09                0xDB85
-#define mmTCC_REDUNDANCY__GFX09                         0x2B84
-#define mmTCC_SOFT_RESET__GFX09                         0x2B8C
-#define mmTCC_WBINVL2__GFX09                            0x2B8B
-#define mmTCI_CNTL_1                                    0x2B62
-#define mmTCI_CNTL_2                                    0x2B63
-#define mmTCI_STATUS                                    0x2B61
-#define mmTCP_ADDR_CONFIG__GFX09                        0x2B05
-#define mmTCP_ATC_EDC_GATCL1_CNT__GFX09                 0x32B1
-#define mmTCP_BUFFER_ADDR_HASH_CNTL                     0x2B16
-#define mmTCP_CHAN_STEER_HI__GFX09                      0x2B04
-#define mmTCP_CHAN_STEER_LO__GFX09                      0x2B03
-#define mmTCP_CNTL                                      0x2B02
-#define mmTCP_CNTL2                                     0x32B4
-#define mmTCP_CREDIT                                    0x2B06
-#define mmTCP_EDC_CNT                                   0x2B17
-#define mmTCP_GATCL1_CNTL__GFX09                        0x32B0
-#define mmTCP_GATCL1_DSM_CNTL__GFX09                    0x32B2
-#define mmTCP_INVALIDATE                                0x2B00
-#define mmTCP_PERFCOUNTER0_HI                           0xD341
-#define mmTCP_PERFCOUNTER0_LO                           0xD340
-#define mmTCP_PERFCOUNTER0_SELECT                       0xDB40
-#define mmTCP_PERFCOUNTER0_SELECT1                      0xDB41
-#define mmTCP_PERFCOUNTER1_HI                           0xD343
-#define mmTCP_PERFCOUNTER1_LO                           0xD342
-#define mmTCP_PERFCOUNTER1_SELECT                       0xDB42
-#define mmTCP_PERFCOUNTER1_SELECT1                      0xDB43
-#define mmTCP_PERFCOUNTER2_HI                           0xD345
-#define mmTCP_PERFCOUNTER2_LO                           0xD344
-#define mmTCP_PERFCOUNTER2_SELECT                       0xDB44
-#define mmTCP_PERFCOUNTER3_HI                           0xD347
-#define mmTCP_PERFCOUNTER3_LO                           0xD346
-#define mmTCP_PERFCOUNTER3_SELECT                       0xDB45
-#define mmTCP_PERFCOUNTER_FILTER                        0x32B9
-#define mmTCP_PERFCOUNTER_FILTER_EN                     0x32BA
-#define mmTCP_STATUS                                    0x2B01
-#define mmTCP_UTCL1_CNTL1__GFX09                        0x32B5
-#define mmTCP_UTCL1_CNTL2__GFX09                        0x32B6
-#define mmTCP_UTCL1_STATUS__GFX09                       0x32B7
-#define mmTCP_WATCH0_ADDR_H                             0x32A0
-#define mmTCP_WATCH0_ADDR_L                             0x32A1
-#define mmTCP_WATCH0_CNTL                               0x32A2
-#define mmTCP_WATCH1_ADDR_H                             0x32A3
-#define mmTCP_WATCH1_ADDR_L                             0x32A4
-#define mmTCP_WATCH1_CNTL                               0x32A5
-#define mmTCP_WATCH2_ADDR_H                             0x32A6
-#define mmTCP_WATCH2_ADDR_L                             0x32A7
-#define mmTCP_WATCH2_CNTL                               0x32A8
-#define mmTCP_WATCH3_ADDR_H                             0x32A9
-#define mmTCP_WATCH3_ADDR_L                             0x32AA
-#define mmTCP_WATCH3_CNTL                               0x32AB
-#define mmTC_CFG_L1_LOAD_POLICY0__GFX09                 0x2B1A
-#define mmTC_CFG_L1_LOAD_POLICY1__GFX09                 0x2B1B
-#define mmTC_CFG_L1_STORE_POLICY__GFX09                 0x2B1C
-#define mmTC_CFG_L1_VOLATILE__GFX09                     0x2B22
-#define mmTC_CFG_L2_ATOMIC_POLICY__GFX09                0x2B21
-#define mmTC_CFG_L2_LOAD_POLICY0__GFX09                 0x2B1D
-#define mmTC_CFG_L2_LOAD_POLICY1__GFX09                 0x2B1E
-#define mmTC_CFG_L2_STORE_POLICY0__GFX09                0x2B1F
-#define mmTC_CFG_L2_STORE_POLICY1__GFX09                0x2B20
-#define mmTC_CFG_L2_VOLATILE__GFX09                     0x2B23
-#define mmTD_CGTT_CTRL                                  0xF09C
-#define mmTD_CNTL                                       0x2525
-#define mmTD_DSM_CNTL                                   0x252F
-#define mmTD_DSM_CNTL2                                  0x2530
-#define mmTD_PERFCOUNTER0_HI                            0xD301
-#define mmTD_PERFCOUNTER0_LO                            0xD300
-#define mmTD_PERFCOUNTER0_SELECT                        0xDB00
-#define mmTD_PERFCOUNTER0_SELECT1                       0xDB01
-#define mmTD_PERFCOUNTER1_HI                            0xD303
-#define mmTD_PERFCOUNTER1_LO                            0xD302
-#define mmTD_PERFCOUNTER1_SELECT                        0xDB02
-#define mmTD_SCRATCH                                    0x2533
-#define mmTD_STATUS                                     0x2526
-#define mmUTCL2_CGTT_CLK_CTRL__GFX09                    0xFABC
-#define mmVGT_CACHE_INVALIDATION                        0x2231
-#define mmVGT_CNTL_STATUS                               0x223C
-#define mmVGT_DISPATCH_DRAW_INDEX                       0xA2DD
-#define mmVGT_DMA_BASE                                  0xA1FA
-#define mmVGT_DMA_BASE_HI                               0xA1F9
-#define mmVGT_DMA_CONTROL                               0x2272
-#define mmVGT_DMA_DATA_FIFO_DEPTH                       0x222D
-#define mmVGT_DMA_EVENT_INITIATOR                       0xA2E7
-#define mmVGT_DMA_INDEX_TYPE                            0xA29F
-#define mmVGT_DMA_LS_HS_CONFIG                          0x2273
-#define mmVGT_DMA_MAX_SIZE                              0xA29E
-#define mmVGT_DMA_NUM_INSTANCES                         0xA2A2
-#define mmVGT_DMA_PRIMITIVE_TYPE                        0x2271
-#define mmVGT_DMA_REQ_FIFO_DEPTH                        0x222E
-#define mmVGT_DMA_SIZE                                  0xA29D
-#define mmVGT_DRAW_INITIATOR                            0xA1FC
-#define mmVGT_DRAW_INIT_FIFO_DEPTH                      0x222F
-#define mmVGT_ENHANCE                                   0xA294
-#define mmVGT_ESGS_RING_ITEMSIZE                        0xA2AB
-#define mmVGT_ES_PER_GS                                 0xA296
-#define mmVGT_EVENT_ADDRESS_REG                         0xA1FE
-#define mmVGT_EVENT_INITIATOR                           0xA2A4
-#define mmVGT_FIFO_DEPTHS                               0x2234
-#define mmVGT_GROUP_DECR                                0xA28B
-#define mmVGT_GROUP_FIRST_DECR                          0xA28A
-#define mmVGT_GROUP_PRIM_TYPE                           0xA289
-#define mmVGT_GROUP_VECT_0_CNTL                         0xA28C
-#define mmVGT_GROUP_VECT_0_FMT_CNTL                     0xA28E
-#define mmVGT_GROUP_VECT_1_CNTL                         0xA28D
-#define mmVGT_GROUP_VECT_1_FMT_CNTL                     0xA28F
-#define mmVGT_GSVS_RING_ITEMSIZE                        0xA2AC
-#define mmVGT_GSVS_RING_OFFSET_1                        0xA298
-#define mmVGT_GSVS_RING_OFFSET_2                        0xA299
-#define mmVGT_GSVS_RING_OFFSET_3                        0xA29A
-#define mmVGT_GS_INSTANCE_CNT                           0xA2E4
-#define mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09          0xA2A5
-#define mmVGT_GS_MAX_VERT_OUT                           0xA2CE
-#define mmVGT_GS_MAX_WAVE_ID                            0x2269
-#define mmVGT_GS_MODE                                   0xA290
-#define mmVGT_GS_ONCHIP_CNTL                            0xA291
-#define mmVGT_GS_OUT_PRIM_TYPE                          0xA29B
-#define mmVGT_GS_PER_ES                                 0xA295
-#define mmVGT_GS_PER_VS                                 0xA297
-#define mmVGT_GS_VERTEX_REUSE                           0x2235
-#define mmVGT_GS_VERT_ITEMSIZE                          0xA2D7
-#define mmVGT_GS_VERT_ITEMSIZE_1                        0xA2D8
-#define mmVGT_GS_VERT_ITEMSIZE_2                        0xA2D9
-#define mmVGT_GS_VERT_ITEMSIZE_3                        0xA2DA
-#define mmVGT_HOS_CNTL                                  0xA285
-#define mmVGT_HOS_MAX_TESS_LEVEL                        0xA286
-#define mmVGT_HOS_MIN_TESS_LEVEL                        0xA287
-#define mmVGT_HOS_REUSE_DEPTH                           0xA288
-#define mmVGT_IMMED_DATA                                0xA1FD
-#define mmVGT_INDEX_TYPE                                0xC243
-#define mmVGT_INSTANCE_BASE_ID                          0xC25A
-#define mmVGT_INSTANCE_STEP_RATE_0                      0xA2A8
-#define mmVGT_INSTANCE_STEP_RATE_1                      0xA2A9
-#define mmVGT_LAST_COPY_STATE                           0x2230
-#define mmVGT_LS_HS_CONFIG                              0xA2D6
-#define mmVGT_MC_LAT_CNTL                               0x2236
-#define mmVGT_MULTI_PRIM_IB_RESET_INDX                  0xA103
-#define mmVGT_NUM_INDICES                               0xC24C
-#define mmVGT_NUM_INSTANCES                             0xC24D
-#define mmVGT_OUTPUT_PATH_CNTL                          0xA284
-#define mmVGT_OUT_DEALLOC_CNTL                          0xA317
-#define mmVGT_PERFCOUNTER0_HI__GFX09                    0xD091
-#define mmVGT_PERFCOUNTER0_LO__GFX09                    0xD090
-#define mmVGT_PERFCOUNTER0_SELECT__GFX09                0xD88C
-#define mmVGT_PERFCOUNTER0_SELECT1__GFX09               0xD890
-#define mmVGT_PERFCOUNTER1_HI__GFX09                    0xD093
-#define mmVGT_PERFCOUNTER1_LO__GFX09                    0xD092
-#define mmVGT_PERFCOUNTER1_SELECT__GFX09                0xD88D
-#define mmVGT_PERFCOUNTER1_SELECT1__GFX09               0xD891
-#define mmVGT_PERFCOUNTER2_HI__GFX09                    0xD095
-#define mmVGT_PERFCOUNTER2_LO__GFX09                    0xD094
-#define mmVGT_PERFCOUNTER2_SELECT__GFX09                0xD88E
-#define mmVGT_PERFCOUNTER3_HI__GFX09                    0xD097
-#define mmVGT_PERFCOUNTER3_LO__GFX09                    0xD096
-#define mmVGT_PERFCOUNTER3_SELECT__GFX09                0xD88F
-#define mmVGT_PERFCOUNTER_SEID_MASK__GFX09              0xD894
-#define mmVGT_PRIMITIVEID_EN                            0xA2A1
-#define mmVGT_PRIMITIVEID_RESET                         0xA2A3
-#define mmVGT_PRIMITIVE_TYPE                            0xC242
-#define mmVGT_REUSE_OFF                                 0xA2AD
-#define mmVGT_SHADER_STAGES_EN                          0xA2D5
-#define mmVGT_STRMOUT_BUFFER_CONFIG                     0xA2E6
-#define mmVGT_STRMOUT_BUFFER_FILLED_SIZE_0              0xC244
-#define mmVGT_STRMOUT_BUFFER_FILLED_SIZE_1              0xC245
-#define mmVGT_STRMOUT_BUFFER_FILLED_SIZE_2              0xC246
-#define mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3              0xC247
-#define mmVGT_STRMOUT_BUFFER_OFFSET_0                   0xA2B7
-#define mmVGT_STRMOUT_BUFFER_OFFSET_1                   0xA2BB
-#define mmVGT_STRMOUT_BUFFER_OFFSET_2                   0xA2BF
-#define mmVGT_STRMOUT_BUFFER_OFFSET_3                   0xA2C3
-#define mmVGT_STRMOUT_BUFFER_SIZE_0                     0xA2B4
-#define mmVGT_STRMOUT_BUFFER_SIZE_1                     0xA2B8
-#define mmVGT_STRMOUT_BUFFER_SIZE_2                     0xA2BC
-#define mmVGT_STRMOUT_BUFFER_SIZE_3                     0xA2C0
-#define mmVGT_STRMOUT_CONFIG                            0xA2E5
-#define mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE    0xA2CB
-#define mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET                0xA2CA
-#define mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE         0xA2CC
-#define mmVGT_STRMOUT_VTX_STRIDE_0                      0xA2B5
-#define mmVGT_STRMOUT_VTX_STRIDE_1                      0xA2B9
-#define mmVGT_STRMOUT_VTX_STRIDE_2                      0xA2BD
-#define mmVGT_STRMOUT_VTX_STRIDE_3                      0xA2C1
-#define mmVGT_SYS_CONFIG                                0x2263
-#define mmVGT_TESS_DISTRIBUTION                         0xA2D4
-#define mmVGT_TF_PARAM                                  0xA2DB
-#define mmVGT_VERTEX_REUSE_BLOCK_CNTL                   0xA316
-#define mmVGT_VS_MAX_WAVE_ID                            0x2268
-#define mmVGT_VTX_CNT_EN                                0xA2AE
-#define mmVGT_VTX_VECT_EJECT_REG                        0x222C
-#define mmVM_CONTEXT0_CNTL__GFX09                       0x2880
-#define mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28EC
-#define mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28EB
-#define mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32__GFX09   0x292C
-#define mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32__GFX09   0x292B
-#define mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32__GFX09 0x290C
-#define mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32__GFX09 0x290B
-#define mmVM_CONTEXT10_CNTL__GFX09                      0x288A
-#define mmVM_CONTEXT10_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x2900
-#define mmVM_CONTEXT10_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x28FF
-#define mmVM_CONTEXT10_PAGE_TABLE_END_ADDR_HI32__GFX09  0x2940
-#define mmVM_CONTEXT10_PAGE_TABLE_END_ADDR_LO32__GFX09  0x293F
-#define mmVM_CONTEXT10_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2920
-#define mmVM_CONTEXT10_PAGE_TABLE_START_ADDR_LO32__GFX09 0x291F
-#define mmVM_CONTEXT11_CNTL__GFX09                      0x288B
-#define mmVM_CONTEXT11_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x2902
-#define mmVM_CONTEXT11_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x2901
-#define mmVM_CONTEXT11_PAGE_TABLE_END_ADDR_HI32__GFX09  0x2942
-#define mmVM_CONTEXT11_PAGE_TABLE_END_ADDR_LO32__GFX09  0x2941
-#define mmVM_CONTEXT11_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2922
-#define mmVM_CONTEXT11_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2921
-#define mmVM_CONTEXT12_CNTL__GFX09                      0x288C
-#define mmVM_CONTEXT12_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x2904
-#define mmVM_CONTEXT12_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x2903
-#define mmVM_CONTEXT12_PAGE_TABLE_END_ADDR_HI32__GFX09  0x2944
-#define mmVM_CONTEXT12_PAGE_TABLE_END_ADDR_LO32__GFX09  0x2943
-#define mmVM_CONTEXT12_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2924
-#define mmVM_CONTEXT12_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2923
-#define mmVM_CONTEXT13_CNTL__GFX09                      0x288D
-#define mmVM_CONTEXT13_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x2906
-#define mmVM_CONTEXT13_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x2905
-#define mmVM_CONTEXT13_PAGE_TABLE_END_ADDR_HI32__GFX09  0x2946
-#define mmVM_CONTEXT13_PAGE_TABLE_END_ADDR_LO32__GFX09  0x2945
-#define mmVM_CONTEXT13_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2926
-#define mmVM_CONTEXT13_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2925
-#define mmVM_CONTEXT14_CNTL__GFX09                      0x288E
-#define mmVM_CONTEXT14_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x2908
-#define mmVM_CONTEXT14_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x2907
-#define mmVM_CONTEXT14_PAGE_TABLE_END_ADDR_HI32__GFX09  0x2948
-#define mmVM_CONTEXT14_PAGE_TABLE_END_ADDR_LO32__GFX09  0x2947
-#define mmVM_CONTEXT14_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2928
-#define mmVM_CONTEXT14_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2927
-#define mmVM_CONTEXT15_CNTL__GFX09                      0x288F
-#define mmVM_CONTEXT15_PAGE_TABLE_BASE_ADDR_HI32__GFX09 0x290A
-#define mmVM_CONTEXT15_PAGE_TABLE_BASE_ADDR_LO32__GFX09 0x2909
-#define mmVM_CONTEXT15_PAGE_TABLE_END_ADDR_HI32__GFX09  0x294A
-#define mmVM_CONTEXT15_PAGE_TABLE_END_ADDR_LO32__GFX09  0x2949
-#define mmVM_CONTEXT15_PAGE_TABLE_START_ADDR_HI32__GFX09 0x292A
-#define mmVM_CONTEXT15_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2929
-#define mmVM_CONTEXT1_CNTL__GFX09                       0x2881
-#define mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28EE
-#define mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28ED
-#define mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32__GFX09   0x292E
-#define mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_LO32__GFX09   0x292D
-#define mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32__GFX09 0x290E
-#define mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32__GFX09 0x290D
-#define mmVM_CONTEXT2_CNTL__GFX09                       0x2882
-#define mmVM_CONTEXT2_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28F0
-#define mmVM_CONTEXT2_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28EF
-#define mmVM_CONTEXT2_PAGE_TABLE_END_ADDR_HI32__GFX09   0x2930
-#define mmVM_CONTEXT2_PAGE_TABLE_END_ADDR_LO32__GFX09   0x292F
-#define mmVM_CONTEXT2_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2910
-#define mmVM_CONTEXT2_PAGE_TABLE_START_ADDR_LO32__GFX09 0x290F
-#define mmVM_CONTEXT3_CNTL__GFX09                       0x2883
-#define mmVM_CONTEXT3_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28F2
-#define mmVM_CONTEXT3_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28F1
-#define mmVM_CONTEXT3_PAGE_TABLE_END_ADDR_HI32__GFX09   0x2932
-#define mmVM_CONTEXT3_PAGE_TABLE_END_ADDR_LO32__GFX09   0x2931
-#define mmVM_CONTEXT3_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2912
-#define mmVM_CONTEXT3_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2911
-#define mmVM_CONTEXT4_CNTL__GFX09                       0x2884
-#define mmVM_CONTEXT4_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28F4
-#define mmVM_CONTEXT4_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28F3
-#define mmVM_CONTEXT4_PAGE_TABLE_END_ADDR_HI32__GFX09   0x2934
-#define mmVM_CONTEXT4_PAGE_TABLE_END_ADDR_LO32__GFX09   0x2933
-#define mmVM_CONTEXT4_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2914
-#define mmVM_CONTEXT4_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2913
-#define mmVM_CONTEXT5_CNTL__GFX09                       0x2885
-#define mmVM_CONTEXT5_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28F6
-#define mmVM_CONTEXT5_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28F5
-#define mmVM_CONTEXT5_PAGE_TABLE_END_ADDR_HI32__GFX09   0x2936
-#define mmVM_CONTEXT5_PAGE_TABLE_END_ADDR_LO32__GFX09   0x2935
-#define mmVM_CONTEXT5_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2916
-#define mmVM_CONTEXT5_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2915
-#define mmVM_CONTEXT6_CNTL__GFX09                       0x2886
-#define mmVM_CONTEXT6_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28F8
-#define mmVM_CONTEXT6_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28F7
-#define mmVM_CONTEXT6_PAGE_TABLE_END_ADDR_HI32__GFX09   0x2938
-#define mmVM_CONTEXT6_PAGE_TABLE_END_ADDR_LO32__GFX09   0x2937
-#define mmVM_CONTEXT6_PAGE_TABLE_START_ADDR_HI32__GFX09 0x2918
-#define mmVM_CONTEXT6_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2917
-#define mmVM_CONTEXT7_CNTL__GFX09                       0x2887
-#define mmVM_CONTEXT7_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28FA
-#define mmVM_CONTEXT7_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28F9
-#define mmVM_CONTEXT7_PAGE_TABLE_END_ADDR_HI32__GFX09   0x293A
-#define mmVM_CONTEXT7_PAGE_TABLE_END_ADDR_LO32__GFX09   0x2939
-#define mmVM_CONTEXT7_PAGE_TABLE_START_ADDR_HI32__GFX09 0x291A
-#define mmVM_CONTEXT7_PAGE_TABLE_START_ADDR_LO32__GFX09 0x2919
-#define mmVM_CONTEXT8_CNTL__GFX09                       0x2888
-#define mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28FC
-#define mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28FB
-#define mmVM_CONTEXT8_PAGE_TABLE_END_ADDR_HI32__GFX09   0x293C
-#define mmVM_CONTEXT8_PAGE_TABLE_END_ADDR_LO32__GFX09   0x293B
-#define mmVM_CONTEXT8_PAGE_TABLE_START_ADDR_HI32__GFX09 0x291C
-#define mmVM_CONTEXT8_PAGE_TABLE_START_ADDR_LO32__GFX09 0x291B
-#define mmVM_CONTEXT9_CNTL__GFX09                       0x2889
-#define mmVM_CONTEXT9_PAGE_TABLE_BASE_ADDR_HI32__GFX09  0x28FE
-#define mmVM_CONTEXT9_PAGE_TABLE_BASE_ADDR_LO32__GFX09  0x28FD
-#define mmVM_CONTEXT9_PAGE_TABLE_END_ADDR_HI32__GFX09   0x293E
-#define mmVM_CONTEXT9_PAGE_TABLE_END_ADDR_LO32__GFX09   0x293D
-#define mmVM_CONTEXT9_PAGE_TABLE_START_ADDR_HI32__GFX09 0x291E
-#define mmVM_CONTEXT9_PAGE_TABLE_START_ADDR_LO32__GFX09 0x291D
-#define mmVM_CONTEXTS_DISABLE__GFX09                    0x2890
-#define mmVM_DUMMY_PAGE_FAULT_ADDR_HI32__GFX09          0x2846
-#define mmVM_DUMMY_PAGE_FAULT_ADDR_LO32__GFX09          0x2845
-#define mmVM_DUMMY_PAGE_FAULT_CNTL__GFX09               0x2844
-#define mmVM_INVALIDATE_ENG0_ACK__GFX09                 0x28B5
-#define mmVM_INVALIDATE_ENG0_ADDR_RANGE_HI32__GFX09     0x28C8
-#define mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32__GFX09     0x28C7
-#define mmVM_INVALIDATE_ENG0_REQ__GFX09                 0x28A3
-#define mmVM_INVALIDATE_ENG0_SEM__GFX09                 0x2891
-#define mmVM_INVALIDATE_ENG10_ACK__GFX09                0x28BF
-#define mmVM_INVALIDATE_ENG10_ADDR_RANGE_HI32__GFX09    0x28DC
-#define mmVM_INVALIDATE_ENG10_ADDR_RANGE_LO32__GFX09    0x28DB
-#define mmVM_INVALIDATE_ENG10_REQ__GFX09                0x28AD
-#define mmVM_INVALIDATE_ENG10_SEM__GFX09                0x289B
-#define mmVM_INVALIDATE_ENG11_ACK__GFX09                0x28C0
-#define mmVM_INVALIDATE_ENG11_ADDR_RANGE_HI32__GFX09    0x28DE
-#define mmVM_INVALIDATE_ENG11_ADDR_RANGE_LO32__GFX09    0x28DD
-#define mmVM_INVALIDATE_ENG11_REQ__GFX09                0x28AE
-#define mmVM_INVALIDATE_ENG11_SEM__GFX09                0x289C
-#define mmVM_INVALIDATE_ENG12_ACK__GFX09                0x28C1
-#define mmVM_INVALIDATE_ENG12_ADDR_RANGE_HI32__GFX09    0x28E0
-#define mmVM_INVALIDATE_ENG12_ADDR_RANGE_LO32__GFX09    0x28DF
-#define mmVM_INVALIDATE_ENG12_REQ__GFX09                0x28AF
-#define mmVM_INVALIDATE_ENG12_SEM__GFX09                0x289D
-#define mmVM_INVALIDATE_ENG13_ACK__GFX09                0x28C2
-#define mmVM_INVALIDATE_ENG13_ADDR_RANGE_HI32__GFX09    0x28E2
-#define mmVM_INVALIDATE_ENG13_ADDR_RANGE_LO32__GFX09    0x28E1
-#define mmVM_INVALIDATE_ENG13_REQ__GFX09                0x28B0
-#define mmVM_INVALIDATE_ENG13_SEM__GFX09                0x289E
-#define mmVM_INVALIDATE_ENG14_ACK__GFX09                0x28C3
-#define mmVM_INVALIDATE_ENG14_ADDR_RANGE_HI32__GFX09    0x28E4
-#define mmVM_INVALIDATE_ENG14_ADDR_RANGE_LO32__GFX09    0x28E3
-#define mmVM_INVALIDATE_ENG14_REQ__GFX09                0x28B1
-#define mmVM_INVALIDATE_ENG14_SEM__GFX09                0x289F
-#define mmVM_INVALIDATE_ENG15_ACK__GFX09                0x28C4
-#define mmVM_INVALIDATE_ENG15_ADDR_RANGE_HI32__GFX09    0x28E6
-#define mmVM_INVALIDATE_ENG15_ADDR_RANGE_LO32__GFX09    0x28E5
-#define mmVM_INVALIDATE_ENG15_REQ__GFX09                0x28B2
-#define mmVM_INVALIDATE_ENG15_SEM__GFX09                0x28A0
-#define mmVM_INVALIDATE_ENG16_ACK__GFX09                0x28C5
-#define mmVM_INVALIDATE_ENG16_ADDR_RANGE_HI32__GFX09    0x28E8
-#define mmVM_INVALIDATE_ENG16_ADDR_RANGE_LO32__GFX09    0x28E7
-#define mmVM_INVALIDATE_ENG16_REQ__GFX09                0x28B3
-#define mmVM_INVALIDATE_ENG16_SEM__GFX09                0x28A1
-#define mmVM_INVALIDATE_ENG17_ACK__GFX09                0x28C6
-#define mmVM_INVALIDATE_ENG17_ADDR_RANGE_HI32__GFX09    0x28EA
-#define mmVM_INVALIDATE_ENG17_ADDR_RANGE_LO32__GFX09    0x28E9
-#define mmVM_INVALIDATE_ENG17_REQ__GFX09                0x28B4
-#define mmVM_INVALIDATE_ENG17_SEM__GFX09                0x28A2
-#define mmVM_INVALIDATE_ENG1_ACK__GFX09                 0x28B6
-#define mmVM_INVALIDATE_ENG1_ADDR_RANGE_HI32__GFX09     0x28CA
-#define mmVM_INVALIDATE_ENG1_ADDR_RANGE_LO32__GFX09     0x28C9
-#define mmVM_INVALIDATE_ENG1_REQ__GFX09                 0x28A4
-#define mmVM_INVALIDATE_ENG1_SEM__GFX09                 0x2892
-#define mmVM_INVALIDATE_ENG2_ACK__GFX09                 0x28B7
-#define mmVM_INVALIDATE_ENG2_ADDR_RANGE_HI32__GFX09     0x28CC
-#define mmVM_INVALIDATE_ENG2_ADDR_RANGE_LO32__GFX09     0x28CB
-#define mmVM_INVALIDATE_ENG2_REQ__GFX09                 0x28A5
-#define mmVM_INVALIDATE_ENG2_SEM__GFX09                 0x2893
-#define mmVM_INVALIDATE_ENG3_ACK__GFX09                 0x28B8
-#define mmVM_INVALIDATE_ENG3_ADDR_RANGE_HI32__GFX09     0x28CE
-#define mmVM_INVALIDATE_ENG3_ADDR_RANGE_LO32__GFX09     0x28CD
-#define mmVM_INVALIDATE_ENG3_REQ__GFX09                 0x28A6
-#define mmVM_INVALIDATE_ENG3_SEM__GFX09                 0x2894
-#define mmVM_INVALIDATE_ENG4_ACK__GFX09                 0x28B9
-#define mmVM_INVALIDATE_ENG4_ADDR_RANGE_HI32__GFX09     0x28D0
-#define mmVM_INVALIDATE_ENG4_ADDR_RANGE_LO32__GFX09     0x28CF
-#define mmVM_INVALIDATE_ENG4_REQ__GFX09                 0x28A7
-#define mmVM_INVALIDATE_ENG4_SEM__GFX09                 0x2895
-#define mmVM_INVALIDATE_ENG5_ACK__GFX09                 0x28BA
-#define mmVM_INVALIDATE_ENG5_ADDR_RANGE_HI32__GFX09     0x28D2
-#define mmVM_INVALIDATE_ENG5_ADDR_RANGE_LO32__GFX09     0x28D1
-#define mmVM_INVALIDATE_ENG5_REQ__GFX09                 0x28A8
-#define mmVM_INVALIDATE_ENG5_SEM__GFX09                 0x2896
-#define mmVM_INVALIDATE_ENG6_ACK__GFX09                 0x28BB
-#define mmVM_INVALIDATE_ENG6_ADDR_RANGE_HI32__GFX09     0x28D4
-#define mmVM_INVALIDATE_ENG6_ADDR_RANGE_LO32__GFX09     0x28D3
-#define mmVM_INVALIDATE_ENG6_REQ__GFX09                 0x28A9
-#define mmVM_INVALIDATE_ENG6_SEM__GFX09                 0x2897
-#define mmVM_INVALIDATE_ENG7_ACK__GFX09                 0x28BC
-#define mmVM_INVALIDATE_ENG7_ADDR_RANGE_HI32__GFX09     0x28D6
-#define mmVM_INVALIDATE_ENG7_ADDR_RANGE_LO32__GFX09     0x28D5
-#define mmVM_INVALIDATE_ENG7_REQ__GFX09                 0x28AA
-#define mmVM_INVALIDATE_ENG7_SEM__GFX09                 0x2898
-#define mmVM_INVALIDATE_ENG8_ACK__GFX09                 0x28BD
-#define mmVM_INVALIDATE_ENG8_ADDR_RANGE_HI32__GFX09     0x28D8
-#define mmVM_INVALIDATE_ENG8_ADDR_RANGE_LO32__GFX09     0x28D7
-#define mmVM_INVALIDATE_ENG8_REQ__GFX09                 0x28AB
-#define mmVM_INVALIDATE_ENG8_SEM__GFX09                 0x2899
-#define mmVM_INVALIDATE_ENG9_ACK__GFX09                 0x28BE
-#define mmVM_INVALIDATE_ENG9_ADDR_RANGE_HI32__GFX09     0x28DA
-#define mmVM_INVALIDATE_ENG9_ADDR_RANGE_LO32__GFX09     0x28D9
-#define mmVM_INVALIDATE_ENG9_REQ__GFX09                 0x28AC
-#define mmVM_INVALIDATE_ENG9_SEM__GFX09                 0x289A
-#define mmVM_IOMMU_CONTROL_REGISTER__GFX09              0xFAA9
-#define mmVM_IOMMU_MMIO_CNTRL_1__GFX09                  0xFA90
-#define mmVM_IOMMU_PERFORMANCE_OPTIMIZATION_CONTROL_REGISTER__GFX09 0xFAAA
-#define mmVM_L2_BANK_SELECT_RESERVED_CID__GFX09         0x2859
-#define mmVM_L2_BANK_SELECT_RESERVED_CID2__GFX09        0x285A
-#define mmVM_L2_CACHE_PARITY_CNTL__GFX09                0x285B
-#define mmVM_L2_CGTT_CLK_CTRL__GFX09                    0x285E
-#define mmVM_L2_CNTL__GFX09                             0x2840
-#define mmVM_L2_CNTL2__GFX09                            0x2841
-#define mmVM_L2_CNTL3__GFX09                            0x2842
-#define mmVM_L2_CNTL4__GFX09                            0x2857
-#define mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_HI32__GFX09 0x2854
-#define mmVM_L2_CONTEXT1_IDENTITY_APERTURE_HIGH_ADDR_LO32__GFX09 0x2853
-#define mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32__GFX09 0x2852
-#define mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32__GFX09 0x2851
-#define mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_HI32__GFX09 0x2856
-#define mmVM_L2_CONTEXT_IDENTITY_PHYSICAL_OFFSET_LO32__GFX09 0x2855
-#define mmVM_L2_MM_GROUP_RT_CLASSES__GFX09              0x2858
-#define mmVM_L2_PROTECTION_FAULT_ADDR_HI32__GFX09       0x284D
-#define mmVM_L2_PROTECTION_FAULT_ADDR_LO32__GFX09       0x284C
-#define mmVM_L2_PROTECTION_FAULT_CNTL__GFX09            0x2847
-#define mmVM_L2_PROTECTION_FAULT_CNTL2__GFX09           0x2848
-#define mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32__GFX09 0x284F
-#define mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32__GFX09 0x284E
-#define mmVM_L2_PROTECTION_FAULT_MM_CNTL3__GFX09        0x2849
-#define mmVM_L2_PROTECTION_FAULT_MM_CNTL4__GFX09        0x284A
-#define mmVM_L2_PROTECTION_FAULT_STATUS__GFX09          0x284B
-#define mmVM_L2_STATUS__GFX09                           0x2843
-#define mmVM_PCIE_ATS_CNTL__GFX09                       0xFAAB
-#define mmVM_PCIE_ATS_CNTL_VF_0__GFX09                  0xFAAC
-#define mmVM_PCIE_ATS_CNTL_VF_1__GFX09                  0xFAAD
-#define mmVM_PCIE_ATS_CNTL_VF_10__GFX09                 0xFAB6
-#define mmVM_PCIE_ATS_CNTL_VF_11__GFX09                 0xFAB7
-#define mmVM_PCIE_ATS_CNTL_VF_12__GFX09                 0xFAB8
-#define mmVM_PCIE_ATS_CNTL_VF_13__GFX09                 0xFAB9
-#define mmVM_PCIE_ATS_CNTL_VF_14__GFX09                 0xFABA
-#define mmVM_PCIE_ATS_CNTL_VF_15__GFX09                 0xFABB
-#define mmVM_PCIE_ATS_CNTL_VF_2__GFX09                  0xFAAE
-#define mmVM_PCIE_ATS_CNTL_VF_3__GFX09                  0xFAAF
-#define mmVM_PCIE_ATS_CNTL_VF_4__GFX09                  0xFAB0
-#define mmVM_PCIE_ATS_CNTL_VF_5__GFX09                  0xFAB1
-#define mmVM_PCIE_ATS_CNTL_VF_6__GFX09                  0xFAB2
-#define mmVM_PCIE_ATS_CNTL_VF_7__GFX09                  0xFAB3
-#define mmVM_PCIE_ATS_CNTL_VF_8__GFX09                  0xFAB4
-#define mmVM_PCIE_ATS_CNTL_VF_9__GFX09                  0xFAB5
-#define mmWD_BUF_RESOURCE_1                             0x2276
-#define mmWD_BUF_RESOURCE_2                             0x2277
-#define mmWD_CNTL_SB_BUF_BASE                           0xC254
-#define mmWD_CNTL_SB_BUF_BASE_HI                        0xC255
-#define mmWD_CNTL_STATUS                                0x223F
-#define mmWD_ENHANCE                                    0xA2A0
-#define mmWD_INDEX_BUF_BASE                             0xC256
-#define mmWD_INDEX_BUF_BASE_HI                          0xC257
-#define mmWD_PERFCOUNTER0_HI__GFX09                     0xD081
-#define mmWD_PERFCOUNTER0_LO__GFX09                     0xD080
-#define mmWD_PERFCOUNTER0_SELECT__GFX09                 0xD880
-#define mmWD_PERFCOUNTER1_HI__GFX09                     0xD083
-#define mmWD_PERFCOUNTER1_LO__GFX09                     0xD082
-#define mmWD_PERFCOUNTER1_SELECT__GFX09                 0xD881
-#define mmWD_PERFCOUNTER2_HI__GFX09                     0xD085
-#define mmWD_PERFCOUNTER2_LO__GFX09                     0xD084
-#define mmWD_PERFCOUNTER2_SELECT__GFX09                 0xD882
-#define mmWD_PERFCOUNTER3_HI__GFX09                     0xD087
-#define mmWD_PERFCOUNTER3_LO__GFX09                     0xD086
-#define mmWD_PERFCOUNTER3_SELECT__GFX09                 0xD883
-#define mmWD_POS_BUF_BASE                               0xC252
-#define mmWD_POS_BUF_BASE_HI                            0xC253
-#define mmWD_QOS                                        0x2242
-#define mmWD_UTCL1_CNTL                                 0x2243
-#define mmWD_UTCL1_STATUS                               0x2244
-#define mmnbif_gpu_A2S_CNTL2_SEC_CL0                    0x0F00
-#define mmnbif_gpu_A2S_CNTL2_SEC_CL1                    0x0F01
-#define mmnbif_gpu_A2S_CNTL2_SEC_CL2__GFX09             0x0F02
-#define mmnbif_gpu_A2S_CNTL2_SEC_CL3__GFX09             0x0F03
-#define mmnbif_gpu_A2S_CNTL2_SEC_CL4__GFX09             0x0F04
-#define mmnbif_gpu_A2S_CNTL_CL0                         0x0EB0
-#define mmnbif_gpu_A2S_CNTL_CL1                         0x0EB1
-#define mmnbif_gpu_A2S_CNTL_CL2__GFX09                  0x0EB2
-#define mmnbif_gpu_A2S_CNTL_CL3__GFX09                  0x0EB3
-#define mmnbif_gpu_A2S_CNTL_CL4__GFX09                  0x0EB4
-#define mmnbif_gpu_A2S_CNTL_SW0                         0x0ED0
-#define mmnbif_gpu_A2S_CNTL_SW1                         0x0ED1
-#define mmnbif_gpu_A2S_CNTL_SW2                         0x0ED2
-#define mmnbif_gpu_A2S_MISC_CNTL                        0x0EE1
-#define mmnbif_gpu_ADAPTER_ID_W_epf__GFX09              0x4050013
-#define mmnbif_gpu_ADAPTER_ID_epf__GFX09                0x405000B
-#define mmnbif_gpu_ADAPTER_ID_epvf                      0x405800B
-#define mmnbif_gpu_BACO_CNTL                            0x0E2B
-#define mmnbif_gpu_BASE_ADDR_1_epf__GFX09               0x4050004
-#define mmnbif_gpu_BASE_ADDR_1_epvf                     0x4058004
-#define mmnbif_gpu_BASE_ADDR_1_swds                     0x4040004
-#define mmnbif_gpu_BASE_ADDR_2_epf__GFX09               0x4050005
-#define mmnbif_gpu_BASE_ADDR_2_epvf                     0x4058005
-#define mmnbif_gpu_BASE_ADDR_3_epf__GFX09               0x4050006
-#define mmnbif_gpu_BASE_ADDR_3_epvf                     0x4058006
-#define mmnbif_gpu_BASE_ADDR_4_epf__GFX09               0x4050007
-#define mmnbif_gpu_BASE_ADDR_4_epvf                     0x4058007
-#define mmnbif_gpu_BASE_ADDR_5_epf__GFX09               0x4050008
-#define mmnbif_gpu_BASE_ADDR_5_epvf                     0x4058008
-#define mmnbif_gpu_BASE_ADDR_6_epf__GFX09               0x4050009
-#define mmnbif_gpu_BASE_ADDR_6_epvf                     0x4058009
-#define mmnbif_gpu_BASE_CLASS_epf__GFX09                0x4050002
-#define mmnbif_gpu_BASE_CLASS_epvf                      0x4058002
-#define mmnbif_gpu_BASE_CLASS_swds                      0x4040002
-#define mmnbif_gpu_BIFC_BME_ERR_LOG                     0x404E806
-#define mmnbif_gpu_BIFC_DMA_ATTR_OVERRIDE_DEV0_F0_F1    0x404E808
-#define mmnbif_gpu_BIFC_DMA_ATTR_OVERRIDE_DEV0_F2_F3    0x404E809
-#define mmnbif_gpu_BIFC_DMA_ATTR_OVERRIDE_DEV0_F4_F5    0x404E80A
-#define mmnbif_gpu_BIFC_DMA_ATTR_OVERRIDE_DEV0_F6_F7    0x404E80B
-#define mmnbif_gpu_BIFC_GSI_CNTL                        0x404E829
-#define mmnbif_gpu_BIFC_HSTARB_CNTL                     0x404E828
-#define mmnbif_gpu_BIFC_MISC_CTRL0                      0x404E804
-#define mmnbif_gpu_BIFC_MISC_CTRL1                      0x404E805
-#define mmnbif_gpu_BIFC_PCIEFUNC_CNTL                   0x404E82A
-#define mmnbif_gpu_BIFC_PERF_CNTL_0                     0x404E830
-#define mmnbif_gpu_BIFC_PERF_CNTL_1                     0x404E831
-#define mmnbif_gpu_BIFC_PERF_CNT_DMA_RD                 0x404E834
-#define mmnbif_gpu_BIFC_PERF_CNT_DMA_WR                 0x404E835
-#define mmnbif_gpu_BIFC_PERF_CNT_MMIO_RD                0x404E832
-#define mmnbif_gpu_BIFC_PERF_CNT_MMIO_WR                0x404E833
-#define mmnbif_gpu_BIFC_RCCBIH_BME_ERR_LOG              0x404E807
-#define mmnbif_gpu_BIFC_SDP_CNTL_0                      0x404E82C
-#define mmnbif_gpu_BIFC_SDP_CNTL_1                      0x404E82D
-#define mmnbif_gpu_BIFC_THT_CNTL                        0x404E827
-#define mmnbif_gpu_BIF_ATOMIC_ERR_LOG                   0x0E0C
-#define mmnbif_gpu_BIF_BACO_EXIT_TIME0                  0x0E2C
-#define mmnbif_gpu_BIF_BACO_EXIT_TIMER1                 0x0E2D
-#define mmnbif_gpu_BIF_BACO_EXIT_TIMER2                 0x0E2E
-#define mmnbif_gpu_BIF_BACO_EXIT_TIMER3                 0x0E2F
-#define mmnbif_gpu_BIF_BACO_EXIT_TIMER4                 0x0E30
-#define mmnbif_gpu_BIF_BME_STATUS                       0x0E0B
-#define mmnbif_gpu_BIF_BUSY_DELAY_CNTR                  0x0E20
-#define mmnbif_gpu_BIF_CLKREQB_PAD_CNTL                 0x0E6B
-#define mmnbif_gpu_BIF_D3HOTD0_INTR_MASK                0x404E022
-#define mmnbif_gpu_BIF_D3HOTD0_INTR_STS                 0x404E012
-#define mmnbif_gpu_BIF_DEV0_PF0_DSTATE_VALUE            0x404E050
-#define mmnbif_gpu_BIF_DEV0_PF1_DSTATE_VALUE            0x404E051
-#define mmnbif_gpu_BIF_DEV0_PF2_DSTATE_VALUE            0x404E052
-#define mmnbif_gpu_BIF_DEV0_PF3_DSTATE_VALUE            0x404E053
-#define mmnbif_gpu_BIF_DEV0_PF4_DSTATE_VALUE            0x404E054
-#define mmnbif_gpu_BIF_DEV0_PF5_DSTATE_VALUE            0x404E055
-#define mmnbif_gpu_BIF_DEV0_PF6_DSTATE_VALUE            0x404E056
-#define mmnbif_gpu_BIF_DEV0_PF7_DSTATE_VALUE            0x404E057
-#define mmnbif_gpu_BIF_DOORBELL_CNTL                    0x0E1C
-#define mmnbif_gpu_BIF_DOORBELL_FENCE_CNTL              0x0EFE
-#define mmnbif_gpu_BIF_DOORBELL_GBLAPER1_LOWER          0x0E49
-#define mmnbif_gpu_BIF_DOORBELL_GBLAPER1_UPPER          0x0E4A
-#define mmnbif_gpu_BIF_DOORBELL_GBLAPER2_LOWER          0x0E4B
-#define mmnbif_gpu_BIF_DOORBELL_GBLAPER2_UPPER          0x0E4C
-#define mmnbif_gpu_BIF_DOORBELL_INT_CNTL                0x0E1D
-#define mmnbif_gpu_BIF_FB_EN                            0x0E1F
-#define mmnbif_gpu_BIF_FEATURES_CONTROL_MISC            0x0E1B
-#define mmnbif_gpu_BIF_GFX_DRV_VPU_RST                  0x404E003
-#define mmnbif_gpu_BIF_GFX_SDMA_GPUIOV_CFG_SIZE         0x0E65
-#define mmnbif_gpu_BIF_GFX_VF_FLR_PROTECT               0x404E080
-#define mmnbif_gpu_BIF_GMI_WRR_WEIGHT                   0x404E842
-#define mmnbif_gpu_BIF_IH_DOORBELL_RANGE                0x0EF2
-#define mmnbif_gpu_BIF_INST_RESET_INTR_MASK             0x404E020
-#define mmnbif_gpu_BIF_INST_RESET_INTR_STS              0x404E010
-#define mmnbif_gpu_BIF_IOHUB_RAS_IH_CNTL                0x404E7FE
-#define mmnbif_gpu_BIF_MMSCH0_DOORBELL_RANGE            0x0EF3
-#define mmnbif_gpu_BIF_MM_INDACCESS_CNTL                0x0E06
-#define mmnbif_gpu_BIF_MST_TRANS_PENDING_VF             0x0E29
-#define mmnbif_gpu_BIF_PERSTB_PAD_CNTL                  0x0E68
-#define mmnbif_gpu_BIF_PF0_VF_FLR_INTR_MASK             0x404E028
-#define mmnbif_gpu_BIF_PF0_VF_FLR_INTR_STS              0x404E018
-#define mmnbif_gpu_BIF_PF0_VF_FLR_RST                   0x404E048
-#define mmnbif_gpu_BIF_PF_DSTATE_INTR_MASK              0x404E025
-#define mmnbif_gpu_BIF_PF_DSTATE_INTR_STS               0x404E015
-#define mmnbif_gpu_BIF_PF_FLR_INTR_MASK                 0x404E021
-#define mmnbif_gpu_BIF_PF_FLR_INTR_STS                  0x404E011
-#define mmnbif_gpu_BIF_PF_FLR_PROTECT                   0x404E042
-#define mmnbif_gpu_BIF_PF_FLR_RST                       0x404E040
-#define mmnbif_gpu_BIF_PORT0_DSTATE_VALUE               0x404E230
-#define mmnbif_gpu_BIF_POWER_INTR_MASK                  0x404E024
-#define mmnbif_gpu_BIF_POWER_INTR_STS                   0x404E014
-#define mmnbif_gpu_BIF_PX_EN_PAD_CNTL                   0x0E69
-#define mmnbif_gpu_BIF_RAS_MISC_CTRL__GFX09             0x404E440
-#define mmnbif_gpu_BIF_RAS_VWR_FROM_IOHUB               0x404E7FF
-#define mmnbif_gpu_BIF_RB_BASE                          0x0E50
-#define mmnbif_gpu_BIF_RB_CNTL                          0x0E4F
-#define mmnbif_gpu_BIF_RB_RPTR                          0x0E51
-#define mmnbif_gpu_BIF_RB_WPTR                          0x0E52
-#define mmnbif_gpu_BIF_RB_WPTR_ADDR_HI                  0x0E53
-#define mmnbif_gpu_BIF_RB_WPTR_ADDR_LO                  0x0E54
-#define mmnbif_gpu_BIF_REFPADKIN_PAD_CNTL               0x0E6A
-#define mmnbif_gpu_BIF_RLC_INTR_CNTL                    0x0060
-#define mmnbif_gpu_BIF_RST_GFXVF_FLR_IDLE               0x404E007
-#define mmnbif_gpu_BIF_RST_MISC_CTRL                    0x404E004
-#define mmnbif_gpu_BIF_RST_MISC_CTRL2                   0x404E005
-#define mmnbif_gpu_BIF_RST_MISC_CTRL3                   0x404E006
-#define mmnbif_gpu_BIF_SCRATCH0                         0x0E08
-#define mmnbif_gpu_BIF_SCRATCH1                         0x0E09
-#define mmnbif_gpu_BIF_SDMA0_DOORBELL_RANGE             0x0EF0
-#define mmnbif_gpu_BIF_SDMA1_DOORBELL_RANGE             0x0EF1
-#define mmnbif_gpu_BIF_SELFRING_BUFFER_VID              0x404E840
-#define mmnbif_gpu_BIF_SELFRING_VECTOR_CNTL             0x404E841
-#define mmnbif_gpu_BIF_SLV_TRANS_PENDING_VF             0x0E2A
-#define mmnbif_gpu_BIF_TRANS_PENDING                    0x0E28
-#define mmnbif_gpu_BIF_UVD_GPUIOV_CFG_SIZE              0x0E63
-#define mmnbif_gpu_BIF_UVD_INTR_CNTL                    0x0062
-#define mmnbif_gpu_BIF_VCE_GPUIOV_CFG_SIZE              0x0E64
-#define mmnbif_gpu_BIF_VCE_INTR_CNTL                    0x0061
-#define mmnbif_gpu_BIF_VDDGFX_FB_CMP                    0x0E48
-#define mmnbif_gpu_BIF_VDDGFX_GFX0_LOWER                0x0E34
-#define mmnbif_gpu_BIF_VDDGFX_GFX0_UPPER                0x0E35
-#define mmnbif_gpu_BIF_VDDGFX_GFX1_LOWER                0x0E36
-#define mmnbif_gpu_BIF_VDDGFX_GFX1_UPPER                0x0E37
-#define mmnbif_gpu_BIF_VDDGFX_GFX2_LOWER                0x0E38
-#define mmnbif_gpu_BIF_VDDGFX_GFX2_UPPER                0x0E39
-#define mmnbif_gpu_BIF_VDDGFX_GFX3_LOWER                0x0E3A
-#define mmnbif_gpu_BIF_VDDGFX_GFX3_UPPER                0x0E3B
-#define mmnbif_gpu_BIF_VDDGFX_GFX4_LOWER                0x0E3C
-#define mmnbif_gpu_BIF_VDDGFX_GFX4_UPPER                0x0E3D
-#define mmnbif_gpu_BIF_VDDGFX_GFX5_LOWER                0x0E3E
-#define mmnbif_gpu_BIF_VDDGFX_GFX5_UPPER                0x0E3F
-#define mmnbif_gpu_BIF_VDDGFX_RSV1_LOWER                0x0E40
-#define mmnbif_gpu_BIF_VDDGFX_RSV1_UPPER                0x0E41
-#define mmnbif_gpu_BIF_VDDGFX_RSV2_LOWER                0x0E42
-#define mmnbif_gpu_BIF_VDDGFX_RSV2_UPPER                0x0E43
-#define mmnbif_gpu_BIF_VDDGFX_RSV3_LOWER                0x0E44
-#define mmnbif_gpu_BIF_VDDGFX_RSV3_UPPER                0x0E45
-#define mmnbif_gpu_BIF_VDDGFX_RSV4_LOWER                0x0E46
-#define mmnbif_gpu_BIF_VDDGFX_RSV4_UPPER                0x0E47
-#define mmnbif_gpu_BIF_VMHV_MAILBOX                     0x0E60
-#define mmnbif_gpu_BIST_epf__GFX09                      0x4050003
-#define mmnbif_gpu_BIST_epvf                            0x4058003
-#define mmnbif_gpu_BIST_swds                            0x4040003
-#define mmnbif_gpu_BME_DUMMY_CNTL_0                     0x404E826
-#define mmnbif_gpu_BUS_CNTL                             0x0E07
-#define mmnbif_gpu_BX_RESET_CNTL                        0x0E10
-#define mmnbif_gpu_BX_RESET_EN                          0x0E0D
-#define mmnbif_gpu_CACHE_LINE_epf__GFX09                0x4050003
-#define mmnbif_gpu_CACHE_LINE_epvf                      0x4058003
-#define mmnbif_gpu_CACHE_LINE_swds                      0x4040003
-#define mmnbif_gpu_CAP_PTR_epf__GFX09                   0x405000D
-#define mmnbif_gpu_CAP_PTR_epvf                         0x405800D
-#define mmnbif_gpu_CAP_PTR_swds                         0x404000D
-#define mmnbif_gpu_CC_BIF_BX_PINSTRAP0                  0x0E04
-#define mmnbif_gpu_CC_BIF_BX_STRAP0                     0x0E02
-#define mmnbif_gpu_CLKREQB_PAD_CNTL                     0x0E18
-#define mmnbif_gpu_COMMAND_epf__GFX09                   0x4050001
-#define mmnbif_gpu_COMMAND_epvf                         0x4058001
-#define mmnbif_gpu_COMMAND_swds                         0x4040001
-#define mmnbif_gpu_DEV0_PF0_D3HOTD0_RST_CTRL            0x404E078
-#define mmnbif_gpu_DEV0_PF0_FLR_RST_CTRL                0x404E008
-#define mmnbif_gpu_DEV0_PF1_D3HOTD0_RST_CTRL            0x404E079
-#define mmnbif_gpu_DEV0_PF1_FLR_RST_CTRL                0x404E009
-#define mmnbif_gpu_DEV0_PF2_D3HOTD0_RST_CTRL            0x404E07A
-#define mmnbif_gpu_DEV0_PF2_FLR_RST_CTRL                0x404E00A
-#define mmnbif_gpu_DEV0_PF3_D3HOTD0_RST_CTRL            0x404E07B
-#define mmnbif_gpu_DEV0_PF3_FLR_RST_CTRL                0x404E00B
-#define mmnbif_gpu_DEV0_PF4_D3HOTD0_RST_CTRL            0x404E07C
-#define mmnbif_gpu_DEV0_PF4_FLR_RST_CTRL                0x404E00C
-#define mmnbif_gpu_DEV0_PF5_D3HOTD0_RST_CTRL            0x404E07D
-#define mmnbif_gpu_DEV0_PF5_FLR_RST_CTRL                0x404E00D
-#define mmnbif_gpu_DEV0_PF6_D3HOTD0_RST_CTRL            0x404E07E
-#define mmnbif_gpu_DEV0_PF6_FLR_RST_CTRL                0x404E00E
-#define mmnbif_gpu_DEV0_PF7_D3HOTD0_RST_CTRL            0x404E07F
-#define mmnbif_gpu_DEV0_PF7_FLR_RST_CTRL                0x404E00F
-#define mmnbif_gpu_DEVICE_CAP2_epf__GFX09               0x4050022
-#define mmnbif_gpu_DEVICE_CAP2_epvf                     0x4058022
-#define mmnbif_gpu_DEVICE_CAP2_swds                     0x404001F
-#define mmnbif_gpu_DEVICE_CAP_epf__GFX09                0x405001A
-#define mmnbif_gpu_DEVICE_CAP_epvf                      0x405801A
-#define mmnbif_gpu_DEVICE_CAP_swds                      0x4040017
-#define mmnbif_gpu_DEVICE_CNTL2_epf__GFX09              0x4050023
-#define mmnbif_gpu_DEVICE_CNTL2_epvf                    0x4058023
-#define mmnbif_gpu_DEVICE_CNTL2_swds                    0x4040020
-#define mmnbif_gpu_DEVICE_CNTL_epf__GFX09               0x405001B
-#define mmnbif_gpu_DEVICE_CNTL_epvf                     0x405801B
-#define mmnbif_gpu_DEVICE_CNTL_swds                     0x4040018
-#define mmnbif_gpu_DEVICE_ID_epf__GFX09                 0x4050000
-#define mmnbif_gpu_DEVICE_ID_epvf                       0x4058000
-#define mmnbif_gpu_DEVICE_ID_swds                       0x4040000
-#define mmnbif_gpu_DEVICE_STATUS2_epf__GFX09            0x4050023
-#define mmnbif_gpu_DEVICE_STATUS2_epvf                  0x4058023
-#define mmnbif_gpu_DEVICE_STATUS2_swds                  0x4040020
-#define mmnbif_gpu_DEVICE_STATUS_epf__GFX09             0x405001B
-#define mmnbif_gpu_DEVICE_STATUS_epvf                   0x405801B
-#define mmnbif_gpu_DEVICE_STATUS_swds                   0x4040018
-#define mmnbif_gpu_DN_PCIE_BUS_CNTL                     0x0D66
-#define mmnbif_gpu_DN_PCIE_CFG_CNTL                     0x0D67
-#define mmnbif_gpu_DN_PCIE_CNTL                         0x0D63
-#define mmnbif_gpu_DN_PCIE_CONFIG_CNTL                  0x0D64
-#define mmnbif_gpu_DN_PCIE_HW_DEBUG                     0x0D62
-#define mmnbif_gpu_DN_PCIE_RESERVED                     0x0D60
-#define mmnbif_gpu_DN_PCIE_RX_CNTL2                     0x0D65
-#define mmnbif_gpu_DN_PCIE_SCRATCH                      0x0D61
-#define mmnbif_gpu_DN_PCIE_STRAP_F0                     0x0D68
-#define mmnbif_gpu_DN_PCIE_STRAP_MISC                   0x0D69
-#define mmnbif_gpu_DN_PCIE_STRAP_MISC2                  0x0D6A
-#define mmnbif_gpu_DOORBELL_SELFRING_GPA_APER_BASE_HIGH 0x0E13
-#define mmnbif_gpu_DOORBELL_SELFRING_GPA_APER_BASE_LOW  0x0E14
-#define mmnbif_gpu_DOORBELL_SELFRING_GPA_APER_CNTL      0x0E15
-#define mmnbif_gpu_EP_PCIEP_HW_DEBUG                    0x0D57
-#define mmnbif_gpu_EP_PCIEP_RESERVED                    0x0D56
-#define mmnbif_gpu_EP_PCIE_BUS_CNTL                     0x0D49
-#define mmnbif_gpu_EP_PCIE_CFG_CNTL                     0x0D4A
-#define mmnbif_gpu_EP_PCIE_CNTL                         0x0D45
-#define mmnbif_gpu_EP_PCIE_ERR_CNTL                     0x0D5A
-#define mmnbif_gpu_EP_PCIE_F0_DPA_CAP                   0x0D52
-#define mmnbif_gpu_EP_PCIE_F0_DPA_CNTL                  0x0D53
-#define mmnbif_gpu_EP_PCIE_F0_DPA_LATENCY_INDICATOR     0x0D53
-#define mmnbif_gpu_EP_PCIE_HW_DEBUG                     0x0D44
-#define mmnbif_gpu_EP_PCIE_INT_CNTL                     0x0D46
-#define mmnbif_gpu_EP_PCIE_INT_STATUS                   0x0D47
-#define mmnbif_gpu_EP_PCIE_LC_SPEED_CNTL                0x0D5C
-#define mmnbif_gpu_EP_PCIE_PME_CONTROL                  0x0D55
-#define mmnbif_gpu_EP_PCIE_RX_CNTL                      0x0D5B
-#define mmnbif_gpu_EP_PCIE_RX_CNTL2                     0x0D48
-#define mmnbif_gpu_EP_PCIE_SCRATCH                      0x0D43
-#define mmnbif_gpu_EP_PCIE_STRAP_MISC                   0x0D4F
-#define mmnbif_gpu_EP_PCIE_STRAP_MISC2                  0x0D50
-#define mmnbif_gpu_EP_PCIE_TX_CNTL                      0x0D58
-#define mmnbif_gpu_EP_PCIE_TX_LTR_CNTL                  0x0D4C
-#define mmnbif_gpu_EP_PCIE_TX_REQUESTER_ID              0x0D59
-#define mmnbif_gpu_GFXMSIX_PBA                          0x10C00
-#define mmnbif_gpu_GFXMSIX_VECT0_ADDR_HI                0x10801
-#define mmnbif_gpu_GFXMSIX_VECT0_ADDR_LO                0x10800
-#define mmnbif_gpu_GFXMSIX_VECT0_CONTROL                0x10803
-#define mmnbif_gpu_GFXMSIX_VECT0_MSG_DATA               0x10802
-#define mmnbif_gpu_GFXMSIX_VECT1_ADDR_HI                0x10805
-#define mmnbif_gpu_GFXMSIX_VECT1_ADDR_LO                0x10804
-#define mmnbif_gpu_GFXMSIX_VECT1_CONTROL                0x10807
-#define mmnbif_gpu_GFXMSIX_VECT1_MSG_DATA               0x10806
-#define mmnbif_gpu_GFXMSIX_VECT2_ADDR_HI                0x10809
-#define mmnbif_gpu_GFXMSIX_VECT2_ADDR_LO                0x10808
-#define mmnbif_gpu_GFXMSIX_VECT2_CONTROL                0x1080B
-#define mmnbif_gpu_GFXMSIX_VECT2_MSG_DATA               0x1080A
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR0                0x0080
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR1                0x0082
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR2                0x0084
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR3                0x0086
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR4                0x0088
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR5                0x008A
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR6                0x008C
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ADDR7                0x008E
-#define mmnbif_gpu_GFX_MMIOREG_CAM_CNTL                 0x0090
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ONE_CPL              0x0092
-#define mmnbif_gpu_GFX_MMIOREG_CAM_PROGRAMMABLE_CPL     0x0093
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR0          0x0081
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR1          0x0083
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR2          0x0085
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR3          0x0087
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR4          0x0089
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR5          0x008B
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR6          0x008D
-#define mmnbif_gpu_GFX_MMIOREG_CAM_REMAP_ADDR7          0x008F
-#define mmnbif_gpu_GFX_MMIOREG_CAM_ZERO_CPL             0x0091
-#define mmnbif_gpu_GPU_HDP_FLUSH_DONE                   0x0E27
-#define mmnbif_gpu_GPU_HDP_FLUSH_REQ                    0x0E26
-#define mmnbif_gpu_HARD_RST_CTRL                        0x404E000
-#define mmnbif_gpu_HDP_MEM_COHERENCY_FLUSH_CNTL         0x0E17
-#define mmnbif_gpu_HDP_REG_COHERENCY_FLUSH_CNTL         0x0E16
-#define mmnbif_gpu_HEADER_epf__GFX09                    0x4050003
-#define mmnbif_gpu_HEADER_epvf                          0x4058003
-#define mmnbif_gpu_HEADER_swds                          0x4040003
-#define mmnbif_gpu_HW_DEBUG                             0x0E0F
-#define mmnbif_gpu_INTERRUPT_CNTL                       0x0E11
-#define mmnbif_gpu_INTERRUPT_CNTL2                      0x0E12
-#define mmnbif_gpu_INTERRUPT_LINE_epf__GFX09            0x405000F
-#define mmnbif_gpu_INTERRUPT_LINE_epvf                  0x405800F
-#define mmnbif_gpu_INTERRUPT_LINE_swds                  0x404000F
-#define mmnbif_gpu_INTERRUPT_PIN_epf__GFX09             0x405000F
-#define mmnbif_gpu_INTERRUPT_PIN_epvf                   0x405800F
-#define mmnbif_gpu_INTERRUPT_PIN_swds                   0x404000F
-#define mmnbif_gpu_INTR_LINE_ENABLE                     0x404E802
-#define mmnbif_gpu_INTR_LINE_POLARITY                   0x404E801
-#define mmnbif_gpu_IO_BASE_LIMIT_HI_swds                0x404000C
-#define mmnbif_gpu_IO_BASE_LIMIT_swds                   0x4040007
-#define mmnbif_gpu_IRQ_BRIDGE_CNTL_swds                 0x404000F
-#define mmnbif_gpu_LATENCY_epf__GFX09                   0x4050003
-#define mmnbif_gpu_LATENCY_epvf                         0x4058003
-#define mmnbif_gpu_LATENCY_swds                         0x4040003
-#define mmnbif_gpu_LINK_CAP2_epf__GFX09                 0x4050024
-#define mmnbif_gpu_LINK_CAP2_epvf                       0x4058024
-#define mmnbif_gpu_LINK_CAP2_swds                       0x4040021
-#define mmnbif_gpu_LINK_CAP_epf__GFX09                  0x405001C
-#define mmnbif_gpu_LINK_CAP_epvf                        0x405801C
-#define mmnbif_gpu_LINK_CAP_swds                        0x4040019
-#define mmnbif_gpu_LINK_CNTL2_epf__GFX09                0x4050025
-#define mmnbif_gpu_LINK_CNTL2_epvf                      0x4058025
-#define mmnbif_gpu_LINK_CNTL2_swds                      0x4040022
-#define mmnbif_gpu_LINK_CNTL_epf__GFX09                 0x405001D
-#define mmnbif_gpu_LINK_CNTL_epvf                       0x405801D
-#define mmnbif_gpu_LINK_CNTL_swds                       0x404001A
-#define mmnbif_gpu_LINK_STATUS2_epf__GFX09              0x4050025
-#define mmnbif_gpu_LINK_STATUS2_epvf                    0x4058025
-#define mmnbif_gpu_LINK_STATUS2_swds                    0x4040022
-#define mmnbif_gpu_LINK_STATUS_epf__GFX09               0x405001D
-#define mmnbif_gpu_LINK_STATUS_epvf                     0x405801D
-#define mmnbif_gpu_LINK_STATUS_swds                     0x404001A
-#define mmnbif_gpu_LTR_MSG_INFO_FROM_EP                 0x0D74
-#define mmnbif_gpu_MAILBOX_CONTROL                      0x0E5E
-#define mmnbif_gpu_MAILBOX_INDEX                        0x0E55
-#define mmnbif_gpu_MAILBOX_INT_CNTL                     0x0E5F
-#define mmnbif_gpu_MAILBOX_MSGBUF_RCV_DW0               0x0E5A
-#define mmnbif_gpu_MAILBOX_MSGBUF_RCV_DW1               0x0E5B
-#define mmnbif_gpu_MAILBOX_MSGBUF_RCV_DW2               0x0E5C
-#define mmnbif_gpu_MAILBOX_MSGBUF_RCV_DW3               0x0E5D
-#define mmnbif_gpu_MAILBOX_MSGBUF_TRN_DW0               0x0E56
-#define mmnbif_gpu_MAILBOX_MSGBUF_TRN_DW1               0x0E57
-#define mmnbif_gpu_MAILBOX_MSGBUF_TRN_DW2               0x0E58
-#define mmnbif_gpu_MAILBOX_MSGBUF_TRN_DW3               0x0E59
-#define mmnbif_gpu_MAX_LATENCY_epf__GFX09               0x405000F
-#define mmnbif_gpu_MEM_BASE_LIMIT_swds                  0x4040008
-#define mmnbif_gpu_MEM_TYPE_CNTL                        0x0E31
-#define mmnbif_gpu_MIN_GRANT_epf__GFX09                 0x405000F
-#define mmnbif_gpu_MISC_SCRATCH                         0x404E800
-#define mmnbif_gpu_MISC_SECURITY_SET                    0x404CC00
-#define mmnbif_gpu_MISC_SECURITY_SET2                   0x404CC01
-#define mmnbif_gpu_MM_CFGREGS_CNTL                      0x0E0E
-#define mmnbif_gpu_MM_DATA                              0x0001
-#define mmnbif_gpu_MM_INDEX                             0x0000
-#define mmnbif_gpu_MM_INDEX_HI                          0x0006
-#define mmnbif_gpu_MSIX_CAP_LIST_epf__GFX09             0x4050030
-#define mmnbif_gpu_MSIX_CAP_LIST_epvf                   0x4058030
-#define mmnbif_gpu_MSIX_MSG_CNTL_epf__GFX09             0x4050030
-#define mmnbif_gpu_MSIX_MSG_CNTL_epvf                   0x4058030
-#define mmnbif_gpu_MSIX_PBA_epf__GFX09                  0x4050032
-#define mmnbif_gpu_MSIX_PBA_epvf                        0x4058032
-#define mmnbif_gpu_MSIX_TABLE_epf__GFX09                0x4050031
-#define mmnbif_gpu_MSIX_TABLE_epvf                      0x4058031
-#define mmnbif_gpu_MSI_CAP_LIST_epf__GFX09              0x4050028
-#define mmnbif_gpu_MSI_CAP_LIST_epvf                    0x4058028
-#define mmnbif_gpu_MSI_CAP_LIST_swds                    0x4040028
-#define mmnbif_gpu_MSI_MASK_64_epf__GFX09               0x405002C
-#define mmnbif_gpu_MSI_MASK_64_epvf                     0x405802C
-#define mmnbif_gpu_MSI_MASK_epf__GFX09                  0x405002B
-#define mmnbif_gpu_MSI_MASK_epvf                        0x405802B
-#define mmnbif_gpu_MSI_MSG_ADDR_HI_epf__GFX09           0x405002A
-#define mmnbif_gpu_MSI_MSG_ADDR_HI_epvf                 0x405802A
-#define mmnbif_gpu_MSI_MSG_ADDR_HI_swds                 0x404002A
-#define mmnbif_gpu_MSI_MSG_ADDR_LO_epf__GFX09           0x4050029
-#define mmnbif_gpu_MSI_MSG_ADDR_LO_epvf                 0x4058029
-#define mmnbif_gpu_MSI_MSG_ADDR_LO_swds                 0x4040029
-#define mmnbif_gpu_MSI_MSG_CNTL_epf__GFX09              0x4050028
-#define mmnbif_gpu_MSI_MSG_CNTL_epvf                    0x4058028
-#define mmnbif_gpu_MSI_MSG_CNTL_swds                    0x4040028
-#define mmnbif_gpu_MSI_MSG_DATA_64_epf__GFX09           0x405002B
-#define mmnbif_gpu_MSI_MSG_DATA_64_epvf                 0x405802B
-#define mmnbif_gpu_MSI_MSG_DATA_64_swds                 0x404002B
-#define mmnbif_gpu_MSI_MSG_DATA_epf__GFX09              0x405002A
-#define mmnbif_gpu_MSI_MSG_DATA_epvf                    0x405802A
-#define mmnbif_gpu_MSI_MSG_DATA_swds                    0x404002A
-#define mmnbif_gpu_MSI_PENDING_64_epf__GFX09            0x405002D
-#define mmnbif_gpu_MSI_PENDING_64_epvf                  0x405802D
-#define mmnbif_gpu_MSI_PENDING_epf__GFX09               0x405002C
-#define mmnbif_gpu_MSI_PENDING_epvf                     0x405802C
-#define mmnbif_gpu_NBIF_DS_CTRL_LCLK                    0x404E818
-#define mmnbif_gpu_NBIF_MGCG_CTRL_LCLK                  0x404E817
-#define mmnbif_gpu_NBIF_REGIF_ERRSET_CTRL               0x404E836
-#define mmnbif_gpu_NBIF_SDP_VWR_VCHG_DIS_CTRL           0x404E81C
-#define mmnbif_gpu_NBIF_SDP_VWR_VCHG_RST_CTRL0          0x404E81D
-#define mmnbif_gpu_NBIF_SDP_VWR_VCHG_RST_CTRL1          0x404E81E
-#define mmnbif_gpu_NBIF_SDP_VWR_VCHG_TRIG               0x404E81F
-#define mmnbif_gpu_NBIF_SMN_VWR_VCHG_DIS_CTRL           0x404E811
-#define mmnbif_gpu_NBIF_SMN_VWR_VCHG_DIS_CTRL_1         0x404E816
-#define mmnbif_gpu_NBIF_SMN_VWR_VCHG_RST_CTRL0          0x404E812
-#define mmnbif_gpu_NBIF_SMN_VWR_VCHG_TRIG               0x404E814
-#define mmnbif_gpu_NBIF_SMN_VWR_WTRIG_CNTL              0x404E815
-#define mmnbif_gpu_NBIF_VWIRE_CTRL                      0x404E810
-#define mmnbif_gpu_NGDC_RESERVED_0                      0x0EEB
-#define mmnbif_gpu_NGDC_RESERVED_1                      0x0EEC
-#define mmnbif_gpu_NGDC_SDP_PORT_CTRL                   0x0EE2
-#define mmnbif_gpu_NGDC_SDP_PORT_CTRL_SOCCLK            0x0EED
-#define mmnbif_gpu_OUTSTANDING_VC_ALLOC                 0x404E803
-#define mmnbif_gpu_PCIEMSIX_PBA__GFX09                  0x405C400
-#define mmnbif_gpu_PCIEMSIX_VECT0_ADDR_HI__GFX09        0x405C001
-#define mmnbif_gpu_PCIEMSIX_VECT0_ADDR_LO__GFX09        0x405C000
-#define mmnbif_gpu_PCIEMSIX_VECT0_CONTROL__GFX09        0x405C003
-#define mmnbif_gpu_PCIEMSIX_VECT0_MSG_DATA__GFX09       0x405C002
-#define mmnbif_gpu_PCIEMSIX_VECT10_ADDR_HI__GFX09       0x405C029
-#define mmnbif_gpu_PCIEMSIX_VECT10_ADDR_LO__GFX09       0x405C028
-#define mmnbif_gpu_PCIEMSIX_VECT10_CONTROL__GFX09       0x405C02B
-#define mmnbif_gpu_PCIEMSIX_VECT10_MSG_DATA__GFX09      0x405C02A
-#define mmnbif_gpu_PCIEMSIX_VECT11_ADDR_HI__GFX09       0x405C02D
-#define mmnbif_gpu_PCIEMSIX_VECT11_ADDR_LO__GFX09       0x405C02C
-#define mmnbif_gpu_PCIEMSIX_VECT11_CONTROL__GFX09       0x405C02F
-#define mmnbif_gpu_PCIEMSIX_VECT11_MSG_DATA__GFX09      0x405C02E
-#define mmnbif_gpu_PCIEMSIX_VECT12_ADDR_HI__GFX09       0x405C031
-#define mmnbif_gpu_PCIEMSIX_VECT12_ADDR_LO__GFX09       0x405C030
-#define mmnbif_gpu_PCIEMSIX_VECT12_CONTROL__GFX09       0x405C033
-#define mmnbif_gpu_PCIEMSIX_VECT12_MSG_DATA__GFX09      0x405C032
-#define mmnbif_gpu_PCIEMSIX_VECT13_ADDR_HI__GFX09       0x405C035
-#define mmnbif_gpu_PCIEMSIX_VECT13_ADDR_LO__GFX09       0x405C034
-#define mmnbif_gpu_PCIEMSIX_VECT13_CONTROL__GFX09       0x405C037
-#define mmnbif_gpu_PCIEMSIX_VECT13_MSG_DATA__GFX09      0x405C036
-#define mmnbif_gpu_PCIEMSIX_VECT14_ADDR_HI__GFX09       0x405C039
-#define mmnbif_gpu_PCIEMSIX_VECT14_ADDR_LO__GFX09       0x405C038
-#define mmnbif_gpu_PCIEMSIX_VECT14_CONTROL__GFX09       0x405C03B
-#define mmnbif_gpu_PCIEMSIX_VECT14_MSG_DATA__GFX09      0x405C03A
-#define mmnbif_gpu_PCIEMSIX_VECT15_ADDR_HI__GFX09       0x405C03D
-#define mmnbif_gpu_PCIEMSIX_VECT15_ADDR_LO__GFX09       0x405C03C
-#define mmnbif_gpu_PCIEMSIX_VECT15_CONTROL__GFX09       0x405C03F
-#define mmnbif_gpu_PCIEMSIX_VECT15_MSG_DATA__GFX09      0x405C03E
-#define mmnbif_gpu_PCIEMSIX_VECT16_ADDR_HI__GFX09       0x405C041
-#define mmnbif_gpu_PCIEMSIX_VECT16_ADDR_LO__GFX09       0x405C040
-#define mmnbif_gpu_PCIEMSIX_VECT16_CONTROL__GFX09       0x405C043
-#define mmnbif_gpu_PCIEMSIX_VECT16_MSG_DATA__GFX09      0x405C042
-#define mmnbif_gpu_PCIEMSIX_VECT17_ADDR_HI__GFX09       0x405C045
-#define mmnbif_gpu_PCIEMSIX_VECT17_ADDR_LO__GFX09       0x405C044
-#define mmnbif_gpu_PCIEMSIX_VECT17_CONTROL__GFX09       0x405C047
-#define mmnbif_gpu_PCIEMSIX_VECT17_MSG_DATA__GFX09      0x405C046
-#define mmnbif_gpu_PCIEMSIX_VECT18_ADDR_HI__GFX09       0x405C049
-#define mmnbif_gpu_PCIEMSIX_VECT18_ADDR_LO__GFX09       0x405C048
-#define mmnbif_gpu_PCIEMSIX_VECT18_CONTROL__GFX09       0x405C04B
-#define mmnbif_gpu_PCIEMSIX_VECT18_MSG_DATA__GFX09      0x405C04A
-#define mmnbif_gpu_PCIEMSIX_VECT19_ADDR_HI__GFX09       0x405C04D
-#define mmnbif_gpu_PCIEMSIX_VECT19_ADDR_LO__GFX09       0x405C04C
-#define mmnbif_gpu_PCIEMSIX_VECT19_CONTROL__GFX09       0x405C04F
-#define mmnbif_gpu_PCIEMSIX_VECT19_MSG_DATA__GFX09      0x405C04E
-#define mmnbif_gpu_PCIEMSIX_VECT1_ADDR_HI__GFX09        0x405C005
-#define mmnbif_gpu_PCIEMSIX_VECT1_ADDR_LO__GFX09        0x405C004
-#define mmnbif_gpu_PCIEMSIX_VECT1_CONTROL__GFX09        0x405C007
-#define mmnbif_gpu_PCIEMSIX_VECT1_MSG_DATA__GFX09       0x405C006
-#define mmnbif_gpu_PCIEMSIX_VECT20_ADDR_HI__GFX09       0x405C051
-#define mmnbif_gpu_PCIEMSIX_VECT20_ADDR_LO__GFX09       0x405C050
-#define mmnbif_gpu_PCIEMSIX_VECT20_CONTROL__GFX09       0x405C053
-#define mmnbif_gpu_PCIEMSIX_VECT20_MSG_DATA__GFX09      0x405C052
-#define mmnbif_gpu_PCIEMSIX_VECT21_ADDR_HI__GFX09       0x405C055
-#define mmnbif_gpu_PCIEMSIX_VECT21_ADDR_LO__GFX09       0x405C054
-#define mmnbif_gpu_PCIEMSIX_VECT21_CONTROL__GFX09       0x405C057
-#define mmnbif_gpu_PCIEMSIX_VECT21_MSG_DATA__GFX09      0x405C056
-#define mmnbif_gpu_PCIEMSIX_VECT22_ADDR_HI__GFX09       0x405C059
-#define mmnbif_gpu_PCIEMSIX_VECT22_ADDR_LO__GFX09       0x405C058
-#define mmnbif_gpu_PCIEMSIX_VECT22_CONTROL__GFX09       0x405C05B
-#define mmnbif_gpu_PCIEMSIX_VECT22_MSG_DATA__GFX09      0x405C05A
-#define mmnbif_gpu_PCIEMSIX_VECT23_ADDR_HI__GFX09       0x405C05D
-#define mmnbif_gpu_PCIEMSIX_VECT23_ADDR_LO__GFX09       0x405C05C
-#define mmnbif_gpu_PCIEMSIX_VECT23_CONTROL__GFX09       0x405C05F
-#define mmnbif_gpu_PCIEMSIX_VECT23_MSG_DATA__GFX09      0x405C05E
-#define mmnbif_gpu_PCIEMSIX_VECT24_ADDR_HI__GFX09       0x405C061
-#define mmnbif_gpu_PCIEMSIX_VECT24_ADDR_LO__GFX09       0x405C060
-#define mmnbif_gpu_PCIEMSIX_VECT24_CONTROL__GFX09       0x405C063
-#define mmnbif_gpu_PCIEMSIX_VECT24_MSG_DATA__GFX09      0x405C062
-#define mmnbif_gpu_PCIEMSIX_VECT25_ADDR_HI__GFX09       0x405C065
-#define mmnbif_gpu_PCIEMSIX_VECT25_ADDR_LO__GFX09       0x405C064
-#define mmnbif_gpu_PCIEMSIX_VECT25_CONTROL__GFX09       0x405C067
-#define mmnbif_gpu_PCIEMSIX_VECT25_MSG_DATA__GFX09      0x405C066
-#define mmnbif_gpu_PCIEMSIX_VECT26_ADDR_HI__GFX09       0x405C069
-#define mmnbif_gpu_PCIEMSIX_VECT26_ADDR_LO__GFX09       0x405C068
-#define mmnbif_gpu_PCIEMSIX_VECT26_CONTROL__GFX09       0x405C06B
-#define mmnbif_gpu_PCIEMSIX_VECT26_MSG_DATA__GFX09      0x405C06A
-#define mmnbif_gpu_PCIEMSIX_VECT27_ADDR_HI__GFX09       0x405C06D
-#define mmnbif_gpu_PCIEMSIX_VECT27_ADDR_LO__GFX09       0x405C06C
-#define mmnbif_gpu_PCIEMSIX_VECT27_CONTROL__GFX09       0x405C06F
-#define mmnbif_gpu_PCIEMSIX_VECT27_MSG_DATA__GFX09      0x405C06E
-#define mmnbif_gpu_PCIEMSIX_VECT28_ADDR_HI__GFX09       0x405C071
-#define mmnbif_gpu_PCIEMSIX_VECT28_ADDR_LO__GFX09       0x405C070
-#define mmnbif_gpu_PCIEMSIX_VECT28_CONTROL__GFX09       0x405C073
-#define mmnbif_gpu_PCIEMSIX_VECT28_MSG_DATA__GFX09      0x405C072
-#define mmnbif_gpu_PCIEMSIX_VECT29_ADDR_HI__GFX09       0x405C075
-#define mmnbif_gpu_PCIEMSIX_VECT29_ADDR_LO__GFX09       0x405C074
-#define mmnbif_gpu_PCIEMSIX_VECT29_CONTROL__GFX09       0x405C077
-#define mmnbif_gpu_PCIEMSIX_VECT29_MSG_DATA__GFX09      0x405C076
-#define mmnbif_gpu_PCIEMSIX_VECT2_ADDR_HI__GFX09        0x405C009
-#define mmnbif_gpu_PCIEMSIX_VECT2_ADDR_LO__GFX09        0x405C008
-#define mmnbif_gpu_PCIEMSIX_VECT2_CONTROL__GFX09        0x405C00B
-#define mmnbif_gpu_PCIEMSIX_VECT2_MSG_DATA__GFX09       0x405C00A
-#define mmnbif_gpu_PCIEMSIX_VECT30_ADDR_HI__GFX09       0x405C079
-#define mmnbif_gpu_PCIEMSIX_VECT30_ADDR_LO__GFX09       0x405C078
-#define mmnbif_gpu_PCIEMSIX_VECT30_CONTROL__GFX09       0x405C07B
-#define mmnbif_gpu_PCIEMSIX_VECT30_MSG_DATA__GFX09      0x405C07A
-#define mmnbif_gpu_PCIEMSIX_VECT31_ADDR_HI__GFX09       0x405C07D
-#define mmnbif_gpu_PCIEMSIX_VECT31_ADDR_LO__GFX09       0x405C07C
-#define mmnbif_gpu_PCIEMSIX_VECT31_CONTROL__GFX09       0x405C07F
-#define mmnbif_gpu_PCIEMSIX_VECT31_MSG_DATA__GFX09      0x405C07E
-#define mmnbif_gpu_PCIEMSIX_VECT3_ADDR_HI__GFX09        0x405C00D
-#define mmnbif_gpu_PCIEMSIX_VECT3_ADDR_LO__GFX09        0x405C00C
-#define mmnbif_gpu_PCIEMSIX_VECT3_CONTROL__GFX09        0x405C00F
-#define mmnbif_gpu_PCIEMSIX_VECT3_MSG_DATA__GFX09       0x405C00E
-#define mmnbif_gpu_PCIEMSIX_VECT4_ADDR_HI__GFX09        0x405C011
-#define mmnbif_gpu_PCIEMSIX_VECT4_ADDR_LO__GFX09        0x405C010
-#define mmnbif_gpu_PCIEMSIX_VECT4_CONTROL__GFX09        0x405C013
-#define mmnbif_gpu_PCIEMSIX_VECT4_MSG_DATA__GFX09       0x405C012
-#define mmnbif_gpu_PCIEMSIX_VECT5_ADDR_HI__GFX09        0x405C015
-#define mmnbif_gpu_PCIEMSIX_VECT5_ADDR_LO__GFX09        0x405C014
-#define mmnbif_gpu_PCIEMSIX_VECT5_CONTROL__GFX09        0x405C017
-#define mmnbif_gpu_PCIEMSIX_VECT5_MSG_DATA__GFX09       0x405C016
-#define mmnbif_gpu_PCIEMSIX_VECT6_ADDR_HI__GFX09        0x405C019
-#define mmnbif_gpu_PCIEMSIX_VECT6_ADDR_LO__GFX09        0x405C018
-#define mmnbif_gpu_PCIEMSIX_VECT6_CONTROL__GFX09        0x405C01B
-#define mmnbif_gpu_PCIEMSIX_VECT6_MSG_DATA__GFX09       0x405C01A
-#define mmnbif_gpu_PCIEMSIX_VECT7_ADDR_HI__GFX09        0x405C01D
-#define mmnbif_gpu_PCIEMSIX_VECT7_ADDR_LO__GFX09        0x405C01C
-#define mmnbif_gpu_PCIEMSIX_VECT7_CONTROL__GFX09        0x405C01F
-#define mmnbif_gpu_PCIEMSIX_VECT7_MSG_DATA__GFX09       0x405C01E
-#define mmnbif_gpu_PCIEMSIX_VECT8_ADDR_HI__GFX09        0x405C021
-#define mmnbif_gpu_PCIEMSIX_VECT8_ADDR_LO__GFX09        0x405C020
-#define mmnbif_gpu_PCIEMSIX_VECT8_CONTROL__GFX09        0x405C023
-#define mmnbif_gpu_PCIEMSIX_VECT8_MSG_DATA__GFX09       0x405C022
-#define mmnbif_gpu_PCIEMSIX_VECT9_ADDR_HI__GFX09        0x405C025
-#define mmnbif_gpu_PCIEMSIX_VECT9_ADDR_LO__GFX09        0x405C024
-#define mmnbif_gpu_PCIEMSIX_VECT9_CONTROL__GFX09        0x405C027
-#define mmnbif_gpu_PCIEMSIX_VECT9_MSG_DATA__GFX09       0x405C026
-#define mmnbif_gpu_PCIEP_HW_DEBUG                       0x0D6E
-#define mmnbif_gpu_PCIEP_STRAP_MISC                     0x0D73
-#define mmnbif_gpu_PCIE_ACS_CAP_epf__GFX09              0x40500A9
-#define mmnbif_gpu_PCIE_ACS_CAP_swds                    0x40400A9
-#define mmnbif_gpu_PCIE_ACS_CNTL_epf__GFX09             0x40500A9
-#define mmnbif_gpu_PCIE_ACS_CNTL_swds                   0x40400A9
-#define mmnbif_gpu_PCIE_ACS_ENH_CAP_LIST_epf__GFX09     0x40500A8
-#define mmnbif_gpu_PCIE_ACS_ENH_CAP_LIST_swds           0x40400A8
-#define mmnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epf__GFX09     0x405005A
-#define mmnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epvf           0x405805A
-#define mmnbif_gpu_PCIE_ADV_ERR_CAP_CNTL_swds           0x404005A
-#define mmnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epf__GFX09 0x4050054
-#define mmnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epvf   0x4058054
-#define mmnbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_swds   0x4040054
-#define mmnbif_gpu_PCIE_ARI_CAP_epf__GFX09              0x40500CB
-#define mmnbif_gpu_PCIE_ARI_CAP_epvf                    0x40580CB
-#define mmnbif_gpu_PCIE_ARI_CNTL_epf__GFX09             0x40500CB
-#define mmnbif_gpu_PCIE_ARI_CNTL_epvf                   0x40580CB
-#define mmnbif_gpu_PCIE_ARI_ENH_CAP_LIST_epf__GFX09     0x40500CA
-#define mmnbif_gpu_PCIE_ARI_ENH_CAP_LIST_epvf           0x40580CA
-#define mmnbif_gpu_PCIE_ATS_CAP_epf__GFX09              0x40500AD
-#define mmnbif_gpu_PCIE_ATS_CAP_epvf                    0x40580AD
-#define mmnbif_gpu_PCIE_ATS_CNTL_epf__GFX09             0x40500AD
-#define mmnbif_gpu_PCIE_ATS_CNTL_epvf                   0x40580AD
-#define mmnbif_gpu_PCIE_ATS_ENH_CAP_LIST_epf__GFX09     0x40500AC
-#define mmnbif_gpu_PCIE_ATS_ENH_CAP_LIST_epvf           0x40580AC
-#define mmnbif_gpu_PCIE_BAR1_CAP_epf__GFX09             0x4050081
-#define mmnbif_gpu_PCIE_BAR1_CNTL_epf__GFX09            0x4050082
-#define mmnbif_gpu_PCIE_BAR2_CAP_epf__GFX09             0x4050083
-#define mmnbif_gpu_PCIE_BAR2_CNTL_epf__GFX09            0x4050084
-#define mmnbif_gpu_PCIE_BAR3_CAP_epf__GFX09             0x4050085
-#define mmnbif_gpu_PCIE_BAR3_CNTL_epf__GFX09            0x4050086
-#define mmnbif_gpu_PCIE_BAR4_CAP_epf__GFX09             0x4050087
-#define mmnbif_gpu_PCIE_BAR4_CNTL_epf__GFX09            0x4050088
-#define mmnbif_gpu_PCIE_BAR5_CAP_epf__GFX09             0x4050089
-#define mmnbif_gpu_PCIE_BAR5_CNTL_epf__GFX09            0x405008A
-#define mmnbif_gpu_PCIE_BAR6_CAP_epf__GFX09             0x405008B
-#define mmnbif_gpu_PCIE_BAR6_CNTL_epf__GFX09            0x405008C
-#define mmnbif_gpu_PCIE_BAR_ENH_CAP_LIST_epf__GFX09     0x4050080
-#define mmnbif_gpu_PCIE_CAP_LIST_epf__GFX09             0x4050019
-#define mmnbif_gpu_PCIE_CAP_LIST_epvf                   0x4058019
-#define mmnbif_gpu_PCIE_CAP_LIST_swds                   0x4040016
-#define mmnbif_gpu_PCIE_CAP_epf__GFX09                  0x4050019
-#define mmnbif_gpu_PCIE_CAP_epvf                        0x4058019
-#define mmnbif_gpu_PCIE_CAP_swds                        0x4040016
-#define mmnbif_gpu_PCIE_CORR_ERR_MASK_epf__GFX09        0x4050059
-#define mmnbif_gpu_PCIE_CORR_ERR_MASK_epvf              0x4058059
-#define mmnbif_gpu_PCIE_CORR_ERR_MASK_swds              0x4040059
-#define mmnbif_gpu_PCIE_CORR_ERR_STATUS_epf__GFX09      0x4050058
-#define mmnbif_gpu_PCIE_CORR_ERR_STATUS_epvf            0x4058058
-#define mmnbif_gpu_PCIE_CORR_ERR_STATUS_swds            0x4040058
-#define mmnbif_gpu_PCIE_DATA                            0x000D
-#define mmnbif_gpu_PCIE_DATA2                           0x000F
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_epf__GFX09   0x4050051
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_swds         0x4040051
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_epf__GFX09   0x4050052
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_swds         0x4040052
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_epf__GFX09 0x4050050
-#define mmnbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_swds 0x4040050
-#define mmnbif_gpu_PCIE_DPA_CAP_epf__GFX09              0x4050095
-#define mmnbif_gpu_PCIE_DPA_CNTL_epf__GFX09             0x4050097
-#define mmnbif_gpu_PCIE_DPA_ENH_CAP_LIST_epf__GFX09     0x4050094
-#define mmnbif_gpu_PCIE_DPA_LATENCY_INDICATOR_epf__GFX09 0x4050096
-#define mmnbif_gpu_PCIE_DPA_STATUS_epf__GFX09           0x4050097
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_0_epf__GFX09 0x4050098
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_1_epf__GFX09 0x4050098
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_2_epf__GFX09 0x4050098
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_3_epf__GFX09 0x4050098
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_4_epf__GFX09 0x4050099
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_5_epf__GFX09 0x4050099
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_6_epf__GFX09 0x4050099
-#define mmnbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_7_epf__GFX09 0x4050099
-#define mmnbif_gpu_PCIE_ERR_CNTL                        0x0D6F
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_0     0x0D53
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_1     0x0D54
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_2     0x0D54
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_3     0x0D54
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_4     0x0D54
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_5     0x0D55
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_6     0x0D55
-#define mmnbif_gpu_PCIE_F0_DPA_SUBSTATE_PWR_ALLOC_7     0x0D55
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_0     0x0D4D
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_1     0x0D4D
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_2     0x0D4D
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_3     0x0D4D
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_4     0x0D4E
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_5     0x0D4E
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_6     0x0D4E
-#define mmnbif_gpu_PCIE_F1_DPA_SUBSTATE_PWR_ALLOC_7     0x0D4E
-#define mmnbif_gpu_PCIE_HDR_LOG0_epf__GFX09             0x405005B
-#define mmnbif_gpu_PCIE_HDR_LOG0_epvf                   0x405805B
-#define mmnbif_gpu_PCIE_HDR_LOG0_swds                   0x404005B
-#define mmnbif_gpu_PCIE_HDR_LOG1_epf__GFX09             0x405005C
-#define mmnbif_gpu_PCIE_HDR_LOG1_epvf                   0x405805C
-#define mmnbif_gpu_PCIE_HDR_LOG1_swds                   0x404005C
-#define mmnbif_gpu_PCIE_HDR_LOG2_epf__GFX09             0x405005D
-#define mmnbif_gpu_PCIE_HDR_LOG2_epvf                   0x405805D
-#define mmnbif_gpu_PCIE_HDR_LOG2_swds                   0x404005D
-#define mmnbif_gpu_PCIE_HDR_LOG3_epf__GFX09             0x405005E
-#define mmnbif_gpu_PCIE_HDR_LOG3_epvf                   0x405805E
-#define mmnbif_gpu_PCIE_HDR_LOG3_swds                   0x404005E
-#define mmnbif_gpu_PCIE_INDEX                           0x000C
-#define mmnbif_gpu_PCIE_INDEX2                          0x000E
-#define mmnbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_epf__GFX09 0x405009F
-#define mmnbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_swds   0x404009F
-#define mmnbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_epf__GFX09 0x40500A4
-#define mmnbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_swds  0x40400A4
-#define mmnbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_epf__GFX09 0x40500A4
-#define mmnbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_swds  0x40400A4
-#define mmnbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_epf__GFX09 0x40500A5
-#define mmnbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_swds  0x40400A5
-#define mmnbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_epf__GFX09 0x40500A5
-#define mmnbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_swds  0x40400A5
-#define mmnbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_epf__GFX09 0x40500A6
-#define mmnbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_swds  0x40400A6
-#define mmnbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_epf__GFX09 0x40500A6
-#define mmnbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_swds  0x40400A6
-#define mmnbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_epf__GFX09 0x405009F
-#define mmnbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_swds   0x404009F
-#define mmnbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_epf__GFX09 0x40500A0
-#define mmnbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_swds   0x40400A0
-#define mmnbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_epf__GFX09 0x40500A0
-#define mmnbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_swds   0x40400A0
-#define mmnbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_epf__GFX09 0x40500A1
-#define mmnbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_swds   0x40400A1
-#define mmnbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_epf__GFX09 0x40500A1
-#define mmnbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_swds   0x40400A1
-#define mmnbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_epf__GFX09 0x40500A2
-#define mmnbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_swds   0x40400A2
-#define mmnbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_epf__GFX09 0x40500A2
-#define mmnbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_swds   0x40400A2
-#define mmnbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_epf__GFX09 0x40500A3
-#define mmnbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_swds   0x40400A3
-#define mmnbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_epf__GFX09 0x40500A3
-#define mmnbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_swds   0x40400A3
-#define mmnbif_gpu_PCIE_LANE_ERROR_STATUS_epf__GFX09    0x405009E
-#define mmnbif_gpu_PCIE_LANE_ERROR_STATUS_swds          0x404009E
-#define mmnbif_gpu_PCIE_LC_CNTL2                        0x0D72
-#define mmnbif_gpu_PCIE_LC_SPEED_CNTL                   0x0D71
-#define mmnbif_gpu_PCIE_LINK_CNTL3_epf__GFX09           0x405009D
-#define mmnbif_gpu_PCIE_LINK_CNTL3_swds                 0x404009D
-#define mmnbif_gpu_PCIE_LTR_CAP_epf__GFX09              0x40500C9
-#define mmnbif_gpu_PCIE_LTR_ENH_CAP_LIST_epf__GFX09     0x40500C8
-#define mmnbif_gpu_PCIE_MC_ADDR0_epf__GFX09             0x40500BE
-#define mmnbif_gpu_PCIE_MC_ADDR1_epf__GFX09             0x40500BF
-#define mmnbif_gpu_PCIE_MC_BLOCK_ALL0_epf__GFX09        0x40500C2
-#define mmnbif_gpu_PCIE_MC_BLOCK_ALL1_epf__GFX09        0x40500C3
-#define mmnbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_0_epf__GFX09 0x40500C4
-#define mmnbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_1_epf__GFX09 0x40500C5
-#define mmnbif_gpu_PCIE_MC_CAP_epf__GFX09               0x40500BD
-#define mmnbif_gpu_PCIE_MC_CNTL_epf__GFX09              0x40500BD
-#define mmnbif_gpu_PCIE_MC_ENH_CAP_LIST_epf__GFX09      0x40500BC
-#define mmnbif_gpu_PCIE_MC_RCV0_epf__GFX09              0x40500C0
-#define mmnbif_gpu_PCIE_MC_RCV1_epf__GFX09              0x40500C1
-#define mmnbif_gpu_PCIE_OUTSTAND_PAGE_REQ_ALLOC_epf__GFX09 0x40500B3
-#define mmnbif_gpu_PCIE_OUTSTAND_PAGE_REQ_CAPACITY_epf__GFX09 0x40500B2
-#define mmnbif_gpu_PCIE_PAGE_REQ_CNTL_epf__GFX09        0x40500B1
-#define mmnbif_gpu_PCIE_PAGE_REQ_ENH_CAP_LIST_epf__GFX09 0x40500B0
-#define mmnbif_gpu_PCIE_PAGE_REQ_STATUS_epf__GFX09      0x40500B1
-#define mmnbif_gpu_PCIE_PASID_CAP_epf__GFX09            0x40500B5
-#define mmnbif_gpu_PCIE_PASID_CNTL_epf__GFX09           0x40500B5
-#define mmnbif_gpu_PCIE_PASID_ENH_CAP_LIST_epf__GFX09   0x40500B4
-#define mmnbif_gpu_PCIE_PORT_VC_CAP_REG1_epf__GFX09     0x4050045
-#define mmnbif_gpu_PCIE_PORT_VC_CAP_REG1_swds           0x4040045
-#define mmnbif_gpu_PCIE_PORT_VC_CAP_REG2_epf__GFX09     0x4050046
-#define mmnbif_gpu_PCIE_PORT_VC_CAP_REG2_swds           0x4040046
-#define mmnbif_gpu_PCIE_PORT_VC_CNTL_epf__GFX09         0x4050047
-#define mmnbif_gpu_PCIE_PORT_VC_CNTL_swds               0x4040047
-#define mmnbif_gpu_PCIE_PORT_VC_STATUS_epf__GFX09       0x4050047
-#define mmnbif_gpu_PCIE_PORT_VC_STATUS_swds             0x4040047
-#define mmnbif_gpu_PCIE_PWR_BUDGET_CAP_epf__GFX09       0x4050093
-#define mmnbif_gpu_PCIE_PWR_BUDGET_DATA_SELECT_epf__GFX09 0x4050091
-#define mmnbif_gpu_PCIE_PWR_BUDGET_DATA_epf__GFX09      0x4050092
-#define mmnbif_gpu_PCIE_PWR_BUDGET_ENH_CAP_LIST_epf__GFX09 0x4050090
-#define mmnbif_gpu_PCIE_RX_CNTL                         0x0D70
-#define mmnbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_epf__GFX09 0x405009C
-#define mmnbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_swds     0x404009C
-#define mmnbif_gpu_PCIE_SRIOV_CAP_epf__GFX09            0x40500CD
-#define mmnbif_gpu_PCIE_SRIOV_CONTROL_epf__GFX09        0x40500CE
-#define mmnbif_gpu_PCIE_SRIOV_ENH_CAP_LIST_epf__GFX09   0x40500CC
-#define mmnbif_gpu_PCIE_SRIOV_FIRST_VF_OFFSET_epf__GFX09 0x40500D1
-#define mmnbif_gpu_PCIE_SRIOV_FUNC_DEP_LINK_epf__GFX09  0x40500D0
-#define mmnbif_gpu_PCIE_SRIOV_INITIAL_VFS_epf__GFX09    0x40500CF
-#define mmnbif_gpu_PCIE_SRIOV_NUM_VFS_epf__GFX09        0x40500D0
-#define mmnbif_gpu_PCIE_SRIOV_STATUS_epf__GFX09         0x40500CE
-#define mmnbif_gpu_PCIE_SRIOV_SUPPORTED_PAGE_SIZE_epf__GFX09 0x40500D3
-#define mmnbif_gpu_PCIE_SRIOV_SYSTEM_PAGE_SIZE_epf__GFX09 0x40500D4
-#define mmnbif_gpu_PCIE_SRIOV_TOTAL_VFS_epf__GFX09      0x40500CF
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_0_epf__GFX09 0x40500D5
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_1_epf__GFX09 0x40500D6
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_2_epf__GFX09 0x40500D7
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_3_epf__GFX09 0x40500D8
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_4_epf__GFX09 0x40500D9
-#define mmnbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_5_epf__GFX09 0x40500DA
-#define mmnbif_gpu_PCIE_SRIOV_VF_DEVICE_ID_epf__GFX09   0x40500D2
-#define mmnbif_gpu_PCIE_SRIOV_VF_MIGRATION_STATE_ARRAY_OFFSET_epf__GFX09 0x40500DB
-#define mmnbif_gpu_PCIE_SRIOV_VF_STRIDE_epf__GFX09      0x40500D1
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG0_epf__GFX09      0x4050062
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG0_epvf            0x4058062
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG0_swds            0x4040062
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG1_epf__GFX09      0x4050063
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG1_epvf            0x4058063
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG1_swds            0x4040063
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG2_epf__GFX09      0x4050064
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG2_epvf            0x4058064
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG2_swds            0x4040064
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG3_epf__GFX09      0x4050065
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG3_epvf            0x4058065
-#define mmnbif_gpu_PCIE_TLP_PREFIX_LOG3_swds            0x4040065
-#define mmnbif_gpu_PCIE_TPH_REQR_CAP_epf__GFX09         0x40500B9
-#define mmnbif_gpu_PCIE_TPH_REQR_CNTL_epf__GFX09        0x40500BA
-#define mmnbif_gpu_PCIE_TPH_REQR_ENH_CAP_LIST_epf__GFX09 0x40500B8
-#define mmnbif_gpu_PCIE_UNCORR_ERR_MASK_epf__GFX09      0x4050056
-#define mmnbif_gpu_PCIE_UNCORR_ERR_MASK_epvf            0x4058056
-#define mmnbif_gpu_PCIE_UNCORR_ERR_MASK_swds            0x4040056
-#define mmnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epf__GFX09  0x4050057
-#define mmnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epvf        0x4058057
-#define mmnbif_gpu_PCIE_UNCORR_ERR_SEVERITY_swds        0x4040057
-#define mmnbif_gpu_PCIE_UNCORR_ERR_STATUS_epf__GFX09    0x4050055
-#define mmnbif_gpu_PCIE_UNCORR_ERR_STATUS_epvf          0x4058055
-#define mmnbif_gpu_PCIE_UNCORR_ERR_STATUS_swds          0x4040055
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_CAP_epf__GFX09     0x4050048
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_CAP_swds           0x4040048
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_CNTL_epf__GFX09    0x4050049
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_CNTL_swds          0x4040049
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_STATUS_epf__GFX09  0x405004A
-#define mmnbif_gpu_PCIE_VC0_RESOURCE_STATUS_swds        0x404004A
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_CAP_epf__GFX09     0x405004B
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_CAP_swds           0x404004B
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_CNTL_epf__GFX09    0x405004C
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_CNTL_swds          0x404004C
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_STATUS_epf__GFX09  0x405004D
-#define mmnbif_gpu_PCIE_VC1_RESOURCE_STATUS_swds        0x404004D
-#define mmnbif_gpu_PCIE_VC_ENH_CAP_LIST_epf__GFX09      0x4050044
-#define mmnbif_gpu_PCIE_VC_ENH_CAP_LIST_swds            0x4040044
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC1_epf__GFX09     0x4050042
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC1_epvf           0x4058042
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC1_swds           0x4040042
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC2_epf__GFX09     0x4050043
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC2_epvf           0x4058043
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC2_swds           0x4040043
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV_epf__GFX09 0x4050100
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epf__GFX09 0x4050040
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epvf 0x4058040
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_swds 0x4040040
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CONTEXT_epf__GFX09 0x4050109
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW0_epf__GFX09 0x4050134
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW1_epf__GFX09 0x4050135
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW2_epf__GFX09 0x4050136
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW3_epf__GFX09 0x4050137
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW4_epf__GFX09 0x4050138
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW5_epf__GFX09 0x4050139
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW6_epf__GFX09 0x405013A
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW7_epf__GFX09 0x405013B
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW8_epf__GFX09 0x405013C
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW0_epf__GFX09 0x4050106
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW1_epf__GFX09 0x4050107
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW2_epf__GFX09 0x4050108
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_ENABLE_epf__GFX09 0x4050103
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_STATUS_epf__GFX09 0x4050104
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_OFFSETS_epf__GFX09 0x405010B
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_CONTROL_epf__GFX09 0x4050105
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_SRIOV_SHADOW_epf__GFX09 0x4050102
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_TOTAL_FB_epf__GFX09 0x405010A
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW0_epf__GFX09 0x405011C
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW1_epf__GFX09 0x405011D
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW2_epf__GFX09 0x405011E
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW3_epf__GFX09 0x405011F
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW4_epf__GFX09 0x4050120
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW5_epf__GFX09 0x4050121
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW6_epf__GFX09 0x4050122
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW7_epf__GFX09 0x4050123
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW8_epf__GFX09 0x4050124
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW0_epf__GFX09 0x4050128
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW1_epf__GFX09 0x4050129
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW2_epf__GFX09 0x405012A
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW3_epf__GFX09 0x405012B
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW4_epf__GFX09 0x405012C
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW5_epf__GFX09 0x405012D
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW6_epf__GFX09 0x405012E
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW7_epf__GFX09 0x405012F
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW8_epf__GFX09 0x4050130
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF0_FB_epf__GFX09 0x405010C
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF10_FB_epf__GFX09 0x4050116
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF11_FB_epf__GFX09 0x4050117
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF12_FB_epf__GFX09 0x4050118
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF13_FB_epf__GFX09 0x4050119
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF14_FB_epf__GFX09 0x405011A
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF15_FB_epf__GFX09 0x405011B
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF1_FB_epf__GFX09 0x405010D
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF2_FB_epf__GFX09 0x405010E
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF3_FB_epf__GFX09 0x405010F
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF4_FB_epf__GFX09 0x4050110
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF5_FB_epf__GFX09 0x4050111
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF6_FB_epf__GFX09 0x4050112
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF7_FB_epf__GFX09 0x4050113
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF8_FB_epf__GFX09 0x4050114
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF9_FB_epf__GFX09 0x4050115
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_epf__GFX09 0x4050101
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epf__GFX09  0x4050041
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epvf        0x4058041
-#define mmnbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_swds        0x4040041
-#define mmnbif_gpu_PMI_CAP_LIST_epf__GFX09              0x4050014
-#define mmnbif_gpu_PMI_CAP_LIST_swds                    0x4040014
-#define mmnbif_gpu_PMI_CAP_epf__GFX09                   0x4050014
-#define mmnbif_gpu_PMI_CAP_swds                         0x4040014
-#define mmnbif_gpu_PMI_STATUS_CNTL_epf__GFX09           0x4050015
-#define mmnbif_gpu_PMI_STATUS_CNTL_swds                 0x4040015
-#define mmnbif_gpu_PREF_BASE_LIMIT_swds                 0x4040009
-#define mmnbif_gpu_PREF_BASE_UPPER_swds                 0x404000A
-#define mmnbif_gpu_PREF_LIMIT_UPPER_swds                0x404000B
-#define mmnbif_gpu_PROG_INTERFACE_epf__GFX09            0x4050002
-#define mmnbif_gpu_PROG_INTERFACE_epvf                  0x4058002
-#define mmnbif_gpu_PROG_INTERFACE_swds                  0x4040002
-#define mmnbif_gpu_RCC_BACO_CNTL_MISC                   0x0DA7
-#define mmnbif_gpu_RCC_BIF_STRAP0                       0x0D20
-#define mmnbif_gpu_RCC_BIF_STRAP1                       0x0D21
-#define mmnbif_gpu_RCC_BIF_STRAP2                       0x0D22
-#define mmnbif_gpu_RCC_BIF_STRAP3                       0x0D23
-#define mmnbif_gpu_RCC_BIF_STRAP4                       0x0D24
-#define mmnbif_gpu_RCC_BIF_STRAP5                       0x0D25
-#define mmnbif_gpu_RCC_BIF_STRAP6                       0x0D26
-#define mmnbif_gpu_RCC_BUSNUM_CNTL1                     0x0DEC
-#define mmnbif_gpu_RCC_BUSNUM_CNTL2                     0x0DEF
-#define mmnbif_gpu_RCC_BUSNUM_LIST0                     0x0DED
-#define mmnbif_gpu_RCC_BUSNUM_LIST1                     0x0DEE
-#define mmnbif_gpu_RCC_BUS_CNTL                         0x0DE1
-#define mmnbif_gpu_RCC_CAPTURE_HOST_BUSNUM              0x0DF0
-#define mmnbif_gpu_RCC_CMN_LINK_CNTL                    0x0DFE
-#define mmnbif_gpu_RCC_CONFIG_APER_SIZE                 0x0DE7
-#define mmnbif_gpu_RCC_CONFIG_CNTL                      0x0DE2
-#define mmnbif_gpu_RCC_CONFIG_F0_BASE                   0x0DE6
-#define mmnbif_gpu_RCC_CONFIG_MEMSIZE                   0x0DE3
-#define mmnbif_gpu_RCC_CONFIG_REG_APER_SIZE             0x0DE8
-#define mmnbif_gpu_RCC_CONFIG_RESERVED                  0x0DE4
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP0                 0x0D2F
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP1                 0x0D30
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP13                0x0D31
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP2                 0x0D32
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP3                 0x0D33
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP4                 0x0D34
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP5                 0x0D35
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP8                 0x0D36
-#define mmnbif_gpu_RCC_DEV0_EPF0_STRAP9                 0x0D37
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP0                 0x0D38
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP10                0x0D39
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP11                0x0D3A
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP12                0x0D3B
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP13                0x0D3C
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP2                 0x0D3D
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP3                 0x0D3E
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP4                 0x0D3F
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP5                 0x0D40
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP6                 0x0D41
-#define mmnbif_gpu_RCC_DEV0_EPF1_STRAP7                 0x0D42
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP0                 0x404D100
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP13                0x404D10D
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP2                 0x404D102
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP3                 0x404D103
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP4                 0x404D104
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP5                 0x404D105
-#define mmnbif_gpu_RCC_DEV0_EPF2_STRAP6                 0x404D106
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP0                 0x404D180
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP13                0x404D18D
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP2                 0x404D182
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP3                 0x404D183
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP4                 0x404D184
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP5                 0x404D185
-#define mmnbif_gpu_RCC_DEV0_EPF3_STRAP6                 0x404D186
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP0                 0x404D200
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP13                0x404D20D
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP2                 0x404D202
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP3                 0x404D203
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP4                 0x404D204
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP5                 0x404D205
-#define mmnbif_gpu_RCC_DEV0_EPF4_STRAP6                 0x404D206
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP0                 0x404D280
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP13                0x404D28D
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP2                 0x404D282
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP3                 0x404D283
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP4                 0x404D284
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP5                 0x404D285
-#define mmnbif_gpu_RCC_DEV0_EPF5_STRAP6                 0x404D286
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP0                 0x404D300
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP13                0x404D30D
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP2                 0x404D302
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP3                 0x404D303
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP4                 0x404D304
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP5                 0x404D305
-#define mmnbif_gpu_RCC_DEV0_EPF6_STRAP6                 0x404D306
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP0                 0x404D380
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP13                0x404D38D
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP2                 0x404D382
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP3                 0x404D383
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP4                 0x404D384
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP5                 0x404D385
-#define mmnbif_gpu_RCC_DEV0_EPF7_STRAP6                 0x404D386
-#define mmnbif_gpu_RCC_DEV0_LINK_CNTL                   0x0DFD
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP0                 0x0D27
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP1                 0x0D28
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP2                 0x0D29
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP3                 0x0D2A
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP4                 0x0D2B
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP5                 0x0D2C
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP6                 0x0D2D
-#define mmnbif_gpu_RCC_DEV0_PORT_STRAP7                 0x0D2E
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP0                 0x404D400
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP13                0x404D40D
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP2                 0x404D402
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP3                 0x404D403
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP4                 0x404D404
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP5                 0x404D405
-#define mmnbif_gpu_RCC_DEV1_EPF0_STRAP6                 0x404D406
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP0                 0x404D480
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP13                0x404D48D
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP2                 0x404D482
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP3                 0x404D483
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP4                 0x404D484
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP5                 0x404D485
-#define mmnbif_gpu_RCC_DEV1_EPF1_STRAP6                 0x404D486
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP0                 0x404D500
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP13                0x404D50D
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP2                 0x404D502
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP3                 0x404D503
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP4                 0x404D504
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP5                 0x404D505
-#define mmnbif_gpu_RCC_DEV1_EPF2_STRAP6                 0x404D506
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP0                 0x404C480
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP1                 0x404C481
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP2                 0x404C482
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP3                 0x404C483
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP4                 0x404C484
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP5                 0x404C485
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP6                 0x404C486
-#define mmnbif_gpu_RCC_DEV1_PORT_STRAP7                 0x404C487
-#define mmnbif_gpu_RCC_DEVFUNCNUM_LIST0                 0x0DFA
-#define mmnbif_gpu_RCC_DEVFUNCNUM_LIST1                 0x0DFB
-#define mmnbif_gpu_RCC_DOORBELL_APER_EN                 0x0DE0
-#define mmnbif_gpu_RCC_EP_REQUESTERID_RESTORE           0x0DFF
-#define mmnbif_gpu_RCC_ERR_INT_CNTL                     0x0DA6
-#define mmnbif_gpu_RCC_ERR_LOG                          0x0DA5
-#define mmnbif_gpu_RCC_FEATURES_CONTROL_MISC            0x0DEB
-#define mmnbif_gpu_RCC_HOST_BUSNUM                      0x0DF1
-#define mmnbif_gpu_RCC_IOV_FUNC_IDENTIFIER              0x0DE5
-#define mmnbif_gpu_RCC_LTR_LSWITCH_CNTL                 0x0E00
-#define mmnbif_gpu_RCC_MH_ARB_CNTL                      0x0E01
-#define mmnbif_gpu_RCC_PEER0_FB_OFFSET_HI               0x0DF2
-#define mmnbif_gpu_RCC_PEER0_FB_OFFSET_LO               0x0DF3
-#define mmnbif_gpu_RCC_PEER1_FB_OFFSET_HI               0x0DF4
-#define mmnbif_gpu_RCC_PEER1_FB_OFFSET_LO               0x0DF5
-#define mmnbif_gpu_RCC_PEER2_FB_OFFSET_HI               0x0DF6
-#define mmnbif_gpu_RCC_PEER2_FB_OFFSET_LO               0x0DF7
-#define mmnbif_gpu_RCC_PEER3_FB_OFFSET_HI               0x0DF8
-#define mmnbif_gpu_RCC_PEER3_FB_OFFSET_LO               0x0DF9
-#define mmnbif_gpu_RCC_PEER_REG_RANGE0                  0x0DDE
-#define mmnbif_gpu_RCC_PEER_REG_RANGE1                  0x0DDF
-#define mmnbif_gpu_RCC_PFC_AUXPWR_CNTL                  0x404D048
-#define mmnbif_gpu_RCC_PFC_LTR_CNTL                     0x404D040
-#define mmnbif_gpu_RCC_PFC_PME_RESTORE                  0x404D041
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_0             0x404D042
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_1             0x404D043
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_2             0x404D044
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_3             0x404D045
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_4             0x404D046
-#define mmnbif_gpu_RCC_PFC_STICKY_RESTORE_5             0x404D047
-#define mmnbif_gpu_RCC_RESET_EN                         0x0DA8
-#define mmnbif_gpu_RCC_VDM_SUPPORT                      0x0DA9
-#define mmnbif_gpu_RCC_XDMA_HI                          0x0DEA
-#define mmnbif_gpu_RCC_XDMA_LO                          0x0DE9
-#define mmnbif_gpu_REMAP_HDP_MEM_FLUSH_CNTL             0x0E4D
-#define mmnbif_gpu_REMAP_HDP_REG_FLUSH_CNTL             0x0E4E
-#define mmnbif_gpu_REVISION_ID_epf__GFX09               0x4050002
-#define mmnbif_gpu_REVISION_ID_epvf                     0x4058002
-#define mmnbif_gpu_REVISION_ID_swds                     0x4040002
-#define mmnbif_gpu_ROM_BASE_ADDR_epf__GFX09             0x405000C
-#define mmnbif_gpu_ROM_BASE_ADDR_epvf                   0x405800C
-#define mmnbif_gpu_RSMU_SOFT_RST_CTRL                   0x404E001
-#define mmnbif_gpu_S2A_MISC_CNTL                        0x0EFF
-#define mmnbif_gpu_SBIOS_SCRATCH_0                      0x0048
-#define mmnbif_gpu_SBIOS_SCRATCH_1                      0x0049
-#define mmnbif_gpu_SBIOS_SCRATCH_2                      0x004A
-#define mmnbif_gpu_SBIOS_SCRATCH_3                      0x004B
-#define mmnbif_gpu_SECONDARY_STATUS_swds                0x4040007
-#define mmnbif_gpu_SELF_SOFT_RST                        0x404E002
-#define mmnbif_gpu_SHADOW_BASE_ADDR_1                   0x404C004
-#define mmnbif_gpu_SHADOW_BASE_ADDR_2                   0x404C005
-#define mmnbif_gpu_SHADOW_COMMAND                       0x404C001
-#define mmnbif_gpu_SHADOW_IO_BASE_LIMIT                 0x404C007
-#define mmnbif_gpu_SHADOW_IO_BASE_LIMIT_HI              0x404C00C
-#define mmnbif_gpu_SHADOW_IRQ_BRIDGE_CNTL               0x404C00F
-#define mmnbif_gpu_SHADOW_MEM_BASE_LIMIT                0x404C008
-#define mmnbif_gpu_SHADOW_PREF_BASE_LIMIT               0x404C009
-#define mmnbif_gpu_SHADOW_PREF_BASE_UPPER               0x404C00A
-#define mmnbif_gpu_SHADOW_PREF_LIMIT_UPPER              0x404C00B
-#define mmnbif_gpu_SHADOW_SUB_BUS_NUMBER_LATENCY        0x404C006
-#define mmnbif_gpu_SHUB_GFX_DRV_VPU_RST                 0x507C01
-#define mmnbif_gpu_SHUB_HARD_RST_CTRL                   0x507C10
-#define mmnbif_gpu_SHUB_LINK_RESET                      0x507C02
-#define mmnbif_gpu_SHUB_PF0_VF_FLR_RST                  0x507C08
-#define mmnbif_gpu_SHUB_PF_FLR_RST                      0x507C00
-#define mmnbif_gpu_SHUB_REGS_IF_CTL                     0x0EE3
-#define mmnbif_gpu_SHUB_RST_MISC_TRL                    0x507C13
-#define mmnbif_gpu_SHUB_SDP_PORT_RST                    0x507C12
-#define mmnbif_gpu_SHUB_SOFT_RST_CTRL                   0x507C11
-#define mmnbif_gpu_SION_CL0_DataPoolCredit_Alloc_REG0   0x50780E
-#define mmnbif_gpu_SION_CL0_DataPoolCredit_Alloc_REG1   0x50780F
-#define mmnbif_gpu_SION_CL0_RdRspPoolCredit_Alloc_REG0  0x507810
-#define mmnbif_gpu_SION_CL0_RdRspPoolCredit_Alloc_REG1  0x507811
-#define mmnbif_gpu_SION_CL0_RdRsp_BurstTarget_REG0      0x507800
-#define mmnbif_gpu_SION_CL0_RdRsp_BurstTarget_REG1      0x507801
-#define mmnbif_gpu_SION_CL0_RdRsp_TimeSlot_REG0         0x507802
-#define mmnbif_gpu_SION_CL0_RdRsp_TimeSlot_REG1         0x507803
-#define mmnbif_gpu_SION_CL0_ReqPoolCredit_Alloc_REG0    0x50780C
-#define mmnbif_gpu_SION_CL0_ReqPoolCredit_Alloc_REG1    0x50780D
-#define mmnbif_gpu_SION_CL0_Req_BurstTarget_REG0        0x507808
-#define mmnbif_gpu_SION_CL0_Req_BurstTarget_REG1        0x507809
-#define mmnbif_gpu_SION_CL0_Req_TimeSlot_REG0           0x50780A
-#define mmnbif_gpu_SION_CL0_Req_TimeSlot_REG1           0x50780B
-#define mmnbif_gpu_SION_CL0_WrRspPoolCredit_Alloc_REG0  0x507812
-#define mmnbif_gpu_SION_CL0_WrRspPoolCredit_Alloc_REG1  0x507813
-#define mmnbif_gpu_SION_CL0_WrRsp_BurstTarget_REG0      0x507804
-#define mmnbif_gpu_SION_CL0_WrRsp_BurstTarget_REG1      0x507805
-#define mmnbif_gpu_SION_CL0_WrRsp_TimeSlot_REG0         0x507806
-#define mmnbif_gpu_SION_CL0_WrRsp_TimeSlot_REG1         0x507807
-#define mmnbif_gpu_SION_CL1_DataPoolCredit_Alloc_REG0   0x507822
-#define mmnbif_gpu_SION_CL1_DataPoolCredit_Alloc_REG1   0x507823
-#define mmnbif_gpu_SION_CL1_RdRspPoolCredit_Alloc_REG0  0x507824
-#define mmnbif_gpu_SION_CL1_RdRspPoolCredit_Alloc_REG1  0x507825
-#define mmnbif_gpu_SION_CL1_RdRsp_BurstTarget_REG0      0x507814
-#define mmnbif_gpu_SION_CL1_RdRsp_BurstTarget_REG1      0x507815
-#define mmnbif_gpu_SION_CL1_RdRsp_TimeSlot_REG0         0x507816
-#define mmnbif_gpu_SION_CL1_RdRsp_TimeSlot_REG1         0x507817
-#define mmnbif_gpu_SION_CL1_ReqPoolCredit_Alloc_REG0    0x507820
-#define mmnbif_gpu_SION_CL1_ReqPoolCredit_Alloc_REG1    0x507821
-#define mmnbif_gpu_SION_CL1_Req_BurstTarget_REG0        0x50781C
-#define mmnbif_gpu_SION_CL1_Req_BurstTarget_REG1        0x50781D
-#define mmnbif_gpu_SION_CL1_Req_TimeSlot_REG0           0x50781E
-#define mmnbif_gpu_SION_CL1_Req_TimeSlot_REG1           0x50781F
-#define mmnbif_gpu_SION_CL1_WrRspPoolCredit_Alloc_REG0  0x507826
-#define mmnbif_gpu_SION_CL1_WrRspPoolCredit_Alloc_REG1  0x507827
-#define mmnbif_gpu_SION_CL1_WrRsp_BurstTarget_REG0      0x507818
-#define mmnbif_gpu_SION_CL1_WrRsp_BurstTarget_REG1      0x507819
-#define mmnbif_gpu_SION_CL1_WrRsp_TimeSlot_REG0         0x50781A
-#define mmnbif_gpu_SION_CL1_WrRsp_TimeSlot_REG1         0x50781B
-#define mmnbif_gpu_SION_CL2_DataPoolCredit_Alloc_REG0   0x507836
-#define mmnbif_gpu_SION_CL2_DataPoolCredit_Alloc_REG1   0x507837
-#define mmnbif_gpu_SION_CL2_RdRspPoolCredit_Alloc_REG0  0x507838
-#define mmnbif_gpu_SION_CL2_RdRspPoolCredit_Alloc_REG1  0x507839
-#define mmnbif_gpu_SION_CL2_RdRsp_BurstTarget_REG0      0x507828
-#define mmnbif_gpu_SION_CL2_RdRsp_BurstTarget_REG1      0x507829
-#define mmnbif_gpu_SION_CL2_RdRsp_TimeSlot_REG0         0x50782A
-#define mmnbif_gpu_SION_CL2_RdRsp_TimeSlot_REG1         0x50782B
-#define mmnbif_gpu_SION_CL2_ReqPoolCredit_Alloc_REG0    0x507834
-#define mmnbif_gpu_SION_CL2_ReqPoolCredit_Alloc_REG1    0x507835
-#define mmnbif_gpu_SION_CL2_Req_BurstTarget_REG0        0x507830
-#define mmnbif_gpu_SION_CL2_Req_BurstTarget_REG1        0x507831
-#define mmnbif_gpu_SION_CL2_Req_TimeSlot_REG0           0x507832
-#define mmnbif_gpu_SION_CL2_Req_TimeSlot_REG1           0x507833
-#define mmnbif_gpu_SION_CL2_WrRspPoolCredit_Alloc_REG0  0x50783A
-#define mmnbif_gpu_SION_CL2_WrRspPoolCredit_Alloc_REG1  0x50783B
-#define mmnbif_gpu_SION_CL2_WrRsp_BurstTarget_REG0      0x50782C
-#define mmnbif_gpu_SION_CL2_WrRsp_BurstTarget_REG1      0x50782D
-#define mmnbif_gpu_SION_CL2_WrRsp_TimeSlot_REG0         0x50782E
-#define mmnbif_gpu_SION_CL2_WrRsp_TimeSlot_REG1         0x50782F
-#define mmnbif_gpu_SION_CL3_DataPoolCredit_Alloc_REG0   0x50784A
-#define mmnbif_gpu_SION_CL3_DataPoolCredit_Alloc_REG1   0x50784B
-#define mmnbif_gpu_SION_CL3_RdRspPoolCredit_Alloc_REG0  0x50784C
-#define mmnbif_gpu_SION_CL3_RdRspPoolCredit_Alloc_REG1  0x50784D
-#define mmnbif_gpu_SION_CL3_RdRsp_BurstTarget_REG0      0x50783C
-#define mmnbif_gpu_SION_CL3_RdRsp_BurstTarget_REG1      0x50783D
-#define mmnbif_gpu_SION_CL3_RdRsp_TimeSlot_REG0         0x50783E
-#define mmnbif_gpu_SION_CL3_RdRsp_TimeSlot_REG1         0x50783F
-#define mmnbif_gpu_SION_CL3_ReqPoolCredit_Alloc_REG0    0x507848
-#define mmnbif_gpu_SION_CL3_ReqPoolCredit_Alloc_REG1    0x507849
-#define mmnbif_gpu_SION_CL3_Req_BurstTarget_REG0        0x507844
-#define mmnbif_gpu_SION_CL3_Req_BurstTarget_REG1        0x507845
-#define mmnbif_gpu_SION_CL3_Req_TimeSlot_REG0           0x507846
-#define mmnbif_gpu_SION_CL3_Req_TimeSlot_REG1           0x507847
-#define mmnbif_gpu_SION_CL3_WrRspPoolCredit_Alloc_REG0  0x50784E
-#define mmnbif_gpu_SION_CL3_WrRspPoolCredit_Alloc_REG1  0x50784F
-#define mmnbif_gpu_SION_CL3_WrRsp_BurstTarget_REG0      0x507840
-#define mmnbif_gpu_SION_CL3_WrRsp_BurstTarget_REG1      0x507841
-#define mmnbif_gpu_SION_CL3_WrRsp_TimeSlot_REG0         0x507842
-#define mmnbif_gpu_SION_CL3_WrRsp_TimeSlot_REG1         0x507843
-#define mmnbif_gpu_SION_CL4_DataPoolCredit_Alloc_REG0__GFX09 0x50785E
-#define mmnbif_gpu_SION_CL4_DataPoolCredit_Alloc_REG1__GFX09 0x50785F
-#define mmnbif_gpu_SION_CL4_RdRspPoolCredit_Alloc_REG0__GFX09 0x507860
-#define mmnbif_gpu_SION_CL4_RdRspPoolCredit_Alloc_REG1__GFX09 0x507861
-#define mmnbif_gpu_SION_CL4_RdRsp_BurstTarget_REG0__GFX09 0x507850
-#define mmnbif_gpu_SION_CL4_RdRsp_BurstTarget_REG1__GFX09 0x507851
-#define mmnbif_gpu_SION_CL4_RdRsp_TimeSlot_REG0__GFX09  0x507852
-#define mmnbif_gpu_SION_CL4_RdRsp_TimeSlot_REG1__GFX09  0x507853
-#define mmnbif_gpu_SION_CL4_ReqPoolCredit_Alloc_REG0__GFX09 0x50785C
-#define mmnbif_gpu_SION_CL4_ReqPoolCredit_Alloc_REG1__GFX09 0x50785D
-#define mmnbif_gpu_SION_CL4_Req_BurstTarget_REG0__GFX09 0x507858
-#define mmnbif_gpu_SION_CL4_Req_BurstTarget_REG1__GFX09 0x507859
-#define mmnbif_gpu_SION_CL4_Req_TimeSlot_REG0__GFX09    0x50785A
-#define mmnbif_gpu_SION_CL4_Req_TimeSlot_REG1__GFX09    0x50785B
-#define mmnbif_gpu_SION_CL4_WrRspPoolCredit_Alloc_REG0__GFX09 0x507862
-#define mmnbif_gpu_SION_CL4_WrRspPoolCredit_Alloc_REG1__GFX09 0x507863
-#define mmnbif_gpu_SION_CL4_WrRsp_BurstTarget_REG0__GFX09 0x507854
-#define mmnbif_gpu_SION_CL4_WrRsp_BurstTarget_REG1__GFX09 0x507855
-#define mmnbif_gpu_SION_CL4_WrRsp_TimeSlot_REG0__GFX09  0x507856
-#define mmnbif_gpu_SION_CL4_WrRsp_TimeSlot_REG1__GFX09  0x507857
-#define mmnbif_gpu_SION_CL5_DataPoolCredit_Alloc_REG0__GFX09 0x507872
-#define mmnbif_gpu_SION_CL5_DataPoolCredit_Alloc_REG1__GFX09 0x507873
-#define mmnbif_gpu_SION_CL5_RdRspPoolCredit_Alloc_REG0__GFX09 0x507874
-#define mmnbif_gpu_SION_CL5_RdRspPoolCredit_Alloc_REG1__GFX09 0x507875
-#define mmnbif_gpu_SION_CL5_RdRsp_BurstTarget_REG0__GFX09 0x507864
-#define mmnbif_gpu_SION_CL5_RdRsp_BurstTarget_REG1__GFX09 0x507865
-#define mmnbif_gpu_SION_CL5_RdRsp_TimeSlot_REG0__GFX09  0x507866
-#define mmnbif_gpu_SION_CL5_RdRsp_TimeSlot_REG1__GFX09  0x507867
-#define mmnbif_gpu_SION_CL5_ReqPoolCredit_Alloc_REG0__GFX09 0x507870
-#define mmnbif_gpu_SION_CL5_ReqPoolCredit_Alloc_REG1__GFX09 0x507871
-#define mmnbif_gpu_SION_CL5_Req_BurstTarget_REG0__GFX09 0x50786C
-#define mmnbif_gpu_SION_CL5_Req_BurstTarget_REG1__GFX09 0x50786D
-#define mmnbif_gpu_SION_CL5_Req_TimeSlot_REG0__GFX09    0x50786E
-#define mmnbif_gpu_SION_CL5_Req_TimeSlot_REG1__GFX09    0x50786F
-#define mmnbif_gpu_SION_CL5_WrRspPoolCredit_Alloc_REG0__GFX09 0x507876
-#define mmnbif_gpu_SION_CL5_WrRspPoolCredit_Alloc_REG1__GFX09 0x507877
-#define mmnbif_gpu_SION_CL5_WrRsp_BurstTarget_REG0__GFX09 0x507868
-#define mmnbif_gpu_SION_CL5_WrRsp_BurstTarget_REG1__GFX09 0x507869
-#define mmnbif_gpu_SION_CL5_WrRsp_TimeSlot_REG0__GFX09  0x50786A
-#define mmnbif_gpu_SION_CL5_WrRsp_TimeSlot_REG1__GFX09  0x50786B
-#define mmnbif_gpu_SLOT_CAP2_epf__GFX09                 0x4050026
-#define mmnbif_gpu_SLOT_CAP2_epvf                       0x4058026
-#define mmnbif_gpu_SLOT_CAP2_swds                       0x4040023
-#define mmnbif_gpu_SLOT_CAP_swds                        0x404001B
-#define mmnbif_gpu_SLOT_CNTL2_epf__GFX09                0x4050027
-#define mmnbif_gpu_SLOT_CNTL2_epvf                      0x4058027
-#define mmnbif_gpu_SLOT_CNTL2_swds                      0x4040024
-#define mmnbif_gpu_SLOT_CNTL_swds                       0x404001C
-#define mmnbif_gpu_SLOT_STATUS2_epf__GFX09              0x4050027
-#define mmnbif_gpu_SLOT_STATUS2_epvf                    0x4058027
-#define mmnbif_gpu_SLOT_STATUS2_swds                    0x4040024
-#define mmnbif_gpu_SLOT_STATUS_swds                     0x404001C
-#define mmnbif_gpu_SMN_MST_CNTL0                        0x404E819
-#define mmnbif_gpu_SMN_MST_CNTL1                        0x404E83E
-#define mmnbif_gpu_SMN_MST_EP_CNTL1                     0x404E81A
-#define mmnbif_gpu_SMN_MST_EP_CNTL2                     0x404E81B
-#define mmnbif_gpu_SMN_MST_EP_CNTL3                     0x404E83C
-#define mmnbif_gpu_SMN_MST_EP_CNTL4                     0x404E83D
-#define mmnbif_gpu_SMN_MST_EP_CNTL5                     0x404E83F
-#define mmnbif_gpu_SMU_BIF_VDDGFX_PWR_STATUS            0x0E33
-#define mmnbif_gpu_SSID_CAP_LIST_swds                   0x4040030
-#define mmnbif_gpu_SSID_CAP_swds                        0x4040031
-#define mmnbif_gpu_STATUS_epf__GFX09                    0x4050001
-#define mmnbif_gpu_STATUS_epvf                          0x4058001
-#define mmnbif_gpu_STATUS_swds                          0x4040001
-#define mmnbif_gpu_SUB_BUS_NUMBER_LATENCY_swds          0x4040006
-#define mmnbif_gpu_SUB_CLASS_epf__GFX09                 0x4050002
-#define mmnbif_gpu_SUB_CLASS_epvf                       0x4058002
-#define mmnbif_gpu_SUB_CLASS_swds                       0x4040002
-#define mmnbif_gpu_SUC_DATA                             0x404C039
-#define mmnbif_gpu_SUC_INDEX                            0x404C038
-#define mmnbif_gpu_SUM_DATA                             0x0039
-#define mmnbif_gpu_SUM_INDEX                            0x0038
-#define mmnbif_gpu_SYSHUB_DATA_OVLP                     0x0009
-#define mmnbif_gpu_SYSHUB_INDEX_OVLP                    0x0008
-#define mmnbif_gpu_VENDOR_CAP_LIST_epf__GFX09           0x4050012
-#define mmnbif_gpu_VENDOR_ID_epf__GFX09                 0x4050000
-#define mmnbif_gpu_VENDOR_ID_epvf                       0x4058000
-#define mmnbif_gpu_VENDOR_ID_swds                       0x4040000
-#define mmport_a_addr                                   0x27C0
-#define mmport_a_data_hi                                0x27C2
-#define mmport_a_data_lo                                0x27C1
-#define mmport_b_addr                                   0x27C3
-#define mmport_b_data_hi                                0x27C5
-#define mmport_b_data_lo                                0x27C4
-#define mmport_c_addr                                   0x27C6
-#define mmport_c_data_hi                                0x27C8
-#define mmport_c_data_lo                                0x27C7
-#define mmport_d_addr                                   0x27C9
-#define mmport_d_data_hi                                0x27CB
-#define mmport_d_data_lo                                0x27CA
-#define pcinbif_gpu_ADAPTER_ID_W_epf__GFX09             0x0013
-#define pcinbif_gpu_ADAPTER_ID_epf__GFX09               0x000B
-#define pcinbif_gpu_ADAPTER_ID_epvf                     0x000B
-#define pcinbif_gpu_BASE_ADDR_1_epf__GFX09              0x0004
-#define pcinbif_gpu_BASE_ADDR_1_epvf                    0x0004
-#define pcinbif_gpu_BASE_ADDR_1_swds__GFX09             0x0004
-#define pcinbif_gpu_BASE_ADDR_2_epf__GFX09              0x0005
-#define pcinbif_gpu_BASE_ADDR_2_epvf                    0x0005
-#define pcinbif_gpu_BASE_ADDR_3_epf__GFX09              0x0006
-#define pcinbif_gpu_BASE_ADDR_3_epvf                    0x0006
-#define pcinbif_gpu_BASE_ADDR_4_epf__GFX09              0x0007
-#define pcinbif_gpu_BASE_ADDR_4_epvf                    0x0007
-#define pcinbif_gpu_BASE_ADDR_5_epf__GFX09              0x0008
-#define pcinbif_gpu_BASE_ADDR_5_epvf                    0x0008
-#define pcinbif_gpu_BASE_ADDR_6_epf__GFX09              0x0009
-#define pcinbif_gpu_BASE_ADDR_6_epvf                    0x0009
-#define pcinbif_gpu_BASE_CLASS_epf__GFX09               0x0002
-#define pcinbif_gpu_BASE_CLASS_epvf                     0x0002
-#define pcinbif_gpu_BASE_CLASS_swds__GFX09              0x0002
-#define pcinbif_gpu_BIST_epf__GFX09                     0x0003
-#define pcinbif_gpu_BIST_epvf                           0x0003
-#define pcinbif_gpu_BIST_swds__GFX09                    0x0003
-#define pcinbif_gpu_CACHE_LINE_epf__GFX09               0x0003
-#define pcinbif_gpu_CACHE_LINE_epvf                     0x0003
-#define pcinbif_gpu_CACHE_LINE_swds__GFX09              0x0003
-#define pcinbif_gpu_CAP_PTR_epf__GFX09                  0x000D
-#define pcinbif_gpu_CAP_PTR_epvf                        0x000D
-#define pcinbif_gpu_CAP_PTR_swds__GFX09                 0x000D
-#define pcinbif_gpu_COMMAND_epf__GFX09                  0x0001
-#define pcinbif_gpu_COMMAND_epvf                        0x0001
-#define pcinbif_gpu_COMMAND_swds__GFX09                 0x0001
-#define pcinbif_gpu_DEVICE_CAP2_epf__GFX09              0x0022
-#define pcinbif_gpu_DEVICE_CAP2_epvf                    0x0022
-#define pcinbif_gpu_DEVICE_CAP2_swds__GFX09             0x001F
-#define pcinbif_gpu_DEVICE_CAP_epf__GFX09               0x001A
-#define pcinbif_gpu_DEVICE_CAP_epvf                     0x001A
-#define pcinbif_gpu_DEVICE_CAP_swds__GFX09              0x0017
-#define pcinbif_gpu_DEVICE_CNTL2_epf__GFX09             0x0023
-#define pcinbif_gpu_DEVICE_CNTL2_epvf                   0x0023
-#define pcinbif_gpu_DEVICE_CNTL2_swds__GFX09            0x0020
-#define pcinbif_gpu_DEVICE_CNTL_epf__GFX09              0x001B
-#define pcinbif_gpu_DEVICE_CNTL_epvf                    0x001B
-#define pcinbif_gpu_DEVICE_CNTL_swds__GFX09             0x0018
-#define pcinbif_gpu_DEVICE_ID_epf__GFX09                0x0000
-#define pcinbif_gpu_DEVICE_ID_epvf                      0x0000
-#define pcinbif_gpu_DEVICE_ID_swds__GFX09               0x0000
-#define pcinbif_gpu_DEVICE_STATUS2_epf__GFX09           0x0023
-#define pcinbif_gpu_DEVICE_STATUS2_epvf                 0x0023
-#define pcinbif_gpu_DEVICE_STATUS2_swds__GFX09          0x0020
-#define pcinbif_gpu_DEVICE_STATUS_epf__GFX09            0x001B
-#define pcinbif_gpu_DEVICE_STATUS_epvf                  0x001B
-#define pcinbif_gpu_DEVICE_STATUS_swds__GFX09           0x0018
-#define pcinbif_gpu_HEADER_epf__GFX09                   0x0003
-#define pcinbif_gpu_HEADER_epvf                         0x0003
-#define pcinbif_gpu_HEADER_swds__GFX09                  0x0003
-#define pcinbif_gpu_INTERRUPT_LINE_epf__GFX09           0x000F
-#define pcinbif_gpu_INTERRUPT_LINE_epvf                 0x000F
-#define pcinbif_gpu_INTERRUPT_LINE_swds__GFX09          0x000F
-#define pcinbif_gpu_INTERRUPT_PIN_epf__GFX09            0x000F
-#define pcinbif_gpu_INTERRUPT_PIN_epvf                  0x000F
-#define pcinbif_gpu_INTERRUPT_PIN_swds__GFX09           0x000F
-#define pcinbif_gpu_IO_BASE_LIMIT_HI_swds__GFX09        0x000C
-#define pcinbif_gpu_IO_BASE_LIMIT_swds__GFX09           0x0007
-#define pcinbif_gpu_IRQ_BRIDGE_CNTL_swds__GFX09         0x000F
-#define pcinbif_gpu_LATENCY_epf__GFX09                  0x0003
-#define pcinbif_gpu_LATENCY_epvf                        0x0003
-#define pcinbif_gpu_LATENCY_swds__GFX09                 0x0003
-#define pcinbif_gpu_LINK_CAP2_epf__GFX09                0x0024
-#define pcinbif_gpu_LINK_CAP2_epvf                      0x0024
-#define pcinbif_gpu_LINK_CAP2_swds__GFX09               0x0021
-#define pcinbif_gpu_LINK_CAP_epf__GFX09                 0x001C
-#define pcinbif_gpu_LINK_CAP_epvf                       0x001C
-#define pcinbif_gpu_LINK_CAP_swds__GFX09                0x0019
-#define pcinbif_gpu_LINK_CNTL2_epf__GFX09               0x0025
-#define pcinbif_gpu_LINK_CNTL2_epvf                     0x0025
-#define pcinbif_gpu_LINK_CNTL2_swds__GFX09              0x0022
-#define pcinbif_gpu_LINK_CNTL_epf__GFX09                0x001D
-#define pcinbif_gpu_LINK_CNTL_epvf                      0x001D
-#define pcinbif_gpu_LINK_CNTL_swds__GFX09               0x001A
-#define pcinbif_gpu_LINK_STATUS2_epf__GFX09             0x0025
-#define pcinbif_gpu_LINK_STATUS2_epvf                   0x0025
-#define pcinbif_gpu_LINK_STATUS2_swds__GFX09            0x0022
-#define pcinbif_gpu_LINK_STATUS_epf__GFX09              0x001D
-#define pcinbif_gpu_LINK_STATUS_epvf                    0x001D
-#define pcinbif_gpu_LINK_STATUS_swds__GFX09             0x001A
-#define pcinbif_gpu_MAX_LATENCY_epf__GFX09              0x000F
-#define pcinbif_gpu_MEM_BASE_LIMIT_swds__GFX09          0x0008
-#define pcinbif_gpu_MIN_GRANT_epf__GFX09                0x000F
-#define pcinbif_gpu_MSIX_CAP_LIST_epf__GFX09            0x0030
-#define pcinbif_gpu_MSIX_CAP_LIST_epvf                  0x0030
-#define pcinbif_gpu_MSIX_MSG_CNTL_epf__GFX09            0x0030
-#define pcinbif_gpu_MSIX_MSG_CNTL_epvf                  0x0030
-#define pcinbif_gpu_MSIX_PBA_epf__GFX09                 0x0032
-#define pcinbif_gpu_MSIX_PBA_epvf                       0x0032
-#define pcinbif_gpu_MSIX_TABLE_epf__GFX09               0x0031
-#define pcinbif_gpu_MSIX_TABLE_epvf                     0x0031
-#define pcinbif_gpu_MSI_CAP_LIST_epf__GFX09             0x0028
-#define pcinbif_gpu_MSI_CAP_LIST_epvf                   0x0028
-#define pcinbif_gpu_MSI_CAP_LIST_swds__GFX09            0x0028
-#define pcinbif_gpu_MSI_MASK_64_epf__GFX09              0x002C
-#define pcinbif_gpu_MSI_MASK_64_epvf                    0x002C
-#define pcinbif_gpu_MSI_MASK_epf__GFX09                 0x002B
-#define pcinbif_gpu_MSI_MASK_epvf                       0x002B
-#define pcinbif_gpu_MSI_MSG_ADDR_HI_epf__GFX09          0x002A
-#define pcinbif_gpu_MSI_MSG_ADDR_HI_epvf                0x002A
-#define pcinbif_gpu_MSI_MSG_ADDR_HI_swds__GFX09         0x002A
-#define pcinbif_gpu_MSI_MSG_ADDR_LO_epf__GFX09          0x0029
-#define pcinbif_gpu_MSI_MSG_ADDR_LO_epvf                0x0029
-#define pcinbif_gpu_MSI_MSG_ADDR_LO_swds__GFX09         0x0029
-#define pcinbif_gpu_MSI_MSG_CNTL_epf__GFX09             0x0028
-#define pcinbif_gpu_MSI_MSG_CNTL_epvf                   0x0028
-#define pcinbif_gpu_MSI_MSG_CNTL_swds__GFX09            0x0028
-#define pcinbif_gpu_MSI_MSG_DATA_64_epf__GFX09          0x002B
-#define pcinbif_gpu_MSI_MSG_DATA_64_epvf                0x002B
-#define pcinbif_gpu_MSI_MSG_DATA_64_swds__GFX09         0x002B
-#define pcinbif_gpu_MSI_MSG_DATA_epf__GFX09             0x002A
-#define pcinbif_gpu_MSI_MSG_DATA_epvf                   0x002A
-#define pcinbif_gpu_MSI_MSG_DATA_swds__GFX09            0x002A
-#define pcinbif_gpu_MSI_PENDING_64_epf__GFX09           0x002D
-#define pcinbif_gpu_MSI_PENDING_64_epvf                 0x002D
-#define pcinbif_gpu_MSI_PENDING_epf__GFX09              0x002C
-#define pcinbif_gpu_MSI_PENDING_epvf                    0x002C
-#define pcinbif_gpu_PCIE_ACS_CAP_epf__GFX09             0x00A9
-#define pcinbif_gpu_PCIE_ACS_CAP_swds__GFX09            0x00A9
-#define pcinbif_gpu_PCIE_ACS_CNTL_epf__GFX09            0x00A9
-#define pcinbif_gpu_PCIE_ACS_CNTL_swds__GFX09           0x00A9
-#define pcinbif_gpu_PCIE_ACS_ENH_CAP_LIST_epf__GFX09    0x00A8
-#define pcinbif_gpu_PCIE_ACS_ENH_CAP_LIST_swds__GFX09   0x00A8
-#define pcinbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epf__GFX09    0x005A
-#define pcinbif_gpu_PCIE_ADV_ERR_CAP_CNTL_epvf          0x005A
-#define pcinbif_gpu_PCIE_ADV_ERR_CAP_CNTL_swds__GFX09   0x005A
-#define pcinbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epf__GFX09 0x0054
-#define pcinbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_epvf  0x0054
-#define pcinbif_gpu_PCIE_ADV_ERR_RPT_ENH_CAP_LIST_swds__GFX09 0x0054
-#define pcinbif_gpu_PCIE_ARI_CAP_epf__GFX09             0x00CB
-#define pcinbif_gpu_PCIE_ARI_CAP_epvf                   0x00CB
-#define pcinbif_gpu_PCIE_ARI_CNTL_epf__GFX09            0x00CB
-#define pcinbif_gpu_PCIE_ARI_CNTL_epvf                  0x00CB
-#define pcinbif_gpu_PCIE_ARI_ENH_CAP_LIST_epf__GFX09    0x00CA
-#define pcinbif_gpu_PCIE_ARI_ENH_CAP_LIST_epvf          0x00CA
-#define pcinbif_gpu_PCIE_ATS_CAP_epf__GFX09             0x00AD
-#define pcinbif_gpu_PCIE_ATS_CAP_epvf                   0x00AD
-#define pcinbif_gpu_PCIE_ATS_CNTL_epf__GFX09            0x00AD
-#define pcinbif_gpu_PCIE_ATS_CNTL_epvf                  0x00AD
-#define pcinbif_gpu_PCIE_ATS_ENH_CAP_LIST_epf__GFX09    0x00AC
-#define pcinbif_gpu_PCIE_ATS_ENH_CAP_LIST_epvf          0x00AC
-#define pcinbif_gpu_PCIE_BAR1_CAP_epf__GFX09            0x0081
-#define pcinbif_gpu_PCIE_BAR1_CNTL_epf__GFX09           0x0082
-#define pcinbif_gpu_PCIE_BAR2_CAP_epf__GFX09            0x0083
-#define pcinbif_gpu_PCIE_BAR2_CNTL_epf__GFX09           0x0084
-#define pcinbif_gpu_PCIE_BAR3_CAP_epf__GFX09            0x0085
-#define pcinbif_gpu_PCIE_BAR3_CNTL_epf__GFX09           0x0086
-#define pcinbif_gpu_PCIE_BAR4_CAP_epf__GFX09            0x0087
-#define pcinbif_gpu_PCIE_BAR4_CNTL_epf__GFX09           0x0088
-#define pcinbif_gpu_PCIE_BAR5_CAP_epf__GFX09            0x0089
-#define pcinbif_gpu_PCIE_BAR5_CNTL_epf__GFX09           0x008A
-#define pcinbif_gpu_PCIE_BAR6_CAP_epf__GFX09            0x008B
-#define pcinbif_gpu_PCIE_BAR6_CNTL_epf__GFX09           0x008C
-#define pcinbif_gpu_PCIE_BAR_ENH_CAP_LIST_epf__GFX09    0x0080
-#define pcinbif_gpu_PCIE_CAP_LIST_epf__GFX09            0x0019
-#define pcinbif_gpu_PCIE_CAP_LIST_epvf                  0x0019
-#define pcinbif_gpu_PCIE_CAP_LIST_swds__GFX09           0x0016
-#define pcinbif_gpu_PCIE_CAP_epf__GFX09                 0x0019
-#define pcinbif_gpu_PCIE_CAP_epvf                       0x0019
-#define pcinbif_gpu_PCIE_CAP_swds__GFX09                0x0016
-#define pcinbif_gpu_PCIE_CORR_ERR_MASK_epf__GFX09       0x0059
-#define pcinbif_gpu_PCIE_CORR_ERR_MASK_epvf             0x0059
-#define pcinbif_gpu_PCIE_CORR_ERR_MASK_swds__GFX09      0x0059
-#define pcinbif_gpu_PCIE_CORR_ERR_STATUS_epf__GFX09     0x0058
-#define pcinbif_gpu_PCIE_CORR_ERR_STATUS_epvf           0x0058
-#define pcinbif_gpu_PCIE_CORR_ERR_STATUS_swds__GFX09    0x0058
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_epf__GFX09  0x0051
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_DW1_swds__GFX09 0x0051
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_epf__GFX09  0x0052
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_DW2_swds__GFX09 0x0052
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_epf__GFX09 0x0050
-#define pcinbif_gpu_PCIE_DEV_SERIAL_NUM_ENH_CAP_LIST_swds__GFX09 0x0050
-#define pcinbif_gpu_PCIE_DPA_CAP_epf__GFX09             0x0095
-#define pcinbif_gpu_PCIE_DPA_CNTL_epf__GFX09            0x0097
-#define pcinbif_gpu_PCIE_DPA_ENH_CAP_LIST_epf__GFX09    0x0094
-#define pcinbif_gpu_PCIE_DPA_LATENCY_INDICATOR_epf__GFX09 0x0096
-#define pcinbif_gpu_PCIE_DPA_STATUS_epf__GFX09          0x0097
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_0_epf__GFX09 0x0098
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_1_epf__GFX09 0x0098
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_2_epf__GFX09 0x0098
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_3_epf__GFX09 0x0098
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_4_epf__GFX09 0x0099
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_5_epf__GFX09 0x0099
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_6_epf__GFX09 0x0099
-#define pcinbif_gpu_PCIE_DPA_SUBSTATE_PWR_ALLOC_7_epf__GFX09 0x0099
-#define pcinbif_gpu_PCIE_HDR_LOG0_epf__GFX09            0x005B
-#define pcinbif_gpu_PCIE_HDR_LOG0_epvf                  0x005B
-#define pcinbif_gpu_PCIE_HDR_LOG0_swds__GFX09           0x005B
-#define pcinbif_gpu_PCIE_HDR_LOG1_epf__GFX09            0x005C
-#define pcinbif_gpu_PCIE_HDR_LOG1_epvf                  0x005C
-#define pcinbif_gpu_PCIE_HDR_LOG1_swds__GFX09           0x005C
-#define pcinbif_gpu_PCIE_HDR_LOG2_epf__GFX09            0x005D
-#define pcinbif_gpu_PCIE_HDR_LOG2_epvf                  0x005D
-#define pcinbif_gpu_PCIE_HDR_LOG2_swds__GFX09           0x005D
-#define pcinbif_gpu_PCIE_HDR_LOG3_epf__GFX09            0x005E
-#define pcinbif_gpu_PCIE_HDR_LOG3_epvf                  0x005E
-#define pcinbif_gpu_PCIE_HDR_LOG3_swds__GFX09           0x005E
-#define pcinbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_epf__GFX09 0x009F
-#define pcinbif_gpu_PCIE_LANE_0_EQUALIZATION_CNTL_swds__GFX09 0x009F
-#define pcinbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_epf__GFX09 0x00A4
-#define pcinbif_gpu_PCIE_LANE_10_EQUALIZATION_CNTL_swds__GFX09 0x00A4
-#define pcinbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_epf__GFX09 0x00A4
-#define pcinbif_gpu_PCIE_LANE_11_EQUALIZATION_CNTL_swds__GFX09 0x00A4
-#define pcinbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_epf__GFX09 0x00A5
-#define pcinbif_gpu_PCIE_LANE_12_EQUALIZATION_CNTL_swds__GFX09 0x00A5
-#define pcinbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_epf__GFX09 0x00A5
-#define pcinbif_gpu_PCIE_LANE_13_EQUALIZATION_CNTL_swds__GFX09 0x00A5
-#define pcinbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_epf__GFX09 0x00A6
-#define pcinbif_gpu_PCIE_LANE_14_EQUALIZATION_CNTL_swds__GFX09 0x00A6
-#define pcinbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_epf__GFX09 0x00A6
-#define pcinbif_gpu_PCIE_LANE_15_EQUALIZATION_CNTL_swds__GFX09 0x00A6
-#define pcinbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_epf__GFX09 0x009F
-#define pcinbif_gpu_PCIE_LANE_1_EQUALIZATION_CNTL_swds__GFX09 0x009F
-#define pcinbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_epf__GFX09 0x00A0
-#define pcinbif_gpu_PCIE_LANE_2_EQUALIZATION_CNTL_swds__GFX09 0x00A0
-#define pcinbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_epf__GFX09 0x00A0
-#define pcinbif_gpu_PCIE_LANE_3_EQUALIZATION_CNTL_swds__GFX09 0x00A0
-#define pcinbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_epf__GFX09 0x00A1
-#define pcinbif_gpu_PCIE_LANE_4_EQUALIZATION_CNTL_swds__GFX09 0x00A1
-#define pcinbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_epf__GFX09 0x00A1
-#define pcinbif_gpu_PCIE_LANE_5_EQUALIZATION_CNTL_swds__GFX09 0x00A1
-#define pcinbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_epf__GFX09 0x00A2
-#define pcinbif_gpu_PCIE_LANE_6_EQUALIZATION_CNTL_swds__GFX09 0x00A2
-#define pcinbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_epf__GFX09 0x00A2
-#define pcinbif_gpu_PCIE_LANE_7_EQUALIZATION_CNTL_swds__GFX09 0x00A2
-#define pcinbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_epf__GFX09 0x00A3
-#define pcinbif_gpu_PCIE_LANE_8_EQUALIZATION_CNTL_swds__GFX09 0x00A3
-#define pcinbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_epf__GFX09 0x00A3
-#define pcinbif_gpu_PCIE_LANE_9_EQUALIZATION_CNTL_swds__GFX09 0x00A3
-#define pcinbif_gpu_PCIE_LANE_ERROR_STATUS_epf__GFX09   0x009E
-#define pcinbif_gpu_PCIE_LANE_ERROR_STATUS_swds__GFX09  0x009E
-#define pcinbif_gpu_PCIE_LINK_CNTL3_epf__GFX09          0x009D
-#define pcinbif_gpu_PCIE_LINK_CNTL3_swds__GFX09         0x009D
-#define pcinbif_gpu_PCIE_LTR_CAP_epf__GFX09             0x00C9
-#define pcinbif_gpu_PCIE_LTR_ENH_CAP_LIST_epf__GFX09    0x00C8
-#define pcinbif_gpu_PCIE_MC_ADDR0_epf__GFX09            0x00BE
-#define pcinbif_gpu_PCIE_MC_ADDR1_epf__GFX09            0x00BF
-#define pcinbif_gpu_PCIE_MC_BLOCK_ALL0_epf__GFX09       0x00C2
-#define pcinbif_gpu_PCIE_MC_BLOCK_ALL1_epf__GFX09       0x00C3
-#define pcinbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_0_epf__GFX09 0x00C4
-#define pcinbif_gpu_PCIE_MC_BLOCK_UNTRANSLATED_1_epf__GFX09 0x00C5
-#define pcinbif_gpu_PCIE_MC_CAP_epf__GFX09              0x00BD
-#define pcinbif_gpu_PCIE_MC_CNTL_epf__GFX09             0x00BD
-#define pcinbif_gpu_PCIE_MC_ENH_CAP_LIST_epf__GFX09     0x00BC
-#define pcinbif_gpu_PCIE_MC_RCV0_epf__GFX09             0x00C0
-#define pcinbif_gpu_PCIE_MC_RCV1_epf__GFX09             0x00C1
-#define pcinbif_gpu_PCIE_OUTSTAND_PAGE_REQ_ALLOC_epf__GFX09 0x00B3
-#define pcinbif_gpu_PCIE_OUTSTAND_PAGE_REQ_CAPACITY_epf__GFX09 0x00B2
-#define pcinbif_gpu_PCIE_PAGE_REQ_CNTL_epf__GFX09       0x00B1
-#define pcinbif_gpu_PCIE_PAGE_REQ_ENH_CAP_LIST_epf__GFX09 0x00B0
-#define pcinbif_gpu_PCIE_PAGE_REQ_STATUS_epf__GFX09     0x00B1
-#define pcinbif_gpu_PCIE_PASID_CAP_epf__GFX09           0x00B5
-#define pcinbif_gpu_PCIE_PASID_CNTL_epf__GFX09          0x00B5
-#define pcinbif_gpu_PCIE_PASID_ENH_CAP_LIST_epf__GFX09  0x00B4
-#define pcinbif_gpu_PCIE_PORT_VC_CAP_REG1_epf__GFX09    0x0045
-#define pcinbif_gpu_PCIE_PORT_VC_CAP_REG1_swds__GFX09   0x0045
-#define pcinbif_gpu_PCIE_PORT_VC_CAP_REG2_epf__GFX09    0x0046
-#define pcinbif_gpu_PCIE_PORT_VC_CAP_REG2_swds__GFX09   0x0046
-#define pcinbif_gpu_PCIE_PORT_VC_CNTL_epf__GFX09        0x0047
-#define pcinbif_gpu_PCIE_PORT_VC_CNTL_swds__GFX09       0x0047
-#define pcinbif_gpu_PCIE_PORT_VC_STATUS_epf__GFX09      0x0047
-#define pcinbif_gpu_PCIE_PORT_VC_STATUS_swds__GFX09     0x0047
-#define pcinbif_gpu_PCIE_PWR_BUDGET_CAP_epf__GFX09      0x0093
-#define pcinbif_gpu_PCIE_PWR_BUDGET_DATA_SELECT_epf__GFX09 0x0091
-#define pcinbif_gpu_PCIE_PWR_BUDGET_DATA_epf__GFX09     0x0092
-#define pcinbif_gpu_PCIE_PWR_BUDGET_ENH_CAP_LIST_epf__GFX09 0x0090
-#define pcinbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_epf__GFX09 0x009C
-#define pcinbif_gpu_PCIE_SECONDARY_ENH_CAP_LIST_swds__GFX09 0x009C
-#define pcinbif_gpu_PCIE_SRIOV_CAP_epf__GFX09           0x00CD
-#define pcinbif_gpu_PCIE_SRIOV_CONTROL_epf__GFX09       0x00CE
-#define pcinbif_gpu_PCIE_SRIOV_ENH_CAP_LIST_epf__GFX09  0x00CC
-#define pcinbif_gpu_PCIE_SRIOV_FIRST_VF_OFFSET_epf__GFX09 0x00D1
-#define pcinbif_gpu_PCIE_SRIOV_FUNC_DEP_LINK_epf__GFX09 0x00D0
-#define pcinbif_gpu_PCIE_SRIOV_INITIAL_VFS_epf__GFX09   0x00CF
-#define pcinbif_gpu_PCIE_SRIOV_NUM_VFS_epf__GFX09       0x00D0
-#define pcinbif_gpu_PCIE_SRIOV_STATUS_epf__GFX09        0x00CE
-#define pcinbif_gpu_PCIE_SRIOV_SUPPORTED_PAGE_SIZE_epf__GFX09 0x00D3
-#define pcinbif_gpu_PCIE_SRIOV_SYSTEM_PAGE_SIZE_epf__GFX09 0x00D4
-#define pcinbif_gpu_PCIE_SRIOV_TOTAL_VFS_epf__GFX09     0x00CF
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_0_epf__GFX09 0x00D5
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_1_epf__GFX09 0x00D6
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_2_epf__GFX09 0x00D7
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_3_epf__GFX09 0x00D8
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_4_epf__GFX09 0x00D9
-#define pcinbif_gpu_PCIE_SRIOV_VF_BASE_ADDR_5_epf__GFX09 0x00DA
-#define pcinbif_gpu_PCIE_SRIOV_VF_DEVICE_ID_epf__GFX09  0x00D2
-#define pcinbif_gpu_PCIE_SRIOV_VF_MIGRATION_STATE_ARRAY_OFFSET_epf__GFX09 0x00DB
-#define pcinbif_gpu_PCIE_SRIOV_VF_STRIDE_epf__GFX09     0x00D1
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG0_epf__GFX09     0x0062
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG0_epvf           0x0062
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG0_swds__GFX09    0x0062
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG1_epf__GFX09     0x0063
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG1_epvf           0x0063
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG1_swds__GFX09    0x0063
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG2_epf__GFX09     0x0064
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG2_epvf           0x0064
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG2_swds__GFX09    0x0064
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG3_epf__GFX09     0x0065
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG3_epvf           0x0065
-#define pcinbif_gpu_PCIE_TLP_PREFIX_LOG3_swds__GFX09    0x0065
-#define pcinbif_gpu_PCIE_TPH_REQR_CAP_epf__GFX09        0x00B9
-#define pcinbif_gpu_PCIE_TPH_REQR_CNTL_epf__GFX09       0x00BA
-#define pcinbif_gpu_PCIE_TPH_REQR_ENH_CAP_LIST_epf__GFX09 0x00B8
-#define pcinbif_gpu_PCIE_UNCORR_ERR_MASK_epf__GFX09     0x0056
-#define pcinbif_gpu_PCIE_UNCORR_ERR_MASK_epvf           0x0056
-#define pcinbif_gpu_PCIE_UNCORR_ERR_MASK_swds__GFX09    0x0056
-#define pcinbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epf__GFX09 0x0057
-#define pcinbif_gpu_PCIE_UNCORR_ERR_SEVERITY_epvf       0x0057
-#define pcinbif_gpu_PCIE_UNCORR_ERR_SEVERITY_swds__GFX09 0x0057
-#define pcinbif_gpu_PCIE_UNCORR_ERR_STATUS_epf__GFX09   0x0055
-#define pcinbif_gpu_PCIE_UNCORR_ERR_STATUS_epvf         0x0055
-#define pcinbif_gpu_PCIE_UNCORR_ERR_STATUS_swds__GFX09  0x0055
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_CAP_epf__GFX09    0x0048
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_CAP_swds__GFX09   0x0048
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_CNTL_epf__GFX09   0x0049
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_CNTL_swds__GFX09  0x0049
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_STATUS_epf__GFX09 0x004A
-#define pcinbif_gpu_PCIE_VC0_RESOURCE_STATUS_swds__GFX09 0x004A
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_CAP_epf__GFX09    0x004B
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_CAP_swds__GFX09   0x004B
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_CNTL_epf__GFX09   0x004C
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_CNTL_swds__GFX09  0x004C
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_STATUS_epf__GFX09 0x004D
-#define pcinbif_gpu_PCIE_VC1_RESOURCE_STATUS_swds__GFX09 0x004D
-#define pcinbif_gpu_PCIE_VC_ENH_CAP_LIST_epf__GFX09     0x0044
-#define pcinbif_gpu_PCIE_VC_ENH_CAP_LIST_swds__GFX09    0x0044
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC1_epf__GFX09    0x0042
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC1_epvf          0x0042
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC1_swds__GFX09   0x0042
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC2_epf__GFX09    0x0043
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC2_epvf          0x0043
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC2_swds__GFX09   0x0043
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_GPUIOV_epf__GFX09 0x0100
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epf__GFX09 0x0040
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_epvf 0x0040
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_ENH_CAP_LIST_swds__GFX09 0x0040
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_CONTEXT_epf__GFX09 0x0109
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW0_epf__GFX09 0x0134
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW1_epf__GFX09 0x0135
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW2_epf__GFX09 0x0136
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW3_epf__GFX09 0x0137
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW4_epf__GFX09 0x0138
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW5_epf__GFX09 0x0139
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW6_epf__GFX09 0x013A
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW7_epf__GFX09 0x013B
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_GFXSCH_DW8_epf__GFX09 0x013C
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW0_epf__GFX09 0x0106
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW1_epf__GFX09 0x0107
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_HVVM_MBOX_DW2_epf__GFX09 0x0108
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_ENABLE_epf__GFX09 0x0103
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_INTR_STATUS_epf__GFX09 0x0104
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_OFFSETS_epf__GFX09 0x010B
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_RESET_CONTROL_epf__GFX09 0x0105
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_SRIOV_SHADOW_epf__GFX09 0x0102
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_TOTAL_FB_epf__GFX09 0x010A
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW0_epf__GFX09 0x011C
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW1_epf__GFX09 0x011D
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW2_epf__GFX09 0x011E
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW3_epf__GFX09 0x011F
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW4_epf__GFX09 0x0120
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW5_epf__GFX09 0x0121
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW6_epf__GFX09 0x0122
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW7_epf__GFX09 0x0123
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_UVDSCH_DW8_epf__GFX09 0x0124
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW0_epf__GFX09 0x0128
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW1_epf__GFX09 0x0129
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW2_epf__GFX09 0x012A
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW3_epf__GFX09 0x012B
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW4_epf__GFX09 0x012C
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW5_epf__GFX09 0x012D
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW6_epf__GFX09 0x012E
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW7_epf__GFX09 0x012F
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VCESCH_DW8_epf__GFX09 0x0130
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF0_FB_epf__GFX09 0x010C
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF10_FB_epf__GFX09 0x0116
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF11_FB_epf__GFX09 0x0117
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF12_FB_epf__GFX09 0x0118
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF13_FB_epf__GFX09 0x0119
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF14_FB_epf__GFX09 0x011A
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF15_FB_epf__GFX09 0x011B
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF1_FB_epf__GFX09 0x010D
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF2_FB_epf__GFX09 0x010E
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF3_FB_epf__GFX09 0x010F
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF4_FB_epf__GFX09 0x0110
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF5_FB_epf__GFX09 0x0111
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF6_FB_epf__GFX09 0x0112
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF7_FB_epf__GFX09 0x0113
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF8_FB_epf__GFX09 0x0114
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_VF9_FB_epf__GFX09 0x0115
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_GPUIOV_epf__GFX09 0x0101
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epf__GFX09 0x0041
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_epvf       0x0041
-#define pcinbif_gpu_PCIE_VENDOR_SPECIFIC_HDR_swds__GFX09 0x0041
-#define pcinbif_gpu_PMI_CAP_LIST_epf__GFX09             0x0014
-#define pcinbif_gpu_PMI_CAP_LIST_swds__GFX09            0x0014
-#define pcinbif_gpu_PMI_CAP_epf__GFX09                  0x0014
-#define pcinbif_gpu_PMI_CAP_swds__GFX09                 0x0014
-#define pcinbif_gpu_PMI_STATUS_CNTL_epf__GFX09          0x0015
-#define pcinbif_gpu_PMI_STATUS_CNTL_swds__GFX09         0x0015
-#define pcinbif_gpu_PREF_BASE_LIMIT_swds__GFX09         0x0009
-#define pcinbif_gpu_PREF_BASE_UPPER_swds__GFX09         0x000A
-#define pcinbif_gpu_PREF_LIMIT_UPPER_swds__GFX09        0x000B
-#define pcinbif_gpu_PROG_INTERFACE_epf__GFX09           0x0002
-#define pcinbif_gpu_PROG_INTERFACE_epvf                 0x0002
-#define pcinbif_gpu_PROG_INTERFACE_swds__GFX09          0x0002
-#define pcinbif_gpu_REVISION_ID_epf__GFX09              0x0002
-#define pcinbif_gpu_REVISION_ID_epvf                    0x0002
-#define pcinbif_gpu_REVISION_ID_swds__GFX09             0x0002
-#define pcinbif_gpu_ROM_BASE_ADDR_epf__GFX09            0x000C
-#define pcinbif_gpu_ROM_BASE_ADDR_epvf                  0x000C
-#define pcinbif_gpu_SECONDARY_STATUS_swds__GFX09        0x0007
-#define pcinbif_gpu_SHADOW_BASE_ADDR_1                  0x0004
-#define pcinbif_gpu_SHADOW_BASE_ADDR_2                  0x0005
-#define pcinbif_gpu_SHADOW_COMMAND                      0x0001
-#define pcinbif_gpu_SHADOW_IO_BASE_LIMIT                0x0007
-#define pcinbif_gpu_SHADOW_IO_BASE_LIMIT_HI             0x000C
-#define pcinbif_gpu_SHADOW_IRQ_BRIDGE_CNTL              0x000F
-#define pcinbif_gpu_SHADOW_MEM_BASE_LIMIT               0x0008
-#define pcinbif_gpu_SHADOW_PREF_BASE_LIMIT              0x0009
-#define pcinbif_gpu_SHADOW_PREF_BASE_UPPER              0x000A
-#define pcinbif_gpu_SHADOW_PREF_LIMIT_UPPER             0x000B
-#define pcinbif_gpu_SHADOW_SUB_BUS_NUMBER_LATENCY       0x0006
-#define pcinbif_gpu_SLOT_CAP2_epf__GFX09                0x0026
-#define pcinbif_gpu_SLOT_CAP2_epvf                      0x0026
-#define pcinbif_gpu_SLOT_CAP2_swds__GFX09               0x0023
-#define pcinbif_gpu_SLOT_CAP_swds__GFX09                0x001B
-#define pcinbif_gpu_SLOT_CNTL2_epf__GFX09               0x0027
-#define pcinbif_gpu_SLOT_CNTL2_epvf                     0x0027
-#define pcinbif_gpu_SLOT_CNTL2_swds__GFX09              0x0024
-#define pcinbif_gpu_SLOT_CNTL_swds__GFX09               0x001C
-#define pcinbif_gpu_SLOT_STATUS2_epf__GFX09             0x0027
-#define pcinbif_gpu_SLOT_STATUS2_epvf                   0x0027
-#define pcinbif_gpu_SLOT_STATUS2_swds__GFX09            0x0024
-#define pcinbif_gpu_SLOT_STATUS_swds__GFX09             0x001C
-#define pcinbif_gpu_SSID_CAP_LIST_swds__GFX09           0x0030
-#define pcinbif_gpu_SSID_CAP_swds__GFX09                0x0031
-#define pcinbif_gpu_STATUS_epf__GFX09                   0x0001
-#define pcinbif_gpu_STATUS_epvf                         0x0001
-#define pcinbif_gpu_STATUS_swds__GFX09                  0x0001
-#define pcinbif_gpu_SUB_BUS_NUMBER_LATENCY_swds__GFX09  0x0006
-#define pcinbif_gpu_SUB_CLASS_epf__GFX09                0x0002
-#define pcinbif_gpu_SUB_CLASS_epvf                      0x0002
-#define pcinbif_gpu_SUB_CLASS_swds__GFX09               0x0002
-#define pcinbif_gpu_VENDOR_CAP_LIST_epf__GFX09          0x0012
-#define pcinbif_gpu_VENDOR_ID_epf__GFX09                0x0000
-#define pcinbif_gpu_VENDOR_ID_epvf                      0x0000
-#define pcinbif_gpu_VENDOR_ID_swds__GFX09               0x0000
-#define mmATC_ATS_CNTL__GFX09                           0x0C20
-#define mmATC_ATS_DEFAULT_PAGE_LOW__GFX09               0x0C27
-#define mmATC_ATS_FAULT_CNTL__GFX09                     0x0C24
-#define mmATC_ATS_FAULT_STATUS_ADDR__GFX09              0x0C26
-#define mmATC_ATS_FAULT_STATUS_INFO__GFX09              0x0C25
-#define mmATC_ATS_FAULT_STATUS_INFO2__GFX09             0x0C29
-#define mmATC_ATS_GFX_ATCL2_STATUS__GFX09               0x0C3D
-#define mmATC_ATS_MMHUB_ATCL2_STATUS__GFX09             0x0C6D
-#define mmATC_ATS_SDPPORT_CNTL__GFX09                   0x0C70
-#define mmATC_ATS_STATUS__GFX09                         0x0C23
-#define mmATC_ATS_VMID_SNAPSHOT_GFX_STAT__GFX09         0x0C72
-#define mmATC_ATS_VMID_SNAPSHOT_MMHUB_STAT__GFX09       0x0C73
-#define mmATC_ATS_VMID_STATUS__GFX09                    0x0C3C
-#define mmATC_PERFCOUNTER0_CFG__GFX09                   0x0C3E
-#define mmATC_PERFCOUNTER1_CFG__GFX09                   0x0C3F
-#define mmATC_PERFCOUNTER2_CFG__GFX09                   0x0C40
-#define mmATC_PERFCOUNTER3_CFG__GFX09                   0x0C41
-#define mmATC_PERFCOUNTER_HI__GFX09                     0x0C44
-#define mmATC_PERFCOUNTER_LO__GFX09                     0x0C43
-#define mmATC_PERFCOUNTER_RSLT_CNTL__GFX09              0x0C42
-#define mmATC_TRANS_FAULT_RSPCNTRL__GFX09               0x0C28
-#define mmATC_VMID0_PASID_MAPPING__GFX09                0x0C2C
-#define mmATC_VMID10_PASID_MAPPING__GFX09               0x0C36
-#define mmATC_VMID11_PASID_MAPPING__GFX09               0x0C37
-#define mmATC_VMID12_PASID_MAPPING__GFX09               0x0C38
-#define mmATC_VMID13_PASID_MAPPING__GFX09               0x0C39
-#define mmATC_VMID14_PASID_MAPPING__GFX09               0x0C3A
-#define mmATC_VMID15_PASID_MAPPING__GFX09               0x0C3B
-#define mmATC_VMID16_PASID_MAPPING__GFX09               0x0C5D
-#define mmATC_VMID17_PASID_MAPPING__GFX09               0x0C5E
-#define mmATC_VMID18_PASID_MAPPING__GFX09               0x0C5F
-#define mmATC_VMID19_PASID_MAPPING__GFX09               0x0C60
-#define mmATC_VMID1_PASID_MAPPING__GFX09                0x0C2D
-#define mmATC_VMID20_PASID_MAPPING__GFX09               0x0C61
-#define mmATC_VMID21_PASID_MAPPING__GFX09               0x0C62
-#define mmATC_VMID22_PASID_MAPPING__GFX09               0x0C63
-#define mmATC_VMID23_PASID_MAPPING__GFX09               0x0C64
-#define mmATC_VMID24_PASID_MAPPING__GFX09               0x0C65
-#define mmATC_VMID25_PASID_MAPPING__GFX09               0x0C66
-#define mmATC_VMID26_PASID_MAPPING__GFX09               0x0C67
-#define mmATC_VMID27_PASID_MAPPING__GFX09               0x0C68
-#define mmATC_VMID28_PASID_MAPPING__GFX09               0x0C69
-#define mmATC_VMID29_PASID_MAPPING__GFX09               0x0C6A
-#define mmATC_VMID2_PASID_MAPPING__GFX09                0x0C2E
-#define mmATC_VMID30_PASID_MAPPING__GFX09               0x0C6B
-#define mmATC_VMID31_PASID_MAPPING__GFX09               0x0C6C
-#define mmATC_VMID3_PASID_MAPPING__GFX09                0x0C2F
-#define mmATC_VMID4_PASID_MAPPING__GFX09                0x0C30
-#define mmATC_VMID5_PASID_MAPPING__GFX09                0x0C31
-#define mmATC_VMID6_PASID_MAPPING__GFX09                0x0C32
-#define mmATC_VMID7_PASID_MAPPING__GFX09                0x0C33
-#define mmATC_VMID8_PASID_MAPPING__GFX09                0x0C34
-#define mmATC_VMID9_PASID_MAPPING__GFX09                0x0C35
-#define mmATC_VMID_PASID_MAPPING_UPDATE_STATUS__GFX09   0x0C2B
-#define mmATHUB_COMMAND__GFX09                          0x0C49
-#define mmATHUB_IH_CREDIT__GFX09                        0x0C5C
-#define mmATHUB_MEM_POWER_LS__GFX09                     0x0C5A
-#define mmATHUB_MISC_CNTL__GFX09                        0x0C2A
-#define mmATHUB_PCIE_ATS_CNTL__GFX09                    0x0C45
-#define mmATHUB_PCIE_ATS_CNTL_VF_0__GFX09               0x0C4A
-#define mmATHUB_PCIE_ATS_CNTL_VF_1__GFX09               0x0C4B
-#define mmATHUB_PCIE_ATS_CNTL_VF_10__GFX09              0x0C54
-#define mmATHUB_PCIE_ATS_CNTL_VF_11__GFX09              0x0C55
-#define mmATHUB_PCIE_ATS_CNTL_VF_12__GFX09              0x0C56
-#define mmATHUB_PCIE_ATS_CNTL_VF_13__GFX09              0x0C57
-#define mmATHUB_PCIE_ATS_CNTL_VF_14__GFX09              0x0C58
-#define mmATHUB_PCIE_ATS_CNTL_VF_15__GFX09              0x0C59
-#define mmATHUB_PCIE_ATS_CNTL_VF_2__GFX09               0x0C4C
-#define mmATHUB_PCIE_ATS_CNTL_VF_3__GFX09               0x0C4D
-#define mmATHUB_PCIE_ATS_CNTL_VF_4__GFX09               0x0C4E
-#define mmATHUB_PCIE_ATS_CNTL_VF_5__GFX09               0x0C4F
-#define mmATHUB_PCIE_ATS_CNTL_VF_6__GFX09               0x0C50
-#define mmATHUB_PCIE_ATS_CNTL_VF_7__GFX09               0x0C51
-#define mmATHUB_PCIE_ATS_CNTL_VF_8__GFX09               0x0C52
-#define mmATHUB_PCIE_ATS_CNTL_VF_9__GFX09               0x0C53
-#define mmATHUB_PCIE_OUTSTAND_PAGE_REQ_ALLOC__GFX09     0x0C48
-#define mmATHUB_PCIE_PAGE_REQ_CNTL__GFX09               0x0C47
-#define mmATHUB_PCIE_PASID_CNTL__GFX09                  0x0C46
-#define mmATHUB_SHARED_ACTIVE_FCN_ID__GFX09             0x0C6F
-#define mmATHUB_SHARED_VIRT_RESET_REQ__GFX09            0x0C6E
-#define mmATS_IH_CREDIT__GFX09                          0x0C5B
-#define mmCB_COLOR0_ATTRIB2__GFX09                      0xA31A
-#define mmCB_COLOR0_BASE_EXT__GFX09                     0xA319
-#define mmCB_COLOR0_CMASK_BASE_EXT__GFX09               0xA320
-#define mmCB_COLOR0_DCC_BASE_EXT__GFX09                 0xA326
-#define mmCB_COLOR0_FMASK_BASE_EXT__GFX09               0xA322
-#define mmCB_COLOR1_ATTRIB2__GFX09                      0xA329
-#define mmCB_COLOR1_BASE_EXT__GFX09                     0xA328
-#define mmCB_COLOR1_CMASK_BASE_EXT__GFX09               0xA32F
-#define mmCB_COLOR1_DCC_BASE_EXT__GFX09                 0xA335
-#define mmCB_COLOR1_FMASK_BASE_EXT__GFX09               0xA331
-#define mmCB_COLOR2_ATTRIB2__GFX09                      0xA338
-#define mmCB_COLOR2_BASE_EXT__GFX09                     0xA337
-#define mmCB_COLOR2_CMASK_BASE_EXT__GFX09               0xA33E
-#define mmCB_COLOR2_DCC_BASE_EXT__GFX09                 0xA344
-#define mmCB_COLOR2_FMASK_BASE_EXT__GFX09               0xA340
-#define mmCB_COLOR3_ATTRIB2__GFX09                      0xA347
-#define mmCB_COLOR3_BASE_EXT__GFX09                     0xA346
-#define mmCB_COLOR3_CMASK_BASE_EXT__GFX09               0xA34D
-#define mmCB_COLOR3_DCC_BASE_EXT__GFX09                 0xA353
-#define mmCB_COLOR3_FMASK_BASE_EXT__GFX09               0xA34F
-#define mmCB_COLOR4_ATTRIB2__GFX09                      0xA356
-#define mmCB_COLOR4_BASE_EXT__GFX09                     0xA355
-#define mmCB_COLOR4_CMASK_BASE_EXT__GFX09               0xA35C
-#define mmCB_COLOR4_DCC_BASE_EXT__GFX09                 0xA362
-#define mmCB_COLOR4_FMASK_BASE_EXT__GFX09               0xA35E
-#define mmCB_COLOR5_ATTRIB2__GFX09                      0xA365
-#define mmCB_COLOR5_BASE_EXT__GFX09                     0xA364
-#define mmCB_COLOR5_CMASK_BASE_EXT__GFX09               0xA36B
-#define mmCB_COLOR5_DCC_BASE_EXT__GFX09                 0xA371
-#define mmCB_COLOR5_FMASK_BASE_EXT__GFX09               0xA36D
-#define mmCB_COLOR6_ATTRIB2__GFX09                      0xA374
-#define mmCB_COLOR6_BASE_EXT__GFX09                     0xA373
-#define mmCB_COLOR6_CMASK_BASE_EXT__GFX09               0xA37A
-#define mmCB_COLOR6_DCC_BASE_EXT__GFX09                 0xA380
-#define mmCB_COLOR6_FMASK_BASE_EXT__GFX09               0xA37C
-#define mmCB_COLOR7_ATTRIB2__GFX09                      0xA383
-#define mmCB_COLOR7_BASE_EXT__GFX09                     0xA382
-#define mmCB_COLOR7_CMASK_BASE_EXT__GFX09               0xA389
-#define mmCB_COLOR7_DCC_BASE_EXT__GFX09                 0xA38F
-#define mmCB_COLOR7_FMASK_BASE_EXT__GFX09               0xA38B
-#define mmCB_DCC_CONFIG__GFX09                          0x2688
-#define mmCB_HW_CONTROL__GFX09                          0x2680
-#define mmCB_HW_CONTROL_1__GFX09                        0x2681
-#define mmCB_HW_CONTROL_2__GFX09                        0x2682
-#define mmCB_HW_MEM_ARBITER_RD__GFX09                   0x2686
-#define mmCB_HW_MEM_ARBITER_WR__GFX09                   0x2687
-#define mmCGTS_RD_CTRL_REG__GFX09                       0xF001
-#define mmCGTS_RD_REG__GFX09                            0xF002
-#define mmCGTS_TCC_DISABLE__GFX09                       0xF003
-#define mmCGTS_USER_TCC_DISABLE__GFX09                  0xF004
-#define mmCGTT_ROM_CLK_CTRL0__GFX09                     0x16827
-#define mmCOMPUTE_RELAUNCH__GFX09                       0x2E22
-#define mmCOMPUTE_WAVE_RESTORE_ADDR_HI__GFX09           0x2E24
-#define mmCOMPUTE_WAVE_RESTORE_ADDR_LO__GFX09           0x2E23
-#define mmCP_CPC_IC_BASE_CNTL__GFX09                    0x30BB
-#define mmCP_CPC_IC_BASE_HI__GFX09                      0x30BA
-#define mmCP_CPC_IC_BASE_LO__GFX09                      0x30B9
-#define mmCP_CPC_IC_OP_CNTL__GFX09                      0x30BC
-#define mmCP_GFX_MQD_BASE_ADDR__GFX09                   0x31A1
-#define mmCP_GFX_MQD_BASE_ADDR_HI__GFX09                0x31A2
-#define mmCP_GFX_MQD_CONTROL__GFX09                     0x31A0
-#define mmCP_HPD_ROQ_OFFSETS__GFX09                     0x3240
-#define mmCP_HPD_STATUS0__GFX09                         0x3241
-#define mmCP_HPD_UTCL1_CNTL__GFX09                      0x3242
-#define mmCP_HPD_UTCL1_ERROR__GFX09                     0x3243
-#define mmCP_HPD_UTCL1_ERROR_ADDR__GFX09                0x3244
-#define mmCP_HQD_ACTIVE__GFX09                          0x3247
-#define mmCP_HQD_AQL_CONTROL__GFX09                     0x327A
-#define mmCP_HQD_ATOMIC0_PREOP_HI__GFX09                0x3262
-#define mmCP_HQD_ATOMIC0_PREOP_LO__GFX09                0x3261
-#define mmCP_HQD_ATOMIC1_PREOP_HI__GFX09                0x3264
-#define mmCP_HQD_ATOMIC1_PREOP_LO__GFX09                0x3263
-#define mmCP_HQD_CNTL_STACK_OFFSET__GFX09               0x3273
-#define mmCP_HQD_CNTL_STACK_SIZE__GFX09                 0x3274
-#define mmCP_HQD_CTX_SAVE_BASE_ADDR_HI__GFX09           0x3271
-#define mmCP_HQD_CTX_SAVE_BASE_ADDR_LO__GFX09           0x3270
-#define mmCP_HQD_CTX_SAVE_CONTROL__GFX09                0x3272
-#define mmCP_HQD_CTX_SAVE_SIZE__GFX09                   0x3276
-#define mmCP_HQD_DEQUEUE_REQUEST__GFX09                 0x325D
-#define mmCP_HQD_DMA_OFFLOAD__GFX09                     0x325E
-#define mmCP_HQD_EOP_BASE_ADDR__GFX09                   0x326A
-#define mmCP_HQD_EOP_BASE_ADDR_HI__GFX09                0x326B
-#define mmCP_HQD_EOP_CONTROL__GFX09                     0x326C
-#define mmCP_HQD_EOP_EVENTS__GFX09                      0x326F
-#define mmCP_HQD_EOP_RPTR__GFX09                        0x326D
-#define mmCP_HQD_EOP_WPTR__GFX09                        0x326E
-#define mmCP_HQD_EOP_WPTR_MEM__GFX09                    0x3279
-#define mmCP_HQD_ERROR__GFX09                           0x3278
-#define mmCP_HQD_GDS_RESOURCE_STATE__GFX09              0x3277
-#define mmCP_HQD_GFX_CONTROL__GFX09                     0x323E
-#define mmCP_HQD_GFX_STATUS__GFX09                      0x323F
-#define mmCP_HQD_HQ_CONTROL0__GFX09                     0x3266
-#define mmCP_HQD_HQ_CONTROL1__GFX09                     0x3269
-#define mmCP_HQD_HQ_SCHEDULER0__GFX09                   0x3265
-#define mmCP_HQD_HQ_SCHEDULER1__GFX09                   0x3266
-#define mmCP_HQD_HQ_STATUS0__GFX09                      0x3265
-#define mmCP_HQD_HQ_STATUS1__GFX09                      0x3268
-#define mmCP_HQD_IB_BASE_ADDR__GFX09                    0x3257
-#define mmCP_HQD_IB_BASE_ADDR_HI__GFX09                 0x3258
-#define mmCP_HQD_IB_CONTROL__GFX09                      0x325A
-#define mmCP_HQD_IB_RPTR__GFX09                         0x3259
-#define mmCP_HQD_IQ_RPTR__GFX09                         0x325C
-#define mmCP_HQD_IQ_TIMER__GFX09                        0x325B
-#define mmCP_HQD_MSG_TYPE__GFX09                        0x3260
-#define mmCP_HQD_OFFLOAD__GFX09                         0x325E
-#define mmCP_HQD_PERSISTENT_STATE__GFX09                0x3249
-#define mmCP_HQD_PIPE_PRIORITY__GFX09                   0x324A
-#define mmCP_HQD_PQ_BASE__GFX09                         0x324D
-#define mmCP_HQD_PQ_BASE_HI__GFX09                      0x324E
-#define mmCP_HQD_PQ_CONTROL__GFX09                      0x3256
-#define mmCP_HQD_PQ_DOORBELL_CONTROL__GFX09             0x3254
-#define mmCP_HQD_PQ_RPTR__GFX09                         0x324F
-#define mmCP_HQD_PQ_RPTR_REPORT_ADDR__GFX09             0x3250
-#define mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI__GFX09          0x3251
-#define mmCP_HQD_PQ_WPTR_HI__GFX09                      0x327C
-#define mmCP_HQD_PQ_WPTR_LO__GFX09                      0x327B
-#define mmCP_HQD_PQ_WPTR_POLL_ADDR__GFX09               0x3252
-#define mmCP_HQD_PQ_WPTR_POLL_ADDR_HI__GFX09            0x3253
-#define mmCP_HQD_QUANTUM__GFX09                         0x324C
-#define mmCP_HQD_QUEUE_PRIORITY__GFX09                  0x324B
-#define mmCP_HQD_SEMA_CMD__GFX09                        0x325F
-#define mmCP_HQD_VMID__GFX09                            0x3248
-#define mmCP_HQD_WG_STATE_OFFSET__GFX09                 0x3275
-#define mmCP_MQD_BASE_ADDR__GFX09                       0x3245
-#define mmCP_MQD_BASE_ADDR_HI__GFX09                    0x3246
-#define mmCP_MQD_CONTROL__GFX09                         0x3267
-#define mmCP_RB0_ACTIVE__GFX09                          0x3069
-#define mmCP_RB_ACTIVE__GFX09                           0x3069
-#define mmCP_RB_DOORBELL_CONTROL__GFX09                 0x3059
-#define mmCP_RB_WPTR_POLL_ADDR_HI__GFX09                0x3047
-#define mmCP_RB_WPTR_POLL_ADDR_LO__GFX09                0x3046
-#define mmDB_DEPTH_SIZE__GFX09                          0xA007
-#define mmDB_DFSM_CONTROL__GFX09                        0xA018
-#define mmDB_EXCEPTION_CONTROL__GFX09                   0x261A
-#define mmDB_HTILE_DATA_BASE_HI__GFX09                  0xA006
-#define mmDB_STENCIL_INFO__GFX09                        0xA00F
-#define mmDB_STENCIL_READ_BASE__GFX09                   0xA012
-#define mmDB_STENCIL_READ_BASE_HI__GFX09                0xA013
-#define mmDB_STENCIL_WRITE_BASE__GFX09                  0xA016
-#define mmDB_STENCIL_WRITE_BASE_HI__GFX09               0xA017
-#define mmDB_Z_INFO__GFX09                              0xA00E
-#define mmDB_Z_READ_BASE__GFX09                         0xA010
-#define mmDB_Z_READ_BASE_HI__GFX09                      0xA011
-#define mmDB_Z_WRITE_BASE_HI__GFX09                     0xA015
-#define mmGCEA_PERFCOUNTER0_CFG__GFX09                  0x2AF9
-#define mmGCEA_PERFCOUNTER1_CFG__GFX09                  0x2AFA
-#define mmGCEA_PERFCOUNTER_HI__GFX09                    0x2AF8
-#define mmGCEA_PERFCOUNTER_LO__GFX09                    0x2AF7
-#define mmGCEA_PERFCOUNTER_RSLT_CNTL__GFX09             0x2AFB
-#define mmGC_CAC_AGGR_LOWER__GFX09                      0x3287
-#define mmGC_CAC_AGGR_UPPER__GFX09                      0x3288
-#define mmGC_CAC_CGTT_CLK_CTRL__GFX09                   0x3286
-#define mmGC_CAC_IND_DATA__GFX09                        0x329B
-#define mmGC_CAC_IND_INDEX__GFX09                       0x329A
-#define mmGC_CAC_SOFT_CTRL__GFX09                       0x328D
-#define mmGC_DIDT_CTRL0__GFX09                          0x328E
-#define mmGC_DIDT_CTRL1__GFX09                          0x328F
-#define mmGC_DIDT_CTRL2__GFX09                          0x3290
-#define mmGC_DIDT_WEIGHT__GFX09                         0x3291
-#define mmGC_EDC_CTRL__GFX09                            0x3293
-#define mmGC_EDC_OVERFLOW__GFX09                        0x3296
-#define mmGC_EDC_ROLLING_POWER_DELTA__GFX09             0x3297
-#define mmGC_EDC_STATUS__GFX09                          0x3295
-#define mmGC_EDC_THRESHOLD__GFX09                       0x3294
-#define mmGDS_ENHANCE__GFX09                            0x334B
-#define mmGDS_ENHANCE2__GFX09                           0x25C2
-#define mmGRBM_CGTT_CLK_CNTL__GFX09                     0x200B
-#define mmIA_MULTI_VGT_PARAM__GFX09                     0xC258
-#define mmIH_COOKIE_REC_VIOLATION_LOG__GFX09            0x1183
-#define mmIH_CREDIT_STATUS__GFX09                       0x1184
-#define mmIH_DOORBELL_RPTR_RING1__GFX09                 0x112F
-#define mmIH_DOORBELL_RPTR_RING2__GFX09                 0x1137
-#define mmIH_MMHUB_ERROR__GFX09                         0x1185
-#define mmIH_RB_BASE_HI_RING1__GFX09                    0x112A
-#define mmIH_RB_BASE_HI_RING2__GFX09                    0x1132
-#define mmIH_RB_BASE_RING1__GFX09                       0x1129
-#define mmIH_RB_BASE_RING2__GFX09                       0x1131
-#define mmIH_RB_CNTL_RING1__GFX09                       0x1128
-#define mmIH_RB_CNTL_RING2__GFX09                       0x1130
-#define mmIH_RB_RPTR_RING1__GFX09                       0x112B
-#define mmIH_RB_RPTR_RING2__GFX09                       0x1133
-#define mmIH_RB_WPTR_RING1__GFX09                       0x112C
-#define mmIH_RB_WPTR_RING2__GFX09                       0x1134
-#define mmIH_VERSION__GFX09                             0x1138
-#define mmMP1_SMN_FPS_CNT__GFX09                        0x162C4
-#define mmMP1_SMN_IH_SW_INT_CTRL__GFX09                 0x162C3
-#define mmPA_SU_PERFCOUNTER3_SELECT__GFX09              0xD905
-#define mmRLC_FIREWALL_VIOLATION__GFX09                 0xEC2B
-#define mmRLC_GPM_SCRATCH_ADDR__GFX09                   0xEC6C
-#define mmRLC_GPM_SCRATCH_DATA__GFX09                   0xEC6D
-#define mmRLC_GPM_STAT__GFX09                           0xEC40
-#define mmRLC_GPM_UCODE_ADDR__GFX09                     0xF83C
-#define mmRLC_GPM_UCODE_DATA__GFX09                     0xF83D
-#define mmRLC_GPU_IOV_SCRATCH_ADDR__GFX09               0xFB44
-#define mmRLC_GPU_IOV_SCRATCH_DATA__GFX09               0xFB45
-#define mmRLC_GPU_IOV_UCODE_ADDR__GFX09                 0xFB42
-#define mmRLC_GPU_IOV_UCODE_DATA__GFX09                 0xFB43
-#define mmRLC_HYP_SEMAPHORE_2__GFX09                    0xFB2E
-#define mmRLC_HYP_SEMAPHORE_3__GFX09                    0xFB2F
-#define mmRLC_PERFMON_CLK_CNTL__GFX09                   0xDCBF
-#define mmRLC_RLCV_SPARE_INT__GFX09                     0xEF30
-#define mmRLC_SPM_GLOBAL_MUXSEL_ADDR__GFX09             0xDC9B
-#define mmRLC_SPM_GLOBAL_MUXSEL_DATA__GFX09             0xDC9C
-#define mmRLC_SPM_RING_RDPTR__GFX09                     0xDC9D
-#define mmRLC_SPM_SEGMENT_THRESHOLD__GFX09              0xDC9E
-#define mmRLC_SPM_SE_MUXSEL_ADDR__GFX09                 0xDC85
-#define mmRLC_SPM_SE_MUXSEL_DATA__GFX09                 0xDC86
-#define mmRLC_SRM_ARAM_ADDR__GFX09                      0xEC83
-#define mmRLC_SRM_ARAM_DATA__GFX09                      0xEC84
-#define mmRLC_SRM_DRAM_ADDR__GFX09                      0xEC85
-#define mmRLC_SRM_DRAM_DATA__GFX09                      0xEC86
-#define mmRMI_SPARE__GFX09                              0x279E
-#define mmRMI_SPARE_1__GFX09                            0x279F
-#define mmRMI_SPARE_2__GFX09                            0x27A0
-#define mmRMI_XNACK_DEBUG__GFX09                        0x279D
-#define mmROM_CNTL__GFX09                               0x16824
-#define mmROM_DATA__GFX09                               0x16829
-#define mmROM_INDEX__GFX09                              0x16828
-#define mmROM_START__GFX09                              0x1682A
-#define mmROM_STATUS__GFX09                             0x16826
-#define mmROM_SW_CNTL__GFX09                            0x1682B
-#define mmROM_SW_COMMAND__GFX09                         0x1682D
-#define mmROM_SW_DATA_1__GFX09                          0x1682E
-#define mmROM_SW_DATA_10__GFX09                         0x16837
-#define mmROM_SW_DATA_11__GFX09                         0x16838
-#define mmROM_SW_DATA_12__GFX09                         0x16839
-#define mmROM_SW_DATA_13__GFX09                         0x1683A
-#define mmROM_SW_DATA_14__GFX09                         0x1683B
-#define mmROM_SW_DATA_15__GFX09                         0x1683C
-#define mmROM_SW_DATA_16__GFX09                         0x1683D
-#define mmROM_SW_DATA_17__GFX09                         0x1683E
-#define mmROM_SW_DATA_18__GFX09                         0x1683F
-#define mmROM_SW_DATA_19__GFX09                         0x16840
-#define mmROM_SW_DATA_2__GFX09                          0x1682F
-#define mmROM_SW_DATA_20__GFX09                         0x16841
-#define mmROM_SW_DATA_21__GFX09                         0x16842
-#define mmROM_SW_DATA_22__GFX09                         0x16843
-#define mmROM_SW_DATA_23__GFX09                         0x16844
-#define mmROM_SW_DATA_24__GFX09                         0x16845
-#define mmROM_SW_DATA_25__GFX09                         0x16846
-#define mmROM_SW_DATA_26__GFX09                         0x16847
-#define mmROM_SW_DATA_27__GFX09                         0x16848
-#define mmROM_SW_DATA_28__GFX09                         0x16849
-#define mmROM_SW_DATA_29__GFX09                         0x1684A
-#define mmROM_SW_DATA_3__GFX09                          0x16830
-#define mmROM_SW_DATA_30__GFX09                         0x1684B
-#define mmROM_SW_DATA_31__GFX09                         0x1684C
-#define mmROM_SW_DATA_32__GFX09                         0x1684D
-#define mmROM_SW_DATA_33__GFX09                         0x1684E
-#define mmROM_SW_DATA_34__GFX09                         0x1684F
-#define mmROM_SW_DATA_35__GFX09                         0x16850
-#define mmROM_SW_DATA_36__GFX09                         0x16851
-#define mmROM_SW_DATA_37__GFX09                         0x16852
-#define mmROM_SW_DATA_38__GFX09                         0x16853
-#define mmROM_SW_DATA_39__GFX09                         0x16854
-#define mmROM_SW_DATA_4__GFX09                          0x16831
-#define mmROM_SW_DATA_40__GFX09                         0x16855
-#define mmROM_SW_DATA_41__GFX09                         0x16856
-#define mmROM_SW_DATA_42__GFX09                         0x16857
-#define mmROM_SW_DATA_43__GFX09                         0x16858
-#define mmROM_SW_DATA_44__GFX09                         0x16859
-#define mmROM_SW_DATA_45__GFX09                         0x1685A
-#define mmROM_SW_DATA_46__GFX09                         0x1685B
-#define mmROM_SW_DATA_47__GFX09                         0x1685C
-#define mmROM_SW_DATA_48__GFX09                         0x1685D
-#define mmROM_SW_DATA_49__GFX09                         0x1685E
-#define mmROM_SW_DATA_5__GFX09                          0x16832
-#define mmROM_SW_DATA_50__GFX09                         0x1685F
-#define mmROM_SW_DATA_51__GFX09                         0x16860
-#define mmROM_SW_DATA_52__GFX09                         0x16861
-#define mmROM_SW_DATA_53__GFX09                         0x16862
-#define mmROM_SW_DATA_54__GFX09                         0x16863
-#define mmROM_SW_DATA_55__GFX09                         0x16864
-#define mmROM_SW_DATA_56__GFX09                         0x16865
-#define mmROM_SW_DATA_57__GFX09                         0x16866
-#define mmROM_SW_DATA_58__GFX09                         0x16867
-#define mmROM_SW_DATA_59__GFX09                         0x16868
-#define mmROM_SW_DATA_6__GFX09                          0x16833
-#define mmROM_SW_DATA_60__GFX09                         0x16869
-#define mmROM_SW_DATA_61__GFX09                         0x1686A
-#define mmROM_SW_DATA_62__GFX09                         0x1686B
-#define mmROM_SW_DATA_63__GFX09                         0x1686C
-#define mmROM_SW_DATA_64__GFX09                         0x1686D
-#define mmROM_SW_DATA_7__GFX09                          0x16834
-#define mmROM_SW_DATA_8__GFX09                          0x16835
-#define mmROM_SW_DATA_9__GFX09                          0x16836
-#define mmROM_SW_STATUS__GFX09                          0x1682C
-#define mmRPB_ARB_CNTL__GFX09                           0x0CF2
-#define mmRPB_ARB_CNTL2__GFX09                          0x0CF3
-#define mmRPB_ATS_CNTL__GFX09                           0x0D0E
-#define mmRPB_ATS_CNTL2__GFX09                          0x0D0F
-#define mmRPB_BIF_CNTL__GFX09                           0x0CF4
-#define mmRPB_BLOCKLEVEL_CONF__GFX09                    0x0CED
-#define mmRPB_CID_QUEUE_EX__GFX09                       0x0CFC
-#define mmRPB_CID_QUEUE_EX_DATA__GFX09                  0x0CFD
-#define mmRPB_CID_QUEUE_RD__GFX09                       0x0CF9
-#define mmRPB_CID_QUEUE_WR__GFX09                       0x0CF8
-#define mmRPB_DEINTRLV_COMBINE_CNTL__GFX09              0x0CFF
-#define mmRPB_EA_QUEUE_WR__GFX09                        0x0D0D
-#define mmRPB_EFF_CNTL__GFX09                           0x0CF1
-#define mmRPB_PASSPW_CONF__GFX09                        0x0CEC
-#define mmRPB_PERFCOUNTER0_CFG__GFX09                   0x0D03
-#define mmRPB_PERFCOUNTER1_CFG__GFX09                   0x0D04
-#define mmRPB_PERFCOUNTER2_CFG__GFX09                   0x0D05
-#define mmRPB_PERFCOUNTER3_CFG__GFX09                   0x0D06
-#define mmRPB_PERFCOUNTER_HI__GFX09                     0x0D02
-#define mmRPB_PERFCOUNTER_LO__GFX09                     0x0D01
-#define mmRPB_PERFCOUNTER_RSLT_CNTL__GFX09              0x0D07
-#define mmRPB_RD_QUEUE_CNTL__GFX09                      0x0D09
-#define mmRPB_RD_QUEUE_CNTL2__GFX09                     0x0D0A
-#define mmRPB_RD_SWITCH_CNTL__GFX09                     0x0CF7
-#define mmRPB_SDPPORT_CNTL__GFX09                       0x0D10
-#define mmRPB_SWITCH_CNTL2__GFX09                       0x0CFE
-#define mmRPB_TAG_CONF__GFX09                           0x0CEF
-#define mmRPB_VC_SWITCH_RDWR__GFX09                     0x0D00
-#define mmRPB_WR_QUEUE_CNTL__GFX09                      0x0D0B
-#define mmRPB_WR_QUEUE_CNTL2__GFX09                     0x0D0C
-#define mmRPB_WR_SWITCH_CNTL__GFX09                     0x0CF5
-#define mmSDMA0_ACTIVE_FCN_ID__GFX09                    0x1267
-#define mmSDMA0_CONTEXT_REG_TYPE0__GFX09                0x126B
-#define mmSDMA0_CONTEXT_REG_TYPE1__GFX09                0x126C
-#define mmSDMA0_CONTEXT_REG_TYPE2__GFX09                0x126D
-#define mmSDMA0_CONTEXT_REG_TYPE3__GFX09                0x126E
-#define mmSDMA0_PUB_REG_TYPE0__GFX09                    0x126F
-#define mmSDMA0_PUB_REG_TYPE1__GFX09                    0x1270
-#define mmSDMA0_PUB_REG_TYPE2__GFX09                    0x1271
-#define mmSDMA0_PUB_REG_TYPE3__GFX09                    0x1272
-#define mmSDMA0_UCODE_ADDR__GFX09                       0x1260
-#define mmSDMA0_UCODE_DATA__GFX09                       0x1261
-#define mmSDMA0_VF_ENABLE__GFX09                        0x126A
-#define mmSDMA0_VIRT_RESET_REQ__GFX09                   0x1269
-#define mmSDMA0_VM_CNTL__GFX09                          0x1264
-#define mmSDMA0_VM_CTX_CNTL__GFX09                      0x1268
-#define mmSDMA0_VM_CTX_HI__GFX09                        0x1266
-#define mmSDMA0_VM_CTX_LO__GFX09                        0x1265
-#define mmSDMA1_ACTIVE_FCN_ID__GFX09                    0x1467
-#define mmSDMA1_ATOMIC_CNTL__GFX09                      0x1499
-#define mmSDMA1_ATOMIC_PREOP_HI__GFX09                  0x149B
-#define mmSDMA1_ATOMIC_PREOP_LO__GFX09                  0x149A
-#define mmSDMA1_BA_THRESHOLD__GFX09                     0x1493
-#define mmSDMA1_CHICKEN_BITS__GFX09                     0x147D
-#define mmSDMA1_CHICKEN_BITS_2__GFX09                   0x14AB
-#define mmSDMA1_CLK_CTRL__GFX09                         0x147B
-#define mmSDMA1_CNTL__GFX09                             0x147C
-#define mmSDMA1_CONTEXT_REG_TYPE0__GFX09                0x146B
-#define mmSDMA1_CONTEXT_REG_TYPE1__GFX09                0x146C
-#define mmSDMA1_CONTEXT_REG_TYPE2__GFX09                0x146D
-#define mmSDMA1_CONTEXT_REG_TYPE3__GFX09                0x146E
-#define mmSDMA1_CRD_CNTL__GFX09                         0x14BB
-#define mmSDMA1_EA_DBIT_ADDR_DATA__GFX09                0x14C0
-#define mmSDMA1_EA_DBIT_ADDR_INDEX__GFX09               0x14C1
-#define mmSDMA1_EDC_CONFIG__GFX09                       0x1492
-#define mmSDMA1_EDC_COUNTER__GFX09                      0x1496
-#define mmSDMA1_EDC_COUNTER_CLEAR__GFX09                0x1497
-#define mmSDMA1_ERROR_LOG__GFX09                        0x14B0
-#define mmSDMA1_F32_CNTL__GFX09                         0x148A
-#define mmSDMA1_F32_COUNTER__GFX09                      0x14B5
-#define mmSDMA1_FREEZE__GFX09                           0x148B
-#define mmSDMA1_GB_ADDR_CONFIG__GFX09                   0x147E
-#define mmSDMA1_GB_ADDR_CONFIG_READ__GFX09              0x147F
-#define mmSDMA1_GFX_CONTEXT_CNTL__GFX09                 0x14F3
-#define mmSDMA1_GFX_CONTEXT_STATUS__GFX09               0x14F1
-#define mmSDMA1_GFX_CSA_ADDR_HI__GFX09                  0x150D
-#define mmSDMA1_GFX_CSA_ADDR_LO__GFX09                  0x150C
-#define mmSDMA1_GFX_DOORBELL__GFX09                     0x14F2
-#define mmSDMA1_GFX_DOORBELL_LOG__GFX09                 0x1509
-#define mmSDMA1_GFX_DOORBELL_OFFSET__GFX09              0x150B
-#define mmSDMA1_GFX_DUMMY_REG__GFX09                    0x1511
-#define mmSDMA1_GFX_IB_BASE_HI__GFX09                   0x14EE
-#define mmSDMA1_GFX_IB_BASE_LO__GFX09                   0x14ED
-#define mmSDMA1_GFX_IB_CNTL__GFX09                      0x14EA
-#define mmSDMA1_GFX_IB_OFFSET__GFX09                    0x14EC
-#define mmSDMA1_GFX_IB_RPTR__GFX09                      0x14EB
-#define mmSDMA1_GFX_IB_SIZE__GFX09                      0x14EF
-#define mmSDMA1_GFX_IB_SUB_REMAIN__GFX09                0x150F
-#define mmSDMA1_GFX_MIDCMD_CNTL__GFX09                  0x1529
-#define mmSDMA1_GFX_MIDCMD_DATA0__GFX09                 0x1520
-#define mmSDMA1_GFX_MIDCMD_DATA1__GFX09                 0x1521
-#define mmSDMA1_GFX_MIDCMD_DATA2__GFX09                 0x1522
-#define mmSDMA1_GFX_MIDCMD_DATA3__GFX09                 0x1523
-#define mmSDMA1_GFX_MIDCMD_DATA4__GFX09                 0x1524
-#define mmSDMA1_GFX_MIDCMD_DATA5__GFX09                 0x1525
-#define mmSDMA1_GFX_MIDCMD_DATA6__GFX09                 0x1526
-#define mmSDMA1_GFX_MIDCMD_DATA7__GFX09                 0x1527
-#define mmSDMA1_GFX_MIDCMD_DATA8__GFX09                 0x1528
-#define mmSDMA1_GFX_MINOR_PTR_UPDATE__GFX09             0x1515
-#define mmSDMA1_GFX_PREEMPT__GFX09                      0x1510
-#define mmSDMA1_GFX_RB_AQL_CNTL__GFX09                  0x1514
-#define mmSDMA1_GFX_RB_BASE__GFX09                      0x14E1
-#define mmSDMA1_GFX_RB_BASE_HI__GFX09                   0x14E2
-#define mmSDMA1_GFX_RB_CNTL__GFX09                      0x14E0
-#define mmSDMA1_GFX_RB_RPTR__GFX09                      0x14E3
-#define mmSDMA1_GFX_RB_RPTR_ADDR_HI__GFX09              0x14E8
-#define mmSDMA1_GFX_RB_RPTR_ADDR_LO__GFX09              0x14E9
-#define mmSDMA1_GFX_RB_RPTR_HI__GFX09                   0x14E4
-#define mmSDMA1_GFX_RB_WPTR__GFX09                      0x14E5
-#define mmSDMA1_GFX_RB_WPTR_HI__GFX09                   0x14E6
-#define mmSDMA1_GFX_RB_WPTR_POLL_ADDR_HI__GFX09         0x1512
-#define mmSDMA1_GFX_RB_WPTR_POLL_ADDR_LO__GFX09         0x1513
-#define mmSDMA1_GFX_RB_WPTR_POLL_CNTL__GFX09            0x14E7
-#define mmSDMA1_GFX_SKIP_CNTL__GFX09                    0x14F0
-#define mmSDMA1_GFX_STATUS__GFX09                       0x1508
-#define mmSDMA1_GFX_WATERMARK__GFX09                    0x150A
-#define mmSDMA1_GPU_IOV_VIOLATION_LOG__GFX09            0x14BD
-#define mmSDMA1_HBM_PAGE_CONFIG__GFX09                  0x1488
-#define mmSDMA1_IB_OFFSET_FETCH__GFX09                  0x1483
-#define mmSDMA1_ID__GFX09                               0x1494
-#define mmSDMA1_PAGE_CONTEXT_STATUS__GFX09              0x1551
-#define mmSDMA1_PAGE_CSA_ADDR_HI__GFX09                 0x156D
-#define mmSDMA1_PAGE_CSA_ADDR_LO__GFX09                 0x156C
-#define mmSDMA1_PAGE_DOORBELL__GFX09                    0x1552
-#define mmSDMA1_PAGE_DOORBELL_LOG__GFX09                0x1569
-#define mmSDMA1_PAGE_DOORBELL_OFFSET__GFX09             0x156B
-#define mmSDMA1_PAGE_DUMMY_REG__GFX09                   0x1571
-#define mmSDMA1_PAGE_IB_BASE_HI__GFX09                  0x154E
-#define mmSDMA1_PAGE_IB_BASE_LO__GFX09                  0x154D
-#define mmSDMA1_PAGE_IB_CNTL__GFX09                     0x154A
-#define mmSDMA1_PAGE_IB_OFFSET__GFX09                   0x154C
-#define mmSDMA1_PAGE_IB_RPTR__GFX09                     0x154B
-#define mmSDMA1_PAGE_IB_SIZE__GFX09                     0x154F
-#define mmSDMA1_PAGE_IB_SUB_REMAIN__GFX09               0x156F
-#define mmSDMA1_PAGE_MIDCMD_CNTL__GFX09                 0x1589
-#define mmSDMA1_PAGE_MIDCMD_DATA0__GFX09                0x1580
-#define mmSDMA1_PAGE_MIDCMD_DATA1__GFX09                0x1581
-#define mmSDMA1_PAGE_MIDCMD_DATA2__GFX09                0x1582
-#define mmSDMA1_PAGE_MIDCMD_DATA3__GFX09                0x1583
-#define mmSDMA1_PAGE_MIDCMD_DATA4__GFX09                0x1584
-#define mmSDMA1_PAGE_MIDCMD_DATA5__GFX09                0x1585
-#define mmSDMA1_PAGE_MIDCMD_DATA6__GFX09                0x1586
-#define mmSDMA1_PAGE_MIDCMD_DATA7__GFX09                0x1587
-#define mmSDMA1_PAGE_MIDCMD_DATA8__GFX09                0x1588
-#define mmSDMA1_PAGE_MINOR_PTR_UPDATE__GFX09            0x1575
-#define mmSDMA1_PAGE_PREEMPT__GFX09                     0x1570
-#define mmSDMA1_PAGE_RB_AQL_CNTL__GFX09                 0x1574
-#define mmSDMA1_PAGE_RB_BASE__GFX09                     0x1541
-#define mmSDMA1_PAGE_RB_BASE_HI__GFX09                  0x1542
-#define mmSDMA1_PAGE_RB_CNTL__GFX09                     0x1540
-#define mmSDMA1_PAGE_RB_RPTR__GFX09                     0x1543
-#define mmSDMA1_PAGE_RB_RPTR_ADDR_HI__GFX09             0x1548
-#define mmSDMA1_PAGE_RB_RPTR_ADDR_LO__GFX09             0x1549
-#define mmSDMA1_PAGE_RB_RPTR_HI__GFX09                  0x1544
-#define mmSDMA1_PAGE_RB_WPTR__GFX09                     0x1545
-#define mmSDMA1_PAGE_RB_WPTR_HI__GFX09                  0x1546
-#define mmSDMA1_PAGE_RB_WPTR_POLL_ADDR_HI__GFX09        0x1572
-#define mmSDMA1_PAGE_RB_WPTR_POLL_ADDR_LO__GFX09        0x1573
-#define mmSDMA1_PAGE_RB_WPTR_POLL_CNTL__GFX09           0x1547
-#define mmSDMA1_PAGE_SKIP_CNTL__GFX09                   0x1550
-#define mmSDMA1_PAGE_STATUS__GFX09                      0x1568
-#define mmSDMA1_PAGE_WATERMARK__GFX09                   0x156A
-#define mmSDMA1_PERFCOUNTER0_RESULT__GFX09              0x14B8
-#define mmSDMA1_PERFCOUNTER1_RESULT__GFX09              0x14B9
-#define mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE__GFX09      0x14BA
-#define mmSDMA1_PERFMON_CNTL__GFX09                     0x14B7
-#define mmSDMA1_PHASE0_QUANTUM__GFX09                   0x148C
-#define mmSDMA1_PHASE1_QUANTUM__GFX09                   0x148D
-#define mmSDMA1_PHASE2_QUANTUM__GFX09                   0x14AF
-#define mmSDMA1_PHYSICAL_ADDR_HI__GFX09                 0x14AE
-#define mmSDMA1_PHYSICAL_ADDR_LO__GFX09                 0x14AD
-#define mmSDMA1_POWER_CNTL__GFX09                       0x147A
-#define mmSDMA1_POWER_CNTL_IDLE__GFX09                  0x14A9
-#define mmSDMA1_PROGRAM__GFX09                          0x1484
-#define mmSDMA1_PUB_DUMMY_REG0__GFX09                   0x14B1
-#define mmSDMA1_PUB_DUMMY_REG1__GFX09                   0x14B2
-#define mmSDMA1_PUB_DUMMY_REG2__GFX09                   0x14B3
-#define mmSDMA1_PUB_DUMMY_REG3__GFX09                   0x14B4
-#define mmSDMA1_PUB_REG_TYPE0__GFX09                    0x146F
-#define mmSDMA1_PUB_REG_TYPE1__GFX09                    0x1470
-#define mmSDMA1_PUB_REG_TYPE2__GFX09                    0x1471
-#define mmSDMA1_PUB_REG_TYPE3__GFX09                    0x1472
-#define mmSDMA1_RB_RPTR_FETCH__GFX09                    0x1482
-#define mmSDMA1_RB_RPTR_FETCH_HI__GFX09                 0x1480
-#define mmSDMA1_RD_BURST_CNTL__GFX09                    0x1487
-#define mmSDMA1_RELAX_ORDERING_LUT__GFX09               0x14AA
-#define mmSDMA1_RLC0_CONTEXT_STATUS__GFX09              0x15B1
-#define mmSDMA1_RLC0_CSA_ADDR_HI__GFX09                 0x15CD
-#define mmSDMA1_RLC0_CSA_ADDR_LO__GFX09                 0x15CC
-#define mmSDMA1_RLC0_DOORBELL__GFX09                    0x15B2
-#define mmSDMA1_RLC0_DOORBELL_LOG__GFX09                0x15C9
-#define mmSDMA1_RLC0_DOORBELL_OFFSET__GFX09             0x15CB
-#define mmSDMA1_RLC0_DUMMY_REG__GFX09                   0x15D1
-#define mmSDMA1_RLC0_IB_BASE_HI__GFX09                  0x15AE
-#define mmSDMA1_RLC0_IB_BASE_LO__GFX09                  0x15AD
-#define mmSDMA1_RLC0_IB_CNTL__GFX09                     0x15AA
-#define mmSDMA1_RLC0_IB_OFFSET__GFX09                   0x15AC
-#define mmSDMA1_RLC0_IB_RPTR__GFX09                     0x15AB
-#define mmSDMA1_RLC0_IB_SIZE__GFX09                     0x15AF
-#define mmSDMA1_RLC0_IB_SUB_REMAIN__GFX09               0x15CF
-#define mmSDMA1_RLC0_MIDCMD_CNTL__GFX09                 0x15E9
-#define mmSDMA1_RLC0_MIDCMD_DATA0__GFX09                0x15E0
-#define mmSDMA1_RLC0_MIDCMD_DATA1__GFX09                0x15E1
-#define mmSDMA1_RLC0_MIDCMD_DATA2__GFX09                0x15E2
-#define mmSDMA1_RLC0_MIDCMD_DATA3__GFX09                0x15E3
-#define mmSDMA1_RLC0_MIDCMD_DATA4__GFX09                0x15E4
-#define mmSDMA1_RLC0_MIDCMD_DATA5__GFX09                0x15E5
-#define mmSDMA1_RLC0_MIDCMD_DATA6__GFX09                0x15E6
-#define mmSDMA1_RLC0_MIDCMD_DATA7__GFX09                0x15E7
-#define mmSDMA1_RLC0_MIDCMD_DATA8__GFX09                0x15E8
-#define mmSDMA1_RLC0_MINOR_PTR_UPDATE__GFX09            0x15D5
-#define mmSDMA1_RLC0_PREEMPT__GFX09                     0x15D0
-#define mmSDMA1_RLC0_RB_AQL_CNTL__GFX09                 0x15D4
-#define mmSDMA1_RLC0_RB_BASE__GFX09                     0x15A1
-#define mmSDMA1_RLC0_RB_BASE_HI__GFX09                  0x15A2
-#define mmSDMA1_RLC0_RB_CNTL__GFX09                     0x15A0
-#define mmSDMA1_RLC0_RB_RPTR__GFX09                     0x15A3
-#define mmSDMA1_RLC0_RB_RPTR_ADDR_HI__GFX09             0x15A8
-#define mmSDMA1_RLC0_RB_RPTR_ADDR_LO__GFX09             0x15A9
-#define mmSDMA1_RLC0_RB_RPTR_HI__GFX09                  0x15A4
-#define mmSDMA1_RLC0_RB_WPTR__GFX09                     0x15A5
-#define mmSDMA1_RLC0_RB_WPTR_HI__GFX09                  0x15A6
-#define mmSDMA1_RLC0_RB_WPTR_POLL_ADDR_HI__GFX09        0x15D2
-#define mmSDMA1_RLC0_RB_WPTR_POLL_ADDR_LO__GFX09        0x15D3
-#define mmSDMA1_RLC0_RB_WPTR_POLL_CNTL__GFX09           0x15A7
-#define mmSDMA1_RLC0_SKIP_CNTL__GFX09                   0x15B0
-#define mmSDMA1_RLC0_STATUS__GFX09                      0x15C8
-#define mmSDMA1_RLC0_WATERMARK__GFX09                   0x15CA
-#define mmSDMA1_RLC1_CONTEXT_STATUS__GFX09              0x1611
-#define mmSDMA1_RLC1_CSA_ADDR_HI__GFX09                 0x162D
-#define mmSDMA1_RLC1_CSA_ADDR_LO__GFX09                 0x162C
-#define mmSDMA1_RLC1_DOORBELL__GFX09                    0x1612
-#define mmSDMA1_RLC1_DOORBELL_LOG__GFX09                0x1629
-#define mmSDMA1_RLC1_DOORBELL_OFFSET__GFX09             0x162B
-#define mmSDMA1_RLC1_DUMMY_REG__GFX09                   0x1631
-#define mmSDMA1_RLC1_IB_BASE_HI__GFX09                  0x160E
-#define mmSDMA1_RLC1_IB_BASE_LO__GFX09                  0x160D
-#define mmSDMA1_RLC1_IB_CNTL__GFX09                     0x160A
-#define mmSDMA1_RLC1_IB_OFFSET__GFX09                   0x160C
-#define mmSDMA1_RLC1_IB_RPTR__GFX09                     0x160B
-#define mmSDMA1_RLC1_IB_SIZE__GFX09                     0x160F
-#define mmSDMA1_RLC1_IB_SUB_REMAIN__GFX09               0x162F
-#define mmSDMA1_RLC1_MIDCMD_CNTL__GFX09                 0x1649
-#define mmSDMA1_RLC1_MIDCMD_DATA0__GFX09                0x1640
-#define mmSDMA1_RLC1_MIDCMD_DATA1__GFX09                0x1641
-#define mmSDMA1_RLC1_MIDCMD_DATA2__GFX09                0x1642
-#define mmSDMA1_RLC1_MIDCMD_DATA3__GFX09                0x1643
-#define mmSDMA1_RLC1_MIDCMD_DATA4__GFX09                0x1644
-#define mmSDMA1_RLC1_MIDCMD_DATA5__GFX09                0x1645
-#define mmSDMA1_RLC1_MIDCMD_DATA6__GFX09                0x1646
-#define mmSDMA1_RLC1_MIDCMD_DATA7__GFX09                0x1647
-#define mmSDMA1_RLC1_MIDCMD_DATA8__GFX09                0x1648
-#define mmSDMA1_RLC1_MINOR_PTR_UPDATE__GFX09            0x1635
-#define mmSDMA1_RLC1_PREEMPT__GFX09                     0x1630
-#define mmSDMA1_RLC1_RB_AQL_CNTL__GFX09                 0x1634
-#define mmSDMA1_RLC1_RB_BASE__GFX09                     0x1601
-#define mmSDMA1_RLC1_RB_BASE_HI__GFX09                  0x1602
-#define mmSDMA1_RLC1_RB_CNTL__GFX09                     0x1600
-#define mmSDMA1_RLC1_RB_RPTR__GFX09                     0x1603
-#define mmSDMA1_RLC1_RB_RPTR_ADDR_HI__GFX09             0x1608
-#define mmSDMA1_RLC1_RB_RPTR_ADDR_LO__GFX09             0x1609
-#define mmSDMA1_RLC1_RB_RPTR_HI__GFX09                  0x1604
-#define mmSDMA1_RLC1_RB_WPTR__GFX09                     0x1605
-#define mmSDMA1_RLC1_RB_WPTR_HI__GFX09                  0x1606
-#define mmSDMA1_RLC1_RB_WPTR_POLL_ADDR_HI__GFX09        0x1632
-#define mmSDMA1_RLC1_RB_WPTR_POLL_ADDR_LO__GFX09        0x1633
-#define mmSDMA1_RLC1_RB_WPTR_POLL_CNTL__GFX09           0x1607
-#define mmSDMA1_RLC1_SKIP_CNTL__GFX09                   0x1610
-#define mmSDMA1_RLC1_STATUS__GFX09                      0x1628
-#define mmSDMA1_RLC1_WATERMARK__GFX09                   0x162A
-#define mmSDMA1_SEM_WAIT_FAIL_TIMER_CNTL__GFX09         0x1481
-#define mmSDMA1_STATUS1_REG__GFX09                      0x1486
-#define mmSDMA1_STATUS2_REG__GFX09                      0x1498
-#define mmSDMA1_STATUS3_REG__GFX09                      0x14AC
-#define mmSDMA1_STATUS_REG__GFX09                       0x1485
-#define mmSDMA1_UCODE_ADDR__GFX09                       0x1460
-#define mmSDMA1_UCODE_CHECKSUM__GFX09                   0x1489
-#define mmSDMA1_UCODE_DATA__GFX09                       0x1461
-#define mmSDMA1_UNBREAKABLE__GFX09                      0x14B6
-#define mmSDMA1_UTCL1_CNTL__GFX09                       0x149C
-#define mmSDMA1_UTCL1_INV0__GFX09                       0x14A0
-#define mmSDMA1_UTCL1_INV1__GFX09                       0x14A1
-#define mmSDMA1_UTCL1_INV2__GFX09                       0x14A2
-#define mmSDMA1_UTCL1_PAGE__GFX09                       0x14A8
-#define mmSDMA1_UTCL1_RD_STATUS__GFX09                  0x149E
-#define mmSDMA1_UTCL1_RD_XNACK0__GFX09                  0x14A3
-#define mmSDMA1_UTCL1_RD_XNACK1__GFX09                  0x14A4
-#define mmSDMA1_UTCL1_TIMEOUT__GFX09                    0x14A7
-#define mmSDMA1_UTCL1_WATERMK__GFX09                    0x149D
-#define mmSDMA1_UTCL1_WR_STATUS__GFX09                  0x149F
-#define mmSDMA1_UTCL1_WR_XNACK0__GFX09                  0x14A5
-#define mmSDMA1_UTCL1_WR_XNACK1__GFX09                  0x14A6
-#define mmSDMA1_VERSION__GFX09                          0x1495
-#define mmSDMA1_VF_ENABLE__GFX09                        0x146A
-#define mmSDMA1_VIRT_RESET_REQ__GFX09                   0x1469
-#define mmSDMA1_VM_CNTL__GFX09                          0x1464
-#define mmSDMA1_VM_CTX_CNTL__GFX09                      0x1468
-#define mmSDMA1_VM_CTX_HI__GFX09                        0x1466
-#define mmSDMA1_VM_CTX_LO__GFX09                        0x1465
-#define mmSE_CAC_CGTT_CLK_CTRL__GFX09                   0x329C
-#define mmSE_CAC_IND_DATA__GFX09                        0x329E
-#define mmSE_CAC_IND_INDEX__GFX09                       0x329D
-#define mmSPI_CONFIG_CNTL__GFX09                        0xC440
-#define mmSPI_CONFIG_CNTL_1__GFX09                      0xC441
-#define mmSPI_CONFIG_CNTL_2__GFX09                      0xC442
-#define mmSPI_SHADER_PGM_HI_ES__GFX09                   0x2C85
-#define mmSPI_SHADER_PGM_HI_LS__GFX09                   0x2D05
-#define mmSPI_SHADER_PGM_LO_ES__GFX09                   0x2C84
-#define mmSPI_SHADER_PGM_LO_LS__GFX09                   0x2D04
-#define mmSPI_SHADER_PGM_RSRC2_GS_VS__GFX09             0x2C7C
-#define mmSPI_SHADER_USER_DATA_LS_0__GFX09              0x2D0C
-#define mmSPI_SHADER_USER_DATA_LS_1__GFX09              0x2D0D
-#define mmSPI_SHADER_USER_DATA_LS_10__GFX09             0x2D16
-#define mmSPI_SHADER_USER_DATA_LS_11__GFX09             0x2D17
-#define mmSPI_SHADER_USER_DATA_LS_12__GFX09             0x2D18
-#define mmSPI_SHADER_USER_DATA_LS_13__GFX09             0x2D19
-#define mmSPI_SHADER_USER_DATA_LS_14__GFX09             0x2D1A
-#define mmSPI_SHADER_USER_DATA_LS_15__GFX09             0x2D1B
-#define mmSPI_SHADER_USER_DATA_LS_2__GFX09              0x2D0E
-#define mmSPI_SHADER_USER_DATA_LS_3__GFX09              0x2D0F
-#define mmSPI_SHADER_USER_DATA_LS_4__GFX09              0x2D10
-#define mmSPI_SHADER_USER_DATA_LS_5__GFX09              0x2D11
-#define mmSPI_SHADER_USER_DATA_LS_6__GFX09              0x2D12
-#define mmSPI_SHADER_USER_DATA_LS_7__GFX09              0x2D13
-#define mmSPI_SHADER_USER_DATA_LS_8__GFX09              0x2D14
-#define mmSPI_SHADER_USER_DATA_LS_9__GFX09              0x2D15
-#define mmSQ_THREAD_TRACE_CTRL__GFX09                   0xC335
-#define mmSQ_THREAD_TRACE_MASK__GFX09                   0xC332
-#define mmSQ_THREAD_TRACE_STATUS__GFX09                 0xC33A
-#define mmSQ_THREAD_TRACE_TOKEN_MASK__GFX09             0xC333
-#define mmSQ_THREAD_TRACE_WPTR__GFX09                   0xC339
-#define mmSX_DEBUG_1__GFX09                             0x2419
-#define mmSX_DEBUG_BUSY_5__GFX09                        0x2418
-#define mmVGT_GSVS_RING_SIZE__GFX09                     0xC241
-#define mmVGT_HS_OFFCHIP_PARAM__GFX09                   0xC24F
-#define mmVGT_INDX_OFFSET__GFX09                        0xC24A
-#define mmVGT_MAX_VTX_INDX__GFX09                       0xC248
-#define mmVGT_MIN_VTX_INDX__GFX09                       0xC249
-#define mmVGT_MULTI_PRIM_IB_RESET_EN__GFX09             0xC24B
-#define mmVGT_RESET_DEBUG__GFX09                        0x2232
-#define mmVGT_STRMOUT_DELAY__GFX09                      0x2233
-#define mmVGT_TF_MEMORY_BASE__GFX09                     0xC250
-#define mmVGT_TF_MEMORY_BASE_HI__GFX09                  0xC251
-#define mmVGT_TF_RING_SIZE__GFX09                       0xC24E
-#define mmXPB_CLG_CFG0__GFX09                           0x0C98
-#define mmXPB_CLG_CFG1__GFX09                           0x0C99
-#define mmXPB_CLG_CFG2__GFX09                           0x0C9A
-#define mmXPB_CLG_CFG3__GFX09                           0x0C9B
-#define mmXPB_CLG_CFG4__GFX09                           0x0C9C
-#define mmXPB_CLG_CFG5__GFX09                           0x0C9D
-#define mmXPB_CLG_CFG6__GFX09                           0x0C9E
-#define mmXPB_CLG_CFG7__GFX09                           0x0C9F
-#define mmXPB_CLG_EXTRA__GFX09                          0x0CA0
-#define mmXPB_CLG_EXTRA_MSK__GFX09                      0x0CA1
-#define mmXPB_CLG_EXTRA_MSK_RD__GFX09                   0x0CCC
-#define mmXPB_CLG_EXTRA_RD__GFX09                       0x0CCB
-#define mmXPB_CLG_GFX_MATCH__GFX09                      0x0CCD
-#define mmXPB_CLG_GFX_MATCH_MSK__GFX09                  0x0CCE
-#define mmXPB_CLG_GFX_UNITID_MAPPING0__GFX09            0x0CD1
-#define mmXPB_CLG_GFX_UNITID_MAPPING1__GFX09            0x0CD2
-#define mmXPB_CLG_GFX_UNITID_MAPPING2__GFX09            0x0CD3
-#define mmXPB_CLG_GFX_UNITID_MAPPING3__GFX09            0x0CD4
-#define mmXPB_CLG_GFX_UNITID_MAPPING4__GFX09            0x0CD5
-#define mmXPB_CLG_GFX_UNITID_MAPPING5__GFX09            0x0CD6
-#define mmXPB_CLG_GFX_UNITID_MAPPING6__GFX09            0x0CD7
-#define mmXPB_CLG_GFX_UNITID_MAPPING7__GFX09            0x0CD8
-#define mmXPB_CLG_MM_MATCH__GFX09                       0x0CCF
-#define mmXPB_CLG_MM_MATCH_MSK__GFX09                   0x0CD0
-#define mmXPB_CLG_MM_UNITID_MAPPING0__GFX09             0x0CD9
-#define mmXPB_CLG_MM_UNITID_MAPPING1__GFX09             0x0CDA
-#define mmXPB_CLG_MM_UNITID_MAPPING2__GFX09             0x0CDB
-#define mmXPB_CLG_MM_UNITID_MAPPING3__GFX09             0x0CDC
-#define mmXPB_CLK_GAT__GFX09                            0x0CC0
-#define mmXPB_HST_CFG__GFX09                            0x0CA4
-#define mmXPB_INTF_CFG__GFX09                           0x0CC1
-#define mmXPB_INTF_CFG2__GFX09                          0x0CCA
-#define mmXPB_INTF_STS__GFX09                           0x0CC2
-#define mmXPB_LB_ADDR__GFX09                            0x0CA2
-#define mmXPB_MAP_INVERT_FLUSH_NUM_LSB__GFX09           0x0CC5
-#define mmXPB_MISC_CFG__GFX09                           0x0CC9
-#define mmXPB_P2P_BAR0__GFX09                           0x0CA6
-#define mmXPB_P2P_BAR1__GFX09                           0x0CA7
-#define mmXPB_P2P_BAR2__GFX09                           0x0CA8
-#define mmXPB_P2P_BAR3__GFX09                           0x0CA9
-#define mmXPB_P2P_BAR4__GFX09                           0x0CAA
-#define mmXPB_P2P_BAR5__GFX09                           0x0CAB
-#define mmXPB_P2P_BAR6__GFX09                           0x0CAC
-#define mmXPB_P2P_BAR7__GFX09                           0x0CAD
-#define mmXPB_P2P_BAR_CFG__GFX09                        0x0CA5
-#define mmXPB_P2P_BAR_DELTA_ABOVE__GFX09                0x0CB0
-#define mmXPB_P2P_BAR_DELTA_BELOW__GFX09                0x0CB1
-#define mmXPB_P2P_BAR_SETUP__GFX09                      0x0CAE
-#define mmXPB_PEER_SYS_BAR0__GFX09                      0x0CB2
-#define mmXPB_PEER_SYS_BAR1__GFX09                      0x0CB3
-#define mmXPB_PEER_SYS_BAR2__GFX09                      0x0CB4
-#define mmXPB_PEER_SYS_BAR3__GFX09                      0x0CB5
-#define mmXPB_PEER_SYS_BAR4__GFX09                      0x0CB6
-#define mmXPB_PEER_SYS_BAR5__GFX09                      0x0CB7
-#define mmXPB_PEER_SYS_BAR6__GFX09                      0x0CB8
-#define mmXPB_PEER_SYS_BAR7__GFX09                      0x0CB9
-#define mmXPB_PEER_SYS_BAR8__GFX09                      0x0CBA
-#define mmXPB_PEER_SYS_BAR9__GFX09                      0x0CBB
-#define mmXPB_PERF_KNOBS__GFX09                         0x0CC6
-#define mmXPB_PIPE_STS__GFX09                           0x0CC3
-#define mmXPB_RTR_DEST_MAP0__GFX09                      0x0C8A
-#define mmXPB_RTR_DEST_MAP1__GFX09                      0x0C8B
-#define mmXPB_RTR_DEST_MAP2__GFX09                      0x0C8C
-#define mmXPB_RTR_DEST_MAP3__GFX09                      0x0C8D
-#define mmXPB_RTR_DEST_MAP4__GFX09                      0x0C8E
-#define mmXPB_RTR_DEST_MAP5__GFX09                      0x0C8F
-#define mmXPB_RTR_DEST_MAP6__GFX09                      0x0C90
-#define mmXPB_RTR_DEST_MAP7__GFX09                      0x0C91
-#define mmXPB_RTR_DEST_MAP8__GFX09                      0x0C92
-#define mmXPB_RTR_DEST_MAP9__GFX09                      0x0C93
-#define mmXPB_RTR_SRC_APRTR0__GFX09                     0x0C7C
-#define mmXPB_RTR_SRC_APRTR1__GFX09                     0x0C7D
-#define mmXPB_RTR_SRC_APRTR2__GFX09                     0x0C7E
-#define mmXPB_RTR_SRC_APRTR3__GFX09                     0x0C7F
-#define mmXPB_RTR_SRC_APRTR4__GFX09                     0x0C80
-#define mmXPB_RTR_SRC_APRTR5__GFX09                     0x0C81
-#define mmXPB_RTR_SRC_APRTR6__GFX09                     0x0C82
-#define mmXPB_RTR_SRC_APRTR7__GFX09                     0x0C83
-#define mmXPB_RTR_SRC_APRTR8__GFX09                     0x0C84
-#define mmXPB_RTR_SRC_APRTR9__GFX09                     0x0C85
-#define mmXPB_STICKY__GFX09                             0x0CC7
-#define mmXPB_STICKY_W1C__GFX09                         0x0CC8
-#define mmXPB_SUB_CTRL__GFX09                           0x0CC4
-#define mmXPB_WCB_STS__GFX09                            0x0CA3
-#define mmXPB_XDMA_PEER_SYS_BAR0__GFX09                 0x0CBC
-#define mmXPB_XDMA_PEER_SYS_BAR1__GFX09                 0x0CBD
-#define mmXPB_XDMA_PEER_SYS_BAR2__GFX09                 0x0CBE
-#define mmXPB_XDMA_PEER_SYS_BAR3__GFX09                 0x0CBF
-#define mmXPB_XDMA_RTR_DEST_MAP0__GFX09                 0x0C94
-#define mmXPB_XDMA_RTR_DEST_MAP1__GFX09                 0x0C95
-#define mmXPB_XDMA_RTR_DEST_MAP2__GFX09                 0x0C96
-#define mmXPB_XDMA_RTR_DEST_MAP3__GFX09                 0x0C97
-#define mmXPB_XDMA_RTR_SRC_APRTR0__GFX09                0x0C86
-#define mmXPB_XDMA_RTR_SRC_APRTR1__GFX09                0x0C87
-#define mmXPB_XDMA_RTR_SRC_APRTR2__GFX09                0x0C88
-#define mmXPB_XDMA_RTR_SRC_APRTR3__GFX09                0x0C89
-#define mmnbif_gpu_BIF_RAS_LEAF0_CTRL__GFX09            0x404E400
-#define mmnbif_gpu_BIF_RAS_LEAF1_CTRL__GFX09            0x404E401
-#define mmnbif_gpu_BIF_RAS_LEAF2_CTRL__GFX09            0x404E402
-#define mmnbif_gpu_GDC_RAS_LEAF0_CTRL__GFX09            0x507E00
-#define mmnbif_gpu_GDC_RAS_LEAF1_CTRL__GFX09            0x507E01
-#define mmnbif_gpu_GDC_RAS_LEAF2_CTRL__GFX09            0x507E02
-#define mmnbif_gpu_GDC_RAS_LEAF3_CTRL__GFX09            0x507E03
-#define mmnbif_gpu_GDC_RAS_LEAF4_CTRL__GFX09            0x507E04
-#define mmnbif_gpu_GDC_RAS_LEAF5_CTRL__GFX09            0x507E05
-#define mmnbif_gpu_NBIF_STRAP_WRITE_CTRL__GFX09         0x0E67
-#define mmnbif_gpu_SION_CNTL_REG0__GFX09                0x507878
-#define mmnbif_gpu_SION_CNTL_REG1__GFX09                0x507879
+constexpr unsigned int mmBCI_DEBUG_READ                         = 0x24EB;
+constexpr unsigned int mmCB_BLEND0_CONTROL                      = 0xA1E0;
+constexpr unsigned int mmCB_BLEND1_CONTROL                      = 0xA1E1;
+constexpr unsigned int mmCB_BLEND2_CONTROL                      = 0xA1E2;
+constexpr unsigned int mmCB_BLEND3_CONTROL                      = 0xA1E3;
+constexpr unsigned int mmCB_BLEND4_CONTROL                      = 0xA1E4;
+constexpr unsigned int mmCB_BLEND5_CONTROL                      = 0xA1E5;
+constexpr unsigned int mmCB_BLEND6_CONTROL                      = 0xA1E6;
+constexpr unsigned int mmCB_BLEND7_CONTROL                      = 0xA1E7;
+constexpr unsigned int mmCB_BLEND_ALPHA                         = 0xA108;
+constexpr unsigned int mmCB_BLEND_BLUE                          = 0xA107;
+constexpr unsigned int mmCB_BLEND_GREEN                         = 0xA106;
+constexpr unsigned int mmCB_BLEND_RED                           = 0xA105;
+constexpr unsigned int mmCB_CGTT_SCLK_CTRL                      = 0xF0A8;
+constexpr unsigned int mmCB_COLOR0_ATTRIB                       = 0xA31D;
+constexpr unsigned int mmCB_COLOR0_BASE                         = 0xA318;
+constexpr unsigned int mmCB_COLOR0_CLEAR_WORD0                  = 0xA323;
+constexpr unsigned int mmCB_COLOR0_CLEAR_WORD1                  = 0xA324;
+constexpr unsigned int mmCB_COLOR0_CMASK                        = 0xA31F;
+constexpr unsigned int mmCB_COLOR0_DCC_BASE                     = 0xA325;
+constexpr unsigned int mmCB_COLOR0_DCC_CONTROL                  = 0xA31E;
+constexpr unsigned int mmCB_COLOR0_FMASK                        = 0xA321;
+constexpr unsigned int mmCB_COLOR0_INFO                         = 0xA31C;
+constexpr unsigned int mmCB_COLOR0_VIEW                         = 0xA31B;
+constexpr unsigned int mmCB_COLOR1_ATTRIB                       = 0xA32C;
+constexpr unsigned int mmCB_COLOR1_BASE                         = 0xA327;
+constexpr unsigned int mmCB_COLOR1_CLEAR_WORD0                  = 0xA332;
+constexpr unsigned int mmCB_COLOR1_CLEAR_WORD1                  = 0xA333;
+constexpr unsigned int mmCB_COLOR1_CMASK                        = 0xA32E;
+constexpr unsigned int mmCB_COLOR1_DCC_BASE                     = 0xA334;
+constexpr unsigned int mmCB_COLOR1_DCC_CONTROL                  = 0xA32D;
+constexpr unsigned int mmCB_COLOR1_FMASK                        = 0xA330;
+constexpr unsigned int mmCB_COLOR1_INFO                         = 0xA32B;
+constexpr unsigned int mmCB_COLOR1_VIEW                         = 0xA32A;
+constexpr unsigned int mmCB_COLOR2_ATTRIB                       = 0xA33B;
+constexpr unsigned int mmCB_COLOR2_BASE                         = 0xA336;
+constexpr unsigned int mmCB_COLOR2_CLEAR_WORD0                  = 0xA341;
+constexpr unsigned int mmCB_COLOR2_CLEAR_WORD1                  = 0xA342;
+constexpr unsigned int mmCB_COLOR2_CMASK                        = 0xA33D;
+constexpr unsigned int mmCB_COLOR2_DCC_BASE                     = 0xA343;
+constexpr unsigned int mmCB_COLOR2_DCC_CONTROL                  = 0xA33C;
+constexpr unsigned int mmCB_COLOR2_FMASK                        = 0xA33F;
+constexpr unsigned int mmCB_COLOR2_INFO                         = 0xA33A;
+constexpr unsigned int mmCB_COLOR2_VIEW                         = 0xA339;
+constexpr unsigned int mmCB_COLOR3_ATTRIB                       = 0xA34A;
+constexpr unsigned int mmCB_COLOR3_BASE                         = 0xA345;
+constexpr unsigned int mmCB_COLOR3_CLEAR_WORD0                  = 0xA350;
+constexpr unsigned int mmCB_COLOR3_CLEAR_WORD1                  = 0xA351;
+constexpr unsigned int mmCB_COLOR3_CMASK                        = 0xA34C;
+constexpr unsigned int mmCB_COLOR3_DCC_BASE                     = 0xA352;
+constexpr unsigned int mmCB_COLOR3_DCC_CONTROL                  = 0xA34B;
+constexpr unsigned int mmCB_COLOR3_FMASK                        = 0xA34E;
+constexpr unsigned int mmCB_COLOR3_INFO                         = 0xA349;
+constexpr unsigned int mmCB_COLOR3_VIEW                         = 0xA348;
+constexpr unsigned int mmCB_COLOR4_ATTRIB                       = 0xA359;
+constexpr unsigned int mmCB_COLOR4_BASE                         = 0xA354;
+constexpr unsigned int mmCB_COLOR4_CLEAR_WORD0                  = 0xA35F;
+constexpr unsigned int mmCB_COLOR4_CLEAR_WORD1                  = 0xA360;
+constexpr unsigned int mmCB_COLOR4_CMASK                        = 0xA35B;
+constexpr unsigned int mmCB_COLOR4_DCC_BASE                     = 0xA361;
+constexpr unsigned int mmCB_COLOR4_DCC_CONTROL                  = 0xA35A;
+constexpr unsigned int mmCB_COLOR4_FMASK                        = 0xA35D;
+constexpr unsigned int mmCB_COLOR4_INFO                         = 0xA358;
+constexpr unsigned int mmCB_COLOR4_VIEW                         = 0xA357;
+constexpr unsigned int mmCB_COLOR5_ATTRIB                       = 0xA368;
+constexpr unsigned int mmCB_COLOR5_BASE                         = 0xA363;
+constexpr unsigned int mmCB_COLOR5_CLEAR_WORD0                  = 0xA36E;
+constexpr unsigned int mmCB_COLOR5_CLEAR_WORD1                  = 0xA36F;
+constexpr unsigned int mmCB_COLOR5_CMASK                        = 0xA36A;
+constexpr unsigned int mmCB_COLOR5_DCC_BASE                     = 0xA370;
+constexpr unsigned int mmCB_COLOR5_DCC_CONTROL                  = 0xA369;
+constexpr unsigned int mmCB_COLOR5_FMASK                        = 0xA36C;
+constexpr unsigned int mmCB_COLOR5_INFO                         = 0xA367;
+constexpr unsigned int mmCB_COLOR5_VIEW                         = 0xA366;
+constexpr unsigned int mmCB_COLOR6_ATTRIB                       = 0xA377;
+constexpr unsigned int mmCB_COLOR6_BASE                         = 0xA372;
+constexpr unsigned int mmCB_COLOR6_CLEAR_WORD0                  = 0xA37D;
+constexpr unsigned int mmCB_COLOR6_CLEAR_WORD1                  = 0xA37E;
+constexpr unsigned int mmCB_COLOR6_CMASK                        = 0xA379;
+constexpr unsigned int mmCB_COLOR6_DCC_BASE                     = 0xA37F;
+constexpr unsigned int mmCB_COLOR6_DCC_CONTROL                  = 0xA378;
+constexpr unsigned int mmCB_COLOR6_FMASK                        = 0xA37B;
+constexpr unsigned int mmCB_COLOR6_INFO                         = 0xA376;
+constexpr unsigned int mmCB_COLOR6_VIEW                         = 0xA375;
+constexpr unsigned int mmCB_COLOR7_ATTRIB                       = 0xA386;
+constexpr unsigned int mmCB_COLOR7_BASE                         = 0xA381;
+constexpr unsigned int mmCB_COLOR7_CLEAR_WORD0                  = 0xA38C;
+constexpr unsigned int mmCB_COLOR7_CLEAR_WORD1                  = 0xA38D;
+constexpr unsigned int mmCB_COLOR7_CMASK                        = 0xA388;
+constexpr unsigned int mmCB_COLOR7_DCC_BASE                     = 0xA38E;
+constexpr unsigned int mmCB_COLOR7_DCC_CONTROL                  = 0xA387;
+constexpr unsigned int mmCB_COLOR7_FMASK                        = 0xA38A;
+constexpr unsigned int mmCB_COLOR7_INFO                         = 0xA385;
+constexpr unsigned int mmCB_COLOR7_VIEW                         = 0xA384;
+constexpr unsigned int mmCB_COLOR_CONTROL                       = 0xA202;
+constexpr unsigned int mmCB_DCC_CONTROL                         = 0xA109;
+constexpr unsigned int mmCB_DEBUG_BUS_19                        = 0x26AB;
+constexpr unsigned int mmCB_DEBUG_BUS_21                        = 0x26AD;
+constexpr unsigned int mmCB_HW_CONTROL_3                        = 0x2683;
+constexpr unsigned int mmCB_PERFCOUNTER0_HI                     = 0xD407;
+constexpr unsigned int mmCB_PERFCOUNTER0_LO                     = 0xD406;
+constexpr unsigned int mmCB_PERFCOUNTER0_SELECT                 = 0xDC01;
+constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1                = 0xDC02;
+constexpr unsigned int mmCB_PERFCOUNTER1_HI                     = 0xD409;
+constexpr unsigned int mmCB_PERFCOUNTER1_LO                     = 0xD408;
+constexpr unsigned int mmCB_PERFCOUNTER1_SELECT                 = 0xDC03;
+constexpr unsigned int mmCB_PERFCOUNTER2_HI                     = 0xD40B;
+constexpr unsigned int mmCB_PERFCOUNTER2_LO                     = 0xD40A;
+constexpr unsigned int mmCB_PERFCOUNTER2_SELECT                 = 0xDC04;
+constexpr unsigned int mmCB_PERFCOUNTER3_HI                     = 0xD40D;
+constexpr unsigned int mmCB_PERFCOUNTER3_LO                     = 0xD40C;
+constexpr unsigned int mmCB_PERFCOUNTER3_SELECT                 = 0xDC05;
+constexpr unsigned int mmCB_PERFCOUNTER_FILTER                  = 0xDC00;
+constexpr unsigned int mmCB_SHADER_MASK                         = 0xA08F;
+constexpr unsigned int mmCB_TARGET_MASK                         = 0xA08E;
+constexpr unsigned int mmCC_GC_EDC_CONFIG                       = 0x3098;
+constexpr unsigned int mmCC_GC_PRIM_CONFIG                      = 0x2240;
+constexpr unsigned int mmCC_GC_SHADER_ARRAY_CONFIG              = 0x226F;
+constexpr unsigned int mmCC_GC_SHADER_RATE_CONFIG               = 0x2312;
+constexpr unsigned int mmCC_RB_BACKEND_DISABLE                  = 0x263D;
+constexpr unsigned int mmCC_RB_DAISY_CHAIN                      = 0x2641;
+constexpr unsigned int mmCC_RB_REDUNDANCY                       = 0x263C;
+constexpr unsigned int mmCOHER_DEST_BASE_0                      = 0xA092;
+constexpr unsigned int mmCOHER_DEST_BASE_1                      = 0xA093;
+constexpr unsigned int mmCOHER_DEST_BASE_2                      = 0xA07E;
+constexpr unsigned int mmCOHER_DEST_BASE_3                      = 0xA07F;
+constexpr unsigned int mmCOHER_DEST_BASE_HI_0                   = 0xA07A;
+constexpr unsigned int mmCOHER_DEST_BASE_HI_1                   = 0xA07B;
+constexpr unsigned int mmCOHER_DEST_BASE_HI_2                   = 0xA07C;
+constexpr unsigned int mmCOHER_DEST_BASE_HI_3                   = 0xA07D;
+constexpr unsigned int mmCOMPUTE_DIM_X                          = 0x2E01;
+constexpr unsigned int mmCOMPUTE_DIM_Y                          = 0x2E02;
+constexpr unsigned int mmCOMPUTE_DIM_Z                          = 0x2E03;
+constexpr unsigned int mmCOMPUTE_DISPATCH_ID                    = 0x2E20;
+constexpr unsigned int mmCOMPUTE_DISPATCH_INITIATOR             = 0x2E00;
+constexpr unsigned int mmCOMPUTE_DISPATCH_PKT_ADDR_HI           = 0x2E0F;
+constexpr unsigned int mmCOMPUTE_DISPATCH_PKT_ADDR_LO           = 0x2E0E;
+constexpr unsigned int mmCOMPUTE_DISPATCH_SCRATCH_BASE_HI       = 0x2E11;
+constexpr unsigned int mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO       = 0x2E10;
+constexpr unsigned int mmCOMPUTE_MISC_RESERVED                  = 0x2E1F;
+constexpr unsigned int mmCOMPUTE_NOWHERE                        = 0x2E7F;
+constexpr unsigned int mmCOMPUTE_NUM_THREAD_X                   = 0x2E07;
+constexpr unsigned int mmCOMPUTE_NUM_THREAD_Y                   = 0x2E08;
+constexpr unsigned int mmCOMPUTE_NUM_THREAD_Z                   = 0x2E09;
+constexpr unsigned int mmCOMPUTE_PERFCOUNT_ENABLE               = 0x2E0B;
+constexpr unsigned int mmCOMPUTE_PGM_HI                         = 0x2E0D;
+constexpr unsigned int mmCOMPUTE_PGM_LO                         = 0x2E0C;
+constexpr unsigned int mmCOMPUTE_PGM_RSRC1                      = 0x2E12;
+constexpr unsigned int mmCOMPUTE_PGM_RSRC2                      = 0x2E13;
+constexpr unsigned int mmCOMPUTE_PIPELINESTAT_ENABLE            = 0x2E0A;
+constexpr unsigned int mmCOMPUTE_RESOURCE_LIMITS                = 0x2E15;
+constexpr unsigned int mmCOMPUTE_RESTART_X                      = 0x2E1B;
+constexpr unsigned int mmCOMPUTE_RESTART_Y                      = 0x2E1C;
+constexpr unsigned int mmCOMPUTE_RESTART_Z                      = 0x2E1D;
+constexpr unsigned int mmCOMPUTE_START_X                        = 0x2E04;
+constexpr unsigned int mmCOMPUTE_START_Y                        = 0x2E05;
+constexpr unsigned int mmCOMPUTE_START_Z                        = 0x2E06;
+constexpr unsigned int mmCOMPUTE_STATIC_THREAD_MGMT_SE0         = 0x2E16;
+constexpr unsigned int mmCOMPUTE_STATIC_THREAD_MGMT_SE1         = 0x2E17;
+constexpr unsigned int mmCOMPUTE_STATIC_THREAD_MGMT_SE2         = 0x2E19;
+constexpr unsigned int mmCOMPUTE_STATIC_THREAD_MGMT_SE3         = 0x2E1A;
+constexpr unsigned int mmCOMPUTE_THREADGROUP_ID                 = 0x2E21;
+constexpr unsigned int mmCOMPUTE_THREAD_TRACE_ENABLE            = 0x2E1E;
+constexpr unsigned int mmCOMPUTE_TMPRING_SIZE                   = 0x2E18;
+constexpr unsigned int mmCOMPUTE_USER_DATA_0                    = 0x2E40;
+constexpr unsigned int mmCOMPUTE_USER_DATA_1                    = 0x2E41;
+constexpr unsigned int mmCOMPUTE_USER_DATA_2                    = 0x2E42;
+constexpr unsigned int mmCOMPUTE_USER_DATA_3                    = 0x2E43;
+constexpr unsigned int mmCOMPUTE_USER_DATA_4                    = 0x2E44;
+constexpr unsigned int mmCOMPUTE_USER_DATA_5                    = 0x2E45;
+constexpr unsigned int mmCOMPUTE_USER_DATA_6                    = 0x2E46;
+constexpr unsigned int mmCOMPUTE_USER_DATA_7                    = 0x2E47;
+constexpr unsigned int mmCOMPUTE_USER_DATA_8                    = 0x2E48;
+constexpr unsigned int mmCOMPUTE_USER_DATA_9                    = 0x2E49;
+constexpr unsigned int mmCOMPUTE_USER_DATA_10                   = 0x2E4A;
+constexpr unsigned int mmCOMPUTE_USER_DATA_11                   = 0x2E4B;
+constexpr unsigned int mmCOMPUTE_USER_DATA_12                   = 0x2E4C;
+constexpr unsigned int mmCOMPUTE_USER_DATA_13                   = 0x2E4D;
+constexpr unsigned int mmCOMPUTE_USER_DATA_14                   = 0x2E4E;
+constexpr unsigned int mmCOMPUTE_USER_DATA_15                   = 0x2E4F;
+constexpr unsigned int mmCOMPUTE_VMID                           = 0x2E14;
+constexpr unsigned int mmCPC_PERFCOUNTER0_HI                    = 0xD007;
+constexpr unsigned int mmCPC_PERFCOUNTER0_LO                    = 0xD006;
+constexpr unsigned int mmCPC_PERFCOUNTER0_SELECT                = 0xD809;
+constexpr unsigned int mmCPC_PERFCOUNTER0_SELECT1               = 0xD804;
+constexpr unsigned int mmCPC_PERFCOUNTER1_HI                    = 0xD005;
+constexpr unsigned int mmCPC_PERFCOUNTER1_LO                    = 0xD004;
+constexpr unsigned int mmCPC_PERFCOUNTER1_SELECT                = 0xD803;
+constexpr unsigned int mmCPF_PERFCOUNTER0_HI                    = 0xD00B;
+constexpr unsigned int mmCPF_PERFCOUNTER0_LO                    = 0xD00A;
+constexpr unsigned int mmCPF_PERFCOUNTER0_SELECT                = 0xD807;
+constexpr unsigned int mmCPF_PERFCOUNTER0_SELECT1               = 0xD806;
+constexpr unsigned int mmCPF_PERFCOUNTER1_HI                    = 0xD009;
+constexpr unsigned int mmCPF_PERFCOUNTER1_LO                    = 0xD008;
+constexpr unsigned int mmCPF_PERFCOUNTER1_SELECT                = 0xD805;
+constexpr unsigned int mmCPG_PERFCOUNTER0_HI                    = 0xD003;
+constexpr unsigned int mmCPG_PERFCOUNTER0_LO                    = 0xD002;
+constexpr unsigned int mmCPG_PERFCOUNTER0_SELECT                = 0xD802;
+constexpr unsigned int mmCPG_PERFCOUNTER0_SELECT1               = 0xD801;
+constexpr unsigned int mmCPG_PERFCOUNTER1_HI                    = 0xD001;
+constexpr unsigned int mmCPG_PERFCOUNTER1_LO                    = 0xD000;
+constexpr unsigned int mmCPG_PERFCOUNTER1_SELECT                = 0xD800;
+constexpr unsigned int mmCP_APPEND_ADDR_HI                      = 0xC059;
+constexpr unsigned int mmCP_APPEND_ADDR_LO                      = 0xC058;
+constexpr unsigned int mmCP_APPEND_DATA_HI                      = 0xC04C;
+constexpr unsigned int mmCP_APPEND_DATA_LO                      = 0xC05A;
+constexpr unsigned int mmCP_APPEND_LAST_CS_FENCE_HI             = 0xC04D;
+constexpr unsigned int mmCP_APPEND_LAST_CS_FENCE_LO             = 0xC05B;
+constexpr unsigned int mmCP_APPEND_LAST_PS_FENCE_HI             = 0xC04E;
+constexpr unsigned int mmCP_APPEND_LAST_PS_FENCE_LO             = 0xC05C;
+constexpr unsigned int mmCP_AQL_SMM_STATUS                      = 0x303F;
+constexpr unsigned int mmCP_ATOMIC_PREOP_HI                     = 0xC05E;
+constexpr unsigned int mmCP_ATOMIC_PREOP_LO                     = 0xC05D;
+constexpr unsigned int mmCP_BUSY_STAT                           = 0x219F;
+constexpr unsigned int mmCP_CEQ1_AVAIL                          = 0x21E6;
+constexpr unsigned int mmCP_CEQ2_AVAIL                          = 0x21E7;
+constexpr unsigned int mmCP_CE_COMPARE_COUNT                    = 0x20C0;
+constexpr unsigned int mmCP_CE_COMPLETION_STATUS                = 0xC0ED;
+constexpr unsigned int mmCP_CE_COUNTER                          = 0xC09A;
+constexpr unsigned int mmCP_CE_DE_COUNT                         = 0x20C1;
+constexpr unsigned int mmCP_CE_HEADER_DUMP                      = 0x21A4;
+constexpr unsigned int mmCP_CE_IB1_BASE_HI                      = 0xC0C7;
+constexpr unsigned int mmCP_CE_IB1_BASE_LO                      = 0xC0C6;
+constexpr unsigned int mmCP_CE_IB1_BUFSZ                        = 0xC0C8;
+constexpr unsigned int mmCP_CE_IB1_CMD_BUFSZ                    = 0xC0BE;
+constexpr unsigned int mmCP_CE_IB1_OFFSET                       = 0xC098;
+constexpr unsigned int mmCP_CE_IB2_BASE_HI                      = 0xC0CA;
+constexpr unsigned int mmCP_CE_IB2_BASE_LO                      = 0xC0C9;
+constexpr unsigned int mmCP_CE_IB2_BUFSZ                        = 0xC0CB;
+constexpr unsigned int mmCP_CE_IB2_CMD_BUFSZ                    = 0xC0BF;
+constexpr unsigned int mmCP_CE_IB2_OFFSET                       = 0xC099;
+constexpr unsigned int mmCP_CE_INIT_BASE_HI                     = 0xC0C4;
+constexpr unsigned int mmCP_CE_INIT_BASE_LO                     = 0xC0C3;
+constexpr unsigned int mmCP_CE_INIT_BUFSZ                       = 0xC0C5;
+constexpr unsigned int mmCP_CE_INIT_CMD_BUFSZ                   = 0xC0BD;
+constexpr unsigned int mmCP_CE_INSTR_PNTR                       = 0x21A7;
+constexpr unsigned int mmCP_CE_INTR_ROUTINE_START               = 0x30A8;
+constexpr unsigned int mmCP_CE_METADATA_BASE_ADDR               = 0xC0F2;
+constexpr unsigned int mmCP_CE_METADATA_BASE_ADDR_HI            = 0xC0F3;
+constexpr unsigned int mmCP_CE_PRGRM_CNTR_START                 = 0x30A3;
+constexpr unsigned int mmCP_CE_ROQ_IB1_STAT                     = 0x21E9;
+constexpr unsigned int mmCP_CE_ROQ_IB2_STAT                     = 0x21EA;
+constexpr unsigned int mmCP_CE_ROQ_RB_STAT                      = 0x21E8;
+constexpr unsigned int mmCP_CMD_DATA                            = 0x21DF;
+constexpr unsigned int mmCP_CMD_INDEX                           = 0x21DE;
+constexpr unsigned int mmCP_CNTX_STAT                           = 0x21B8;
+constexpr unsigned int mmCP_COHER_BASE                          = 0xC07E;
+constexpr unsigned int mmCP_COHER_BASE_HI                       = 0xC079;
+constexpr unsigned int mmCP_COHER_CNTL                          = 0xC07C;
+constexpr unsigned int mmCP_COHER_SIZE                          = 0xC07D;
+constexpr unsigned int mmCP_COHER_SIZE_HI                       = 0xC08C;
+constexpr unsigned int mmCP_COHER_START_DELAY                   = 0xC07B;
+constexpr unsigned int mmCP_COHER_STATUS                        = 0xC07F;
+constexpr unsigned int mmCP_CONTEXT_CNTL                        = 0x30AD;
+constexpr unsigned int mmCP_CSF_STAT                            = 0x21B4;
+constexpr unsigned int mmCP_DEVICE_ID                           = 0x304B;
+constexpr unsigned int mmCP_DE_CE_COUNT                         = 0x20C2;
+constexpr unsigned int mmCP_DE_DE_COUNT                         = 0x20C4;
+constexpr unsigned int mmCP_DE_LAST_INVAL_COUNT                 = 0x20C3;
+constexpr unsigned int mmCP_DFY_ADDR_HI                         = 0x3022;
+constexpr unsigned int mmCP_DFY_ADDR_LO                         = 0x3023;
+constexpr unsigned int mmCP_DFY_CMD                             = 0x3034;
+constexpr unsigned int mmCP_DFY_CNTL                            = 0x3020;
+constexpr unsigned int mmCP_DFY_DATA_0                          = 0x3024;
+constexpr unsigned int mmCP_DFY_DATA_1                          = 0x3025;
+constexpr unsigned int mmCP_DFY_DATA_2                          = 0x3026;
+constexpr unsigned int mmCP_DFY_DATA_3                          = 0x3027;
+constexpr unsigned int mmCP_DFY_DATA_4                          = 0x3028;
+constexpr unsigned int mmCP_DFY_DATA_5                          = 0x3029;
+constexpr unsigned int mmCP_DFY_DATA_6                          = 0x302A;
+constexpr unsigned int mmCP_DFY_DATA_7                          = 0x302B;
+constexpr unsigned int mmCP_DFY_DATA_8                          = 0x302C;
+constexpr unsigned int mmCP_DFY_DATA_9                          = 0x302D;
+constexpr unsigned int mmCP_DFY_DATA_10                         = 0x302E;
+constexpr unsigned int mmCP_DFY_DATA_11                         = 0x302F;
+constexpr unsigned int mmCP_DFY_DATA_12                         = 0x3030;
+constexpr unsigned int mmCP_DFY_DATA_13                         = 0x3031;
+constexpr unsigned int mmCP_DFY_DATA_14                         = 0x3032;
+constexpr unsigned int mmCP_DFY_DATA_15                         = 0x3033;
+constexpr unsigned int mmCP_DFY_STAT                            = 0x3021;
+constexpr unsigned int mmCP_DISPATCH_INDR_ADDR                  = 0xC0F6;
+constexpr unsigned int mmCP_DISPATCH_INDR_ADDR_HI               = 0xC0F7;
+constexpr unsigned int mmCP_DMA_CNTL                            = 0xC08A;
+constexpr unsigned int mmCP_DMA_ME_COMMAND                      = 0xC084;
+constexpr unsigned int mmCP_DMA_ME_CONTROL                      = 0xC078;
+constexpr unsigned int mmCP_DMA_ME_DST_ADDR                     = 0xC082;
+constexpr unsigned int mmCP_DMA_ME_DST_ADDR_HI                  = 0xC083;
+constexpr unsigned int mmCP_DMA_ME_SRC_ADDR                     = 0xC080;
+constexpr unsigned int mmCP_DMA_ME_SRC_ADDR_HI                  = 0xC081;
+constexpr unsigned int mmCP_DMA_PFP_COMMAND                     = 0xC089;
+constexpr unsigned int mmCP_DMA_PFP_CONTROL                     = 0xC077;
+constexpr unsigned int mmCP_DMA_PFP_DST_ADDR                    = 0xC087;
+constexpr unsigned int mmCP_DMA_PFP_DST_ADDR_HI                 = 0xC088;
+constexpr unsigned int mmCP_DMA_PFP_SRC_ADDR                    = 0xC085;
+constexpr unsigned int mmCP_DMA_PFP_SRC_ADDR_HI                 = 0xC086;
+constexpr unsigned int mmCP_DMA_PIO_COMMAND                     = 0xC0E8;
+constexpr unsigned int mmCP_DMA_READ_TAGS                       = 0xC08B;
+constexpr unsigned int mmCP_DRAW_INDX_INDR_ADDR                 = 0xC0F4;
+constexpr unsigned int mmCP_DRAW_INDX_INDR_ADDR_HI              = 0xC0F5;
+constexpr unsigned int mmCP_DRAW_OBJECT                         = 0xD810;
+constexpr unsigned int mmCP_DRAW_OBJECT_COUNTER                 = 0xD811;
+constexpr unsigned int mmCP_DRAW_WINDOW_CNTL                    = 0xD815;
+constexpr unsigned int mmCP_DRAW_WINDOW_HI                      = 0xD813;
+constexpr unsigned int mmCP_DRAW_WINDOW_LO                      = 0xD814;
+constexpr unsigned int mmCP_DRAW_WINDOW_MASK_HI                 = 0xD812;
+constexpr unsigned int mmCP_ECC_FIRSTOCCURRENCE                 = 0x307A;
+constexpr unsigned int mmCP_ECC_FIRSTOCCURRENCE_RING0           = 0x307B;
+constexpr unsigned int mmCP_ECC_FIRSTOCCURRENCE_RING1           = 0x307C;
+constexpr unsigned int mmCP_ECC_FIRSTOCCURRENCE_RING2           = 0x307D;
+constexpr unsigned int mmCP_EOPQ_WAIT_TIME                      = 0x3035;
+constexpr unsigned int mmCP_EOP_DONE_ADDR_HI                    = 0xC001;
+constexpr unsigned int mmCP_EOP_DONE_ADDR_LO                    = 0xC000;
+constexpr unsigned int mmCP_EOP_DONE_CNTX_ID                    = 0xC0D7;
+constexpr unsigned int mmCP_EOP_DONE_DATA_CNTL                  = 0xC0D6;
+constexpr unsigned int mmCP_EOP_DONE_DATA_HI                    = 0xC003;
+constexpr unsigned int mmCP_EOP_DONE_DATA_LO                    = 0xC002;
+constexpr unsigned int mmCP_EOP_DONE_EVENT_CNTL                 = 0xC0D5;
+constexpr unsigned int mmCP_EOP_LAST_FENCE_HI                   = 0xC005;
+constexpr unsigned int mmCP_EOP_LAST_FENCE_LO                   = 0xC004;
+constexpr unsigned int mmCP_FATAL_ERROR                         = 0x3050;
+constexpr unsigned int mmCP_GFX_ERROR                           = 0x303B;
+constexpr unsigned int mmCP_GRBM_FREE_COUNT                     = 0x21A3;
+constexpr unsigned int mmCP_IB1_BASE_HI                         = 0xC0CD;
+constexpr unsigned int mmCP_IB1_BASE_LO                         = 0xC0CC;
+constexpr unsigned int mmCP_IB1_BUFSZ                           = 0xC0CE;
+constexpr unsigned int mmCP_IB1_CMD_BUFSZ                       = 0xC0C0;
+constexpr unsigned int mmCP_IB1_OFFSET                          = 0xC092;
+constexpr unsigned int mmCP_IB1_PREAMBLE_BEGIN                  = 0xC094;
+constexpr unsigned int mmCP_IB1_PREAMBLE_END                    = 0xC095;
+constexpr unsigned int mmCP_IB2_BASE_HI                         = 0xC0D0;
+constexpr unsigned int mmCP_IB2_BASE_LO                         = 0xC0CF;
+constexpr unsigned int mmCP_IB2_BUFSZ                           = 0xC0D1;
+constexpr unsigned int mmCP_IB2_CMD_BUFSZ                       = 0xC0C1;
+constexpr unsigned int mmCP_IB2_OFFSET                          = 0xC093;
+constexpr unsigned int mmCP_IB2_PREAMBLE_BEGIN                  = 0xC096;
+constexpr unsigned int mmCP_IB2_PREAMBLE_END                    = 0xC097;
+constexpr unsigned int mmCP_INDEX_BASE_ADDR                     = 0xC0F8;
+constexpr unsigned int mmCP_INDEX_BASE_ADDR_HI                  = 0xC0F9;
+constexpr unsigned int mmCP_INDEX_TYPE                          = 0xC0FA;
+constexpr unsigned int mmCP_INT_CNTL                            = 0x3049;
+constexpr unsigned int mmCP_INT_CNTL_RING0                      = 0x306A;
+constexpr unsigned int mmCP_INT_CNTL_RING1                      = 0x306B;
+constexpr unsigned int mmCP_INT_CNTL_RING2                      = 0x306C;
+constexpr unsigned int mmCP_INT_STATUS                          = 0x304A;
+constexpr unsigned int mmCP_INT_STATUS_RING0                    = 0x306D;
+constexpr unsigned int mmCP_INT_STATUS_RING1                    = 0x306E;
+constexpr unsigned int mmCP_INT_STATUS_RING2                    = 0x306F;
+constexpr unsigned int mmCP_INT_STAT_DEBUG                      = 0x21F7;
+constexpr unsigned int mmCP_IQ_WAIT_TIME1                       = 0x30AF;
+constexpr unsigned int mmCP_IQ_WAIT_TIME2                       = 0x30B0;
+constexpr unsigned int mmCP_MAX_CONTEXT                         = 0x30AE;
+constexpr unsigned int mmCP_ME0_PIPE0_PRIORITY                  = 0x304D;
+constexpr unsigned int mmCP_ME0_PIPE0_VMID                      = 0x3052;
+constexpr unsigned int mmCP_ME0_PIPE1_PRIORITY                  = 0x304E;
+constexpr unsigned int mmCP_ME0_PIPE1_VMID                      = 0x3053;
+constexpr unsigned int mmCP_ME0_PIPE2_PRIORITY                  = 0x304F;
+constexpr unsigned int mmCP_ME0_PIPE_PRIORITY_CNTS              = 0x304C;
+constexpr unsigned int mmCP_ME1_INT_STAT_DEBUG                  = 0x3095;
+constexpr unsigned int mmCP_ME1_PIPE0_INT_CNTL                  = 0x3085;
+constexpr unsigned int mmCP_ME1_PIPE0_INT_STATUS                = 0x308D;
+constexpr unsigned int mmCP_ME1_PIPE0_PRIORITY                  = 0x309A;
+constexpr unsigned int mmCP_ME1_PIPE1_INT_CNTL                  = 0x3086;
+constexpr unsigned int mmCP_ME1_PIPE1_INT_STATUS                = 0x308E;
+constexpr unsigned int mmCP_ME1_PIPE1_PRIORITY                  = 0x309B;
+constexpr unsigned int mmCP_ME1_PIPE2_INT_CNTL                  = 0x3087;
+constexpr unsigned int mmCP_ME1_PIPE2_INT_STATUS                = 0x308F;
+constexpr unsigned int mmCP_ME1_PIPE2_PRIORITY                  = 0x309C;
+constexpr unsigned int mmCP_ME1_PIPE3_INT_CNTL                  = 0x3088;
+constexpr unsigned int mmCP_ME1_PIPE3_INT_STATUS                = 0x3090;
+constexpr unsigned int mmCP_ME1_PIPE3_PRIORITY                  = 0x309D;
+constexpr unsigned int mmCP_ME1_PIPE_PRIORITY_CNTS              = 0x3099;
+constexpr unsigned int mmCP_ME2_INT_STAT_DEBUG                  = 0x3096;
+constexpr unsigned int mmCP_ME2_PIPE0_INT_CNTL                  = 0x3089;
+constexpr unsigned int mmCP_ME2_PIPE0_INT_STATUS                = 0x3091;
+constexpr unsigned int mmCP_ME2_PIPE0_PRIORITY                  = 0x309F;
+constexpr unsigned int mmCP_ME2_PIPE1_INT_CNTL                  = 0x308A;
+constexpr unsigned int mmCP_ME2_PIPE1_INT_STATUS                = 0x3092;
+constexpr unsigned int mmCP_ME2_PIPE1_PRIORITY                  = 0x30A0;
+constexpr unsigned int mmCP_ME2_PIPE2_INT_CNTL                  = 0x308B;
+constexpr unsigned int mmCP_ME2_PIPE2_INT_STATUS                = 0x3093;
+constexpr unsigned int mmCP_ME2_PIPE2_PRIORITY                  = 0x30A1;
+constexpr unsigned int mmCP_ME2_PIPE3_INT_CNTL                  = 0x308C;
+constexpr unsigned int mmCP_ME2_PIPE3_INT_STATUS                = 0x3094;
+constexpr unsigned int mmCP_ME2_PIPE3_PRIORITY                  = 0x30A2;
+constexpr unsigned int mmCP_ME2_PIPE_PRIORITY_CNTS              = 0x309E;
+constexpr unsigned int mmCP_MEC1_F32_INTERRUPT                  = 0x3076;
+constexpr unsigned int mmCP_MEC1_F32_INT_DIS                    = 0x30BD;
+constexpr unsigned int mmCP_MEC1_INSTR_PNTR                     = 0x21A8;
+constexpr unsigned int mmCP_MEC1_INTR_ROUTINE_START             = 0x30AB;
+constexpr unsigned int mmCP_MEC1_PRGRM_CNTR_START               = 0x30A6;
+constexpr unsigned int mmCP_MEC2_F32_INTERRUPT                  = 0x3077;
+constexpr unsigned int mmCP_MEC2_F32_INT_DIS                    = 0x30BE;
+constexpr unsigned int mmCP_MEC2_INSTR_PNTR                     = 0x21A9;
+constexpr unsigned int mmCP_MEC2_INTR_ROUTINE_START             = 0x30AC;
+constexpr unsigned int mmCP_MEC2_PRGRM_CNTR_START               = 0x30A7;
+constexpr unsigned int mmCP_MEC_CNTL                            = 0x208D;
+constexpr unsigned int mmCP_MEC_DOORBELL_RANGE_LOWER            = 0x305C;
+constexpr unsigned int mmCP_MEC_DOORBELL_RANGE_UPPER            = 0x305D;
+constexpr unsigned int mmCP_MEC_ME1_HEADER_DUMP                 = 0x208E;
+constexpr unsigned int mmCP_MEC_ME2_HEADER_DUMP                 = 0x208F;
+constexpr unsigned int mmCP_MEM_SLP_CNTL                        = 0x3079;
+constexpr unsigned int mmCP_MEQ_AVAIL                           = 0x21DD;
+constexpr unsigned int mmCP_MEQ_STAT                            = 0x21E5;
+constexpr unsigned int mmCP_MEQ_STQ_THRESHOLD                   = 0x21BD;
+constexpr unsigned int mmCP_MEQ_THRESHOLDS                      = 0x21D9;
+constexpr unsigned int mmCP_ME_ATOMIC_PREOP_HI                  = 0xC05E;
+constexpr unsigned int mmCP_ME_ATOMIC_PREOP_LO                  = 0xC05D;
+constexpr unsigned int mmCP_ME_CNTL                             = 0x21B6;
+constexpr unsigned int mmCP_ME_COHER_BASE                       = 0xC101;
+constexpr unsigned int mmCP_ME_COHER_BASE_HI                    = 0xC102;
+constexpr unsigned int mmCP_ME_COHER_CNTL                       = 0xC0FE;
+constexpr unsigned int mmCP_ME_COHER_SIZE                       = 0xC0FF;
+constexpr unsigned int mmCP_ME_COHER_SIZE_HI                    = 0xC100;
+constexpr unsigned int mmCP_ME_COHER_STATUS                     = 0xC103;
+constexpr unsigned int mmCP_ME_HEADER_DUMP                      = 0x21A1;
+constexpr unsigned int mmCP_ME_INSTR_PNTR                       = 0x21A6;
+constexpr unsigned int mmCP_ME_INTR_ROUTINE_START               = 0x30AA;
+constexpr unsigned int mmCP_ME_MC_RADDR_HI                      = 0xC06E;
+constexpr unsigned int mmCP_ME_MC_RADDR_LO                      = 0xC06D;
+constexpr unsigned int mmCP_ME_MC_WADDR_HI                      = 0xC06A;
+constexpr unsigned int mmCP_ME_MC_WADDR_LO                      = 0xC069;
+constexpr unsigned int mmCP_ME_MC_WDATA_HI                      = 0xC06C;
+constexpr unsigned int mmCP_ME_MC_WDATA_LO                      = 0xC06B;
+constexpr unsigned int mmCP_ME_PREEMPTION                       = 0x21B9;
+constexpr unsigned int mmCP_ME_PRGRM_CNTR_START                 = 0x30A5;
+constexpr unsigned int mmCP_ME_RAM_DATA                         = 0xF817;
+constexpr unsigned int mmCP_ME_RAM_RADDR                        = 0xF816;
+constexpr unsigned int mmCP_ME_RAM_WADDR                        = 0xF816;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT0_HI           = 0xC00B;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT0_LO           = 0xC00A;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT1_HI           = 0xC00F;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT1_LO           = 0xC00E;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT2_HI           = 0xC013;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT2_LO           = 0xC012;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT3_HI           = 0xC017;
+constexpr unsigned int mmCP_NUM_PRIM_NEEDED_COUNT3_LO           = 0xC016;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT0_HI          = 0xC009;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT0_LO          = 0xC008;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT1_HI          = 0xC00D;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT1_LO          = 0xC00C;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT2_HI          = 0xC011;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT2_LO          = 0xC010;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT3_HI          = 0xC015;
+constexpr unsigned int mmCP_NUM_PRIM_WRITTEN_COUNT3_LO          = 0xC014;
+constexpr unsigned int mmCP_PA_CINVOC_COUNT_HI                  = 0xC029;
+constexpr unsigned int mmCP_PA_CINVOC_COUNT_LO                  = 0xC028;
+constexpr unsigned int mmCP_PA_CPRIM_COUNT_HI                   = 0xC02B;
+constexpr unsigned int mmCP_PA_CPRIM_COUNT_LO                   = 0xC02A;
+constexpr unsigned int mmCP_PERFMON_CNTL                        = 0xD808;
+constexpr unsigned int mmCP_PERFMON_CNTX_CNTL                   = 0xA0D8;
+constexpr unsigned int mmCP_PFP_ATOMIC_PREOP_HI                 = 0xC053;
+constexpr unsigned int mmCP_PFP_ATOMIC_PREOP_LO                 = 0xC052;
+constexpr unsigned int mmCP_PFP_COMPLETION_STATUS               = 0xC0EC;
+constexpr unsigned int mmCP_PFP_F32_INTERRUPT                   = 0x3074;
+constexpr unsigned int mmCP_PFP_HEADER_DUMP                     = 0x21A2;
+constexpr unsigned int mmCP_PFP_IB_CONTROL                      = 0xC08D;
+constexpr unsigned int mmCP_PFP_INSTR_PNTR                      = 0x21A5;
+constexpr unsigned int mmCP_PFP_INTR_ROUTINE_START              = 0x30A9;
+constexpr unsigned int mmCP_PFP_LOAD_CONTROL                    = 0xC08E;
+constexpr unsigned int mmCP_PFP_METADATA_BASE_ADDR              = 0xC0F0;
+constexpr unsigned int mmCP_PFP_METADATA_BASE_ADDR_HI           = 0xC0F1;
+constexpr unsigned int mmCP_PFP_PRGRM_CNTR_START                = 0x30A4;
+constexpr unsigned int mmCP_PIPEID                              = 0xA0D9;
+constexpr unsigned int mmCP_PIPE_STATS_ADDR_HI                  = 0xC019;
+constexpr unsigned int mmCP_PIPE_STATS_ADDR_LO                  = 0xC018;
+constexpr unsigned int mmCP_PIPE_STATS_CONTROL                  = 0xC03D;
+constexpr unsigned int mmCP_PQ_STATUS                           = 0x30B8;
+constexpr unsigned int mmCP_PQ_WPTR_POLL_CNTL                   = 0x3083;
+constexpr unsigned int mmCP_PQ_WPTR_POLL_CNTL1                  = 0x3084;
+constexpr unsigned int mmCP_PRED_NOT_VISIBLE                    = 0xC0EE;
+constexpr unsigned int mmCP_PWR_CNTL                            = 0x3078;
+constexpr unsigned int mmCP_QUEUE_THRESHOLDS                    = 0x21D8;
+constexpr unsigned int mmCP_RB0_BASE                            = 0x3040;
+constexpr unsigned int mmCP_RB0_BASE_HI                         = 0x30B1;
+constexpr unsigned int mmCP_RB0_BUFSZ_MASK                      = 0x3045;
+constexpr unsigned int mmCP_RB0_CNTL                            = 0x3041;
+constexpr unsigned int mmCP_RB0_RPTR                            = 0x21C0;
+constexpr unsigned int mmCP_RB0_RPTR_ADDR                       = 0x3043;
+constexpr unsigned int mmCP_RB0_RPTR_ADDR_HI                    = 0x3044;
+constexpr unsigned int mmCP_RB0_WPTR                            = 0x3054;
+constexpr unsigned int mmCP_RB0_WPTR_HI                         = 0x3055;
+constexpr unsigned int mmCP_RB1_BASE                            = 0x3060;
+constexpr unsigned int mmCP_RB1_BASE_HI                         = 0x30B2;
+constexpr unsigned int mmCP_RB1_CNTL                            = 0x3061;
+constexpr unsigned int mmCP_RB1_RPTR                            = 0x21BF;
+constexpr unsigned int mmCP_RB1_RPTR_ADDR                       = 0x3062;
+constexpr unsigned int mmCP_RB1_RPTR_ADDR_HI                    = 0x3063;
+constexpr unsigned int mmCP_RB1_WPTR                            = 0x3056;
+constexpr unsigned int mmCP_RB1_WPTR_HI                         = 0x3057;
+constexpr unsigned int mmCP_RB2_BASE                            = 0x3065;
+constexpr unsigned int mmCP_RB2_CNTL                            = 0x3066;
+constexpr unsigned int mmCP_RB2_RPTR                            = 0x21BE;
+constexpr unsigned int mmCP_RB2_RPTR_ADDR                       = 0x3067;
+constexpr unsigned int mmCP_RB2_RPTR_ADDR_HI                    = 0x3068;
+constexpr unsigned int mmCP_RB2_WPTR                            = 0x3058;
+constexpr unsigned int mmCP_RB_BASE                             = 0x3040;
+constexpr unsigned int mmCP_RB_BUFSZ_MASK                       = 0x3045;
+constexpr unsigned int mmCP_RB_CNTL                             = 0x3041;
+constexpr unsigned int mmCP_RB_DOORBELL_CLEAR                   = 0x3188;
+constexpr unsigned int mmCP_RB_DOORBELL_RANGE_LOWER             = 0x305A;
+constexpr unsigned int mmCP_RB_DOORBELL_RANGE_UPPER             = 0x305B;
+constexpr unsigned int mmCP_RB_OFFSET                           = 0xC091;
+constexpr unsigned int mmCP_RB_RPTR                             = 0x21C0;
+constexpr unsigned int mmCP_RB_RPTR_ADDR                        = 0x3043;
+constexpr unsigned int mmCP_RB_RPTR_ADDR_HI                     = 0x3044;
+constexpr unsigned int mmCP_RB_RPTR_WR                          = 0x3042;
+constexpr unsigned int mmCP_RB_STATUS                           = 0x31A3;
+constexpr unsigned int mmCP_RB_VMID                             = 0x3051;
+constexpr unsigned int mmCP_RB_WPTR                             = 0x3054;
+constexpr unsigned int mmCP_RB_WPTR_DELAY                       = 0x21C1;
+constexpr unsigned int mmCP_RB_WPTR_HI                          = 0x3055;
+constexpr unsigned int mmCP_RB_WPTR_POLL_CNTL                   = 0x21C2;
+constexpr unsigned int mmCP_RING0_PRIORITY                      = 0x304D;
+constexpr unsigned int mmCP_RING1_PRIORITY                      = 0x304E;
+constexpr unsigned int mmCP_RING2_PRIORITY                      = 0x304F;
+constexpr unsigned int mmCP_RINGID                              = 0xA0D9;
+constexpr unsigned int mmCP_RING_PRIORITY_CNTS                  = 0x304C;
+constexpr unsigned int mmCP_ROQ1_THRESHOLDS                     = 0x21D5;
+constexpr unsigned int mmCP_ROQ2_AVAIL                          = 0x21DC;
+constexpr unsigned int mmCP_ROQ2_THRESHOLDS                     = 0x21D6;
+constexpr unsigned int mmCP_ROQ_AVAIL                           = 0x21DA;
+constexpr unsigned int mmCP_ROQ_IB1_STAT                        = 0x21E1;
+constexpr unsigned int mmCP_ROQ_IB2_STAT                        = 0x21E2;
+constexpr unsigned int mmCP_ROQ_RB_STAT                         = 0x21E0;
+constexpr unsigned int mmCP_ROQ_THRESHOLDS                      = 0x21BC;
+constexpr unsigned int mmCP_SAMPLE_STATUS                       = 0xC0FD;
+constexpr unsigned int mmCP_SCRATCH_DATA                        = 0xC090;
+constexpr unsigned int mmCP_SCRATCH_INDEX                       = 0xC08F;
+constexpr unsigned int mmCP_SC_PSINVOC_COUNT0_HI                = 0xC02D;
+constexpr unsigned int mmCP_SC_PSINVOC_COUNT0_LO                = 0xC02C;
+constexpr unsigned int mmCP_SC_PSINVOC_COUNT1_HI                = 0xC02F;
+constexpr unsigned int mmCP_SC_PSINVOC_COUNT1_LO                = 0xC02E;
+constexpr unsigned int mmCP_SD_CNTL                             = 0x31B7;
+constexpr unsigned int mmCP_SEM_WAIT_TIMER                      = 0xC06F;
+constexpr unsigned int mmCP_SIG_SEM_ADDR_HI                     = 0xC071;
+constexpr unsigned int mmCP_SIG_SEM_ADDR_LO                     = 0xC070;
+constexpr unsigned int mmCP_SOFT_RESET_CNTL                     = 0x31B9;
+constexpr unsigned int mmCP_STALLED_STAT1                       = 0x219D;
+constexpr unsigned int mmCP_STALLED_STAT2                       = 0x219E;
+constexpr unsigned int mmCP_STALLED_STAT3                       = 0x219C;
+constexpr unsigned int mmCP_STAT                                = 0x21A0;
+constexpr unsigned int mmCP_STQ_AVAIL                           = 0x21DB;
+constexpr unsigned int mmCP_STQ_STAT                            = 0x21E3;
+constexpr unsigned int mmCP_STQ_THRESHOLDS                      = 0x21D7;
+constexpr unsigned int mmCP_STQ_WR_STAT                         = 0x21E4;
+constexpr unsigned int mmCP_STREAM_OUT_ADDR_HI                  = 0xC007;
+constexpr unsigned int mmCP_STREAM_OUT_ADDR_LO                  = 0xC006;
+constexpr unsigned int mmCP_STREAM_OUT_CONTROL                  = 0xC03E;
+constexpr unsigned int mmCP_STRMOUT_CNTL                        = 0xC03F;
+constexpr unsigned int mmCP_ST_BASE_HI                          = 0xC0D3;
+constexpr unsigned int mmCP_ST_BASE_LO                          = 0xC0D2;
+constexpr unsigned int mmCP_ST_BUFSZ                            = 0xC0D4;
+constexpr unsigned int mmCP_ST_CMD_BUFSZ                        = 0xC0C2;
+constexpr unsigned int mmCP_VGT_CSINVOC_COUNT_HI                = 0xC031;
+constexpr unsigned int mmCP_VGT_CSINVOC_COUNT_LO                = 0xC030;
+constexpr unsigned int mmCP_VGT_DSINVOC_COUNT_HI                = 0xC027;
+constexpr unsigned int mmCP_VGT_DSINVOC_COUNT_LO                = 0xC026;
+constexpr unsigned int mmCP_VGT_GSINVOC_COUNT_HI                = 0xC023;
+constexpr unsigned int mmCP_VGT_GSINVOC_COUNT_LO                = 0xC022;
+constexpr unsigned int mmCP_VGT_GSPRIM_COUNT_HI                 = 0xC01F;
+constexpr unsigned int mmCP_VGT_GSPRIM_COUNT_LO                 = 0xC01E;
+constexpr unsigned int mmCP_VGT_HSINVOC_COUNT_HI                = 0xC025;
+constexpr unsigned int mmCP_VGT_HSINVOC_COUNT_LO                = 0xC024;
+constexpr unsigned int mmCP_VGT_IAPRIM_COUNT_HI                 = 0xC01D;
+constexpr unsigned int mmCP_VGT_IAPRIM_COUNT_LO                 = 0xC01C;
+constexpr unsigned int mmCP_VGT_IAVERT_COUNT_HI                 = 0xC01B;
+constexpr unsigned int mmCP_VGT_IAVERT_COUNT_LO                 = 0xC01A;
+constexpr unsigned int mmCP_VGT_VSINVOC_COUNT_HI                = 0xC021;
+constexpr unsigned int mmCP_VGT_VSINVOC_COUNT_LO                = 0xC020;
+constexpr unsigned int mmCP_VIRT_STATUS                         = 0x3038;
+constexpr unsigned int mmCP_VMID                                = 0xA0DA;
+constexpr unsigned int mmCP_VMID_PREEMPT                        = 0x30B6;
+constexpr unsigned int mmCP_VMID_RESET                          = 0x30B3;
+constexpr unsigned int mmCP_VMID_STATUS                         = 0x30BF;
+constexpr unsigned int mmCP_WAIT_REG_MEM_TIMEOUT                = 0xC074;
+constexpr unsigned int mmCP_WAIT_SEM_ADDR_HI                    = 0xC076;
+constexpr unsigned int mmCP_WAIT_SEM_ADDR_LO                    = 0xC075;
+constexpr unsigned int mmCS_COPY_STATE                          = 0xA1F3;
+constexpr unsigned int mmDB_ALPHA_TO_MASK                       = 0xA2DC;
+constexpr unsigned int mmDB_CGTT_CLK_CTRL_0                     = 0xF0A4;
+constexpr unsigned int mmDB_COUNT_CONTROL                       = 0xA001;
+constexpr unsigned int mmDB_CREDIT_LIMIT                        = 0x2614;
+constexpr unsigned int mmDB_DEBUG                               = 0x260C;
+constexpr unsigned int mmDB_DEBUG2                              = 0x260D;
+constexpr unsigned int mmDB_DEBUG3                              = 0x260E;
+constexpr unsigned int mmDB_DEBUG4                              = 0x260F;
+constexpr unsigned int mmDB_DEPTH_BOUNDS_MAX                    = 0xA009;
+constexpr unsigned int mmDB_DEPTH_BOUNDS_MIN                    = 0xA008;
+constexpr unsigned int mmDB_DEPTH_CLEAR                         = 0xA00B;
+constexpr unsigned int mmDB_DEPTH_CONTROL                       = 0xA200;
+constexpr unsigned int mmDB_DEPTH_VIEW                          = 0xA002;
+constexpr unsigned int mmDB_DFSM_CONFIG                         = 0x2630;
+constexpr unsigned int mmDB_DFSM_FLUSH_AUX_EVENT                = 0x2636;
+constexpr unsigned int mmDB_DFSM_FLUSH_ENABLE                   = 0x2635;
+constexpr unsigned int mmDB_DFSM_PRIMS_IN_FLIGHT                = 0x2633;
+constexpr unsigned int mmDB_DFSM_TILES_IN_FLIGHT                = 0x2632;
+constexpr unsigned int mmDB_DFSM_WATCHDOG                       = 0x2634;
+constexpr unsigned int mmDB_EQAA                                = 0xA201;
+constexpr unsigned int mmDB_FIFO_DEPTH1                         = 0x2618;
+constexpr unsigned int mmDB_FIFO_DEPTH2                         = 0x2619;
+constexpr unsigned int mmDB_FREE_CACHELINES                     = 0x2617;
+constexpr unsigned int mmDB_HTILE_DATA_BASE                     = 0xA005;
+constexpr unsigned int mmDB_HTILE_SURFACE                       = 0xA2AF;
+constexpr unsigned int mmDB_MEM_ARB_WATERMARKS                  = 0x261C;
+constexpr unsigned int mmDB_OCCLUSION_COUNT0_HI                 = 0xC3C1;
+constexpr unsigned int mmDB_OCCLUSION_COUNT0_LOW                = 0xC3C0;
+constexpr unsigned int mmDB_OCCLUSION_COUNT1_HI                 = 0xC3C3;
+constexpr unsigned int mmDB_OCCLUSION_COUNT1_LOW                = 0xC3C2;
+constexpr unsigned int mmDB_OCCLUSION_COUNT2_HI                 = 0xC3C5;
+constexpr unsigned int mmDB_OCCLUSION_COUNT2_LOW                = 0xC3C4;
+constexpr unsigned int mmDB_OCCLUSION_COUNT3_HI                 = 0xC3C7;
+constexpr unsigned int mmDB_OCCLUSION_COUNT3_LOW                = 0xC3C6;
+constexpr unsigned int mmDB_PERFCOUNTER0_HI                     = 0xD441;
+constexpr unsigned int mmDB_PERFCOUNTER0_LO                     = 0xD440;
+constexpr unsigned int mmDB_PERFCOUNTER0_SELECT                 = 0xDC40;
+constexpr unsigned int mmDB_PERFCOUNTER0_SELECT1                = 0xDC41;
+constexpr unsigned int mmDB_PERFCOUNTER1_HI                     = 0xD443;
+constexpr unsigned int mmDB_PERFCOUNTER1_LO                     = 0xD442;
+constexpr unsigned int mmDB_PERFCOUNTER1_SELECT                 = 0xDC42;
+constexpr unsigned int mmDB_PERFCOUNTER1_SELECT1                = 0xDC43;
+constexpr unsigned int mmDB_PERFCOUNTER2_HI                     = 0xD445;
+constexpr unsigned int mmDB_PERFCOUNTER2_LO                     = 0xD444;
+constexpr unsigned int mmDB_PERFCOUNTER2_SELECT                 = 0xDC44;
+constexpr unsigned int mmDB_PERFCOUNTER3_HI                     = 0xD447;
+constexpr unsigned int mmDB_PERFCOUNTER3_LO                     = 0xD446;
+constexpr unsigned int mmDB_PERFCOUNTER3_SELECT                 = 0xDC46;
+constexpr unsigned int mmDB_PRELOAD_CONTROL                     = 0xA2B2;
+constexpr unsigned int mmDB_READ_DEBUG_3                        = 0x2623;
+constexpr unsigned int mmDB_READ_DEBUG_4                        = 0x2624;
+constexpr unsigned int mmDB_READ_DEBUG_5                        = 0x2625;
+constexpr unsigned int mmDB_READ_DEBUG_6                        = 0x2626;
+constexpr unsigned int mmDB_READ_DEBUG_7                        = 0x2627;
+constexpr unsigned int mmDB_READ_DEBUG_8                        = 0x2628;
+constexpr unsigned int mmDB_READ_DEBUG_9                        = 0x2629;
+constexpr unsigned int mmDB_READ_DEBUG_A                        = 0x262A;
+constexpr unsigned int mmDB_READ_DEBUG_B                        = 0x262B;
+constexpr unsigned int mmDB_READ_DEBUG_C                        = 0x262C;
+constexpr unsigned int mmDB_READ_DEBUG_D                        = 0x262D;
+constexpr unsigned int mmDB_READ_DEBUG_E                        = 0x262E;
+constexpr unsigned int mmDB_READ_DEBUG_F                        = 0x262F;
+constexpr unsigned int mmDB_RENDER_CONTROL                      = 0xA000;
+constexpr unsigned int mmDB_RENDER_OVERRIDE                     = 0xA003;
+constexpr unsigned int mmDB_RENDER_OVERRIDE2                    = 0xA004;
+constexpr unsigned int mmDB_RING_CONTROL                        = 0x261B;
+constexpr unsigned int mmDB_SHADER_CONTROL                      = 0xA203;
+constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE0             = 0xA2B0;
+constexpr unsigned int mmDB_SRESULTS_COMPARE_STATE1             = 0xA2B1;
+constexpr unsigned int mmDB_STENCILREFMASK                      = 0xA10C;
+constexpr unsigned int mmDB_STENCILREFMASK_BF                   = 0xA10D;
+constexpr unsigned int mmDB_STENCIL_CLEAR                       = 0xA00A;
+constexpr unsigned int mmDB_STENCIL_CONTROL                     = 0xA10B;
+constexpr unsigned int mmDB_SUBTILE_CONTROL                     = 0x2616;
+constexpr unsigned int mmDB_WATERMARKS                          = 0x2615;
+constexpr unsigned int mmDB_ZPASS_COUNT_HI                      = 0xC3FF;
+constexpr unsigned int mmDB_ZPASS_COUNT_LOW                     = 0xC3FE;
+constexpr unsigned int mmDB_Z_WRITE_BASE                        = 0xA014;
+constexpr unsigned int mmDEBUG_DATA                             = 0x203D;
+constexpr unsigned int mmDEBUG_INDEX                            = 0x203C;
+constexpr unsigned int mmGB_ADDR_CONFIG                         = 0x263E;
+constexpr unsigned int mmGB_ADDR_CONFIG_READ                    = 0x2642;
+constexpr unsigned int mmGB_BACKEND_MAP                         = 0x263F;
+constexpr unsigned int mmGB_EDC_MODE                            = 0x307E;
+constexpr unsigned int mmGB_GPU_ID                              = 0x2640;
+constexpr unsigned int mmGB_MACROTILE_MODE0                     = 0x2664;
+constexpr unsigned int mmGB_MACROTILE_MODE1                     = 0x2665;
+constexpr unsigned int mmGB_MACROTILE_MODE2                     = 0x2666;
+constexpr unsigned int mmGB_MACROTILE_MODE3                     = 0x2667;
+constexpr unsigned int mmGB_MACROTILE_MODE4                     = 0x2668;
+constexpr unsigned int mmGB_MACROTILE_MODE5                     = 0x2669;
+constexpr unsigned int mmGB_MACROTILE_MODE6                     = 0x266A;
+constexpr unsigned int mmGB_MACROTILE_MODE7                     = 0x266B;
+constexpr unsigned int mmGB_MACROTILE_MODE8                     = 0x266C;
+constexpr unsigned int mmGB_MACROTILE_MODE9                     = 0x266D;
+constexpr unsigned int mmGB_MACROTILE_MODE10                    = 0x266E;
+constexpr unsigned int mmGB_MACROTILE_MODE11                    = 0x266F;
+constexpr unsigned int mmGB_MACROTILE_MODE12                    = 0x2670;
+constexpr unsigned int mmGB_MACROTILE_MODE13                    = 0x2671;
+constexpr unsigned int mmGB_MACROTILE_MODE14                    = 0x2672;
+constexpr unsigned int mmGB_MACROTILE_MODE15                    = 0x2673;
+constexpr unsigned int mmGB_TILE_MODE0                          = 0x2644;
+constexpr unsigned int mmGB_TILE_MODE1                          = 0x2645;
+constexpr unsigned int mmGB_TILE_MODE2                          = 0x2646;
+constexpr unsigned int mmGB_TILE_MODE3                          = 0x2647;
+constexpr unsigned int mmGB_TILE_MODE4                          = 0x2648;
+constexpr unsigned int mmGB_TILE_MODE5                          = 0x2649;
+constexpr unsigned int mmGB_TILE_MODE6                          = 0x264A;
+constexpr unsigned int mmGB_TILE_MODE7                          = 0x264B;
+constexpr unsigned int mmGB_TILE_MODE8                          = 0x264C;
+constexpr unsigned int mmGB_TILE_MODE9                          = 0x264D;
+constexpr unsigned int mmGB_TILE_MODE10                         = 0x264E;
+constexpr unsigned int mmGB_TILE_MODE11                         = 0x264F;
+constexpr unsigned int mmGB_TILE_MODE12                         = 0x2650;
+constexpr unsigned int mmGB_TILE_MODE13                         = 0x2651;
+constexpr unsigned int mmGB_TILE_MODE14                         = 0x2652;
+constexpr unsigned int mmGB_TILE_MODE15                         = 0x2653;
+constexpr unsigned int mmGB_TILE_MODE16                         = 0x2654;
+constexpr unsigned int mmGB_TILE_MODE17                         = 0x2655;
+constexpr unsigned int mmGB_TILE_MODE18                         = 0x2656;
+constexpr unsigned int mmGB_TILE_MODE19                         = 0x2657;
+constexpr unsigned int mmGB_TILE_MODE20                         = 0x2658;
+constexpr unsigned int mmGB_TILE_MODE21                         = 0x2659;
+constexpr unsigned int mmGB_TILE_MODE22                         = 0x265A;
+constexpr unsigned int mmGB_TILE_MODE23                         = 0x265B;
+constexpr unsigned int mmGB_TILE_MODE24                         = 0x265C;
+constexpr unsigned int mmGB_TILE_MODE25                         = 0x265D;
+constexpr unsigned int mmGB_TILE_MODE26                         = 0x265E;
+constexpr unsigned int mmGB_TILE_MODE27                         = 0x265F;
+constexpr unsigned int mmGB_TILE_MODE28                         = 0x2660;
+constexpr unsigned int mmGB_TILE_MODE29                         = 0x2661;
+constexpr unsigned int mmGB_TILE_MODE30                         = 0x2662;
+constexpr unsigned int mmGB_TILE_MODE31                         = 0x2663;
+constexpr unsigned int mmGC_CAC_CTRL_1                          = 0x3284;
+constexpr unsigned int mmGC_CAC_CTRL_2                          = 0x3285;
+constexpr unsigned int mmGC_USER_PRIM_CONFIG                    = 0x2241;
+constexpr unsigned int mmGC_USER_RB_BACKEND_DISABLE             = 0x26DF;
+constexpr unsigned int mmGC_USER_RB_REDUNDANCY                  = 0x26DE;
+constexpr unsigned int mmGC_USER_SHADER_ARRAY_CONFIG            = 0x2270;
+constexpr unsigned int mmGC_USER_SHADER_RATE_CONFIG             = 0x2313;
+constexpr unsigned int mmGDS_PERFCOUNTER0_HI                    = 0xD281;
+constexpr unsigned int mmGDS_PERFCOUNTER0_LO                    = 0xD280;
+constexpr unsigned int mmGDS_PERFCOUNTER0_SELECT                = 0xDA80;
+constexpr unsigned int mmGDS_PERFCOUNTER0_SELECT1               = 0xDA84;
+constexpr unsigned int mmGDS_PERFCOUNTER1_HI                    = 0xD283;
+constexpr unsigned int mmGDS_PERFCOUNTER1_LO                    = 0xD282;
+constexpr unsigned int mmGDS_PERFCOUNTER1_SELECT                = 0xDA81;
+constexpr unsigned int mmGDS_PERFCOUNTER2_HI                    = 0xD285;
+constexpr unsigned int mmGDS_PERFCOUNTER2_LO                    = 0xD284;
+constexpr unsigned int mmGDS_PERFCOUNTER2_SELECT                = 0xDA82;
+constexpr unsigned int mmGDS_PERFCOUNTER3_HI                    = 0xD287;
+constexpr unsigned int mmGDS_PERFCOUNTER3_LO                    = 0xD286;
+constexpr unsigned int mmGDS_PERFCOUNTER3_SELECT                = 0xDA83;
+constexpr unsigned int mmGFX_COPY_STATE                         = 0xA1F4;
+constexpr unsigned int mmGFX_PIPE_CONTROL                       = 0x226D;
+constexpr unsigned int mmGRBM_CAM_DATA                          = 0xFA05;
+constexpr unsigned int mmGRBM_CAM_INDEX                         = 0xFA04;
+constexpr unsigned int mmGRBM_CHIP_REVISION                     = 0x2021;
+constexpr unsigned int mmGRBM_CNTL                              = 0x2000;
+constexpr unsigned int mmGRBM_DEBUG_DATA                        = 0x200A;
+constexpr unsigned int mmGRBM_DSM_BYPASS                        = 0x201E;
+constexpr unsigned int mmGRBM_GFX_CLKEN_CNTL                    = 0x200C;
+constexpr unsigned int mmGRBM_GFX_CNTL                          = 0x2022;
+constexpr unsigned int mmGRBM_GFX_CNTL_SR_DATA                  = 0xFA03;
+constexpr unsigned int mmGRBM_GFX_CNTL_SR_SELECT                = 0xFA02;
+constexpr unsigned int mmGRBM_GFX_INDEX                         = 0xC200;
+constexpr unsigned int mmGRBM_GFX_INDEX_SR_DATA                 = 0xFA01;
+constexpr unsigned int mmGRBM_GFX_INDEX_SR_SELECT               = 0xFA00;
+constexpr unsigned int mmGRBM_HYP_CAM_DATA                      = 0xFA05;
+constexpr unsigned int mmGRBM_HYP_CAM_INDEX                     = 0xFA04;
+constexpr unsigned int mmGRBM_IH_CREDIT                         = 0x2024;
+constexpr unsigned int mmGRBM_INT_CNTL                          = 0x2018;
+constexpr unsigned int mmGRBM_IOV_ERROR                         = 0x2020;
+constexpr unsigned int mmGRBM_NOWHERE                           = 0x203F;
+constexpr unsigned int mmGRBM_PERFCOUNTER0_HI                   = 0xD041;
+constexpr unsigned int mmGRBM_PERFCOUNTER0_LO                   = 0xD040;
+constexpr unsigned int mmGRBM_PERFCOUNTER0_SELECT               = 0xD840;
+constexpr unsigned int mmGRBM_PERFCOUNTER1_HI                   = 0xD044;
+constexpr unsigned int mmGRBM_PERFCOUNTER1_LO                   = 0xD043;
+constexpr unsigned int mmGRBM_PERFCOUNTER1_SELECT               = 0xD841;
+constexpr unsigned int mmGRBM_PWR_CNTL                          = 0x2003;
+constexpr unsigned int mmGRBM_PWR_CNTL2                         = 0x2025;
+constexpr unsigned int mmGRBM_READ_ERROR                        = 0x2016;
+constexpr unsigned int mmGRBM_READ_ERROR2                       = 0x2017;
+constexpr unsigned int mmGRBM_SCRATCH_REG0                      = 0x2040;
+constexpr unsigned int mmGRBM_SCRATCH_REG1                      = 0x2041;
+constexpr unsigned int mmGRBM_SCRATCH_REG2                      = 0x2042;
+constexpr unsigned int mmGRBM_SCRATCH_REG3                      = 0x2043;
+constexpr unsigned int mmGRBM_SCRATCH_REG4                      = 0x2044;
+constexpr unsigned int mmGRBM_SCRATCH_REG5                      = 0x2045;
+constexpr unsigned int mmGRBM_SCRATCH_REG6                      = 0x2046;
+constexpr unsigned int mmGRBM_SCRATCH_REG7                      = 0x2047;
+constexpr unsigned int mmGRBM_SE0_PERFCOUNTER_HI                = 0xD046;
+constexpr unsigned int mmGRBM_SE0_PERFCOUNTER_LO                = 0xD045;
+constexpr unsigned int mmGRBM_SE0_PERFCOUNTER_SELECT            = 0xD842;
+constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_HI                = 0xD048;
+constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_LO                = 0xD047;
+constexpr unsigned int mmGRBM_SE1_PERFCOUNTER_SELECT            = 0xD843;
+constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                = 0xD04A;
+constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                = 0xD049;
+constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT            = 0xD844;
+constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_HI                = 0xD04C;
+constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_LO                = 0xD04B;
+constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_SELECT            = 0xD845;
+constexpr unsigned int mmGRBM_SKEW_CNTL                         = 0x2001;
+constexpr unsigned int mmGRBM_SOFT_RESET                        = 0x2008;
+constexpr unsigned int mmGRBM_STATUS                            = 0x2004;
+constexpr unsigned int mmGRBM_STATUS2                           = 0x2002;
+constexpr unsigned int mmGRBM_STATUS_SE0                        = 0x2005;
+constexpr unsigned int mmGRBM_STATUS_SE1                        = 0x2006;
+constexpr unsigned int mmGRBM_STATUS_SE2                        = 0x200E;
+constexpr unsigned int mmGRBM_STATUS_SE3                        = 0x200F;
+constexpr unsigned int mmGRBM_TRAP_ADDR                         = 0x201A;
+constexpr unsigned int mmGRBM_TRAP_ADDR_MSK                     = 0x201B;
+constexpr unsigned int mmGRBM_TRAP_OP                           = 0x2019;
+constexpr unsigned int mmGRBM_TRAP_WD                           = 0x201C;
+constexpr unsigned int mmGRBM_TRAP_WD_MSK                       = 0x201D;
+constexpr unsigned int mmGRBM_UTCL2_INVAL_RANGE_END             = 0x2027;
+constexpr unsigned int mmGRBM_UTCL2_INVAL_RANGE_START           = 0x2026;
+constexpr unsigned int mmGRBM_WAIT_IDLE_CLOCKS                  = 0x200D;
+constexpr unsigned int mmGRBM_WRITE_ERROR                       = 0x201F;
+constexpr unsigned int mmIA_ENHANCE                             = 0xA29C;
+constexpr unsigned int mmIA_UTCL1_CNTL                          = 0x2246;
+constexpr unsigned int mmIA_UTCL1_STATUS                        = 0x2247;
+constexpr unsigned int mmLDS_CONFIG                             = 0x2302;
+constexpr unsigned int mmPA_CL_CLIP_CNTL                        = 0xA204;
+constexpr unsigned int mmPA_CL_CNTL_STATUS                      = 0x2284;
+constexpr unsigned int mmPA_CL_ENHANCE                          = 0x2285;
+constexpr unsigned int mmPA_CL_GB_HORZ_CLIP_ADJ                 = 0xA2FC;
+constexpr unsigned int mmPA_CL_GB_HORZ_DISC_ADJ                 = 0xA2FD;
+constexpr unsigned int mmPA_CL_GB_VERT_CLIP_ADJ                 = 0xA2FA;
+constexpr unsigned int mmPA_CL_GB_VERT_DISC_ADJ                 = 0xA2FB;
+constexpr unsigned int mmPA_CL_NANINF_CNTL                      = 0xA208;
+constexpr unsigned int mmPA_CL_NGG_CNTL                         = 0xA20E;
+constexpr unsigned int mmPA_CL_POINT_CULL_RAD                   = 0xA1F8;
+constexpr unsigned int mmPA_CL_POINT_SIZE                       = 0xA1F7;
+constexpr unsigned int mmPA_CL_POINT_X_RAD                      = 0xA1F5;
+constexpr unsigned int mmPA_CL_POINT_Y_RAD                      = 0xA1F6;
+constexpr unsigned int mmPA_CL_RESET_DEBUG                      = 0x2286;
+constexpr unsigned int mmPA_CL_UCP_0_W                          = 0xA172;
+constexpr unsigned int mmPA_CL_UCP_0_X                          = 0xA16F;
+constexpr unsigned int mmPA_CL_UCP_0_Y                          = 0xA170;
+constexpr unsigned int mmPA_CL_UCP_0_Z                          = 0xA171;
+constexpr unsigned int mmPA_CL_UCP_1_W                          = 0xA176;
+constexpr unsigned int mmPA_CL_UCP_1_X                          = 0xA173;
+constexpr unsigned int mmPA_CL_UCP_1_Y                          = 0xA174;
+constexpr unsigned int mmPA_CL_UCP_1_Z                          = 0xA175;
+constexpr unsigned int mmPA_CL_UCP_2_W                          = 0xA17A;
+constexpr unsigned int mmPA_CL_UCP_2_X                          = 0xA177;
+constexpr unsigned int mmPA_CL_UCP_2_Y                          = 0xA178;
+constexpr unsigned int mmPA_CL_UCP_2_Z                          = 0xA179;
+constexpr unsigned int mmPA_CL_UCP_3_W                          = 0xA17E;
+constexpr unsigned int mmPA_CL_UCP_3_X                          = 0xA17B;
+constexpr unsigned int mmPA_CL_UCP_3_Y                          = 0xA17C;
+constexpr unsigned int mmPA_CL_UCP_3_Z                          = 0xA17D;
+constexpr unsigned int mmPA_CL_UCP_4_W                          = 0xA182;
+constexpr unsigned int mmPA_CL_UCP_4_X                          = 0xA17F;
+constexpr unsigned int mmPA_CL_UCP_4_Y                          = 0xA180;
+constexpr unsigned int mmPA_CL_UCP_4_Z                          = 0xA181;
+constexpr unsigned int mmPA_CL_UCP_5_W                          = 0xA186;
+constexpr unsigned int mmPA_CL_UCP_5_X                          = 0xA183;
+constexpr unsigned int mmPA_CL_UCP_5_Y                          = 0xA184;
+constexpr unsigned int mmPA_CL_UCP_5_Z                          = 0xA185;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET                    = 0xA110;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_1                  = 0xA116;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_2                  = 0xA11C;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_3                  = 0xA122;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_4                  = 0xA128;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_5                  = 0xA12E;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_6                  = 0xA134;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_7                  = 0xA13A;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_8                  = 0xA140;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_9                  = 0xA146;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_10                 = 0xA14C;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_11                 = 0xA152;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_12                 = 0xA158;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_13                 = 0xA15E;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_14                 = 0xA164;
+constexpr unsigned int mmPA_CL_VPORT_XOFFSET_15                 = 0xA16A;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE                     = 0xA10F;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_1                   = 0xA115;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_2                   = 0xA11B;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_3                   = 0xA121;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_4                   = 0xA127;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_5                   = 0xA12D;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_6                   = 0xA133;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_7                   = 0xA139;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_8                   = 0xA13F;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_9                   = 0xA145;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_10                  = 0xA14B;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_11                  = 0xA151;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_12                  = 0xA157;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_13                  = 0xA15D;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_14                  = 0xA163;
+constexpr unsigned int mmPA_CL_VPORT_XSCALE_15                  = 0xA169;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET                    = 0xA112;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_1                  = 0xA118;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_2                  = 0xA11E;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_3                  = 0xA124;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_4                  = 0xA12A;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_5                  = 0xA130;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_6                  = 0xA136;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_7                  = 0xA13C;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_8                  = 0xA142;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_9                  = 0xA148;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_10                 = 0xA14E;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_11                 = 0xA154;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_12                 = 0xA15A;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_13                 = 0xA160;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_14                 = 0xA166;
+constexpr unsigned int mmPA_CL_VPORT_YOFFSET_15                 = 0xA16C;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE                     = 0xA111;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_1                   = 0xA117;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_2                   = 0xA11D;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_3                   = 0xA123;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_4                   = 0xA129;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_5                   = 0xA12F;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_6                   = 0xA135;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_7                   = 0xA13B;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_8                   = 0xA141;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_9                   = 0xA147;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_10                  = 0xA14D;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_11                  = 0xA153;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_12                  = 0xA159;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_13                  = 0xA15F;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_14                  = 0xA165;
+constexpr unsigned int mmPA_CL_VPORT_YSCALE_15                  = 0xA16B;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET                    = 0xA114;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_1                  = 0xA11A;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_2                  = 0xA120;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_3                  = 0xA126;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_4                  = 0xA12C;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_5                  = 0xA132;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_6                  = 0xA138;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_7                  = 0xA13E;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_8                  = 0xA144;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_9                  = 0xA14A;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_10                 = 0xA150;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_11                 = 0xA156;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_12                 = 0xA15C;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_13                 = 0xA162;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_14                 = 0xA168;
+constexpr unsigned int mmPA_CL_VPORT_ZOFFSET_15                 = 0xA16E;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE                     = 0xA113;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_1                   = 0xA119;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_2                   = 0xA11F;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_3                   = 0xA125;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_4                   = 0xA12B;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_5                   = 0xA131;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_6                   = 0xA137;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_7                   = 0xA13D;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_8                   = 0xA143;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_9                   = 0xA149;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_10                  = 0xA14F;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_11                  = 0xA155;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_12                  = 0xA15B;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_13                  = 0xA161;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_14                  = 0xA167;
+constexpr unsigned int mmPA_CL_VPORT_ZSCALE_15                  = 0xA16D;
+constexpr unsigned int mmPA_CL_VS_OUT_CNTL                      = 0xA207;
+constexpr unsigned int mmPA_CL_VTE_CNTL                         = 0xA206;
+constexpr unsigned int mmPA_SC_AA_CONFIG                        = 0xA2F8;
+constexpr unsigned int mmPA_SC_AA_MASK_X0Y0_X1Y0                = 0xA30E;
+constexpr unsigned int mmPA_SC_AA_MASK_X0Y1_X1Y1                = 0xA30F;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_0      = 0xA2FE;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_1      = 0xA2FF;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_2      = 0xA300;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y0_3      = 0xA301;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_0      = 0xA306;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_1      = 0xA307;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_2      = 0xA308;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X0Y1_3      = 0xA309;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_0      = 0xA302;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_1      = 0xA303;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_2      = 0xA304;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y0_3      = 0xA305;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_0      = 0xA30A;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_1      = 0xA30B;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_2      = 0xA30C;
+constexpr unsigned int mmPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3      = 0xA30D;
+constexpr unsigned int mmPA_SC_BINNER_CNTL_0                    = 0xA311;
+constexpr unsigned int mmPA_SC_BINNER_CNTL_1                    = 0xA312;
+constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_0              = 0x22CC;
+constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_1              = 0x22CD;
+constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_2              = 0x22CE;
+constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_3              = 0x22CF;
+constexpr unsigned int mmPA_SC_BINNER_PERF_CNTL_0               = 0x22D1;
+constexpr unsigned int mmPA_SC_BINNER_PERF_CNTL_1               = 0x22D2;
+constexpr unsigned int mmPA_SC_BINNER_PERF_CNTL_2               = 0x22D3;
+constexpr unsigned int mmPA_SC_BINNER_PERF_CNTL_3               = 0x22D4;
+constexpr unsigned int mmPA_SC_BINNER_TIMEOUT_COUNTER           = 0x22D0;
+constexpr unsigned int mmPA_SC_CENTROID_PRIORITY_0              = 0xA2F5;
+constexpr unsigned int mmPA_SC_CENTROID_PRIORITY_1              = 0xA2F6;
+constexpr unsigned int mmPA_SC_CLIPRECT_0_BR                    = 0xA085;
+constexpr unsigned int mmPA_SC_CLIPRECT_0_TL                    = 0xA084;
+constexpr unsigned int mmPA_SC_CLIPRECT_1_BR                    = 0xA087;
+constexpr unsigned int mmPA_SC_CLIPRECT_1_TL                    = 0xA086;
+constexpr unsigned int mmPA_SC_CLIPRECT_2_BR                    = 0xA089;
+constexpr unsigned int mmPA_SC_CLIPRECT_2_TL                    = 0xA088;
+constexpr unsigned int mmPA_SC_CLIPRECT_3_BR                    = 0xA08B;
+constexpr unsigned int mmPA_SC_CLIPRECT_3_TL                    = 0xA08A;
+constexpr unsigned int mmPA_SC_CLIPRECT_RULE                    = 0xA083;
+constexpr unsigned int mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL  = 0xA313;
+constexpr unsigned int mmPA_SC_DEBUG_DATA                       = 0x22F7;
+constexpr unsigned int mmPA_SC_DSM_CNTL                         = 0x22FE;
+constexpr unsigned int mmPA_SC_EDGERULE                         = 0xA08C;
+constexpr unsigned int mmPA_SC_ENHANCE                          = 0x22FC;
+constexpr unsigned int mmPA_SC_ENHANCE_1                        = 0x22FD;
+constexpr unsigned int mmPA_SC_FIFO_DEPTH_CNTL                  = 0x2295;
+constexpr unsigned int mmPA_SC_FIFO_SIZE                        = 0x22F3;
+constexpr unsigned int mmPA_SC_FORCE_EOV_MAX_CNTS               = 0x22C9;
+constexpr unsigned int mmPA_SC_FOV_WINDOW_LR                    = 0xA0EB;
+constexpr unsigned int mmPA_SC_FOV_WINDOW_TB                    = 0xA0EC;
+constexpr unsigned int mmPA_SC_GENERIC_SCISSOR_BR               = 0xA091;
+constexpr unsigned int mmPA_SC_GENERIC_SCISSOR_TL               = 0xA090;
+constexpr unsigned int mmPA_SC_HORIZ_GRID                       = 0xA0EA;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_COUNT           = 0xC2AC;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_H               = 0xC2A9;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_HV_EN           = 0xC2A8;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_HV_LOCK         = 0x22C1;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_OCCURRENCE      = 0xC2AB;
+constexpr unsigned int mmPA_SC_HP3D_TRAP_SCREEN_V               = 0xC2AA;
+constexpr unsigned int mmPA_SC_IF_FIFO_SIZE                     = 0x22F5;
+constexpr unsigned int mmPA_SC_LEFT_VERT_GRID                   = 0xA0E9;
+constexpr unsigned int mmPA_SC_LINE_CNTL                        = 0xA2F7;
+constexpr unsigned int mmPA_SC_LINE_STIPPLE                     = 0xA283;
+constexpr unsigned int mmPA_SC_LINE_STIPPLE_STATE               = 0xC281;
+constexpr unsigned int mmPA_SC_MODE_CNTL_0                      = 0xA292;
+constexpr unsigned int mmPA_SC_MODE_CNTL_1                      = 0xA293;
+constexpr unsigned int mmPA_SC_NGG_MODE_CNTL                    = 0xA314;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_COUNT            = 0xC2A4;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_H                = 0xC2A1;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_HV_EN            = 0xC2A0;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_HV_LOCK          = 0x22C0;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_OCCURRENCE       = 0xC2A3;
+constexpr unsigned int mmPA_SC_P3D_TRAP_SCREEN_V                = 0xC2A2;
+constexpr unsigned int mmPA_SC_PERFCOUNTER0_HI                  = 0xD141;
+constexpr unsigned int mmPA_SC_PERFCOUNTER0_LO                  = 0xD140;
+constexpr unsigned int mmPA_SC_PERFCOUNTER0_SELECT              = 0xD940;
+constexpr unsigned int mmPA_SC_PERFCOUNTER0_SELECT1             = 0xD941;
+constexpr unsigned int mmPA_SC_PERFCOUNTER1_HI                  = 0xD143;
+constexpr unsigned int mmPA_SC_PERFCOUNTER1_LO                  = 0xD142;
+constexpr unsigned int mmPA_SC_PERFCOUNTER1_SELECT              = 0xD942;
+constexpr unsigned int mmPA_SC_PERFCOUNTER2_HI                  = 0xD145;
+constexpr unsigned int mmPA_SC_PERFCOUNTER2_LO                  = 0xD144;
+constexpr unsigned int mmPA_SC_PERFCOUNTER2_SELECT              = 0xD943;
+constexpr unsigned int mmPA_SC_PERFCOUNTER3_HI                  = 0xD147;
+constexpr unsigned int mmPA_SC_PERFCOUNTER3_LO                  = 0xD146;
+constexpr unsigned int mmPA_SC_PERFCOUNTER3_SELECT              = 0xD944;
+constexpr unsigned int mmPA_SC_PERFCOUNTER4_HI                  = 0xD149;
+constexpr unsigned int mmPA_SC_PERFCOUNTER4_LO                  = 0xD148;
+constexpr unsigned int mmPA_SC_PERFCOUNTER4_SELECT              = 0xD945;
+constexpr unsigned int mmPA_SC_PERFCOUNTER5_HI                  = 0xD14B;
+constexpr unsigned int mmPA_SC_PERFCOUNTER5_LO                  = 0xD14A;
+constexpr unsigned int mmPA_SC_PERFCOUNTER5_SELECT              = 0xD946;
+constexpr unsigned int mmPA_SC_PERFCOUNTER6_HI                  = 0xD14D;
+constexpr unsigned int mmPA_SC_PERFCOUNTER6_LO                  = 0xD14C;
+constexpr unsigned int mmPA_SC_PERFCOUNTER6_SELECT              = 0xD947;
+constexpr unsigned int mmPA_SC_PERFCOUNTER7_HI                  = 0xD14F;
+constexpr unsigned int mmPA_SC_PERFCOUNTER7_LO                  = 0xD14E;
+constexpr unsigned int mmPA_SC_PERFCOUNTER7_SELECT              = 0xD948;
+constexpr unsigned int mmPA_SC_PKR_WAVE_TABLE_CNTL              = 0x22F8;
+constexpr unsigned int mmPA_SC_RASTER_CONFIG                    = 0xA0D4;
+constexpr unsigned int mmPA_SC_RASTER_CONFIG_1                  = 0xA0D5;
+constexpr unsigned int mmPA_SC_RIGHT_VERT_GRID                  = 0xA0E8;
+constexpr unsigned int mmPA_SC_SCREEN_EXTENT_CONTROL            = 0xA0D6;
+constexpr unsigned int mmPA_SC_SCREEN_EXTENT_MAX_0              = 0xC285;
+constexpr unsigned int mmPA_SC_SCREEN_EXTENT_MAX_1              = 0xC28B;
+constexpr unsigned int mmPA_SC_SCREEN_EXTENT_MIN_0              = 0xC284;
+constexpr unsigned int mmPA_SC_SCREEN_EXTENT_MIN_1              = 0xC286;
+constexpr unsigned int mmPA_SC_SCREEN_SCISSOR_BR                = 0xA00D;
+constexpr unsigned int mmPA_SC_SCREEN_SCISSOR_TL                = 0xA00C;
+constexpr unsigned int mmPA_SC_SHADER_CONTROL                   = 0xA310;
+constexpr unsigned int mmPA_SC_TILE_STEERING_CREST_OVERRIDE     = 0x22FF;
+constexpr unsigned int mmPA_SC_TILE_STEERING_OVERRIDE           = 0xA0D7;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_COUNT                = 0xC2B4;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_H                    = 0xC2B1;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_HV_EN                = 0xC2B0;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_HV_LOCK              = 0x22C2;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_OCCURRENCE           = 0xC2B3;
+constexpr unsigned int mmPA_SC_TRAP_SCREEN_V                    = 0xC2B2;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_0_BR               = 0xA095;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_0_TL               = 0xA094;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_1_BR               = 0xA097;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_1_TL               = 0xA096;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_2_BR               = 0xA099;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_2_TL               = 0xA098;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_3_BR               = 0xA09B;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_3_TL               = 0xA09A;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_4_BR               = 0xA09D;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_4_TL               = 0xA09C;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_5_BR               = 0xA09F;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_5_TL               = 0xA09E;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_6_BR               = 0xA0A1;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_6_TL               = 0xA0A0;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_7_BR               = 0xA0A3;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_7_TL               = 0xA0A2;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_8_BR               = 0xA0A5;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_8_TL               = 0xA0A4;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_9_BR               = 0xA0A7;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_9_TL               = 0xA0A6;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_10_BR              = 0xA0A9;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_10_TL              = 0xA0A8;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_11_BR              = 0xA0AB;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_11_TL              = 0xA0AA;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_12_BR              = 0xA0AD;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_12_TL              = 0xA0AC;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_13_BR              = 0xA0AF;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_13_TL              = 0xA0AE;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_14_BR              = 0xA0B1;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_14_TL              = 0xA0B0;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_15_BR              = 0xA0B3;
+constexpr unsigned int mmPA_SC_VPORT_SCISSOR_15_TL              = 0xA0B2;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_0                     = 0xA0B5;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_1                     = 0xA0B7;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_2                     = 0xA0B9;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_3                     = 0xA0BB;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_4                     = 0xA0BD;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_5                     = 0xA0BF;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_6                     = 0xA0C1;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_7                     = 0xA0C3;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_8                     = 0xA0C5;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_9                     = 0xA0C7;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_10                    = 0xA0C9;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_11                    = 0xA0CB;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_12                    = 0xA0CD;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_13                    = 0xA0CF;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_14                    = 0xA0D1;
+constexpr unsigned int mmPA_SC_VPORT_ZMAX_15                    = 0xA0D3;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_0                     = 0xA0B4;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_1                     = 0xA0B6;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_2                     = 0xA0B8;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_3                     = 0xA0BA;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_4                     = 0xA0BC;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_5                     = 0xA0BE;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_6                     = 0xA0C0;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_7                     = 0xA0C2;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_8                     = 0xA0C4;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_9                     = 0xA0C6;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_10                    = 0xA0C8;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_11                    = 0xA0CA;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_12                    = 0xA0CC;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_13                    = 0xA0CE;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_14                    = 0xA0D0;
+constexpr unsigned int mmPA_SC_VPORT_ZMIN_15                    = 0xA0D2;
+constexpr unsigned int mmPA_SC_WINDOW_OFFSET                    = 0xA080;
+constexpr unsigned int mmPA_SC_WINDOW_SCISSOR_BR                = 0xA082;
+constexpr unsigned int mmPA_SC_WINDOW_SCISSOR_TL                = 0xA081;
+constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS             = 0x22FB;
+constexpr unsigned int mmPA_SU_CNTL_STATUS                      = 0x2294;
+constexpr unsigned int mmPA_SU_DEBUG_DATA                       = 0x2281;
+constexpr unsigned int mmPA_SU_HARDWARE_SCREEN_OFFSET           = 0xA08D;
+constexpr unsigned int mmPA_SU_LINE_CNTL                        = 0xA282;
+constexpr unsigned int mmPA_SU_LINE_STIPPLE_CNTL                = 0xA209;
+constexpr unsigned int mmPA_SU_LINE_STIPPLE_SCALE               = 0xA20A;
+constexpr unsigned int mmPA_SU_LINE_STIPPLE_VALUE               = 0xC280;
+constexpr unsigned int mmPA_SU_OVER_RASTERIZATION_CNTL          = 0xA20F;
+constexpr unsigned int mmPA_SU_PERFCOUNTER0_HI                  = 0xD101;
+constexpr unsigned int mmPA_SU_PERFCOUNTER0_LO                  = 0xD100;
+constexpr unsigned int mmPA_SU_PERFCOUNTER0_SELECT              = 0xD900;
+constexpr unsigned int mmPA_SU_PERFCOUNTER0_SELECT1             = 0xD901;
+constexpr unsigned int mmPA_SU_PERFCOUNTER1_HI                  = 0xD103;
+constexpr unsigned int mmPA_SU_PERFCOUNTER1_LO                  = 0xD102;
+constexpr unsigned int mmPA_SU_PERFCOUNTER1_SELECT              = 0xD902;
+constexpr unsigned int mmPA_SU_PERFCOUNTER1_SELECT1             = 0xD903;
+constexpr unsigned int mmPA_SU_PERFCOUNTER2_HI                  = 0xD105;
+constexpr unsigned int mmPA_SU_PERFCOUNTER2_LO                  = 0xD104;
+constexpr unsigned int mmPA_SU_PERFCOUNTER2_SELECT              = 0xD904;
+constexpr unsigned int mmPA_SU_PERFCOUNTER3_HI                  = 0xD107;
+constexpr unsigned int mmPA_SU_PERFCOUNTER3_LO                  = 0xD106;
+constexpr unsigned int mmPA_SU_POINT_MINMAX                     = 0xA281;
+constexpr unsigned int mmPA_SU_POINT_SIZE                       = 0xA280;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_BACK_OFFSET          = 0xA2E3;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_BACK_SCALE           = 0xA2E2;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_CLAMP                = 0xA2DF;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_DB_FMT_CNTL          = 0xA2DE;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_FRONT_OFFSET         = 0xA2E1;
+constexpr unsigned int mmPA_SU_POLY_OFFSET_FRONT_SCALE          = 0xA2E0;
+constexpr unsigned int mmPA_SU_PRIM_FILTER_CNTL                 = 0xA20B;
+constexpr unsigned int mmPA_SU_SC_MODE_CNTL                     = 0xA205;
+constexpr unsigned int mmPA_SU_SMALL_PRIM_FILTER_CNTL           = 0xA20C;
+constexpr unsigned int mmPA_SU_VTX_CNTL                         = 0xA2F9;
+constexpr unsigned int mmport_a_addr                            = 0x27C0;
+constexpr unsigned int mmport_a_data_hi                         = 0x27C2;
+constexpr unsigned int mmport_a_data_lo                         = 0x27C1;
+constexpr unsigned int mmport_b_addr                            = 0x27C3;
+constexpr unsigned int mmport_b_data_hi                         = 0x27C5;
+constexpr unsigned int mmport_b_data_lo                         = 0x27C4;
+constexpr unsigned int mmport_c_addr                            = 0x27C6;
+constexpr unsigned int mmport_c_data_hi                         = 0x27C8;
+constexpr unsigned int mmport_c_data_lo                         = 0x27C7;
+constexpr unsigned int mmport_d_addr                            = 0x27C9;
+constexpr unsigned int mmport_d_data_hi                         = 0x27CB;
+constexpr unsigned int mmport_d_data_lo                         = 0x27CA;
+constexpr unsigned int mmRLC_PERFCOUNTER0_HI                    = 0xD481;
+constexpr unsigned int mmRLC_PERFCOUNTER0_LO                    = 0xD480;
+constexpr unsigned int mmRLC_PERFCOUNTER0_SELECT                = 0xDCC1;
+constexpr unsigned int mmRLC_PERFCOUNTER1_HI                    = 0xD483;
+constexpr unsigned int mmRLC_PERFCOUNTER1_LO                    = 0xD482;
+constexpr unsigned int mmRLC_PERFCOUNTER1_SELECT                = 0xDCC2;
+constexpr unsigned int mmRLC_PERFMON_CNTL                       = 0xDCC0;
+constexpr unsigned int mmRLC_SPM_DEBUG                          = 0xEC75;
+constexpr unsigned int mmRLC_SPM_DEBUG_SELECT                   = 0xEC74;
+constexpr unsigned int mmRLC_SPM_INT_CNTL                       = 0xEC72;
+constexpr unsigned int mmRLC_SPM_INT_STATUS                     = 0xEC73;
+constexpr unsigned int mmRLC_SPM_MC_CNTL                        = 0xEC71;
+constexpr unsigned int mmRLC_SPM_PERFMON_CNTL                   = 0xDC80;
+constexpr unsigned int mmRLC_SPM_PERFMON_RING_BASE_HI           = 0xDC82;
+constexpr unsigned int mmRLC_SPM_PERFMON_RING_BASE_LO           = 0xDC81;
+constexpr unsigned int mmRLC_SPM_PERFMON_RING_SIZE              = 0xDC83;
+constexpr unsigned int mmRLC_SPM_PERFMON_SEGMENT_SIZE           = 0xDC84;
+constexpr unsigned int mmRLC_SPM_UTCL1_CNTL                     = 0xECB5;
+constexpr unsigned int mmRLC_SPM_UTCL1_ERROR_1                  = 0xECBC;
+constexpr unsigned int mmRLC_SPM_UTCL1_ERROR_2                  = 0xECBD;
+constexpr unsigned int mmRMI_CGTT_SCLK_CTRL                     = 0xF0C0;
+constexpr unsigned int mmRMI_CLOCK_CNTRL                        = 0x2796;
+constexpr unsigned int mmRMI_DEMUX_CNTL                         = 0x278A;
+constexpr unsigned int mmRMI_GENERAL_CNTL                       = 0x2780;
+constexpr unsigned int mmRMI_GENERAL_CNTL1                      = 0x2781;
+constexpr unsigned int mmRMI_GENERAL_STATUS                     = 0x2782;
+constexpr unsigned int mmRMI_PERFCOUNTER0_HI                    = 0xD4C1;
+constexpr unsigned int mmRMI_PERFCOUNTER0_LO                    = 0xD4C0;
+constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT                = 0xDD00;
+constexpr unsigned int mmRMI_PERFCOUNTER0_SELECT1               = 0xDD01;
+constexpr unsigned int mmRMI_PERFCOUNTER1_HI                    = 0xD4C3;
+constexpr unsigned int mmRMI_PERFCOUNTER1_LO                    = 0xD4C2;
+constexpr unsigned int mmRMI_PERFCOUNTER1_SELECT                = 0xDD02;
+constexpr unsigned int mmRMI_PERFCOUNTER2_HI                    = 0xD4C5;
+constexpr unsigned int mmRMI_PERFCOUNTER2_LO                    = 0xD4C4;
+constexpr unsigned int mmRMI_PERFCOUNTER2_SELECT                = 0xDD03;
+constexpr unsigned int mmRMI_PERFCOUNTER2_SELECT1               = 0xDD04;
+constexpr unsigned int mmRMI_PERFCOUNTER3_HI                    = 0xD4C7;
+constexpr unsigned int mmRMI_PERFCOUNTER3_LO                    = 0xD4C6;
+constexpr unsigned int mmRMI_PERFCOUNTER3_SELECT                = 0xDD05;
+constexpr unsigned int mmRMI_PERF_COUNTER_CNTL                  = 0xDD06;
+constexpr unsigned int mmRMI_PROBE_POP_LOGIC_CNTL               = 0x2788;
+constexpr unsigned int mmRMI_SCOREBOARD_CNTL                    = 0x2790;
+constexpr unsigned int mmRMI_SCOREBOARD_STATUS0                 = 0x2791;
+constexpr unsigned int mmRMI_SCOREBOARD_STATUS1                 = 0x2792;
+constexpr unsigned int mmRMI_SCOREBOARD_STATUS2                 = 0x2793;
+constexpr unsigned int mmRMI_SUBBLOCK_STATUS0                   = 0x2783;
+constexpr unsigned int mmRMI_SUBBLOCK_STATUS1                   = 0x2784;
+constexpr unsigned int mmRMI_SUBBLOCK_STATUS2                   = 0x2785;
+constexpr unsigned int mmRMI_SUBBLOCK_STATUS3                   = 0x2786;
+constexpr unsigned int mmRMI_TCIW_FORMATTER0_CNTL               = 0x278E;
+constexpr unsigned int mmRMI_UTCL1_CNTL1                        = 0x278B;
+constexpr unsigned int mmRMI_UTCL1_CNTL2                        = 0x278C;
+constexpr unsigned int mmRMI_UTCL1_STATUS                       = 0x2797;
+constexpr unsigned int mmRMI_UTC_XNACK_N_MISC_CNTL              = 0x2789;
+constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG                = 0x2794;
+constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_1              = 0x2795;
+constexpr unsigned int mmRMI_XBAR_CONFIG                        = 0x2787;
+constexpr unsigned int mmSCRATCH_ADDR                           = 0xC051;
+constexpr unsigned int mmSCRATCH_REG0                           = 0xC040;
+constexpr unsigned int mmSCRATCH_REG1                           = 0xC041;
+constexpr unsigned int mmSCRATCH_REG2                           = 0xC042;
+constexpr unsigned int mmSCRATCH_REG3                           = 0xC043;
+constexpr unsigned int mmSCRATCH_REG4                           = 0xC044;
+constexpr unsigned int mmSCRATCH_REG5                           = 0xC045;
+constexpr unsigned int mmSCRATCH_REG6                           = 0xC046;
+constexpr unsigned int mmSCRATCH_REG7                           = 0xC047;
+constexpr unsigned int mmSCRATCH_UMSK                           = 0xC050;
+constexpr unsigned int mmSDMA0_PERFCOUNTER0_RESULT              = 0x12B8;
+constexpr unsigned int mmSDMA0_PERFCOUNTER1_RESULT              = 0x12B9;
+constexpr unsigned int mmSDMA0_PERFCOUNTER_TAG_DELAY_RANGE      = 0x12BA;
+constexpr unsigned int mmSDMA0_PERFMON_CNTL                     = 0x12B7;
+constexpr unsigned int mmSDMA_PGFSM_CONFIG                      = 0x128F;
+constexpr unsigned int mmSDMA_PGFSM_READ                        = 0x1291;
+constexpr unsigned int mmSDMA_PGFSM_WRITE                       = 0x1290;
+constexpr unsigned int mmSDMA_POWER_GATING                      = 0x128E;
+constexpr unsigned int mmSH_MEM_BASES                           = 0x230A;
+constexpr unsigned int mmSH_MEM_CONFIG                          = 0x230D;
+constexpr unsigned int mmSPIS_DEBUG_READ                        = 0x24EA;
+constexpr unsigned int mmSPI_ARB_CNTL_0                         = 0x31FD;
+constexpr unsigned int mmSPI_ARB_CYCLES_0                       = 0x31C1;
+constexpr unsigned int mmSPI_ARB_CYCLES_1                       = 0x31C2;
+constexpr unsigned int mmSPI_ARB_PRIORITY                       = 0x31C0;
+constexpr unsigned int mmSPI_BARYC_CNTL                         = 0xA1B8;
+constexpr unsigned int mmSPI_COMPUTE_QUEUE_RESET                = 0x31DB;
+constexpr unsigned int mmSPI_COMPUTE_WF_CTX_SAVE                = 0x31FC;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_0              = 0x24DC;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_1              = 0x24DD;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_2              = 0x24DE;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_3              = 0x24DF;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_4              = 0x24E0;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_5              = 0x24E1;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_6              = 0x24E2;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_COUNT_7              = 0x24E3;
+constexpr unsigned int mmSPI_CSQ_WF_ACTIVE_STATUS               = 0x24DB;
+constexpr unsigned int mmSPI_DEBUG_BUSY                         = 0x2450;
+constexpr unsigned int mmSPI_DEBUG_READ                         = 0x2442;
+constexpr unsigned int mmSPI_DSM_CNTL                           = 0x2443;
+constexpr unsigned int mmSPI_DSM_CNTL2                          = 0x2444;
+constexpr unsigned int mmSPI_EDC_CNT                            = 0x2445;
+constexpr unsigned int mmSPI_GFX_CNTL                           = 0x243C;
+constexpr unsigned int mmSPI_INTERP_CONTROL_0                   = 0xA1B5;
+constexpr unsigned int mmSPI_LB_CTR_CTRL                        = 0x24D4;
+constexpr unsigned int mmSPI_LB_DATA_REG                        = 0x24D6;
+constexpr unsigned int mmSPI_LB_DATA_WAVES                      = 0x24E4;
+constexpr unsigned int mmSPI_P0_TRAP_SCREEN_GPR_MIN             = 0x24F0;
+constexpr unsigned int mmSPI_P0_TRAP_SCREEN_PSBA_HI             = 0x24ED;
+constexpr unsigned int mmSPI_P0_TRAP_SCREEN_PSBA_LO             = 0x24EC;
+constexpr unsigned int mmSPI_P0_TRAP_SCREEN_PSMA_HI             = 0x24EF;
+constexpr unsigned int mmSPI_P0_TRAP_SCREEN_PSMA_LO             = 0x24EE;
+constexpr unsigned int mmSPI_P1_TRAP_SCREEN_GPR_MIN             = 0x24F5;
+constexpr unsigned int mmSPI_P1_TRAP_SCREEN_PSBA_HI             = 0x24F2;
+constexpr unsigned int mmSPI_P1_TRAP_SCREEN_PSBA_LO             = 0x24F1;
+constexpr unsigned int mmSPI_P1_TRAP_SCREEN_PSMA_HI             = 0x24F4;
+constexpr unsigned int mmSPI_P1_TRAP_SCREEN_PSMA_LO             = 0x24F3;
+constexpr unsigned int mmSPI_PERFCOUNTER0_HI                    = 0xD180;
+constexpr unsigned int mmSPI_PERFCOUNTER0_LO                    = 0xD181;
+constexpr unsigned int mmSPI_PERFCOUNTER0_SELECT                = 0xD980;
+constexpr unsigned int mmSPI_PERFCOUNTER0_SELECT1               = 0xD984;
+constexpr unsigned int mmSPI_PERFCOUNTER1_HI                    = 0xD182;
+constexpr unsigned int mmSPI_PERFCOUNTER1_LO                    = 0xD183;
+constexpr unsigned int mmSPI_PERFCOUNTER1_SELECT                = 0xD981;
+constexpr unsigned int mmSPI_PERFCOUNTER1_SELECT1               = 0xD985;
+constexpr unsigned int mmSPI_PERFCOUNTER2_HI                    = 0xD184;
+constexpr unsigned int mmSPI_PERFCOUNTER2_LO                    = 0xD185;
+constexpr unsigned int mmSPI_PERFCOUNTER2_SELECT                = 0xD982;
+constexpr unsigned int mmSPI_PERFCOUNTER2_SELECT1               = 0xD986;
+constexpr unsigned int mmSPI_PERFCOUNTER3_HI                    = 0xD186;
+constexpr unsigned int mmSPI_PERFCOUNTER3_LO                    = 0xD187;
+constexpr unsigned int mmSPI_PERFCOUNTER3_SELECT                = 0xD983;
+constexpr unsigned int mmSPI_PERFCOUNTER3_SELECT1               = 0xD987;
+constexpr unsigned int mmSPI_PERFCOUNTER4_HI                    = 0xD188;
+constexpr unsigned int mmSPI_PERFCOUNTER4_LO                    = 0xD189;
+constexpr unsigned int mmSPI_PERFCOUNTER4_SELECT                = 0xD988;
+constexpr unsigned int mmSPI_PERFCOUNTER5_HI                    = 0xD18A;
+constexpr unsigned int mmSPI_PERFCOUNTER5_LO                    = 0xD18B;
+constexpr unsigned int mmSPI_PERFCOUNTER5_SELECT                = 0xD989;
+constexpr unsigned int mmSPI_PERFCOUNTER_BINS                   = 0xD98A;
+constexpr unsigned int mmSPI_PS_INPUT_ADDR                      = 0xA1B4;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_0                    = 0xA191;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_1                    = 0xA192;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_2                    = 0xA193;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_3                    = 0xA194;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_4                    = 0xA195;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_5                    = 0xA196;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_6                    = 0xA197;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_7                    = 0xA198;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_8                    = 0xA199;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_9                    = 0xA19A;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_10                   = 0xA19B;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_11                   = 0xA19C;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_12                   = 0xA19D;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_13                   = 0xA19E;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_14                   = 0xA19F;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_15                   = 0xA1A0;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_16                   = 0xA1A1;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_17                   = 0xA1A2;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_18                   = 0xA1A3;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_19                   = 0xA1A4;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_20                   = 0xA1A5;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_21                   = 0xA1A6;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_22                   = 0xA1A7;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_23                   = 0xA1A8;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_24                   = 0xA1A9;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_25                   = 0xA1AA;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_26                   = 0xA1AB;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_27                   = 0xA1AC;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_28                   = 0xA1AD;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_29                   = 0xA1AE;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_30                   = 0xA1AF;
+constexpr unsigned int mmSPI_PS_INPUT_CNTL_31                   = 0xA1B0;
+constexpr unsigned int mmSPI_PS_INPUT_ENA                       = 0xA1B3;
+constexpr unsigned int mmSPI_PS_IN_CONTROL                      = 0xA1B6;
+constexpr unsigned int mmSPI_PS_MAX_WAVE_ID                     = 0x243A;
+constexpr unsigned int mmSPI_RESET_DEBUG                        = 0x31DA;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_0              = 0x31DC;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_1              = 0x31DD;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_2              = 0x31DE;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_3              = 0x31DF;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_4              = 0x31E0;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_5              = 0x31E1;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_6              = 0x31E2;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_7              = 0x31E3;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_8              = 0x31E4;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_9              = 0x31E5;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_10             = 0x31F0;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_11             = 0x31F1;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_12             = 0x31F4;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_13             = 0x31F5;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_14             = 0x31F6;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_CU_15             = 0x31F7;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_0           = 0x31E6;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_1           = 0x31E7;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_2           = 0x31E8;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_3           = 0x31E9;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_4           = 0x31EA;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_5           = 0x31EB;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_6           = 0x31EC;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_7           = 0x31ED;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_8           = 0x31EE;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_9           = 0x31EF;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_10          = 0x31F2;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_11          = 0x31F3;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_12          = 0x31F8;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_13          = 0x31F9;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_14          = 0x31FA;
+constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_15          = 0x31FB;
+constexpr unsigned int mmSPI_SHADER_COL_FORMAT                  = 0xA1C5;
+constexpr unsigned int mmSPI_SHADER_LATE_ALLOC_VS               = 0x2C47;
+constexpr unsigned int mmSPI_SHADER_PGM_HI_GS                   = 0x2C89;
+constexpr unsigned int mmSPI_SHADER_PGM_HI_HS                   = 0x2D09;
+constexpr unsigned int mmSPI_SHADER_PGM_HI_PS                   = 0x2C09;
+constexpr unsigned int mmSPI_SHADER_PGM_HI_VS                   = 0x2C49;
+constexpr unsigned int mmSPI_SHADER_PGM_LO_GS                   = 0x2C88;
+constexpr unsigned int mmSPI_SHADER_PGM_LO_HS                   = 0x2D08;
+constexpr unsigned int mmSPI_SHADER_PGM_LO_PS                   = 0x2C08;
+constexpr unsigned int mmSPI_SHADER_PGM_LO_VS                   = 0x2C48;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_GS                = 0x2C8A;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_HS                = 0x2D0A;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_PS                = 0x2C0A;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC1_VS                = 0x2C4A;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS                = 0x2C8B;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_HS                = 0x2D0B;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_PS                = 0x2C0B;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_VS                = 0x2C4B;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_GS                = 0x2C87;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_HS                = 0x2D07;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_PS                = 0x2C07;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_VS                = 0x2C46;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_GS                = 0x2C81;
+constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_HS                = 0x2D01;
+constexpr unsigned int mmSPI_SHADER_POS_FORMAT                  = 0xA1C3;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ADDR_HI_GS        = 0x2C83;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ADDR_HI_HS        = 0x2D03;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ADDR_LO_GS        = 0x2C82;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ADDR_LO_HS        = 0x2D02;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_0              = 0x2CCC;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_1              = 0x2CCD;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_2              = 0x2CCE;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_3              = 0x2CCF;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_4              = 0x2CD0;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_5              = 0x2CD1;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_6              = 0x2CD2;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_7              = 0x2CD3;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_8              = 0x2CD4;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_9              = 0x2CD5;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_10             = 0x2CD6;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_11             = 0x2CD7;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_12             = 0x2CD8;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_13             = 0x2CD9;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_14             = 0x2CDA;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_15             = 0x2CDB;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_0              = 0x2C0C;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_1              = 0x2C0D;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_2              = 0x2C0E;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_3              = 0x2C0F;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_4              = 0x2C10;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_5              = 0x2C11;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_6              = 0x2C12;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_7              = 0x2C13;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_8              = 0x2C14;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_9              = 0x2C15;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_10             = 0x2C16;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_11             = 0x2C17;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_12             = 0x2C18;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_13             = 0x2C19;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_14             = 0x2C1A;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_15             = 0x2C1B;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_16             = 0x2C1C;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_17             = 0x2C1D;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_18             = 0x2C1E;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_19             = 0x2C1F;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_20             = 0x2C20;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_21             = 0x2C21;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_22             = 0x2C22;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_23             = 0x2C23;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_24             = 0x2C24;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_25             = 0x2C25;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_26             = 0x2C26;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_27             = 0x2C27;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_28             = 0x2C28;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_29             = 0x2C29;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_30             = 0x2C2A;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_PS_31             = 0x2C2B;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_0              = 0x2C4C;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_1              = 0x2C4D;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_2              = 0x2C4E;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_3              = 0x2C4F;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_4              = 0x2C50;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_5              = 0x2C51;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_6              = 0x2C52;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_7              = 0x2C53;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_8              = 0x2C54;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_9              = 0x2C55;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_10             = 0x2C56;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_11             = 0x2C57;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_12             = 0x2C58;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_13             = 0x2C59;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_14             = 0x2C5A;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_15             = 0x2C5B;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_16             = 0x2C5C;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_17             = 0x2C5D;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_18             = 0x2C5E;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_19             = 0x2C5F;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_20             = 0x2C60;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_21             = 0x2C61;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_22             = 0x2C62;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_23             = 0x2C63;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_24             = 0x2C64;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_25             = 0x2C65;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_26             = 0x2C66;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_27             = 0x2C67;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_28             = 0x2C68;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_29             = 0x2C69;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_30             = 0x2C6A;
+constexpr unsigned int mmSPI_SHADER_USER_DATA_VS_31             = 0x2C6B;
+constexpr unsigned int mmSPI_SHADER_Z_FORMAT                    = 0xA1C4;
+constexpr unsigned int mmSPI_START_PHASE                        = 0x243B;
+constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES             = 0x24D9;
+constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES         = 0x24DA;
+constexpr unsigned int mmSPI_TMPRING_SIZE                       = 0xA1BA;
+constexpr unsigned int mmSPI_VS_OUT_CONFIG                      = 0xA1B1;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS0               = 0x31C9;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS1               = 0x31CA;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS2               = 0x31CB;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS3               = 0x31CC;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_GFX               = 0x31C7;
+constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_HP3D              = 0x31C8;
+constexpr unsigned int mmSPI_WF_LIFETIME_CNTL                   = 0x24AA;
+constexpr unsigned int mmSPI_WF_LIFETIME_DEBUG                  = 0x24CA;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_0                = 0x24AB;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_1                = 0x24AC;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_2                = 0x24AD;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                = 0x24AE;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                = 0x24AF;
+constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                = 0x24B0;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_0               = 0x24B5;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1               = 0x24B6;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_2               = 0x24B7;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_3               = 0x24B8;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_4               = 0x24B9;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_5               = 0x24BA;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_6               = 0x24BB;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_7               = 0x24BC;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_8               = 0x24BD;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_9               = 0x24BE;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_10              = 0x24BF;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_11              = 0x24C0;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_12              = 0x24C1;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_13              = 0x24C2;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_14              = 0x24C3;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_15              = 0x24C4;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_16              = 0x24C5;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_17              = 0x24C6;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_18              = 0x24C7;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_19              = 0x24C8;
+constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_20              = 0x24C9;
+constexpr unsigned int mmSQC_CACHES                             = 0xC348;
+constexpr unsigned int mmSQC_CONFIG                             = 0x2301;
+constexpr unsigned int mmSQC_WRITEBACK                          = 0xC349;
+constexpr unsigned int mmSQ_ALU_CLK_CTRL                        = 0xF08E;
+constexpr unsigned int mmSQ_CMD                                 = 0x237B;
+constexpr unsigned int mmSQ_CONFIG                              = 0x2300;
+constexpr unsigned int mmSQ_DEBUG_STS_GLOBAL                    = 0x2309;
+constexpr unsigned int mmSQ_DSM_CNTL                            = 0x2306;
+constexpr unsigned int mmSQ_DSM_CNTL2                           = 0x2307;
+constexpr unsigned int mmSQ_EDC_CNT                             = 0x23A6;
+constexpr unsigned int mmSQ_EDC_FUE_CNTL                        = 0x23A7;
+constexpr unsigned int mmSQ_FIFO_SIZES                          = 0x2305;
+constexpr unsigned int mmSQ_IND_DATA                            = 0x2379;
+constexpr unsigned int mmSQ_IND_INDEX                           = 0x2378;
+constexpr unsigned int mmSQ_INTERRUPT_AUTO_MASK                 = 0x2314;
+constexpr unsigned int mmSQ_INTERRUPT_MSG_CTRL                  = 0x2315;
+constexpr unsigned int mmSQ_LB_CTR_CTRL                         = 0x2398;
+constexpr unsigned int mmSQ_LB_DATA0                            = 0x2399;
+constexpr unsigned int mmSQ_LB_DATA1                            = 0x239A;
+constexpr unsigned int mmSQ_LB_DATA2                            = 0x239B;
+constexpr unsigned int mmSQ_LB_DATA3                            = 0x239C;
+constexpr unsigned int mmSQ_LDS_CLK_CTRL                        = 0xF090;
+constexpr unsigned int mmSQ_PERFCOUNTER0_HI                     = 0xD1C1;
+constexpr unsigned int mmSQ_PERFCOUNTER0_LO                     = 0xD1C0;
+constexpr unsigned int mmSQ_PERFCOUNTER0_SELECT                 = 0xD9C0;
+constexpr unsigned int mmSQ_PERFCOUNTER1_HI                     = 0xD1C3;
+constexpr unsigned int mmSQ_PERFCOUNTER1_LO                     = 0xD1C2;
+constexpr unsigned int mmSQ_PERFCOUNTER1_SELECT                 = 0xD9C1;
+constexpr unsigned int mmSQ_PERFCOUNTER2_HI                     = 0xD1C5;
+constexpr unsigned int mmSQ_PERFCOUNTER2_LO                     = 0xD1C4;
+constexpr unsigned int mmSQ_PERFCOUNTER2_SELECT                 = 0xD9C2;
+constexpr unsigned int mmSQ_PERFCOUNTER3_HI                     = 0xD1C7;
+constexpr unsigned int mmSQ_PERFCOUNTER3_LO                     = 0xD1C6;
+constexpr unsigned int mmSQ_PERFCOUNTER3_SELECT                 = 0xD9C3;
+constexpr unsigned int mmSQ_PERFCOUNTER4_HI                     = 0xD1C9;
+constexpr unsigned int mmSQ_PERFCOUNTER4_LO                     = 0xD1C8;
+constexpr unsigned int mmSQ_PERFCOUNTER4_SELECT                 = 0xD9C4;
+constexpr unsigned int mmSQ_PERFCOUNTER5_HI                     = 0xD1CB;
+constexpr unsigned int mmSQ_PERFCOUNTER5_LO                     = 0xD1CA;
+constexpr unsigned int mmSQ_PERFCOUNTER5_SELECT                 = 0xD9C5;
+constexpr unsigned int mmSQ_PERFCOUNTER6_HI                     = 0xD1CD;
+constexpr unsigned int mmSQ_PERFCOUNTER6_LO                     = 0xD1CC;
+constexpr unsigned int mmSQ_PERFCOUNTER6_SELECT                 = 0xD9C6;
+constexpr unsigned int mmSQ_PERFCOUNTER7_HI                     = 0xD1CF;
+constexpr unsigned int mmSQ_PERFCOUNTER7_LO                     = 0xD1CE;
+constexpr unsigned int mmSQ_PERFCOUNTER7_SELECT                 = 0xD9C7;
+constexpr unsigned int mmSQ_PERFCOUNTER8_HI                     = 0xD1D1;
+constexpr unsigned int mmSQ_PERFCOUNTER8_LO                     = 0xD1D0;
+constexpr unsigned int mmSQ_PERFCOUNTER8_SELECT                 = 0xD9C8;
+constexpr unsigned int mmSQ_PERFCOUNTER9_HI                     = 0xD1D3;
+constexpr unsigned int mmSQ_PERFCOUNTER9_LO                     = 0xD1D2;
+constexpr unsigned int mmSQ_PERFCOUNTER9_SELECT                 = 0xD9C9;
+constexpr unsigned int mmSQ_PERFCOUNTER10_HI                    = 0xD1D5;
+constexpr unsigned int mmSQ_PERFCOUNTER10_LO                    = 0xD1D4;
+constexpr unsigned int mmSQ_PERFCOUNTER10_SELECT                = 0xD9CA;
+constexpr unsigned int mmSQ_PERFCOUNTER11_HI                    = 0xD1D7;
+constexpr unsigned int mmSQ_PERFCOUNTER11_LO                    = 0xD1D6;
+constexpr unsigned int mmSQ_PERFCOUNTER11_SELECT                = 0xD9CB;
+constexpr unsigned int mmSQ_PERFCOUNTER12_HI                    = 0xD1D9;
+constexpr unsigned int mmSQ_PERFCOUNTER12_LO                    = 0xD1D8;
+constexpr unsigned int mmSQ_PERFCOUNTER12_SELECT                = 0xD9CC;
+constexpr unsigned int mmSQ_PERFCOUNTER13_HI                    = 0xD1DB;
+constexpr unsigned int mmSQ_PERFCOUNTER13_LO                    = 0xD1DA;
+constexpr unsigned int mmSQ_PERFCOUNTER13_SELECT                = 0xD9CD;
+constexpr unsigned int mmSQ_PERFCOUNTER14_HI                    = 0xD1DD;
+constexpr unsigned int mmSQ_PERFCOUNTER14_LO                    = 0xD1DC;
+constexpr unsigned int mmSQ_PERFCOUNTER14_SELECT                = 0xD9CE;
+constexpr unsigned int mmSQ_PERFCOUNTER15_HI                    = 0xD1DF;
+constexpr unsigned int mmSQ_PERFCOUNTER15_LO                    = 0xD1DE;
+constexpr unsigned int mmSQ_PERFCOUNTER15_SELECT                = 0xD9CF;
+constexpr unsigned int mmSQ_PERFCOUNTER_CTRL                    = 0xD9E0;
+constexpr unsigned int mmSQ_PERFCOUNTER_CTRL2                   = 0xD9E2;
+constexpr unsigned int mmSQ_RANDOM_WAVE_PRI                     = 0x2303;
+constexpr unsigned int mmSQ_RUNTIME_CONFIG                      = 0x2308;
+constexpr unsigned int mmSQ_SHADER_TBA_HI                       = 0x231D;
+constexpr unsigned int mmSQ_SHADER_TBA_LO                       = 0x231C;
+constexpr unsigned int mmSQ_SHADER_TMA_HI                       = 0x231F;
+constexpr unsigned int mmSQ_SHADER_TMA_LO                       = 0x231E;
+constexpr unsigned int mmSQ_TEX_CLK_CTRL                        = 0xF08F;
+constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_0             = 0xC340;
+constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_1             = 0xC341;
+constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_2             = 0xC342;
+constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_3             = 0xC343;
+constexpr unsigned int mmSQ_TIME_HI                             = 0x237C;
+constexpr unsigned int mmSQ_TIME_LO                             = 0x237D;
+constexpr unsigned int mmSQ_WREXEC_EXEC_HI                      = 0x23B1;
+constexpr unsigned int mmSQ_WREXEC_EXEC_LO                      = 0x23B1;
+constexpr unsigned int mmSX_BLEND_OPT_CONTROL                   = 0xA1D7;
+constexpr unsigned int mmSX_BLEND_OPT_EPSILON                   = 0xA1D6;
+constexpr unsigned int mmSX_DEBUG_BUSY                          = 0x2414;
+constexpr unsigned int mmSX_DEBUG_BUSY_2                        = 0x2415;
+constexpr unsigned int mmSX_DEBUG_BUSY_3                        = 0x2416;
+constexpr unsigned int mmSX_DEBUG_BUSY_4                        = 0x2417;
+constexpr unsigned int mmSX_MRT0_BLEND_OPT                      = 0xA1D8;
+constexpr unsigned int mmSX_MRT1_BLEND_OPT                      = 0xA1D9;
+constexpr unsigned int mmSX_MRT2_BLEND_OPT                      = 0xA1DA;
+constexpr unsigned int mmSX_MRT3_BLEND_OPT                      = 0xA1DB;
+constexpr unsigned int mmSX_MRT4_BLEND_OPT                      = 0xA1DC;
+constexpr unsigned int mmSX_MRT5_BLEND_OPT                      = 0xA1DD;
+constexpr unsigned int mmSX_MRT6_BLEND_OPT                      = 0xA1DE;
+constexpr unsigned int mmSX_MRT7_BLEND_OPT                      = 0xA1DF;
+constexpr unsigned int mmSX_PERFCOUNTER0_HI                     = 0xD241;
+constexpr unsigned int mmSX_PERFCOUNTER0_LO                     = 0xD240;
+constexpr unsigned int mmSX_PERFCOUNTER0_SELECT                 = 0xDA40;
+constexpr unsigned int mmSX_PERFCOUNTER0_SELECT1                = 0xDA44;
+constexpr unsigned int mmSX_PERFCOUNTER1_HI                     = 0xD243;
+constexpr unsigned int mmSX_PERFCOUNTER1_LO                     = 0xD242;
+constexpr unsigned int mmSX_PERFCOUNTER1_SELECT                 = 0xDA41;
+constexpr unsigned int mmSX_PERFCOUNTER1_SELECT1                = 0xDA45;
+constexpr unsigned int mmSX_PERFCOUNTER2_HI                     = 0xD245;
+constexpr unsigned int mmSX_PERFCOUNTER2_LO                     = 0xD244;
+constexpr unsigned int mmSX_PERFCOUNTER2_SELECT                 = 0xDA42;
+constexpr unsigned int mmSX_PERFCOUNTER3_HI                     = 0xD247;
+constexpr unsigned int mmSX_PERFCOUNTER3_LO                     = 0xD246;
+constexpr unsigned int mmSX_PERFCOUNTER3_SELECT                 = 0xDA43;
+constexpr unsigned int mmSX_PS_DOWNCONVERT                      = 0xA1D5;
+constexpr unsigned int mmTA_BC_BASE_ADDR                        = 0xA020;
+constexpr unsigned int mmTA_BC_BASE_ADDR_HI                     = 0xA021;
+constexpr unsigned int mmTA_CGTT_CTRL                           = 0xF09D;
+constexpr unsigned int mmTA_CNTL                                = 0x2541;
+constexpr unsigned int mmTA_CNTL_AUX                            = 0x2542;
+constexpr unsigned int mmTA_CS_BC_BASE_ADDR                     = 0xC380;
+constexpr unsigned int mmTA_CS_BC_BASE_ADDR_HI                  = 0xC381;
+constexpr unsigned int mmTA_DEBUG_DATA                          = 0x254D;
+constexpr unsigned int mmTA_DEBUG_INDEX                         = 0x254C;
+constexpr unsigned int mmTA_PERFCOUNTER0_HI                     = 0xD2C1;
+constexpr unsigned int mmTA_PERFCOUNTER0_LO                     = 0xD2C0;
+constexpr unsigned int mmTA_PERFCOUNTER0_SELECT                 = 0xDAC0;
+constexpr unsigned int mmTA_PERFCOUNTER0_SELECT1                = 0xDAC1;
+constexpr unsigned int mmTA_PERFCOUNTER1_HI                     = 0xD2C3;
+constexpr unsigned int mmTA_PERFCOUNTER1_LO                     = 0xD2C2;
+constexpr unsigned int mmTA_PERFCOUNTER1_SELECT                 = 0xDAC2;
+constexpr unsigned int mmTA_RESERVED_010C                       = 0x2543;
+constexpr unsigned int mmTA_SCRATCH                             = 0x2564;
+constexpr unsigned int mmTA_STATUS                              = 0x2548;
+constexpr unsigned int mmTCI_CNTL_1                             = 0x2B62;
+constexpr unsigned int mmTCI_CNTL_2                             = 0x2B63;
+constexpr unsigned int mmTCI_STATUS                             = 0x2B61;
+constexpr unsigned int mmTCP_PERFCOUNTER0_HI                    = 0xD341;
+constexpr unsigned int mmTCP_PERFCOUNTER0_LO                    = 0xD340;
+constexpr unsigned int mmTCP_PERFCOUNTER0_SELECT                = 0xDB40;
+constexpr unsigned int mmTCP_PERFCOUNTER0_SELECT1               = 0xDB41;
+constexpr unsigned int mmTCP_PERFCOUNTER1_HI                    = 0xD343;
+constexpr unsigned int mmTCP_PERFCOUNTER1_LO                    = 0xD342;
+constexpr unsigned int mmTCP_PERFCOUNTER1_SELECT                = 0xDB42;
+constexpr unsigned int mmTCP_PERFCOUNTER1_SELECT1               = 0xDB43;
+constexpr unsigned int mmTCP_PERFCOUNTER2_HI                    = 0xD345;
+constexpr unsigned int mmTCP_PERFCOUNTER2_LO                    = 0xD344;
+constexpr unsigned int mmTCP_PERFCOUNTER2_SELECT                = 0xDB44;
+constexpr unsigned int mmTCP_PERFCOUNTER3_HI                    = 0xD347;
+constexpr unsigned int mmTCP_PERFCOUNTER3_LO                    = 0xD346;
+constexpr unsigned int mmTCP_PERFCOUNTER3_SELECT                = 0xDB45;
+constexpr unsigned int mmTCP_PERFCOUNTER_FILTER                 = 0x32B9;
+constexpr unsigned int mmTCP_PERFCOUNTER_FILTER_EN              = 0x32BA;
+constexpr unsigned int mmTD_CGTT_CTRL                           = 0xF09C;
+constexpr unsigned int mmTD_CNTL                                = 0x2525;
+constexpr unsigned int mmTD_DEBUG_DATA                          = 0x2529;
+constexpr unsigned int mmTD_DEBUG_INDEX                         = 0x2528;
+constexpr unsigned int mmTD_DSM_CNTL                            = 0x252F;
+constexpr unsigned int mmTD_DSM_CNTL2                           = 0x2530;
+constexpr unsigned int mmTD_PERFCOUNTER0_HI                     = 0xD301;
+constexpr unsigned int mmTD_PERFCOUNTER0_LO                     = 0xD300;
+constexpr unsigned int mmTD_PERFCOUNTER0_SELECT                 = 0xDB00;
+constexpr unsigned int mmTD_PERFCOUNTER0_SELECT1                = 0xDB01;
+constexpr unsigned int mmTD_PERFCOUNTER1_HI                     = 0xD303;
+constexpr unsigned int mmTD_PERFCOUNTER1_LO                     = 0xD302;
+constexpr unsigned int mmTD_PERFCOUNTER1_SELECT                 = 0xDB02;
+constexpr unsigned int mmTD_SCRATCH                             = 0x2533;
+constexpr unsigned int mmTD_STATUS                              = 0x2526;
+constexpr unsigned int mmVGT_CACHE_INVALIDATION                 = 0x2231;
+constexpr unsigned int mmVGT_CNTL_STATUS                        = 0x223C;
+constexpr unsigned int mmVGT_DISPATCH_DRAW_INDEX                = 0xA2DD;
+constexpr unsigned int mmVGT_DMA_BASE                           = 0xA1FA;
+constexpr unsigned int mmVGT_DMA_BASE_HI                        = 0xA1F9;
+constexpr unsigned int mmVGT_DMA_CONTROL                        = 0x2272;
+constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH                = 0x222D;
+constexpr unsigned int mmVGT_DMA_EVENT_INITIATOR                = 0xA2E7;
+constexpr unsigned int mmVGT_DMA_INDEX_TYPE                     = 0xA29F;
+constexpr unsigned int mmVGT_DMA_LS_HS_CONFIG                   = 0x2273;
+constexpr unsigned int mmVGT_DMA_MAX_SIZE                       = 0xA29E;
+constexpr unsigned int mmVGT_DMA_NUM_INSTANCES                  = 0xA2A2;
+constexpr unsigned int mmVGT_DMA_PRIMITIVE_TYPE                 = 0x2271;
+constexpr unsigned int mmVGT_DMA_REQ_FIFO_DEPTH                 = 0x222E;
+constexpr unsigned int mmVGT_DMA_SIZE                           = 0xA29D;
+constexpr unsigned int mmVGT_DRAW_INITIATOR                     = 0xA1FC;
+constexpr unsigned int mmVGT_DRAW_INIT_FIFO_DEPTH               = 0x222F;
+constexpr unsigned int mmVGT_ENHANCE                            = 0xA294;
+constexpr unsigned int mmVGT_ESGS_RING_ITEMSIZE                 = 0xA2AB;
+constexpr unsigned int mmVGT_ES_PER_GS                          = 0xA296;
+constexpr unsigned int mmVGT_EVENT_ADDRESS_REG                  = 0xA1FE;
+constexpr unsigned int mmVGT_EVENT_INITIATOR                    = 0xA2A4;
+constexpr unsigned int mmVGT_FIFO_DEPTHS                        = 0x2234;
+constexpr unsigned int mmVGT_GROUP_DECR                         = 0xA28B;
+constexpr unsigned int mmVGT_GROUP_FIRST_DECR                   = 0xA28A;
+constexpr unsigned int mmVGT_GROUP_PRIM_TYPE                    = 0xA289;
+constexpr unsigned int mmVGT_GROUP_VECT_0_CNTL                  = 0xA28C;
+constexpr unsigned int mmVGT_GROUP_VECT_0_FMT_CNTL              = 0xA28E;
+constexpr unsigned int mmVGT_GROUP_VECT_1_CNTL                  = 0xA28D;
+constexpr unsigned int mmVGT_GROUP_VECT_1_FMT_CNTL              = 0xA28F;
+constexpr unsigned int mmVGT_GSVS_RING_ITEMSIZE                 = 0xA2AC;
+constexpr unsigned int mmVGT_GSVS_RING_OFFSET_1                 = 0xA298;
+constexpr unsigned int mmVGT_GSVS_RING_OFFSET_2                 = 0xA299;
+constexpr unsigned int mmVGT_GSVS_RING_OFFSET_3                 = 0xA29A;
+constexpr unsigned int mmVGT_GS_INSTANCE_CNT                    = 0xA2E4;
+constexpr unsigned int mmVGT_GS_MAX_VERT_OUT                    = 0xA2CE;
+constexpr unsigned int mmVGT_GS_MAX_WAVE_ID                     = 0x2269;
+constexpr unsigned int mmVGT_GS_MODE                            = 0xA290;
+constexpr unsigned int mmVGT_GS_ONCHIP_CNTL                     = 0xA291;
+constexpr unsigned int mmVGT_GS_OUT_PRIM_TYPE                   = 0xA29B;
+constexpr unsigned int mmVGT_GS_PER_ES                          = 0xA295;
+constexpr unsigned int mmVGT_GS_PER_VS                          = 0xA297;
+constexpr unsigned int mmVGT_GS_VERTEX_REUSE                    = 0x2235;
+constexpr unsigned int mmVGT_GS_VERT_ITEMSIZE                   = 0xA2D7;
+constexpr unsigned int mmVGT_GS_VERT_ITEMSIZE_1                 = 0xA2D8;
+constexpr unsigned int mmVGT_GS_VERT_ITEMSIZE_2                 = 0xA2D9;
+constexpr unsigned int mmVGT_GS_VERT_ITEMSIZE_3                 = 0xA2DA;
+constexpr unsigned int mmVGT_HOS_CNTL                           = 0xA285;
+constexpr unsigned int mmVGT_HOS_MAX_TESS_LEVEL                 = 0xA286;
+constexpr unsigned int mmVGT_HOS_MIN_TESS_LEVEL                 = 0xA287;
+constexpr unsigned int mmVGT_HOS_REUSE_DEPTH                    = 0xA288;
+constexpr unsigned int mmVGT_IMMED_DATA                         = 0xA1FD;
+constexpr unsigned int mmVGT_INDEX_TYPE                         = 0xC243;
+constexpr unsigned int mmVGT_INSTANCE_BASE_ID                   = 0xC25A;
+constexpr unsigned int mmVGT_INSTANCE_STEP_RATE_0               = 0xA2A8;
+constexpr unsigned int mmVGT_INSTANCE_STEP_RATE_1               = 0xA2A9;
+constexpr unsigned int mmVGT_LAST_COPY_STATE                    = 0x2230;
+constexpr unsigned int mmVGT_LS_HS_CONFIG                       = 0xA2D6;
+constexpr unsigned int mmVGT_MC_LAT_CNTL                        = 0x2236;
+constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_INDX           = 0xA103;
+constexpr unsigned int mmVGT_NUM_INDICES                        = 0xC24C;
+constexpr unsigned int mmVGT_NUM_INSTANCES                      = 0xC24D;
+constexpr unsigned int mmVGT_OUTPUT_PATH_CNTL                   = 0xA284;
+constexpr unsigned int mmVGT_OUT_DEALLOC_CNTL                   = 0xA317;
+constexpr unsigned int mmVGT_PRIMITIVEID_EN                     = 0xA2A1;
+constexpr unsigned int mmVGT_PRIMITIVEID_RESET                  = 0xA2A3;
+constexpr unsigned int mmVGT_PRIMITIVE_TYPE                     = 0xC242;
+constexpr unsigned int mmVGT_REUSE_OFF                          = 0xA2AD;
+constexpr unsigned int mmVGT_SHADER_STAGES_EN                   = 0xA2D5;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_CONFIG              = 0xA2E6;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_FILLED_SIZE_0       = 0xC244;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_FILLED_SIZE_1       = 0xC245;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_FILLED_SIZE_2       = 0xC246;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3       = 0xC247;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_OFFSET_0            = 0xA2B7;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_OFFSET_1            = 0xA2BB;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_OFFSET_2            = 0xA2BF;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_OFFSET_3            = 0xA2C3;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_SIZE_0              = 0xA2B4;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_SIZE_1              = 0xA2B8;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_SIZE_2              = 0xA2BC;
+constexpr unsigned int mmVGT_STRMOUT_BUFFER_SIZE_3              = 0xA2C0;
+constexpr unsigned int mmVGT_STRMOUT_CONFIG                     = 0xA2E5;
+constexpr unsigned int mmVGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE = 0xA2CB;
+constexpr unsigned int mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET         = 0xA2CA;
+constexpr unsigned int mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE  = 0xA2CC;
+constexpr unsigned int mmVGT_STRMOUT_VTX_STRIDE_0               = 0xA2B5;
+constexpr unsigned int mmVGT_STRMOUT_VTX_STRIDE_1               = 0xA2B9;
+constexpr unsigned int mmVGT_STRMOUT_VTX_STRIDE_2               = 0xA2BD;
+constexpr unsigned int mmVGT_STRMOUT_VTX_STRIDE_3               = 0xA2C1;
+constexpr unsigned int mmVGT_SYS_CONFIG                         = 0x2263;
+constexpr unsigned int mmVGT_TESS_DISTRIBUTION                  = 0xA2D4;
+constexpr unsigned int mmVGT_TF_PARAM                           = 0xA2DB;
+constexpr unsigned int mmVGT_VERTEX_REUSE_BLOCK_CNTL            = 0xA316;
+constexpr unsigned int mmVGT_VS_MAX_WAVE_ID                     = 0x2268;
+constexpr unsigned int mmVGT_VTX_CNT_EN                         = 0xA2AE;
+constexpr unsigned int mmVGT_VTX_VECT_EJECT_REG                 = 0x222C;
+constexpr unsigned int mmWD_BUF_RESOURCE_1                      = 0x2276;
+constexpr unsigned int mmWD_BUF_RESOURCE_2                      = 0x2277;
+constexpr unsigned int mmWD_CNTL_SB_BUF_BASE                    = 0xC254;
+constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_HI                 = 0xC255;
+constexpr unsigned int mmWD_CNTL_STATUS                         = 0x223F;
+constexpr unsigned int mmWD_ENHANCE                             = 0xA2A0;
+constexpr unsigned int mmWD_INDEX_BUF_BASE                      = 0xC256;
+constexpr unsigned int mmWD_INDEX_BUF_BASE_HI                   = 0xC257;
+constexpr unsigned int mmWD_POS_BUF_BASE                        = 0xC252;
+constexpr unsigned int mmWD_POS_BUF_BASE_HI                     = 0xC253;
+constexpr unsigned int mmWD_QOS                                 = 0x2242;
+constexpr unsigned int mmWD_UTCL1_CNTL                          = 0x2243;
+constexpr unsigned int mmWD_UTCL1_STATUS                        = 0x2244;
+
+namespace Gfx09
+{
+    constexpr unsigned int mmATC_ATS_CNTL                           = 0x0C20;
+    constexpr unsigned int mmATC_ATS_DEFAULT_PAGE_LOW               = 0x0C27;
+    constexpr unsigned int mmATC_ATS_FAULT_CNTL                     = 0x0C24;
+    constexpr unsigned int mmATC_ATS_FAULT_STATUS_ADDR              = 0x0C26;
+    constexpr unsigned int mmATC_ATS_FAULT_STATUS_INFO              = 0x0C25;
+    constexpr unsigned int mmATC_ATS_FAULT_STATUS_INFO2             = 0x0C29;
+    constexpr unsigned int mmATC_ATS_GFX_ATCL2_STATUS               = 0x0C3D;
+    constexpr unsigned int mmATC_ATS_MMHUB_ATCL2_STATUS             = 0x0C6D;
+    constexpr unsigned int mmATC_ATS_SDPPORT_CNTL                   = 0x0C70;
+    constexpr unsigned int mmATC_ATS_STATUS                         = 0x0C23;
+    constexpr unsigned int mmATC_ATS_VMID_SNAPSHOT_GFX_STAT         = 0x0C72;
+    constexpr unsigned int mmATC_ATS_VMID_SNAPSHOT_MMHUB_STAT       = 0x0C73;
+    constexpr unsigned int mmATC_ATS_VMID_STATUS                    = 0x0C3C;
+    constexpr unsigned int mmATC_L2_PERFCOUNTER0_CFG                = 0xDD40;
+    constexpr unsigned int mmATC_L2_PERFCOUNTER1_CFG                = 0xDD41;
+    constexpr unsigned int mmATC_L2_PERFCOUNTER_HI                  = 0xD501;
+    constexpr unsigned int mmATC_L2_PERFCOUNTER_LO                  = 0xD500;
+    constexpr unsigned int mmATC_L2_PERFCOUNTER_RSLT_CNTL           = 0xDD42;
+    constexpr unsigned int mmATC_PERFCOUNTER0_CFG                   = 0x0C3E;
+    constexpr unsigned int mmATC_PERFCOUNTER1_CFG                   = 0x0C3F;
+    constexpr unsigned int mmATC_PERFCOUNTER2_CFG                   = 0x0C40;
+    constexpr unsigned int mmATC_PERFCOUNTER3_CFG                   = 0x0C41;
+    constexpr unsigned int mmATC_PERFCOUNTER_HI                     = 0x0C44;
+    constexpr unsigned int mmATC_PERFCOUNTER_LO                     = 0x0C43;
+    constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL              = 0x0C42;
+    constexpr unsigned int mmATC_TRANS_FAULT_RSPCNTRL               = 0x0C28;
+    constexpr unsigned int mmATC_VMID0_PASID_MAPPING                = 0x0C2C;
+    constexpr unsigned int mmATC_VMID1_PASID_MAPPING                = 0x0C2D;
+    constexpr unsigned int mmATC_VMID2_PASID_MAPPING                = 0x0C2E;
+    constexpr unsigned int mmATC_VMID3_PASID_MAPPING                = 0x0C2F;
+    constexpr unsigned int mmATC_VMID4_PASID_MAPPING                = 0x0C30;
+    constexpr unsigned int mmATC_VMID5_PASID_MAPPING                = 0x0C31;
+    constexpr unsigned int mmATC_VMID6_PASID_MAPPING                = 0x0C32;
+    constexpr unsigned int mmATC_VMID7_PASID_MAPPING                = 0x0C33;
+    constexpr unsigned int mmATC_VMID8_PASID_MAPPING                = 0x0C34;
+    constexpr unsigned int mmATC_VMID9_PASID_MAPPING                = 0x0C35;
+    constexpr unsigned int mmATC_VMID10_PASID_MAPPING               = 0x0C36;
+    constexpr unsigned int mmATC_VMID11_PASID_MAPPING               = 0x0C37;
+    constexpr unsigned int mmATC_VMID12_PASID_MAPPING               = 0x0C38;
+    constexpr unsigned int mmATC_VMID13_PASID_MAPPING               = 0x0C39;
+    constexpr unsigned int mmATC_VMID14_PASID_MAPPING               = 0x0C3A;
+    constexpr unsigned int mmATC_VMID15_PASID_MAPPING               = 0x0C3B;
+    constexpr unsigned int mmATC_VMID16_PASID_MAPPING               = 0x0C5D;
+    constexpr unsigned int mmATC_VMID17_PASID_MAPPING               = 0x0C5E;
+    constexpr unsigned int mmATC_VMID18_PASID_MAPPING               = 0x0C5F;
+    constexpr unsigned int mmATC_VMID19_PASID_MAPPING               = 0x0C60;
+    constexpr unsigned int mmATC_VMID20_PASID_MAPPING               = 0x0C61;
+    constexpr unsigned int mmATC_VMID21_PASID_MAPPING               = 0x0C62;
+    constexpr unsigned int mmATC_VMID22_PASID_MAPPING               = 0x0C63;
+    constexpr unsigned int mmATC_VMID23_PASID_MAPPING               = 0x0C64;
+    constexpr unsigned int mmATC_VMID24_PASID_MAPPING               = 0x0C65;
+    constexpr unsigned int mmATC_VMID25_PASID_MAPPING               = 0x0C66;
+    constexpr unsigned int mmATC_VMID26_PASID_MAPPING               = 0x0C67;
+    constexpr unsigned int mmATC_VMID27_PASID_MAPPING               = 0x0C68;
+    constexpr unsigned int mmATC_VMID28_PASID_MAPPING               = 0x0C69;
+    constexpr unsigned int mmATC_VMID29_PASID_MAPPING               = 0x0C6A;
+    constexpr unsigned int mmATC_VMID30_PASID_MAPPING               = 0x0C6B;
+    constexpr unsigned int mmATC_VMID31_PASID_MAPPING               = 0x0C6C;
+    constexpr unsigned int mmATC_VMID_PASID_MAPPING_UPDATE_STATUS   = 0x0C2B;
+    constexpr unsigned int mmATS_IH_CREDIT                          = 0x0C5B;
+    constexpr unsigned int mmCB_COLOR0_ATTRIB2                      = 0xA31A;
+    constexpr unsigned int mmCB_COLOR0_BASE_EXT                     = 0xA319;
+    constexpr unsigned int mmCB_COLOR0_CMASK_BASE_EXT               = 0xA320;
+    constexpr unsigned int mmCB_COLOR0_DCC_BASE_EXT                 = 0xA326;
+    constexpr unsigned int mmCB_COLOR0_FMASK_BASE_EXT               = 0xA322;
+    constexpr unsigned int mmCB_COLOR1_ATTRIB2                      = 0xA329;
+    constexpr unsigned int mmCB_COLOR1_BASE_EXT                     = 0xA328;
+    constexpr unsigned int mmCB_COLOR1_CMASK_BASE_EXT               = 0xA32F;
+    constexpr unsigned int mmCB_COLOR1_DCC_BASE_EXT                 = 0xA335;
+    constexpr unsigned int mmCB_COLOR1_FMASK_BASE_EXT               = 0xA331;
+    constexpr unsigned int mmCB_COLOR2_ATTRIB2                      = 0xA338;
+    constexpr unsigned int mmCB_COLOR2_BASE_EXT                     = 0xA337;
+    constexpr unsigned int mmCB_COLOR2_CMASK_BASE_EXT               = 0xA33E;
+    constexpr unsigned int mmCB_COLOR2_DCC_BASE_EXT                 = 0xA344;
+    constexpr unsigned int mmCB_COLOR2_FMASK_BASE_EXT               = 0xA340;
+    constexpr unsigned int mmCB_COLOR3_ATTRIB2                      = 0xA347;
+    constexpr unsigned int mmCB_COLOR3_BASE_EXT                     = 0xA346;
+    constexpr unsigned int mmCB_COLOR3_CMASK_BASE_EXT               = 0xA34D;
+    constexpr unsigned int mmCB_COLOR3_DCC_BASE_EXT                 = 0xA353;
+    constexpr unsigned int mmCB_COLOR3_FMASK_BASE_EXT               = 0xA34F;
+    constexpr unsigned int mmCB_COLOR4_ATTRIB2                      = 0xA356;
+    constexpr unsigned int mmCB_COLOR4_BASE_EXT                     = 0xA355;
+    constexpr unsigned int mmCB_COLOR4_CMASK_BASE_EXT               = 0xA35C;
+    constexpr unsigned int mmCB_COLOR4_DCC_BASE_EXT                 = 0xA362;
+    constexpr unsigned int mmCB_COLOR4_FMASK_BASE_EXT               = 0xA35E;
+    constexpr unsigned int mmCB_COLOR5_ATTRIB2                      = 0xA365;
+    constexpr unsigned int mmCB_COLOR5_BASE_EXT                     = 0xA364;
+    constexpr unsigned int mmCB_COLOR5_CMASK_BASE_EXT               = 0xA36B;
+    constexpr unsigned int mmCB_COLOR5_DCC_BASE_EXT                 = 0xA371;
+    constexpr unsigned int mmCB_COLOR5_FMASK_BASE_EXT               = 0xA36D;
+    constexpr unsigned int mmCB_COLOR6_ATTRIB2                      = 0xA374;
+    constexpr unsigned int mmCB_COLOR6_BASE_EXT                     = 0xA373;
+    constexpr unsigned int mmCB_COLOR6_CMASK_BASE_EXT               = 0xA37A;
+    constexpr unsigned int mmCB_COLOR6_DCC_BASE_EXT                 = 0xA380;
+    constexpr unsigned int mmCB_COLOR6_FMASK_BASE_EXT               = 0xA37C;
+    constexpr unsigned int mmCB_COLOR7_ATTRIB2                      = 0xA383;
+    constexpr unsigned int mmCB_COLOR7_BASE_EXT                     = 0xA382;
+    constexpr unsigned int mmCB_COLOR7_CMASK_BASE_EXT               = 0xA389;
+    constexpr unsigned int mmCB_COLOR7_DCC_BASE_EXT                 = 0xA38F;
+    constexpr unsigned int mmCB_COLOR7_FMASK_BASE_EXT               = 0xA38B;
+    constexpr unsigned int mmCB_DCC_CONFIG                          = 0x2688;
+    constexpr unsigned int mmCB_HW_CONTROL                          = 0x2680;
+    constexpr unsigned int mmCB_HW_CONTROL_1                        = 0x2681;
+    constexpr unsigned int mmCB_HW_CONTROL_2                        = 0x2682;
+    constexpr unsigned int mmCB_HW_MEM_ARBITER_RD                   = 0x2686;
+    constexpr unsigned int mmCB_HW_MEM_ARBITER_WR                   = 0x2687;
+    constexpr unsigned int mmCB_MRT0_EPITCH                         = 0xA1E8;
+    constexpr unsigned int mmCB_MRT1_EPITCH                         = 0xA1E9;
+    constexpr unsigned int mmCB_MRT2_EPITCH                         = 0xA1EA;
+    constexpr unsigned int mmCB_MRT3_EPITCH                         = 0xA1EB;
+    constexpr unsigned int mmCB_MRT4_EPITCH                         = 0xA1EC;
+    constexpr unsigned int mmCB_MRT5_EPITCH                         = 0xA1ED;
+    constexpr unsigned int mmCB_MRT6_EPITCH                         = 0xA1EE;
+    constexpr unsigned int mmCB_MRT7_EPITCH                         = 0xA1EF;
+    constexpr unsigned int mmCOMPUTE_RELAUNCH                       = 0x2E22;
+    constexpr unsigned int mmCOMPUTE_WAVE_RESTORE_ADDR_HI           = 0x2E24;
+    constexpr unsigned int mmCOMPUTE_WAVE_RESTORE_ADDR_LO           = 0x2E23;
+    constexpr unsigned int mmCP_CE_RB_OFFSET                        = 0xC09B;
+    constexpr unsigned int mmCP_GFX_MQD_BASE_ADDR                   = 0x31A1;
+    constexpr unsigned int mmCP_GFX_MQD_BASE_ADDR_HI                = 0x31A2;
+    constexpr unsigned int mmCP_GFX_MQD_CONTROL                     = 0x31A0;
+    constexpr unsigned int mmCP_HPD_ROQ_OFFSETS                     = 0x3240;
+    constexpr unsigned int mmCP_HPD_STATUS0                         = 0x3241;
+    constexpr unsigned int mmCP_HPD_UTCL1_CNTL                      = 0x3242;
+    constexpr unsigned int mmCP_HPD_UTCL1_ERROR                     = 0x3243;
+    constexpr unsigned int mmCP_HPD_UTCL1_ERROR_ADDR                = 0x3244;
+    constexpr unsigned int mmCP_HQD_ACTIVE                          = 0x3247;
+    constexpr unsigned int mmCP_HQD_AQL_CONTROL                     = 0x327A;
+    constexpr unsigned int mmCP_HQD_ATOMIC0_PREOP_HI                = 0x3262;
+    constexpr unsigned int mmCP_HQD_ATOMIC0_PREOP_LO                = 0x3261;
+    constexpr unsigned int mmCP_HQD_ATOMIC1_PREOP_HI                = 0x3264;
+    constexpr unsigned int mmCP_HQD_ATOMIC1_PREOP_LO                = 0x3263;
+    constexpr unsigned int mmCP_HQD_CNTL_STACK_OFFSET               = 0x3273;
+    constexpr unsigned int mmCP_HQD_CNTL_STACK_SIZE                 = 0x3274;
+    constexpr unsigned int mmCP_HQD_CTX_SAVE_BASE_ADDR_HI           = 0x3271;
+    constexpr unsigned int mmCP_HQD_CTX_SAVE_BASE_ADDR_LO           = 0x3270;
+    constexpr unsigned int mmCP_HQD_CTX_SAVE_CONTROL                = 0x3272;
+    constexpr unsigned int mmCP_HQD_CTX_SAVE_SIZE                   = 0x3276;
+    constexpr unsigned int mmCP_HQD_DEQUEUE_REQUEST                 = 0x325D;
+    constexpr unsigned int mmCP_HQD_DMA_OFFLOAD                     = 0x325E;
+    constexpr unsigned int mmCP_HQD_EOP_BASE_ADDR                   = 0x326A;
+    constexpr unsigned int mmCP_HQD_EOP_BASE_ADDR_HI                = 0x326B;
+    constexpr unsigned int mmCP_HQD_EOP_CONTROL                     = 0x326C;
+    constexpr unsigned int mmCP_HQD_EOP_EVENTS                      = 0x326F;
+    constexpr unsigned int mmCP_HQD_EOP_RPTR                        = 0x326D;
+    constexpr unsigned int mmCP_HQD_EOP_WPTR                        = 0x326E;
+    constexpr unsigned int mmCP_HQD_EOP_WPTR_MEM                    = 0x3279;
+    constexpr unsigned int mmCP_HQD_ERROR                           = 0x3278;
+    constexpr unsigned int mmCP_HQD_GFX_CONTROL                     = 0x323E;
+    constexpr unsigned int mmCP_HQD_GFX_STATUS                      = 0x323F;
+    constexpr unsigned int mmCP_HQD_HQ_CONTROL0                     = 0x3266;
+    constexpr unsigned int mmCP_HQD_HQ_CONTROL1                     = 0x3269;
+    constexpr unsigned int mmCP_HQD_HQ_SCHEDULER0                   = 0x3265;
+    constexpr unsigned int mmCP_HQD_HQ_SCHEDULER1                   = 0x3266;
+    constexpr unsigned int mmCP_HQD_HQ_STATUS0                      = 0x3265;
+    constexpr unsigned int mmCP_HQD_HQ_STATUS1                      = 0x3268;
+    constexpr unsigned int mmCP_HQD_IB_BASE_ADDR                    = 0x3257;
+    constexpr unsigned int mmCP_HQD_IB_BASE_ADDR_HI                 = 0x3258;
+    constexpr unsigned int mmCP_HQD_IB_CONTROL                      = 0x325A;
+    constexpr unsigned int mmCP_HQD_IB_RPTR                         = 0x3259;
+    constexpr unsigned int mmCP_HQD_IQ_RPTR                         = 0x325C;
+    constexpr unsigned int mmCP_HQD_IQ_TIMER                        = 0x325B;
+    constexpr unsigned int mmCP_HQD_MSG_TYPE                        = 0x3260;
+    constexpr unsigned int mmCP_HQD_OFFLOAD                         = 0x325E;
+    constexpr unsigned int mmCP_HQD_PERSISTENT_STATE                = 0x3249;
+    constexpr unsigned int mmCP_HQD_PIPE_PRIORITY                   = 0x324A;
+    constexpr unsigned int mmCP_HQD_PQ_BASE                         = 0x324D;
+    constexpr unsigned int mmCP_HQD_PQ_BASE_HI                      = 0x324E;
+    constexpr unsigned int mmCP_HQD_PQ_CONTROL                      = 0x3256;
+    constexpr unsigned int mmCP_HQD_PQ_DOORBELL_CONTROL             = 0x3254;
+    constexpr unsigned int mmCP_HQD_PQ_RPTR                         = 0x324F;
+    constexpr unsigned int mmCP_HQD_PQ_RPTR_REPORT_ADDR             = 0x3250;
+    constexpr unsigned int mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI          = 0x3251;
+    constexpr unsigned int mmCP_HQD_PQ_WPTR_HI                      = 0x327C;
+    constexpr unsigned int mmCP_HQD_PQ_WPTR_LO                      = 0x327B;
+    constexpr unsigned int mmCP_HQD_PQ_WPTR_POLL_ADDR               = 0x3252;
+    constexpr unsigned int mmCP_HQD_PQ_WPTR_POLL_ADDR_HI            = 0x3253;
+    constexpr unsigned int mmCP_HQD_QUANTUM                         = 0x324C;
+    constexpr unsigned int mmCP_HQD_QUEUE_PRIORITY                  = 0x324B;
+    constexpr unsigned int mmCP_HQD_SEMA_CMD                        = 0x325F;
+    constexpr unsigned int mmCP_HQD_VMID                            = 0x3248;
+    constexpr unsigned int mmCP_HQD_WG_STATE_OFFSET                 = 0x3275;
+    constexpr unsigned int mmCP_MQD_BASE_ADDR                       = 0x3245;
+    constexpr unsigned int mmCP_MQD_BASE_ADDR_HI                    = 0x3246;
+    constexpr unsigned int mmCP_MQD_CONTROL                         = 0x3267;
+    constexpr unsigned int mmCP_RB0_ACTIVE                          = 0x3069;
+    constexpr unsigned int mmCP_RB_ACTIVE                           = 0x3069;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL                 = 0x3059;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_0           = 0x3180;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_1           = 0x3181;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_2           = 0x3182;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_3           = 0x3183;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_4           = 0x3184;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_5           = 0x3185;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_6           = 0x3186;
+    constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_7           = 0x3187;
+    constexpr unsigned int mmCP_RB_WPTR_POLL_ADDR_HI                = 0x3047;
+    constexpr unsigned int mmCP_RB_WPTR_POLL_ADDR_LO                = 0x3046;
+    constexpr unsigned int mmDB_DEPTH_SIZE                          = 0xA007;
+    constexpr unsigned int mmDB_DFSM_CONTROL                        = 0xA018;
+    constexpr unsigned int mmDB_DFSM_WATERMARK                      = 0x2631;
+    constexpr unsigned int mmDB_EXCEPTION_CONTROL                   = 0x261A;
+    constexpr unsigned int mmDB_HTILE_DATA_BASE_HI                  = 0xA006;
+    constexpr unsigned int mmDB_RMI_CACHE_POLICY                    = 0x261E;
+    constexpr unsigned int mmDB_STENCIL_INFO                        = 0xA00F;
+    constexpr unsigned int mmDB_STENCIL_INFO2                       = 0xA01B;
+    constexpr unsigned int mmDB_STENCIL_READ_BASE                   = 0xA012;
+    constexpr unsigned int mmDB_STENCIL_READ_BASE_HI                = 0xA013;
+    constexpr unsigned int mmDB_STENCIL_WRITE_BASE                  = 0xA016;
+    constexpr unsigned int mmDB_STENCIL_WRITE_BASE_HI               = 0xA017;
+    constexpr unsigned int mmDB_Z_INFO                              = 0xA00E;
+    constexpr unsigned int mmDB_Z_INFO2                             = 0xA01A;
+    constexpr unsigned int mmDB_Z_READ_BASE                         = 0xA010;
+    constexpr unsigned int mmDB_Z_READ_BASE_HI                      = 0xA011;
+    constexpr unsigned int mmDB_Z_WRITE_BASE_HI                     = 0xA015;
+    constexpr unsigned int mmGC_CAC_AGGR_LOWER                      = 0x3287;
+    constexpr unsigned int mmGC_CAC_AGGR_UPPER                      = 0x3288;
+    constexpr unsigned int mmGC_CAC_SOFT_CTRL                       = 0x328D;
+    constexpr unsigned int mmGC_DIDT_CTRL0                          = 0x328E;
+    constexpr unsigned int mmGC_DIDT_CTRL1                          = 0x328F;
+    constexpr unsigned int mmGC_DIDT_CTRL2                          = 0x3290;
+    constexpr unsigned int mmGC_DIDT_DROOP_CTRL                     = 0x3298;
+    constexpr unsigned int mmGC_DIDT_WEIGHT                         = 0x3291;
+    constexpr unsigned int mmGC_EDC_CTRL                            = 0x3293;
+    constexpr unsigned int mmGC_EDC_OVERFLOW                        = 0x3296;
+    constexpr unsigned int mmGC_EDC_ROLLING_POWER_DELTA             = 0x3297;
+    constexpr unsigned int mmGC_EDC_STATUS                          = 0x3295;
+    constexpr unsigned int mmGC_EDC_THRESHOLD                       = 0x3294;
+    constexpr unsigned int mmGRBM_CHICKEN_BITS                      = 0x2029;
+    constexpr unsigned int mmIA_CNTL_STATUS                         = 0x2237;
+    constexpr unsigned int mmIA_DEBUG_DATA                          = 0x223B;
+    constexpr unsigned int mmIA_MULTI_VGT_PARAM                     = 0xC258;
+    constexpr unsigned int mmIA_PERFCOUNTER0_HI                     = 0xD089;
+    constexpr unsigned int mmIA_PERFCOUNTER0_LO                     = 0xD088;
+    constexpr unsigned int mmIA_PERFCOUNTER0_SELECT                 = 0xD884;
+    constexpr unsigned int mmIA_PERFCOUNTER0_SELECT1                = 0xD888;
+    constexpr unsigned int mmIA_PERFCOUNTER1_HI                     = 0xD08B;
+    constexpr unsigned int mmIA_PERFCOUNTER1_LO                     = 0xD08A;
+    constexpr unsigned int mmIA_PERFCOUNTER1_SELECT                 = 0xD885;
+    constexpr unsigned int mmIA_PERFCOUNTER2_HI                     = 0xD08D;
+    constexpr unsigned int mmIA_PERFCOUNTER2_LO                     = 0xD08C;
+    constexpr unsigned int mmIA_PERFCOUNTER2_SELECT                 = 0xD886;
+    constexpr unsigned int mmIA_PERFCOUNTER3_HI                     = 0xD08F;
+    constexpr unsigned int mmIA_PERFCOUNTER3_LO                     = 0xD08E;
+    constexpr unsigned int mmIA_PERFCOUNTER3_SELECT                 = 0xD887;
+    constexpr unsigned int mmMC_MEM_POWER_LS                        = 0x2970;
+    constexpr unsigned int mmMC_SHARED_VIRT_RESET_REQ               = 0x296F;
+    constexpr unsigned int mmMC_VM_AGP_BASE                         = 0x2984;
+    constexpr unsigned int mmMC_VM_AGP_BOT                          = 0x2983;
+    constexpr unsigned int mmMC_VM_AGP_TOP                          = 0x2982;
+    constexpr unsigned int mmMC_VM_APT_CNTL                         = 0x2973;
+    constexpr unsigned int mmMC_VM_CACHEABLE_DRAM_ADDRESS_END       = 0x2972;
+    constexpr unsigned int mmMC_VM_CACHEABLE_DRAM_ADDRESS_START     = 0x2971;
+    constexpr unsigned int mmMC_VM_FB_LOCATION_BASE                 = 0x2980;
+    constexpr unsigned int mmMC_VM_FB_LOCATION_TOP                  = 0x2981;
+    constexpr unsigned int mmMC_VM_FB_OFFSET                        = 0x296B;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF0               = 0xFA80;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF1               = 0xFA81;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF2               = 0xFA82;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF3               = 0xFA83;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF4               = 0xFA84;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF5               = 0xFA85;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF6               = 0xFA86;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF7               = 0xFA87;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF8               = 0xFA88;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF9               = 0xFA89;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF10              = 0xFA8A;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF11              = 0xFA8B;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF12              = 0xFA8C;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF13              = 0xFA8D;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF14              = 0xFA8E;
+    constexpr unsigned int mmMC_VM_FB_SIZE_OFFSET_VF15              = 0xFA8F;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER0_CFG              = 0xDD4C;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER1_CFG              = 0xDD4D;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER2_CFG              = 0xDD4E;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER3_CFG              = 0xDD4F;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER4_CFG              = 0xDD50;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER5_CFG              = 0xDD51;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER6_CFG              = 0xDD52;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER7_CFG              = 0xDD53;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_HI                = 0xD509;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_LO                = 0xD508;
+    constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL         = 0xDD54;
+    constexpr unsigned int mmMC_VM_LOCAL_HBM_ADDRESS_END            = 0x2975;
+    constexpr unsigned int mmMC_VM_LOCAL_HBM_ADDRESS_LOCK_CNTL      = 0x2976;
+    constexpr unsigned int mmMC_VM_LOCAL_HBM_ADDRESS_START          = 0x2974;
+    constexpr unsigned int mmMC_VM_MARC_BASE_HI_0                   = 0xFA95;
+    constexpr unsigned int mmMC_VM_MARC_BASE_HI_1                   = 0xFA96;
+    constexpr unsigned int mmMC_VM_MARC_BASE_HI_2                   = 0xFA97;
+    constexpr unsigned int mmMC_VM_MARC_BASE_HI_3                   = 0xFA98;
+    constexpr unsigned int mmMC_VM_MARC_BASE_LO_0                   = 0xFA91;
+    constexpr unsigned int mmMC_VM_MARC_BASE_LO_1                   = 0xFA92;
+    constexpr unsigned int mmMC_VM_MARC_BASE_LO_2                   = 0xFA93;
+    constexpr unsigned int mmMC_VM_MARC_BASE_LO_3                   = 0xFA94;
+    constexpr unsigned int mmMC_VM_MARC_LEN_HI_0                    = 0xFAA5;
+    constexpr unsigned int mmMC_VM_MARC_LEN_HI_1                    = 0xFAA6;
+    constexpr unsigned int mmMC_VM_MARC_LEN_HI_2                    = 0xFAA7;
+    constexpr unsigned int mmMC_VM_MARC_LEN_HI_3                    = 0xFAA8;
+    constexpr unsigned int mmMC_VM_MARC_LEN_LO_0                    = 0xFAA1;
+    constexpr unsigned int mmMC_VM_MARC_LEN_LO_1                    = 0xFAA2;
+    constexpr unsigned int mmMC_VM_MARC_LEN_LO_2                    = 0xFAA3;
+    constexpr unsigned int mmMC_VM_MARC_LEN_LO_3                    = 0xFAA4;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_HI_0                  = 0xFA9D;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_HI_1                  = 0xFA9E;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_HI_2                  = 0xFA9F;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_HI_3                  = 0xFAA0;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_LO_0                  = 0xFA99;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_LO_1                  = 0xFA9A;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_LO_2                  = 0xFA9B;
+    constexpr unsigned int mmMC_VM_MARC_RELOC_LO_3                  = 0xFA9C;
+    constexpr unsigned int mmMC_VM_MX_L1_TLB_CNTL                   = 0x2987;
+    constexpr unsigned int mmMC_VM_NB_LOWER_TOP_OF_DRAM2            = 0x2969;
+    constexpr unsigned int mmMC_VM_NB_MMIOBASE                      = 0x2964;
+    constexpr unsigned int mmMC_VM_NB_MMIOLIMIT                     = 0x2965;
+    constexpr unsigned int mmMC_VM_NB_PCI_ARB                       = 0x2967;
+    constexpr unsigned int mmMC_VM_NB_PCI_CTRL                      = 0x2966;
+    constexpr unsigned int mmMC_VM_NB_TOP_OF_DRAM_SLOT1             = 0x2968;
+    constexpr unsigned int mmMC_VM_NB_UPPER_TOP_OF_DRAM2            = 0x296A;
+    constexpr unsigned int mmMC_VM_STEERING                         = 0x296E;
+    constexpr unsigned int mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB = 0x296C;
+    constexpr unsigned int mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB = 0x296D;
+    constexpr unsigned int mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR        = 0x2986;
+    constexpr unsigned int mmMC_VM_SYSTEM_APERTURE_LOW_ADDR         = 0x2985;
+    constexpr unsigned int mmPA_SU_PERFCOUNTER3_SELECT              = 0xD905;
+    constexpr unsigned int mmPA_UTCL1_CNTL1                         = 0x22F9;
+    constexpr unsigned int mmPA_UTCL1_CNTL2                         = 0x22FA;
+    constexpr unsigned int mmRLC_PERFMON_CLK_CNTL                   = 0xDCBF;
+    constexpr unsigned int mmRLC_SPM_CB_PERFMON_SAMPLE_DELAY        = 0xDC8A;
+    constexpr unsigned int mmRLC_SPM_CPC_PERFMON_SAMPLE_DELAY       = 0xDC88;
+    constexpr unsigned int mmRLC_SPM_CPF_PERFMON_SAMPLE_DELAY       = 0xDC89;
+    constexpr unsigned int mmRLC_SPM_CPG_PERFMON_SAMPLE_DELAY       = 0xDC87;
+    constexpr unsigned int mmRLC_SPM_DB_PERFMON_SAMPLE_DELAY        = 0xDC8B;
+    constexpr unsigned int mmRLC_SPM_GDS_PERFMON_SAMPLE_DELAY       = 0xDC8D;
+    constexpr unsigned int mmRLC_SPM_GLOBAL_MUXSEL_ADDR             = 0xDC9B;
+    constexpr unsigned int mmRLC_SPM_GLOBAL_MUXSEL_DATA             = 0xDC9C;
+    constexpr unsigned int mmRLC_SPM_IA_PERFMON_SAMPLE_DELAY        = 0xDC8E;
+    constexpr unsigned int mmRLC_SPM_PA_PERFMON_SAMPLE_DELAY        = 0xDC8C;
+    constexpr unsigned int mmRLC_SPM_RING_RDPTR                     = 0xDC9D;
+    constexpr unsigned int mmRLC_SPM_RMI_PERFMON_SAMPLE_DELAY       = 0xDCA3;
+    constexpr unsigned int mmRLC_SPM_SC_PERFMON_SAMPLE_DELAY        = 0xDC90;
+    constexpr unsigned int mmRLC_SPM_SEGMENT_THRESHOLD              = 0xDC9E;
+    constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR                 = 0xDC85;
+    constexpr unsigned int mmRLC_SPM_SE_MUXSEL_DATA                 = 0xDC86;
+    constexpr unsigned int mmRLC_SPM_SPI_PERFMON_SAMPLE_DELAY       = 0xDC97;
+    constexpr unsigned int mmRLC_SPM_SQG_PERFMON_SAMPLE_DELAY       = 0xDC98;
+    constexpr unsigned int mmRLC_SPM_SX_PERFMON_SAMPLE_DELAY        = 0xDC9A;
+    constexpr unsigned int mmRLC_SPM_TA_PERFMON_SAMPLE_DELAY        = 0xDC94;
+    constexpr unsigned int mmRLC_SPM_TCA_PERFMON_SAMPLE_DELAY       = 0xDC92;
+    constexpr unsigned int mmRLC_SPM_TCC_PERFMON_SAMPLE_DELAY       = 0xDC91;
+    constexpr unsigned int mmRLC_SPM_TCP_PERFMON_SAMPLE_DELAY       = 0xDC93;
+    constexpr unsigned int mmRLC_SPM_TD_PERFMON_SAMPLE_DELAY        = 0xDC95;
+    constexpr unsigned int mmRLC_SPM_VGT_PERFMON_SAMPLE_DELAY       = 0xDC96;
+    constexpr unsigned int mmRMI_SPARE                              = 0x279E;
+    constexpr unsigned int mmRMI_SPARE_1                            = 0x279F;
+    constexpr unsigned int mmRMI_SPARE_2                            = 0x27A0;
+    constexpr unsigned int mmRMI_XNACK_DEBUG                        = 0x279D;
+    constexpr unsigned int mmRPB_ARB_CNTL                           = 0x0CF2;
+    constexpr unsigned int mmRPB_ARB_CNTL2                          = 0x0CF3;
+    constexpr unsigned int mmRPB_ATS_CNTL                           = 0x0D0E;
+    constexpr unsigned int mmRPB_ATS_CNTL2                          = 0x0D0F;
+    constexpr unsigned int mmRPB_BIF_CNTL                           = 0x0CF4;
+    constexpr unsigned int mmRPB_BLOCKLEVEL_CONF                    = 0x0CED;
+    constexpr unsigned int mmRPB_CID_QUEUE_EX                       = 0x0CFC;
+    constexpr unsigned int mmRPB_CID_QUEUE_EX_DATA                  = 0x0CFD;
+    constexpr unsigned int mmRPB_CID_QUEUE_RD                       = 0x0CF9;
+    constexpr unsigned int mmRPB_CID_QUEUE_WR                       = 0x0CF8;
+    constexpr unsigned int mmRPB_DEINTRLV_COMBINE_CNTL              = 0x0CFF;
+    constexpr unsigned int mmRPB_EA_QUEUE_WR                        = 0x0D0D;
+    constexpr unsigned int mmRPB_EFF_CNTL                           = 0x0CF1;
+    constexpr unsigned int mmRPB_PASSPW_CONF                        = 0x0CEC;
+    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                   = 0x0D03;
+    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                   = 0x0D04;
+    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                   = 0x0D05;
+    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                   = 0x0D06;
+    constexpr unsigned int mmRPB_PERFCOUNTER_HI                     = 0x0D02;
+    constexpr unsigned int mmRPB_PERFCOUNTER_LO                     = 0x0D01;
+    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL              = 0x0D07;
+    constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                  = 0x0CFA;
+    constexpr unsigned int mmRPB_RD_QUEUE_CNTL                      = 0x0D09;
+    constexpr unsigned int mmRPB_RD_QUEUE_CNTL2                     = 0x0D0A;
+    constexpr unsigned int mmRPB_RD_SWITCH_CNTL                     = 0x0CF7;
+    constexpr unsigned int mmRPB_SDPPORT_CNTL                       = 0x0D10;
+    constexpr unsigned int mmRPB_SWITCH_CNTL2                       = 0x0CFE;
+    constexpr unsigned int mmRPB_TAG_CONF                           = 0x0CEF;
+    constexpr unsigned int mmRPB_VC_SWITCH_RDWR                     = 0x0D00;
+    constexpr unsigned int mmRPB_WR_QUEUE_CNTL                      = 0x0D0B;
+    constexpr unsigned int mmRPB_WR_QUEUE_CNTL2                     = 0x0D0C;
+    constexpr unsigned int mmRPB_WR_SWITCH_CNTL                     = 0x0CF5;
+    constexpr unsigned int mmSPI_CONFIG_CNTL                        = 0xC440;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_1                      = 0xC441;
+    constexpr unsigned int mmSPI_CONFIG_CNTL_2                      = 0xC442;
+    constexpr unsigned int mmSPI_CONFIG_PS_CU_EN                    = 0x2452;
+    constexpr unsigned int mmSPI_LB_CU_MASK                         = 0x24D5;
+    constexpr unsigned int mmSPI_LB_DATA_PERCU_WAVE_CS              = 0x24E7;
+    constexpr unsigned int mmSPI_LB_DATA_PERCU_WAVE_HSGS            = 0x24E5;
+    constexpr unsigned int mmSPI_LB_DATA_PERCU_WAVE_VSPS            = 0x24E6;
+    constexpr unsigned int mmSPI_PG_ENABLE_STATIC_CU_MASK           = 0x24D7;
+    constexpr unsigned int mmSPI_SHADER_PGM_HI_ES                   = 0x2C85;
+    constexpr unsigned int mmSPI_SHADER_PGM_HI_LS                   = 0x2D05;
+    constexpr unsigned int mmSPI_SHADER_PGM_LO_ES                   = 0x2C84;
+    constexpr unsigned int mmSPI_SHADER_PGM_LO_LS                   = 0x2D04;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS_VS             = 0x2C7C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_0          = 0x2D4C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_1          = 0x2D4D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_2          = 0x2D4E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_3          = 0x2D4F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_4          = 0x2D50;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_5          = 0x2D51;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_6          = 0x2D52;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_7          = 0x2D53;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_8          = 0x2D54;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_9          = 0x2D55;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_10         = 0x2D56;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_11         = 0x2D57;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_12         = 0x2D58;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_13         = 0x2D59;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_14         = 0x2D5A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_15         = 0x2D5B;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_16         = 0x2D5C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_17         = 0x2D5D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_18         = 0x2D5E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_19         = 0x2D5F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_20         = 0x2D60;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_21         = 0x2D61;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_22         = 0x2D62;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_23         = 0x2D63;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_24         = 0x2D64;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_25         = 0x2D65;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_26         = 0x2D66;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_27         = 0x2D67;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_28         = 0x2D68;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_29         = 0x2D69;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_30         = 0x2D6A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_COMMON_31         = 0x2D6B;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_16             = 0x2CDC;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_17             = 0x2CDD;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_18             = 0x2CDE;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_19             = 0x2CDF;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_20             = 0x2CE0;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_21             = 0x2CE1;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_22             = 0x2CE2;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_23             = 0x2CE3;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_24             = 0x2CE4;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_25             = 0x2CE5;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_26             = 0x2CE6;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_27             = 0x2CE7;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_28             = 0x2CE8;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_29             = 0x2CE9;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_30             = 0x2CEA;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_ES_31             = 0x2CEB;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_0              = 0x2D0C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_1              = 0x2D0D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_2              = 0x2D0E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_3              = 0x2D0F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_4              = 0x2D10;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_5              = 0x2D11;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_6              = 0x2D12;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_7              = 0x2D13;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_8              = 0x2D14;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_9              = 0x2D15;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_10             = 0x2D16;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_11             = 0x2D17;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_12             = 0x2D18;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_13             = 0x2D19;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_14             = 0x2D1A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_15             = 0x2D1B;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_16             = 0x2D1C;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_17             = 0x2D1D;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_18             = 0x2D1E;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_19             = 0x2D1F;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_20             = 0x2D20;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_21             = 0x2D21;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_22             = 0x2D22;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_23             = 0x2D23;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_24             = 0x2D24;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_25             = 0x2D25;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_26             = 0x2D26;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_27             = 0x2D27;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_28             = 0x2D28;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_29             = 0x2D29;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_30             = 0x2D2A;
+    constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_31             = 0x2D2B;
+    constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS4               = 0x31CD;
+    constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS5               = 0x31CE;
+    constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS6               = 0x31CF;
+    constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS7               = 0x31D0;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_6                = 0x24B1;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_7                = 0x24B2;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_8                = 0x24B3;
+    constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_9                = 0x24B4;
+    constexpr unsigned int mmSQC_DCACHE_UTCL1_CNTL1                 = 0x23D5;
+    constexpr unsigned int mmSQC_DCACHE_UTCL1_CNTL2                 = 0x23D6;
+    constexpr unsigned int mmSQC_DCACHE_UTCL1_STATUS                = 0x23D8;
+    constexpr unsigned int mmSQC_DSM_CNTL                           = 0x2320;
+    constexpr unsigned int mmSQC_DSM_CNTL2                          = 0x2325;
+    constexpr unsigned int mmSQC_DSM_CNTL2A                         = 0x2326;
+    constexpr unsigned int mmSQC_DSM_CNTL2B                         = 0x2327;
+    constexpr unsigned int mmSQC_DSM_CNTLA                          = 0x2321;
+    constexpr unsigned int mmSQC_DSM_CNTLB                          = 0x2322;
+    constexpr unsigned int mmSQC_EDC_CNT                            = 0x23A2;
+    constexpr unsigned int mmSQC_EDC_CNT2                           = 0x232C;
+    constexpr unsigned int mmSQC_EDC_CNT3                           = 0x232D;
+    constexpr unsigned int mmSQC_EDC_FUE_CNTL                       = 0x232B;
+    constexpr unsigned int mmSQC_ICACHE_UTCL1_CNTL1                 = 0x23D3;
+    constexpr unsigned int mmSQC_ICACHE_UTCL1_CNTL2                 = 0x23D4;
+    constexpr unsigned int mmSQC_ICACHE_UTCL1_STATUS                = 0x23D7;
+    constexpr unsigned int mmSQ_BUF_RSRC_WORD0                      = 0x23C0;
+    constexpr unsigned int mmSQ_BUF_RSRC_WORD1                      = 0x23C1;
+    constexpr unsigned int mmSQ_BUF_RSRC_WORD2                      = 0x23C2;
+    constexpr unsigned int mmSQ_BUF_RSRC_WORD3                      = 0x23C3;
+    constexpr unsigned int mmSQ_CMD_TIMESTAMP                       = 0x2375;
+    constexpr unsigned int mmSQ_DS_0                                = 0x237F;
+    constexpr unsigned int mmSQ_DS_1                                = 0x237F;
+    constexpr unsigned int mmSQ_EDC_DED_CNT                         = 0x23A4;
+    constexpr unsigned int mmSQ_EDC_INFO                            = 0x23A5;
+    constexpr unsigned int mmSQ_EDC_SEC_CNT                         = 0x23A3;
+    constexpr unsigned int mmSQ_EXP_0                               = 0x237F;
+    constexpr unsigned int mmSQ_EXP_1                               = 0x237F;
+    constexpr unsigned int mmSQ_FLAT_0                              = 0x237F;
+    constexpr unsigned int mmSQ_FLAT_1                              = 0x237F;
+    constexpr unsigned int mmSQ_FLAT_SCRATCH_WORD0                  = 0x23D0;
+    constexpr unsigned int mmSQ_FLAT_SCRATCH_WORD1                  = 0x23D1;
+    constexpr unsigned int mmSQ_GLBL_0                              = 0x237F;
+    constexpr unsigned int mmSQ_GLBL_1                              = 0x237F;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD0                      = 0x23C4;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD1                      = 0x23C5;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD2                      = 0x23C6;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD3                      = 0x23C7;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD4                      = 0x23C8;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD5                      = 0x23C9;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD6                      = 0x23CA;
+    constexpr unsigned int mmSQ_IMG_RSRC_WORD7                      = 0x23CB;
+    constexpr unsigned int mmSQ_IMG_SAMP_WORD0                      = 0x23CC;
+    constexpr unsigned int mmSQ_IMG_SAMP_WORD1                      = 0x23CD;
+    constexpr unsigned int mmSQ_IMG_SAMP_WORD2                      = 0x23CE;
+    constexpr unsigned int mmSQ_IMG_SAMP_WORD3                      = 0x23CF;
+    constexpr unsigned int mmSQ_INST                                = 0x237F;
+    constexpr unsigned int mmSQ_LB_CTR0_CU                          = 0x239E;
+    constexpr unsigned int mmSQ_LB_CTR1_CU                          = 0x239F;
+    constexpr unsigned int mmSQ_LB_CTR2_CU                          = 0x23A0;
+    constexpr unsigned int mmSQ_LB_CTR3_CU                          = 0x23A1;
+    constexpr unsigned int mmSQ_LB_CTR_SEL                          = 0x239D;
+    constexpr unsigned int mmSQ_M0_GPR_IDX_WORD                     = 0x23D2;
+    constexpr unsigned int mmSQ_MIMG_0                              = 0x237F;
+    constexpr unsigned int mmSQ_MIMG_1                              = 0x237F;
+    constexpr unsigned int mmSQ_MTBUF_0                             = 0x237F;
+    constexpr unsigned int mmSQ_MTBUF_1                             = 0x237F;
+    constexpr unsigned int mmSQ_MUBUF_0                             = 0x237F;
+    constexpr unsigned int mmSQ_MUBUF_1                             = 0x237F;
+    constexpr unsigned int mmSQ_PERFCOUNTER_MASK                    = 0xD9E1;
+    constexpr unsigned int mmSQ_POWER_THROTTLE                      = 0xF091;
+    constexpr unsigned int mmSQ_POWER_THROTTLE2                     = 0xF092;
+    constexpr unsigned int mmSQ_REG_CREDITS                         = 0x2304;
+    constexpr unsigned int mmSQ_REG_TIMESTAMP                       = 0x2374;
+    constexpr unsigned int mmSQ_SCRATCH_0                           = 0x237F;
+    constexpr unsigned int mmSQ_SCRATCH_1                           = 0x237F;
+    constexpr unsigned int mmSQ_SMEM_0                              = 0x237F;
+    constexpr unsigned int mmSQ_SMEM_1                              = 0x237F;
+    constexpr unsigned int mmSQ_SOP1                                = 0x237F;
+    constexpr unsigned int mmSQ_SOP2                                = 0x237F;
+    constexpr unsigned int mmSQ_SOPC                                = 0x237F;
+    constexpr unsigned int mmSQ_SOPK                                = 0x237F;
+    constexpr unsigned int mmSQ_SOPP                                = 0x237F;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BASE                   = 0xC330;
+    constexpr unsigned int mmSQ_THREAD_TRACE_BASE2                  = 0xC337;
+    constexpr unsigned int mmSQ_THREAD_TRACE_CNTR                   = 0xC33C;
+    constexpr unsigned int mmSQ_THREAD_TRACE_CTRL                   = 0xC335;
+    constexpr unsigned int mmSQ_THREAD_TRACE_HIWATER                = 0xC33B;
+    constexpr unsigned int mmSQ_THREAD_TRACE_MASK                   = 0xC332;
+    constexpr unsigned int mmSQ_THREAD_TRACE_MODE                   = 0xC336;
+    constexpr unsigned int mmSQ_THREAD_TRACE_PERF_MASK              = 0xC334;
+    constexpr unsigned int mmSQ_THREAD_TRACE_SIZE                   = 0xC331;
+    constexpr unsigned int mmSQ_THREAD_TRACE_STATUS                 = 0xC33A;
+    constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK             = 0xC333;
+    constexpr unsigned int mmSQ_THREAD_TRACE_TOKEN_MASK2            = 0xC338;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_CMN               = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_EVENT             = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_INST              = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_INST_PC_1_OF_2    = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_INST_PC_2_OF_2    = 0x23B1;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_INST_USERDATA_1_OF_2 = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_INST_USERDATA_2_OF_2 = 0x23B1;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_ISSUE             = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_MISC              = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_PERF_1_OF_2       = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_PERF_2_OF_2       = 0x23B1;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_REG_1_OF_2        = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_REG_2_OF_2        = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_REG_CS_1_OF_2     = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_REG_CS_2_OF_2     = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_TIMESTAMP_1_OF_2  = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_TIMESTAMP_2_OF_2  = 0x23B1;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_WAVE              = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WORD_WAVE_START        = 0x23B0;
+    constexpr unsigned int mmSQ_THREAD_TRACE_WPTR                   = 0xC339;
+    constexpr unsigned int mmSQ_UTCL1_CNTL1                         = 0x2317;
+    constexpr unsigned int mmSQ_UTCL1_CNTL2                         = 0x2318;
+    constexpr unsigned int mmSQ_UTCL1_STATUS                        = 0x2319;
+    constexpr unsigned int mmSQ_VINTRP                              = 0x237F;
+    constexpr unsigned int mmSQ_VOP1                                = 0x237F;
+    constexpr unsigned int mmSQ_VOP2                                = 0x237F;
+    constexpr unsigned int mmSQ_VOP3P_0                             = 0x237F;
+    constexpr unsigned int mmSQ_VOP3P_1                             = 0x237F;
+    constexpr unsigned int mmSQ_VOP3_0                              = 0x237F;
+    constexpr unsigned int mmSQ_VOP3_0_SDST_ENC                     = 0x237F;
+    constexpr unsigned int mmSQ_VOP3_1                              = 0x237F;
+    constexpr unsigned int mmSQ_VOPC                                = 0x237F;
+    constexpr unsigned int mmSQ_VOP_DPP                             = 0x237F;
+    constexpr unsigned int mmSQ_VOP_SDWA                            = 0x237F;
+    constexpr unsigned int mmSQ_VOP_SDWA_SDST_ENC                   = 0x237F;
+    constexpr unsigned int mmSX_DEBUG_1                             = 0x2419;
+    constexpr unsigned int mmSX_DEBUG_BUSY_5                        = 0x2418;
+    constexpr unsigned int mmTCA_PERFCOUNTER0_HI                    = 0xD391;
+    constexpr unsigned int mmTCA_PERFCOUNTER0_LO                    = 0xD390;
+    constexpr unsigned int mmTCA_PERFCOUNTER0_SELECT                = 0xDB90;
+    constexpr unsigned int mmTCA_PERFCOUNTER0_SELECT1               = 0xDB91;
+    constexpr unsigned int mmTCA_PERFCOUNTER1_HI                    = 0xD393;
+    constexpr unsigned int mmTCA_PERFCOUNTER1_LO                    = 0xD392;
+    constexpr unsigned int mmTCA_PERFCOUNTER1_SELECT                = 0xDB92;
+    constexpr unsigned int mmTCA_PERFCOUNTER1_SELECT1               = 0xDB93;
+    constexpr unsigned int mmTCA_PERFCOUNTER2_HI                    = 0xD395;
+    constexpr unsigned int mmTCA_PERFCOUNTER2_LO                    = 0xD394;
+    constexpr unsigned int mmTCA_PERFCOUNTER2_SELECT                = 0xDB94;
+    constexpr unsigned int mmTCA_PERFCOUNTER3_HI                    = 0xD397;
+    constexpr unsigned int mmTCA_PERFCOUNTER3_LO                    = 0xD396;
+    constexpr unsigned int mmTCA_PERFCOUNTER3_SELECT                = 0xDB95;
+    constexpr unsigned int mmTCC_PERFCOUNTER0_HI                    = 0xD381;
+    constexpr unsigned int mmTCC_PERFCOUNTER0_LO                    = 0xD380;
+    constexpr unsigned int mmTCC_PERFCOUNTER0_SELECT                = 0xDB80;
+    constexpr unsigned int mmTCC_PERFCOUNTER0_SELECT1               = 0xDB81;
+    constexpr unsigned int mmTCC_PERFCOUNTER1_HI                    = 0xD383;
+    constexpr unsigned int mmTCC_PERFCOUNTER1_LO                    = 0xD382;
+    constexpr unsigned int mmTCC_PERFCOUNTER1_SELECT                = 0xDB82;
+    constexpr unsigned int mmTCC_PERFCOUNTER1_SELECT1               = 0xDB83;
+    constexpr unsigned int mmTCC_PERFCOUNTER2_HI                    = 0xD385;
+    constexpr unsigned int mmTCC_PERFCOUNTER2_LO                    = 0xD384;
+    constexpr unsigned int mmTCC_PERFCOUNTER2_SELECT                = 0xDB84;
+    constexpr unsigned int mmTCC_PERFCOUNTER3_HI                    = 0xD387;
+    constexpr unsigned int mmTCC_PERFCOUNTER3_LO                    = 0xD386;
+    constexpr unsigned int mmTCC_PERFCOUNTER3_SELECT                = 0xDB85;
+    constexpr unsigned int mmTC_CFG_L1_LOAD_POLICY0                 = 0x2B1A;
+    constexpr unsigned int mmTC_CFG_L1_LOAD_POLICY1                 = 0x2B1B;
+    constexpr unsigned int mmTC_CFG_L1_STORE_POLICY                 = 0x2B1C;
+    constexpr unsigned int mmTC_CFG_L1_VOLATILE                     = 0x2B22;
+    constexpr unsigned int mmTC_CFG_L2_ATOMIC_POLICY                = 0x2B21;
+    constexpr unsigned int mmTC_CFG_L2_LOAD_POLICY0                 = 0x2B1D;
+    constexpr unsigned int mmTC_CFG_L2_LOAD_POLICY1                 = 0x2B1E;
+    constexpr unsigned int mmTC_CFG_L2_STORE_POLICY0                = 0x2B1F;
+    constexpr unsigned int mmTC_CFG_L2_STORE_POLICY1                = 0x2B20;
+    constexpr unsigned int mmTC_CFG_L2_VOLATILE                     = 0x2B23;
+    constexpr unsigned int mmUTCL2_CGTT_CLK_CTRL                    = 0xFABC;
+    constexpr unsigned int mmVGT_DEBUG_DATA                         = 0x2239;
+    constexpr unsigned int mmVGT_GSVS_RING_SIZE                     = 0xC241;
+    constexpr unsigned int mmVGT_GS_MAX_PRIMS_PER_SUBGROUP          = 0xA2A5;
+    constexpr unsigned int mmVGT_HS_OFFCHIP_PARAM                   = 0xC24F;
+    constexpr unsigned int mmVGT_INDX_OFFSET                        = 0xC24A;
+    constexpr unsigned int mmVGT_MAX_VTX_INDX                       = 0xC248;
+    constexpr unsigned int mmVGT_MIN_VTX_INDX                       = 0xC249;
+    constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN             = 0xC24B;
+    constexpr unsigned int mmVGT_PERFCOUNTER0_HI                    = 0xD091;
+    constexpr unsigned int mmVGT_PERFCOUNTER0_LO                    = 0xD090;
+    constexpr unsigned int mmVGT_PERFCOUNTER0_SELECT                = 0xD88C;
+    constexpr unsigned int mmVGT_PERFCOUNTER0_SELECT1               = 0xD890;
+    constexpr unsigned int mmVGT_PERFCOUNTER1_HI                    = 0xD093;
+    constexpr unsigned int mmVGT_PERFCOUNTER1_LO                    = 0xD092;
+    constexpr unsigned int mmVGT_PERFCOUNTER1_SELECT                = 0xD88D;
+    constexpr unsigned int mmVGT_PERFCOUNTER1_SELECT1               = 0xD891;
+    constexpr unsigned int mmVGT_PERFCOUNTER2_HI                    = 0xD095;
+    constexpr unsigned int mmVGT_PERFCOUNTER2_LO                    = 0xD094;
+    constexpr unsigned int mmVGT_PERFCOUNTER2_SELECT                = 0xD88E;
+    constexpr unsigned int mmVGT_PERFCOUNTER3_HI                    = 0xD097;
+    constexpr unsigned int mmVGT_PERFCOUNTER3_LO                    = 0xD096;
+    constexpr unsigned int mmVGT_PERFCOUNTER3_SELECT                = 0xD88F;
+    constexpr unsigned int mmVGT_PERFCOUNTER_SEID_MASK              = 0xD894;
+    constexpr unsigned int mmVGT_RESET_DEBUG                        = 0x2232;
+    constexpr unsigned int mmVGT_STRMOUT_DELAY                      = 0x2233;
+    constexpr unsigned int mmVGT_TF_MEMORY_BASE                     = 0xC250;
+    constexpr unsigned int mmVGT_TF_MEMORY_BASE_HI                  = 0xC251;
+    constexpr unsigned int mmVGT_TF_RING_SIZE                       = 0xC24E;
+    constexpr unsigned int mmWD_DEBUG_DATA                          = 0x223E;
+    constexpr unsigned int mmWD_PERFCOUNTER0_HI                     = 0xD081;
+    constexpr unsigned int mmWD_PERFCOUNTER0_LO                     = 0xD080;
+    constexpr unsigned int mmWD_PERFCOUNTER0_SELECT                 = 0xD880;
+    constexpr unsigned int mmWD_PERFCOUNTER1_HI                     = 0xD083;
+    constexpr unsigned int mmWD_PERFCOUNTER1_LO                     = 0xD082;
+    constexpr unsigned int mmWD_PERFCOUNTER1_SELECT                 = 0xD881;
+    constexpr unsigned int mmWD_PERFCOUNTER2_HI                     = 0xD085;
+    constexpr unsigned int mmWD_PERFCOUNTER2_LO                     = 0xD084;
+    constexpr unsigned int mmWD_PERFCOUNTER2_SELECT                 = 0xD882;
+    constexpr unsigned int mmWD_PERFCOUNTER3_HI                     = 0xD087;
+    constexpr unsigned int mmWD_PERFCOUNTER3_LO                     = 0xD086;
+    constexpr unsigned int mmWD_PERFCOUNTER3_SELECT                 = 0xD883;
+} // namespace Gfx09
+
+namespace Vega
+{
+    constexpr unsigned int mmRMI_TCIW_FORMATTER1_CNTL               = 0x278F;
+    constexpr unsigned int mmSDMA1_PERFCOUNTER0_RESULT              = 0x14B8;
+    constexpr unsigned int mmSDMA1_PERFCOUNTER1_RESULT              = 0x14B9;
+    constexpr unsigned int mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE      = 0x14BA;
+    constexpr unsigned int mmSDMA1_PERFMON_CNTL                     = 0x14B7;
+} // namespace Vega
+
+namespace Gfx09_0
+{
+    constexpr unsigned int mmCP_PRT_LOD_STATS_CNTL0                 = 0x20AD;
+    constexpr unsigned int mmCP_PRT_LOD_STATS_CNTL1                 = 0x20AE;
+    constexpr unsigned int mmCP_PRT_LOD_STATS_CNTL2                 = 0x20AF;
+    constexpr unsigned int mmCP_PRT_LOD_STATS_CNTL3                 = 0x20B0;
+    constexpr unsigned int mmGCEA_PERFCOUNTER0_CFG                  = 0x2AF9;
+    constexpr unsigned int mmGCEA_PERFCOUNTER1_CFG                  = 0x2AFA;
+    constexpr unsigned int mmGCEA_PERFCOUNTER_HI                    = 0x2AF8;
+    constexpr unsigned int mmGCEA_PERFCOUNTER_LO                    = 0x2AF7;
+    constexpr unsigned int mmGCEA_PERFCOUNTER_RSLT_CNTL             = 0x2AFB;
+    constexpr unsigned int mmGC_CAC_CGTT_CLK_CTRL                   = 0x3286;
+    constexpr unsigned int mmGC_CAC_IND_DATA                        = 0x329B;
+    constexpr unsigned int mmGC_CAC_IND_INDEX                       = 0x329A;
+    constexpr unsigned int mmGC_EDC_DROOP_CTRL                      = 0x3299;
+    constexpr unsigned int mmGRBM_CGTT_CLK_CNTL                     = 0x200B;
+} // namespace Gfx09_0
+
+namespace Raven
+{
+    constexpr unsigned int mmGC_CAC_PG_AGGR_LOWER                   = 0x328B;
+    constexpr unsigned int mmGC_CAC_PG_AGGR_UPPER                   = 0x328C;
+} // namespace Raven
+
+namespace Rv1x
+{
+    constexpr unsigned int mmHDMI_EN_PINSTRAP                       = 0x1682A;
+    constexpr unsigned int mmPWR_OVERRIDE                           = 0x16826;
+    constexpr unsigned int mmRMI_TCIW_FORMATTER1_CNTL               = 0x278F;
+    constexpr unsigned int mmSMUIO_FORCE_SELFREFRESH                = 0x16829;
+    constexpr unsigned int mmSMUIO_NV_SAVEOD                        = 0x16828;
+    constexpr unsigned int mmSMUIO_NV_SAVE_N                        = 0x16827;
+    constexpr unsigned int mmSMUSVI_I2C_FETCH_READ_ADDR             = 0x1681E;
+    constexpr unsigned int mmSMUSVI_I2C_FETCH_TRIGGER               = 0x1681F;
+    constexpr unsigned int mmSMUSVI_I2C_FETCH_WRITE_ADDR            = 0x1681D;
+} // namespace Rv1x
+
+namespace Vg10
+{
+    constexpr unsigned int mmGC_DIDT_WEIGHT_1                       = 0x3292;
+    constexpr unsigned int mmRLC_SPM_CBR0_PERFMON_SAMPLE_DELAY      = 0xDCA1;
+    constexpr unsigned int mmRLC_SPM_CBR1_PERFMON_SAMPLE_DELAY      = 0xDCA2;
+    constexpr unsigned int mmRLC_SPM_DBR0_PERFMON_SAMPLE_DELAY      = 0xDC9F;
+    constexpr unsigned int mmRLC_SPM_DBR1_PERFMON_SAMPLE_DELAY      = 0xDCA0;
+} // namespace Vg10
+

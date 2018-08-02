@@ -2599,9 +2599,13 @@ Result GpaSession::AcquirePerfExperiment(
 
                 const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
                 ThreadTraceInfo sqttInfo = { };
-                sqttInfo.traceType               = PerfTraceType::ThreadTrace;
-                sqttInfo.optionFlags.bufferSize  = 1;
-                sqttInfo.optionValues.bufferSize = alignedBufferSize;
+                sqttInfo.traceType                             = PerfTraceType::ThreadTrace;
+                sqttInfo.optionFlags.bufferSize                = 1;
+                sqttInfo.optionValues.bufferSize               = alignedBufferSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+                sqttInfo.optionFlags.threadTraceStallBehavior  = 1;
+                sqttInfo.optionValues.threadTraceStallBehavior = sampleConfig.sqtt.flags.stallMode;
+#endif
 
                 // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
                 // updated to a different value at a later time when sample updates are enabled.
@@ -2797,8 +2801,10 @@ Result GpaSession::DumpRgpData(
     SqttFileHeader* pFileHeader = &fileHeader;
     fileHeader.magicNumber      = SQTT_FILE_MAGIC_NUMBER;
     fileHeader.versionMajor     = 1;
-    fileHeader.versionMinor     = 0;
-    fileHeader.flags            = 0;
+    fileHeader.versionMinor     = 1;
+    fileHeader.flags.value      = 0;
+    // ETW queue timing data is enabled when the GPA Session queue timing is disabled.
+    fileHeader.flags.isSemaphoreQueueTimingETW = (m_flags.useInternalQueueSemaphoreTiming == false);
     fileHeader.chunkOffset      = sizeof(fileHeader);
 
     // Get time info for rgp dump

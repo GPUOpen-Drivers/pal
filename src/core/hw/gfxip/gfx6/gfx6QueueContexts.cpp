@@ -305,7 +305,7 @@ Result ComputeQueueContext::PreProcessSubmit(
 // application context switch between back-to-back submissions.
 void ComputeQueueContext::PostProcessSubmit()
 {
-    if (m_pDevice->Settings().forcePreambleCmdStream == false)
+    if (m_pDevice->CoreSettings().forcePreambleCmdStream == false)
     {
         // The next time this Queue is submitted-to, the KMD can safely skip the execution of the command stream since
         // the GPU already has received the latest updates.
@@ -863,7 +863,7 @@ Result UniversalQueueContext::PreProcessSubmit(
     pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
     ++preambleCount;
 
-    if (m_pDevice->Settings().commandBufferCombineDePreambles == false)
+    if (m_pDevice->CoreSettings().commandBufferCombineDePreambles == false)
     {
         // Submit the per-context preamble independently.
         pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
@@ -893,7 +893,7 @@ Result UniversalQueueContext::PreProcessSubmit(
 // application context switch between back-to-back submissions.
 void UniversalQueueContext::PostProcessSubmit()
 {
-    if (m_pDevice->Settings().forcePreambleCmdStream == false)
+    if (m_pDevice->CoreSettings().forcePreambleCmdStream == false)
     {
         // The next time this Queue is submitted-to, the KMD can safely skip the execution of the command stream since
         // the GPU already has received the latest updates.
@@ -1065,7 +1065,7 @@ void UniversalQueueContext::RebuildCommandStreams()
 
     m_perSubmitCmdStream.End();
 
-    if (m_pDevice->Settings().commandBufferCombineDePreambles)
+    if (m_pDevice->CoreSettings().commandBufferCombineDePreambles)
     {
         // Combine the preambles by chaining from the per-submit preamble to the per-context preamble.
         m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
@@ -1108,7 +1108,7 @@ void UniversalQueueContext::RebuildCommandStreams()
         // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
         // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
         if ((m_pQueue->PersistentCeRamSize() != 0) ||
-            (m_pDevice->Settings().commandBufferForceCeRamDumpInPostamble != false))
+            (m_pDevice->CoreSettings().commandBufferForceCeRamDumpInPostamble != false))
         {
             // On gfx6-7 we need to synchronize the CE/DE counters after the dump CE RAM because the dump writes to L2
             // and the load reads from memory. The DE postamble's EOP event will flush L2 but we still need to use the

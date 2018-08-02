@@ -3946,7 +3946,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     const PalSettings& settings = m_pDevice->Parent()->Settings();
 
     const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+                             (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled | m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.

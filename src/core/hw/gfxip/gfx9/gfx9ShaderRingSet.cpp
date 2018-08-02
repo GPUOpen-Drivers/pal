@@ -175,7 +175,11 @@ Result ShaderRingSet::Init()
                 break;
             }
 
-            // Note: Not creating a ring object is not a fatal error condition.
+            if (m_ppRings[idx] == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+                break;
+            }
         }
     }
 
@@ -270,22 +274,22 @@ void UniversalRingSet::BuildPm4Headers()
     // Setup the 1st PM4 packet, which sets the config registers VGT_TF_MEMORY_BASE and VGT_TF_MEMORY_BASE_HI.
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(mmVGT_TF_MEMORY_BASE__GFX09,
-                                                                   mmVGT_TF_MEMORY_BASE_HI__GFX09,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetSeqConfigRegs(Gfx09::mmVGT_TF_MEMORY_BASE,
+                                                                   Gfx09::mmVGT_TF_MEMORY_BASE_HI,
                                                                    &m_pm4Commands.tfMemBase.gfx9.hdrVgtTfMemoryBase);
     }
 
     // Setup the 2nd PM4 packet, which sets the config register VGT_TF_RING_SIZE.
     m_pm4Commands.spaceNeeded +=
-        cmdUtil.BuildSetOneConfigReg(mmVGT_TF_RING_SIZE__GFX09, &m_pm4Commands.hdrVgtTfRingSize);
+        cmdUtil.BuildSetOneConfigReg(Gfx09::mmVGT_TF_RING_SIZE, &m_pm4Commands.hdrVgtTfRingSize);
 
     // Setup the 3rd PM4 packet, which sets the config register VGT_HS_OFFCHIP_PARAM.
     m_pm4Commands.spaceNeeded +=
-        cmdUtil.BuildSetOneConfigReg(mmVGT_HS_OFFCHIP_PARAM__GFX09, &m_pm4Commands.hdrVgtHsOffchipParam);
+        cmdUtil.BuildSetOneConfigReg(Gfx09::mmVGT_HS_OFFCHIP_PARAM, &m_pm4Commands.hdrVgtHsOffchipParam);
 
     // Setup the 4th PM4 packet, which sets the config register VGT_GSVS_RING_SIZE.
     m_pm4Commands.spaceNeeded +=
-        cmdUtil.BuildSetOneConfigReg(mmVGT_GSVS_RING_SIZE__GFX09, &m_pm4Commands.hdrVgtGsVsRingSize);
+        cmdUtil.BuildSetOneConfigReg(Gfx09::mmVGT_GSVS_RING_SIZE, &m_pm4Commands.hdrVgtGsVsRingSize);
 
     // Setup the 5th PM4 packet, which sets the graphics SH registers SPI_SHADER_USER_DATA_LS_0.
     m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(baseUserDataHs + InternalTblStartReg,

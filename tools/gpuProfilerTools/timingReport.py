@@ -269,7 +269,6 @@ for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(),
                pctOfFrame))
 print("\n")
 
-
 print("== Top Pipelines (>= 1%) ========================================================================================================================\n")
 pipelineNum = 0
 hidden = 0

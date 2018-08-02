@@ -266,12 +266,10 @@ public:
     virtual Result TurboSyncControl(
         const TurboSyncControlInput& turboSyncControlInput) override;
 
-#if PAL_BUILD_GPUOPEN
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override
     {
         return m_pNextLayer->GetDevDriverServer();
     }
-#endif
 
     virtual void LogMessage(
         LogLevel        level,
@@ -438,7 +436,7 @@ public:
     virtual const GpuProfilerSettings& GetGpuProfilerSettings() const override
         { return m_pNextLayer->GetGpuProfilerSettings(); }
 
-    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const override
+    virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const override
         { return m_pNextLayer->GetInterfaceLoggerSettings(); }
 
     virtual Result CommitSettingsAndInit() override
@@ -1027,6 +1025,12 @@ public:
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override
         { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
+
+    virtual const char* GetCacheFilePath() const override
+        { return m_pNextLayer->GetCacheFilePath(); }
+
+    virtual const char* GetDebugFilePath() const override
+        { return m_pNextLayer->GetDebugFilePath(); }
 
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }

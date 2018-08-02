@@ -78,7 +78,7 @@ void TimeGraph::DrawVisualConfirm(
     const auto&      settings          = m_pDevice->OverlaySettings();
     const auto&      gpuProps          = m_pDevice->GpuProps();
     const auto*const pCreateInfo       = dstImage.GetCreateInfo();
-    const bool       combinedNonLocal  = (settings.overlayCombineNonLocal);
+    const bool       combinedNonLocal  = (settings.overlayMemoryInfoConfig.combineNonLocal);
 
     const uint32 textLength = combinedNonLocal ? MaxTextLengthComb : MaxTextLength;
 
@@ -87,7 +87,7 @@ void TimeGraph::DrawVisualConfirm(
 
     const uint32 timeCount = TimeCount;
 
-    if (!((settings.visualConfirmEnabled == true) && (pCreateInfo->extent.width) < (graphWidth + textWidth)))
+    if (!((settings.debugOverlayConfig.visualConfirmEnabled == true) && (pCreateInfo->extent.width) < (graphWidth + textWidth)))
     {
         // Pack the raw draw colors into the destination format.
         const Pal::SwizzledFormat imgFormat = dstImage.GetImageCreateInfo().swizzledFormat;
@@ -113,9 +113,15 @@ void TimeGraph::DrawVisualConfirm(
                 { 1.0f, 1.0f, 1.0f, 1.0f }, // White
             };
 
-            Pal::Formats::ConvertColor(imgFormat, &ColorTable[settings.timeGraphGridLineColor][0], &gridLineColor[0]);
-            Pal::Formats::ConvertColor(imgFormat, &ColorTable[settings.timeGraphCpuLineColor][0], &cpuLineColor[0]);
-            Pal::Formats::ConvertColor(imgFormat, &ColorTable[settings.timeGraphGpuLineColor][0], &gpuLineColor[0]);
+            Pal::Formats::ConvertColor(imgFormat,
+                                       &ColorTable[settings.timeGraphConfig.gridLineColor][0],
+                                       &gridLineColor[0]);
+            Pal::Formats::ConvertColor(imgFormat,
+                                       &ColorTable[settings.timeGraphConfig.cpuLineColor][0],
+                                       &cpuLineColor[0]);
+            Pal::Formats::ConvertColor(imgFormat,
+                                       &ColorTable[settings.timeGraphConfig.gpuLineColor][0],
+                                       &gpuLineColor[0]);
         }
         else if (Pal::Formats::IsSint(imgFormat.format))
         {
@@ -130,9 +136,15 @@ void TimeGraph::DrawVisualConfirm(
                 { 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x7FFFFFFF },     // Magenta
                 { 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF },     // White
             };
-            memcpy(&gridLineColor[0], &ColorTable[settings.timeGraphGridLineColor][0], sizeof(gridLineColor));
-            memcpy(&cpuLineColor[0], &ColorTable[settings.timeGraphCpuLineColor][0], sizeof(cpuLineColor));
-            memcpy(&gpuLineColor[0], &ColorTable[settings.timeGraphGpuLineColor][0], sizeof(gpuLineColor));
+            memcpy(&gridLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.gridLineColor][0],
+                   sizeof(gridLineColor));
+            memcpy(&cpuLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.cpuLineColor][0],
+                   sizeof(cpuLineColor));
+            memcpy(&gpuLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.gpuLineColor][0],
+                   sizeof(gpuLineColor));
         }
         else
         {
@@ -150,9 +162,15 @@ void TimeGraph::DrawVisualConfirm(
                 { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF },     // White
             };
 
-            memcpy(&gridLineColor[0], &ColorTable[settings.timeGraphGridLineColor][0], sizeof(gridLineColor));
-            memcpy(&cpuLineColor[0], &ColorTable[settings.timeGraphCpuLineColor][0], sizeof(cpuLineColor));
-            memcpy(&gpuLineColor[0], &ColorTable[settings.timeGraphGpuLineColor][0], sizeof(gpuLineColor));
+            memcpy(&gridLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.gridLineColor][0],
+                   sizeof(gridLineColor));
+            memcpy(&cpuLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.cpuLineColor][0],
+                   sizeof(cpuLineColor));
+            memcpy(&gpuLineColor[0],
+                   &ColorTable[settings.timeGraphConfig.gpuLineColor][0],
+                   sizeof(gpuLineColor));
         }
 
         // Get the starting pixel position.

@@ -238,6 +238,7 @@ enum class UvdIpLevel : uint32
     UvdIp6_2 = 0x5,
     UvdIp6_3 = 0x6,
     UvdIp7   = 0x7,
+    UvdIp7_2 = 0x8,
 };
 
 /// Specifies which VCN IP level this device has.
@@ -353,6 +354,38 @@ enum TextureFilterOptimizationSettings : uint32
     TextureFilterOptimizationsDisabled = 0,
     TextureFilterOptimizationsEnabled = 1,
     TextureFilterOptimizationsAggressive = 2,
+
+};
+
+/// Distribution Tess Mode enum values
+enum DistributionTessMode : uint32
+{
+    DistributionTessOff = 0,
+    DistributionTessDefault = 1,
+    DistributionTessPatch = 2,
+    DistributionTessDonut = 3,
+    DistributionTessTrapezoid = 4,
+    DistributionTessTrapezoidOnly = 5,
+
+};
+
+/// Defines the context roll optimization flags
+enum ContextRollOptimizationFlags : uint32
+{
+    OptFlagNone = 0x00000000,
+    PadParamCacheSpace = 0x00000001,
+
+};
+
+/// Enum defining the different scopes (i.e. registry locations) where settings values are stored
+enum InternalSettingScope : uint32
+{
+    PrivateDriverKey = 0x0,
+    PublicPalKey = 0x1,
+    PrivatePalKey = 0x2,
+    PrivatePalGfx6Key = 0x3,
+    PrivatePalGfx9Key = 0x4,
+    PublicCatalystKey = 0x5,
 
 };
 
@@ -498,29 +531,53 @@ enum TimeGraphColor : uint32
     WhiteColor = 7,
 };
 
-/// Debug overlay layer runtime settings
-struct DebugOverlaySettings
+/// Config struct that controls what information is displayed on the Debug Overlay
+struct DebugOverlayConfig
 {
     bool                    visualConfirmEnabled;
     bool                    timeGraphEnabled;
-    DebugOverlayLocation    debugOverlayLocation;
-    TimeGraphColor          timeGraphGridLineColor;
-    TimeGraphColor          timeGraphCpuLineColor;
-    TimeGraphColor          timeGraphGpuLineColor;
+    DebugOverlayLocation overlayLocation;
+    char                 renderedByString[61];
+    char                 miscellaneousDebugString[61];
+    bool                 printFrameNumber;
+};
+
+/// Time Graph display configuration
+struct TimeGraphConfig
+{
+    uint32 gridLineColor;
+    uint32 cpuLineColor;
+    uint32 gpuLineColor;
+};
+
+/// Debug Overlay Benchmark configuration.
+struct OverlayBenchmarkConfig
+{
     uint32                  maxBenchmarkTime;
-    bool                    debugUsageLogEnable;
-    char                    debugUsageLogDirectory[MaxPathStrLen];
-    char                    debugUsageLogFilename[MaxPathStrLen];
+    bool   usageLogEnable;
+    char   usageLogDirectory[MaxPathStrLen];
+    char   usageLogFilename[MaxPathStrLen];
     bool                    logFrameStats;
     char                    frameStatsLogDirectory[MaxPathStrLen];
     uint32                  maxLoggedFrames;
-    bool                    overlayCombineNonLocal;
-    bool                    overlayReportCmdAllocator;
-    bool                    overlayReportExternal;
-    bool                    overlayReportInternal;
-    char                    renderedByString[MaxMiscStrLen];
-    char                    miscellaneousDebugString[MaxMiscStrLen];
-    bool                    printFrameNumber;
+};
+
+/// Configures the memory usage display on the Debug Overlay.
+struct OverlayMemoryInfoConfig
+{
+    bool combineNonLocal;
+    bool reportCmdAllocator;
+    bool reportExternal;
+    bool reportInternal;
+};
+
+/// Debug overlay layer runtime settings
+struct DebugOverlaySettings
+{
+    DebugOverlayConfig      debugOverlayConfig;
+    TimeGraphConfig         timeGraphConfig;
+    OverlayBenchmarkConfig  overlayBenchmarkConfig;
+    OverlayMemoryInfoConfig overlayMemoryInfoConfig;
 };
 
 /// Enum describing the supported granularity for the GPU profiler layer
@@ -539,43 +596,75 @@ enum GpuProfilerTraceModeFlags : uint32
     GpuProfilerTraceSqtt     =  0x2  ///< SQ thread trace flag.
 };
 
+/// Defines the modes that the GPU Profiling layer can use when its buffer fills.
+enum GpuProfilerStallMode : uint32
+{
+    GpuProfilerStallAlways     = 0, ///< Always stall to get accurate trace data
+    GpuProfilerStallLoseDetail = 1, ///< Lose register-level detail if under pressure to avoid stalls
+    GpuProfilerStallNever      = 2, ///< Never stall, miss trace packets
+};
+
+/// Configuration options for the PAL GPU Profiler layer.
+struct GpuProfilerConfig
+{
+    char   logDirectory[MaxPathStrLen];
+    uint32 startFrame;
+    uint32 frameCount;
+    bool   recordPipelineStats;
+    bool   breakSubmitBatches;
+    uint32 traceModeMask;
+};
+
+/// Configuration options for performance counter collection through the Profiler Layer.
+struct GpuProfilerPerfCounterConfig{
+    char                   globalPerfCounterConfigFile[MaxFileNameStrLen];
+    bool                   cacheFlushOnCounterCollection;
+    GpuProfilerGranularity granularity;
+};
+
+struct GpuProfilerSqttConfig
+{
+    uint32               tokenMask;
+    uint32               pipelineHashHi;
+    uint32               pipelineHashLo;
+    uint64               pipelineHash;
+    ShaderHash           vsHash;
+    ShaderHash           hsHash;
+    ShaderHash           dsHash;
+    ShaderHash           gsHash;
+    ShaderHash           psHash;
+    ShaderHash           csHash;
+    uint32               maxDraws;
+    size_t               bufferSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    GpuProfilerStallMode stallMode;
+#endif
+};
+
+///Configuration options for capturing Streaming Performance Monitors through the Profiler layer.
+struct GpuProfilerSpmConfig
+{
+    char   spmPerfCounterConfigFile[MaxFileNameStrLen];
+    uint32 spmTraceInterval;
+    size_t spmTraceBufferSize;
+};
+
 /// GPU profiler layer runtime settings
 struct GpuProfilerSettings
 {
-    char                      gpuProfilerLogDirectory[MaxPathStrLen];
-    uint32                    gpuProfilerStartFrame;
-    uint32                    gpuProfilerFrameCount;
-    bool                      gpuProfilerRecordPipelineStats;
-    char                      gpuProfilerGlobalPerfCounterConfigFile[MaxFileNameStrLen];
-    bool                      gpuProfilerBreakSubmitBatches;
-    bool                      gpuProfilerCacheFlushOnCounterCollection;
-    GpuProfilerGranularity    gpuProfilerGranularity;
-    uint32                    gpuProfilerSqThreadTraceTokenMask;
-    uint64                    gpuProfilerSqttPipelineHash;
-    ShaderHash                gpuProfilerSqttVsHash;
-    ShaderHash                gpuProfilerSqttHsHash;
-    ShaderHash                gpuProfilerSqttDsHash;
-    ShaderHash                gpuProfilerSqttGsHash;
-    ShaderHash                gpuProfilerSqttPsHash;
-    ShaderHash                gpuProfilerSqttCsHash;
-    uint32                    gpuProfilerSqttMaxDraws;
-    size_t                    gpuProfilerSqttBufferSize;
-
-    uint32                     gpuProfilerTraceModeMask;
-
-    // Streaming performance counter specific settings
-    char                       gpuProfilerSpmPerfCounterConfigFile[MaxFileNameStrLen];
-    uint32                     gpuProfilerSpmTraceInterval;
-    size_t                     gpuProfilerSpmTraceBufferSize;
+    GpuProfilerConfig            profilerConfig;
+    GpuProfilerPerfCounterConfig perfCounterConfig;
+    GpuProfilerSqttConfig        sqttConfig;
+    GpuProfilerSpmConfig         spmConfig;
 };
 
-/// Interface logger layer runtime settings
-struct InterfaceLoggerSettings
+/// Configuration options for the Interface Logger layer.
+struct InterfaceLoggerConfig
 {
-    char    interfaceLoggerDirectory[MaxPathStrLen];
-    bool    interfaceLoggerMultithreaded;
-    uint32  interfaceLoggerBasePreset;
-    uint32  interfaceLoggerElevatedPreset;
+    char    logDirectory[MaxPathStrLen];
+    bool    multithreaded;
+    uint32  basePreset;
+    uint32  elevatedPreset;
 };
 
 /// Describes the equations needed to interpret the raw memory of a tiled texture.
@@ -2203,7 +2292,7 @@ public:
     /// Returns this devices Interface Logger layer settings structure initialized with appropriate defaults.
     ///
     /// @returns Pointer to this devices Interface Logger layer settings.
-    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const = 0;
+        virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const = 0;
 
     /// Reads a specific setting from the operating system specific source (e.g. registry or config file).
     ///
@@ -4336,6 +4425,16 @@ public:
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) = 0;
+
+    /// Get file path used to put all files for cache purpose
+    ///
+    /// @returns Pointer to cache file path.
+    virtual const char* GetCacheFilePath() const = 0;
+
+    /// Get file path used to put all files for debug purpose (such as logs, dumps, replace shader)
+    ///
+    /// @returns Pointer to debug file path.
+    virtual const char* GetDebugFilePath() const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

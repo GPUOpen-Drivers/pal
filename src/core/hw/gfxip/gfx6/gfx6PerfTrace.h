@@ -113,6 +113,7 @@ private:
     regSQ_THREAD_TRACE_MASK        m_sqThreadTraceMask;      ///< Thread trace wave mask
     regSQ_THREAD_TRACE_TOKEN_MASK  m_sqThreadTraceTokenMask; ///< Thread trace token mask
     regSQ_THREAD_TRACE_PERF_MASK   m_sqThreadTracePerfMask;  ///< Thread trace perf mask
+    regSQ_THREAD_TRACE_HIWATER     m_sqThreadTraceHiWater;   ///< Thread trace hi water mark
 
     PAL_DISALLOW_DEFAULT_CTOR(ThreadTrace);
     PAL_DISALLOW_COPY_AND_ASSIGN(ThreadTrace);

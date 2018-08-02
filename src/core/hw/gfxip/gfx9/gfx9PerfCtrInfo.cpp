@@ -53,20 +53,20 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
 {
     { Gfx9NumCpfCounters, 1, 2,    { mmCPF_PERFCOUNTER0_SELECT,
                                      mmCPF_PERFCOUNTER1_SELECT            }, },   // cpf
-    { Gfx9NumIaCounters, 1, 2,     { mmIA_PERFCOUNTER0_SELECT__GFX09,
-                                     mmIA_PERFCOUNTER1_SELECT__GFX09,
-                                     mmIA_PERFCOUNTER2_SELECT__GFX09,
-                                     mmIA_PERFCOUNTER3_SELECT__GFX09      }, },   // ia
+    { Gfx9NumIaCounters, 1, 2,     { Gfx09::mmIA_PERFCOUNTER0_SELECT,
+                                     Gfx09::mmIA_PERFCOUNTER1_SELECT,
+                                     Gfx09::mmIA_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmIA_PERFCOUNTER3_SELECT      }, },   // ia
    // NOTE: The perfmon doc claims DB/PA/TCP/VGT each have six streaming counters, though the regspec
    //       indicates there is room for eight.
-    { Gfx9NumVgtCounters, 2, 3,    { mmVGT_PERFCOUNTER0_SELECT__GFX09,
-                                     mmVGT_PERFCOUNTER1_SELECT__GFX09,
-                                     mmVGT_PERFCOUNTER2_SELECT__GFX09,
-                                     mmVGT_PERFCOUNTER3_SELECT__GFX09     }, },  // vgt
+    { Gfx9NumVgtCounters, 2, 3,    { Gfx09::mmVGT_PERFCOUNTER0_SELECT,
+                                     Gfx09::mmVGT_PERFCOUNTER1_SELECT,
+                                     Gfx09::mmVGT_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmVGT_PERFCOUNTER3_SELECT     }, },  // vgt
     { Gfx9NumPaCounters, 2, 3,     { mmPA_SU_PERFCOUNTER0_SELECT,
                                      mmPA_SU_PERFCOUNTER1_SELECT,
                                      mmPA_SU_PERFCOUNTER2_SELECT,
-                                     mmPA_SU_PERFCOUNTER3_SELECT__GFX09   }, },  // pa
+                                     Gfx09::mmPA_SU_PERFCOUNTER3_SELECT   }, },  // pa
     { Gfx9NumScCounters, 1, 2,     { mmPA_SC_PERFCOUNTER0_SELECT,
                                      mmPA_SC_PERFCOUNTER1_SELECT,
                                      mmPA_SC_PERFCOUNTER2_SELECT,
@@ -109,14 +109,14 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmTCP_PERFCOUNTER1_SELECT,
                                      mmTCP_PERFCOUNTER2_SELECT,
                                      mmTCP_PERFCOUNTER3_SELECT,           }, }, // tcp
-    { Gfx9NumTccCounters, 2, 4,    { mmTCC_PERFCOUNTER0_SELECT__GFX09,
-                                     mmTCC_PERFCOUNTER1_SELECT__GFX09,
-                                     mmTCC_PERFCOUNTER2_SELECT__GFX09,
-                                     mmTCC_PERFCOUNTER3_SELECT__GFX09,    }, }, // tcc
-    { Gfx9NumTcaCounters, 2, 4,    { mmTCA_PERFCOUNTER0_SELECT__GFX09,
-                                     mmTCA_PERFCOUNTER1_SELECT__GFX09,
-                                     mmTCA_PERFCOUNTER2_SELECT__GFX09,
-                                     mmTCA_PERFCOUNTER3_SELECT__GFX09,    }, }, // tca
+    { Gfx9NumTccCounters, 2, 4,    { Gfx09::mmTCC_PERFCOUNTER0_SELECT,
+                                     Gfx09::mmTCC_PERFCOUNTER1_SELECT,
+                                     Gfx09::mmTCC_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmTCC_PERFCOUNTER3_SELECT,    }, }, // tcc
+    { Gfx9NumTcaCounters, 2, 4,    { Gfx09::mmTCA_PERFCOUNTER0_SELECT,
+                                     Gfx09::mmTCA_PERFCOUNTER1_SELECT,
+                                     Gfx09::mmTCA_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmTCA_PERFCOUNTER3_SELECT,    }, }, // tca
     { Gfx9NumDbCounters, 2, 3,     { mmDB_PERFCOUNTER0_SELECT,
                                      mmDB_PERFCOUNTER1_SELECT,
                                      mmDB_PERFCOUNTER2_SELECT,
@@ -138,38 +138,37 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmGRBM_SE3_PERFCOUNTER_SELECT        }, },  // grbm=se
     { Gfx9NumRlcCounters, 0, 0,    { mmRLC_PERFCOUNTER0_SELECT,
                                      mmRLC_PERFCOUNTER1_SELECT,           }, },  // rlc
-    { Gfx9NumSdmaCounters, 0, 0,   { mmSDMA0_PERFMON_CNTL,
-                                     mmSDMA1_PERFMON_CNTL__GFX09,         }, },  // sdma
+    { Gfx9NumSdmaCounters, 0, 0,   { mmSDMA0_PERFMON_CNTL,                       // sdma, fixed for Raven
+                                     Vega::mmSDMA1_PERFMON_CNTL,          }, },  //   in GetPrimaryBlockCounterInfo
     { 0, 0, 0,                     { 0,                                   }, },  // mc
     { Gfx9NumCpgCounters, 1, 2,    { mmCPG_PERFCOUNTER0_SELECT,
                                      mmCPG_PERFCOUNTER1_SELECT,           }, },  // cpg
     { Gfx9NumCpcCounters, 1, 2,    { mmCPC_PERFCOUNTER0_SELECT,
                                      mmCPC_PERFCOUNTER1_SELECT,           }, },  // cpc
-    { Gfx9NumWdCounters, 0, 0,     { mmWD_PERFCOUNTER0_SELECT__GFX09,
-                                     mmWD_PERFCOUNTER1_SELECT__GFX09,
-                                     mmWD_PERFCOUNTER2_SELECT__GFX09,
-                                     mmWD_PERFCOUNTER3_SELECT__GFX09,     }, },  // wd
+    { Gfx9NumWdCounters, 0, 0,     { Gfx09::mmWD_PERFCOUNTER0_SELECT,
+                                     Gfx09::mmWD_PERFCOUNTER1_SELECT,
+                                     Gfx09::mmWD_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmWD_PERFCOUNTER3_SELECT,     }, },  // wd
     { 0, 0, 0,                     { 0,                                   }, },  // tcs
-    { Gfx9NumAtcCounters, 0, 0,    { mmATC_PERFCOUNTER0_CFG__GFX09,
-                                     mmATC_PERFCOUNTER1_CFG__GFX09,
-                                     mmATC_PERFCOUNTER2_CFG__GFX09,
-                                     mmATC_PERFCOUNTER3_CFG__GFX09,       }, },  // atc
-    { Gfx9NumAtcL2Counters, 0, 0,  { mmATC_L2_PERFCOUNTER0_CFG__GFX09,
-                                     mmATC_L2_PERFCOUNTER1_CFG__GFX09,    }, },  // atc l2
-    { Gfx9NumMcVmL2Counters, 0, 0, { mmMC_VM_L2_PERFCOUNTER0_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER1_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER2_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER3_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER4_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER5_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER6_CFG__GFX09,
-                                     mmMC_VM_L2_PERFCOUNTER7_CFG__GFX09,  }, },  // mc vm l2
-    { Gfx9NumEaCounters, 0, 0,     { mmGCEA_PERFCOUNTER0_CFG__GFX09,
-                                     mmGCEA_PERFCOUNTER1_CFG__GFX09       }, },  // ea
-    { Gfx9NumRpbCounters, 0, 0,    { mmRPB_PERFCOUNTER0_CFG__GFX09,
-                                     mmRPB_PERFCOUNTER1_CFG__GFX09,
-                                     mmRPB_PERFCOUNTER2_CFG__GFX09,
-                                     mmRPB_PERFCOUNTER3_CFG__GFX09,       }, },  // rpb
+    { Gfx9NumAtcCounters, 0, 0,    { Gfx09::mmATC_PERFCOUNTER0_CFG,
+                                     Gfx09::mmATC_PERFCOUNTER1_CFG,
+                                     Gfx09::mmATC_PERFCOUNTER2_CFG,
+                                     Gfx09::mmATC_PERFCOUNTER3_CFG,       }, },  // atc
+    { Gfx9NumAtcL2Counters, 0, 0,  { Gfx09::mmATC_L2_PERFCOUNTER0_CFG,
+                                     Gfx09::mmATC_L2_PERFCOUNTER1_CFG,    }, },  // atc l2
+    { Gfx9NumMcVmL2Counters, 0, 0, { Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER1_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER2_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER3_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER4_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER5_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER6_CFG,
+                                     Gfx09::mmMC_VM_L2_PERFCOUNTER7_CFG,  }, },  // mc vm l2
+    { Gfx9NumEaCounters, 0, 0,     { 0                                    }, },  // ea
+    { Gfx9NumRpbCounters, 0, 0,    { Gfx09::mmRPB_PERFCOUNTER0_CFG,
+                                     Gfx09::mmRPB_PERFCOUNTER1_CFG,
+                                     Gfx09::mmRPB_PERFCOUNTER2_CFG,
+                                     Gfx09::mmRPB_PERFCOUNTER3_CFG,       }, },  // rpb
     { Gfx9NumRmiCounters, 1, 2,    { mmRMI_PERFCOUNTER0_SELECT,
                                      mmRMI_PERFCOUNTER1_SELECT,
                                      mmRMI_PERFCOUNTER2_SELECT,
@@ -184,9 +183,9 @@ static_assert(ArrayLen(Gfx9PerfCountSelect0) == static_cast<uint32>(GpuBlock::Co
 static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
 {
     { 1, 1, 2,               { mmCPF_PERFCOUNTER0_SELECT1,          }, },  // cpf
-    { 1, 1, 2,               { mmIA_PERFCOUNTER0_SELECT1__GFX09,    }, },  // ia
-    { 2, 1, 2,               { mmVGT_PERFCOUNTER0_SELECT1__GFX09,
-                               mmVGT_PERFCOUNTER1_SELECT1__GFX09,   }, },  // vgt
+    { 1, 1, 2,               { Gfx09::mmIA_PERFCOUNTER0_SELECT1,    }, },  // ia
+    { 2, 1, 2,               { Gfx09::mmVGT_PERFCOUNTER0_SELECT1,
+                               Gfx09::mmVGT_PERFCOUNTER1_SELECT1,   }, },  // vgt
     { 2, 2, 3,               { mmPA_SU_PERFCOUNTER0_SELECT1,
                                mmPA_SU_PERFCOUNTER1_SELECT1,        }, },  // pa
     { 1, 1, 2,               { mmPA_SC_PERFCOUNTER0_SELECT1,        }, },  // sc
@@ -201,10 +200,10 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
     { 1, 1, 2,               { mmTD_PERFCOUNTER0_SELECT1,           }, },  // td
     { 2, 2, 3,               { mmTCP_PERFCOUNTER0_SELECT1,
                                mmTCP_PERFCOUNTER1_SELECT1,          }, },  // tcp
-    { 2, 2, 4,               { mmTCC_PERFCOUNTER0_SELECT1__GFX09,
-                               mmTCC_PERFCOUNTER1_SELECT1__GFX09,   }, },  // tcc
-    { 2, 2, 4,               { mmTCA_PERFCOUNTER0_SELECT1__GFX09,
-                               mmTCA_PERFCOUNTER1_SELECT1__GFX09,   }, },  // tca
+    { 2, 2, 4,               { Gfx09::mmTCC_PERFCOUNTER0_SELECT1,
+                               Gfx09::mmTCC_PERFCOUNTER1_SELECT1,   }, },  // tcc
+    { 2, 2, 4,               { Gfx09::mmTCA_PERFCOUNTER0_SELECT1,
+                               Gfx09::mmTCA_PERFCOUNTER1_SELECT1,   }, },  // tca
     { 2, 2, 3,               { mmDB_PERFCOUNTER0_SELECT1,
                                mmDB_PERFCOUNTER1_SELECT1,           }, },  // db
     { 1, 1, 2,               { mmCB_PERFCOUNTER0_SELECT1,           }, },  // cb
@@ -234,33 +233,53 @@ static_assert(ArrayLen(Gfx9PerfCountSelect1) == static_cast<uint32>(GpuBlock::Co
               "Gfx9PerfCountSelect1 must have one entry for each GpuBlock.");
 
 // =====================================================================================================================
-const BlockPerfCounterInfo* GetPrimaryBlockCounterInfo(
+void GetPrimaryBlockCounterInfo(
     const GpuChipProperties* pProps,
-    GpuBlock                 block)
+    GpuBlock                 block,
+    BlockPerfCounterInfo*    pBlockCounterInfo)
 {
-    const uint32                 blockIdx          = static_cast<uint32>(block);
-    const BlockPerfCounterInfo*  pBlockCounterInfo = ((pProps->gfxLevel == GfxIpLevel::GfxIp9)
-                                                      ? &Gfx9PerfCountSelect0[blockIdx]
-                                                      : nullptr);
+    const uint32 blockIdx  = static_cast<uint32>(block);
 
-    PAL_ASSERT(pBlockCounterInfo != nullptr);
+    if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        memcpy(pBlockCounterInfo, &Gfx9PerfCountSelect0[blockIdx], sizeof(BlockPerfCounterInfo));
 
-    return pBlockCounterInfo;
+        // The base table contains the Vega10 information; fix up any differences with the variations here
+        if ((pProps->familyId == FAMILY_RV) && (block == GpuBlock::Dma))
+        {
+            // The *only* difference between the Raven and Vega family is that Raven has one of these
+            // and Vega has two.
+            constexpr BlockPerfCounterInfo  SdmaPerfCounterInfo = { 1, 0, 0, { mmSDMA0_PERFMON_CNTL, }, };
+
+            memcpy(pBlockCounterInfo, &SdmaPerfCounterInfo, sizeof(BlockPerfCounterInfo));
+        }
+        else if (block == GpuBlock::Ea)
+        {
+            if (AMDGPU_IS_VEGA10(pProps->familyId, pProps->eRevId) ||
+                AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId))
+            {
+                constexpr BlockPerfCounterInfo  EaPerfCounterInfo =
+                    { Gfx9NumEaCounters, 0, 0,{ Gfx09_0::mmGCEA_PERFCOUNTER0_CFG,
+                                                Gfx09_0::mmGCEA_PERFCOUNTER1_CFG } };
+
+                memcpy(pBlockCounterInfo, &EaPerfCounterInfo, sizeof(BlockPerfCounterInfo));
+            }
+        }
+    }
 }
 
 // =====================================================================================================================
-const BlockPerfCounterInfo* GetSecondaryBlockCounterInfo(
+void GetSecondaryBlockCounterInfo(
     const GpuChipProperties* pProps,
-    GpuBlock                 block)
+    GpuBlock                 block,
+    BlockPerfCounterInfo*    pBlockCounterInfo)
 {
-    const uint32                 blockIdx          = static_cast<uint32>(block);
-    const BlockPerfCounterInfo*  pBlockCounterInfo = ((pProps->gfxLevel == GfxIpLevel::GfxIp9)
-                                                      ? &Gfx9PerfCountSelect1[blockIdx]
-                                                      : nullptr);
+    const uint32  blockIdx = static_cast<uint32>(block);
 
-    PAL_ASSERT(pBlockCounterInfo != nullptr);
-
-    return pBlockCounterInfo;
+    if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        memcpy(pBlockCounterInfo, &Gfx9PerfCountSelect1[blockIdx], sizeof(BlockPerfCounterInfo));
+    }
 }
 
 // =====================================================================================================================
@@ -271,36 +290,41 @@ uint32 GetMaxEventId(
 {
     const uint32  blockIdx = static_cast<uint32>(block);
 
+    PAL_ASSERT(blockIdx < static_cast<uint32>(GpuBlock::Count));
+
     uint32  maxEventId = 0;
     if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
     {
+        constexpr uint32 Gfx9PerfCtrRlcMaxEvent = 7; //< RLC, doesn't have enumerations, look in reg spec
+
+        // Define the generic max event IDs.  Most of these are the same between the GFX9 variations
         static constexpr uint32  MaxEventId[static_cast<uint32>(GpuBlock::Count)] =
         {
-            Gfx9PerfCtrCpfMaxEvent,
-            Gfx9PerfCtrIaMaxEvent,
-            Gfx9PerfCtrVgtMaxEvent,
-            Gfx9PerfCtrPaMaxEvent,
-            Gfx9PerfCtrScMaxEvent,
-            Gfx9PerfCtrSpiMaxEvent,
-            Gfx9PerfCtrSqMaxEvent,
-            Gfx9PerfCtrSxMaxEvent,
-            Gfx9PerfCtrTaMaxEvent,
-            Gfx9PerfCtrTdMaxEvent,
-            Gfx9PerfCtrTcpMaxEvent,
-            Gfx9PerfCtrTccMaxEvent,
-            Gfx9PerfCtrTcaMaxEvent,
-            Gfx9PerfCtrDbMaxEvent,
-            Gfx9PerfCtrCbMaxEvent,
-            Gfx9PerfCtrGdsMaxEvent,
+            MaxCpfPerfcountSelGfx09,
+            0, // Ia, see below
+            MaxVgtPerfcountSelect,
+            0, // PA, see below
+            0, // SC, see below
+            MaxSpiPerfcntSelGfx09,
+            MaxSqPerfSelGfx09,
+            MaxSxPerfcounterValsGfx09,
+            MaxTaPerfcountSelGfx09,
+            MaxTdPerfcountSelGfx09,
+            MaxTcpPerfcountSelectGfx09,
+            0, // Tcc, see below,
+            MaxTcaPerfSel,
+            MaxPerfcounterValsGfx09,
+            MaxCBPerfSelGfx09,
+            MaxGdsPerfcountSelectGfx09,
             0, // Srbm,
-            Gfx9PerfCtrGrbmMaxEvent,
-            Gfx9PerfCtrGrbmseMaxEvent,
+            MaxGrbmPerfSelGfx09,
+            MaxGrbmPerfSelGfx09,
             Gfx9PerfCtrRlcMaxEvent,
-            Gfx9PerfCtrSdmaMaxEvent,
+            MaxSdmaPerfSelGfx09,
             Gfx9PerfCtrlEaMaxEvent,
-            Gfx9PerfCtrCpgMaxEvent,
-            Gfx9PerfCtrCpcMaxEvent,
-            Gfx9PerfCtrWdMaxEvent,
+            0, // Cpg, see below
+            MaxCpcPerfcountSelGfx09,
+            MaxWdPerfcountSelect,
             0, // Tcs,
             Gfx9PerfCtrlAtcMaxEvent,
             Gfx9PerfCtrlAtcL2MaxEvent,
@@ -311,12 +335,41 @@ uint32 GetMaxEventId(
         };
 
         maxEventId = MaxEventId[blockIdx];
+
+        if (maxEventId == 0)
+        {
+            if ((block == GpuBlock::Cpg) || (block == GpuBlock::Ia))
+            {
+                if ((AMDGPU_IS_VEGA10(pProps->familyId, pProps->eRevId)) ||
+                    (AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId)))
+                {
+                    maxEventId = MaxIaPerfcountSelectGfx09_0;
+                }
+            }
+            else if (block == GpuBlock::Pa)
+            {
+                if ((AMDGPU_IS_VEGA10(pProps->familyId, pProps->eRevId)) ||
+                    (AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId)))
+                {
+                    maxEventId = MaxSuPerfcntSelGfx09_0;
+                }
+            }
+            else if (block == GpuBlock::Sc)
+            {
+                maxEventId = MaxScPerfcntSelGfx09_0;
+            }
+            else if (block == GpuBlock::Tcc)
+            {
+                maxEventId = MaxTccPerfSelGfx09_0;
+
+            }
+        } // end check for an invalid block ID
     }
 
     // Why is the caller setting up a block that doesn't have any event ID's associated with it?
     PAL_ASSERT(maxEventId != 0);
 
-    return maxEventId;
+    return maxEventId + 1;
 }
 
 // =====================================================================================================================
@@ -385,35 +438,39 @@ void SetupBlockInfo(
     uint32             ctrHiRegAddr,     // High counter data address register address
     int32              ctrRegIncr)       // Counter data register block address increment
 {
+    BlockPerfCounterInfo  selReg0 = {};
+    BlockPerfCounterInfo  selReg1 = {};
+
     const uint32              blockIdx = static_cast<uint32>(block);
-    const auto*               pSelReg0 = GetPrimaryBlockCounterInfo(pProps, block);
-    const auto*               pSelReg1 = GetSecondaryBlockCounterInfo(pProps, block);
     Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
 
-    PAL_ASSERT(pSelReg0->numRegs <= MaxCountersPerBlock);
+    GetPrimaryBlockCounterInfo(pProps,   block, &selReg0);
+    GetSecondaryBlockCounterInfo(pProps, block, &selReg1);
+
+    PAL_ASSERT(selReg0.numRegs <= MaxCountersPerBlock);
 
     pInfo->block[blockIdx].available               = true;
     pInfo->block[blockIdx].numShaderEngines        = numShaderEngines;
     pInfo->block[blockIdx].numShaderArrays         = numShaderArrays;
     pInfo->block[blockIdx].numInstances            = numInstances;
-    pInfo->block[blockIdx].numCounters             = pSelReg0->numRegs;
-    pInfo->block[blockIdx].numStreamingCounters    = pSelReg0->numStreamingCounters + pSelReg1->numStreamingCounters;
-    pInfo->block[blockIdx].numStreamingCounterRegs = pSelReg0->numTotalStreamingCounterRegs;
+    pInfo->block[blockIdx].numCounters             = selReg0.numRegs;
+    pInfo->block[blockIdx].numStreamingCounters    = selReg0.numStreamingCounters + selReg1.numStreamingCounters;
+    pInfo->block[blockIdx].numStreamingCounterRegs = selReg0.numTotalStreamingCounterRegs;
     pInfo->block[blockIdx].maxEventId              = GetMaxEventId(pProps, block);
     pInfo->block[blockIdx].spmBlockSelectCode      = GetSpmBlockSelect(pProps, block);
 
     // Setup the register addresses for each counter for this block.
-    for (uint32  idx = 0; idx < pSelReg0->numRegs; idx++)
+    for (uint32  idx = 0; idx < selReg0.numRegs; idx++)
     {
-        pInfo->block[blockIdx].regInfo[idx].perfSel0RegAddr = pSelReg0->regOffsets[idx];
+        pInfo->block[blockIdx].regInfo[idx].perfSel0RegAddr = selReg0.regOffsets[idx];
 
         pInfo->block[blockIdx].regInfo[idx].perfCountLoAddr = ctrLoRegAddr + idx * ctrRegIncr;
         pInfo->block[blockIdx].regInfo[idx].perfCountHiAddr = ctrHiRegAddr + idx * ctrRegIncr;
     }
 
-    for (uint32  idx = 0; idx < pSelReg1->numRegs; idx++)
+    for (uint32  idx = 0; idx < selReg1.numRegs; idx++)
     {
-        pInfo->block[blockIdx].regInfo[idx].perfSel1RegAddr = pSelReg1->regOffsets[idx];
+        pInfo->block[blockIdx].regInfo[idx].perfSel1RegAddr = selReg1.regOffsets[idx];
     }
 }
 
@@ -440,11 +497,12 @@ void SetupMcSysBlockInfo(
                    ctrRegIncr);
 
     const uint32              blockIdx = static_cast<uint32>(block) - 1;
-    const auto*               pSelReg0 = GetPrimaryBlockCounterInfo(pProps, block);
     Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
 
     // Set rsltCntlRegAddr
-    for (uint32  idx = 0; idx < pSelReg0->numRegs; idx++)
+    BlockPerfCounterInfo  selReg0 = {};
+    GetPrimaryBlockCounterInfo(pProps, block, &selReg0);
+    for (uint32  idx = 0; idx < selReg0.numRegs; idx++)
     {
         pInfo->block[blockIdx].regInfo[idx].perfRsltCntlRegAddr = rsltCntlRegAddr;
     }
@@ -644,9 +702,12 @@ void SetupGfx9Counters(
     constexpr uint32 DefaultShaderArrays  =  1;
     constexpr uint32 DefaultInstances     =  1;
     constexpr uint32 DefaultGroups        =  1;
-    constexpr uint32 SdmaInstances        =  2;
     constexpr uint32 TcaInstances         =  2;
     constexpr uint32 EaInstances          = 16;
+
+    // Vega (AI) vs. Raven have different number of SDMA instances
+    const     uint32 SdmaInstances = ((pProps->familyId == FAMILY_AI) ? 2 : 1);
+
     // Each SQ(inside a CU) counts for that CU, but you cannot see that count. There is one set of 16 master counters
     // inside SPI(really SQG) that aggregates the counts from each CU and presents 16 counters which represent all of
     // the activity on the SE.
@@ -668,9 +729,9 @@ void SetupGfx9Counters(
                    DefaultShaderEngines,
                    DefaultShaderArrays,
                    pProps->gfx9.numTccBlocks,
-                   mmTCC_PERFCOUNTER0_LO__GFX09,
-                   mmTCC_PERFCOUNTER0_HI__GFX09,
-                   (mmTCC_PERFCOUNTER1_LO__GFX09 - mmTCC_PERFCOUNTER0_LO__GFX09));
+                   Gfx09::mmTCC_PERFCOUNTER0_LO,
+                   Gfx09::mmTCC_PERFCOUNTER0_HI,
+                   (Gfx09::mmTCC_PERFCOUNTER1_LO - Gfx09::mmTCC_PERFCOUNTER0_LO));
 
     // TCA block
     SetupBlockInfo(pProps,
@@ -678,9 +739,9 @@ void SetupGfx9Counters(
                    DefaultShaderEngines,
                    DefaultShaderArrays,
                    TcaInstances,
-                   mmTCA_PERFCOUNTER0_LO__GFX09,
-                   mmTCA_PERFCOUNTER0_HI__GFX09,
-                   (mmTCA_PERFCOUNTER1_LO__GFX09 - mmTCA_PERFCOUNTER0_LO__GFX09));
+                   Gfx09::mmTCA_PERFCOUNTER0_LO,
+                   Gfx09::mmTCA_PERFCOUNTER0_HI,
+                   (Gfx09::mmTCA_PERFCOUNTER1_LO - Gfx09::mmTCA_PERFCOUNTER0_LO));
 
     // SDMA block
     SetupBlockInfo(pProps,
@@ -690,7 +751,9 @@ void SetupGfx9Counters(
                    SdmaInstances,
                    mmSDMA0_PERFCOUNTER0_RESULT,
                    mmSDMA0_PERFCOUNTER1_RESULT,
-                   (mmSDMA1_PERFCOUNTER0_RESULT__GFX09 - mmSDMA0_PERFCOUNTER1_RESULT));
+                   ((pProps->familyId == FAMILY_AI)
+                    ? (Vega::mmSDMA1_PERFCOUNTER0_RESULT - mmSDMA0_PERFCOUNTER1_RESULT)
+                    : 0));
 
     // SQ block
     SetupBlockInfo(pProps,
@@ -708,9 +771,9 @@ void SetupGfx9Counters(
                    shaderEngines,
                    DefaultShaderArrays,
                    DefaultInstances,
-                   mmVGT_PERFCOUNTER0_LO__GFX09,
-                   mmVGT_PERFCOUNTER0_HI__GFX09,
-                   (mmVGT_PERFCOUNTER1_LO__GFX09 - mmVGT_PERFCOUNTER0_LO__GFX09));
+                   Gfx09::mmVGT_PERFCOUNTER0_LO,
+                   Gfx09::mmVGT_PERFCOUNTER0_HI,
+                   (Gfx09::mmVGT_PERFCOUNTER1_LO - Gfx09::mmVGT_PERFCOUNTER0_LO));
 
     // IA block
     SetupBlockInfo(pProps,
@@ -718,9 +781,9 @@ void SetupGfx9Counters(
                    Max(shaderEngines / 2U, 1U),
                    DefaultShaderArrays,
                    DefaultInstances,
-                   mmIA_PERFCOUNTER0_LO__GFX09,
-                   mmIA_PERFCOUNTER0_HI__GFX09,
-                   (mmIA_PERFCOUNTER1_LO__GFX09 - mmIA_PERFCOUNTER0_LO__GFX09));
+                   Gfx09::mmIA_PERFCOUNTER0_LO,
+                   Gfx09::mmIA_PERFCOUNTER0_HI,
+                   (Gfx09::mmIA_PERFCOUNTER1_LO - Gfx09::mmIA_PERFCOUNTER0_LO));
 
     // WD block
     SetupBlockInfo(pProps,
@@ -728,9 +791,9 @@ void SetupGfx9Counters(
                    DefaultShaderEngines,
                    DefaultShaderArrays,
                    DefaultInstances,
-                   mmWD_PERFCOUNTER0_LO__GFX09,
-                   mmWD_PERFCOUNTER0_HI__GFX09,
-                   (mmWD_PERFCOUNTER1_LO__GFX09 - mmWD_PERFCOUNTER0_LO__GFX09));
+                   Gfx09::mmWD_PERFCOUNTER0_LO,
+                   Gfx09::mmWD_PERFCOUNTER0_HI,
+                   (Gfx09::mmWD_PERFCOUNTER1_LO - Gfx09::mmWD_PERFCOUNTER0_LO));
 
     // ATC block
     SetupMcSysBlockInfo(pProps,
@@ -738,10 +801,10 @@ void SetupGfx9Counters(
                         DefaultShaderEngines,
                         DefaultShaderArrays,
                         DefaultInstances,
-                        mmATC_PERFCOUNTER_LO__GFX09,
-                        mmATC_PERFCOUNTER_HI__GFX09,
+                        Gfx09::mmATC_PERFCOUNTER_LO,
+                        Gfx09::mmATC_PERFCOUNTER_HI,
                         0,
-                        mmATC_PERFCOUNTER_RSLT_CNTL__GFX09);
+                        Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL);
 
     // ATCL2 block
     SetupMcSysBlockInfo(pProps,
@@ -749,10 +812,10 @@ void SetupGfx9Counters(
                         DefaultShaderEngines,
                         DefaultShaderArrays,
                         DefaultInstances,
-                        mmATC_L2_PERFCOUNTER_LO__GFX09,
-                        mmATC_L2_PERFCOUNTER_HI__GFX09,
+                        Gfx09::mmATC_L2_PERFCOUNTER_LO,
+                        Gfx09::mmATC_L2_PERFCOUNTER_HI,
                         0,
-                        mmATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09);
+                        Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL);
 
     // MCVML2 block
     SetupMcSysBlockInfo(pProps,
@@ -760,21 +823,25 @@ void SetupGfx9Counters(
                         DefaultShaderEngines,
                         DefaultShaderArrays,
                         DefaultInstances,
-                        mmMC_VM_L2_PERFCOUNTER_LO__GFX09,
-                        mmMC_VM_L2_PERFCOUNTER_HI__GFX09,
+                        Gfx09::mmMC_VM_L2_PERFCOUNTER_LO,
+                        Gfx09::mmMC_VM_L2_PERFCOUNTER_HI,
                         0,
-                        mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09);
+                        Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL);
 
     // EA block
-    SetupMcSysBlockInfo(pProps,
-                        GpuBlock::Ea,
-                        DefaultShaderEngines,
-                        DefaultShaderArrays,
-                        EaInstances,
-                        mmGCEA_PERFCOUNTER_LO__GFX09,
-                        mmGCEA_PERFCOUNTER_HI__GFX09,
-                        0,
-                        mmGCEA_PERFCOUNTER_RSLT_CNTL__GFX09);
+    if (AMDGPU_IS_VEGA10(pProps->familyId, pProps->eRevId) ||
+        AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId))
+    {
+        SetupMcSysBlockInfo(pProps,
+                            GpuBlock::Ea,
+                            DefaultShaderEngines,
+                            DefaultShaderArrays,
+                            EaInstances,
+                            Gfx09_0::mmGCEA_PERFCOUNTER_LO,
+                            Gfx09_0::mmGCEA_PERFCOUNTER_HI,
+                            0,
+                            Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL);
+    }
 
     // RPB block
     SetupMcSysBlockInfo(pProps,
@@ -782,10 +849,10 @@ void SetupGfx9Counters(
                         DefaultShaderEngines,
                         DefaultShaderArrays,
                         DefaultInstances,
-                        mmRPB_PERFCOUNTER_LO__GFX09,
-                        mmRPB_PERFCOUNTER_HI__GFX09,
+                        Gfx09::mmRPB_PERFCOUNTER_LO,
+                        Gfx09::mmRPB_PERFCOUNTER_HI,
                         0,
-                        mmRPB_PERFCOUNTER_RSLT_CNTL__GFX09);
+                        Gfx09::mmRPB_PERFCOUNTER_RSLT_CNTL);
 }
 
 // =====================================================================================================================

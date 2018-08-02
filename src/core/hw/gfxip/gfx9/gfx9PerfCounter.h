@@ -64,6 +64,9 @@ private:
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
+    template <typename SdmaRegType>
+    void SetSdmaSelectReg(SdmaRegType* pSdmaReg) const;
+
     union Flags
     {
         struct

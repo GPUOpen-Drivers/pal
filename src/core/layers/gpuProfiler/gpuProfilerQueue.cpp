@@ -323,7 +323,7 @@ Result Queue::Submit(
     bool       beginNewFrame = false;
 
     const bool   hasCmdBufInfo   = (submitInfo.pCmdBufInfoList != nullptr);
-    const bool   breakBatches    = m_pDevice->ProfilerSettings().gpuProfilerBreakSubmitBatches;
+    const bool   breakBatches    = m_pDevice->ProfilerSettings().profilerConfig.breakSubmitBatches;
     const uint32 batchCount      = breakBatches ? submitInfo.cmdBufferCount : 1;
     const uint32 cmdBufsPerBatch = breakBatches ? 1 : submitInfo.cmdBufferCount;
     const uint32 maxNextCmdBufs  = cmdBufsPerBatch + 1; // One per recorded CmdBuffer plus the end-frame CmdBuffer.
@@ -918,10 +918,10 @@ Result Queue::BuildGpaSessionSampleConfig()
 {
     const auto& settings = m_pDevice->ProfilerSettings();
 
-    const uint32 numCounters                  = m_pDevice->NumGlobalPerfCounters();
+    const uint32 numCounters                           = m_pDevice->NumGlobalPerfCounters();
     const GpuProfiler::PerfCounter* pCounters = m_pDevice->GlobalPerfCounters();
 
-    const uint32 numSpmCountersRequested = m_pDevice->NumStreamingPerfCounters();
+    const uint32 numSpmCountersRequested               = m_pDevice->NumStreamingPerfCounters();
     const GpuProfiler::PerfCounter* pStreamingCounters = m_pDevice->StreamingPerfCounters();
 
     m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
@@ -948,7 +948,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
     m_gpaSessionSampleConfig.flags.sampleInternalOperations      = 1;
     m_gpaSessionSampleConfig.flags.cacheFlushOnCounterCollection =
-        settings.gpuProfilerCacheFlushOnCounterCollection;
+        settings.perfCounterConfig.cacheFlushOnCounterCollection;
 
     m_gpaSessionSampleConfig.flags.sqShaderMask                  = 1;
     m_gpaSessionSampleConfig.sqShaderMask                        = PerfShaderMaskAll;
@@ -968,8 +968,8 @@ Result Queue::BuildGpaSessionSampleConfig()
             GpuUtil::PerfCounterId* pIds =
                 static_cast<GpuUtil::PerfCounterId*>(
                     PAL_MALLOC(m_gpaSessionSampleConfig.perfCounters.numCounters * sizeof(GpuUtil::PerfCounterId),
-                               m_pDevice->GetPlatform(),
-                               AllocInternal));
+                                                                m_pDevice->GetPlatform(),
+                                                                AllocInternal));
             if (pIds != nullptr)
             {
                 m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
@@ -1003,11 +1003,11 @@ Result Queue::BuildGpaSessionSampleConfig()
                     numTotalInstances += pStreamingCounters[i].instanceCount;
                 }
 
-                gpusize ringSizeInBytes = settings.gpuProfilerSpmTraceBufferSize;
+                gpusize ringSizeInBytes = settings.spmConfig.spmTraceBufferSize;
 
                 if (ringSizeInBytes == 0)
                 {
-                    switch (settings.gpuProfilerGranularity)
+                    switch (settings.perfCounterConfig.granularity)
                     {
                     case GpuProfilerGranularityDraw:
                         ringSizeInBytes = 1024 * 1024; // 1 MB
@@ -1025,7 +1025,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
                 // Each instance of the requested block is a unique perf counter according to GpaSession.
                 m_gpaSessionSampleConfig.perfCounters.numCounters            = numTotalInstances;
-                m_gpaSessionSampleConfig.perfCounters.spmTraceSampleInterval = settings.gpuProfilerSpmTraceInterval;
+                m_gpaSessionSampleConfig.perfCounters.spmTraceSampleInterval = settings.spmConfig.spmTraceInterval;
                 m_gpaSessionSampleConfig.perfCounters.gpuMemoryLimit         = ringSizeInBytes;
 
                 // Create pIds for the counters that were requested in the config file.
@@ -1062,10 +1062,12 @@ Result Queue::BuildGpaSessionSampleConfig()
 
             // Thread trace specific config.
             m_gpaSessionSampleConfig.sqtt.flags.enable = m_pDevice->IsThreadTraceEnabled();
-            m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit
-                = settings.gpuProfilerSqttBufferSize * perfExpProps.shaderEngineCount;
-            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens
-                = (settings.gpuProfilerSqThreadTraceTokenMask != 0xFFFF);
+            m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit =
+                settings.sqttConfig.bufferSize * perfExpProps.shaderEngineCount;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+            m_gpaSessionSampleConfig.sqtt.flags.stallMode = m_pDevice->GetSqttStallMode();
+#endif
+            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens = (settings.sqttConfig.tokenMask != 0xFFFF);
         }
         else
         {

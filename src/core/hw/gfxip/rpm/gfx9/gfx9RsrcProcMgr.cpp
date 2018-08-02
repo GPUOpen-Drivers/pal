@@ -2712,7 +2712,7 @@ void RsrcProcMgr::DccDecompress(
         }
         else
         {
-            const bool alwaysDecompress = TestAnyFlagSet(settings.alwaysDecompress, Gfx9DecompressDcc);
+            const bool alwaysDecompress = TestAnyFlagSet(settings.alwaysDecompress, DecompressDcc);
             // Disable metaData state condition for multi range case. Since current GenericColorBlit assume
             // metaDataAddr as mipmap level based but our metaData are contiguous in memory for slices in one mipmap
             // level.
@@ -2764,7 +2764,7 @@ bool RsrcProcMgr::FastClearEliminate(
     const SubresRange&           range
     ) const
 {
-    const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().alwaysDecompress, Gfx9DecompressFastClear);
+    const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().alwaysDecompress, DecompressFastClear);
 
     const GpuMemory* pGpuMem = nullptr;
     gpusize metaDataOffset = alwaysFce ? 0 : image.GetFastClearEliminateMetaDataOffset(range.startSubres.mipLevel);
@@ -3041,6 +3041,7 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
 {
     Pal::CmdStream*const pCmdStream   = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     const GpuMemory*     pGpuMem      = dstImage.GetBoundGpuMemory().Memory();
+    const auto&          coreSettings = m_pDevice->Parent()->Settings();
     const auto&          settings     = m_pDevice->Settings();
     uint32               modifiedMask = 0;
 
@@ -3051,15 +3052,15 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
         if ((((firstHeap == GpuHeapGartUswc)       ||
               (firstHeap == GpuHeapGartCacheable)) ||
               pGpuMem->IsPeer())                   &&
-            (settings.nonlocalDestGraphicsCopyRbs >= 0))
+            (coreSettings.nonlocalDestGraphicsCopyRbs >= 0))
         {
             const auto&  chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
             // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
-            // optimal number is one.  Also don't allow more RBs than physically exist.
+            // optimal number is one.  Also don't allow more RBs than actively exist.
             const uint32 numNeededTotalRbs = Min(Max(1u,
-                                                     static_cast<uint32>(settings.nonlocalDestGraphicsCopyRbs)),
-                                                 chipProps.numTotalRbs);
+                                                     static_cast<uint32>(coreSettings.nonlocalDestGraphicsCopyRbs)),
+                                                 chipProps.numActiveRbs);
 
             // We now have the total number of RBs that we need...  However, the ASIC divides RBs up between the
             // various SEs, so calculate how many SEs we need to involve and how many RBs each SE should use.

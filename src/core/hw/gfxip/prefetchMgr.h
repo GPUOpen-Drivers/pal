@@ -30,6 +30,20 @@ namespace Pal
 
 class GfxDevice;
 
+// Note that these enums are in priority order for loading.  Ideally, we will prefetch in the
+// order data will be read as a draw/dispatch flows through the pipeline.
+enum PrefetchType : uint32
+{
+    PrefetchCs = 0,
+    PrefetchVs = 1,
+    PrefetchHs = 2,
+    PrefetchDs = 3,
+    PrefetchGs = 4,
+    PrefetchPs = 5,
+    PrefetchCopyShader = 6,
+    NumPrefetchTypes = 7,
+};
+
 // =====================================================================================================================
 // Manages prefetching (L2 shader cache warming) for various types of data on behalf of a command buffer.
 class PrefetchMgr

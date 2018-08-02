@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/settingsLoader.h"
+#include "palSettingsLoader.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palAssert.h"
 
@@ -41,38 +41,36 @@ namespace Gfx9
 // This class is responsible for loading the Gfx9-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader : public Pal::SettingsLoader
+class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
     SettingsLoader(Pal::Device* pDevice);
+    virtual ~SettingsLoader();
 
-    static const Gfx9PalSettings* GetSettings(const PalSettings* pSettings)
-        { return (static_cast<const Gfx9PalSettings*>(pSettings)); }
+    virtual Result Init() override;
 
-protected:
-    virtual void HwlInit() override;
-    virtual void HwlValidateSettings() override;
-    virtual void HwlReadSettings() override;
+    const Gfx9PalSettings& GetSettings() const { return m_settings; }
 
-    virtual void HwlOverrideDefaults() override;
+    void ValidateSettings(PalSettings* pSettings);
+    void OverrideDefaults(PalSettings* pSettings);
 
 private:
-    virtual ~SettingsLoader();
+    PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
+    PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
     virtual void GenerateSettingHash() override;
 
-    void OverrideGfx9Defaults();
+    // Private members
+    Gfx9PalSettings  m_settings;  ///< Gfx9 settings pointer
+    const GfxIpLevel m_gfxLevel;
 
     // auto-generated functions
-    static void Gfx9SetupDefaults(Gfx9PalSettings* pSettings);
-    void Gfx9ReadSettings(Gfx9PalSettings* pSettings);
+    virtual void SetupDefaults() override;
+    virtual void ReadSettings() override;
+    virtual void InitSettingsInfo() override;
+    virtual void DevDriverRegister() override;
 
-    // Private members
-    Gfx9PalSettings   m_gfx9Settings;  ///< Gfx9 settings info
-    const GfxIpLevel  m_gfxLevel;
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
-    PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
+    const char* m_pComponentName = "Gfx9_Pal";
 };
 
 } // Gfx9

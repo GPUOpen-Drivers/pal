@@ -137,6 +137,8 @@ Result ShaderRingSet::Init()
     {
         for (size_t idx = 0; idx < m_numRings; ++idx)
         {
+            bool shaderRingRequired = true;
+
             // Allocate the shader ring objects.
             switch (static_cast<ShaderRingType>(idx))
             {
@@ -172,6 +174,10 @@ Result ShaderRingSet::Init()
                     m_ppRings[idx] =
                         PAL_NEW(OffchipLdsBuffer, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable);
                 }
+                else
+                {
+                    shaderRingRequired = false;
+                }
                 break;
 
             case ShaderRingType::SamplePos:
@@ -184,7 +190,11 @@ Result ShaderRingSet::Init()
                 break;
             }
 
-            // Note: Not creating a ring object is not a fatal error condition.
+            if (shaderRingRequired && (m_ppRings[idx] == nullptr))
+            {
+                result = Result::ErrorOutOfMemory;
+                break;
+            }
         }
     }
 

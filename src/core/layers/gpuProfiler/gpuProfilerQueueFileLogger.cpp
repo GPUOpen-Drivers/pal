@@ -179,7 +179,7 @@ void Queue::OpenLogFile(
     m_logFile.Write(&tempString[0], strlen(&tempString[0]));
 
     // Add some additional column headers based on enabled profiling features.
-    if (settings.gpuProfilerRecordPipelineStats)
+    if (settings.profilerConfig.recordPipelineStats)
     {
         const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,"
                                               "GsPrimitives,CInvocations,CPrimitives,PsInvocations,"
@@ -355,7 +355,7 @@ void Queue::OutputQueueCallToFile(
 
     m_logFile.Printf("%s,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
 
-    if (m_pDevice->ProfilerSettings().gpuProfilerRecordPipelineStats)
+    if (m_pDevice->ProfilerSettings().profilerConfig.recordPipelineStats)
     {
         m_logFile.Printf(",,,,,,,,,,,");
     }
@@ -510,7 +510,8 @@ void Queue::OutputTimestampsToFile(
 
         m_logFile.Printf("%llu,%llu,", pResult[0], pResult[1]);
 
-        bool hideElapsedTime = (m_pDevice->ProfilerSettings().gpuProfilerGranularity == GpuProfilerGranularityDraw) &&
+        bool hideElapsedTime =
+            (m_pDevice->ProfilerSettings().perfCounterConfig.granularity == GpuProfilerGranularityDraw) &&
                                (logItem.type == LogItemType::CmdBufferCall) &&
                                (logItem.cmdBufCall.callId == CmdBufCallId::Begin);
 
@@ -555,7 +556,7 @@ void Queue::OutputPipelineStatsToFile(
                          pipelineStats[1], pipelineStats[2], pipelineStats[3], pipelineStats[4], pipelineStats[5],
                          pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10]);
     }
-    else if (m_pDevice->ProfilerSettings().gpuProfilerRecordPipelineStats)
+    else if (m_pDevice->ProfilerSettings().profilerConfig.recordPipelineStats)
     {
         m_logFile.Printf(",,,,,,,,,,,");
     }
@@ -649,7 +650,7 @@ void Queue::OutputTraceDataToFile(
         // Output trace data in RGP format.
         if ((m_pDevice->GetProfilerMode() == GpuProfilerSqttRgp))
         {
-            if (settings.gpuProfilerGranularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
+            if (settings.perfCounterConfig.granularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
                 m_logFile.Printf("%u,", m_curLogFrame);

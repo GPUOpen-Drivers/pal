@@ -181,7 +181,7 @@ public:
                                 const DepthStencilState* pDepthStencilState,
                                 const ColorBlendState*   pBlendState,
                                 uint32                   hasActiveQueries,
-                                Gfx9OutOfOrderPrimMode   gfx9EnableOutOfOrderPrimitives) const;
+                                OutOfOrderPrimMode       gfx9EnableOutOfOrderPrimitives) const;
     bool PsTexKill() const;
     bool IsAlphaToMaskEnable() const;
     bool PsCanTriviallyReject() const;
@@ -203,7 +203,7 @@ public:
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_chunkGs.VgtGsOnchipCntl(); }
 
     bool IsNgg() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
-    bool IsNggFastLaunch() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.GS_FAST_LAUNCH != 0); }
+    bool IsNggFastLaunch() const;
 
     bool UsesInnerCoverage() const { return m_chunkPs.UsesInnerCoverage(); }
     bool UsesOffchipParamCache() const { return (m_spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }

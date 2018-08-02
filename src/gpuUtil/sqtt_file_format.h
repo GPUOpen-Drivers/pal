@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,6 @@
  *
  **********************************************************************************************************************/
 
-// Copyright (c) AMD Corporation. All rights reserved.
-
 #ifndef SQTT_FILE_FORMAT_H
 #define SQTT_FILE_FORMAT_H
 
@@ -38,6 +36,22 @@
 extern "C" {
 #endif
 
+/** An structure defining available File Header flags.
+*/
+typedef struct SqttFileHeaderFlags
+{
+    union
+    {
+        struct
+        {
+            int32_t  isSemaphoreQueueTimingETW : 1;  /*!< Indicates the source of semaphore queue timing data is ETW. */
+            int32_t  reserved : 31;                  /*!< Reserved, set to 0. */
+        };
+
+        uint32_t value;                              /*!< 32bit value containing all the above fields. */
+    };
+} SqttFileHeaderFlags;
+
 /** Structure encapsulating the file header of an SQTT file.
  */
 typedef struct SqttFileHeader
@@ -45,7 +59,7 @@ typedef struct SqttFileHeader
     uint32_t                magicNumber;       /*!< Magic number, always set to <c><i>SQTT_FILE_MAGIC_NUMBER</i></c> */
     uint32_t                versionMajor;      /*!< The major version number of the file. */
     uint32_t                versionMinor;      /*!< The minor version number of the file. */
-    uint32_t                flags;             /*!< Bitfield of flags set with information about the file. */
+    SqttFileHeaderFlags     flags;             /*!< Bitfield of flags set with information about the file. */
     int32_t                 chunkOffset;       /*!< The offset in bytes to the first chunk contained in the file. */
     int32_t                 second;            /*!< The second in the minute that the RGP file was created. */
     int32_t                 minute;            /*!< The minute in the hour that the RGP file was created. */

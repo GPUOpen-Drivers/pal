@@ -103,7 +103,7 @@ sub startPerfTable
     $self->{curDefs} = $defs;
 
     #my $revFunc =
-    $self->{ifCases}.= " if (Is${asic}(*m_pDevice))\n";
+    $self->{ifCases}.= " if (Is${asic}(*(static_cast<Pal::Device*>(m_pDevice))))\n";
     $self->{ifCases}.= "${TAB}\{\n";
 }
 

@@ -70,7 +70,6 @@ ColorTargetView::ColorTargetView(
     if (m_flags.isBufferView == 0)
     {
         PAL_ASSERT(m_pImage != nullptr);
-        m_flags.usesLoadRegIndexPkt = pDevice->Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt;
 
         // If this assert triggers the caller is probably trying to select z slices using the subresource range
         // instead of the zRange as required by the PAL interface.
@@ -209,30 +208,20 @@ void ColorTargetView::CommonBuildPm4Headers(
         //
         // NOTE: Just because we have DCC data doesn't mean that we're doing fast-clears. Writing this register
         // shouldn't hurt anything though. We do not know the GPU virtual address of the metadata until bind-time.
-        constexpr uint32 RegCount = (mmCB_COLOR0_CLEAR_WORD1 - mmCB_COLOR0_CLEAR_WORD0 + 1);
-
-        if (m_flags.usesLoadRegIndexPkt != 0)
-        {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
-                                                                            mmCB_COLOR0_CLEAR_WORD0,
-                                                                            RegCount,
-                                                                            &pPm4Img->loadMetaDataIndex);
-        }
-        else
-        {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegs(0,
-                                                                 mmCB_COLOR0_CLEAR_WORD0,
-                                                                 RegCount,
-                                                                 &pPm4Img->loadMetaData);
-        }
+        pPm4Img->spaceNeeded +=
+            cmdUtil.BuildLoadContextRegsIndex<true>(0,
+                                                    mmCB_COLOR0_CLEAR_WORD0,
+                                                    (mmCB_COLOR0_CLEAR_WORD1 - mmCB_COLOR0_CLEAR_WORD0 + 1),
+                                                    &pPm4Img->loadMetaDataIndex);
     }
 }
 
 // =====================================================================================================================
-template <typename Pm4ImgType>
+template <typename Pm4ImgType, typename CbColorViewType>
 void ColorTargetView::InitCommonBufferView(
     const ColorTargetViewCreateInfo& createInfo,
-    Pm4ImgType*                      pPm4Img
+    Pm4ImgType*                      pPm4Img,
+    CbColorViewType*                 pCbColorView
     ) const
 {
     PAL_ASSERT(createInfo.bufferInfo.pGpuMemory != nullptr);
@@ -250,9 +239,9 @@ void ColorTargetView::InitCommonBufferView(
     pPm4Img->cbColorBase.bits.BASE_256B = Get256BAddrLo(baseAddr);
 
     // The view slice_start is overloaded to specify the base offset.
-    pPm4Img->cbColorView.bits.SLICE_START = baseOffset;
-    pPm4Img->cbColorView.bits.SLICE_MAX   = 0;
-    pPm4Img->cbColorView.bits.MIP_LEVEL   = 0;
+    pCbColorView->SLICE_START = baseOffset;
+    pCbColorView->SLICE_MAX   = 0;
+    pCbColorView->MIP_LEVEL   = 0;
 
     // According to the other UMDs, this is the absolute max mip level. For one mip level, the MAX_MIP is mip #0.
     pPm4Img->cbColorAttrib2.bits.MAX_MIP     = 0;
@@ -309,14 +298,15 @@ regCB_COLOR0_INFO ColorTargetView::InitCommonCbColorInfo(
 }
 
 // =====================================================================================================================
-template <typename Pm4ImgType>
+template <typename Pm4ImgType, typename CbColorViewType>
 void ColorTargetView::InitCommonImageView(
     const ColorTargetViewCreateInfo&         createInfo,
     const ColorTargetViewInternalCreateInfo& internalInfo,
     const Extent3d&                          baseExtent,
     const Extent3d&                          extent,
     Pm4ImgType*                              pPm4Img,
-    regCB_COLOR0_INFO*                       pCbColorInfo
+    regCB_COLOR0_INFO*                       pCbColorInfo,
+    CbColorViewType*                         pCbColorView
     ) const
 {
     const Pal::Device*      pParentDevice   = m_pDevice->Parent();
@@ -339,17 +329,17 @@ void ColorTargetView::InitCommonImageView(
 
     if ((createInfo.flags.zRangeValid == 1) && (imageType == ImageType::Tex3d))
     {
-        pPm4Img->cbColorView.bits.SLICE_START = createInfo.zRange.offset;
-        pPm4Img->cbColorView.bits.SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
-        pPm4Img->cbColorView.bits.MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
+        pCbColorView->SLICE_START = createInfo.zRange.offset;
+        pCbColorView->SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
+        pCbColorView->MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
     }
     else
     {
         const uint32 baseArraySlice = createInfo.imageInfo.baseSubRes.arraySlice;
 
-        pPm4Img->cbColorView.bits.SLICE_START = baseArraySlice;
-        pPm4Img->cbColorView.bits.SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
-        pPm4Img->cbColorView.bits.MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
+        pCbColorView->SLICE_START = baseArraySlice;
+        pCbColorView->SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
+        pCbColorView->MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
     }
 
     if (m_flags.hasDcc != 0)
@@ -411,22 +401,8 @@ void ColorTargetView::UpdateImageVa(
             gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
             PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
 
-            // If this view uses the legacy LOAD_CONTEXT_REG packet to load the fast-clear registers, we need to
-            // subtract the register offset for the LOAD packet from the address we specify to account for the fact that
-            // the CP uses that register offset for both the register address and to compute the final GPU address to
-            // fetch from. The newer LOAD_CONTEXT_REG_INDEX packet does not add the register offset to the GPU address.
-            if (m_flags.usesLoadRegIndexPkt == 0)
-            {
-                metaDataVirtAddr -= (sizeof(uint32) * pPm4Img->loadMetaData.bitfields4.reg_offset);
-
-                pPm4Img->loadMetaData.bitfields2.base_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-                pPm4Img->loadMetaData.base_addr_hi            = HighPart(metaDataVirtAddr);
-            }
-            else
-            {
-                pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-                pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
-            }
+            pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
+            pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
 
             // Tell the HW where the DCC surface is
             pPm4Img->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr();
@@ -471,10 +447,10 @@ void Gfx9ColorTargetView::BuildPm4Headers()
     spaceNeeded += CmdUtil::ContextRegRmwSizeDwords;
 
     spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmCB_COLOR0_ATTRIB,
-                                                  mmCB_COLOR0_DCC_BASE_EXT__GFX09,
+                                                  Gfx09::mmCB_COLOR0_DCC_BASE_EXT,
                                                   &m_pm4Cmds.hdrCbColorAttrib);
 
-    spaceNeeded += cmdUtil.BuildSetOneContextReg(mmCB_MRT0_EPITCH__GFX09, &m_pm4Cmds.hdrCbMrtEpitch);
+    spaceNeeded += cmdUtil.BuildSetOneContextReg(Gfx09::mmCB_MRT0_EPITCH, &m_pm4Cmds.hdrCbMrtEpitch);
 
     m_pm4Cmds.spaceNeeded             = spaceNeeded;
     m_pm4Cmds.spaceNeededDecompressed = spaceNeeded;
@@ -498,16 +474,16 @@ void Gfx9ColorTargetView::InitRegisters(
     {
         PAL_ASSERT(createInfo.bufferInfo.offset == 0);
 
-        InitCommonBufferView(createInfo, &m_pm4Cmds);
+        InitCommonBufferView(createInfo, &m_pm4Cmds, &m_pm4Cmds.cbColorView.gfx09);
 
-        m_pm4Cmds.cbColorAttrib.bits.MIP0_DEPTH    = 0; // what is this?
-        m_pm4Cmds.cbColorAttrib.bits.COLOR_SW_MODE = SW_LINEAR;
-        m_pm4Cmds.cbColorAttrib.bits.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
-        m_pm4Cmds.cbColorAttrib.bits.RB_ALIGNED    = 0;
-        m_pm4Cmds.cbColorAttrib.bits.PIPE_ALIGNED  = 0;
-        m_pm4Cmds.cbColorAttrib.bits.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
-        m_pm4Cmds.cbColorAttrib.bits.META_LINEAR   = 0;         // linear meta surfaces not supported on gfx9
-        m_pm4Cmds.cbMrtEpitch.bits.EPITCH          = (createInfo.bufferInfo.extent - 1);
+        m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    = 0; // what is this?
+        m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE = SW_LINEAR;
+        m_pm4Cmds.cbColorAttrib.gfx09.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
+        m_pm4Cmds.cbColorAttrib.gfx09.RB_ALIGNED    = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.PIPE_ALIGNED  = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.FMASK_SW_MODE = SW_LINEAR; // ignored as there is no fmask
+        m_pm4Cmds.cbColorAttrib.gfx09.META_LINEAR   = 0;         // linear meta surfaces not supported on gfx9
+        m_pm4Cmds.cbMrtEpitch.bits.EPITCH           = (createInfo.bufferInfo.extent - 1);
     }
     else
     {
@@ -574,19 +550,25 @@ void Gfx9ColorTargetView::InitRegisters(
             extent     = pSubResInfo->extentElements;
         }
 
-        InitCommonImageView(createInfo, internalInfo, baseExtent, extent, &m_pm4Cmds, &cbColorInfo);
+        InitCommonImageView(createInfo,
+                            internalInfo,
+                            baseExtent,
+                            extent,
+                            &m_pm4Cmds,
+                            &cbColorInfo,
+                            &m_pm4Cmds.cbColorView.gfx09);
 
-        m_pm4Cmds.cbColorAttrib.bits.MIP0_DEPTH    =
+        m_pm4Cmds.cbColorAttrib.gfx09.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
-        m_pm4Cmds.cbColorAttrib.bits.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
-        m_pm4Cmds.cbColorAttrib.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
-        m_pm4Cmds.cbColorAttrib.bits.RB_ALIGNED    = m_pImage->IsRbAligned();
-        m_pm4Cmds.cbColorAttrib.bits.PIPE_ALIGNED  = m_pImage->IsPipeAligned();
-        m_pm4Cmds.cbColorAttrib.bits.META_LINEAR   = 0;
+        m_pm4Cmds.cbColorAttrib.gfx09.COLOR_SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        m_pm4Cmds.cbColorAttrib.gfx09.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
+        m_pm4Cmds.cbColorAttrib.gfx09.RB_ALIGNED    = m_pImage->IsRbAligned();
+        m_pm4Cmds.cbColorAttrib.gfx09.PIPE_ALIGNED  = m_pImage->IsPipeAligned();
+        m_pm4Cmds.cbColorAttrib.gfx09.META_LINEAR   = 0;
 
         const AddrSwizzleMode fMaskSwizzleMode =
             (m_pImage->HasFmaskData() ? m_pImage->GetFmask()->GetSwizzleMode() : ADDR_SW_LINEAR /* ignored */);
-        m_pm4Cmds.cbColorAttrib.bits.FMASK_SW_MODE = AddrMgr2::GetHwSwizzleMode(fMaskSwizzleMode);
+        m_pm4Cmds.cbColorAttrib.gfx09.FMASK_SW_MODE = AddrMgr2::GetHwSwizzleMode(fMaskSwizzleMode);
 
         if (modifiedYuvExtent)
         {
@@ -642,24 +624,11 @@ uint32* Gfx9ColorTargetView::WriteCommands(
         // to one another, so for that one we can just increment by 'slot'.
         const uint32 slotDelta = (slot * CbRegsPerSlot);
 
-        patchedPm4Commands.hdrCbColorBase.bitfields2.reg_offset   += slotDelta;
-        patchedPm4Commands.hdrCbColorAttrib.bitfields2.reg_offset += slotDelta;
-        patchedPm4Commands.hdrCbMrtEpitch.bitfields2.reg_offset   += slot;
-        patchedPm4Commands.cbColorInfo.bitfields2.reg_offset      += slotDelta;
-        patchedPm4Commands.loadMetaData.bitfields4.reg_offset     += slotDelta;
-
-        if ((m_flags.usesLoadRegIndexPkt == 0) && (m_flags.viewVaLocked != 0))
-        {
-            // If this view uses the legacy LOAD_CONTEXT_REG packet to load fast-clear registers, we need to update
-            // the metadata load address along with the register offset.  See UpdateImageVa() for more details.
-            const gpusize metaDataVirtAddrX4 =
-                ((static_cast<uint64>(patchedPm4Commands.loadMetaData.base_addr_hi) << 32) |
-                 patchedPm4Commands.loadMetaData.bitfields2.base_addr_lo) -
-                slotDelta;
-
-           patchedPm4Commands.loadMetaData.bitfields2.base_addr_lo = LowPart(metaDataVirtAddrX4);
-           patchedPm4Commands.loadMetaData.base_addr_hi            = HighPart(metaDataVirtAddrX4);
-        }
+        patchedPm4Commands.hdrCbColorBase.bitfields2.reg_offset    += slotDelta;
+        patchedPm4Commands.hdrCbColorAttrib.bitfields2.reg_offset  += slotDelta;
+        patchedPm4Commands.hdrCbMrtEpitch.bitfields2.reg_offset    += slot;
+        patchedPm4Commands.cbColorInfo.bitfields2.reg_offset       += slotDelta;
+        patchedPm4Commands.loadMetaDataIndex.bitfields4.reg_offset += slotDelta;
     }
 
     size_t spaceNeeded = pPm4Commands->spaceNeeded;

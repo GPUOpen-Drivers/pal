@@ -309,7 +309,7 @@ Platform::Platform(
     }
 #endif
 
-    m_flags.u32All = 0;
+    m_flags.u32All       = 0;
 
     memset(&m_startTime, 0, sizeof(m_startTime));
     memset(&m_threadKey, 0, sizeof(m_threadKey));
@@ -464,11 +464,11 @@ Result Platform::CommitLoggingSettings()
         // Save a copy of the logging presets.
         const auto settings =
             static_cast<const InterfaceLogger::Device*const>(m_pDevices[0])->GetInterfaceLoggerSettings();
-        m_loggingPresets[0] = settings.interfaceLoggerBasePreset;
-        m_loggingPresets[1] = settings.interfaceLoggerElevatedPreset;
+        m_loggingPresets[0] = settings.basePreset;
+        m_loggingPresets[1] = settings.elevatedPreset;
 
         // Try to create the root log directory.
-        result = CreateLogDir(settings.interfaceLoggerDirectory);
+        result = CreateLogDir(settings.logDirectory);
 
         if (result == Result::Success)
         {
@@ -481,7 +481,7 @@ Result Platform::CommitLoggingSettings()
 
         // If multithreaded logging is enabled, we need to go back over our previously allocated ThreadData and give
         // them a context.
-        if ((result == Result::Success) && settings.interfaceLoggerMultithreaded)
+        if ((result == Result::Success) && settings.multithreaded)
         {
             m_flags.multithreaded = 1;
 

@@ -498,16 +498,16 @@ gpusize OffchipLdsBuffer::ComputeAllocationSize() const
     gpusize offchipLdsBufferSizeDwords = 0;
     switch (m_pDevice->Settings().gfx7OffchipLdsBufferSize)
     {
-    case Gfx7OffchipLdsBufferSize1024:
+    case OffchipLdsBufferSize1024:
         offchipLdsBufferSizeDwords = 1024;
         break;
-    case Gfx7OffchipLdsBufferSize2048:
+    case OffchipLdsBufferSize2048:
         offchipLdsBufferSizeDwords = 2048;
         break;
-    case Gfx7OffchipLdsBufferSize4096:
+    case OffchipLdsBufferSize4096:
         offchipLdsBufferSizeDwords = 4096;
         break;
-    case Gfx7OffchipLdsBufferSize8192:
+    case OffchipLdsBufferSize8192:
         offchipLdsBufferSizeDwords = 8192;
         break;
     default:

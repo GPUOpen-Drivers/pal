@@ -33,20 +33,18 @@
 #include "core/layers/decorators.h"
 #endif
 
-#if PAL_BUILD_GPUOPEN
+// Dev Driver includes
 #include "devDriverUtil.h"
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/loggingServer.h"
-#endif
 
 using namespace Util;
 
 namespace Pal
 {
 
-#if PAL_BUILD_GPUOPEN
 static_assert(static_cast<uint32>(LogLevel::Debug)   == static_cast<uint32>(DevDriver::LogLevel::Debug),
               "DevDriver::LogLevel enum mismatch!");
 static_assert(static_cast<uint32>(LogLevel::Verbose) == static_cast<uint32>(DevDriver::LogLevel::Verbose),
@@ -59,7 +57,6 @@ static_assert(static_cast<uint32>(LogLevel::Error)   == static_cast<uint32>(DevD
               "DevDriver::LogLevel enum mismatch!");
 static_assert(static_cast<uint32>(LogLevel::Always)  == static_cast<uint32>(DevDriver::LogLevel::Always),
               "DevDriver::LogLevel enum mismatch!");
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
@@ -91,12 +88,10 @@ Platform::Platform(
     :
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
-#if PAL_BUILD_GPUOPEN
     m_pDevDriverServer(nullptr),
     m_pRgpServer(nullptr),
     m_pLoggingServer(nullptr),
     m_pPipelineDumpService(nullptr),
-#endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -125,9 +120,7 @@ Platform::Platform(
 // =====================================================================================================================
 Platform::~Platform()
 {
-#if PAL_BUILD_GPUOPEN
     DestroyDevDriver();
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Unhook the debug print callback to keep assert/alert function (majorly for client driver) after platform get
@@ -319,13 +312,11 @@ Result Platform::Init()
 {
     Result result = IPlatform::Init();
 
-#if PAL_BUILD_GPUOPEN
     // Perform early initialization of the developer driver after the platform is available.
     if (result == Result::Success)
     {
         EarlyInitDevDriver();
     }
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Set the debug print callback to make debug prints visible over the logging protocol.
@@ -345,13 +336,11 @@ Result Platform::Init()
         result = ReEnumerateDevices();
     }
 
-#if PAL_BUILD_GPUOPEN
     // Perform late initialization of the developer driver after devices have been enumerated.
     if (result == Result::Success)
     {
         LateInitDevDriver();
     }
-#endif
 
     if (result == Result::Success)
     {
@@ -361,7 +350,6 @@ Result Platform::Init()
     return result;
 }
 
-#if PAL_BUILD_GPUOPEN
 // =====================================================================================================================
 // Initializes a connection with the developer driver message bus if it's currently enabled on the system.
 // This function should be called before device enumeration.
@@ -589,7 +577,6 @@ void Platform::DestroyDevDriver()
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
     }
 }
-#endif
 
 // =====================================================================================================================
 // Initializes the platform's properties structure. Assume that the constructor zeroed the properties and fill out all
@@ -654,7 +641,6 @@ bool Platform::IsInterfaceLoggerEnabled() const
 }
 #endif
 
-#if PAL_BUILD_GPUOPEN
 // =====================================================================================================================
 bool Platform::IsDevDriverProfilingEnabled() const
 {
@@ -679,7 +665,6 @@ bool Platform::ShowDevDriverOverlay() const
 
     return showOverlay;
 }
-#endif
 
 // =====================================================================================================================
 void Platform::LogMessage(
@@ -688,7 +673,6 @@ void Platform::LogMessage(
     const char*     pFormat,
     va_list         args)
 {
-#if PAL_BUILD_GPUOPEN
     if (m_pLoggingServer != nullptr)
     {
         m_pLoggingServer->Log(static_cast<DevDriver::LogLevel>(level),
@@ -696,7 +680,6 @@ void Platform::LogMessage(
                               pFormat,
                               args);
     }
-#endif
 
     if (m_logCb.pfnLogCb != nullptr)
     {
