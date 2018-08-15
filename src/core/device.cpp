@@ -172,7 +172,7 @@ bool Device::DetermineGpuIpLevels(
         pIpLevels->oss = Oss2_4::DetermineIpLevel(familyId, eRevId);
         break;
 #endif
-#if PAL_BUILD_OSS4
+#if PAL_BUILD_OSS4 && PAL_BUILD_GFX9
     case FAMILY_AI:
     case FAMILY_RV:
         pIpLevels->oss = Oss4::DetermineIpLevel(familyId, eRevId);
