@@ -31,6 +31,7 @@
 #include "core/cmdStream.h"
 #include "core/platform.h"
 #include "palHashMap.h"
+#include "palSysMemory.h"
 
 typedef union _ADDR_CREATE_FLAGS ADDR_CREATE_FLAGS;
 typedef struct _ADDR_REGISTER_VALUE ADDR_REGISTER_VALUE;
@@ -629,7 +630,8 @@ protected:
     bool    m_waEnableDccCacheFlushAndInvalidate;
     bool    m_waTcCompatZRange;
     bool    m_degeneratePrimFilter;
-    ISettingsLoader* m_pSettingsLoader;
+    ISettingsLoader*  m_pSettingsLoader;
+    Util::IndirectAllocator m_allocator;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
 
@@ -663,7 +665,7 @@ extern Result CreateDevice(
     DeviceInterfacePfnTable* pPfnTable,
     GfxDevice**              ppGfxDevice);
 // Creates SettingsLoader object for Gfx6/7/8 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
+extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
 } // Gfx6
 #endif
 
@@ -677,7 +679,7 @@ extern Result CreateDevice(
     DeviceInterfacePfnTable*  pPfnTable,
     GfxDevice**               ppGfxDevice);
 // Creates SettingsLoader object for Gfx9/10 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
+extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
 } // Gfx9
 #endif
 

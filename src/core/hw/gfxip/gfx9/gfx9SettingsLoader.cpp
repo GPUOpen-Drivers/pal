@@ -48,20 +48,23 @@ constexpr uint32 MinUcodeFeatureVersionMcbpFix = 36;
 
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
-    Pal::Device* pDevice)
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
     :
-    Pal::ISettingsLoader(pDevice,
-                         pDevice->GetPlatform(),
+    Pal::ISettingsLoader(pAllocator,
                          static_cast<DriverSettings*>(&m_settings),
                          g_gfx9PalNumSettings),
+    m_pDevice(pDevice),
+    m_settings(),
     m_gfxLevel(pDevice->ChipProperties().gfxLevel)
 {
+    memset(&m_settings, 0, sizeof(Gfx9PalSettings));
 }
 
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
-    auto* pDevDriverServer = static_cast<Pal::Device*>(m_pDevice)->GetPlatform()->GetDevDriverServer();
+    auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {
         auto* pSettingsService = pDevDriverServer->GetSettingsService();
@@ -104,17 +107,16 @@ Result SettingsLoader::Init()
 void SettingsLoader::ValidateSettings(
     PalSettings* pSettings)
 {
-    Pal::Device* pDevice = static_cast<Pal::Device*>(m_pDevice);
-    const auto& chipProps = pDevice->ChipProperties();
+    const auto& chipProps = m_pDevice->ChipProperties();
     const auto& gfx9Props = chipProps.gfx9;
     // Some hardware can support 128 offchip buffers per SE, but most support 64.
     const uint32 maxOffchipLdsBuffersPerSe = (gfx9Props.doubleOffchipLdsBuffers ? 128 : 64);
     // Compute the number of offchip LDS buffers for the whole chip.
     uint32 maxOffchipLdsBuffers = (gfx9Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
-    auto pPalSettings = pDevice->GetPublicSettings();
+    auto pPalSettings = m_pDevice->GetPublicSettings();
 
-    if (IsVega10(*pDevice))
+    if (IsVega10(*m_pDevice))
     {
         // Vega10 has a HW bug where during Tessellation, the SPI can load incorrect SDATA terms for offchip LDS.
         // We must limit the number of offchip buffers to 508 (127 offchip buffers per SE).
@@ -131,13 +133,13 @@ void SettingsLoader::ValidateSettings(
     // We also need to make sure any microcode versions which are before the microcode fix disable preemption, even if
     // the user tried to enable it through the panel.
     if ((m_gfxLevel == GfxIpLevel::GfxIp9) &&
-        (pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
+        (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
         // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
         // but we can't support state shadowing without these features.
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
     }
-    else if (pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
@@ -227,11 +229,11 @@ void SettingsLoader::ValidateSettings(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    Pal::Device* pDevice = static_cast<Pal::Device*>(m_pDevice);
-
     // Enable workarounds which are common to all Gfx9/Gfx9+ hardware.
-    if (IsGfx9(*pDevice))
+    if (IsGfx9(*m_pDevice))
     {
+        m_settings.nggMode = Gfx9NggDisabled;
+
         m_settings.waColorCacheControllerInvalidEviction = true;
 
         m_settings.waDisableHtilePrefetch = true;
@@ -254,7 +256,7 @@ void SettingsLoader::OverrideDefaults(
         m_settings.waDummyZpassDoneBeforeTs = true;
     }
 
-    if (IsVega10(*pDevice) || IsRaven(*pDevice))
+    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice))
     {
         m_settings.waHtilePipeBankXorMustBeZero = true;
 
@@ -269,13 +271,13 @@ void SettingsLoader::OverrideDefaults(
         m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
     }
 
-    if (IsVega10(*pDevice) || IsRaven(*pDevice)
+    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice)
         )
     {
         m_settings.waMetaAliasingFixEnabled = false;
     }
 
-    const auto& gfx9Props = pDevice->ChipProperties().gfx9;
+    const auto& gfx9Props = m_pDevice->ChipProperties().gfx9;
 
     if (m_settings.binningMaxAllocCountLegacy == 0)
     {

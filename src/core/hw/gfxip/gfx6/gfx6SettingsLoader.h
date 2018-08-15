@@ -29,6 +29,8 @@
 #include "core/device.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 
+namespace Util { class IndirectAllocator; }
+
 namespace Pal
 {
 
@@ -42,7 +44,7 @@ namespace Gfx6
 class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
-    SettingsLoader(Pal::Device* pDevice);
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
     virtual ~SettingsLoader();
 
     virtual Result Init() override;
@@ -61,6 +63,7 @@ private:
     virtual void GenerateSettingHash() override;
 
     // Private members
+    Pal::Device*    m_pDevice;
     Gfx6PalSettings m_settings;  ///< Gfx6 settings pointer
 
     // auto-generated functions

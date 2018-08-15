@@ -57,7 +57,6 @@ PalHeaderIncludes = "\n\
 #include \"palSettingsLoader.h\"\n"
 
 DevDriverIncludes = "\n\
-#include \"palSettingsLoaderImpl.h\"\n\
 #include \"devDriverServer.h\"\n\
 #include \"protocols/ddSettingsService.h\"\n\
 \n\

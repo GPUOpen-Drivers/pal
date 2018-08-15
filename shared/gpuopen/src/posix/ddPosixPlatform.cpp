@@ -67,6 +67,8 @@ namespace DevDriver
         //
         void DebugPrint(LogLevel lvl, const char* format, ...)
         {
+            DD_UNUSED(lvl);
+
             va_list args;
             va_start(args, format);
             char buffer[1024];
@@ -448,6 +450,20 @@ namespace DevDriver
 
             strncpy(pDst, pSrc, (dstSize - 1));
             pDst[dstSize - 1] = '\0';
+        }
+
+        char* Strtok(char* pDst, const char* pDelimiter, char** ppContext)
+        {
+            DD_ASSERT(pDelimiter != nullptr);
+            DD_UNUSED(ppContext);
+            return strtok(pDst, pDelimiter);
+        }
+
+        void Strcat(char* pDst, const char* pSrc)
+        {
+            DD_ASSERT(pDst != nullptr);
+            DD_ASSERT(pSrc != nullptr);
+            strcat(pDst, pSrc);
         }
 
         void Snprintf(char* pDst, size_t dstSize, const char* format, ...)

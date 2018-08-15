@@ -111,6 +111,14 @@ Result ComputeCmdBuffer::Init(
         result = m_cmdStream.Init();
     }
 
+    if (result == Result::Success)
+    {
+        // The indirect user data tables immediately follow the command buffer object in memory. The GfxIp-specific
+        // command buffer object's size must be used in order to ensure the location is correct.
+        SetupIndirectUserDataTables(reinterpret_cast<uint32*>(this + 1));
+
+    }
+
     return result;
 }
 

@@ -50,6 +50,8 @@ enum class KeyCode : uint32
     F11,
     F12,
     Shift,
+    Shift_F10,
+    Shift_F11,
 };
 
 /// Enum to identify possible configurations
@@ -220,6 +222,34 @@ extern uint32 GetIdOfCurrentProcess();
 PAL_INLINE void FlushCpuWrites()
 {
      asm volatile("" ::: "memory");
+}
+
+// =====================================================================================================================
+/// Check if the request key is combo key
+/// @param [in]  key    The requested key value
+/// @param [out] pKeys  The array of keys the combo key composed of.
+PAL_INLINE bool IsComboKey(KeyCode key, KeyCode* pKeys)
+{
+    bool ret = false;
+
+    if (key == KeyCode::Shift_F10)
+    {
+        ret = true;
+        pKeys[0] = KeyCode::Shift;
+        pKeys[1] = KeyCode::F10;
+    }
+    else if (key == KeyCode::Shift_F11)
+    {
+        ret = true;
+        pKeys[0] = KeyCode::Shift;
+        pKeys[1] = KeyCode::F11;
+    }
+    else
+    {
+        pKeys[0] = key;
+    }
+
+    return ret;
 }
 
 // =====================================================================================================================

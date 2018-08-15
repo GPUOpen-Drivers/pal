@@ -137,6 +137,8 @@ protected:
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 
+    void SetupIndirectUserDataTables(uint32* pIndirectUserDataTables);
+
     struct
     {
         // Client-specified high-watermark for each indirect user-data table.  This indicates how much of each

@@ -67,6 +67,9 @@ public:
         Pal::Device*const     pDevice,
         const Pal::GpuMemory& gpuMemory) override;
 
+    virtual bool IsVamPartition(
+        VaPartition           vaPartition) const override;
+
 protected:
     void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr) override;
     void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc) override;
@@ -134,14 +137,16 @@ public:
     static Result GetReservedVaRange(
         const DrmLoaderFuncs& drmFuncs,
         amdgpu_device_handle  devHandle,
-        bool                  isDtifEnabled,
         GpuMemoryProperties*  memoryProperties);
 
     static void FreeReservedVaRange(
         const DrmLoaderFuncs& drmFuncs,
         amdgpu_device_handle  devHandle);
 
- private:
+    static bool IsVamPartition(
+        VaPartition           vaPartition);
+
+private:
     VamMgrSingleton();
     ~VamMgrSingleton();
 

@@ -29,6 +29,8 @@
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palAssert.h"
 
+namespace Util { class IndirectAllocator; }
+
 namespace Pal
 {
 
@@ -44,7 +46,7 @@ namespace Gfx9
 class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
-    SettingsLoader(Pal::Device* pDevice);
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
     virtual ~SettingsLoader();
 
     virtual Result Init() override;
@@ -61,6 +63,7 @@ private:
     virtual void GenerateSettingHash() override;
 
     // Private members
+    Pal::Device*     m_pDevice;
     Gfx9PalSettings  m_settings;  ///< Gfx9 settings pointer
     const GfxIpLevel m_gfxLevel;
 

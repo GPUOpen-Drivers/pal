@@ -3064,7 +3064,7 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
 
             // We now have the total number of RBs that we need...  However, the ASIC divides RBs up between the
             // various SEs, so calculate how many SEs we need to involve and how many RBs each SE should use.
-            const uint32  numNeededSes      = Max(1u, (numNeededTotalRbs / chipProps.maxNumRbPerSe));
+            const uint32  numNeededSes      = Max(1u, (numNeededTotalRbs / chipProps.activeNumRbPerSe));
             const uint32  numNeededRbsPerSe = numNeededTotalRbs / numNeededSes;
 
             // Write the new register value to the command stream

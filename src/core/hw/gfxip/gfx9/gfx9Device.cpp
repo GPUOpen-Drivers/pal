@@ -361,17 +361,11 @@ Result Device::InitOcclusionResetMem()
     // First, we initialize our copy of the reset data for a single query slot.
     memset(&m_occlusionSlotResetValues[0], 0, sizeof(m_occlusionSlotResetValues));
 
-    // Because the reset data was initialized to zero, we only need to fill in the valid bits for the disabled RBs.
-    if (chipProps.gfx9.numActiveRbs < chipProps.gfx9.numTotalRbs)
+    // For GFX9+, rbs pack the results of active rbs in-order.
+    for (uint32 rb = chipProps.gfx9.numActiveRbs; rb < chipProps.gfx9.numTotalRbs; rb++)
     {
-        for (uint32 rb = 0; rb < chipProps.gfx9.numTotalRbs; rb++)
-        {
-            if ((chipProps.gfx9.backendDisableMask & (1 << rb)) != 0)
-            {
-                m_occlusionSlotResetValues[rb].begin.bits.valid = 1;
-                m_occlusionSlotResetValues[rb].end.bits.valid   = 1;
-            }
-        }
+        m_occlusionSlotResetValues[rb].begin.bits.valid = 1;
+        m_occlusionSlotResetValues[rb].end.bits.valid   = 1;
     }
 
     const Gfx9PalSettings& gfx9Settings = GetGfx9Settings(*m_pParent);
@@ -2831,8 +2825,9 @@ void FinalizeGpuChipProperties(
     // We need to increase MaxNumRbs if this assert triggers.
     PAL_ASSERT(pInfo->gfx9.numTotalRbs <= MaxNumRbs);
 
-    // This will be overridden if any RBs are disabled.
-    pInfo->gfx9.numActiveRbs = pInfo->gfx9.numTotalRbs;
+    // Active RB counts will be overridden if any RBs are disabled.
+    pInfo->gfx9.numActiveRbs     = pInfo->gfx9.numTotalRbs;
+    pInfo->gfx9.activeNumRbPerSe = pInfo->gfx9.maxNumRbPerSe;
 
     // GPU__GC__NUM_SE
     pInfo->primsPerClock = pInfo->gfx9.numShaderEngines;
@@ -2845,8 +2840,10 @@ void FinalizeGpuChipProperties(
             const uint32 cuMask = pInfo->gfx9.activeCuMask[sa][se];
             const uint32 cuCount = CountSetBits(cuMask);
 
-            // It is expected that all SA's/SE's have the same number of CU's.
-            PAL_ASSERT((pInfo->gfx9.numCuPerSh == 0) || (pInfo->gfx9.numCuPerSh == cuCount));
+            // For gfx9 it is expected that all SA's/SE's have the same number of CU's.
+            PAL_ASSERT((pInfo->gfxLevel != GfxIpLevel::GfxIp9) ||
+                       (pInfo->gfx9.numCuPerSh == 0)           ||
+                       (pInfo->gfx9.numCuPerSh == cuCount));
             pInfo->gfx9.numCuPerSh = Max(pInfo->gfx9.numCuPerSh, cuCount);
         }
     }
@@ -3028,12 +3025,13 @@ uint32 Device::GetPipeInterleaveLog2() const
 // =====================================================================================================================
 // Creates a GFX9 specific settings loader object
 Pal::ISettingsLoader* CreateSettingsLoader(
-    Pal::Device* pDevice)
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
 {
     void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx9::SettingsLoader), alignof(Gfx9::SettingsLoader),
         pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
 
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx9::SettingsLoader(pDevice) : nullptr;
+    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx9::SettingsLoader(pAllocator, pDevice) : nullptr;
  }
 
 // =====================================================================================================================

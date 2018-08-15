@@ -47,9 +47,11 @@ namespace Pal
 // =====================================================================================================================
 // Constructor for the SettingsLoader object.
 SettingsLoader::SettingsLoader(
-    Device*      pDevice)
+    IndirectAllocator* pAllocator,
+    Device*            pDevice)
     :
-    ISettingsLoader(pDevice, pDevice->GetPlatform(), static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
+    ISettingsLoader(pAllocator, static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
+    m_pDevice(pDevice),
     m_settings()
 {
     memset(&m_settings, 0, sizeof(PalSettings));
@@ -58,7 +60,7 @@ SettingsLoader::SettingsLoader(
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
-    auto* pDevDriverServer = static_cast<Pal::Device*>(m_pDevice)->GetPlatform()->GetDevDriverServer();
+    auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {
         auto* pSettingsService = pDevDriverServer->GetSettingsService();
@@ -76,7 +78,6 @@ void SettingsLoader::InitDpLevelSettings()
 {
     bool ret = true;
 
-    Device* pDevice = static_cast<Device*>(m_pDevice);
     struct
     {
         const char*      pRegString;
@@ -95,7 +96,7 @@ void SettingsLoader::InitDpLevelSettings()
         uint32 outputMode;
 
         // read debug print output mode from registry or config file
-        ret = pDevice->ReadSetting(dbgPrintSettingsTbl[dpTblIdx].pRegString,
+        ret = m_pDevice->ReadSetting(dbgPrintSettingsTbl[dpTblIdx].pRegString,
                                      ValueType::Uint,
                                      &outputMode,
                                      InternalSettingScope::PrivatePalKey);
@@ -123,7 +124,7 @@ void SettingsLoader::InitDpLevelSettings()
     {
         bool enable;
 
-        ret = pDevice->ReadSetting(assertSettingsTbl[idx].pRegString,
+        ret = m_pDevice->ReadSetting(assertSettingsTbl[idx].pRegString,
                                      ValueType::Boolean,
                                      &enable,
                                      InternalSettingScope::PrivatePalKey);
@@ -174,8 +175,7 @@ Result SettingsLoader::Init()
 // Overrides defaults for the settings based on runtime information.
 void SettingsLoader::OverrideDefaults()
 {
-    Device* pDevice = static_cast<Device*>(m_pDevice);
-    pDevice->OverrideDefaultSettings(&m_settings);
+    m_pDevice->OverrideDefaultSettings(&m_settings);
 
     m_state = SettingsLoaderState::LateInit;
 }
@@ -185,14 +185,13 @@ void SettingsLoader::OverrideDefaults()
 // require complicated initialization can also be initialized here.
 void SettingsLoader::ValidateSettings()
 {
-    static_cast<Pal::Device*>(m_pDevice)->GetGfxDevice()->HwlValidateSettings(&m_settings);
-    Device* pDevice = static_cast<Device*>(m_pDevice);
+    m_pDevice->GetGfxDevice()->HwlValidateSettings(&m_settings);
     // If this is set we will use hard-coded heap performance values instead of the usual ASIC-specific values.
     // This setting is intended for bring-up testing as we will return zeros for all performance data on unknown GPUs.
     // This can cause strange behavior (e.g., poor performance) in some Mantle applications.
     if (m_settings.forceHeapPerfToFixedValues)
     {
-        if (pDevice->ChipProperties().gpuType == GpuType::Integrated)
+        if (m_pDevice->ChipProperties().gpuType == GpuType::Integrated)
         {
             // If we happen to know we're an APU then use these Carrizo values.
             m_settings.cpuWritePerfForLocal         = 3.4f;
@@ -242,7 +241,7 @@ void SettingsLoader::ValidateSettings()
 
     // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command
     // buffer preemption support.
-    if (pDevice->GetPlatform()->IsDevDriverProfilingEnabled())
+    if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled())
     {
         m_settings.requestDebugVmid = true;
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;

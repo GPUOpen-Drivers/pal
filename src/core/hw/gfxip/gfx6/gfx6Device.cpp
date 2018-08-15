@@ -3273,12 +3273,13 @@ void InitializeGpuEngineProperties(
 // =====================================================================================================================
 // Creates a GFX6 specific settings loader object
 Pal::ISettingsLoader* CreateSettingsLoader(
-    Pal::Device* pDevice)
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
 {
     void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx6::SettingsLoader), alignof(Gfx6::SettingsLoader),
                                     pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
 
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx6::SettingsLoader(pDevice) : nullptr;
+    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx6::SettingsLoader(pAllocator, pDevice) : nullptr;
 }
 
 } // Gfx6

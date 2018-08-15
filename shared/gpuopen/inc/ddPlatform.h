@@ -242,6 +242,10 @@ namespace DevDriver
 
         void Strncpy(char* pDst, const char* pSrc, size_t dstSize);
 
+        char* Strtok(char* pDst, const char* pDelimiter, char** ppContext);
+
+        void Strcat(char* pDst, const char* pSrc);
+
         void Snprintf(char* pDst, size_t dstSize, const char* format, ...);
         void Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args);
     }

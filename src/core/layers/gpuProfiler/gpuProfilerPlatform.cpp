@@ -106,7 +106,7 @@ void Platform::IncrementFrameId()
     m_frameId++;
 
     // Force logging on for the next frame if the user is currently holding Shift-F11.
-    m_forceLogging = (IsKeyPressed(KeyCode::Shift) && IsKeyPressed(KeyCode::F11));
+    m_forceLogging = IsKeyPressed(KeyCode::Shift_F11);
 }
 
 // =====================================================================================================================

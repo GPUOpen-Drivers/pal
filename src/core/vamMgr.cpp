@@ -89,7 +89,7 @@ Result VamMgr::Cleanup(
 // =====================================================================================================================
 // Peforms extra initialization which needs to be done when the client is ready to start using the device.
 // - Allocates the GPU page directory.
-// - Creates VAM's exluced ranges and sets-up the virtual addresss sections PAL uses.
+// - Creates VAM's excluded ranges and sets-up the virtual address sections that PAL uses.
 Result VamMgr::Finalize(
     Device* pDevice)
 {
@@ -122,22 +122,20 @@ Result VamMgr::Finalize(
 
         for (uint32 i = 0; i < static_cast<uint32>(VaPartition::Count); ++i)
         {
-            // "vaRange[i].size == 0x0" means that this partition is not supported.
-            if (memProps.vaRange[i].size == 0x0)
+            if (IsVamPartition(static_cast<VaPartition>(i)))
             {
-                continue;
-            }
-            vamSectionIn.sectionAddress     = memProps.vaRange[i].baseVirtAddr;
-            vamSectionIn.sectionSizeInBytes = memProps.vaRange[i].size;
+                vamSectionIn.sectionAddress     = memProps.vaRange[i].baseVirtAddr;
+                vamSectionIn.sectionSizeInBytes = memProps.vaRange[i].size;
 
-            if (vamSectionIn.sectionSizeInBytes > 0)
-            {
-                m_hSection[i] = VAMCreateSection(m_hVamInstance, &vamSectionIn);
-                if (m_hSection[i] == nullptr)
+                if (vamSectionIn.sectionSizeInBytes > 0)
                 {
-                    PAL_ALERT_ALWAYS();
-                    result = Result::ErrorOutOfGpuMemory;
-                    break;
+                    m_hSection[i] = VAMCreateSection(m_hVamInstance, &vamSectionIn);
+                    if (m_hSection[i] == nullptr)
+                    {
+                        PAL_ALERT_ALWAYS();
+                        result = Result::ErrorOutOfGpuMemory;
+                        break;
+                    }
                 }
             }
         }

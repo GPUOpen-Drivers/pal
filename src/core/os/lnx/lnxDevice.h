@@ -655,10 +655,6 @@ public:
 
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
 
-    void SetVaRangeInfo(
-        uint32       partIndex,
-        VaRangeInfo* pVaRange);
-
     bool SemWaitRequiresSubmission() const { return m_semType != SemaphoreType::ProOnly; }
 
     bool SupportRawSubmit() const

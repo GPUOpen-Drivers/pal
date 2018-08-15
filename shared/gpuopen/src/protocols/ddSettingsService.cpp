@@ -44,7 +44,8 @@ SettingsService::SettingsService(
     m_allocCb(allocCb),
     m_pDefaultGetValueBuffer(),
     m_componentsMutex(),
-    m_registeredComponents(allocCb)
+    m_registeredComponents(allocCb),
+    m_pContext(nullptr)
 {
 }
 
@@ -93,9 +94,9 @@ Result SettingsService::HandleRequest(
 {
     Result result = Result::UriInvalidParameters;
 
-    // We can safely use strtok here because HandleRequest can only be called on one thread at a time (enforced by
-    // the URI server).
-    const char* pCommandArg = strtok(pContext->GetRequestArguments(), " ");
+    // We can safely use a single strtok context here because HandleRequest can only be called on one thread at a time
+    // (enforced by the URI server).
+    const char* pCommandArg = Platform::Strtok(pContext->GetRequestArguments(), " ", &m_pContext);
 
     if (pCommandArg != nullptr)
     {
@@ -157,9 +158,9 @@ Result SettingsService::HandleGetSettingData(
 {
     Result result = Result::SettingsUriInvalidComponent;
 
-    // This continues the same strtok started in HandleRequest, which is safe because it can only be called on one thread
+    // This uses the same strtok context started in HandleRequest, which is safe because it can only be called on one thread
     // at a time (enforced by URI Server)
-    const char* pComponentName = strtok(nullptr, " ");
+    const char* pComponentName = Platform::Strtok(nullptr, " ", &m_pContext);
     if (pComponentName != nullptr)
     {
         Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
@@ -187,10 +188,10 @@ Result SettingsService::HandleGetValue(
     IURIRequestContext* pContext)
 {
     Result result = Result::Success;
-    // This continues the same strtok started in HandleRequest, which is safe because it can only be called on one thread
+    // This uses the same strtok context started in HandleRequest, which is safe because it can only be called on one thread
     // at a time (enforced by URI Server)
-    const char* pComponentName = strtok(nullptr, " ");
-    const char* pSettingNameStr = strtok(nullptr, " ");
+    const char* pComponentName = Platform::Strtok(nullptr, " ", &m_pContext);
+    const char* pSettingNameStr = Platform::Strtok(nullptr, " ", &m_pContext);
     if ((pComponentName != nullptr) && (pSettingNameStr != nullptr))
     {
         Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
@@ -293,8 +294,8 @@ Result SettingsService::HandleSetValue(
     Result result = Result::Success;
     // This continues the same strtok started in HandleRequest, which is safe because it can only be called on one thread
     // at a time (enforced by URI Server)
-    const char* pComponentName = strtok(nullptr, " ");
-    const char* pSettingNameStr = strtok(nullptr, " ");
+    const char* pComponentName = Platform::Strtok(nullptr, " ", &m_pContext);
+    const char* pSettingNameStr = Platform::Strtok(nullptr, " ", &m_pContext);
     if ((pComponentName != nullptr) && (pSettingNameStr != nullptr))
     {
         Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);

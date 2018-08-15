@@ -385,7 +385,7 @@ Result Platform::Create(
 // =====================================================================================================================
 Result Platform::Init()
 {
-    Result result = IPlatform::Init();
+    Result result = PlatformDecorator::Init();
 
     if (m_layerEnabled && (result == Result::Success))
     {
@@ -516,7 +516,7 @@ Result Platform::CommitLoggingSettings()
 void Platform::NotifyPresent()
 {
     // Switch to elevated logging (preset index 1) if the user is currently holding Shift-F11.
-    const uint32 nextPreset = (IsKeyPressed(KeyCode::Shift) && IsKeyPressed(KeyCode::F11));
+    const uint32 nextPreset = IsKeyPressed(KeyCode::Shift_F11);
     const uint32 prevPreset = AtomicExchange(&m_activePreset, nextPreset);
 
     // If we've changed presets, we need to take the platform lock and write a notice to the main log file.

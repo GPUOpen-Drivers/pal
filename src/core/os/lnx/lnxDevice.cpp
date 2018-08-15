@@ -1218,11 +1218,8 @@ Result Device::InitMemQueueInfo()
             m_memoryProperties.virtualMemAllocGranularity = GpuPageSize;
             m_memoryProperties.virtualMemPageSize         = GpuPageSize;
 
-            if (m_pPlatform->SvmModeEnabled() && (MemoryProperties().flags.iommuv2Support == 0))
-            {
-                // Calculate SVM start VA
-                result = FixupUsableGpuVirtualAddressRange(m_chipProperties.gfxip.vaRangeNumBits);
-            }
+            // Calculate VA partitions
+            result = FixupUsableGpuVirtualAddressRange(m_chipProperties.gfxip.vaRangeNumBits);
         }
 
         if (result == Result::Success)
@@ -1232,8 +1229,6 @@ Result Device::InitMemQueueInfo()
 
         if (result == Result::Success)
         {
-            m_memoryProperties.flags.multipleVaRangeSupport  = 1;
-            m_memoryProperties.flags.shadowDescVaSupport     = 1;
             m_memoryProperties.flags.virtualRemappingSupport = 1;
             m_memoryProperties.flags.pinningSupport          = 1; // Supported
             m_memoryProperties.flags.supportPerSubmitMemRefs = 1; // Supported
@@ -1317,7 +1312,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1331,7 +1326,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1353,7 +1348,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -3798,10 +3793,8 @@ Result Device::ReserveGpuVirtualAddress(
 {
     Result result = Result::Success;
 
-    // On Linux, these partitions are reserved by VamMgrSingleton
-    if ((vaPartition != VaPartition::Svm) &&
-        (vaPartition != VaPartition::DescriptorTable) &&
-        (vaPartition != VaPartition::ShadowDescriptorTable))
+    // On Linux, some partitions are reserved by VamMgrSingleton
+    if (VamMgrSingleton::IsVamPartition(vaPartition) == false)
     {
         ReservedVaRangeInfo* pInfo = m_reservedVaMap.FindKey(baseVirtAddr);
 
@@ -3873,7 +3866,6 @@ Result Device::InitReservedVaRanges()
     return VamMgrSingleton::GetReservedVaRange(
         GetPlatform()->GetDrmLoader().GetProcsTable(),
         m_hDevice,
-        GetPlatform()->IsDtifEnabled(),
         &m_memoryProperties);
 }
 
@@ -4313,15 +4305,6 @@ Result Device::InitClkInfo()
              GetDeviceNodeIndex());
 
     return Result::Success;
-}
-
-// =====================================================================================================================
-void Device::SetVaRangeInfo(
-    uint32       partIndex,
-    VaRangeInfo* pVaRange)
-{
-    PAL_ASSERT((pVaRange != nullptr) && (partIndex < static_cast<uint32>(VaPartition::Count)));
-    m_memoryProperties.vaRange[partIndex] = *pVaRange;
 }
 
 // =====================================================================================================================

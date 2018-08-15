@@ -36,6 +36,7 @@
 #include "palIntrusiveList.h"
 #include "palMutex.h"
 #include "palPipeline.h"
+#include "palSysMemory.h"
 #include "palTextWriter.h"
 
 #include "core/hw/amdgpu_asic.h"
@@ -307,7 +308,8 @@ struct GpuEngineProperties
                 uint32 supportsMidCmdBufPreemption     :  1;
                 uint32 supportSvm                      :  1;
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
-                uint32 reserved                        : 13;
+                uint32 mustUseSvmIfSupported           :  1;
+                uint32 reserved                        : 12;
             };
             uint32 u32All;
         } flags;
@@ -610,6 +612,7 @@ struct GpuChipProperties
             uint32 numShaderEngines;
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
+            uint32 activeNumRbPerSe;
             uint32 wavefrontSize;
             uint32 numShaderVisibleSgprs;
             uint32 numPhysicalSgprs;
@@ -1721,17 +1724,18 @@ private:
 
     void CopyLayerSettings();
 
-    AddrMgr*              m_pAddrMgr;
-    CmdAllocator*         m_pTrackedCmdAllocator;
-    CmdAllocator*         m_pUntrackedCmdAllocator;
-    SettingsLoader*       m_pSettingsLoader;
-    const uint32          m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
-    const size_t          m_deviceSize;
-    const HwIpDeviceSizes m_hwDeviceSizes;
-    const uint32          m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
-    volatile uint32       m_frameCnt;  // Device frame count
-    ImageTexOptLevel      m_texOptLevel; // Client specified texture optimize level for internally-created views
-    ScreenColorSpace      m_hdrColorspaceFormat;  // Current HDR Colorspace Format
+    AddrMgr*                 m_pAddrMgr;
+    CmdAllocator*            m_pTrackedCmdAllocator;
+    CmdAllocator*            m_pUntrackedCmdAllocator;
+    SettingsLoader*          m_pSettingsLoader;
+    Util::IndirectAllocator  m_allocator;
+    const uint32             m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
+    const size_t             m_deviceSize;
+    const HwIpDeviceSizes    m_hwDeviceSizes;
+    const uint32             m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
+    volatile uint32          m_frameCnt;  // Device frame count
+    ImageTexOptLevel         m_texOptLevel; // Client specified texture optimize level for internally-created views
+    ScreenColorSpace         m_hdrColorspaceFormat;  // Current HDR Colorspace Format
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

@@ -41,10 +41,10 @@ namespace Pal
 // the provided SettingValue pointer.  If the provided value memory is not big enough, this function will return an
 // error and only update the valueSize. If the matching setting has provided a function pointer instead of a value
 // location then that function will be called instead of copying the value.
-PAL_INLINE DevDriver::Result ISettingsLoader::GetValue(
-    DevDriver::SettingsURIService::SettingNameHash hash,
-    DevDriver::SettingsURIService::SettingValue*   pSettingValue,
-    void*                                          pPrivateData)
+DevDriver::Result ISettingsLoader::GetValue(
+    SettingNameHash hash,
+    SettingValue*   pSettingValue,
+    void*           pPrivateData)
 {
     DevDriver::Result ret = DevDriver::Result::SettingsUriInvalidSettingName;
     ISettingsLoader* pSettingsLoader = reinterpret_cast<ISettingsLoader*>(pPrivateData);
@@ -72,10 +72,10 @@ PAL_INLINE DevDriver::Result ISettingsLoader::GetValue(
 // Searches the ISettingsLoader info hash map for the provided hash, if found it will set value using the provided data.
 // If the matching setting has provided a function pointer instead of a value location then that function will be called
 // instead of copying the value.
-PAL_INLINE DevDriver::Result ISettingsLoader::SetValue(
-    DevDriver::SettingsURIService::SettingNameHash     hash,
-    const DevDriver::SettingsURIService::SettingValue& settingValue,
-    void*                                              pPrivateData)
+DevDriver::Result ISettingsLoader::SetValue(
+    SettingNameHash     hash,
+    const SettingValue& settingValue,
+    void*               pPrivateData)
 {
     DevDriver::Result ret = DevDriver::Result::Unavailable;
 

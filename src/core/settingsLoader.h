@@ -28,18 +28,19 @@
 #include "palSettingsLoader.h"
 #include "core/g_palSettings.h"
 
+namespace Util { class IndirectAllocator; }
+
 namespace Pal
 {
 
 class Device;
-class Platform;
 
 // =====================================================================================================================
 // This class is responsible for loading the PAL Core runtime settings structure specified in the constructor
 class SettingsLoader : public ISettingsLoader
 {
 public:
-    SettingsLoader(Device* pDevice);
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Device* pDevice);
     virtual ~SettingsLoader();
 
     virtual Result Init() override;
@@ -76,7 +77,8 @@ private:
         void InitDpLevelSettings();
     #endif
 
-    PalSettings m_settings;
+    Device*      m_pDevice;
+    PalSettings  m_settings;
 
     // auto-generated functions
     virtual void SetupDefaults() override;

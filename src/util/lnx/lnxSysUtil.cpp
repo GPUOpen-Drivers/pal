@@ -46,6 +46,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <string.h>
+#include <poll.h>
 
 namespace Util
 {
@@ -344,7 +345,16 @@ bool IsKeyPressed(
     // return false if we cannot get the device node.
     int retVal = (device == -1) ? -1 : 0;
 
-    while (retVal >= 0)
+    KeyCode keys[2] = {};
+
+    int maxIndex = IsComboKey(key, keys) ? 1 : 0;
+
+    int index = 0;
+
+    // 4 is a heuristic number
+    int retry = 4;
+
+    while ((retVal >= 0) && (index <= maxIndex))
     {
         retVal = read(device,&ev, sizeof(ev));
 
@@ -355,10 +365,17 @@ bool IsKeyPressed(
             KeyCode keyGet;
             if (KeyTranslate(ev.code, &keyGet))
             {
-                if (keyGet == key)
+                if (keyGet == keys[index])
                 {
-                    isKeySet = true;
-                    break;
+                    if (index == maxIndex)
+                    {
+                        isKeySet = true;
+                        break;
+                    }
+                    else
+                    {
+                        index ++;
+                    }
                 }
             }
         }
@@ -369,6 +386,34 @@ bool IsKeyPressed(
             {
                 close(device);
                 device = -1;
+            }
+            else if ((index > 0) && (retry > 0))
+            {
+                // poll at most 100ms in case it is a second key of a combo key.
+                int ret = -1;
+                do
+                {
+                    struct pollfd fd = {};
+                    fd.fd            = device;
+                    fd.events        = POLLIN;
+
+                    ret = poll(&fd, 1, 100);
+
+                    // retry if there are something to read
+                    if ((ret > 0) && (fd.revents == POLLIN))
+                    {
+                        // try to read once more
+                        retVal = 0;
+                        retry --;
+                    }
+                    // ret == 0 means the timout happens
+                    // therefore, we don't need to retry the read but kick off next round of polling.
+                    else if (ret == 0)
+                    {
+                        retVal = 0;
+                        retry --;
+                    }
+                } while (ret == 0);
             }
         }
     }

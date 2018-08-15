@@ -1636,7 +1636,7 @@
         "IsHex": true
       },
       "Defaults": {
-        "Default": "Gfx9NggDisabled"
+        "Default": "Gfx9NggEnableAll"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",

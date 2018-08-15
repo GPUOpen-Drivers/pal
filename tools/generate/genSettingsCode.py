@@ -400,11 +400,7 @@ for setting in settingsData["Settings"]:
     winDefaultsCode = ""
     lnxDefaultsCode = ""
 
-    settingDefaultCode = ""
-
     isTarget = False
-    hasWinDefault = False
-    hasLnxDefault = False
     if isStruct:
         # For structs we want to loop through each field and generate the line that sets the default, once for each
         # set of default values specified.
@@ -426,13 +422,20 @@ for setting in settingsData["Settings"]:
                     size = constantDict[field["Size"]]
 
             fieldVarName = setting["VariableName"] + "." + field["VariableName"]
-            defaultsCode += genDefaultLine(fieldDefaults["Default"], fieldVarName, isFieldString, isFieldHex, size)
-            if fieldHasWinDefault:
-                winDefaultsCode += genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                hasWinDefault = True
-            if fieldHasLnxDefault:
-                lnxDefaultsCode += genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                hasLnxDefault = True
+            defaultLine = genDefaultLine(fieldDefaults["Default"], fieldVarName, isFieldString, isFieldHex, size)
+            if fieldHasWinDefault and fieldHasLnxDefault:
+                #if we have both Windows and Linux defaults we want to add an #if/#elif block
+                defaultsCode += "#if " + WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#elif " + LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += EndIf
+            elif fieldHasWinDefault:
+                defaultsCode += "#if " + WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#else" + defaultLine + EndIf
+            elif fieldHasLnxDefault:
+                defaultsCode += "#if" + LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#else" + defaultLine + EndIf
+            else:
+                defaultsCode += defaultLine
     else:
         defaults = setting["Defaults"]
         hasWinDefault = "WinDefault" in defaults
@@ -442,27 +445,23 @@ for setting in settingsData["Settings"]:
         if "Size" in setting:
             size = settingIntSize
 
-        defaultsCode = genDefaultLine(defaults["Default"], setting["VariableName"], isString, isHex, size)
-        if hasWinDefault:
-            winDefaultsCode = genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
-        if hasLnxDefault:
-            lnxDefaultsCode = genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
-
-    # If there is a Windows or Linux specific default we have to surround the code in the proper #if blocks
-    if hasWinDefault and hasLnxDefault:
-        settingDefaultCode = "#if " + WinIfDef + winDefaultsCode
-        settingDefaultCode += "#elif " + LnxIfDef + lnxDefaultsCode + EndIf
-    elif hasWinDefault:
-        settingDefaultCode = "#if " + WinIfDef + winDefaultsCode
-        settingDefaultCode += "#else \n" + defaultsCode + EndIf
-    elif hasLnxDefault:
-        settingDefaultCode = "#if " + LnxIfDef + lnxDefaultsCode
-        settingDefaultCode += "#else \n" + defaultsCode + EndIf
-    else:
-        settingDefaultCode = defaultsCode
+        defaultLine = genDefaultLine(defaults["Default"], setting["VariableName"], isString, isHex, size)
+        # If there is a Windows or Linux specific default we have to surround the code in the proper #if blocks
+        if hasWinDefault and hasLnxDefault:
+            defaultsCode += "#if " + WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#elif " + LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += EndIf
+        elif hasWinDefault:
+            defaultsCode += "#if " + WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#else" + defaultLine + EndIf
+        elif hasLnxDefault:
+            defaultsCode += "#if" + LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#else" + defaultLine + EndIf
+        else:
+            defaultsCode += defaultLine
 
     setDefaultsCode += ifDefTmp
-    setDefaultsCode += settingDefaultCode
+    setDefaultsCode += defaultsCode
     setDefaultsCode += endDefTmp
 
     ###################################################################################################################

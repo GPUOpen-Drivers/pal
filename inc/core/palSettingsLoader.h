@@ -36,6 +36,7 @@
 #include "palPlatform.h"
 #include "palHashMap.h"
 #include "palMetroHash.h"
+#include "palSysMemory.h"
 #include "protocols/ddSettingsServiceTypes.h"
 
 namespace Pal
@@ -75,9 +76,8 @@ typedef DevDriver::SettingsURIService::SettingType     SettingType;
 class ISettingsLoader
 {
 public:
-    ISettingsLoader(IDevice* pDevice, IPlatform* pAllocator, DriverSettings* pSettings, uint32 numSettings)
+    ISettingsLoader(Util::IndirectAllocator* pAllocator, DriverSettings* pSettings, uint32 numSettings)
         :
-        m_pDevice(pDevice),
         m_pSettingsPtr(pSettings),
         m_settingHash(),
         m_state(SettingsLoaderState::PreInit),
@@ -92,7 +92,6 @@ public:
     Util::MetroHash::Hash GetSettingsHash() const { return m_settingHash; };
 
 protected:
-    IDevice* m_pDevice;
     DriverSettings* m_pSettingsPtr;
     Util::MetroHash::Hash m_settingHash;
     SettingsLoaderState m_state;
@@ -106,14 +105,14 @@ protected:
     }
 
     static DevDriver::Result GetValue(
-        SettingNameHash                                hash,
-        DevDriver::SettingsURIService::SettingValue*   pSettingValue,
-        void*                                          pPrivateData);
+        SettingNameHash hash,
+        SettingValue*   pSettingValue,
+        void*           pPrivateData);
 
     static DevDriver::Result SetValue(
-        SettingNameHash                                    hash,
-        const DevDriver::SettingsURIService::SettingValue& settingValue,
-        void*                                              pPrivateData);
+        SettingNameHash     hash,
+        const SettingValue& settingValue,
+        void*               pPrivateData);
 
     struct SettingInfo
     {
@@ -122,7 +121,7 @@ protected:
         uint32       valueSize;  // Size of the setting value
     };
 
-    Util::HashMap<SettingNameHash, SettingInfo, IPlatform> m_settingsInfoMap;
+    Util::HashMap<SettingNameHash, SettingInfo, Util::IndirectAllocator> m_settingsInfoMap;
     static constexpr uint32 NumSettingBuckets = 256;
 
 private:

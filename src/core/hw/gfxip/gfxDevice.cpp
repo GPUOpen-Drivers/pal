@@ -53,7 +53,8 @@ GfxDevice::GfxDevice(
     m_waEnableDccCacheFlushAndInvalidate(false),
     m_waTcCompatZRange(false),
     m_degeneratePrimFilter(false),
-    m_pSettingsLoader(nullptr)
+    m_pSettingsLoader(nullptr),
+    m_allocator(pDevice->GetPlatform())
 {
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
@@ -120,12 +121,12 @@ Result GfxDevice::InitHwlSettings(
         case GfxIpLevel::GfxIp7:
         case GfxIpLevel::GfxIp8:
         case GfxIpLevel::GfxIp8_1:
-            m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
+            m_pSettingsLoader = Gfx6::CreateSettingsLoader(&m_allocator, m_pParent);
             break;
 #endif
 #if PAL_BUILD_GFX9
         case GfxIpLevel::GfxIp9:
-            m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
+            m_pSettingsLoader = Gfx9::CreateSettingsLoader(&m_allocator, m_pParent);
             break;
 #endif // PAL_BUILD_GFX9
         case GfxIpLevel::None:
