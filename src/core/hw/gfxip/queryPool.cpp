@@ -62,10 +62,29 @@ void QueryPool::GetGpuMemoryRequirements(
     pGpuMemReqs->size      = m_boundSizeInBytes;
     pGpuMemReqs->alignment = m_alignmentInBytes;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 423
+    if (m_createInfo.flags.enableCpuAccess)
+    {
+        // If a query pool will have its results read back using the CPU, then GartCacheable is the only preferable
+        // heap for efficiency.
+        pGpuMemReqs->heapCount = 1;
+        pGpuMemReqs->heaps[0]  = GpuHeapGartCacheable;
+    }
+    else
+    {
+        // Otherwise, the other heaps prefer query pools to reside in GPU memory, but safely get evicted back to
+        // nonlocal memory in high memory-pressure situations.
+        pGpuMemReqs->heapCount = 3;
+        pGpuMemReqs->heaps[0]  = GpuHeapInvisible;
+        pGpuMemReqs->heaps[1]  = GpuHeapLocal;
+        pGpuMemReqs->heaps[2]  = GpuHeapGartUswc;
+    }
+#else
     pGpuMemReqs->heapCount = 3;
     pGpuMemReqs->heaps[0]  = GpuHeapGartCacheable;
     pGpuMemReqs->heaps[1]  = GpuHeapLocal;
     pGpuMemReqs->heaps[2]  = GpuHeapInvisible;
+#endif
 }
 
 // =====================================================================================================================

@@ -173,6 +173,9 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmRMI_PERFCOUNTER1_SELECT,
                                      mmRMI_PERFCOUNTER2_SELECT,
                                      mmRMI_PERFCOUNTER3_SELECT,           }, },  // rmi
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    { Gfx9NumUmcchCounters, 0, 0,  { 0, 0, 0, 0, 0,                       }, },  // Umcch
+#endif
 };
 
 static_assert(ArrayLen(Gfx9PerfCountSelect0) == static_cast<uint32>(GpuBlock::Count),
@@ -227,6 +230,9 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect1[] =
                                0,
                                mmRMI_PERFCOUNTER2_SELECT1,
                                0,                                   }, },  // rmi
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    { 0, 0, 0,               { 0, 0, 0, 0, 0,                       }, },  // Umcch
+#endif
 };
 
 static_assert(ArrayLen(Gfx9PerfCountSelect1) == static_cast<uint32>(GpuBlock::Count),
@@ -332,6 +338,9 @@ uint32 GetMaxEventId(
             Gfx9PerfCtrlEaMaxEvent,
             Gfx9PerfCtrlRpbMaxEvent,
             Gfx9PerfCtrRmiMaxEvent,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+            Gfx9PerfCtrUmcMaxEvent,
+#endif
         };
 
         maxEventId = MaxEventId[blockIdx];
@@ -418,6 +427,9 @@ uint32 GetSpmBlockSelect(
             DefaultBlockSelect,
             DefaultBlockSelect,
             Gfx9SpmSeBlockSelect::Rmi,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+            DefaultBlockSelect, // UMCCH
+#endif
         };
 
         blockSelectCode = BlockSelectCodes[blockIdx];
@@ -506,6 +518,71 @@ void SetupMcSysBlockInfo(
     {
         pInfo->block[blockIdx].regInfo[idx].perfRsltCntlRegAddr = rsltCntlRegAddr;
     }
+}
+
+// =====================================================================================================================
+// Populates the PerfCounterInfo with the perf counter configuration and addresses for the Umcch block.
+void SetupUmcchBlockInfo(
+    GpuChipProperties* pProps)
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    constexpr uint32 DefaultShaderEngines =  1;
+    constexpr uint32 DefaultShaderArrays  =  1;
+
+    Gfx9PerfCounterInfo*const pInfo = &pProps->gfx9.perfCounterInfo;
+    auto& blockInfo    = pInfo->umcChannelBlocks;
+    auto& perfCtrInfo  = pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];
+
+    perfCtrInfo.available        = true;
+    perfCtrInfo.numInstances     = pProps->gfx9.numSdpInterfaces;  // The number of UMC channels is equal to the number
+                                                                   // of EA blocks or the number of SDP interface ports.
+    perfCtrInfo.numCounters      = Gfx9NumUmcchCounters;
+    perfCtrInfo.maxEventId       = Gfx9PerfCtrUmcMaxEvent;
+    perfCtrInfo.numShaderArrays  = DefaultShaderArrays;
+    perfCtrInfo.numShaderEngines = DefaultShaderEngines;
+
+    const UmcchPerfCounterAddr* pPerfCtrAddr = nullptr;
+
+    if (ASICREV_IS_VEGA10_P(pProps->eRevId))
+    {
+        pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_vg10[0];
+    }
+    else if (ASICREV_IS_RAVEN(pProps->eRevId)
+    )
+    {
+        // Both Ravens.
+        pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_Raven[0];
+    }
+#if PAL_BUILD_GXF10
+    else if (AMDGPU_IS_NAVI(pProps->familyId, pProps->eRevId)
+    {
+        pPerfCtrAddr = &Gfx10UmcchPerfCounterInfo_Navi[0];
+    }
+#endif
+    else
+    {
+        // This ASIC is not supported.
+        PAL_ASSERT_ALWAYS();
+    }
+
+    for (uint32 chIdx = 0; chIdx < perfCtrInfo.numInstances; ++chIdx)
+    {
+        blockInfo.regInfo[chIdx].ctlClkRegAddr = pPerfCtrAddr[chIdx].perfMonCtlClk;
+        const uint32 ctr1ControlReg            = pPerfCtrAddr[chIdx].perfMonCtl1;
+        const uint32 ctr1ResultLoReg           = pPerfCtrAddr[chIdx].perfMonCtr1Lo;
+
+        for (uint32 ctrIdx = 0; ctrIdx < Gfx9NumUmcchCounters; ++ctrIdx)
+        {
+            blockInfo.regInfo[chIdx].counter[ctrIdx].ctrControlRegAddr = ctr1ControlReg + ctrIdx;
+
+            const uint32 resultRegLoAddr =
+                ctr1ResultLoReg + (ctrIdx * (mmUMCCH0_PerfMonCtr2_Lo - mmUMCCH0_PerfMonCtr1_Lo));
+
+            blockInfo.regInfo[chIdx].counter[ctrIdx].resultRegLoAddr = resultRegLoAddr;
+            blockInfo.regInfo[chIdx].counter[ctrIdx].resultRegHiAddr = resultRegLoAddr + 1;
+        }
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -691,6 +768,9 @@ static void SetupHwlCounters(
                    mmRMI_PERFCOUNTER0_LO,
                    mmRMI_PERFCOUNTER0_HI,
                    (mmRMI_PERFCOUNTER1_LO - mmRMI_PERFCOUNTER0_LO));
+
+    // Umcch block
+    SetupUmcchBlockInfo(pProps);
 }
 
 // =====================================================================================================================

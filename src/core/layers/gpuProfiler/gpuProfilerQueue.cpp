@@ -930,7 +930,7 @@ Result Queue::BuildGpaSessionSampleConfig()
     {
         m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::Cumulative;
     }
-    else if (m_pDevice->GetProfilerMode() > GpuProfilerSqttOff)
+    else if (m_pDevice->GetProfilerMode() > GpuProfilerCounterAndTimingOnly)
     {
         m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::Trace;
     }

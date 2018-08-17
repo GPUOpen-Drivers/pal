@@ -75,7 +75,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 placeholder0       :  1; // Reserved. Set to 0.
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
-            uint32 reserved           : 16;
+            uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
+            uint32 reserved           : 15;
         };
         uint32 u32All;
     } flags;

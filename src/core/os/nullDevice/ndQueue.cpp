@@ -62,14 +62,7 @@ Queue::Queue(
 Result Queue::Init(
     void* pContextPlacementAddr)
 {
-    Result result = Pal::Queue::Init(pContextPlacementAddr);
-
-    if (result == Result::Success)
-    {
-        result = SubmissionContext::Create(m_pDevice->GetPlatform(), &m_pSubmissionContext);
-    }
-
-    return result;
+    return Result::Success;
 }
 
 // =====================================================================================================================

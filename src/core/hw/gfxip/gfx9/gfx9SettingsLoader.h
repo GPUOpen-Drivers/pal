@@ -60,7 +60,7 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
-    virtual void GenerateSettingHash() override;
+    void GenerateSettingHash();
 
     // Private members
     Pal::Device*     m_pDevice;

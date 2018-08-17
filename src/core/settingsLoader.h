@@ -49,16 +49,6 @@ public:
     const PalSettings& GetSettings() const { return m_settings; };
     PalSettings* GetSettingsPtr() { return &m_settings; }
 
-    static DevDriver::Result GetValue(
-        SettingNameHash hash,
-        SettingValue*   pSettingValue,
-        void*           pPrivateData);
-
-    static DevDriver::Result SetValue(
-        SettingNameHash     hash,
-        const SettingValue& settingValue,
-        void*               pPrivateData);
-
 protected:
     void ValidateSettings();
 
@@ -69,7 +59,7 @@ private:
     void SetupHeapPerfRatings(PalSettings* pSettings);
 
     // Generate the settings hash which is based on HW-specific setting.
-    virtual void GenerateSettingHash() override;
+    void GenerateSettingHash();
 
     void OverrideDefaults();
 

@@ -1327,7 +1327,9 @@ Result Gfx9Htile::Init(
     // far Z plane.
     m_flags.zrangePrecision = 1;
 
-    if (device.SupportsStencil(imageCreateInfo.swizzledFormat.format, imageCreateInfo.tiling) == false)
+    // Use Z-only hTile if this image's format doesn't have a stencil aspect
+    if ((device.SupportsStencil(imageCreateInfo.swizzledFormat.format, imageCreateInfo.tiling) == false)
+       )
     {
         // If this Image's format does not contain stencil data, allow the HW to use the extra HTile bits for improved
         // HiZ Z-range precision.

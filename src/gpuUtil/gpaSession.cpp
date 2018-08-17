@@ -111,7 +111,8 @@ void FillSqttCpuInfo(
 
     pCpuInfo->header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_CPU_INFO;
     pCpuInfo->header.chunkIdentifier.chunkIndex = 0;
-    pCpuInfo->header.version                    = 0;
+    pCpuInfo->header.majorVersion               = 0;
+    pCpuInfo->header.minorVersion               = 0;
     pCpuInfo->header.sizeInBytes                = sizeof(SqttFileChunkCpuInfo);
 
     pCpuInfo->cpuTimestampFrequency = static_cast<uint64>(Util::GetPerfFrequency());
@@ -168,7 +169,8 @@ void FillSqttAsicInfo(
 
     pAsicInfo->header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ASIC_INFO;
     pAsicInfo->header.chunkIdentifier.chunkIndex = 0;
-    pAsicInfo->header.version                    = 2;
+    pAsicInfo->header.majorVersion               = 0;
+    pAsicInfo->header.minorVersion               = 2;
     pAsicInfo->header.sizeInBytes                = sizeof(SqttFileChunkAsicInfo);
 
     pAsicInfo->flags = 0;
@@ -931,7 +933,36 @@ Pal::Result GpaSession::TimedSignalQueueSemaphore(
     IQueueSemaphore*               pQueueSemaphore,
     const TimedQueueSemaphoreInfo& timedSignalInfo)
 {
-    return TimedQueueSemaphoreOperation(pQueue, pQueueSemaphore, timedSignalInfo, true);
+    Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
+
+    if (result == Pal::Result::Success)
+    {
+        result = pQueue->SignalQueueSemaphore(pQueueSemaphore);
+    }
+
+    TimedQueueState* pQueueState = nullptr;
+    Pal::uint32      queueIndex  = 0;
+
+    if (result == Pal::Result::Success)
+    {
+        result = FindTimedQueue(pQueue, &pQueueState, &queueIndex);
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        // Build the timed queue event struct and add it to our queue events list.
+        TimedQueueEventItem timedQueueEvent = { };
+        timedQueueEvent.eventType           = TimedQueueEventType::Signal;
+        timedQueueEvent.cpuTimestamp        = static_cast<uint64>(Util::GetPerfCpuTime());
+        timedQueueEvent.apiId               = timedSignalInfo.semaphoreID;
+        timedQueueEvent.queueIndex          = queueIndex;
+
+        // The TS is intentionally left set to 0.
+
+        result = m_queueEvents.PushBack(timedQueueEvent);
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -941,7 +972,35 @@ Pal::Result GpaSession::TimedWaitQueueSemaphore(
     IQueueSemaphore*               pQueueSemaphore,
     const TimedQueueSemaphoreInfo& timedWaitInfo)
 {
-    return TimedQueueSemaphoreOperation(pQueue, pQueueSemaphore, timedWaitInfo, false);
+    Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
+
+    if (result == Pal::Result::Success)
+    {
+        result = pQueue->WaitQueueSemaphore(pQueueSemaphore);
+    }
+
+    TimedQueueState* pQueueState = nullptr;
+    Pal::uint32      queueIndex  = 0;
+
+    if (result == Pal::Result::Success)
+    {
+        result = FindTimedQueue(pQueue, &pQueueState, &queueIndex);
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        // Build the timed queue event struct and add it to our queue events list.
+        TimedQueueEventItem timedQueueEvent = { };
+        timedQueueEvent.eventType           = TimedQueueEventType::Wait;
+        timedQueueEvent.cpuTimestamp        = static_cast<uint64>(Util::GetPerfCpuTime());
+        timedQueueEvent.apiId               = timedWaitInfo.semaphoreID;
+        timedQueueEvent.queueIndex          = queueIndex;
+
+        // The TS is intentionally left set to 0.
+
+        result = m_queueEvents.PushBack(timedQueueEvent);
+    }
+    return result;
 }
 
 // =====================================================================================================================
@@ -952,9 +1011,83 @@ Pal::Result GpaSession::TimedQueuePresent(
 {
     Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
 
+    TimedQueueState* pQueueState = nullptr;
+    Pal::uint32      queueIndex  = 0;
     if (result == Pal::Result::Success)
     {
-        result = AddCpuGpuTimedQueueEvent(pQueue, TimedQueueEventType::Present, timedPresentInfo.presentID);
+        result = FindTimedQueue(pQueue, &pQueueState, &queueIndex);
+    }
+
+    // Sample the current cpu time before building the command buffer.
+    const uint64 cpuTimestamp = static_cast<uint64>(Util::GetPerfCpuTime());
+
+    // Acquire a measurement command buffer
+    Pal::ICmdBuffer* pCmdBuffer = nullptr;
+    if (result == Pal::Result::Success)
+    {
+        result = AcquireTimedQueueCmdBuffer(pQueueState, &pCmdBuffer);
+    }
+
+    // Acquire memory for the timestamp and a fence to track when the queue semaphore operation completes.
+    GpuMemoryInfo timestampMemoryInfo   = { };
+    Pal::gpusize  timestampMemoryOffset = 0;
+    if (result == Pal::Result::Success)
+    {
+        result = AcquireGpuMem(sizeof(uint64),
+                               m_timestampAlignment,
+                               Pal::GpuHeapGartCacheable,
+                               &timestampMemoryInfo,
+                               &timestampMemoryOffset);
+    }
+
+    // Begin the measurement command buffer
+    if (result == Pal::Result::Success)
+    {
+        Pal::CmdBufferBuildInfo buildInfo     = {};
+        buildInfo.flags.optimizeOneTimeSubmit = 1;
+
+        result = pCmdBuffer->Begin(buildInfo);
+    }
+
+    // Record the commands for the measurement buffer and close it
+    if (result == Pal::Result::Success)
+    {
+        // The gpu memory pointer should never be null.
+        PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
+
+        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
+
+        result = pCmdBuffer->End();
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        result = m_pDevice->ResetFences(1, &pQueueState->pFence);
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        // Submit the measurement command buffer
+        Pal::SubmitInfo submitInfo = {};
+        submitInfo.cmdBufferCount  = 1;
+        submitInfo.ppCmdBuffers    = &pCmdBuffer;
+        submitInfo.pFence          = pQueueState->pFence;
+
+        result = pQueue->Submit(submitInfo);
+    }
+
+    if (result == Pal::Result::Success)
+    {
+        // Build the timed queue event struct and add it to our queue events list.
+        TimedQueueEventItem timedQueueEvent      = {};
+        timedQueueEvent.eventType                = TimedQueueEventType::Present;
+        timedQueueEvent.cpuTimestamp             = cpuTimestamp;
+        timedQueueEvent.apiId                    = timedPresentInfo.presentID;
+        timedQueueEvent.queueIndex               = queueIndex;
+        timedQueueEvent.gpuTimestamps.memInfo[0] = timestampMemoryInfo;
+        timedQueueEvent.gpuTimestamps.offsets[0] = timestampMemoryOffset;
+
+        result = m_queueEvents.PushBack(timedQueueEvent);
     }
 
     return result;
@@ -1037,7 +1170,6 @@ Pal::Result GpaSession::SampleTimingClocks()
 
 // =====================================================================================================================
 // Moves the session from the _reset_ state to the _building_ state.
-
 Result GpaSession::Begin(
     const GpaSessionBeginInfo& info)
 {
@@ -1733,33 +1865,6 @@ Pal::Result GpaSession::FindTimedQueueByContext(
 }
 
 // =====================================================================================================================
-// Executes a timed queue semaphore operation.
-Pal::Result GpaSession::TimedQueueSemaphoreOperation(
-    Pal::IQueue*                   pQueue,
-    Pal::IQueueSemaphore*          pQueueSemaphore,
-    const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
-    bool                           isSignalOperation)
-{
-    Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
-
-    if (result == Pal::Result::Success)
-    {
-        result = isSignalOperation ? pQueue->SignalQueueSemaphore(pQueueSemaphore)
-                                   : pQueue->WaitQueueSemaphore(pQueueSemaphore);
-    }
-
-    if (result == Pal::Result::Success)
-    {
-        const TimedQueueEventType eventType = isSignalOperation ? TimedQueueEventType::Signal :
-                                                                  TimedQueueEventType::Wait;
-        const uint64 apiId = timedSemaphoreInfo.semaphoreID;
-        result             = AddCpuGpuTimedQueueEvent(pQueue, eventType, apiId);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Injects an external timed queue semaphore operation event
 Pal::Result GpaSession::ExternalTimedQueueSemaphoreOperation(
     Pal::uint64                    queueContext,
@@ -1797,93 +1902,6 @@ Pal::Result GpaSession::ExternalTimedQueueSemaphoreOperation(
 }
 
 // =====================================================================================================================
-// Helper function to sample CPU & GPU timestamp, and insert a timed queue operation event.
-Pal::Result GpaSession::AddCpuGpuTimedQueueEvent(
-    Pal::IQueue*        pQueue,
-    TimedQueueEventType eventType,
-    uint64              apiId)
-{
-    TimedQueueState* pQueueState = nullptr;
-    Pal::uint32 queueIndex       = 0;
-
-    Pal::Result result = FindTimedQueue(pQueue, &pQueueState, &queueIndex);
-
-    // Sample the current cpu time before building the command buffer.
-    const uint64 cpuTimestamp = static_cast<uint64>(Util::GetPerfCpuTime());
-
-    // Acquire a measurement command buffer
-    Pal::ICmdBuffer* pCmdBuffer = nullptr;
-    if (result == Pal::Result::Success)
-    {
-        result = AcquireTimedQueueCmdBuffer(pQueueState, &pCmdBuffer);
-    }
-
-    // Acquire memory for the timestamp and a fence to track when the queue semaphore operation completes.
-    GpuMemoryInfo timestampMemoryInfo  = {};
-    Pal::gpusize timestampMemoryOffset = 0;
-    if (result == Pal::Result::Success)
-    {
-        result = AcquireGpuMem(sizeof(uint64),
-                               m_timestampAlignment,
-                               Pal::GpuHeapGartCacheable,
-                               &timestampMemoryInfo,
-                               &timestampMemoryOffset);
-    }
-
-    // Begin the measurement command buffer
-    if (result == Pal::Result::Success)
-    {
-        Pal::CmdBufferBuildInfo buildInfo     = {};
-        buildInfo.flags.optimizeOneTimeSubmit = 1;
-
-        result = pCmdBuffer->Begin(buildInfo);
-    }
-
-    // Record the commands for the measurement buffer and close it
-    if (result == Pal::Result::Success)
-    {
-        // The gpu memory pointer should never be null.
-        PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
-
-        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
-
-        result = pCmdBuffer->End();
-    }
-
-    if (result == Pal::Result::Success)
-    {
-        result = m_pDevice->ResetFences(1, &pQueueState->pFence);
-    }
-
-    if (result == Pal::Result::Success)
-    {
-        // Submit the measurement command buffer
-        Pal::SubmitInfo submitInfo = {};
-        submitInfo.cmdBufferCount  = 1;
-        submitInfo.ppCmdBuffers    = &pCmdBuffer;
-        submitInfo.pFence          = pQueueState->pFence;
-
-        result = pQueue->Submit(submitInfo);
-    }
-
-    if (result == Pal::Result::Success)
-    {
-        // Build the timed queue event struct and add it to our queue events list.
-        TimedQueueEventItem timedQueueEvent      = {};
-        timedQueueEvent.eventType                = eventType;
-        timedQueueEvent.cpuTimestamp             = cpuTimestamp;
-        timedQueueEvent.apiId                    = apiId;
-        timedQueueEvent.queueIndex               = queueIndex;
-        timedQueueEvent.gpuTimestamps.memInfo[0] = timestampMemoryInfo;
-        timedQueueEvent.gpuTimestamps.offsets[0] = timestampMemoryOffset;
-
-        result = m_queueEvents.PushBack(timedQueueEvent);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Converts a CPU timestamp to a GPU timestamp using a GpuTimestampCalibration struct
 Pal::uint64 GpaSession::ConvertCpuTimestampToGpuTimestamp(
     Pal::uint64                         cpuTimestamp,
@@ -1903,7 +1921,6 @@ Pal::uint64 GpaSession::ConvertCpuTimestampToGpuTimestamp(
     const double deltaInGlobalClock = deltaInMicro * static_cast<double>(gpuTimestampFrequency / 1000);
     const Pal::int64 globalClockTimestamp = static_cast<Pal::int64>(deltaInGlobalClock) + calibration.gpuTimestamp;
     return static_cast<Pal::uint64>(globalClockTimestamp);
-
 }
 
 // =====================================================================================================================
@@ -2801,10 +2818,13 @@ Result GpaSession::DumpRgpData(
     SqttFileHeader* pFileHeader = &fileHeader;
     fileHeader.magicNumber      = SQTT_FILE_MAGIC_NUMBER;
     fileHeader.versionMajor     = 1;
-    fileHeader.versionMinor     = 1;
+    fileHeader.versionMinor     = 2;
     fileHeader.flags.value      = 0;
     // ETW queue timing data is enabled when the GPA Session queue timing is disabled.
     fileHeader.flags.isSemaphoreQueueTimingETW = (m_flags.useInternalQueueSemaphoreTiming == false);
+    // The current internal queue timing path never includes timestamps for queue semaphore signal/wait.  We used to,
+    // though, so this flag is to support forward compatibility in the RGP tool.
+    fileHeader.flags.noQueueSemaphoreTimeStamps = m_flags.useInternalQueueSemaphoreTiming;
     fileHeader.chunkOffset      = sizeof(fileHeader);
 
     // Get time info for rgp dump
@@ -2874,7 +2894,8 @@ Result GpaSession::DumpRgpData(
     SqttFileChunkApiInfo apiInfo = {};
     apiInfo.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_API_INFO;
     apiInfo.header.chunkIdentifier.chunkIndex = 0;
-    apiInfo.header.version = 0;
+    apiInfo.header.majorVersion = 0;
+    apiInfo.header.minorVersion = 0;
     apiInfo.header.sizeInBytes = sizeof(apiInfo);
     apiInfo.apiType = SQTT_API_TYPE_VULKAN;
     apiInfo.versionMajor = m_apiMajorVer;
@@ -2907,7 +2928,8 @@ Result GpaSession::DumpRgpData(
             SqttFileChunkSqttDesc desc             = {};
             desc.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DESC;
             desc.header.chunkIdentifier.chunkIndex = i;
-            desc.header.version                    = 1;
+            desc.header.majorVersion               = 0;
+            desc.header.minorVersion               = 1;
             desc.header.sizeInBytes                = sizeof(desc);
             desc.shaderEngineIndex                 = seLayout.shaderEngine;
             desc.v1.instrumentationSpecVersion     = m_instrumentationSpecVersion;
@@ -2941,7 +2963,8 @@ Result GpaSession::DumpRgpData(
             SqttFileChunkSqttData data             = {};
             data.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DATA;
             data.header.chunkIdentifier.chunkIndex = i;
-            data.header.version                    = 0;
+            data.header.majorVersion               = 0;
+            data.header.minorVersion               = 0;
             data.header.sizeInBytes                = sizeof(data) + sqttBytesWritten;
             data.offset                            = static_cast<int32>(curFileOffset + sizeof(data));
             data.size                              = sqttBytesWritten;
@@ -2990,7 +3013,8 @@ Result GpaSession::DumpRgpData(
                     SqttFileChunkIsaDatabase shaderIsaDb          = {};
                     shaderIsaDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ISA_DATABASE;
                     shaderIsaDb.header.chunkIdentifier.chunkIndex = 0;
-                    shaderIsaDb.header.version                    = 0;
+                    shaderIsaDb.header.majorVersion               = 0;
+                    shaderIsaDb.header.minorVersion               = 0;
                     shaderIsaDb.recordCount = static_cast<uint32>(m_curShaderRecords.NumElements());
 
                     int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
@@ -3051,7 +3075,8 @@ Result GpaSession::DumpRgpData(
         SqttFileChunkQueueEventTimings eventTimings = {};
         eventTimings.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS;
         eventTimings.header.chunkIdentifier.chunkIndex = 0;
-        eventTimings.header.version = 0;
+        eventTimings.header.majorVersion = 1;
+        eventTimings.header.minorVersion = 0;
 
         const uint32 numQueueInfoRecords = m_timedQueuesArray.NumElements();
         const uint32 numQueueEventRecords = m_queueEvents.NumElements();
@@ -3156,12 +3181,7 @@ Result GpaSession::DumpRgpData(
 
                     case TimedQueueEventType::Signal:
                     {
-                        const uint64* pTimestamp = reinterpret_cast<const uint64*>(Util::VoidPtrInc(
-                            pQueueEvent->gpuTimestamps.memInfo[0].pCpuAddr,
-                            static_cast<size_t>(pQueueEvent->gpuTimestamps.offsets[0])));
-
                         queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_SIGNAL_SEMAPHORE;
-                        queueEventRecord.gpuTimestamps[0] = *pTimestamp;
                         queueEventRecord.apiId            = pQueueEvent->apiId;
 
                         break;
@@ -3169,12 +3189,7 @@ Result GpaSession::DumpRgpData(
 
                     case TimedQueueEventType::Wait:
                     {
-                        const uint64* pTimestamp = reinterpret_cast<const uint64*>(Util::VoidPtrInc(
-                            pQueueEvent->gpuTimestamps.memInfo[0].pCpuAddr,
-                            static_cast<size_t>(pQueueEvent->gpuTimestamps.offsets[0])));
-
                         queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_WAIT_SEMAPHORE;
-                        queueEventRecord.gpuTimestamps[0] = *pTimestamp;
                         queueEventRecord.apiId            = pQueueEvent->apiId;
 
                         break;
@@ -3230,7 +3245,8 @@ Result GpaSession::DumpRgpData(
         // SqttClockCalibration chunk
         SqttFileChunkClockCalibration clockCalibration = {};
         clockCalibration.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION;
-        clockCalibration.header.version = 0;
+        clockCalibration.header.majorVersion = 0;
+        clockCalibration.header.minorVersion = 0;
         clockCalibration.header.sizeInBytes = sizeof(clockCalibration);
 
         const uint32 numClockCalibrationSamples = m_timestampCalibrations.NumElements();

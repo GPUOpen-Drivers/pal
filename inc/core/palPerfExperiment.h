@@ -72,6 +72,9 @@ enum class GpuBlock : uint32
     Ea,
     Rpb,
     Rmi,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    Umcch,
+#endif
     Count
 };
 

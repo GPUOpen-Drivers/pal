@@ -179,7 +179,7 @@ Result Device::Create(
 
     if (result == Result::Success)
     {
-        Device::GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
+        GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
 
         size_t totalSize = 0;
         totalSize += sizeof(Device);
@@ -1491,8 +1491,36 @@ Result Device::GetMultiGpuCompatibility(
 
     if (pInfo != nullptr)
     {
-        // NOTE: Presently, PAL does not support multi-GPU on the amdgpu driver.
+        const Device& otherLnxDevice = static_cast<const Device&>(otherDevice);
         pInfo->flags.u32All = 0;
+
+        const PalSettings& settings = Settings();
+
+        //Unlike windows,there is no concept of an LDA chain on Linux.
+        //Linux can share resource, like memory and semaphore, across any supported devices.
+        //And peer transfer is also supported in general.
+        if (settings.mgpuCompatibilityEnabled)
+        {
+            pInfo->flags.sharedMemory = 1;
+            pInfo->flags.sharedSync   = 1;
+            if (settings.peerMemoryEnabled)
+            {
+                pInfo->flags.peerTransfer = 1;
+            }
+            if (settings.hwCompositingEnabled)
+            {
+                pInfo->flags.shareThisGpuScreen  = 1;
+                pInfo->flags.shareOtherGpuScreen = 1;
+            }
+            if (m_chipProperties.gfxLevel == otherLnxDevice.ChipProperties().gfxLevel)
+            {
+                pInfo->flags.iqMatch = 1;
+                if (m_chipProperties.deviceId == otherLnxDevice.ChipProperties().deviceId)
+                {
+                    pInfo->flags.gpuFeatures = 1;
+                }
+            }
+        }
 
         result = Result::Success;
     }

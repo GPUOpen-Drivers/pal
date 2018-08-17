@@ -79,7 +79,7 @@ Result NdGpuMemory::AllocateOrPinMemory(
     {
         // Anything else which isn't the Page Directory gets assigned a GPU virtual address through VAM. Note that this
         // call will overrwrite baseVirtAddr with the assigned base address.
-        result = pNdDevice->AssignVirtualAddress(*this, &m_desc.gpuVirtAddr, VaPartition::Svm);
+        result = pNdDevice->AssignVirtualAddress(*this, &m_desc.gpuVirtAddr, VaPartition::Default);
     }
 
     // Round the address up to alignment.

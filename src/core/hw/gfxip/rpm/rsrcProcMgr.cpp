@@ -1251,7 +1251,8 @@ void RsrcProcMgr::GetCopyImageFormats(
     SwizzledFormat dstFormat = dstImage.SubresourceInfo(copyRegion.dstSubres)->format;
 
     const bool chFmtsMatch  = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
-    const bool formatsMatch = (srcFormat.format == dstFormat.format);
+    const bool formatsMatch = (srcFormat.format == dstFormat.format) &&
+                              (srcFormat.swizzle.swizzle == dstFormat.swizzle.swizzle);
 
     // Both formats must have the same pixel size.
     PAL_ASSERT(Formats::BitsPerPixel(srcFormat.format) == Formats::BitsPerPixel(dstFormat.format));
@@ -3945,7 +3946,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
     const PalSettings& settings = m_pDevice->Parent()->Settings();
 
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled | m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 

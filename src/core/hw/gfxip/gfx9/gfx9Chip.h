@@ -299,8 +299,6 @@ constexpr PrtFeatureFlags Gfx9PrtFeatures = static_cast<PrtFeatureFlags>(
     PrtFeatureBuffer            | // - sparse buffers
     PrtFeatureImage2D           | // - sparse 2D images
     PrtFeatureImage3D           | // - sparse 3D images
-    PrtFeatureImageMultisampled | // - sparse multisampled images
-    PrtFeatureImageDepthStencil | // - sparse depth/stencil images
     PrtFeatureShaderStatus      | // - residency status in shader instructions
     PrtFeatureShaderLodClamp    | // - LOD clamping in shader instructions
     PrtFeatureUnalignedMipSize  | // - unaligned levels outside of the miptail

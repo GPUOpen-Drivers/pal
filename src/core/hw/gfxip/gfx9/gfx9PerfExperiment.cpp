@@ -34,6 +34,7 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
 #include "palDequeImpl.h"
 #include "palHashMapImpl.h"
+#include "palInlineFuncs.h"
 
 using namespace Pal::Gfx9::PerfCtrInfo;
 
@@ -205,6 +206,9 @@ Result PerfExperiment::CreateCounter(
             m_counterFlags.tcpCounters    |= (info.block == GpuBlock::Tcp);
             m_counterFlags.tccCounters    |= (info.block == GpuBlock::Tcc);
             m_counterFlags.tcaCounters    |= (info.block == GpuBlock::Tca);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+            m_counterFlags.umcchCounters  |= (info.block == GpuBlock::Umcch);
+#endif
 
             const auto& chipProps = m_device.Parent()->ChipProperties();
             if ((info.block == GpuBlock::Ta)  ||
@@ -835,6 +839,11 @@ uint32* PerfExperiment::WriteSetupPerfCounters(
     regSDMA0_PERFMON_CNTL  sdma0PerfmonCntl = {};
     regSDMA1_PERFMON_CNTL  sdma1PerfmonCntl = {};
 
+    if (HasUmcchCounters())
+    {
+        pCmdSpace = WriteSetupUmcchCntlRegs(pCmdStream, pCmdSpace);
+    }
+
     // Walk the counter list and set select & filter registers.
     for (auto it = m_globalCtrs.Begin(); it.Get(); it.Next())
     {
@@ -1183,6 +1192,46 @@ uint32* PerfExperiment::WriteStopPerfCounters(
                                                      pCmdSpace);
     }
 
+    if (HasUmcchCounters())
+    {
+        // The number of UMC channels in the current device is equal to the number of SDP ports.
+        const auto&  gfx9ChipProps    = m_device.Parent()->ChipProperties().gfx9;
+        const uint32 numUmcChannels   = gfx9ChipProps.numSdpInterfaces;
+        const auto&  umcPerfBlockInfo = gfx9ChipProps.perfCounterInfo.umcChannelBlocks;
+
+        for (uint32 i = 0; i < numUmcChannels; i++)
+        {
+            if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+            {
+                // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+                // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+                break;
+            }
+
+            if (engineType == EngineTypeCompute)
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                          umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                          src_sel__mec_copy_data__immediate_data,
+                                                          0,
+                                                          count_sel__mec_copy_data__32_bits_of_data,
+                                                          wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                          pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                           dst_sel__me_copy_data__perfcounters,
+                                                           umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                           src_sel__me_copy_data__immediate_data,
+                                                           0,
+                                                           count_sel__me_copy_data__32_bits_of_data,
+                                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                           pCmdSpace);
+            }
+        }
+    }
+
     if (engineType == EngineTypeCompute)
     {
         regCOMPUTE_PERFCOUNT_ENABLE computePerfCounterEn = {};
@@ -1371,6 +1420,95 @@ uint32* PerfExperiment::WriteWaitIdleClean(
     // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware of a busy
     //       context, we must assume all ACQUIRE_MEM's come with a context roll.
     pCmdStream->SetContextRollDetected<false>();
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes initialization commands for UMC channel perf counters.
+uint32* PerfExperiment::WriteSetupUmcchCntlRegs(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    const auto& chipProps = m_device.Parent()->ChipProperties();
+    const auto& umcPerfBlockInfo = chipProps.gfx9.perfCounterInfo.umcChannelBlocks;
+
+    // If Umcch counters have been enabled, simply enable all instances available here:
+    const uint32 numUmcChannels = chipProps.gfx9.numSdpInterfaces;
+    const auto& cmdUtil         = m_device.CmdUtil();
+
+    regUMCCH0_PerfMonCtlClk umcCtlClkReg = { };
+    umcCtlClkReg.bits.GlblResetMsk      = 0x3f;
+    umcCtlClkReg.bits.GlblReset         = 1;
+
+    for (uint32 i = 0; i < numUmcChannels; i++)
+    {
+        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+        {
+            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+            break;
+        }
+
+        if (pCmdStream->GetEngineType() == EngineTypeCompute)
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                      src_sel__mec_copy_data__immediate_data,
+                                                      umcCtlClkReg.u32All,
+                                                      count_sel__mec_copy_data__32_bits_of_data,
+                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                      pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                       dst_sel__me_copy_data__perfcounters,
+                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                       src_sel__me_copy_data__immediate_data,
+                                                       umcCtlClkReg.u32All,
+                                                       count_sel__me_copy_data__32_bits_of_data,
+                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                       pCmdSpace);
+        }
+    }
+
+    umcCtlClkReg.bits.GlblReset = 0;
+    umcCtlClkReg.bits.GlblMonEn = 1;
+    umcCtlClkReg.bits.CtrClkEn  = 1;
+
+    for (uint32 i = 0; i < numUmcChannels; i++)
+    {
+        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+        {
+            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+            break;
+        }
+
+        if (pCmdStream->GetEngineType() == EngineTypeCompute)
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                      src_sel__mec_copy_data__immediate_data,
+                                                      umcCtlClkReg.u32All,
+                                                      count_sel__mec_copy_data__32_bits_of_data,
+                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                      pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                       dst_sel__me_copy_data__perfcounters,
+                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                       src_sel__me_copy_data__immediate_data,
+                                                       umcCtlClkReg.u32All,
+                                                       count_sel__me_copy_data__32_bits_of_data,
+                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                       pCmdSpace);
+        }
+    }
 
     return pCmdSpace;
 }

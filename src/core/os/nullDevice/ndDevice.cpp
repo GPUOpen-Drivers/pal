@@ -135,7 +135,7 @@ Result Device::Create(
 
         size_t          addrMgrSize   = 0;
         HwIpDeviceSizes hwDeviceSizes = {};
-        Device::GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
+        GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
         const size_t  neededMemSize = deviceSize          +
                                       hwDeviceSizes.gfx   +
                                       hwDeviceSizes.oss   +
@@ -840,8 +840,8 @@ void Device::FinalizeQueueProperties()
     {
         auto*  pPerEngine = &m_engineProperties.perEngine[idx];
 
-        // We have one of every engine type available.  All of them do absolutely nothing, but we can create them.
-        pPerEngine->numAvailable          = 1;
+        // No GPU engines are supported by the null device.
+        pPerEngine->numAvailable          = 0;
         pPerEngine->sizeAlignInDwords     = 1;
         pPerEngine->startAlign            = 1;
         pPerEngine->availableCeRamSize    = 48 * 1024; // 48kB

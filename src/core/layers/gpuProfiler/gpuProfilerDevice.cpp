@@ -174,7 +174,10 @@ Result Device::CommitSettingsAndInit()
     if (result == Result::Success)
     {
         // Create directory for log files.
-        result = GetPlatform()->CreateLogDir(settings.profilerConfig.logDirectory);
+        if (GetPlatform()->CreateLogDir(settings.profilerConfig.logDirectory) != Result::Success)
+        {
+            PAL_DPWARN("Failed to create folder '%s'", settings.profilerConfig.logDirectory);
+        }
     }
 
     if ((result == Result::Success) && (settings.perfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
@@ -798,6 +801,9 @@ GpuBlock StringToGpuBlock(
         "EA",      // GpuBlock::Ea
         "RPB",     // GpuBlock::Rpb
         "RMI",     // GpuBlock::Rmi
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+        "UMCCH",    // GpuBlock::Umcch
+#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

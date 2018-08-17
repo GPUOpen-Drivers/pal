@@ -1128,6 +1128,9 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
 
     m_universalPreamble.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL, &m_universalPreamble.hdrSmallPrimFilterCntl);
+
+    m_universalPreamble.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_HI_0, &m_universalPreamble.hdrCoherDestBaseHi);
 }
 
 // =====================================================================================================================

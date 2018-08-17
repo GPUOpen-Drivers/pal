@@ -988,7 +988,7 @@
           "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc", 
           "HashName": 1161296785, 
           "Defaults": {
-            "Default": true
+            "Default": false
           },
           "Type": "bool",
           "VariableName": "logInternal",
@@ -998,7 +998,7 @@
           "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines", 
           "HashName": 80714519, 
           "Defaults": {
-            "Default": true
+            "Default": false
           },
           "Type": "bool",
           "VariableName": "logExternal",
@@ -2207,19 +2207,19 @@
             "Description": "GPU Profiler Disabled"
           },
           {
-            "Name": "GpuProfilerSqttOff",
+            "Name": "GpuProfilerCounterAndTimingOnly",
             "Value": 1,
             "Description": "Traces are disabled but perf counter and timing operations are enabled."
           },
           {
-            "Name": "GpuProfilerSqttThreadTraceView",
+            "Name": "GpuProfilerTraceEnabledTtv",
             "Value": 2,
-            "Description": "Traces are output in format (.csv, .out) for Thread trace viewer."
+            "Description": "Traces (Spm and/or Sqtt) are output in format (.csv, .out) for Thread trace viewer."
           },
           {
-            "Name": "GpuProfilerSqttRgp",
+            "Name": "GpuProfilerTraceEnabledRgp",
             "Value": 3,
-            "Description": "Trace data is output as .rgp file for Radeon Gpu Profiler."
+            "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler."
           }
         ],
         "Name": "GpuProfilerMode"
@@ -2237,49 +2237,6 @@
       "Type": "enum",
       "VariableName": "gpuProfilerMode",
       "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11."
-    },
-    {
-      "ValidValues": {
-        "Values": [
-          {
-            "Name": "GpuProfilerDisabled",
-            "Value": 0,
-            "Description": "GPU Profiler Disabled"
-          },
-          {
-            "Name": "GpuProfilerSqttOff",
-            "Value": 1,
-            "Description": "Traces are disabled but perf counter and timing operations are enabled."
-          },
-          {
-            "Name": "GpuProfilerSqttThreadTraceView",
-            "Value": 2,
-            "Description": "Traces are output in format (.csv, .out) for Thread trace viewer."
-          },
-          {
-            "Name": "GpuProfilerSqttRgp",
-            "Value": 3,
-            "Description": "Trace data is output as .rgp file for Radeon Gpu Profiler."
-          }
-        ],
-        "Name": "GpuProfilerMode"
-      },
-      "Name": "GpuProfilerTraceModeMask",
-      "Tags": [
-        "GPU Profiler",
-        "Profiling"
-      ],
-      "HashName": 2271979050, 
-      "Flags": {
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "gpuProfilerTraceModeMask",
-      "Description": "Mask indicating which traces are enabled."
     },
     {
       "Name": "GpuProfilerConfig",
@@ -2373,6 +2330,10 @@
               {
                 "Description": "Enable SQTT",
                 "Value": 2
+              },
+              {
+                "Description": "Enable both SPM and SQTT",
+                "Value": 3
               }
             ]
           },
@@ -2383,7 +2344,7 @@
           },
           "Type": "uint32",
           "VariableName": "traceModeMask",
-          "Description": "Mask indicating which traces are enabled."
+          "Description": "Mask indicating which traces are enabled. Both spm trace and Sqtt trace are disabled (0x0)   Spm trace is enabled (0x1). Sqtt trace is enabled (0x2)."
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."

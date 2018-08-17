@@ -222,7 +222,6 @@ Result VirtualRelease(
     return result;
 }
 
-#if !PAL_JEMALLOC_ALLOC_CALLBACKS
 // =====================================================================================================================
 void* GenericAllocator::Alloc(
     const AllocInfo& allocInfo)
@@ -248,6 +247,5 @@ void GenericAllocator::Free(
 {
     free(freeInfo.pClientMem);
 }
-#endif
 
 } // Util

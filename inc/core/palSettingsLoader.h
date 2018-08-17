@@ -128,9 +128,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ISettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(ISettingsLoader);
 
-    /// Generates the settings hash.
-    virtual void GenerateSettingHash() = 0;
-
     // auto-generated functions
     virtual void SetupDefaults() = 0;
     virtual void ReadSettings() = 0;

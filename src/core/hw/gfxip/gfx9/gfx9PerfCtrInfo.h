@@ -79,6 +79,8 @@ constexpr uint32 Gfx9PerfCtrlMcVmL2MaxEvent = 21;
 
 constexpr uint32 Gfx9PerfCtrRmiMaxEvent    = (RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3 + 1);
 
+constexpr uint32 Gfx9PerfCtrUmcMaxEvent = 39;
+
 // Max Streaming Counters in a block instance (Gfx7+)
 constexpr uint32 Gfx9MaxStreamingCounters = 16;
 // The number of streaming perf counters packed into one summary counter (Gfx7+)
@@ -125,6 +127,9 @@ constexpr uint32 Gfx9NumMcVmL2Counters = 8;   //< MC VM L2
 constexpr uint32 Gfx9NumRpbCounters    = 4;   //< RPB
 constexpr uint32 Gfx9NumRmiCounters    = 4;   //< RMI
 
+// Represents the number of performance counter registers availble per UMC channel.
+constexpr uint32 Gfx9NumUmcchCounters  = MaxCountersPerUmcch;   //< UMC
+
 /// Maximum thread trace buffer size: 128MB per Engine.
 constexpr size_t MaximumBufferSize = (128 * 1024 * 1024);
 /// Default thread trace buffer size: 1MB per Engine.
@@ -166,6 +171,46 @@ enum Gfx9SpmSeBlockSelect : uint32
     Sqg = 0x9,
     Vgt = 0xA,
     Rmi = 0xB
+};
+
+// Represents adequate info for calculating register offsets for one UMCCH perf counter.
+struct UmcchPerfCounterAddr
+{
+    uint32 perfMonCtlClk;   // The controlling register in each UMCCH instance
+    uint32 perfMonCtl1;     // Per performance counter control register. Used to program the event selects.
+    uint32 perfMonCtr1Lo;   // Lo field offset of the perf counter result register.
+};
+
+// Note:
+// Unlike the other counters, where the variable is only the instance number, UMCCH block has varying instance
+// (channel number) and perf counter reg addresses within the instance for each ASIC.
+
+// UMCCH perf counter reg address offset mapping for Vega10.
+static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_vg10[] =
+{
+    { mmUMCCH0_PerfMonCtlClk,        mmUMCCH0_PerfMonCtl1,        mmUMCCH0_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH1_PerfMonCtlClk,  Vega::mmUMCCH1_PerfMonCtl1,  Vega::mmUMCCH1_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH2_PerfMonCtlClk,  Vega::mmUMCCH2_PerfMonCtl1,  Vega::mmUMCCH2_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH3_PerfMonCtlClk,  Vega::mmUMCCH3_PerfMonCtl1,  Vega::mmUMCCH3_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH4_PerfMonCtlClk,  Vega::mmUMCCH4_PerfMonCtl1,  Vega::mmUMCCH4_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH5_PerfMonCtlClk,  Vega::mmUMCCH5_PerfMonCtl1,  Vega::mmUMCCH5_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH6_PerfMonCtlClk,  Vega::mmUMCCH6_PerfMonCtl1,  Vega::mmUMCCH6_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH7_PerfMonCtlClk,  Vega::mmUMCCH7_PerfMonCtl1,  Vega::mmUMCCH7_PerfMonCtr1_Lo },
+    { Vg10::mmUMCCH8_PerfMonCtlClk,  Vg10::mmUMCCH8_PerfMonCtl1,  Vg10::mmUMCCH8_PerfMonCtr1_Lo },
+    { Vg10::mmUMCCH9_PerfMonCtlClk,  Vg10::mmUMCCH9_PerfMonCtl1,  Vg10::mmUMCCH9_PerfMonCtr1_Lo },
+    { Vg10::mmUMCCH10_PerfMonCtlClk, Vg10::mmUMCCH10_PerfMonCtl1, Vg10::mmUMCCH10_PerfMonCtr1_Lo},
+    { Vg10::mmUMCCH11_PerfMonCtlClk, Vg10::mmUMCCH11_PerfMonCtl1, Vg10::mmUMCCH11_PerfMonCtr1_Lo},
+    { Vg10::mmUMCCH12_PerfMonCtlClk, Vg10::mmUMCCH12_PerfMonCtl1, Vg10::mmUMCCH12_PerfMonCtr1_Lo},
+    { Vg10::mmUMCCH13_PerfMonCtlClk, Vg10::mmUMCCH13_PerfMonCtl1, Vg10::mmUMCCH13_PerfMonCtr1_Lo},
+    { Vg10::mmUMCCH14_PerfMonCtlClk, Vg10::mmUMCCH14_PerfMonCtl1, Vg10::mmUMCCH14_PerfMonCtr1_Lo},
+    { Vg10::mmUMCCH15_PerfMonCtlClk, Vg10::mmUMCCH15_PerfMonCtl1, Vg10::mmUMCCH15_PerfMonCtr1_Lo},
+};
+
+// UMCCH perf counter reg address offset mapping for both Raven.
+static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_Raven[2] =
+{
+    { mmUMCCH0_PerfMonCtlClk,  mmUMCCH0_PerfMonCtl1 , mmUMCCH0_PerfMonCtr1_Lo },
+    { Raven::mmUMCCH1_PerfMonCtlClk,  Raven::mmUMCCH1_PerfMonCtl1 , Raven::mmUMCCH1_PerfMonCtr1_Lo },
 };
 
 } // PerfExperiment

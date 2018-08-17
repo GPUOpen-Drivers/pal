@@ -30,7 +30,7 @@ import sys
 import time
 import json
 import textwrap
-from settingsCodeTemplates import *
+import argparse
 
 # 4 space indentation
 indt = "    "
@@ -71,14 +71,13 @@ def genDefaultLine(defaultValue, varName, isString, isHex, size):
             print("Couldn't convert setting " + varName + " to hex format.")
             defaultValueStr = str(defaultValue)
 
-
     if isString:
       defaultValueStr = "\""+defaultValue.replace('\\', '\\\\')+"\""
-      default = SetStringDefault.replace("%SettingStringLength%", str(size))
+      default = codeTemplates.SetStringDefault.replace("%SettingStringLength%", str(size))
     elif size != "":
-      default = SetArrayDefault.replace("%SettingSize%", str(size))
+      default = codeTemplates.SetArrayDefault.replace("%SettingSize%", str(size))
     else:
-      default = SetDefault
+      default = codeTemplates.SetDefault
 
     default = default.replace("%SettingDefault%", defaultValueStr)
     default = default.replace("%SettingVarName%", varName)
@@ -133,6 +132,13 @@ def fnv1a(str):
         hval = (hval * fnv_prime) % uint32Max;
     return hval
 
+# The hash name is an fnv1a hash of the first 64 bytes of the magic buffer
+def genMagicBufferHash(magicBuffer):
+    bufferStr = ""
+    for i in range(0, 63):
+        bufferStr += magicBuffer[i]
+    return fnv1a(bufferStr)
+
 # Encrypt the key string using sha1 secure hash.
 def sha1(str):
     m = hashlib.sha1()
@@ -166,7 +172,7 @@ def defineEnum(valueList):
                 enumData += newline
 
         # Now fill in the dynamic data in the enum template
-        enumDef = Enum.replace("%EnumDataType%", "uint32")
+        enumDef = codeTemplates.Enum.replace("%EnumDataType%", "uint32")
         enumDef = enumDef.replace("%EnumName%", valueList["Name"])
         enumDef = enumDef.replace("%EnumData%", enumData)
     return enumDef
@@ -179,7 +185,7 @@ def defineSettingVariable(setting):
       assertExit((("ValidValues" in setting) and ("Name" in setting["ValidValues"])),
                  "Named ValidValues definition missing from Enum type setting: " + setting["Name"])
       type = setting["ValidValues"]["Name"]
-    settingDef = SettingDef.replace("%SettingType%", (type + getTypeSpacing(type)))
+    settingDef = codeTemplates.SettingDef.replace("%SettingType%", (type + getTypeSpacing(type)))
     settingDef = settingDef.replace("%SettingVarName%", setting["VariableName"])
     arrayLength = ""
     # If the type is string then we need to setup the char array length
@@ -191,7 +197,7 @@ def defineSettingVariable(setting):
 def genHashedStringName(name, hashName):
     # Setting String definition
     settingStringName = "p" + name + "Str"
-    settingsStringTmp = SettingStr.replace("%SettingStrName%", settingStringName)
+    settingsStringTmp = codeTemplates.SettingStr.replace("%SettingStrName%", settingStringName)
     settingsStringTmp = settingsStringTmp.replace("%SettingString%", "\"#"+ hashName + "\"")
     return settingStringName, settingsStringTmp
 
@@ -200,13 +206,13 @@ def genReadSettingCode(data):
     # First get the hashed name string
     settingStringName, settingStringTmp = genHashedStringName(data["name"], str(data["hashName"]))
 
-    readSettingTmp = ReadSetting
+    readSettingTmp = codeTemplates.ReadSetting
     if data["stringLen"] > 0:
-        readSettingTmp = ReadSettingStr.replace("%StringLength%", str(data["stringLen"]))
+        readSettingTmp = codeTemplates.ReadSettingStr.replace("%StringLength%", str(data["stringLen"]))
     readSettingTmp = readSettingTmp.replace("%SettingStrName%", settingStringName)
-    osiSettingTypeTmp = PalOsiSettingType.replace("%OsiSettingType%", data["scope"])
+    osiSettingTypeTmp = codeTemplates.PalOsiSettingType.replace("%OsiSettingType%", data["scope"])
     readSettingTmp = readSettingTmp.replace("%OsiSettingType%", osiSettingTypeTmp)
-    readSettingTmp = readSettingTmp.replace("%ReadSettingClass%", PalReadSettingClass)
+    readSettingTmp = readSettingTmp.replace("%ReadSettingClass%", codeTemplates.PalReadSettingClass)
     readSettingTmp = readSettingTmp.replace("%SettingRegistryType%", getRegistryType(data["type"]))
     readSettingTmp = readSettingTmp.replace("%SettingVarName%", data["variableName"])
 
@@ -238,57 +244,71 @@ def setupReadSettingData(name, scope, type, varName, size, structName, structVar
              "variableName": finalVarName }
 
 def genInitSettingInfoCode(type, varName, hashName):
-    initSettingInfoTmp = InitSettingInfo.replace("%DevDriverType%", getDevDriverType(type))
+    initSettingInfoTmp = codeTemplates.InitSettingInfo.replace("%DevDriverType%", getDevDriverType(type))
     initSettingInfoTmp = initSettingInfoTmp.replace("%SettingVarName%", varName)
     initSettingInfoTmp = initSettingInfoTmp.replace("%HashName%", str(hashName))
     return initSettingInfoTmp
 
-Usage = sys.argv[0] + " <Input Settings JSON File> <Output Dir> <Output File Name [without g_ or file extension]> <Magic Buffer File (optional)> <Magic Buffer File Offset (optional)>"
+parser = argparse.ArgumentParser( \
+description = sys.argv[0] + " Settings code generation script. \
+Sample usage: python genSettingsCode.py --settingsFile C:/p4/drivers/pal/src/core/settings_core.json --codeTemplateFile ./settingsCodeTemplates --outFileName palSettings --genRegistryCode")
 
-assertExit(((len(sys.argv) >= 4) and (len(sys.argv) <= 6)), Usage)
+parser.add_argument('--settingsFile', dest='settingsFilename', type=str,
+                    help='JSON file containing settings data.', required=True)
 
-settingsJsonFilename   = sys.argv[1]
-outputDir    = sys.argv[2]
-outputFile   = "g_" + sys.argv[3]
-magicBufferFilename = ""
+parser.add_argument('--codeTemplateFile', dest='codeTemplates', type=str,
+                    help='File containing settings code templates.', required=True)
 
-magicBufferOffset = 0
-if len(sys.argv) >= 5:
-    magicBufferFilename = sys.argv[4]
+parser.add_argument('--outFilename', dest='outFilename', type=str,
+                    help='File name root for the generated files, .h/.cpp suffix will be added by the script.', required=True)
 
-if len(sys.argv) >= 6:
-    magicBufferOffset = sys.argv[5]
+parser.add_argument('--outDir', dest='outDir', type=str,
+                    help='Output directory where generated files will be saved. Defaults to the directory containing the settings JSON file.', default="")
+
+parser.add_argument('--magicBuffer', dest='magicBufferFilename', type=str,
+                    help='Magic buffer file used to encode JSON data in the generated file.', default="")
+
+parser.add_argument('--magicBufferOffset', dest='magicBufferOffset', type=int,
+                    help='Offset to use in the magic buffer file when encoding JSON data in the generated file.', default=0)
+
+parser.add_argument('--genRegistryCode', dest='genRegistryCode', action='store_true',
+                    help='Flag that, when set, instructs the script to generate code to read overrides from the Windows registry.')
+
+args = parser.parse_args()
+
+sys.path.append(os.path.dirname(args.codeTemplates))
+codeTemplates = __import__(os.path.splitext(os.path.basename(args.codeTemplates))[0])
 
 # First make sure the settings input file, encode config file and output directory exist and can be opened.  The open
 # calls will throw an exception and exit on a failure.
-settingsJsonFile = ""
 jsonEncodeConfigFile = ""
 settingsJsonStr = ""
 jsonEncodeConfigStr = ""
 
 # Try to open and parse the settings JSON data
-assertExit(os.path.exists(settingsJsonFilename), "Config file not found")
-settingsJsonFile = open(settingsJsonFilename, 'r')
+assertExit(os.path.exists(args.settingsFilename), "Settings JSON file not found")
+settingsJsonFile = open(args.settingsFilename, 'r')
 settingsJsonStr = settingsJsonFile.read()
 
 #Try to open the magicBuffer file
-magicBufferFile = ""
-magicBufferHashName = 0
-if magicBufferFilename != "":
-    assertExit(os.path.exists(magicBufferFilename), "Magic buffer file not found")
-    magicBufferFile = open(magicBufferFilename, 'r')
-    magicBufferHashName = fnv1a(os.path.basename(magicBufferFilename))
+if args.magicBufferFilename != "":
+    assertExit(os.path.exists(args.magicBufferFilename), "Magic buffer file not found")
+    magicBufferFile = open(args.magicBufferFilename, 'r')
 
-assertExit(os.path.exists(outputDir), "Output directory not found: " + outputDir)
+if args.outDir == "":
+    # No output directory was specified, set it to the settings file directory
+    args.outDir = os.path.dirname(args.settingsFilename)
 
-if outputDir[-1] != "/":
-    outputDir = outputDir + "/"
+assertExit(os.path.exists(args.outDir), "Output directory not found: " + args.outDir)
+
+if args.outDir[-1] != "/":
+    args.outDir = args.outDir + "/"
 
 # Make sure we can open and write to the output files.
-headerFileName = outputFile + ".h"
-sourceFileName = outputFile + ".cpp"
-headerFile     = open(outputDir+headerFileName, 'w')
-sourceFile     = open(outputDir+sourceFileName, 'w')
+headerFileName = args.outFilename + ".h"
+sourceFileName = args.outFilename + ".cpp"
+headerFile     = open(args.outDir+headerFileName, 'w')
+sourceFile     = open(args.outDir+sourceFileName, 'w')
 
 # Read/Parse the settings JSON data
 settingsData  = json.loads(settingsJsonStr)
@@ -345,13 +365,13 @@ for setting in settingsData["Settings"]:
         hasMax = ("MaxVersion" in directives)
         hasMin = ("MinVersion" in directives)
         if hasMin and hasMax:
-            ifDefTmp = IfMinMax.replace("%MinVersion%", directives["MinVersion"]).replace("%MaxVersion%", directives["MaxVersion"])
+            ifDefTmp = codeTemplates.IfMinMax.replace("%MinVersion%", directives["MinVersion"]).replace("%MaxVersion%", directives["MaxVersion"])
             endifCount += 1
         elif hasMax:
-            ifDefTmp = IfMax.replace("%MaxVersion%", str(directives["MaxVersion"]))
+            ifDefTmp = codeTemplates.IfMax.replace("%MaxVersion%", str(directives["MaxVersion"]))
             endifCount += 1
         elif hasMin:
-            ifDefTmp = IfMin.replace("%MinVersion%", str(directives["MinVersion"]))
+            ifDefTmp = codeTemplates.IfMin.replace("%MinVersion%", str(directives["MinVersion"]))
             endifCount += 1
 
         if "Custom" in directives:
@@ -360,7 +380,7 @@ for setting in settingsData["Settings"]:
                 endifCount += 1
 
         while endifCount > 0:
-            endDefTmp += EndIf
+            endDefTmp += codeTemplates.EndIf
             endifCount -= 1
 
     ###################################################################################################################
@@ -381,7 +401,7 @@ for setting in settingsData["Settings"]:
         settingDefTmp = defineSettingVariable(setting)
     else:
         # struct types require the struct definition and a loop to define each subfield
-        settingDefTmp = SettingStructDef.replace("%StructSettingName%", setting["VariableName"])
+        settingDefTmp = codeTemplates.SettingStructDef.replace("%StructSettingName%", setting["VariableName"])
         structFields = ""
         for field in setting["Structure"]:
             structFields += indt + defineSettingVariable(field)
@@ -425,15 +445,15 @@ for setting in settingsData["Settings"]:
             defaultLine = genDefaultLine(fieldDefaults["Default"], fieldVarName, isFieldString, isFieldHex, size)
             if fieldHasWinDefault and fieldHasLnxDefault:
                 #if we have both Windows and Linux defaults we want to add an #if/#elif block
-                defaultsCode += "#if " + WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += "#elif " + LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += EndIf
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += codeTemplates.EndIf
             elif fieldHasWinDefault:
-                defaultsCode += "#if " + WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += "#else" + defaultLine + EndIf
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
             elif fieldHasLnxDefault:
-                defaultsCode += "#if" + LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
-                defaultsCode += "#else" + defaultLine + EndIf
+                defaultsCode += "#if" + codeTemplates.LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
+                defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
             else:
                 defaultsCode += defaultLine
     else:
@@ -448,15 +468,15 @@ for setting in settingsData["Settings"]:
         defaultLine = genDefaultLine(defaults["Default"], setting["VariableName"], isString, isHex, size)
         # If there is a Windows or Linux specific default we have to surround the code in the proper #if blocks
         if hasWinDefault and hasLnxDefault:
-            defaultsCode += "#if " + WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
-            defaultsCode += "#elif " + LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
-            defaultsCode += EndIf
+            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += codeTemplates.EndIf
         elif hasWinDefault:
-            defaultsCode += "#if " + WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
-            defaultsCode += "#else" + defaultLine + EndIf
+            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(defaults["WinDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
         elif hasLnxDefault:
-            defaultsCode += "#if" + LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
-            defaultsCode += "#else" + defaultLine + EndIf
+            defaultsCode += "#if" + codeTemplates.LnxIfDef + genDefaultLine(defaults["LnxDefault"], setting["VariableName"], isString, isHex, size)
+            defaultsCode += "#else" + defaultLine + codeTemplates.EndIf
         else:
             defaultsCode += defaultLine
 
@@ -468,7 +488,7 @@ for setting in settingsData["Settings"]:
     # ReadSettings() per setting code
     ###################################################################################################################
     # The presence of the Scope field indicates that the setting can be read from the registry
-    if "Scope" in setting:
+    if args.genRegistryCode and "Scope" in setting:
         readSettingData = []
         if setting["Type"] == "struct":
             # Struct type settings have their fields stored in the registry with the struct name prepended.
@@ -596,7 +616,7 @@ hardwareLayerLower = hardwareLayer.lower()
 settingStruct = ""
 settingStructName = upperCamelComponentName + "Settings"
 
-settingStruct = StructDef.replace("%SettingStructName%", settingStructName)
+settingStruct = codeTemplates.StructDef.replace("%SettingStructName%", settingStructName)
 settingStruct = settingStruct.replace("%SettingDefs%", settingDefs)
 
 ###################################################################################################################
@@ -604,19 +624,19 @@ settingStruct = settingStruct.replace("%SettingDefs%", settingDefs)
 ###################################################################################################################
 className = "SettingsLoader"
 
-includeFileList = ""
-headerIncludeList = PalHeaderIncludes
+includeFileList = codeTemplates.CppIncludes
+headerIncludeList = codeTemplates.HeaderIncludes
+
 if hardwareLayer != "":
     headerIncludeList += "\n#include \"core/hw/gfxip/gfxDevice.h\"\n"
-    includeFileList = "\n#include \"core/hw/gfxip/" + hardwareLayerLower + "/"
+    includeFileList += "\n#include \"" + codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower)
     includeFileList += hardwareLayerLower + "SettingsLoader.h\"\n"
-    includeFileList += "#include \"core/hw/gfxip/" + hardwareLayerLower + "/" + headerFileName + "\"\n"
+    includeFileList += "#include \""+ codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower) + headerFileName + "\"\n"
 else:
-    includeFileList  += "#include \"core/settingsLoader.h\"\n"
-    includeFileList  += "#include \"core/" + headerFileName + "\"\n"
-includeFileList  += "#include \"core/device.h\"\n"
-includeFileList  += "#include \"palInlineFuncs.h\"\n"
-includeFileList  += "#include \"palHashMapImpl.h\"\n"
+    includeFileList  += "#include \"" + codeTemplates.IncludeDir + headerFileName + "\"\n"
+
+includeFileList += "#include \"palInlineFuncs.h\"\n"
+includeFileList += "#include \"palHashMapImpl.h\"\n"
 
 ###################################################################################################################
 # Setup the JSON data array
@@ -624,7 +644,8 @@ includeFileList  += "#include \"palHashMapImpl.h\"\n"
 # If a magic buffer file was not provided, store the JSON data as a uint8 array
 jsonUintData = ""
 isEncoded = "false"
-if magicBufferFilename == "":
+magicBufferHash = 0
+if args.magicBufferFilename == "":
     paddedUints = []
     for i in range(0, len(settingsJsonStr)):
         paddedUints.append(str(ord(settingsJsonStr[i])))
@@ -636,12 +657,13 @@ if magicBufferFilename == "":
     wrapper.subsequent_indent = "    "
     jsonUintData = "\n".join(wrapper.wrap(jsonUintStr))
 else:
-    #Otherwise perform one-time pad on the JSON data when creating the array
+    # Otherwise perform one-time pad on the JSON data when creating the array
     magicBuffer = []
     paddedUints = []
     # Read the magic buffer in as an array of integers
     magicBuffer = magicBufferFile.read().split(', ')
     magicBufferFile.close()
+    magicBufferHash = genMagicBufferHash(magicBuffer)
     for i in range(0, len(settingsJsonStr)):
         magicBufferIdx = i % len(magicBuffer)
         paddedUints.append(str(ord(settingsJsonStr[i])^int(magicBuffer[magicBufferIdx])))
@@ -654,49 +676,50 @@ else:
     jsonUintData = "\n".join(wrapper.wrap(paddedJsonStr))
     isEncoded = "true"
 jsonArrayName = "g_" + lowerCamelComponentName +"JsonData"
-jsonDataArray = JsonDataArray.replace("%JsonArrayData%", jsonUintData)
+jsonDataArray = codeTemplates.JsonDataArray.replace("%JsonArrayData%", jsonUintData)
 jsonDataArray = jsonDataArray.replace("%JsonDataArrayName%", jsonArrayName)
 
 ###################################################################################################################
 # Finish generating the SetupDefaults(), ReadSettings(), InitSettingsInfo() and DevDriverRegister() functions
 ###################################################################################################################
-settingHashListName = SettingHashListName.replace("%LowerCamelComponentName%", lowerCamelComponentName)
-settingNumSettingsName = SettingNumSettingsName.replace("%LowerCamelComponentName%", lowerCamelComponentName)
+settingHashListName = codeTemplates.SettingHashListName.replace("%LowerCamelComponentName%", lowerCamelComponentName)
+settingNumSettingsName = codeTemplates.SettingNumSettingsName.replace("%LowerCamelComponentName%", lowerCamelComponentName)
 # add one more line to SetupDefaults to initialize the numSettings field
 setDefaultsCode += "    m_settings.numSettings = " + settingNumSettingsName + ";"
 
-setupDefaults = SetupDefaultsFunc.replace("%ClassName%", className)
+setupDefaults = codeTemplates.SetupDefaultsFunc.replace("%ClassName%", className)
 setupDefaults = setupDefaults.replace("%SettingStructName%", settingStructName)
 setupDefaults = setupDefaults.replace("%SetDefaultsCode%", setDefaultsCode)
 
-readSettings = ReadSettingsFunc.replace("%ClassName%", className)
-readSettings = readSettings.replace("%SettingStructName%", settingStructName)
-readSettings = readSettings.replace("%ReadSettingsCode%", readSettingsCode)
+if args.genRegistryCode:
+    readSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", className)
+    readSettings = readSettings.replace("%SettingStructName%", settingStructName)
+    readSettings = readSettings.replace("%ReadSettingsCode%", readSettingsCode)
 
-initSettingsInfo = InitSettingsInfoFunc.replace("%ClassName%", className)
+initSettingsInfo = codeTemplates.InitSettingsInfoFunc.replace("%ClassName%", className)
 initSettingsInfo = initSettingsInfo.replace("%InitSettingInfoCode%", settingInfoCode)
 
-settingHashListCode = SettingHashList.replace("%NumSettings%", str(numHashes))
+settingHashListCode = codeTemplates.SettingHashList.replace("%NumSettings%", str(numHashes))
 settingHashListCode = settingHashListCode.replace("%SettingHashList%", settingHashList)
 settingHashListCode = settingHashListCode.replace("%SettingHashListName%", settingHashListName)
 settingHashListCode = settingHashListCode.replace("%SettingNumSettingsName%", settingNumSettingsName)
 
-devDriverRegister = DevDriverRegisterFunc.replace("%ClassName%", className)
+devDriverRegister = codeTemplates.DevDriverRegisterFunc.replace("%ClassName%", className)
 devDriverRegister = devDriverRegister.replace("%SettingHashListName%", settingHashListName)
 devDriverRegister = devDriverRegister.replace("%SettingNumSettingsName%", settingNumSettingsName)
 devDriverRegister = devDriverRegister.replace("%JsonDataArrayName%", jsonArrayName)
 devDriverRegister = devDriverRegister.replace("%IsJsonEncoded%", isEncoded)
-devDriverRegister = devDriverRegister.replace("%MagicBufferId%", str(magicBufferHashName))
-devDriverRegister = devDriverRegister.replace("%MagicBufferOffset%", str(magicBufferOffset))
+devDriverRegister = devDriverRegister.replace("%MagicBufferId%", str(magicBufferHash))
+devDriverRegister = devDriverRegister.replace("%MagicBufferOffset%", str(args.magicBufferOffset))
 
-headerDoxComment = HeaderFileDoxComment.replace("%FileName%", headerFileName)
-copyrightAndWarning = CopyrightAndWarning.replace("%Year%", time.strftime("%Y"))
+headerDoxComment = codeTemplates.HeaderFileDoxComment.replace("%FileName%", headerFileName)
+copyrightAndWarning = codeTemplates.CopyrightAndWarning.replace("%Year%", time.strftime("%Y"))
 
-namespaceStart = "\nnamespace Pal\n{\n"
-namespaceEnd   = "\n} // Pal"
+namespaceStart = codeTemplates.NamespaceStart
+namespaceEnd   = codeTemplates.NamespaceEnd
 if hardwareLayer != "":
-    namespaceStart += "namespace " + hardwareLayer + "\n{\n"
-    namespaceEnd   = "\n} // " + hardwareLayer + namespaceEnd
+    namespaceStart += codeTemplates.HwlNamespaceStart.replace("%Hwl%", hardwareLayer)
+    namespaceEnd   = codeTemplates.HwlNamespaceEnd.replace("%Hwl%", hardwareLayer) + namespaceEnd
 
 ###################################################################################################################
 # Build the Header File
@@ -709,8 +732,10 @@ headerFile.close()
 ###################################################################################################################
 # Build the Source File
 ###################################################################################################################
-sourceFileTxt = copyrightAndWarning + includeFileList + DevDriverIncludes + namespaceStart + setupDefaults
-sourceFileTxt += readSettings + initSettingsInfo + devDriverRegister + namespaceEnd
+sourceFileTxt = copyrightAndWarning + includeFileList + codeTemplates.DevDriverIncludes + namespaceStart + setupDefaults
+if args.genRegistryCode:
+    sourceFileTxt += readSettings
+sourceFileTxt += initSettingsInfo + devDriverRegister + namespaceEnd
 sourceFile.write(sourceFileTxt)
 sourceFile.close()
 

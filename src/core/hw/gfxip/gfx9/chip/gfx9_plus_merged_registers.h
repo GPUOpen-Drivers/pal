@@ -15736,10 +15736,10 @@ union GC_CAC_ACC_CU2 {
 union GC_CAC_ACC_CU3 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15749,10 +15749,10 @@ union GC_CAC_ACC_CU3 {
 union GC_CAC_ACC_CU4 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19819,7 +19819,7 @@ union IA_DEBUG_REG0 {
         unsigned int                                                              :  2;
         unsigned int SPARE5                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  4;
         unsigned int SPARE0                                                       :  1;
@@ -19833,7 +19833,7 @@ union IA_DEBUG_REG0 {
         unsigned int                                                              :  2;
         unsigned int SPARE5                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19858,13 +19858,13 @@ union IA_DEBUG_REG9 {
         unsigned int SPARE0                                                       :  1;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 16;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 14;
         unsigned int SPARE0                                                       :  1;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 16;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28784,17 +28784,17 @@ union RLC_SPM_DEBUG_SELECT {
     } bits, bitfields;
     struct {
         unsigned int                                                              :  8;
-        unsigned int RESERVED                                                     :  7;
-        unsigned int                                                              : 17;
-    } vega;
-    struct {
-        unsigned int                                                              :  8;
         unsigned int RESERVED                                                     :  4;
         unsigned int RLC_MC_FIFO_CNTL                                             :  1;
         unsigned int RLC_DBG_FIFO_CNTL                                            :  1;
         unsigned int RLC_SPM_DEBUG_MODE_DUAL                                      :  1;
         unsigned int                                                              : 17;
     } raven;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int RESERVED                                                     :  7;
+        unsigned int                                                              : 17;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28904,15 +28904,15 @@ union RLC_SPM_PERFMON_CNTL {
         unsigned int PERFMON_SAMPLE_INTERVAL                                      : 16;
     } bits, bitfields;
     struct {
-        unsigned int RESERVED1                                                    : 12;
-        unsigned int                                                              : 20;
-    } vega;
-    struct {
         unsigned int RLC_DBG_STRM_EN                                              :  1;
         unsigned int RLC_DBG_STRM_EXT_SAMPLE                                      :  1;
         unsigned int RESERVED1                                                    : 10;
         unsigned int                                                              : 20;
     } raven;
+    struct {
+        unsigned int RESERVED1                                                    : 12;
+        unsigned int                                                              : 20;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -44805,6 +44805,3798 @@ union TD_STATUS {
     float        f32All;
 };
 
+union UMCCH0_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH0_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH1_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH2_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH3_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH4_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH5_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH6_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH7_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vega;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH8_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH9_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH10_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH11_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH12_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH13_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH14_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtl1 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtl2 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtl3 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtl4 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtl5 {
+    struct {
+        unsigned int EventSelect                                                  :  8;
+        unsigned int RdWrMask                                                     :  2;
+        unsigned int PriorityMask                                                 :  4;
+        unsigned int ReqSizeMask                                                  :  2;
+        unsigned int ChipSelMask                                                  :  4;
+        unsigned int ChipIDSel                                                    :  4;
+        unsigned int VCSel                                                        :  5;
+        unsigned int SubChanMask                                                  :  2;
+        unsigned int Enable                                                       :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtlClk {
+    struct {
+        unsigned int GlblResetMsk                                                 :  6;
+        unsigned int                                                              : 18;
+        unsigned int GlblReset                                                    :  1;
+        unsigned int GlblMonEn                                                    :  1;
+        unsigned int                                                              :  5;
+        unsigned int CtrClkEn                                                     :  1;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr1_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr1_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr2_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr2_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr3_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr3_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr4_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr4_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr5_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtr5_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtrClk_Hi {
+    struct {
+        unsigned int Data                                                         : 16;
+        unsigned int Overflow                                                     :  1;
+        unsigned int                                                              : 15;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMCCH15_PerfMonCtrClk_Lo {
+    struct {
+        unsigned int Data                                                         : 32;
+    } vg10;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union UTCL2_CGTT_CLK_CTRL {
     struct {
         unsigned int ON_DELAY                                                     :  4;
@@ -44934,7 +48726,7 @@ union VGT_DEBUG_REG1 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 22;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  4;
         unsigned int SPARE5                                                       :  1;
@@ -44944,7 +48736,7 @@ union VGT_DEBUG_REG1 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 22;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -44955,11 +48747,11 @@ union VGT_DEBUG_REG2 {
     struct {
         unsigned int                                                              : 29;
         unsigned int SPARE                                                        :  3;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 29;
         unsigned int SPARE                                                        :  3;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -44970,11 +48762,11 @@ union VGT_DEBUG_REG4 {
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE                                                        :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE                                                        :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -44991,7 +48783,7 @@ union VGT_DEBUG_REG5 {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  3;
         unsigned int                                                              :  5;
-    } rv1x;
+    } vega;
     struct {
         unsigned int SPARE4                                                       :  3;
         unsigned int                                                              :  5;
@@ -45001,7 +48793,7 @@ union VGT_DEBUG_REG5 {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  3;
         unsigned int                                                              :  5;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45013,12 +48805,12 @@ union VGT_DEBUG_REG7 {
         unsigned int                                                              :  5;
         unsigned int SPARE                                                        : 11;
         unsigned int                                                              : 16;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  5;
         unsigned int SPARE                                                        : 11;
         unsigned int                                                              : 16;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45030,12 +48822,12 @@ union VGT_DEBUG_REG9 {
         unsigned int                                                              : 30;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 30;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45047,12 +48839,12 @@ union VGT_DEBUG_REG10 {
         unsigned int                                                              :  9;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              : 21;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  9;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              : 21;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45071,14 +48863,14 @@ union VGT_DEBUG_REG11 {
         unsigned int                                                              : 12;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 13;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 12;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 13;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45089,11 +48881,11 @@ union VGT_DEBUG_REG12 {
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE0                                                       :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE0                                                       :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45106,13 +48898,13 @@ union VGT_DEBUG_REG13 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  5;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 25;
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  5;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45131,7 +48923,7 @@ union VGT_DEBUG_REG14 {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int SPARE3                                                       :  4;
         unsigned int                                                              :  8;
@@ -45143,7 +48935,7 @@ union VGT_DEBUG_REG14 {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45177,11 +48969,11 @@ union VGT_DEBUG_REG23 {
     struct {
         unsigned int                                                              : 24;
         unsigned int SPARE                                                        :  8;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 24;
         unsigned int SPARE                                                        :  8;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45192,11 +48984,11 @@ union VGT_DEBUG_REG30 {
     struct {
         unsigned int                                                              : 19;
         unsigned int SPARE                                                        : 13;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 19;
         unsigned int SPARE                                                        : 13;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -45207,11 +48999,11 @@ union VGT_DEBUG_REG32 {
     struct {
         unsigned int                                                              : 28;
         unsigned int SPARE                                                        :  4;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 28;
         unsigned int SPARE                                                        :  4;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46827,12 +50619,12 @@ union WD_DEBUG_REG1 {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46844,12 +50636,12 @@ union WD_DEBUG_REG2 {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46863,14 +50655,14 @@ union WD_DEBUG_REG3 {
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46884,14 +50676,14 @@ union WD_DEBUG_REG5 {
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46899,24 +50691,6 @@ union WD_DEBUG_REG5 {
 };
 
 union WD_DEBUG_REG7 {
-    struct {
-        unsigned int                                                              :  8;
-        unsigned int SPARE1                                                       :  4;
-        unsigned int SPARE2                                                       :  4;
-        unsigned int te11_arb_state_q                                             :  3;
-        unsigned int SPARE5                                                       :  1;
-        unsigned int                                                              : 12;
-    } rv1x;
-    struct {
-        unsigned int                                                              :  4;
-        unsigned int SPARE0                                                       :  4;
-        unsigned int SPARE1                                                       :  4;
-        unsigned int SPARE2                                                       :  4;
-        unsigned int SPARE3                                                       :  4;
-        unsigned int                                                              :  2;
-        unsigned int SPARE4                                                       :  6;
-        unsigned int                                                              :  4;
-    } vega;
     struct {
         unsigned int                                                              :  4;
         unsigned int SE1VGT_WD_thdgrp_send_in                                     :  1;
@@ -46928,6 +50702,24 @@ union WD_DEBUG_REG7 {
         unsigned int se1_thdgrp_eop                                               :  1;
         unsigned int                                                              :  8;
     } raven;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int SPARE0                                                       :  4;
+        unsigned int SPARE1                                                       :  4;
+        unsigned int SPARE2                                                       :  4;
+        unsigned int SPARE3                                                       :  4;
+        unsigned int                                                              :  2;
+        unsigned int SPARE4                                                       :  6;
+        unsigned int                                                              :  4;
+    } vega;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int SPARE1                                                       :  4;
+        unsigned int SPARE2                                                       :  4;
+        unsigned int te11_arb_state_q                                             :  3;
+        unsigned int SPARE5                                                       :  1;
+        unsigned int                                                              : 12;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46942,7 +50734,7 @@ union WD_DEBUG_REG9 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              :  2;
-    } rv1x;
+    } vega;
     struct {
         unsigned int                                                              : 11;
         unsigned int SPARE0                                                       :  5;
@@ -46950,7 +50742,7 @@ union WD_DEBUG_REG9 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              :  2;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;

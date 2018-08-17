@@ -645,23 +645,12 @@ private:
                                         TimedQueueState** ppQueueState,
                                         Pal::uint32* pQueueIndex);
 
-    /// Executes a timed queue semaphore operation through the given queue
-    Pal::Result TimedQueueSemaphoreOperation(Pal::IQueue* pQueue,
-                                             Pal::IQueueSemaphore* pQueueSemaphore,
-                                             const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
-                                             bool isSignalOperation);
-
     /// Injects an external timed queue semaphore operation event
     Pal::Result ExternalTimedQueueSemaphoreOperation(Pal::uint64 queueContext,
                                                      Pal::uint64 cpuSubmissionTimestamp,
                                                      Pal::uint64 cpuCompletionTimestamp,
                                                      const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
                                                      bool isSignalOperation);
-
-    /// Helper function to sample CPU & GPU timestamp, and insert a timed queue operation event.
-    Pal::Result AddCpuGpuTimedQueueEvent(Pal::IQueue* pQueue,
-                                         TimedQueueEventType eventType,
-                                         Pal::uint64 apiId);
 
     /// Converts a CPU timestamp to a GPU timestamp using a GpuTimestampCalibration struct
     Pal::uint64 ConvertCpuTimestampToGpuTimestamp(Pal::uint64                         cpuTimestamp,

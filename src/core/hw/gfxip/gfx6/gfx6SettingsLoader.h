@@ -53,14 +53,11 @@ public:
     void ValidateSettings(PalSettings* pSettings);
     void OverrideDefaults(PalSettings* pSettings);
 
-protected:
-    Pal::Device* Device() { return static_cast<Pal::Device*>(m_pDevice); }
-
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
-    virtual void GenerateSettingHash() override;
+    void GenerateSettingHash();
 
     // Private members
     Pal::Device*    m_pDevice;

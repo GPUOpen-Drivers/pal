@@ -85,6 +85,21 @@ struct QueryPoolCreateInfo
     uint32        numSlots;         ///< Number of slots in the query pool.
     uint32        enabledStats;     ///< An ORed mask of stats flags specific to the query pool type.
                                     ///  @see QueryPipelineStatsFlags for PipelineStats query pools.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 423
+    union
+    {
+        struct
+        {
+            /// If true, this query pool can have results retrieved using the CPU (using @ref IQueryPool::GetResults)
+            /// and can be reset using the CPU (using @ref IQueryPool::Reset).  Otherwise, the client must use command
+            /// buffers to perform these operations (using @ref ICmdBuffer::CmdResetQueryPool and
+            /// @ref ICmdBuffer::CmdResolveQuery).
+            uint32  enableCpuAccess :  1;
+            uint32  reserved        : 31;   ///< Reserved for future use.
+        };
+        uint32  u32All; ///< Flags packed together as a uint32.
+    } flags;            ///< Flags controlling QueryPool behavior.
+#endif
 };
 
 /// Controls operations that compute query results.

@@ -501,7 +501,7 @@ Result Image::Finalize(
                             // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
                             // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
                             // going to be used as UAV and disable dcc fast clear on other mips.
-                            if ((m_createInfo.usageFlags.shaderWrite == 0)                  ||
+                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
                                 const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);

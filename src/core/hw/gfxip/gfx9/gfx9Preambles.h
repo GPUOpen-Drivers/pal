@@ -146,6 +146,9 @@ struct UniversalPreamblePm4Img
     PM4_PFP_SET_CONTEXT_REG         hdrSmallPrimFilterCntl;
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl;
 
+    PM4PFP_SET_CONTEXT_REG          hdrCoherDestBaseHi;
+    regCOHER_DEST_BASE_HI_0         coherDestBaseHi;
+
     GdsRangeCompute                 gdsRangeCompute;
 
     // GPU specific registers go in this union.  As the union has a variable valid size depending on the GPU

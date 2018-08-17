@@ -131,11 +131,7 @@ Platform::~Platform()
 
     if (m_flags.usesDefaultAllocCb)
     {
-#if PAL_JEMALLOC_ALLOC_CALLBACKS
-        DestroyJemallocAllocCallbacks();
-#else
         OsDestroyDefaultAllocCallbacks();
-#endif
     }
 }
 

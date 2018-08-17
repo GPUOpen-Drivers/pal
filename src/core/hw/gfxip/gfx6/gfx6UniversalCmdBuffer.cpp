@@ -262,10 +262,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
     }
 
-    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (Util::TestAnyFlagSet(coreSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
-                             (TestAnyFlagSet(coreSettings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
-                             (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             (Util::TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
                                             m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 

@@ -81,8 +81,9 @@ union CounterFlags
         uint32 tcpCounters    :  1; // If set, TCP counters are present
         uint32 tccCounters    :  1; // If set, TCC counters are present
         uint32 tcaCounters    :  1; // If set, TCA counters are present
+        uint32 umcchCounters  :  1; // If set, UMCCH counters are present
 
-        uint32 reserved       : 18; // Reserved bits
+        uint32 reserved       : 17; // Reserved bits
     };
     uint32 u32All; // Value of the flags bitfield
 };
@@ -146,6 +147,8 @@ private:
         EngineType    engineType,
         uint32*       pCmdSpace) const;
 
+    uint32* WriteSetupUmcchCntlRegs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
     // Returns true if one or more perf counters are on an indexed GPU block.
     bool HasIndexedCounters() const { return m_counterFlags.indexedBlocks; }
 
@@ -187,6 +190,9 @@ private:
 
     // Returns true if SQ counters are present.
     bool HasSqCounters() const { return m_counterFlags.sqCounters; }
+
+    // Returns true if Umcch counters are present.
+    bool HasUmcchCounters() const { return m_counterFlags.umcchCounters; }
 
     const Device&       m_device;
     CounterFlags        m_counterFlags;   // Flags describing the set of perf counters

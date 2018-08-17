@@ -41,6 +41,10 @@ class Device;
 class PerfCounter : public Pal::PerfCounter
 {
 public:
+    // Checks if the reg addr offset provided can be programmed using the COPY_DATA packet. The dst_reg_offset field
+    // has a bit-width of 18 bits.
+    static bool IsDstRegCopyDataPossible(uint32 regAddrOffset) { return ((~((1 << 18) - 1) & regAddrOffset) == 0); }
+
     PerfCounter(const Device& device, const PerfCounterInfo& info, uint32 slot);
     virtual ~PerfCounter() {}
 
@@ -77,16 +81,16 @@ private:
         uint32 u32All;
     };
 
-    const Device& m_device;
-    Flags         m_flags;
-
-    uint32 m_numActiveRegs;                               // Number of active select registers
-    uint32 m_selectReg[PerfCtrInfo::MaxPerfCtrSelectReg]; // Value of each performance counter select register.
-    uint32 m_rsltCntlReg;                                 // Result control register for memory system blocks.
-    uint32                      m_perfCountLoAddr;  // Register address of the low 32 bits of the perf counter
-    uint32                      m_perfCountHiAddr;  // Register address of the high 32 bits of the perf counter
-    ME_COPY_DATA_src_sel_enum   m_mePerfCntSrcSel;  // Source-select value to use for Graphics COPY_DATA PM4 commands
-    MEC_COPY_DATA_src_sel_enum  m_mecPerfCntSrcSel; // Source-select value to use for Compute COPY_DATA PM4 commands
+    const Device&              m_device;
+    Flags                      m_flags;
+    uint32                     m_numActiveRegs;    // Number of active select registers
+    uint32                     m_selectReg[PerfCtrInfo::MaxPerfCtrSelectReg]; // Value of each performance counter
+                                                   // select register. UMC counters use only the first array element.
+    uint32                     m_rsltCntlReg;      // Result control register for memory system blocks.
+    uint32                     m_perfCountLoAddr;  // Register address of the low 32 bits of the perf counter
+    uint32                     m_perfCountHiAddr;  // Register address of the high 32 bits of the perf counter
+    ME_COPY_DATA_src_sel_enum  m_mePerfCntSrcSel;  // Source-select value to use for Graphics COPY_DATA PM4 commands
+    MEC_COPY_DATA_src_sel_enum m_mecPerfCntSrcSel; // Source-select value to use for Compute COPY_DATA PM4 commands
 
     PAL_DISALLOW_DEFAULT_CTOR(PerfCounter);
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfCounter);

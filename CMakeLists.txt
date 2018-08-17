@@ -47,10 +47,6 @@ option(PAL_DEVELOPER_BUILD "Enable developer build" OFF)
 option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" ${CMAKE_BUILD_TYPE_DEBUG})
 cmake_dependent_option(PAL_MEMTRACK "Enable PAL memory tracker?" ${CMAKE_BUILD_TYPE_DEBUG} "PAL_ENABLE_PRINTS_ASSERTS" OFF)
 
-option(PAL_BUILD_JEMALLOC "Use jemalloc as the default PAL allocator?" ON)
-cmake_dependent_option(PAL_JEMALLOC_STATS "Enable jemalloc statistice reporting?" OFF "PAL_BUILD_JEMALLOC" OFF)
-cmake_dependent_option(PAL_JEMALLOC_DEBUG "Build jemalloc in debug mode?" OFF "PAL_BUILD_JEMALLOC" OFF)
-
 option(PAL_BUILD_CORE "Build PAL Core?" ON)
 option(PAL_BUILD_GPUUTIL "Build PAL GPU Util?" ON)
 cmake_dependent_option(PAL_BUILD_LAYERS "Build PAL Layers?" ON "PAL_BUILD_GPUUTIL" OFF)
@@ -110,15 +106,6 @@ set(ADDR_SI_CHIP_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip CACHE PAT
 if(PAL_BUILD_GFX9)
     set(ADDR_GFX9_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX9 support." FORCE)
     set(ADDR_GFX9_CHIP_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip CACHE PATH "PAL override for ADDRLIB GFX9 register chip headers." FORCE)
-endif()
-
-# JEMALLOC
-if(PAL_BUILD_JEMALLOC)
-    set(PAL_JEMALLOC_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/jemalloc CACHE PATH "Specify the path to the jemalloc project.")
-    set(JEMALLOC_OPTIONS_MARK_ADVANCED ON)
-
-    set(JEMALLOC_STATS ${PAL_JEMALLOC_STATS} CACHE BOOL "PAL override." FORCE)
-    set(JEMALLOC_DEBUG ${PAL_JEMALLOC_DEBUG} CACHE BOOL "PAL override." FORCE)
 endif()
 
 # METROHASH

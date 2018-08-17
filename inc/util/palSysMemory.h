@@ -595,19 +595,6 @@ extern Result OsInitDefaultAllocCallbacks(AllocCallbacks* pAllocCb);
 /// OS-specific implementation to cleanup any work done to support default callbacks.
 extern void OsDestroyDefaultAllocCallbacks();
 
-/// @internal
-///
-/// Implementation to install jemalloc allocation callbacks in the specified structure.  Expected to be
-/// called during CreatePlatform if the client doesn't specify their own allocation callbacks.
-///
-/// @param [in,out] pAllocCb Allocation callback structure to be updated with the jemalloc callbacks.
-extern void InitJemallocAllocCallbacks(AllocCallbacks* pAllocCb);
-
-/// @internal
-///
-/// jemalloc implementation to do some final work when a platform is destroyed.
-extern void DestroyJemallocAllocCallbacks();
-
 /// @internal Internal template implementation for calling a destructor from PAL_DELETE or PAL_DELETE_ARRAY.
 ///
 /// @param [in] p Object to be destructed.

@@ -131,14 +131,14 @@ public:
     // Returns true if the settings config has successfully requested for SQ thread trace.
     bool IsThreadTraceEnabled() const
     {
-        return ((GetProfilerMode() > GpuProfilerSqttOff) &&
+        return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
                 (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSqtt)));
     }
 
     // Returns true if the settings config has successfully requested for Streaming counter trace.
     bool IsSpmTraceEnabled() const
     {
-        return ((GetProfilerMode() > GpuProfilerSqttOff) &&
+        return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
                 (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSpm)));
     }
 

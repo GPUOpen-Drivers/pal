@@ -350,8 +350,18 @@ Result Device::Cleanup()
 
     if (m_pageFaultDebugSrdMem.IsBound() && (result == Result::Success))
     {
-        result = m_memMgr.FreeGpuMem(m_pageFaultDebugSrdMem.Memory(), m_pageFaultDebugSrdMem.Offset());
+        GpuMemory* gpuMemory = m_pageFaultDebugSrdMem.Memory();
+        gpusize    virtAddr  = gpuMemory->Desc().gpuVirtAddr;
+        gpusize    size      = gpuMemory->Desc().size;
+        gpusize    virtSize  = Pow2Align(size, m_memoryProperties.virtualMemAllocGranularity);
+
+        result = m_memMgr.FreeGpuMem(gpuMemory, m_pageFaultDebugSrdMem.Offset());
         m_pageFaultDebugSrdMem.Update(nullptr, 0);
+
+        Result freeVaResult = FreeGpuVirtualAddress(virtAddr, virtSize);
+
+        // An error here is not fatal, but it will likely prevent new debug SRDs from being allocated in new devices.
+        PAL_ALERT(freeVaResult != Result::Success);
     }
 
     if (m_dummyChunkMem.IsBound() && (result == Result::Success))
@@ -798,13 +808,13 @@ Result Device::FindGpuVaRange(
     ) const
 {
     Result result = Result::Success;
-    gpusize vaAllocated = 0u;
 
     PAL_ASSERT(IsPowerOfTwo(vaAlignment));
     *pVaStart = Pow2Align(*pVaStart, vaAlignment);
 
-    for (gpusize vaAddr = *pVaStart; vaAddr < (vaEnd - *pVaStart); vaAddr += vaAlignment)
+    for (gpusize vaAddr = *pVaStart; vaAddr <= (vaEnd - vaSize); vaAddr += vaAlignment)
     {
+        gpusize vaAllocated = 0u;
         result = Result::Success;
 
         if (reserveCpuVa)
@@ -1193,7 +1203,7 @@ void Device::CopyLayerSettings()
     pSqttCfg->maxDraws     = settings.gpuProfilerSqttConfig.maxDraws;
     pSqttCfg->bufferSize   = settings.gpuProfilerSqttConfig.bufferSize;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-    pSqttCfg->stallMode    = settings.gpuProfilerSqttConfig.stallBehavior;
+    pSqttCfg->stallMode    = static_cast<GpuProfilerStallMode>(settings.gpuProfilerSqttConfig.stallBehavior);
 #endif
 
     Strncpy(pProfilerCfg->logDirectory, settings.gpuProfilerConfig.logDirectory, MaxPathStrLen);
@@ -1278,23 +1288,44 @@ void Device::InitPageFaultDebugSrd()
                                               m_chipProperties.srdSizes.sampler);
 
         GpuMemoryCreateInfo createInfo = {};
-        createInfo.vaRange = VaRange::DescriptorTable;
+        createInfo.vaRange   = VaRange::DescriptorTable;
         createInfo.alignment = 0;
-        createInfo.size = static_cast<gpusize>(maxSrdSize * numDebugSrds);
-        createInfo.priority = GpuMemPriority::Normal;
-        createInfo.heaps[0] = GpuHeapGartUswc;
+        createInfo.size      = static_cast<gpusize>(maxSrdSize * numDebugSrds);
+        createInfo.priority  = GpuMemPriority::Normal;
+        createInfo.heaps[0]  = GpuHeapGartUswc;
         createInfo.heapCount = 1;
 
         // This allocation must always be placed at the beginning of the DescriptorTable VA range.
-        const uint32 vaRangeIndex = static_cast<uint32>(VaPartition::DescriptorTable);
+        const uint32  vaRangeIndex = static_cast<uint32>(VaPartition::DescriptorTable);
         const gpusize baseVirtAddr = m_memoryProperties.vaRange[vaRangeIndex].baseVirtAddr;
+        const gpusize vaSize       = Pow2Align(createInfo.size, m_memoryProperties.virtualMemAllocGranularity);
         GpuMemoryInternalCreateInfo internalCreateInfo = {};
-        internalCreateInfo.flags.alwaysResident = 1;
-        internalCreateInfo.baseVirtAddr = baseVirtAddr;
+        internalCreateInfo.flags.alwaysResident    = 1;
+        internalCreateInfo.flags.pageFaultDebugSrd = 1;
+        internalCreateInfo.baseVirtAddr            = baseVirtAddr;
+
+        Result result = ReserveGpuVirtualAddress(VaPartition::DescriptorTable,
+                                                 internalCreateInfo.baseVirtAddr,
+                                                 vaSize,
+                                                 true,
+                                                 VirtualGpuMemAccessMode::Undefined,
+                                                 nullptr);
 
         GpuMemory* pGpuMem = nullptr;
         gpusize memOffset = 0;
-        Result result = m_memMgr.AllocateGpuMem(createInfo, internalCreateInfo, false, &pGpuMem, &memOffset);
+
+        if (result == Result::Success)
+        {
+            result = m_memMgr.AllocateGpuMem(createInfo, internalCreateInfo, false, &pGpuMem, nullptr);
+        }
+        else
+        {
+            // Failing to initialize the Page - Fault Debug SRD is not a fatal error, since well-behaved applications
+            // should never need this feature, and it is only a debug feature for non-well-behaved applications.
+            // Situations where this would fail to initialize under normal conditions are multi - GPU configurations and
+            // applications which create multiple Devices.
+            PAL_ALERT_ALWAYS();
+        }
 
         void* pData = nullptr;
         if (result == Result::Success)

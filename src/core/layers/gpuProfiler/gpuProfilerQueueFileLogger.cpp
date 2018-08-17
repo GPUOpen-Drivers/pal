@@ -643,12 +643,12 @@ void Queue::OutputTraceDataToFile(
 {
     const auto& settings = m_pDevice->ProfilerSettings();
 
-    if ((m_pDevice->GetProfilerMode() > GpuProfilerSqttOff) &&
+    if ((m_pDevice->GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
         (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
         (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace)))
     {
         // Output trace data in RGP format.
-        if ((m_pDevice->GetProfilerMode() == GpuProfilerSqttRgp))
+        if ((m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledRgp))
         {
             if (settings.perfCounterConfig.granularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
@@ -660,7 +660,7 @@ void Queue::OutputTraceDataToFile(
                 m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP,");
             }
         }
-        else if (m_pDevice->GetProfilerMode() == GpuProfilerSqttThreadTraceView)
+        else if (m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledTtv)
         {
             // Output trace data in thread trace viewer format.
             // Output separate files for thread trace data (.out) and spm trace data (.csv) for ThreadTraceViewer.

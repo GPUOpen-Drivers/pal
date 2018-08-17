@@ -104,8 +104,7 @@ Result SettingsLoader::Init()
 void SettingsLoader::ValidateSettings(
     PalSettings* pSettings)
 {
-    Pal::Device* pDevice = Device();
-    const auto& gfx6Props = pDevice->ChipProperties().gfx6;
+    const auto& gfx6Props = m_pDevice->ChipProperties().gfx6;
     // Some hardware can support 128 offchip buffers per SE, but most support 64.
     const uint32 maxOffchipLdsBuffersPerSe =
             (gfx6Props.doubleOffchipLdsBuffers ? 128 : 64);
@@ -113,10 +112,10 @@ void SettingsLoader::ValidateSettings(
     uint32 maxOffchipLdsBuffers =
             (gfx6Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
-    auto pGfx6Device = static_cast<Pal::Gfx6::Device*>(pDevice->GetGfxDevice());
-    auto pPalSettings = pDevice->GetPublicSettings();
+    auto pGfx6Device = static_cast<Pal::Gfx6::Device*>(m_pDevice->GetGfxDevice());
+    auto pPalSettings = m_pDevice->GetPublicSettings();
 
-    if (IsGfx6(*pDevice))
+    if (IsGfx6(*m_pDevice))
     {
         // On Gfx6, the offchip bufferring register only has enough space to support a maximum of 127 buffers. Since
         // this must be evenly distributed across all SE's, we need to clamp to 126 (for two-SE configurations).
@@ -128,13 +127,13 @@ void SettingsLoader::ValidateSettings(
         // Gfx6 hardware does not support on-chip GS mode.
         m_settings.gfx7EnableOnchipGs = false;
     }
-    else if (IsGfx7(*pDevice))
+    else if (IsGfx7(*m_pDevice))
     {
         // On Gfx7, the offchip bufferring register only has enough space to support a maximum of 511 buffers. Since
         // this must be evenly distributed across all SE's, we need to clamp to 508 (for four-SE configurations).
         maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 508U);
     }
-    else if(IsGfx8(*pDevice))
+    else if(IsGfx8(*m_pDevice))
     {
         // On Gfx8, the offchip bufferring register has enough space to support the full 512 buffers.
         maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 512U);
@@ -152,13 +151,13 @@ void SettingsLoader::ValidateSettings(
     // the user tried to enable it through the panel.
     if ((gfx6Props.supportLoadRegIndexPkt == 0) ||
         (gfx6Props.supportPreemptionWithChaining == 0) ||
-        (pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
+        (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
         // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
         // but we can't support state shadowing without these features.
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
     }
-    else if (pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
@@ -195,7 +194,7 @@ void SettingsLoader::ValidateSettings(
     // off-chip tessellation is enabled.
     if ((gfx6Props.numShaderEngines == 1) ||
         (m_settings.numOffchipLdsBuffers == 0) ||
-        (IsGfx8(*pDevice) == false))
+        (IsGfx8(*m_pDevice) == false))
     {
         pPalSettings->distributionTessMode        = DistributionTessOff;
         m_settings.gfx8PatchDistributionFactor = 0;
@@ -259,7 +258,7 @@ void SettingsLoader::ValidateSettings(
     // Out of Order primitives are only supported on Hawaii and Gfx8 ASICs with more than one VGT.
     // Hawaii has a hardware bug where the hardware can hang when a multi-cycle primitive is processed
     // when out of order is enabled. So we disable out of order prims for that ASIC.
-    if ((IsGfx8(*pDevice) == false) || (gfx6Props.numShaderEngines < 2))
+    if ((IsGfx8(*m_pDevice) == false) || (gfx6Props.numShaderEngines < 2))
     {
         m_settings.gfx7EnableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }
@@ -286,7 +285,7 @@ void SettingsLoader::ValidateSettings(
 
     // It doesn't make sense to enable this feature for ASICs that don't support 4x prim rate and it may actually cause
     // crashes and/or hangs.
-    if (pDevice->ChipProperties().primsPerClock < 4)
+    if (m_pDevice->ChipProperties().primsPerClock < 4)
     {
         m_settings.gfx7AvoidVgtNullPrims = false;
     }
@@ -325,17 +324,16 @@ void SettingsLoader::ValidateSettings(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    Pal::Device* pDevice = Device();
-    const uint32 eRevId = pDevice->ChipProperties().eRevId;
-    if (IsGfx6(*pDevice))
+    const uint32 eRevId = m_pDevice->ChipProperties().eRevId;
+    if (IsGfx6(*m_pDevice))
     {
         // Tahiti & Pitcairn workarounds:
-        if (IsTahiti(*pDevice) || IsPitcairn(*pDevice))
+        if (IsTahiti(*m_pDevice) || IsPitcairn(*m_pDevice))
         {
             m_settings.waMiscGsNullPrim = true;
         }
         // Cape Verde workarounds:
-        else if (IsCapeVerde(*pDevice))
+        else if (IsCapeVerde(*m_pDevice))
         {
             // Verde has all of the different powergating types enabled, which is untrue of the rest of the Gfx6
             // family. When powergating is enabled, certain chips are powered down and register states are lost. Some
@@ -345,15 +343,15 @@ void SettingsLoader::OverrideDefaults(
             pSettings->forcePreambleCmdStream = true;
         }
         // Oland & Hainan workarounds:
-        else if (IsOland(*pDevice) || IsHainan(*pDevice))
+        else if (IsOland(*m_pDevice) || IsHainan(*m_pDevice))
         {
             // No additional workarounds beyond the ones common to all Gfx6+.
         }
     }
-    else if (IsGfx7(*pDevice))
+    else if (IsGfx7(*m_pDevice))
     {
         // Hawaii workarounds:
-        if (IsHawaii(*pDevice))
+        if (IsHawaii(*m_pDevice))
         {
             // On Hawaii, thick/thick tiling formats don't suppot fast clears. There are several ways to deal with
             // this: long term, we'd like to add new entries to the tiling table so renderable 3D Images get a
@@ -362,14 +360,14 @@ void SettingsLoader::OverrideDefaults(
             m_settings.fastColorClearOn3dEnable = false;
         }
         // Bonaire workarounds:
-        else if (IsBonaire(*pDevice))
+        else if (IsBonaire(*m_pDevice))
         {
             m_settings.waMiscGsNullPrim = true;
         }
     }
-    else if (IsGfx8(*pDevice))
+    else if (IsGfx8(*m_pDevice))
     {
-        if (IsCarrizo(*pDevice))
+        if (IsCarrizo(*m_pDevice))
         {
             m_settings.gfx7LateAllocVsOnCuAlwaysOn = true;
         }
@@ -382,13 +380,13 @@ void SettingsLoader::OverrideDefaults(
 
     // When configuring the IA_MULTI_VGT_PARAM register, all Sea Islands hardware with more than two shader engines
     // should set PARTIAL_VS_WAVE_ON whenever SWITCH_ON_EOI is set.
-    if ((IsGfx7(*pDevice)) &&
-        (pDevice->ChipProperties().gfx6.numShaderEngines > 2))
+    if ((IsGfx7(*m_pDevice)) &&
+        (m_pDevice->ChipProperties().gfx6.numShaderEngines > 2))
     {
         m_settings.gfx7VsPartialWaveWithEoiEnabled = true;
     }
 
-    if (IsGfx8(*pDevice))
+    if (IsGfx8(*m_pDevice))
     {
         // Disable VS half-pack mode by default on Gfx8 hardware. The reg-spec recommends more optimal VGT settings
         // which can only be used when half-pack mode is disabled. All Gfx8 parts have enough param cache space for the
@@ -399,20 +397,20 @@ void SettingsLoader::OverrideDefaults(
 
     // Prior-to-Gfx8, the DCC (delta color compression) and texture-fetch-of-meta-data features did not exist. These
     // keys should not do be used without verifying that the installed device is Gfx8 (or newer), but just in case...
-    if (IsGfx6(*pDevice) || IsGfx7(*pDevice))
+    if (IsGfx6(*m_pDevice) || IsGfx7(*m_pDevice))
     {
         m_settings.gfx8UseDcc                            = 0;
-        pDevice->GetPublicSettings()->tcCompatibleMetaData = 0;
+        m_pDevice->GetPublicSettings()->tcCompatibleMetaData = 0;
     }
 
     // It's generally faster to use on-chip tess for these ASICs due to their low memory bandwidth.
-    if (IsIceland(*pDevice) || IsHainan(*pDevice))
+    if (IsIceland(*m_pDevice) || IsHainan(*m_pDevice))
     {
         m_settings.numOffchipLdsBuffers = 0;
     }
 
     // Null primitives can lead to significant performance losses on 4x prim rate ASICs.
-    if (pDevice->ChipProperties().primsPerClock >= 4)
+    if (m_pDevice->ChipProperties().primsPerClock >= 4)
     {
         m_settings.gfx7AvoidVgtNullPrims = true;
     }

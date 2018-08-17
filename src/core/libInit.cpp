@@ -103,13 +103,10 @@ void PAL_STDCALL GetDefaultAllocCb(
     Util::AllocCallbacks* pAllocCb)
 {
     PAL_ASSERT(pAllocCb != nullptr);
-#if PAL_JEMALLOC_ALLOC_CALLBACKS
-    // Initialize jemalloc callbacks.
-    InitJemallocAllocCallbacks(pAllocCb);
-#else
+
     // Initialize default OS-specific callbacks.
     OsInitDefaultAllocCallbacks(pAllocCb);
-#endif
+
 }
 
 // =====================================================================================================================

@@ -81,7 +81,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
     const PalSettings& settings = m_device.Parent()->Settings();
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 

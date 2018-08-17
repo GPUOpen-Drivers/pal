@@ -80,6 +80,11 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
 
+// Represents the maximum number of UMC channels. UMC is the block that interfaces between the Scalable Data Fabric
+// (SDF) and the physical DRAM. Each UMC block has 1..n channels. Typically, there is one UMC channel per EA block, or
+// one per SDP (Scalable Data Port).
+constexpr uint32 MaxNumUmcChannels = 32;
+
 // Internal representation of the IDevice::m_pfnTable structure.
 struct DeviceInterfacePfnTable
 {
@@ -393,6 +398,10 @@ struct Gfx6PerfCounterInfo
 #if PAL_BUILD_GFX9
 // Maximum amount of counters per GPU block for Gfx9
 constexpr size_t MaxCountersPerBlock = 16;
+constexpr size_t MaxUmcCountersPerBlock = 5;
+
+// Maximum number of UMC perf counter registers exposed to SW, per UMC channel.
+constexpr size_t MaxCountersPerUmcch = 5;
 
 // Contains information for perf counters for Gfx9
 struct Gfx9PerfCounterInfo
@@ -422,6 +431,22 @@ struct Gfx9PerfCounterInfo
             uint32  perfRsltCntlRegAddr;            // Perf result control register offset
         } regInfo[MaxCountersPerBlock];             // Register information for each counter
     } block[static_cast<size_t>(GpuBlock::Count)];  // Counter information for each GPU block
+
+    struct
+    {
+        struct
+        {
+            uint32 ctlClkRegAddr;                   // Per channel global control register address.
+
+            struct
+            {
+                uint32 ctrControlRegAddr;            // Perf counter event select register.
+                uint32 resultRegLoAddr;              // Perf counter result register LO address. 32 bits.
+                uint32 resultRegHiAddr;              // Perf counter result register HI address. 16 valid bits.
+            } counter[MaxCountersPerUmcch];
+        } regInfo[MaxNumUmcChannels];
+    } umcChannelBlocks;                              // This struct is valid only when the available boolean above is
+                                                     // true for GpuBlock::Umcch.
 };
 #endif // PAL_BUILD_GFX9
 
@@ -636,6 +661,8 @@ struct GpuChipProperties
             // First index is the shader array, second index is the shader engine
             uint32 activeCuMask[4][4];
             uint32 alwaysOnCuMask[4][4];
+
+            uint32 numSdpInterfaces;          // Number of Synchronous Data Port interfaces to memory.
 
             struct
             {

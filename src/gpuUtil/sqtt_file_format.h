@@ -44,8 +44,12 @@ typedef struct SqttFileHeaderFlags
     {
         struct
         {
-            int32_t  isSemaphoreQueueTimingETW : 1;  /*!< Indicates the source of semaphore queue timing data is ETW. */
-            int32_t  reserved : 31;                  /*!< Reserved, set to 0. */
+            int32_t  isSemaphoreQueueTimingETW            :  1;  /*!< Indicates the source of semaphore queue timing
+                                                                      data is ETW. */
+            int32_t  noQueueSemaphoreTimeStamps           :  1;  /*!< Indicates the queue timing data does not perform
+                                                                      dummy submits for semaphore signal/wait timestamps
+                                                                      and just reports those timestamps as 0. */
+            int32_t  reserved                             : 30;  /*!< Reserved, set to 0. */
         };
 
         uint32_t value;                              /*!< 32bit value containing all the above fields. */
@@ -133,7 +137,8 @@ typedef struct SqttFileChunkIdentifier
 typedef struct SqttFileChunkHeader
 {
     SqttFileChunkIdentifier     chunkIdentifier;            /*!< A unique identifier for the chunk. */
-    int32_t                     version;                    /*!< The version of the chunk. */
+    uint16_t                    minorVersion;               /*!< The minor version of the chunk. */
+    uint16_t                    majorVersion;               /*!< The major version of the chunk. */
     int32_t                     sizeInBytes;                /*!< The size of the chunk in bytes. */
     int32_t                     padding;                    /*!< Reserved padding dword. */
 } SqttFileChunkHeader;

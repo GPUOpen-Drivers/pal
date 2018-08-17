@@ -323,7 +323,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
 
-    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerSqttOff) &&
+    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
@@ -1380,7 +1380,8 @@ void UniversalCmdBuffer::CmdBindTargets(
 void UniversalCmdBuffer::CmdBindStreamOutTargets(
     const BindStreamOutTargetParams& params)
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const auto&              palDevice = *(m_device.Parent());
+    const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const auto*const         pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -2649,8 +2650,7 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     pm4Commands.dbHtileDataBase.u32All        = 0;
 
     // The rest of the PM4 commands depend on which GFXIP version we are.
-    const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
-    if (gfxLevel == GfxIpLevel::GfxIp9)
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
         cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
                                                       Gfx09::mmDB_DFSM_CONTROL,
@@ -2744,7 +2744,7 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting() const
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
-    const auto&  device = *(m_device.Parent());
+    const auto& device = *(m_device.Parent());
 
     // If this trips, it means that this isn't really the preamble -- i.e., somebody has inserted something into the
     // command stream before the preamble.  :-(
@@ -2782,8 +2782,6 @@ Result UniversalCmdBuffer::AddPreamble()
     }
 
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, dbRenderOverride.u32All, pDeCmdSpace);
-
-    const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
 
     // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
     // inherited state and the optimizations won't be cleared unless cleared in this command buffer.

@@ -2750,6 +2750,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.maxGsWavesPerVgt     = 16;
         pInfo->gfx9.parameterCacheLines  = 1024;
         pInfo->gfx9.rbPlus               = 1;
+        pInfo->gfx9.numSdpInterfaces     = 2;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {
@@ -2776,9 +2777,10 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision = AsicRevision::Vega10;
             pInfo->gfxStepping = 0;
-            pInfo->gfx9.numTccBlocks    = 16;
-            pInfo->gfx9.maxNumCuPerSh   = 16;
-            pInfo->gfx9.maxNumRbPerSe   = 4;
+            pInfo->gfx9.numTccBlocks     = 16;
+            pInfo->gfx9.maxNumCuPerSh    = 16;
+            pInfo->gfx9.maxNumRbPerSe    = 4;
+            pInfo->gfx9.numSdpInterfaces = 16;
         }
         else
         {
@@ -2909,7 +2911,7 @@ void InitializeGpuEngineProperties(
     uint32               eRevId,
     GpuEngineProperties* pInfo)
 {
-    auto*const pUniversal = &pInfo->perEngine[EngineTypeUniversal];
+    auto*const  pUniversal = &pInfo->perEngine[EngineTypeUniversal];
 
     // We support If/Else/While on the universal and compute queues; the command stream controls the max nesting depth.
     pUniversal->flags.timestampSupport                = 1;
