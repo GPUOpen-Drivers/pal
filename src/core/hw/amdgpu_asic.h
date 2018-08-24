@@ -89,6 +89,7 @@
 
 #if PAL_BUILD_GFX9
 #define AMDGPU_VEGA10_RANGE     0x01, 0x14
+#define AMDGPU_VEGA12_RANGE     0x14, 0x28
 #endif
 
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
@@ -128,6 +129,8 @@
 #if PAL_BUILD_GFX9
 #define ASICREV_IS_VEGA10_M(r)         ASICREV_IS(r, VEGA10)
 #define ASICREV_IS_VEGA10_P(r)         ASICREV_IS(r, VEGA10)
+#define ASICREV_IS_VEGA12_P(r)         ASICREV_IS(r, VEGA12)
+#define ASICREV_IS_VEGA12_p(r)         ASICREV_IS(r, VEGA12)
 #endif
 
 #define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
@@ -162,6 +165,7 @@
 
 #if PAL_BUILD_GFX9
 #define AMDGPU_IS_VEGA10(f, r)     AMDGPU_IS(f, r, AI, VEGA10)
+#define AMDGPU_IS_VEGA12(f, r)     AMDGPU_IS(f, r, AI, VEGA12)
 #endif
 
 #define AMDGPU_IS_RAVEN(f, r)      AMDGPU_IS(f, r, RV, RAVEN)
@@ -180,6 +184,7 @@
 #define DEVICE_ID_ST_98E4               0x98E4
 #if PAL_BUILD_GFX9
 #define DEVICE_ID_AI_VEGA10_P_6860      0x6860
+#define DEVICE_ID_AI_VEGA12_P_69A0      0x69A0
 #endif
 #define DEVICE_ID_RV_15DD               0x15DD
 
@@ -197,6 +202,7 @@
 #define CZ_STONEY_A0              0x61
 #if PAL_BUILD_GFX9
 #define AI_VEGA10_P_A0               1
+#define AI_VEGA12_P_A0              20
 #endif
 #define RAVEN_A0                     1
 
@@ -214,6 +220,7 @@
 #define PRID_ST_80                  0x80
 #if PAL_BUILD_GFX9
 #define PRID_AI_VEGA10_C3           0xC3
+#define PRID_AI_VEGA12_00           0x00
 #endif
 #define PRID_RV_81                  0x81
 

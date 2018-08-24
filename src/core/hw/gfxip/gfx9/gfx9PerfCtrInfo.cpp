@@ -270,6 +270,14 @@ void GetPrimaryBlockCounterInfo(
 
                 memcpy(pBlockCounterInfo, &EaPerfCounterInfo, sizeof(BlockPerfCounterInfo));
             }
+            else
+            {
+                constexpr BlockPerfCounterInfo  EaPerfCounterInfo =
+                    { Gfx9NumEaCounters, 0, 0,{ Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG,
+                                                Gfx09_1x::mmGCEA_PERFCOUNTER1_CFG } };
+
+                memcpy(pBlockCounterInfo, &EaPerfCounterInfo, sizeof(BlockPerfCounterInfo));
+            }
         }
     }
 }
@@ -354,6 +362,10 @@ uint32 GetMaxEventId(
                 {
                     maxEventId = MaxIaPerfcountSelectGfx09_0;
                 }
+                else
+                {
+                    maxEventId = MaxIaPerfcountSelectGfx09_1x;
+                }
             }
             else if (block == GpuBlock::Pa)
             {
@@ -362,14 +374,22 @@ uint32 GetMaxEventId(
                 {
                     maxEventId = MaxSuPerfcntSelGfx09_0;
                 }
+                else
+                {
+                    maxEventId = MaxSuPerfcntSelGfx09_1x;
+                }
             }
             else if (block == GpuBlock::Sc)
             {
                 maxEventId = MaxScPerfcntSelGfx09_0;
+                if (AMDGPU_IS_VEGA12(pProps->familyId, pProps->eRevId))
+                {
+                    maxEventId = MaxScPerfcntSelVg12;
+                }
             }
             else if (block == GpuBlock::Tcc)
             {
-                maxEventId = MaxTccPerfSelGfx09_0;
+                maxEventId = MaxTccPerfSelVg10_Vg12_Rv1x;
 
             }
         } // end check for an invalid block ID
@@ -546,6 +566,10 @@ void SetupUmcchBlockInfo(
     if (ASICREV_IS_VEGA10_P(pProps->eRevId))
     {
         pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_vg10[0];
+    }
+    else if (ASICREV_IS_VEGA12_P(pProps->eRevId))
+    {
+        pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_vg12[0];
     }
     else if (ASICREV_IS_RAVEN(pProps->eRevId)
     )
@@ -921,6 +945,18 @@ void SetupGfx9Counters(
                             Gfx09_0::mmGCEA_PERFCOUNTER_HI,
                             0,
                             Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL);
+    }
+    else
+    {
+        SetupMcSysBlockInfo(pProps,
+                            GpuBlock::Ea,
+                            DefaultShaderEngines,
+                            DefaultShaderArrays,
+                            EaInstances,
+                            Gfx09_1x::mmGCEA_PERFCOUNTER_LO,
+                            Gfx09_1x::mmGCEA_PERFCOUNTER_HI,
+                            0,
+                            Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL);
     }
 
     // RPB block

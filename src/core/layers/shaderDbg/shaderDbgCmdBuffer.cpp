@@ -54,21 +54,27 @@ constexpr Sdl_HwShaderStage AbiToSdlHwStage[] =
 static_assert(ArrayLen(AbiToSdlHwStage) == static_cast<uint32>(Abi::HardwareStage::Count),
               "HardwareStageStrings is not the same size as HardwareStage enum!");
 
-constexpr Sdl_GfxIpLevel PalToSdlGfxIpLevel[] =
+// =====================================================================================================================
+static Sdl_GfxIpLevel PalToSdlGfxIpLevel(
+    GfxIpLevel gfxLevel)
 {
-    Sdl_None,           // GfxIpLevel::None
-    Sdl_None,           // GfxIpLevel::GfxIp6
-    Sdl_None,           // GfxIpLevel::GfxIp7
-    Sdl_None,           // GfxIpLevel::GfxIp8
-    Sdl_None,           // GfxIpLevel::GfxIp8_1
-#if PAL_BUILD_GFX9
-    Sdl_GfxIp9,         // GfxIpLevel::GfxIp9
-#endif
-    Sdl_None,           // GfxIpLevel::GfxIp10
-};
+    Sdl_GfxIpLevel sdlGfxLevel = Sdl_None;
 
-static_assert(ArrayLen(PalToSdlGfxIpLevel) == static_cast<uint32>(GfxIpLevel::Count),
-              "PalToSdlGfxIpLevel is not the same size as GfxIpLevel enum!");
+    switch (gfxLevel)
+    {
+#if PAL_BUILD_GFX9
+    case GfxIpLevel::GfxIp9:
+        sdlGfxLevel = Sdl_GfxIp9;
+        break;
+#endif
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    PAL_ASSERT(sdlGfxLevel != Sdl_None);
+    return sdlGfxLevel;
+}
 
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
@@ -375,8 +381,7 @@ void CmdBuffer::AllocateHwShaderDbg(
 
     if (result == Result::Success)
     {
-        const Sdl_GfxIpLevel gfxIpLevel = PalToSdlGfxIpLevel[static_cast<uint32>(m_pDevice->DeviceProps().gfxLevel)];
-        PAL_ASSERT(gfxIpLevel != Sdl_None);
+        const Sdl_GfxIpLevel gfxIpLevel = PalToSdlGfxIpLevel(m_pDevice->DeviceProps().gfxLevel);
 
         gpusize traceAddrs[static_cast<uint32>(Abi::HardwareStage::Count)] = {};
 

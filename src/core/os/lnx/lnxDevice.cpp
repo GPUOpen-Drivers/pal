@@ -27,6 +27,7 @@
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxQueue.h"
+#include "core/os/lnx/lnxTimestampFence.h"
 #include "core/os/lnx/lnxSyncobjFence.h"
 #include "core/os/lnx/lnxGpuMemory.h"
 #include "core/os/lnx/lnxImage.h"
@@ -2363,7 +2364,7 @@ Result Device::CreateFence(
     IFence**               ppFence
     ) const
 {
-    Fence* pFence = nullptr;
+    Pal::Fence* pFence = nullptr;
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
 
     if (GetFenceType() == FenceType::SyncObj)
@@ -2372,12 +2373,12 @@ Result Device::CreateFence(
     }
     else
     {
-        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) TimestampFence();
     }
 
     // Set needsEvent argument to true - all client-created fences require event objects to support the
     // IDevice::WaitForFences interface.
-    Result result = pFence->Init(createInfo, true);
+    Result result = pFence->Init(createInfo);
 
     if (result != Result::Success)
     {
@@ -2398,7 +2399,7 @@ Result Device::OpenFence(
     IFence**             ppFence
     ) const
 {
-    Fence* pFence = nullptr;
+    Pal::Fence* pFence = nullptr;
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
 
     if (GetFenceType() == FenceType::SyncObj)
@@ -2407,7 +2408,7 @@ Result Device::OpenFence(
     }
     else
     {
-        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) TimestampFence();
     }
     Result result = pFence->OpenHandle(openInfo);
 

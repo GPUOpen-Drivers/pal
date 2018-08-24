@@ -1231,6 +1231,12 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
             ADDR_ASSERT(m_settings.isRaven == FALSE);
 #endif
 
+#if ADDR_VEGA12_BUILD
+            if (m_settings.isVega12)
+            {
+                m_settings.htileCacheRbConflict = 1;
+            }
+#endif
         }
     }
     else
@@ -1268,6 +1274,9 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
         case FAMILY_AI:
             m_settings.isArcticIsland = 1;
             m_settings.isVega10    = ASICREV_IS_VEGA10_P(uChipRevision);
+#if ADDR_VEGA12_BUILD
+            m_settings.isVega12    = ASICREV_IS_VEGA12_P(uChipRevision);
+#endif
             m_settings.isDce12 = 1;
 
             if (m_settings.isVega10 == 0)
@@ -3201,7 +3210,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
                 }
                 else if (IsDisplaySwizzle(rsrcType, swizzle))
                 {
-                    invalid = zbuffer;
+                    invalid = zbuffer || (prt && (ADDR_RSRC_TEX_3D == rsrcType));
                 }
                 else if (IsRotateSwizzle(swizzle))
                 {
@@ -3384,6 +3393,14 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                 }
             }
         }
+        else if (IsTex3d(pOut->resourceType) && pIn->flags.prt)
+        {
+            blockSet.value = AddrBlockSetLinear | AddrBlockSetMacro;
+
+            // PRT cannot use SW_D which gives an unexpected block dimension
+            addrPreferredSwSet.value = ElemLib::IsBlockCompressed(pIn->format) ? AddrSwSetS : AddrSwSetZ;
+            addrValidSwSet.value     = AddrSwSetZ | AddrSwSetS;
+        }
         else if (ElemLib::IsBlockCompressed(pIn->format))
         {
             // block compressed formats (BCx, ASTC, ETC2) must be either S or D modes.
@@ -3415,13 +3432,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
         {
             blockSet.value = AddrBlockSetLinear | AddrBlockSetMacro;
 
-            if (pIn->flags.prt)
-            {
-                // PRT cannot use SW_D which gives an unexpected block dimension
-                addrPreferredSwSet.value = AddrSwSetZ;
-                addrValidSwSet.value     = AddrSwSetZ | AddrSwSetS;
-            }
-            else if ((numMipLevels > 1) && (slice >= width) && (slice >= height))
+            if ((numMipLevels > 1) && (slice >= width) && (slice >= height))
             {
                 // When depth (Z) is the maximum dimension then must use one of the SW_*_S
                 // or SW_*_Z modes if mipmapping is desired on a 3D surface

@@ -111,8 +111,8 @@ void FillSqttCpuInfo(
 
     pCpuInfo->header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_CPU_INFO;
     pCpuInfo->header.chunkIdentifier.chunkIndex = 0;
-    pCpuInfo->header.majorVersion               = 0;
-    pCpuInfo->header.minorVersion               = 0;
+    pCpuInfo->header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CPU_INFO].majorVersion;
+    pCpuInfo->header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CPU_INFO].minorVersion;
     pCpuInfo->header.sizeInBytes                = sizeof(SqttFileChunkCpuInfo);
 
     pCpuInfo->cpuTimestampFrequency = static_cast<uint64>(Util::GetPerfFrequency());
@@ -169,8 +169,8 @@ void FillSqttAsicInfo(
 
     pAsicInfo->header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ASIC_INFO;
     pAsicInfo->header.chunkIdentifier.chunkIndex = 0;
-    pAsicInfo->header.majorVersion               = 0;
-    pAsicInfo->header.minorVersion               = 2;
+    pAsicInfo->header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ASIC_INFO].majorVersion;
+    pAsicInfo->header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ASIC_INFO].minorVersion;
     pAsicInfo->header.sizeInBytes                = sizeof(SqttFileChunkAsicInfo);
 
     pAsicInfo->flags = 0;
@@ -2817,8 +2817,8 @@ Result GpaSession::DumpRgpData(
     SqttFileHeader fileHeader   = {};
     SqttFileHeader* pFileHeader = &fileHeader;
     fileHeader.magicNumber      = SQTT_FILE_MAGIC_NUMBER;
-    fileHeader.versionMajor     = 1;
-    fileHeader.versionMinor     = 2;
+    fileHeader.versionMajor     = RGP_FILE_FORMAT_SPEC_MAJOR_VER;
+    fileHeader.versionMinor     = RGP_FILE_FORMAT_SPEC_MINOR_VER;
     fileHeader.flags.value      = 0;
     // ETW queue timing data is enabled when the GPA Session queue timing is disabled.
     fileHeader.flags.isSemaphoreQueueTimingETW = (m_flags.useInternalQueueSemaphoreTiming == false);
@@ -2894,8 +2894,8 @@ Result GpaSession::DumpRgpData(
     SqttFileChunkApiInfo apiInfo = {};
     apiInfo.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_API_INFO;
     apiInfo.header.chunkIdentifier.chunkIndex = 0;
-    apiInfo.header.majorVersion = 0;
-    apiInfo.header.minorVersion = 0;
+    apiInfo.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].majorVersion;
+    apiInfo.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_INFO].minorVersion;
     apiInfo.header.sizeInBytes = sizeof(apiInfo);
     apiInfo.apiType = SQTT_API_TYPE_VULKAN;
     apiInfo.versionMajor = m_apiMajorVer;
@@ -2928,13 +2928,14 @@ Result GpaSession::DumpRgpData(
             SqttFileChunkSqttDesc desc             = {};
             desc.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DESC;
             desc.header.chunkIdentifier.chunkIndex = i;
-            desc.header.majorVersion               = 0;
-            desc.header.minorVersion               = 1;
             desc.header.sizeInBytes                = sizeof(desc);
             desc.shaderEngineIndex                 = seLayout.shaderEngine;
             desc.v1.instrumentationSpecVersion     = m_instrumentationSpecVersion;
             desc.v1.instrumentationApiVersion      = m_instrumentationApiVersion;
             desc.v1.computeUnitIndex               = seLayout.computeUnit;
+
+            desc.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DESC].majorVersion;
+            desc.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DESC].minorVersion;
 
             desc.sqttVersion = GfxipToSqttVersionTranslation[static_cast<uint32>(m_deviceProps.gfxLevel)];
 
@@ -2963,11 +2964,12 @@ Result GpaSession::DumpRgpData(
             SqttFileChunkSqttData data             = {};
             data.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_SQTT_DATA;
             data.header.chunkIdentifier.chunkIndex = i;
-            data.header.majorVersion               = 0;
-            data.header.minorVersion               = 0;
             data.header.sizeInBytes                = sizeof(data) + sqttBytesWritten;
             data.offset                            = static_cast<int32>(curFileOffset + sizeof(data));
             data.size                              = sqttBytesWritten;
+
+            data.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DATA].majorVersion;
+            data.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DATA].minorVersion;
 
             if ((result == Result::Success) && (pRgpOutput != nullptr))
             {
@@ -3013,8 +3015,10 @@ Result GpaSession::DumpRgpData(
                     SqttFileChunkIsaDatabase shaderIsaDb          = {};
                     shaderIsaDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_ISA_DATABASE;
                     shaderIsaDb.header.chunkIdentifier.chunkIndex = 0;
-                    shaderIsaDb.header.majorVersion               = 0;
-                    shaderIsaDb.header.minorVersion               = 0;
+                    shaderIsaDb.header.majorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ISA_DATABASE].majorVersion;
+                    shaderIsaDb.header.minorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_ISA_DATABASE].minorVersion;
                     shaderIsaDb.recordCount = static_cast<uint32>(m_curShaderRecords.NumElements());
 
                     int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
@@ -3075,8 +3079,10 @@ Result GpaSession::DumpRgpData(
         SqttFileChunkQueueEventTimings eventTimings = {};
         eventTimings.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS;
         eventTimings.header.chunkIdentifier.chunkIndex = 0;
-        eventTimings.header.majorVersion = 1;
-        eventTimings.header.minorVersion = 0;
+        eventTimings.header.majorVersion =
+            RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS].majorVersion;
+        eventTimings.header.minorVersion =
+            RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS].minorVersion;
 
         const uint32 numQueueInfoRecords = m_timedQueuesArray.NumElements();
         const uint32 numQueueEventRecords = m_queueEvents.NumElements();
@@ -3245,8 +3251,10 @@ Result GpaSession::DumpRgpData(
         // SqttClockCalibration chunk
         SqttFileChunkClockCalibration clockCalibration = {};
         clockCalibration.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION;
-        clockCalibration.header.majorVersion = 0;
-        clockCalibration.header.minorVersion = 0;
+        clockCalibration.header.majorVersion =
+            RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION].majorVersion;
+        clockCalibration.header.minorVersion =
+            RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION].minorVersion;
         clockCalibration.header.sizeInBytes = sizeof(clockCalibration);
 
         const uint32 numClockCalibrationSamples = m_timestampCalibrations.NumElements();
@@ -3320,6 +3328,9 @@ Result GpaSession::AppendSpmTraceData(
             spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SqttFileChunkSpmDb) + spmDataSize);
             spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
             spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
+
+            spmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].majorVersion;
+            spmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].minorVersion;
 
             memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &spmDbChunk, sizeof(spmDbChunk));
 

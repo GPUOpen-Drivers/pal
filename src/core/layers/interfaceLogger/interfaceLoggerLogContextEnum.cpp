@@ -930,7 +930,11 @@ void LogContext::Enum(
         nullptr,
 #endif
         "Raven",
+#if PAL_BUILD_GFX9
+        "Vega12",
+#else
         nullptr,
+#endif
         nullptr,
         nullptr,
         "Max",

@@ -84,6 +84,7 @@ protected:
 
     virtual Result OsWaitIdle() override;
 
+    Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 private:
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

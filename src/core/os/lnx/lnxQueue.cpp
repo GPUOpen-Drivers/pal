@@ -44,6 +44,8 @@
 #include "palListImpl.h"
 #include "palHashMapImpl.h"
 #include "palVectorImpl.h"
+#include "lnxTimestampFence.h"
+#include "lnxSyncobjFence.h"
 
 using namespace Util;
 
@@ -627,7 +629,7 @@ Result Queue::OsSubmit(
     // Update the fence
     if ((result == Result::Success) && (submitInfo.pFence != nullptr))
     {
-        result = static_cast<Fence*>(submitInfo.pFence)->AssociateWithLastTimestampOrSyncobj();
+        DoAssociateFenceWithLastSubmit(static_cast<Pal::Fence*>(submitInfo.pFence));
     }
 
     return result;
@@ -1014,6 +1016,25 @@ Result Queue::OsWaitIdle()
         result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, AMDGPU_TIMEOUT_INFINITE);
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+Result Queue::DoAssociateFenceWithLastSubmit(
+    Pal::Fence* pFence)
+{
+    Result result = Result::Success;
+    if (m_device.GetFenceType() == FenceType::SyncObj)
+    {
+        result = m_device.ConveySyncObjectState(
+            static_cast<SyncobjFence*>(pFence)->SyncObjHandle(),
+            static_cast<SubmissionContext*>(m_pSubmissionContext)->GetLastSignaledSyncObj());
+    }
+    else
+    {
+        PAL_ASSERT(m_device.GetFenceType() == FenceType::Legacy);
+        result = static_cast<Pal::Linux::TimestampFence*>(pFence)->AssociateWithLastTimestamp();
+    }
     return result;
 }
 

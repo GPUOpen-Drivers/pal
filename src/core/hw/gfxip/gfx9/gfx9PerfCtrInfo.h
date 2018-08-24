@@ -185,6 +185,19 @@ struct UmcchPerfCounterAddr
 // Unlike the other counters, where the variable is only the instance number, UMCCH block has varying instance
 // (channel number) and perf counter reg addresses within the instance for each ASIC.
 
+// UMCCH perf counter reg address offset mapping for Vega12.
+static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_vg12[] =
+{
+    { mmUMCCH0_PerfMonCtlClk,        mmUMCCH0_PerfMonCtl1,        mmUMCCH0_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH1_PerfMonCtlClk,  Vega::mmUMCCH1_PerfMonCtl1,  Vega::mmUMCCH1_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH2_PerfMonCtlClk,  Vega::mmUMCCH2_PerfMonCtl1,  Vega::mmUMCCH2_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH3_PerfMonCtlClk,  Vega::mmUMCCH3_PerfMonCtl1,  Vega::mmUMCCH3_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH4_PerfMonCtlClk,  Vega::mmUMCCH4_PerfMonCtl1,  Vega::mmUMCCH4_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH5_PerfMonCtlClk,  Vega::mmUMCCH5_PerfMonCtl1,  Vega::mmUMCCH5_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH6_PerfMonCtlClk,  Vega::mmUMCCH6_PerfMonCtl1,  Vega::mmUMCCH6_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH7_PerfMonCtlClk,  Vega::mmUMCCH7_PerfMonCtl1,  Vega::mmUMCCH7_PerfMonCtr1_Lo },
+};
+
 // UMCCH perf counter reg address offset mapping for Vega10.
 static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_vg10[] =
 {

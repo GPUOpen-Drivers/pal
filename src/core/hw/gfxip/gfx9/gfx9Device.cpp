@@ -745,6 +745,7 @@ bool Device::DetermineHwStereoRenderingSupported(
     {
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
+            hwStereoRenderingSupported |= IsVega12(*Parent());
             if (hwStereoRenderingSupported)
             {
                 // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL.
@@ -2677,6 +2678,11 @@ void InitializeGpuChipProperties(
 
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Linear)]           = true;
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Optimal)]          = true;
+    if (ASICREV_IS_VEGA12_P(pInfo->eRevId))
+    {
+        pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = false;
+    }
+    else
     {
         pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = true;
     }
@@ -2781,6 +2787,17 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumCuPerSh    = 16;
             pInfo->gfx9.maxNumRbPerSe    = 4;
             pInfo->gfx9.numSdpInterfaces = 16;
+        }
+        else if (ASICREV_IS_VEGA12_P(pInfo->eRevId))
+        {
+            pInfo->revision = AsicRevision::Vega12;
+            pInfo->gfxStepping = 4;
+            pInfo->gfx9.numTccBlocks         = 8;
+            pInfo->gfx9.maxNumCuPerSh        = 5;
+            pInfo->gfx9.maxNumRbPerSe        = 2;
+            pInfo->gfx9.rbPlus               = 1;
+            pInfo->gfx9.timestampResetOnIdle = 1;
+            pInfo->gfx9.numSdpInterfaces     = 8;
         }
         else
         {
@@ -3365,6 +3382,11 @@ const RegisterRange* Device::GetRegisterRange(
             {
                 pRange         = Gfx90NonShadowedRanges;
                 *pRangeEntries = Gfx90NumNonShadowedRanges;
+            }
+            else
+            {
+                pRange         = Gfx91NonShadowedRanges;
+                *pRangeEntries = Gfx91NumNonShadowedRanges;
             }
             break;
 #endif // PAL_ENABLE_PRINTS_ASSERTS

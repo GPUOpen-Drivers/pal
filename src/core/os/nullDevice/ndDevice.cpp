@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/os/nullDevice/ndDevice.h"
+#include "core/os/nullDevice/ndFence.h"
 #include "core/os/nullDevice/ndGpuMemory.h"
 #include "core/os/nullDevice/ndPlatform.h"
 #include "core/os/nullDevice/ndQueue.h"
@@ -64,7 +65,11 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
     { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
 #endif
     { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
+#if PAL_BUILD_GFX9
+    { FAMILY_AI,      AI_VEGA12_P_A0,    PRID_AI_VEGA12_00,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA12_P_69A0  },
+#else
     { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+#endif
     { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
@@ -89,7 +94,11 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
 #endif
     "RAVEN",
+#if PAL_BUILD_GFX9
+    "VEGA12",
+#else
     nullptr,
+#endif
     nullptr,
     nullptr,
 };
@@ -323,7 +332,7 @@ Result Device::CreateFence(
 
     // Set needsEvent argument to true - all client-created fences require event objects to support the
     // IDevice::WaitForFences interface.
-    Result result = pFence->Init(createInfo, true);
+    Result result = pFence->Init(createInfo);
 
     if (result != Result::Success)
     {
@@ -653,6 +662,21 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   16; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_VEGA12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->gbAddrConfig            = 0x26110001;
+        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
         pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;

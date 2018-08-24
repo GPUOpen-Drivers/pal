@@ -25,6 +25,7 @@
 
 #include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndQueue.h"
+#include "core/os/nullDevice/ndFence.h"
 
 using namespace Util;
 
@@ -111,6 +112,13 @@ Result Queue::RemapVirtualMemoryPages(
     const VirtualMemoryRemapRange* pRangeList,
     bool                           doNotWait,
     IFence*                        pFence)
+{
+    return Result::Success;
+}
+
+// =====================================================================================================================
+Result Queue::DoAssociateFenceWithLastSubmit(
+    Pal::Fence* pFence)
 {
     return Result::Success;
 }

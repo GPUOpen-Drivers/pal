@@ -949,22 +949,6 @@ Result Queue::AssociateFenceWithLastSubmit(
 }
 
 // =====================================================================================================================
-Result Queue::DoAssociateFenceWithLastSubmit(
-    Fence* pFence
-    ) const
-{
-    Result result = Result::ErrorUnavailable;
-
-    // On all platforms, a zero timestamp means that nothing has been submitted on the queue yet.
-    if (m_pSubmissionContext->LastTimestamp() > 0)
-    {
-        result = pFence->AssociateWithLastTimestampOrSyncobj();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // This must be called right after initialization to allow the queue to perform any initialization work which
 // requires a fully initialized queue.
 Result Queue::LateInit()

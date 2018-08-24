@@ -32,6 +32,50 @@
 #error "LITTLEENDIAN_CPU must be defined"
 #endif
 
+union AeCtrl3 {
+    struct {
+        unsigned int MaxWrCycleCnt                                                : 12;
+        unsigned int                                                              :  1;
+        unsigned int DynSnapWrThreshEn                                            :  1;
+        unsigned int DisEarlyWrActs                                               :  1;
+        unsigned int DisEarlyWrPchgs                                              :  1;
+        unsigned int MaxRdCycleCnt                                                : 12;
+        unsigned int                                                              :  1;
+        unsigned int DynSnapRdThreshEn                                            :  1;
+        unsigned int DisEarlyRdActs                                               :  1;
+        unsigned int DisEarlyRdPchgs                                              :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union AeCtrl4 {
+    struct {
+        unsigned int LoPriWrWgt                                                   :  3;
+        unsigned int                                                              :  1;
+        unsigned int MedPriWrWgt                                                  :  3;
+        unsigned int                                                              :  1;
+        unsigned int HiPriWrWgt                                                   :  3;
+        unsigned int                                                              :  1;
+        unsigned int UrgPriWrWgt                                                  :  3;
+        unsigned int                                                              :  1;
+        unsigned int LoPriRdWgt                                                   :  3;
+        unsigned int                                                              :  1;
+        unsigned int MedPriRdWgt                                                  :  3;
+        unsigned int                                                              :  1;
+        unsigned int HiPriRdWgt                                                   :  3;
+        unsigned int                                                              :  1;
+        unsigned int UrgPriRdWgt                                                  :  3;
+        unsigned int                                                              :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union alloc_DEBUG_DATA {
     struct {
         unsigned int GDS_DEBUG_REG5_write_dis                                     :  1;
@@ -1355,6 +1399,12 @@ union CB_COLOR0_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1556,6 +1606,12 @@ union CB_COLOR1_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1757,6 +1813,12 @@ union CB_COLOR2_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1958,6 +2020,12 @@ union CB_COLOR3_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2159,6 +2227,12 @@ union CB_COLOR4_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2360,6 +2434,12 @@ union CB_COLOR5_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2561,6 +2641,12 @@ union CB_COLOR6_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2762,6 +2848,12 @@ union CB_COLOR7_DCC_CONTROL {
         unsigned int LOSSY_ALPHA_PRECISION                                        :  4;
         unsigned int                                                              : 14;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int ENABLE_CONSTANT_ENCODE_REG_WRITE                             :  1;
+        unsigned int                                                              : 12;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2857,6 +2949,11 @@ union CB_DCC_CONFIG {
         unsigned int                                                              : 16;
     } bits, bitfields;
     struct {
+        unsigned int                                                              :  7;
+        unsigned int DISABLE_CONSTANT_ENCODE                                      :  1;
+        unsigned int                                                              : 24;
+    } gfx09_1xPlus;
+    struct {
         unsigned int                                                              : 16;
         unsigned int READ_RETURN_SKID_FIFO_DEPTH                                  :  7;
         unsigned int                                                              :  1;
@@ -2876,6 +2973,17 @@ union CB_DCC_CONTROL {
         unsigned int OVERWRITE_COMBINER_WATERMARK                                 :  5;
         unsigned int                                                              : 25;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int DISABLE_CONSTANT_ENCODE_AC01                                 :  1;
+        unsigned int DISABLE_CONSTANT_ENCODE_SINGLE                               :  1;
+        unsigned int DISABLE_CONSTANT_ENCODE_REG                                  :  1;
+        unsigned int                                                              :  1;
+        unsigned int DISABLE_ELIMFC_SKIP_OF_AC01                                  :  1;
+        unsigned int DISABLE_ELIMFC_SKIP_OF_SINGLE                                :  1;
+        unsigned int ENABLE_ELIMFC_SKIP_OF_REG                                    :  1;
+        unsigned int                                                              : 17;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              :  1;
         unsigned int OVERWRITE_COMBINER_MRT_SHARING_DISABLE                       :  1;
@@ -4402,6 +4510,20 @@ union CC_RB_REDUNDANCY {
     float        f32All;
 };
 
+union CGTX_SPI_DEBUG_CLK_CTRL {
+    struct {
+        unsigned int GRP5_CG_OFF_HYST                                             :  6;
+        unsigned int GRP5_CG_OVERRIDE                                             :  1;
+        unsigned int ALL_CLK_ON_OVERRIDE                                          :  1;
+        unsigned int SPI_SH_CLK_CONTROL                                           :  1;
+        unsigned int                                                              : 23;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union COHER_DEST_BASE_0 {
     struct {
         unsigned int DEST_BASE_256B                                               : 32;
@@ -4509,6 +4631,16 @@ union COMPUTE_DIM_Y {
 union COMPUTE_DIM_Z {
     struct {
         unsigned int SIZE                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union COMPUTE_DISPATCH_END {
+    struct {
+        unsigned int DATA                                                         : 32;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -4795,6 +4927,16 @@ union COMPUTE_RESTART_Y {
 union COMPUTE_RESTART_Z {
     struct {
         unsigned int RESTART                                                      : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union COMPUTE_SHADER_CHKSUM {
+    struct {
+        unsigned int CHECKSUM                                                     : 32;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -11725,6 +11867,12 @@ union DB_DEBUG2 {
         unsigned int DISABLE_WRITE_STALL_ON_RDWR_CONFLICT                         :  1;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 26;
+        unsigned int DISABLE_VR_OBJ_PRIM_ID                                       :  1;
+        unsigned int DISABLE_VR_PS_INVOKE                                         :  1;
+        unsigned int                                                              :  4;
+    } gfx09_1xPlus;
+    struct {
         unsigned int                                                              : 15;
         unsigned int ENABLE_SUBTILE_GROUPING                                      :  1;
         unsigned int RESERVED                                                     :  1;
@@ -11803,6 +11951,12 @@ union DB_DEBUG4 {
     } bits, bitfields;
     struct {
         unsigned int                                                              : 19;
+        unsigned int DB_EXTRA_DEBUG4                                              : 11;
+        unsigned int DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS                :  1;
+        unsigned int                                                              :  1;
+    } vg12;
+    struct {
+        unsigned int                                                              : 19;
         unsigned int DB_EXTRA_DEBUG4                                              : 13;
     } gfx09_0;
     struct {
@@ -11820,6 +11974,10 @@ union DB_DEBUG4 {
         unsigned int DISABLE_HIZ_Q2_TS_COLLISION_DETECT                           :  1;
         unsigned int                                                              : 13;
     } gfx09;
+    struct {
+        unsigned int                                                              : 31;
+        unsigned int FULL_TILE_CACHE_EVICT_ON_HALF_FULL                           :  1;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15583,10 +15741,10 @@ union GC_CAC_ACC_BCI0 {
 union GC_CAC_ACC_BCI1 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -16975,6 +17133,10 @@ union GC_CAC_CNTL {
         unsigned int                                                              : 15;
     } bits, bitfields;
     struct {
+        unsigned int CAC_FORCE_DISABLE                                            :  1;
+        unsigned int                                                              : 31;
+    } vg12;
+    struct {
         unsigned int CAC_ENABLE                                                   :  1;
         unsigned int                                                              : 30;
         unsigned int UNUSED_0                                                     :  1;
@@ -17012,6 +17174,23 @@ union GC_CAC_CTRL_2 {
         unsigned int                                                              :  2;
         unsigned int UNUSED_0                                                     : 30;
     } gfx09_0;
+    struct {
+        unsigned int                                                              :  2;
+        unsigned int GC_LCAC_ENABLE                                               :  1;
+        unsigned int SE_LCAC_ENABLE                                               :  1;
+        unsigned int                                                              : 28;
+    } gfx09_1xPlus;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union GC_CAC_INDEX_AUTO_INCR_EN {
+    struct {
+        unsigned int GC_CAC_INDEX_AUTO_INCR_EN                                    :  1;
+        unsigned int                                                              : 31;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17043,12 +17222,12 @@ union GC_CAC_OVRD_BCI {
         unsigned int OVRRD_SELECT                                                 :  2;
         unsigned int OVRRD_VALUE                                                  :  2;
         unsigned int                                                              : 28;
-    } rv1x;
+    } vega;
     struct {
         unsigned int OVRRD_SELECT                                                 :  2;
         unsigned int OVRRD_VALUE                                                  :  2;
         unsigned int                                                              : 28;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18264,6 +18443,18 @@ union GC_DIDT_DROOP_CTRL {
     float        f32All;
 };
 
+union GC_DIDT_DROOP_CTRL1 {
+    struct {
+        unsigned int DIDT_DROOP_LEVEL_RELEASE_EN                                  :  1;
+        unsigned int DIDT_DROOP_DELTA_THRESHOLD                                   : 14;
+        unsigned int                                                              : 17;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union GC_DIDT_WEIGHT {
     struct {
         unsigned int SQ_WEIGHT                                                    :  8;
@@ -18298,6 +18489,14 @@ union GC_EDC_CTRL {
         unsigned int EDC_ALLOW_WRITE_PWRDELTA                                     :  1;
         unsigned int                                                              : 22;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 11;
+        unsigned int GC_EDC_ONLY_MODE                                             :  1;
+        unsigned int EDC_THROTTLE_PATTERN_BIT_NUMS                                :  4;
+        unsigned int PCC_THROTTLE_PATTERN_BIT_NUMS                                :  4;
+        unsigned int RELEASE_STEP_INTERVAL                                        : 10;
+        unsigned int                                                              :  2;
+    } vg12;
     struct {
         unsigned int                                                              : 10;
         unsigned int UNUSED_0                                                     : 22;
@@ -18341,6 +18540,16 @@ union GC_EDC_OVERFLOW {
     float        f32All;
 };
 
+union GC_EDC_PERF_COUNTER {
+    struct {
+        unsigned int EDC_PERF_COUNTER                                             : 32;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union GC_EDC_ROLLING_POWER_DELTA {
     struct {
         unsigned int EDC_ROLLING_POWER_DELTA                                      : 32;
@@ -18361,6 +18570,10 @@ union GC_EDC_STATUS {
         unsigned int EDC_ROLLING_DROOP_DELTA                                      : 23;
         unsigned int                                                              :  6;
     } gfx09;
+    struct {
+        unsigned int                                                              : 26;
+        unsigned int THROTTLE_PATTERN_INDEX                                       :  6;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18371,6 +18584,28 @@ union GC_EDC_THRESHOLD {
     struct {
         unsigned int EDC_THRESHOLD                                                : 32;
     } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union GC_THROTTLE_CTRL {
+    struct {
+        unsigned int THROTTLE_CTRL_SW_RST                                         :  1;
+        unsigned int GC_EDC_STALL_EN                                              :  1;
+        unsigned int PCC_STALL_EN                                                 :  1;
+        unsigned int PATTERN_MODE                                                 :  1;
+        unsigned int GC_EDC_OVERRIDE                                              :  3;
+        unsigned int PCC_OVERRIDE                                                 :  1;
+        unsigned int GC_EDC_PERF_COUNTER_EN                                       :  1;
+        unsigned int PCC_PERF_COUNTER_EN                                          :  1;
+        unsigned int PCC_THROT_INCR_STEP_INTERVAL                                 : 10;
+        unsigned int PCC_FIXED_PATTERN_MIN                                        :  5;
+        unsigned int PCC_FIXED_PATTERN_MAX                                        :  5;
+        unsigned int INST_THROT_INCR                                              :  1;
+        unsigned int INST_THROT_DECR                                              :  1;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18479,6 +18714,13 @@ union GDS_PERFCOUNTER0_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18491,6 +18733,13 @@ union GDS_PERFCOUNTER0_SELECT1 {
         unsigned int PERFCOUNTER_SELECT3                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18528,6 +18777,13 @@ union GDS_PERFCOUNTER1_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18565,6 +18821,13 @@ union GDS_PERFCOUNTER2_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18602,6 +18865,13 @@ union GDS_PERFCOUNTER3_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18726,6 +18996,28 @@ union GRBM_DSM_BYPASS {
         unsigned int BYPASS_BITS                                                  :  2;
         unsigned int BYPASS_EN                                                    :  1;
         unsigned int                                                              : 29;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union GRBM_FENCE_RANGE0 {
+    struct {
+        unsigned int START                                                        : 16;
+        unsigned int END                                                          : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union GRBM_FENCE_RANGE1 {
+    struct {
+        unsigned int START                                                        : 16;
+        unsigned int END                                                          : 16;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -19819,7 +20111,7 @@ union IA_DEBUG_REG0 {
         unsigned int                                                              :  2;
         unsigned int SPARE5                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  4;
         unsigned int SPARE0                                                       :  1;
@@ -19833,7 +20125,7 @@ union IA_DEBUG_REG0 {
         unsigned int                                                              :  2;
         unsigned int SPARE5                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19898,6 +20190,16 @@ union IA_MULTI_VGT_PARAM {
         unsigned int HW_USE_ONLY                                                  :  1;
         unsigned int                                                              :  8;
     } gfx09;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union IA_MULTI_VGT_PARAM_BC {
+    struct {
+        unsigned int RESERVED                                                     : 32;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20095,6 +20397,11 @@ union LDS_CONFIG {
         unsigned int ADDR_OUT_OF_RANGE_REPORTING                                  :  1;
         unsigned int                                                              : 31;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  2;
+        unsigned int DISABLE_RAM_CLOCK_GATING                                     :  1;
+        unsigned int                                                              : 29;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20106,6 +20413,18 @@ union MC_MEM_POWER_LS {
         unsigned int LS_SETUP                                                     :  6;
         unsigned int LS_HOLD                                                      :  6;
         unsigned int                                                              : 20;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union MC_SHARED_ACTIVE_FCN_ID {
+    struct {
+        unsigned int VFID                                                         :  4;
+        unsigned int                                                              : 27;
+        unsigned int VF                                                           :  1;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -21022,6 +21341,56 @@ union MC_VM_SYSTEM_APERTURE_LOW_ADDR {
     float        f32All;
 };
 
+union MC_VM_XGMI_GPUIOV_ENABLE {
+    struct {
+        unsigned int ENABLE_VF0                                                   :  1;
+        unsigned int ENABLE_VF1                                                   :  1;
+        unsigned int ENABLE_VF2                                                   :  1;
+        unsigned int ENABLE_VF3                                                   :  1;
+        unsigned int ENABLE_VF4                                                   :  1;
+        unsigned int ENABLE_VF5                                                   :  1;
+        unsigned int ENABLE_VF6                                                   :  1;
+        unsigned int ENABLE_VF7                                                   :  1;
+        unsigned int ENABLE_VF8                                                   :  1;
+        unsigned int ENABLE_VF9                                                   :  1;
+        unsigned int ENABLE_VF10                                                  :  1;
+        unsigned int ENABLE_VF11                                                  :  1;
+        unsigned int ENABLE_VF12                                                  :  1;
+        unsigned int ENABLE_VF13                                                  :  1;
+        unsigned int ENABLE_VF14                                                  :  1;
+        unsigned int ENABLE_VF15                                                  :  1;
+        unsigned int                                                              : 15;
+        unsigned int ENABLE_PF                                                    :  1;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union MC_VM_XGMI_LFB_CNTL {
+    struct {
+        unsigned int PF_LFB_REGION                                                :  3;
+        unsigned int PF_MAX_REGION                                                :  3;
+        unsigned int                                                              : 26;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union MC_VM_XGMI_LFB_SIZE {
+    struct {
+        unsigned int PF_LFB_SIZE                                                  : 16;
+        unsigned int                                                              : 16;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union oa_wc0_DEBUG_DATA {
     struct {
         unsigned int                                                              :  1;
@@ -21156,6 +21525,11 @@ union PA_CL_CLIP_CNTL {
         unsigned int ZCLIP_FAR_DISABLE                                            :  1;
         unsigned int                                                              :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 28;
+        unsigned int ZCLIP_PROG_NEAR_ENA                                          :  1;
+        unsigned int                                                              :  3;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21193,6 +21567,15 @@ union PA_CL_ENHANCE {
         unsigned int ECO_SPARE1                                                   :  1;
         unsigned int ECO_SPARE0                                                   :  1;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 17;
+        unsigned int PROG_NEAR_CLIP_PLANE_ENABLE                                  :  1;
+        unsigned int OUTPUT_SWITCH_TO_LEGACY_EVENT                                :  1;
+        unsigned int NO_SWITCH_TO_LEGACY_AFTER_VMID_RESET                         :  1;
+        unsigned int POLY_INNER_EDGE_FLAG_DISABLE                                 :  1;
+        unsigned int TC_REQUEST_PERF_CNTR_ENABLE                                  :  1;
+        unsigned int                                                              : 10;
+    } gfx09_1xPlus;
     struct {
         unsigned int                                                              : 28;
         unsigned int ECO_SPARE3                                                   :  1;
@@ -21315,6 +21698,16 @@ union PA_CL_POINT_X_RAD {
 };
 
 union PA_CL_POINT_Y_RAD {
+    struct {
+        unsigned int DATA_REGISTER                                                : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PA_CL_PROG_NEAR_CLIP_Z {
     struct {
         unsigned int DATA_REGISTER                                                : 32;
     } bits, bitfields;
@@ -25798,6 +26191,11 @@ union PA_SC_BINNER_CNTL_0 {
         unsigned int OPTIMAL_BIN_SELECTION                                        :  1;
         unsigned int                                                              :  4;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 28;
+        unsigned int FLUSH_ON_BINNING_TRANSITION                                  :  1;
+        unsigned int                                                              :  3;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26284,6 +26682,40 @@ union PA_SC_ENHANCE_1 {
         unsigned int DISABLE_PACKER_GRAD_FDCE_ENHANCE                             :  1;
         unsigned int                                                              : 18;
     } gfx09;
+    struct {
+        unsigned int                                                              : 31;
+        unsigned int RSVD                                                         :  1;
+    } gfx09_1x;
+    struct {
+        unsigned int                                                              : 23;
+        unsigned int DISABLE_INTF_CG                                              :  1;
+        unsigned int IOO_DISABLE_EOP_ON_FIRST_LIVE_PRIM_HIT                       :  1;
+        unsigned int DISABLE_SHADER_PROFILING_FOR_POWER                           :  1;
+        unsigned int FLUSH_ON_BINNING_TRANSITION                                  :  1;
+        unsigned int DISABLE_QUAD_PROC_FDCE_ENHANCE                               :  1;
+        unsigned int DISABLE_SC_PS_PA_ARBITER_FIX                                 :  1;
+        unsigned int DISABLE_SC_PS_PA_ARBITER_FIX_1                               :  1;
+        unsigned int PASS_VPZ_EVENT_TO_SPI                                        :  1;
+        unsigned int                                                              :  1;
+    } gfx09_1xPlus;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PA_SC_ENHANCE_2 {
+    struct {
+        unsigned int RESERVED_0                                                   :  1;
+        unsigned int RESERVED_1                                                   :  1;
+        unsigned int RESERVED_2                                                   :  1;
+        unsigned int RESERVED_3                                                   :  1;
+        unsigned int RESERVED_4                                                   :  1;
+        unsigned int RESERVED_5                                                   :  1;
+        unsigned int ENABLE_SC_SEND_DB_VPZ_FOR_COMPOUND_INDEX_EN                  :  1;
+        unsigned int ENABLE_SC_SEND_DB_VPZ_FOR_EN_PIPELINE_PRIMID                 :  1;
+        unsigned int RSVD                                                         : 24;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26492,6 +26924,11 @@ union PA_SC_LINE_CNTL {
         unsigned int DX10_DIAMOND_TEST_ENA                                        :  1;
         unsigned int                                                              : 19;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 13;
+        unsigned int EXTRA_DX_DY_PRECISION                                        :  1;
+        unsigned int                                                              : 18;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26682,6 +27119,11 @@ union PA_SC_PERFCOUNTER0_SELECT {
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  8;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26694,6 +27136,11 @@ union PA_SC_PERFCOUNTER0_SELECT1 {
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -27957,6 +28404,32 @@ union PA_SIDEBAND_REQUEST_DELAYS {
     float        f32All;
 };
 
+union PA_STATE_STEREO_X {
+    struct {
+        unsigned int STEREO_X_OFFSET                                              : 32;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PA_STEREO_CNTL {
+    struct {
+        unsigned int EN_STEREO                                                    :  1;
+        unsigned int STEREO_MODE                                                  :  4;
+        unsigned int RT_SLICE_MODE                                                :  3;
+        unsigned int RT_SLICE_OFFSET                                              :  2;
+        unsigned int VP_ID_MODE                                                   :  3;
+        unsigned int VP_ID_OFFSET                                                 :  4;
+        unsigned int                                                              : 15;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union PA_SU_CNTL_STATUS {
     struct {
         unsigned int                                                              : 31;
@@ -28080,6 +28553,11 @@ union PA_SU_PERFCOUNTER0_SELECT {
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  8;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28092,6 +28570,11 @@ union PA_SU_PERFCOUNTER0_SELECT1 {
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28126,6 +28609,11 @@ union PA_SU_PERFCOUNTER1_SELECT {
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  8;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28138,6 +28626,11 @@ union PA_SU_PERFCOUNTER1_SELECT1 {
         unsigned int PERF_SEL3                                                    : 10;
         unsigned int                                                              : 12;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28172,6 +28665,10 @@ union PA_SU_PERFCOUNTER2_SELECT {
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  8;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 28;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28206,6 +28703,10 @@ union PA_SU_PERFCOUNTER3_SELECT {
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  8;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 28;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28353,6 +28854,11 @@ union PA_SU_SMALL_PRIM_FILTER_CNTL {
         unsigned int RECTANGLE_FILTER_DISABLE                                     :  1;
         unsigned int                                                              : 27;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              :  6;
+        unsigned int SC_1XMSAA_COMPATIBLE_DISABLE                                 :  1;
+        unsigned int                                                              : 25;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28417,6 +28923,1534 @@ union PA_UTCL1_CNTL2 {
         unsigned int SPARE5                                                       :  1;
         unsigned int FORCE_FRAG_2M_TO_64K                                         :  1;
         unsigned int RESERVED                                                     :  5;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG0 {
+    struct {
+        unsigned int CI_HIP_APT0_BASE_HI                                          : 20;
+        unsigned int                                                              :  4;
+        unsigned int CI_HIP_APT0_ENABLE                                           :  1;
+        unsigned int CI_HIP_APT0_PASID_MODE                                       :  1;
+        unsigned int CI_HIP_APT0_REQAT_MODE                                       :  3;
+        unsigned int CI_HIP_APT0_REQIO_MODE                                       :  2;
+        unsigned int                                                              :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG1 {
+    struct {
+        unsigned int CI_HIP_APT0_BASE_LO                                          : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG2 {
+    struct {
+        unsigned int CI_HIP_APT0_LIMIT_HI                                         : 20;
+        unsigned int                                                              : 12;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG3 {
+    struct {
+        unsigned int CI_HIP_APT0_LIMIT_LO                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG4 {
+    struct {
+        unsigned int CI_HIP_APT1_BASE_HI                                          : 20;
+        unsigned int                                                              :  4;
+        unsigned int CI_HIP_APT1_ENABLE                                           :  1;
+        unsigned int CI_HIP_APT1_PASID_MODE                                       :  1;
+        unsigned int CI_HIP_APT1_REQAT_MODE                                       :  3;
+        unsigned int CI_HIP_APT1_REQIO_MODE                                       :  2;
+        unsigned int                                                              :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG5 {
+    struct {
+        unsigned int CI_HIP_APT1_BASE_LO                                          : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG6 {
+    struct {
+        unsigned int CI_HIP_APT1_LIMIT_HI                                         : 20;
+        unsigned int                                                              : 12;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG7 {
+    struct {
+        unsigned int CI_HIP_APT1_LIMIT_LO                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PCIE_HIP_REG8 {
+    struct {
+        unsigned int CI_HIP_MASK                                                  : 20;
+        unsigned int                                                              : 12;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pcs_lcu_kpfifo_PRI_TX_FIFO_CAPABILITIES1 {
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int NumLanes                                                     :  5;
+        unsigned int                                                              : 19;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pcs_lcu_kpfifo_PRI_TX_FIFO_MISC_COMMAND0 {
+    struct {
+        unsigned int FIFOInitLane0                                                :  1;
+        unsigned int FIFOInitLane1                                                :  1;
+        unsigned int FIFOInitLane2                                                :  1;
+        unsigned int FIFOInitLane3                                                :  1;
+        unsigned int                                                              : 28;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_EFUSE1 {
+    struct {
+        unsigned int EFUSE_WriteDisable1                                          :  1;
+        unsigned int EFUSE_mplla_bandwidth                                        : 11;
+        unsigned int EFUSE_tx_vboost_en                                           :  1;
+        unsigned int EFUSE_tx_vboost_lvl                                          :  3;
+        unsigned int EFUSE_mpllb_bandwidth                                        : 11;
+        unsigned int EFUSE_tx_iboost_lvl                                          :  4;
+        unsigned int EFUSE_Reserved1_31                                           :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_EFUSE2 {
+    struct {
+        unsigned int EFUSE_WriteDisable2                                          :  1;
+        unsigned int EFUSE_rx_los_threshold                                       :  3;
+        unsigned int EFUSE_rx_cdr_vco_lowfreq                                     :  1;
+        unsigned int EFUSE_rx_vref_ctrl                                           :  5;
+        unsigned int EFUSE_Reserved2_10                                           :  1;
+        unsigned int EFUSE_Reserved2_11                                           :  1;
+        unsigned int EFUSE_Reserved2_12                                           :  1;
+        unsigned int EFUSE_Reserved2_13                                           :  1;
+        unsigned int EFUSE_Reserved2_14                                           :  1;
+        unsigned int EFUSE_Reserved2_15                                           :  1;
+        unsigned int EFUSE_Reserved2_16                                           :  1;
+        unsigned int EFUSE_Reserved2_17                                           :  1;
+        unsigned int EFUSE_Reserved2_18                                           :  1;
+        unsigned int EFUSE_Reserved2_19                                           :  1;
+        unsigned int EFUSE_Reserved2_20                                           :  1;
+        unsigned int EFUSE_Reserved2_21                                           :  1;
+        unsigned int EFUSE_Reserved2_22                                           :  1;
+        unsigned int EFUSE_Reserved2_23                                           :  1;
+        unsigned int EFUSE_Reserved2_24                                           :  1;
+        unsigned int EFUSE_Reserved2_25                                           :  1;
+        unsigned int EFUSE_Reserved2_26                                           :  1;
+        unsigned int EFUSE_Reserved2_27                                           :  1;
+        unsigned int EFUSE_Reserved2_28                                           :  1;
+        unsigned int EFUSE_Reserved2_29                                           :  1;
+        unsigned int EFUSE_Reserved2_30                                           :  1;
+        unsigned int EFUSE_Reserved2_31                                           :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL17 {
+    struct {
+        unsigned int refclk_range1                                                :  3;
+        unsigned int                                                              :  1;
+        unsigned int refclk_div2_en1                                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL18 {
+    struct {
+        unsigned int refclk_range2                                                :  3;
+        unsigned int                                                              :  1;
+        unsigned int refclk_div2_en2                                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL19 {
+    struct {
+        unsigned int mplla_multiplier1                                            :  8;
+        unsigned int mplla_bandwidth1                                             : 11;
+        unsigned int mplla_div8_clk_en1                                           :  1;
+        unsigned int mplla_div10_clk_en1                                          :  1;
+        unsigned int                                                              :  3;
+        unsigned int mplla_refclk_div2_en1                                        :  1;
+        unsigned int                                                              :  2;
+        unsigned int mplla_init_cal_disable1                                      :  1;
+        unsigned int mplla_force_en1                                              :  1;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL20 {
+    struct {
+        unsigned int mplla_multiplier2                                            :  8;
+        unsigned int mplla_bandwidth2                                             : 11;
+        unsigned int mplla_div8_clk_en2                                           :  1;
+        unsigned int mplla_div10_clk_en2                                          :  1;
+        unsigned int                                                              :  3;
+        unsigned int mplla_refclk_div2_en2                                        :  1;
+        unsigned int                                                              :  2;
+        unsigned int mplla_init_cal_disable2                                      :  1;
+        unsigned int mplla_force_en2                                              :  1;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL21 {
+    struct {
+        unsigned int mpllb_multiplier1                                            :  8;
+        unsigned int mpllb_bandwidth1                                             : 11;
+        unsigned int mpllb_div8_clk_en1                                           :  1;
+        unsigned int mpllb_div10_clk_en1                                          :  1;
+        unsigned int                                                              :  3;
+        unsigned int mpllb_refclk_div2_en1                                        :  1;
+        unsigned int                                                              :  2;
+        unsigned int mpllb_init_cal_disable1                                      :  1;
+        unsigned int mpllb_force_en1                                              :  1;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL22 {
+    struct {
+        unsigned int mpllb_multiplier2                                            :  8;
+        unsigned int mpllb_bandwidth2                                             : 11;
+        unsigned int mpllb_div8_clk_en2                                           :  1;
+        unsigned int mpllb_div10_clk_en2                                          :  1;
+        unsigned int                                                              :  3;
+        unsigned int mpllb_refclk_div2_en2                                        :  1;
+        unsigned int                                                              :  2;
+        unsigned int mpllb_init_cal_disable2                                      :  1;
+        unsigned int mpllb_force_en2                                              :  1;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL23 {
+    struct {
+        unsigned int txX_iboost_lvl1                                              :  4;
+        unsigned int tx_vboost_lvl1                                               :  3;
+        unsigned int txX_vboost_en1                                               :  1;
+        unsigned int txX_iboost_lvl2                                              :  4;
+        unsigned int tx_vboost_lvl2                                               :  3;
+        unsigned int txX_vboost_en2                                               :  1;
+        unsigned int txX_iboost_lvl3                                              :  4;
+        unsigned int tx_vboost_lvl3                                               :  3;
+        unsigned int txX_vboost_en3                                               :  1;
+        unsigned int rxX_cdr_vco_lowfreq1                                         :  1;
+        unsigned int rxX_cdr_vco_lowfreq2                                         :  1;
+        unsigned int rxX_cdr_vco_lowfreq3                                         :  1;
+        unsigned int rxX_cdr_ssc_en                                               :  1;
+        unsigned int rxX_term_acdc                                                :  1;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL24 {
+    struct {
+        unsigned int rxX_eq_vga1_gain_gen1                                        :  4;
+        unsigned int rxX_eq_vga2_gain_gen1                                        :  4;
+        unsigned int                                                              :  8;
+        unsigned int rxX_eq_dfe_tap_gen1                                          :  8;
+        unsigned int rxX_eq_att_lvl_gen1                                          :  3;
+        unsigned int                                                              :  1;
+        unsigned int rxX_adapt_afe_en_gen1                                        :  1;
+        unsigned int rxX_adapt_dfe_en_gen1                                        :  1;
+        unsigned int                                                              :  2;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL25 {
+    struct {
+        unsigned int rxX_eq_vga1_gain_gen2                                        :  4;
+        unsigned int rxX_eq_vga2_gain_gen2                                        :  4;
+        unsigned int                                                              :  8;
+        unsigned int rxX_eq_dfe_tap_gen2                                          :  8;
+        unsigned int rxX_eq_att_lvl_gen2                                          :  3;
+        unsigned int                                                              :  1;
+        unsigned int rxX_adapt_afe_en_gen2                                        :  1;
+        unsigned int rxX_adapt_dfe_en_gen2                                        :  1;
+        unsigned int                                                              :  2;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL26 {
+    struct {
+        unsigned int rxX_eq_vga1_gain_gen3                                        :  4;
+        unsigned int rxX_eq_vga2_gain_gen3                                        :  4;
+        unsigned int                                                              :  8;
+        unsigned int rxX_eq_dfe_tap_gen3                                          :  8;
+        unsigned int rxX_eq_att_lvl_gen3                                          :  3;
+        unsigned int                                                              :  1;
+        unsigned int rxX_adapt_afe_en_gen3                                        :  1;
+        unsigned int rxX_adapt_dfe_en_gen3                                        :  1;
+        unsigned int                                                              :  2;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL27 {
+    struct {
+        unsigned int rxX_vco_ld_val1                                              : 13;
+        unsigned int                                                              :  3;
+        unsigned int rxX_ref_ld_val1                                              :  6;
+        unsigned int                                                              :  2;
+        unsigned int rx_vref_ctrl1                                                :  5;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL28 {
+    struct {
+        unsigned int rxX_vco_ld_val2                                              : 13;
+        unsigned int                                                              :  3;
+        unsigned int rxX_ref_ld_val2                                              :  6;
+        unsigned int                                                              :  2;
+        unsigned int rx_vref_ctrl2                                                :  5;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL29 {
+    struct {
+        unsigned int rxX_vco_ld_val3                                              : 13;
+        unsigned int                                                              :  3;
+        unsigned int rxX_ref_ld_val3                                              :  6;
+        unsigned int                                                              :  2;
+        unsigned int rx_vref_ctrl3                                                :  5;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_GLOBAL_CONTROL30 {
+    struct {
+        unsigned int MPLLAInformationUpdate                                       :  1;
+        unsigned int MPLLBInformationUpdate                                       :  1;
+        unsigned int MPLLAControlOverride                                         :  1;
+        unsigned int MPLLBControlOverride                                         :  1;
+        unsigned int MPLLAControlOverrideValue                                    :  1;
+        unsigned int MPLLBControlOverrideValue                                    :  1;
+        unsigned int TransmitterInformationUpdate                                 :  1;
+        unsigned int ReceiverInformationUpdate                                    :  1;
+        unsigned int ReferenceClockInformationUpdate                              :  1;
+        unsigned int ReferenceClockControlOverride                                :  1;
+        unsigned int ReferenceClockControlOverrideValue                           :  1;
+        unsigned int PowerManagerInterruptPriority                                :  1;
+        unsigned int PLLSetupChangeAlgorithm                                      :  1;
+        unsigned int                                                              : 19;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_HWDEBUG {
+    struct {
+        unsigned int HardwareDebug0_0                                             :  1;
+        unsigned int HardwareDebug0_1                                             :  1;
+        unsigned int HardwareDebug0_2                                             :  1;
+        unsigned int HardwareDebug0_3                                             :  1;
+        unsigned int HardwareDebug0_4                                             :  1;
+        unsigned int HardwareDebug0_5                                             :  1;
+        unsigned int HardwareDebug0_6                                             :  1;
+        unsigned int HardwareDebug0_7                                             :  1;
+        unsigned int HardwareDebug0_8                                             :  1;
+        unsigned int HardwareDebug0_9                                             :  1;
+        unsigned int HardwareDebug0_10                                            :  1;
+        unsigned int HardwareDebug0_11                                            :  1;
+        unsigned int HardwareDebug0_12                                            :  1;
+        unsigned int HardwareDebug0_13                                            :  1;
+        unsigned int HardwareDebug0_14                                            :  1;
+        unsigned int HardwareDebug0_15                                            :  1;
+        unsigned int HardwareDebug0_16                                            :  1;
+        unsigned int HardwareDebug0_17                                            :  1;
+        unsigned int HardwareDebug0_18                                            :  1;
+        unsigned int HardwareDebug0_19                                            :  1;
+        unsigned int HardwareDebug0_20                                            :  1;
+        unsigned int HardwareDebug0_21                                            :  1;
+        unsigned int HardwareDebug0_22                                            :  1;
+        unsigned int HardwareDebug0_23                                            :  1;
+        unsigned int HardwareDebug0_24                                            :  1;
+        unsigned int HardwareDebug0_25                                            :  1;
+        unsigned int HardwareDebug0_26                                            :  1;
+        unsigned int HardwareDebug0_27                                            :  1;
+        unsigned int HardwareDebug0_28                                            :  1;
+        unsigned int HardwareDebug0_29                                            :  1;
+        unsigned int HardwareDebug0_30                                            :  1;
+        unsigned int HardwareDebug0_31                                            :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE0_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane0                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane0                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE0_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane0_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane0_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane0_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane0_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane0_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE0_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane0_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane0_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane0_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane0_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane0_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE0_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane0_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane0_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane0_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane0_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane0_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE1_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane1                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane1                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE1_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane1_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane1_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane1_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane1_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane1_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE1_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane1_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane1_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane1_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane1_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane1_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE1_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane1_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane1_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane1_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane1_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane1_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE2_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane2                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane2                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE2_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane2_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane2_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane2_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane2_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane2_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE2_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane2_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane2_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane2_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane2_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane2_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE2_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane2_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane2_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane2_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane2_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane2_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE3_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane3                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane3                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE3_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane3_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane3_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane3_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane3_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane3_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE3_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane3_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane3_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane3_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane3_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane3_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE3_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane3_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane3_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane3_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane3_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane3_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE4_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane4                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane4                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE4_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane4_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane4_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane4_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane4_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane4_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE4_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane4_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane4_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane4_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane4_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane4_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE4_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane4_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane4_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane4_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane4_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane4_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE5_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane5                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane5                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE5_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane5_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane5_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane5_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane5_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane5_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE5_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane5_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane5_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane5_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane5_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane5_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE5_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane5_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane5_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane5_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane5_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane5_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE6_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane6                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane6                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE6_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane6_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane6_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane6_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane6_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane6_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE6_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane6_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane6_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane6_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane6_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane6_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE6_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane6_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane6_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane6_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane6_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane6_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE7_CNTRL1 {
+    struct {
+        unsigned int rxX_los_threshold_lane7                                      :  3;
+        unsigned int                                                              : 13;
+        unsigned int laneX_tx2rx_ser_lb_en_lane7                                  :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE7_COEFF1 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane7_gen1                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane7_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane7_gen1                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane7_gen1                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane7_gen1                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE7_COEFF2 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane7_gen2                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane7_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane7_gen2                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane7_gen2                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane7_gen2                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_LANE7_COEFF3 {
+    struct {
+        unsigned int TxCoefficientPreCursor_lane7_gen3                            :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientMainCursor_lane7_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int TxCoefficientPostCursor_lane7_gen3                           :  6;
+        unsigned int                                                              :  2;
+        unsigned int rxX_eq_ctle_boost_lane7_gen3                                 :  5;
+        unsigned int rxX_eq_ctle_pole_lane7_gen3                                  :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_EFUSE_CONTROL {
+    struct {
+        unsigned int Efuse_Valid                                                  :  1;
+        unsigned int                                                              : 31;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL0 {
+    struct {
+        unsigned int InitHardware                                                 :  1;
+        unsigned int InitComplete                                                 :  1;
+        unsigned int EIDetectorCycle                                              :  1;
+        unsigned int                                                              :  1;
+        unsigned int EIDetectorOnTime                                             : 10;
+        unsigned int VoltageDimmingEnDuringEIDetectorOnTime                       :  1;
+        unsigned int VoltageDimmingEnDuringEIDetectorOffTime                      :  1;
+        unsigned int VoltageDimmingTransitionTime                                 :  4;
+        unsigned int EIDetectorOffTime                                            : 10;
+        unsigned int                                                              :  2;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL1 {
+    struct {
+        unsigned int DefaultPCLKFrequency                                         :  2;
+        unsigned int DefaultMaximumLinkRate                                       :  2;
+        unsigned int MasterPLL                                                    :  4;
+        unsigned int MasterPLLAuto                                                :  1;
+        unsigned int AllowTxActivePowerGating                                     :  1;
+        unsigned int AllowRxActivePowerGating                                     :  1;
+        unsigned int AllowTxInactivePowerGating                                   :  1;
+        unsigned int AllowRxInactivePowerGating                                   :  1;
+        unsigned int EnableTxSSClkGating                                          :  1;
+        unsigned int EnableMaxPClkGating                                          :  1;
+        unsigned int                                                              :  1;
+        unsigned int AllowRxPS2                                                   :  1;
+        unsigned int AllowRxPS3                                                   :  1;
+        unsigned int AllowTxPS2                                                   :  1;
+        unsigned int AllowTxPS3                                                   :  1;
+        unsigned int                                                              :  1;
+        unsigned int AllowPLLShutdownRxPS2                                        :  1;
+        unsigned int                                                              :  2;
+        unsigned int PLLActiveAbovePS4                                            :  1;
+        unsigned int PLLActiveInPS4                                               :  1;
+        unsigned int DisableRxPS4                                                 :  1;
+        unsigned int DisableTxPS4                                                 :  1;
+        unsigned int DisableTxPS4inRxPS3                                          :  1;
+        unsigned int RemapSATAP6TOP5                                              :  1;
+        unsigned int                                                              :  1;
+        unsigned int FarEndAnalogLoopbackEnable                                   :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL2 {
+    struct {
+        unsigned int SERDESPHYReceiverOntime                                      : 10;
+        unsigned int                                                              :  2;
+        unsigned int ElasticFIFONominalHalfOffset                                 :  2;
+        unsigned int AllowFrequencyVetting                                        :  1;
+        unsigned int                                                              :  1;
+        unsigned int SERDESPHYReferenceClockFrequency                             :  1;
+        unsigned int SERDESPHYReferenceClockFrequencyStatus                       :  1;
+        unsigned int SERDESPHYFifoInitWaitTime                                    :  2;
+        unsigned int MinimumNumberofEISymbols                                     :  2;
+        unsigned int                                                              : 10;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL3 {
+    struct {
+        unsigned int SERDESPHYPLLTransitionTime                                   :  6;
+        unsigned int                                                              : 10;
+        unsigned int AllowBypassingTxRdy                                          :  1;
+        unsigned int AllowBypassingRxRdy                                          :  1;
+        unsigned int AllowBypassingRxStandbyRxRdy                                 :  1;
+        unsigned int DisableMultiLaneBinding                                      :  1;
+        unsigned int AllowDummyAckOnClockSwitchRequest                            :  1;
+        unsigned int                                                              :  3;
+        unsigned int AllowDummyAckOnGateUngatePCLKRequest                         :  1;
+        unsigned int AllowDummyAckOnSpeedChangeRequest                            :  1;
+        unsigned int                                                              :  6;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL4 {
+    struct {
+        unsigned int PRBS_EN                                                      :  1;
+        unsigned int PRBS_TEST_MODE                                               :  3;
+        unsigned int PRBS_USER_PATTERN_TOGGLE                                     :  1;
+        unsigned int PRBS_8BIT_SEL                                                :  1;
+        unsigned int PRBS_COMMA_NUM                                               :  2;
+        unsigned int PRBS_LOCK_CNT                                                :  5;
+        unsigned int PRBS_FREERUN                                                 :  1;
+        unsigned int PRBS_DATA_RATE                                               :  2;
+        unsigned int PRBS_LANE_SELECT                                             :  4;
+        unsigned int PRBS_POLARITY_EN                                             :  1;
+        unsigned int PRBS_CLR                                                     :  1;
+        unsigned int PRBS_DATA_WIDTH                                              :  2;
+        unsigned int PRBS_BYPASS_SYMALIGN                                         :  1;
+        unsigned int PRBS_RESERVED                                                :  7;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL5 {
+    struct {
+        unsigned int PRBS_CHK_ERR_MASK                                            :  8;
+        unsigned int PRBS_LOCKED                                                  :  8;
+        unsigned int PRBS_ERRSTAT                                                 :  8;
+        unsigned int PRBS_BITCNT_DONE                                             :  8;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL6 {
+    struct {
+        unsigned int PRBS_USER_PATTERN                                            : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL7 {
+    struct {
+        unsigned int PRBS_BITCNT                                                  : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL8 {
+    struct {
+        unsigned int PRBS_REGS_ERRCNT                                             : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL9 {
+    struct {
+        unsigned int FullSwing                                                    :  6;
+        unsigned int                                                              :  2;
+        unsigned int LowFrequency                                                 :  6;
+        unsigned int                                                              : 18;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL10 {
+    struct {
+        unsigned int CoarseFreqCheckSymbols                                       :  7;
+        unsigned int                                                              :  1;
+        unsigned int CoarseFreqTolerance                                          :  5;
+        unsigned int                                                              :  3;
+        unsigned int AllowPointerSlipInterval                                     :  8;
+        unsigned int                                                              :  8;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL11 {
+    struct {
+        unsigned int FrequencyVettingTimeout                                      :  8;
+        unsigned int                                                              :  1;
+        unsigned int FrequencyVettingEn                                           :  1;
+        unsigned int                                                              :  6;
+        unsigned int ErrorActionRst                                               :  1;
+        unsigned int ErrorActionRRC                                               :  1;
+        unsigned int ReceiverResetCycleEn                                         :  1;
+        unsigned int SymAlignBypassEn                                             :  1;
+        unsigned int                                                              : 12;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL12 {
+    struct {
+        unsigned int ErrorAccumulatorLowThreshold_8b10b                           : 12;
+        unsigned int                                                              :  4;
+        unsigned int ErrorAccumulatorHighThreshold_8b10b                          : 12;
+        unsigned int                                                              :  2;
+        unsigned int DisparityErrorEn_8b10b                                       :  1;
+        unsigned int CodeErrorEn_8b10b                                            :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL13 {
+    struct {
+        unsigned int ErrorAccumulatorIncrement_8b10b                              :  5;
+        unsigned int                                                              :  3;
+        unsigned int ErrorAccumulatorDecrement_8b10b                              :  5;
+        unsigned int                                                              :  3;
+        unsigned int ErrorTimeout                                                 :  8;
+        unsigned int                                                              :  4;
+        unsigned int Adjust_8b10b_AlignTimeout                                    :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL14 {
+    struct {
+        unsigned int USBOnesZeros                                                 :  5;
+        unsigned int EnableBCHCodeInSKPOS                                         :  1;
+        unsigned int                                                              : 10;
+        unsigned int BERT_Enable                                                  :  1;
+        unsigned int BERT_DisparityErrorEnable                                    :  1;
+        unsigned int BERT_DecodeErrorEnable                                       :  1;
+        unsigned int BERT_LFSRErrorEnable                                         :  1;
+        unsigned int BERT_LaneSelect                                              :  4;
+        unsigned int BERT_LastErrorCount                                          :  8;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL15 {
+    struct {
+        unsigned int ElasticFIFONominalHalfMidPointMode1                          :  5;
+        unsigned int OverrideElasticFIFOControlSettings                           :  1;
+        unsigned int                                                              :  2;
+        unsigned int ElasticFIFONominalHalfHighThresholdMode1                     :  5;
+        unsigned int ElasticBufferProjectedWritePointerOffset                     :  3;
+        unsigned int ElasticFIFONominalHalfLowThresholdMode1                      :  5;
+        unsigned int                                                              :  3;
+        unsigned int ElasticFIFONominalEmptyHighThresholdMode1                    :  5;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_GLOBAL_CONTROL16 {
+    struct {
+        unsigned int ElasticFIFONominalHalfMidPointMode2                          :  5;
+        unsigned int                                                              :  3;
+        unsigned int ElasticFIFONominalHalfHighThresholdMode2                     :  5;
+        unsigned int                                                              :  3;
+        unsigned int ElasticFIFONominalLowHighThresholdMode2                      :  5;
+        unsigned int                                                              :  3;
+        unsigned int ElasticFIFONominalEmptyHighThresholdMode2                    :  5;
+        unsigned int                                                              :  3;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_HW_00_DEBUG {
+    struct {
+        unsigned int HW_00_DEBUG_0                                                :  1;
+        unsigned int HW_00_DEBUG_1                                                :  1;
+        unsigned int HW_00_DEBUG_2                                                :  1;
+        unsigned int HW_00_DEBUG_3                                                :  1;
+        unsigned int HW_00_DEBUG_4                                                :  1;
+        unsigned int HW_00_DEBUG_5                                                :  1;
+        unsigned int HW_00_DEBUG_6                                                :  1;
+        unsigned int HW_00_DEBUG_7                                                :  1;
+        unsigned int HW_00_DEBUG_8                                                :  1;
+        unsigned int HW_00_DEBUG_9                                                :  1;
+        unsigned int HW_00_DEBUG_10                                               :  1;
+        unsigned int HW_00_DEBUG_11                                               :  1;
+        unsigned int HW_00_DEBUG_12                                               :  1;
+        unsigned int HW_00_DEBUG_13                                               :  1;
+        unsigned int HW_00_DEBUG_14                                               :  1;
+        unsigned int HW_00_DEBUG_15                                               :  1;
+        unsigned int HW_00_DEBUG_16                                               :  1;
+        unsigned int HW_00_DEBUG_17                                               :  1;
+        unsigned int HW_00_DEBUG_18                                               :  1;
+        unsigned int HW_00_DEBUG_19                                               :  1;
+        unsigned int HW_00_DEBUG_20                                               :  1;
+        unsigned int HW_00_DEBUG_21                                               :  1;
+        unsigned int HW_00_DEBUG_22                                               :  1;
+        unsigned int HW_00_DEBUG_23                                               :  1;
+        unsigned int HW_00_DEBUG_24                                               :  1;
+        unsigned int HW_00_DEBUG_25                                               :  1;
+        unsigned int HW_00_DEBUG_26                                               :  1;
+        unsigned int HW_00_DEBUG_27                                               :  1;
+        unsigned int HW_00_DEBUG_28                                               :  1;
+        unsigned int HW_00_DEBUG_29                                               :  1;
+        unsigned int HW_00_DEBUG_30                                               :  1;
+        unsigned int HW_00_DEBUG_31                                               :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_HW_01_DEBUG {
+    struct {
+        unsigned int HW_01_DEBUG_0                                                :  1;
+        unsigned int HW_01_DEBUG_1                                                :  1;
+        unsigned int HW_01_DEBUG_2                                                :  1;
+        unsigned int HW_01_DEBUG_3                                                :  1;
+        unsigned int HW_01_DEBUG_4                                                :  1;
+        unsigned int HW_01_DEBUG_5                                                :  1;
+        unsigned int HW_01_DEBUG_6                                                :  1;
+        unsigned int HW_01_DEBUG_7                                                :  1;
+        unsigned int HW_01_DEBUG_8                                                :  1;
+        unsigned int HW_01_DEBUG_9                                                :  1;
+        unsigned int HW_01_DEBUG_10                                               :  1;
+        unsigned int HW_01_DEBUG_11                                               :  1;
+        unsigned int HW_01_DEBUG_12                                               :  1;
+        unsigned int HW_01_DEBUG_13                                               :  1;
+        unsigned int HW_01_DEBUG_14                                               :  1;
+        unsigned int HW_01_DEBUG_15                                               :  1;
+        unsigned int HW_01_DEBUG_16                                               :  1;
+        unsigned int HW_01_DEBUG_17                                               :  1;
+        unsigned int HW_01_DEBUG_18                                               :  1;
+        unsigned int HW_01_DEBUG_19                                               :  1;
+        unsigned int HW_01_DEBUG_20                                               :  1;
+        unsigned int HW_01_DEBUG_21                                               :  1;
+        unsigned int HW_01_DEBUG_22                                               :  1;
+        unsigned int HW_01_DEBUG_23                                               :  1;
+        unsigned int HW_01_DEBUG_24                                               :  1;
+        unsigned int HW_01_DEBUG_25                                               :  1;
+        unsigned int HW_01_DEBUG_26                                               :  1;
+        unsigned int HW_01_DEBUG_27                                               :  1;
+        unsigned int HW_01_DEBUG_28                                               :  1;
+        unsigned int HW_01_DEBUG_29                                               :  1;
+        unsigned int HW_01_DEBUG_30                                               :  1;
+        unsigned int HW_01_DEBUG_31                                               :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_IP_IDENTITY {
+    struct {
+        unsigned int IP_IDENTITY                                                  : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE0_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE0_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE0_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE0_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE0_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE1_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE1_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE1_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE1_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE1_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE2_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE2_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE2_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE2_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE2_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE3_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE3_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE3_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE3_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE3_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE4_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE4_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE4_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE4_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE4_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE5_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE5_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE5_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE5_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE5_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE6_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE6_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE6_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE6_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE6_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_LANE7_CONTROL {
+    struct {
+        unsigned int PCS_PCIEX8_LANE7_CONTROL_LogicalLinkNumber                   :  4;
+        unsigned int PCS_PCIEX8_LANE7_CONTROL_MasterPLLMask                       :  1;
+        unsigned int PCS_PCIEX8_LANE7_CONTROL_EnablePClkGating                    :  1;
+        unsigned int                                                              : 10;
+        unsigned int PCS_PCIEX8_LANE7_CONTROL_LFPSPolarity                        :  1;
+        unsigned int                                                              : 15;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_PCS_EFUSE0 {
+    struct {
+        unsigned int PCS_EFUSE0                                                   : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_PCIEX8_PCS_EFUSE1 {
+    struct {
+        unsigned int PCS_EFUSE1                                                   : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union pipe_pcs_pcs_pciex8_PCS_STATUS1 {
+    struct {
+        unsigned int LowPriorityInterrupt0Done                                    :  1;
+        unsigned int HighPriorityInterrupt1Done                                   :  1;
+        unsigned int LowPriorityInterrupt2Done                                    :  1;
+        unsigned int                                                              : 29;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -28576,6 +30610,16 @@ union rbuf_DEBUG_DATA {
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
     } apu09Plus;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union RefOverflow {
+    struct {
+        unsigned int Data                                                         : 32;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -28943,6 +30987,17 @@ union RLC_SPM_PERFMON_RING_BASE_LO {
 union RLC_SPM_PERFMON_RING_SIZE {
     struct {
         unsigned int RING_BASE_SIZE                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union RLC_SPM_PERFMON_SAMPLE_DELAY_MAX {
+    struct {
+        unsigned int PERFMON_MAX_SAMPLE_DELAY                                     :  8;
+        unsigned int RESERVED                                                     : 24;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -31953,7 +34008,7 @@ union RMI_TCIW_FORMATTER1_CNTL {
         unsigned int RMI_IN1_REORDER_DIS                                          :  1;
         unsigned int WR_COMBINE1_DIS_AT_LAST_OF_BURST                             :  1;
         unsigned int ALL_FAULT_RET1_DATA                                          :  1;
-    } rv1x;
+    } vega;
     struct {
         unsigned int WR_COMBINE1_DIS_OVERRIDE                                     :  1;
         unsigned int WR_COMBINE1_TIME_OUT_WINDOW                                  :  8;
@@ -31964,7 +34019,7 @@ union RMI_TCIW_FORMATTER1_CNTL {
         unsigned int RMI_IN1_REORDER_DIS                                          :  1;
         unsigned int WR_COMBINE1_DIS_AT_LAST_OF_BURST                             :  1;
         unsigned int ALL_FAULT_RET1_DATA                                          :  1;
-    } vega;
+    } rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32322,7 +34377,7 @@ union RPB_EA_QUEUE_WR {
         unsigned int READ_QUEUE                                                   :  3;
         unsigned int UPDATE                                                       :  1;
         unsigned int                                                              : 20;
-    } vg10;
+    } vg10_Vg12;
     struct {
         unsigned int EA_NUMBER                                                    :  5;
         unsigned int WRITE_QUEUE                                                  :  3;
@@ -32531,6 +34586,11 @@ union RPB_RD_SWITCH_CNTL {
         unsigned int SWITCH_NUM_MODE                                              :  1;
         unsigned int                                                              :  3;
     } bits, bitfields;
+    struct {
+        unsigned int                                                              : 29;
+        unsigned int WORKLOAD_ADJUST_EN                                           :  1;
+        unsigned int WEIGHT_ADJUST_STEP                                           :  2;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32587,7 +34647,7 @@ union RPB_TAG_CONF {
         unsigned int RPB_IO_WR                                                    :  8;
         unsigned int RPB_ATS_PR                                                   :  8;
         unsigned int                                                              :  8;
-    } gfx09_0;
+    } vg10_Vg12_Rv1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32648,6 +34708,260 @@ union RPB_WR_SWITCH_CNTL {
         unsigned int QUEUE3_SWITCH_NUM                                            :  7;
         unsigned int SWITCH_NUM_MODE                                              :  1;
         unsigned int                                                              :  3;
+    } bits, bitfields;
+    struct {
+        unsigned int                                                              : 29;
+        unsigned int WORKLOAD_ADJUST_EN                                           :  1;
+        unsigned int WEIGHT_ADJUST_STEP                                           :  2;
+    } gfx09_1xPlus;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_qos_bw_ratio {
+    struct {
+        unsigned int QosBwRatioWidth                                              : 10;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_request_output_port_active {
+    struct {
+        unsigned int RequestOutputPortActive_uvd0                                 :  1;
+        unsigned int RequestOutputPortActive_df                                   :  1;
+        unsigned int RequestOutputPortActive_r6_vsoc                              :  1;
+        unsigned int RequestOutputPortActive_r4_vsoc                              :  1;
+        unsigned int RequestOutputPortActive_r7_vsoc                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_request_output_port_enable {
+    struct {
+        unsigned int RequestOutputPortEnable_uvd0                                 :  1;
+        unsigned int RequestOutputPortEnable_df                                   :  1;
+        unsigned int RequestOutputPortEnable_r6_vsoc                              :  1;
+        unsigned int RequestOutputPortEnable_r4_vsoc                              :  1;
+        unsigned int RequestOutputPortEnable_r7_vsoc                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_router_config {
+    struct {
+        unsigned int EnableClockGating                                            :  1;
+        unsigned int EnableTimeoutWatchdog                                        :  1;
+        unsigned int TargetSerializeRequests                                      :  1;
+        unsigned int                                                              : 29;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_scratchpad {
+    struct {
+        unsigned int Scratch                                                      : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_watchdog_timeout {
+    struct {
+        unsigned int WatchdogTimeout                                              :  6;
+        unsigned int                                                              : 26;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R5_VSOC_watchdog_timer_period {
+    struct {
+        unsigned int WatchdogTimerPeriod                                          : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_qos_bw_ratio {
+    struct {
+        unsigned int QosBwRatioWidth                                              : 10;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_request_output_port_active {
+    struct {
+        unsigned int RequestOutputPortActive_xdma                                 :  1;
+        unsigned int RequestOutputPortActive_dceaz                                :  1;
+        unsigned int RequestOutputPortActive_dco                                  :  1;
+        unsigned int RequestOutputPortActive_dci                                  :  1;
+        unsigned int RequestOutputPortActive_r7_vsoc                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_request_output_port_enable {
+    struct {
+        unsigned int RequestOutputPortEnable_xdma                                 :  1;
+        unsigned int RequestOutputPortEnable_dceaz                                :  1;
+        unsigned int RequestOutputPortEnable_dco                                  :  1;
+        unsigned int RequestOutputPortEnable_dci                                  :  1;
+        unsigned int RequestOutputPortEnable_r7_vsoc                              :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_router_config {
+    struct {
+        unsigned int EnableClockGating                                            :  1;
+        unsigned int EnableTimeoutWatchdog                                        :  1;
+        unsigned int TargetSerializeRequests                                      :  1;
+        unsigned int                                                              : 29;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_scratchpad {
+    struct {
+        unsigned int Scratch                                                      : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_watchdog_timeout {
+    struct {
+        unsigned int WatchdogTimeout                                              :  6;
+        unsigned int                                                              : 26;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R8_VSOC_watchdog_timer_period {
+    struct {
+        unsigned int WatchdogTimerPeriod                                          : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_qos_bw_ratio {
+    struct {
+        unsigned int QosBwRatioWidth                                              : 10;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_request_output_port_active {
+    struct {
+        unsigned int RequestOutputPortActive_r7_vsoc                              :  1;
+        unsigned int RequestOutputPortActive_gc                                   :  1;
+        unsigned int                                                              : 30;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_request_output_port_enable {
+    struct {
+        unsigned int RequestOutputPortEnable_r7_vsoc                              :  1;
+        unsigned int RequestOutputPortEnable_gc                                   :  1;
+        unsigned int                                                              : 30;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_router_config {
+    struct {
+        unsigned int EnableClockGating                                            :  1;
+        unsigned int EnableTimeoutWatchdog                                        :  1;
+        unsigned int TargetSerializeRequests                                      :  1;
+        unsigned int                                                              : 29;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_scratchpad {
+    struct {
+        unsigned int Scratch                                                      : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_watchdog_timeout {
+    struct {
+        unsigned int WatchdogTimeout                                              :  6;
+        unsigned int                                                              : 26;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SCF_R9_VGFX_watchdog_timer_period {
+    struct {
+        unsigned int WatchdogTimerPeriod                                          : 32;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -32960,6 +35274,51 @@ union SMUIO_FORCE_SELFREFRESH {
     float        f32All;
 };
 
+union SMUIO_GFX_ISO_CNTL {
+    struct {
+        unsigned int SOC_G_rSMU_SMN_VDCI_ISO_EN                                   :  1;
+        unsigned int SOC_CPAXI_SYSHUB_VDCI_ISO_EN                                 :  1;
+        unsigned int SOC_EA_SDF_VDCI_ISO_EN                                       :  1;
+        unsigned int SOC_UTCL2_ATHUB_VDCI_ISO_EN                                  :  1;
+        unsigned int GFX2SOC_ISOn                                                 :  1;
+        unsigned int GFX2SOC_CLK_ISOn                                             :  1;
+        unsigned int                                                              : 26;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUIO_GFX_RESET_CNTL {
+    struct {
+        unsigned int SOC2GFX_PWROKRAW                                             :  1;
+        unsigned int SOC2GFX_PWROK                                                :  1;
+        unsigned int SOC2GFX_RESETn                                               :  1;
+        unsigned int SOC2GFX_aeb_reset                                            :  1;
+        unsigned int SOC2GFX_aeb_valid                                            :  1;
+        unsigned int                                                              : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUIO_GFX_VDCI_RESET_CNTL {
+    struct {
+        unsigned int SOC2GFX_VDCI_RESETn                                          :  1;
+        unsigned int SOC_CPAXI_SYSHUB_VDCI_reset                                  :  1;
+        unsigned int SOC_EA_SDF_VDCI_reset                                        :  1;
+        unsigned int SOC_UTCL2_ATHUB_VDCI_reset                                   :  1;
+        unsigned int                                                              : 28;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union SMUIO_NV_SAVEOD {
     struct {
         unsigned int PU_OVERRIDE                                                  :  1;
@@ -33001,6 +35360,48 @@ union SMUIO_NV_SAVE_N {
     float        f32All;
 };
 
+union SMUSVI1_LOAD {
+    struct {
+        unsigned int SVI1_LOADLINE_PLANE0                                         :  5;
+        unsigned int                                                              :  3;
+        unsigned int SVI1_PSI1_PLANE0                                             :  1;
+        unsigned int                                                              :  3;
+        unsigned int SVI1_LOADLINE_PLANE1                                         :  5;
+        unsigned int                                                              :  3;
+        unsigned int SVI1_PSI1_PLANE1                                             :  1;
+        unsigned int                                                              : 10;
+        unsigned int SVIBUSY1                                                     :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUSVI1_PLANE1_CURRENTVID {
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int CURRENT_SVI1_PLANE1_VID                                      :  8;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUSVI1_TEL_PLANE1 {
+    struct {
+        unsigned int SVI1_PLANE1_IDDCOR                                           :  8;
+        unsigned int                                                              :  8;
+        unsigned int SVI1_PLANE1_VDDCOR                                           :  9;
+        unsigned int                                                              :  7;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union SMUSVI_I2C_FETCH_READ_ADDR {
     struct {
         unsigned int ADDR                                                         : 32;
@@ -33025,6 +35426,72 @@ union SMUSVI_I2C_FETCH_TRIGGER {
 union SMUSVI_I2C_FETCH_WRITE_ADDR {
     struct {
         unsigned int ADDR                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUSVI_SVC1 {
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int SCHMEN                                                       :  1;
+        unsigned int PU                                                           :  1;
+        unsigned int PD                                                           :  1;
+        unsigned int                                                              :  2;
+        unsigned int S0                                                           :  1;
+        unsigned int S1                                                           :  1;
+        unsigned int                                                              :  9;
+        unsigned int OE_OVERRIDE                                                  :  1;
+        unsigned int OE                                                           :  1;
+        unsigned int A_OVERRIDE                                                   :  1;
+        unsigned int A                                                            :  1;
+        unsigned int                                                              : 10;
+        unsigned int Y                                                            :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUSVI_SVD1 {
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int SCHMEN                                                       :  1;
+        unsigned int PU                                                           :  1;
+        unsigned int PD                                                           :  1;
+        unsigned int                                                              :  2;
+        unsigned int S0                                                           :  1;
+        unsigned int S1                                                           :  1;
+        unsigned int                                                              :  9;
+        unsigned int OE_OVERRIDE                                                  :  1;
+        unsigned int OE                                                           :  1;
+        unsigned int A_OVERRIDE                                                   :  1;
+        unsigned int A                                                            :  1;
+        unsigned int                                                              : 10;
+        unsigned int Y                                                            :  1;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SMUSVI_SVT1 {
+    struct {
+        unsigned int SCHMEN                                                       :  1;
+        unsigned int OE                                                           :  1;
+        unsigned int PU                                                           :  1;
+        unsigned int PD                                                           :  1;
+        unsigned int                                                              :  2;
+        unsigned int S0                                                           :  1;
+        unsigned int S1                                                           :  1;
+        unsigned int                                                              : 12;
+        unsigned int A                                                            :  1;
+        unsigned int                                                              : 10;
+        unsigned int Y                                                            :  1;
     } bits, bitfields;
 
     unsigned int u32All;
@@ -33771,6 +36238,41 @@ union SPI_DEBUG_BUSY {
         unsigned int SPIS_BUSY                                                    :  1;
         unsigned int                                                              :  8;
     } rv1x;
+    struct {
+        unsigned int HS_BUSY                                                      :  1;
+        unsigned int GS_BUSY                                                      :  1;
+        unsigned int VS_BUSY                                                      :  1;
+        unsigned int PS0_BUSY                                                     :  1;
+        unsigned int PS1_BUSY                                                     :  1;
+        unsigned int CSG_BUSY                                                     :  1;
+        unsigned int CS0_BUSY                                                     :  1;
+        unsigned int CS1_BUSY                                                     :  1;
+        unsigned int CS2_BUSY                                                     :  1;
+        unsigned int CS3_BUSY                                                     :  1;
+        unsigned int CS4_BUSY                                                     :  1;
+        unsigned int CS5_BUSY                                                     :  1;
+        unsigned int CS6_BUSY                                                     :  1;
+        unsigned int CS7_BUSY                                                     :  1;
+        unsigned int LDS_WR_CTL0_BUSY                                             :  1;
+        unsigned int LDS_WR_CTL1_BUSY                                             :  1;
+        unsigned int RSRC_ALLOC0_BUSY                                             :  1;
+        unsigned int RSRC_ALLOC1_BUSY                                             :  1;
+        unsigned int PC_DEALLOC_BUSY                                              :  1;
+        unsigned int EVENT_CLCTR_BUSY                                             :  1;
+        unsigned int GRBM_BUSY                                                    :  1;
+        unsigned int SPIS_BUSY                                                    :  1;
+        unsigned int                                                              : 10;
+    } gfx09_1x;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union SPI_DEBUG_CNTL_2 {
+    struct {
+        unsigned int SPI_SPARE                                                    : 32;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -39044,6 +41546,20 @@ union spi_vs_wave_ctl2 {
     float        f32All;
 };
 
+union SPI_WAVE_LIMIT_CNTL {
+    struct {
+        unsigned int PS_WAVE_GRAN                                                 :  2;
+        unsigned int VS_WAVE_GRAN                                                 :  2;
+        unsigned int GS_WAVE_GRAN                                                 :  2;
+        unsigned int HS_WAVE_GRAN                                                 :  2;
+        unsigned int                                                              : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union SPI_WCL_PIPE_PERCENT_CS0 {
     struct {
         unsigned int VALUE                                                        :  7;
@@ -40076,10 +42592,6 @@ union SQ_CONFIG {
         unsigned int                                                              :  2;
     } bits, bitfields;
     struct {
-        unsigned int UNUSED                                                       :  7;
-        unsigned int                                                              : 25;
-    } vg10;
-    struct {
         unsigned int                                                              :  7;
         unsigned int OVERRIDE_ALU_BUSY                                            :  1;
         unsigned int DEBUG_EN                                                     :  1;
@@ -40100,6 +42612,10 @@ union SQ_CONFIG {
         unsigned int UNUSED                                                       :  7;
         unsigned int                                                              : 25;
     } apu09Plus;
+    struct {
+        unsigned int UNUSED                                                       :  7;
+        unsigned int                                                              : 25;
+    } vg10_Vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42898,6 +45414,11 @@ union SX_DEBUG_1 {
         unsigned int                                                              : 14;
         unsigned int DEBUG_DATA                                                   : 18;
     } gfx09;
+    struct {
+        unsigned int                                                              : 13;
+        unsigned int DISABLE_SX_DB_FGCG                                           :  1;
+        unsigned int                                                              : 18;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43307,6 +45828,13 @@ union SX_PERFCOUNTER0_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43319,6 +45847,13 @@ union SX_PERFCOUNTER0_SELECT1 {
         unsigned int PERFCOUNTER_SELECT3                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43356,6 +45891,13 @@ union SX_PERFCOUNTER1_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43368,6 +45910,13 @@ union SX_PERFCOUNTER1_SELECT1 {
         unsigned int PERFCOUNTER_SELECT3                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43405,6 +45954,11 @@ union SX_PERFCOUNTER2_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 18;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -43442,6 +45996,11 @@ union SX_PERFCOUNTER3_SELECT {
         unsigned int PERFCOUNTER_SELECT1                                          : 10;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 18;
+        unsigned int PERF_MODE                                                    :  4;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -48597,6 +51156,43 @@ union UMCCH15_PerfMonCtrClk_Lo {
     float        f32All;
 };
 
+union UMC_TUC_BIST_RDATA_MASK {
+    struct {
+        unsigned int RDATA                                                        : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMC_TUC_CNTL2 {
+    struct {
+        unsigned int CHSEL                                                        :  4;
+        unsigned int CNTSEL                                                       :  5;
+        unsigned int BITMAP                                                       :  1;
+        unsigned int BYPASS                                                       :  1;
+        unsigned int CNTCLR                                                       :  1;
+        unsigned int                                                              : 20;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union UMC_TUC_DFT_TIMING4 {
+    struct {
+        unsigned int TUPDMRS                                                      :  7;
+        unsigned int TUPDMRS_SHF                                                  :  3;
+        unsigned int                                                              : 22;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union UTCL2_CGTT_CLK_CTRL {
     struct {
         unsigned int ON_DELAY                                                     :  4;
@@ -48710,6 +51306,11 @@ union VGT_DEBUG_REG0 {
         unsigned int                                                              :  2;
         unsigned int SPARE0                                                       :  1;
     } rv1x;
+    struct {
+        unsigned int                                                              : 11;
+        unsigned int pg_busy                                                      :  1;
+        unsigned int                                                              : 20;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -48989,6 +51590,14 @@ union VGT_DEBUG_REG30 {
         unsigned int                                                              : 19;
         unsigned int SPARE                                                        : 13;
     } rv1x;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int pg_busy                                                      :  1;
+        unsigned int pg_noif_busy                                                 :  1;
+        unsigned int pg_spi_interface_busy                                        :  1;
+        unsigned int pg_te_prim_fifo_busy                                         :  1;
+        unsigned int                                                              : 24;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -50114,6 +52723,11 @@ union VGT_SHADER_STAGES_EN {
         unsigned int GS_FAST_LAUNCH                                               :  1;
         unsigned int                                                              : 12;
     } gfx09_0;
+    struct {
+        unsigned int                                                              : 19;
+        unsigned int GS_FAST_LAUNCH                                               :  2;
+        unsigned int                                                              : 11;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -50489,6 +53103,44 @@ union VGT_VTX_VECT_EJECT_REG {
     float        f32All;
 };
 
+union VML2_MEM_ECC_CNTL {
+    struct {
+        unsigned int INDEX                                                        :  8;
+        unsigned int INJECT_DELAY                                                 :  6;
+        unsigned int DSM_IRRITATOR_DATA                                           :  2;
+        unsigned int ENABLE_SINGLE_WRITE                                          :  1;
+        unsigned int ENABLE_ERROR_INJECT                                          :  2;
+        unsigned int SELECT_INJECT_DELAY                                          :  1;
+        unsigned int SEC_COUNT                                                    :  2;
+        unsigned int DED_COUNT                                                    :  2;
+        unsigned int WRITE_COUNTERS                                               :  1;
+        unsigned int                                                              :  7;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union VML2_WALKER_MEM_ECC_CNTL {
+    struct {
+        unsigned int INDEX                                                        :  8;
+        unsigned int INJECT_DELAY                                                 :  6;
+        unsigned int DSM_IRRITATOR_DATA                                           :  2;
+        unsigned int ENABLE_SINGLE_WRITE                                          :  1;
+        unsigned int ENABLE_ERROR_INJECT                                          :  2;
+        unsigned int SELECT_INJECT_DELAY                                          :  1;
+        unsigned int SEC_COUNT                                                    :  2;
+        unsigned int DED_COUNT                                                    :  2;
+        unsigned int WRITE_COUNTERS                                               :  1;
+        unsigned int                                                              :  7;
+    } vg12;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union wbuf_DEBUG_DATA {
     struct {
         unsigned int Reserved0                                                    :  6;
@@ -50608,6 +53260,11 @@ union WD_DEBUG_REG0 {
         unsigned int SPARE2                                                       :  1;
         unsigned int                                                              : 19;
     } gfx09_0;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int wd_ngg_busy                                                  :  1;
+        unsigned int                                                              : 19;
+    } gfx09_1x;
 
     unsigned int u32All;
     signed int   i32All;
@@ -50693,17 +53350,6 @@ union WD_DEBUG_REG5 {
 union WD_DEBUG_REG7 {
     struct {
         unsigned int                                                              :  4;
-        unsigned int SE1VGT_WD_thdgrp_send_in                                     :  1;
-        unsigned int wd_arb_se1_input_fifo_re                                     :  1;
-        unsigned int wd_arb_se1_input_fifo_empty                                  :  1;
-        unsigned int wd_arb_se1_input_fifo_full                                   :  1;
-        unsigned int                                                              : 14;
-        unsigned int se1_thdgrp_is_event                                          :  1;
-        unsigned int se1_thdgrp_eop                                               :  1;
-        unsigned int                                                              :  8;
-    } raven;
-    struct {
-        unsigned int                                                              :  4;
         unsigned int SPARE0                                                       :  4;
         unsigned int SPARE1                                                       :  4;
         unsigned int SPARE2                                                       :  4;
@@ -50720,6 +53366,17 @@ union WD_DEBUG_REG7 {
         unsigned int SPARE5                                                       :  1;
         unsigned int                                                              : 12;
     } rv1x;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int SE1VGT_WD_thdgrp_send_in                                     :  1;
+        unsigned int wd_arb_se1_input_fifo_re                                     :  1;
+        unsigned int wd_arb_se1_input_fifo_empty                                  :  1;
+        unsigned int wd_arb_se1_input_fifo_full                                   :  1;
+        unsigned int                                                              : 14;
+        unsigned int se1_thdgrp_is_event                                          :  1;
+        unsigned int se1_thdgrp_eop                                               :  1;
+        unsigned int                                                              :  8;
+    } raven;
 
     unsigned int u32All;
     signed int   i32All;
@@ -50743,6 +53400,24 @@ union WD_DEBUG_REG9 {
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              :  2;
     } rv1x;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union WD_DEBUG_REG22 {
+    struct {
+        unsigned int wd_csbm_sm_spi_grant_ordered_id                              : 12;
+        unsigned int wd_csbm_sm_gds_data                                          :  2;
+        unsigned int wd_ngg_csbm_dma_busy                                         :  1;
+        unsigned int csbm_tcarb_tag                                               : 10;
+        unsigned int is_event_p3                                                  :  1;
+        unsigned int eop_p3                                                       :  1;
+        unsigned int null_p3                                                      :  1;
+        unsigned int state_id_p3                                                  :  3;
+        unsigned int wd_ngg_csbm_no_dma_busy                                      :  1;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;

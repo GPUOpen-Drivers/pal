@@ -84,7 +84,6 @@ public:
 
     regSPI_SHADER_Z_FORMAT SpiShaderZFormat() const { return m_pm4ImageContext.spiShaderZFormat; }
     regPA_CL_VS_OUT_CNTL PaClVsOutCntl() const { return m_pm4ImageContext.paClVsOutCntl; }
-    regDB_SHADER_CONTROL DbShaderControl() const { return m_dbShaderControl; }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_spiPsInControl; }
 
@@ -203,10 +202,6 @@ private:
                                            // is bound.
     Pm4ImageContext   m_pm4ImageContext;   // VS/PS context commands to be written when the associated pipeline is bound.
     Pm4ImageStrmout   m_pm4ImageStrmout;   // Streamout PM4 commands to be written when streamout is enabled.
-
-    // Due to a hardware workaround, we defer writing DB_SHADER_CONTROL until draw-time, so we store that register value
-    // outside the PM4 image.
-    regDB_SHADER_CONTROL  m_dbShaderControl;
 
     // As an optimization to avoid context rolls by sacrificing parameter cache, these registers are values are forced
     // to current maximum and written at SwitchGraphicsPipeline.

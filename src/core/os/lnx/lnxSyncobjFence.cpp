@@ -62,12 +62,10 @@ SyncobjFence::~SyncobjFence()
 
 // =====================================================================================================================
 Result SyncobjFence::Init(
-    const FenceCreateInfo& createInfo,
-    bool                   needsEvent)
+    const FenceCreateInfo& createInfo)
 {
     Result result = Result::Success;
-
-    result = Fence::Init(createInfo, needsEvent);
+    m_fenceState.initialSignalState = createInfo.flags.signaled ? 1 : 0;
     if (result == Result::Success)
     {
         uint32 flags = 0;
@@ -91,11 +89,11 @@ Result SyncobjFence::Init(
 // truly multiplex the set of Fences in the non-waitAll case.  This means that the best approximation we can make is
 // to poll until we discover that some SyncobjFence(s) in the set have finished.
 Result SyncobjFence::WaitForFences(
-    const Pal::Device& device,
-    uint32             fenceCount,
-    const Fence*const* ppFenceList,
-    bool               waitAll,
-    uint64             timeout
+    const Pal::Device&      device,
+    uint32                  fenceCount,
+    const Pal::Fence*const* ppFenceList,
+    bool                    waitAll,
+    uint64                  timeout
     ) const
 {
     PAL_ASSERT((fenceCount > 0) && (ppFenceList != nullptr));
@@ -124,11 +122,6 @@ Result SyncobjFence::WaitForFences(
             }
 
             const auto*const pSyncobjFence = static_cast<const SyncobjFence*>(ppFenceList[fence]);
-
-            // We currently have no way to wait for a batched fence on Linux. This is OK for now because Vulkan (the
-            // only Linux client) doesn't permit the application to trigger queue batching. A solution must be found
-            // once PAL swap chain presents have been refactored because they will trigger batching internally.
-            PAL_ASSERT(ppFenceList[fence]->IsBatched() == false);
 
             fenceList[count] = pSyncobjFence->m_fenceSyncObject;
             count++;
@@ -241,33 +234,27 @@ OsExternalHandle SyncobjFence::ExportExternalHandle(
 }
 
 // =====================================================================================================================
-// Associate with the Queue's lastSignaledSyncObject.
-Result SyncobjFence::AssociateWithLastTimestampOrSyncobj()
+void SyncobjFence::AssociateWithContext(
+    Pal::SubmissionContext* pContext)
 {
-    Result result = Result::Success;
-    const auto*const pLnxSubmissionContext = static_cast<Linux::SubmissionContext*>(m_pContext);
-
-    result = Fence::AssociateWithLastTimestampOrSyncobj();
-    if (result == Result::Success)
-    {
-        result = m_device.ConveySyncObjectState(m_fenceSyncObject,
-                                                pLnxSubmissionContext->GetLastSignaledSyncObj());
-    }
-    return result;
+    m_fenceState.neverSubmitted = 0;
 }
 
 // =====================================================================================================================
 // Resets this Fence to a state where it is no longer associated with a Queue submission. GetStatus() calls on this
 // Fence will fail eith 'ErrorUnavailable' until the object is associated with a new submission.
-Result SyncobjFence::ResetAssociatedSubmission()
+Result SyncobjFence::Reset()
 {
     Result result = Result::Success;
 
-    result = Fence::ResetAssociatedSubmission();
-    if (result == Result::Success)
-    {
-        result = m_device.ResetSyncObject(&m_fenceSyncObject, 1);
-    }
+    // If this is called before a submission, the private screen present usage flag needs to reset as well.
+    m_fenceState.privateScreenPresentUsed = 0;
+
+    // the initial signal state should be reset to false even though it is created as signaled at the first place.
+    m_fenceState.initialSignalState = 0;
+
+    result = m_device.ResetSyncObject(&m_fenceSyncObject, 1);
+
     return result;
 }
 
@@ -302,26 +289,24 @@ bool SyncobjFence::IsSyncobjSignaled(
 // NOTE: Part of the public IFence interface.
 Result SyncobjFence::GetStatus() const
 {
-    Result result = Result::ErrorFenceNeverSubmitted;
-
-    // We should only check the InitialState when the fence has never been submitted by the client
-    if (WasNeverSubmitted() && InitialState())
+    Result result = Result::Success;
+    // In the previous version of GetStatus(), there are two scenarios we can reach ErrorFenceNeverSubmitted status.
+    // One is WasNeverSubmitted() && !InitialState(). The other is !WasNeverSubmitted()&&pContext==nullptr.
+    // Since we don't track submission context anymore, there's no way we can reproduce the second scenario.
+    // Thus, this version of GetStatus() is not equivalent to the old one exactly.
+    // ErrorFenceNeverSubmitted is not reported correctly here.
+    // After we start removing ErrorFenceNeverSubmitted in another changelist, I will remove the second the if block.
+    if ((IsSyncobjSignaled(m_fenceSyncObject) == false) && (WasNeverSubmitted() == false))
+    {
+        result = Result::NotReady;
+    }
+    else if ((IsSyncobjSignaled(m_fenceSyncObject) == false) && (WasNeverSubmitted() == true))
+    {
+        result = Result::ErrorFenceNeverSubmitted;
+    }
+    else
     {
         result = Result::Success;
-    }
-    // If a Fence is not associated with a submission context, the Fence status is considered unavailable (which
-    // implies neither retired nor busy).
-    else if (m_pContext != nullptr)
-    {
-        // We must report NotReady if this fence's submission has been batched or is not retired.
-        if (IsBatched() || (IsSyncobjSignaled(m_fenceSyncObject) == false))
-        {
-            result = Result::NotReady;
-        }
-        else
-        {
-            result = Result::Success;
-        }
     }
 
     return result;

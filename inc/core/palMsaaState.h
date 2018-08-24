@@ -37,6 +37,16 @@
 namespace Pal
 {
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+/// Specifies conservative rasterization mode
+enum class ConservativeRasterizationMode : uint32
+{
+    Overestimate    = 0x0,  ///< Fragments will be generated if the primitive area covers any portion of the pixel.
+    Underestimate   = 0x1,  ///< Fragments will be generated if all of the pixel is covered by the primitive.
+    Count
+};
+#endif
+
 /// Maximum supported number of MSAA color samples.
 constexpr uint32 MaxMsaaColorSamples = 16;
 
@@ -93,6 +103,13 @@ struct MsaaStateCreateInfo
                                           ///  This value must never exceed the MSAA rate.
     bool   disableAlphaToCoverageDither;  ///< Disables coverage dithering.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+    ConservativeRasterizationMode conservativeRasterizationMode;
+                                          ///< Selects overestimate or underestimate conservative
+                                          ///  rasterization mode. Used only if
+                                          ///  @ref MsaaStateCreateInfo::flags::enableConservativeRasterization
+                                          ///  is set to true.
+#endif
     union
     {
         struct

@@ -12554,7 +12554,7 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { IrXsIflTrTa,                    IrXsIflTrTaM                   }, // ChNumFormat::X16Y16Z16W16_Sscaled
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X16Y16Z16W16_Sint
-        { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBMX    }, // ChNumFormat::X16Y16Z16W16_Float
+        { IrXsIwXdIaIflIfmmTrTwTaCBXP,    IrXsIwXdIaIflIfmmTrTwTaCBMXP   }, // ChNumFormat::X16Y16Z16W16_Float
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X32_Uint
         { IrXsIwXdIaTrTwTaCX,             IrXsIwXdIaTrTwTaCMX            }, // ChNumFormat::X32_Sint
         { IrXsIwXdIaIflIfmmTrTwTaCBX,     IrXsIwXdIaIflIfmmTrTwTaCBDMX   }, // ChNumFormat::X32_Float

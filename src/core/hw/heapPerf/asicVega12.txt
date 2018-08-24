@@ -1,0 +1,7 @@
+                  cpuWrite    cpuRead     gpuWrite    gpuRead
+Local             4.9         0.015       90          96
+Invisible         0           0           90          96
+GartUswc          10          0.066       5.2         4.8
+GartCacheable     4.5         4.4         5.2         4.8
+
+Required defines: PAL_BUILD_GFX9

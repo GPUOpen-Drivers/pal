@@ -325,6 +325,17 @@ CmdUtil::CmdUtil(
         {
             m_registerInfo.mmEaPerfResultCntl = Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL;
         }
+        else
+        {
+            m_registerInfo.mmEaPerfResultCntl    = Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmComputeShaderChksum = Gfx09_1x::mmCOMPUTE_SHADER_CHKSUM;
+
+            if (IsVega12(parent))
+            {
+                m_registerInfo.mmPaStereoCntl   = Vg12::mmPA_STEREO_CNTL;
+                m_registerInfo.mmPaStateStereoX = Vg12::mmPA_STATE_STEREO_X;
+            }
+        }
 
         m_registerInfo.mmAtcPerfResultCntl          = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
         m_registerInfo.mmAtcL2PerfResultCntl        = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;

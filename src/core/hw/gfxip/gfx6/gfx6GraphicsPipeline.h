@@ -98,11 +98,15 @@ struct GfxPipelineStateContextPm4Img
     PM4CMDSETDATA                       hdrSpiInterpControl0;
     regSPI_INTERP_CONTROL_0             spiInterpControl0;
 
-    PM4CONTEXTREGRMW                    dbAlphaToMaskRmw;
-
-    // Common register for SI/CI/VI
     PM4CMDSETDATA                       hdrVgtVertexReuseBlockCntl;
     regVGT_VERTEX_REUSE_BLOCK_CNTL      vgtVertexReuseBlockCntl;
+
+    PM4CONTEXTREGRMW                    dbAlphaToMask;
+    PM4CONTEXTREGRMW                    dbRenderOverride;
+
+    // This packet must go last because not all HW will write it in the pre-built PM4 image.
+    PM4CMDSETDATA                       hdrDbShaderControl;
+    regDB_SHADER_CONTROL                dbShaderControl;
 
     // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
     // commands contained within.
@@ -275,27 +279,6 @@ private:
     PipelineChunkVsPs  m_chunkVsPs;
 
     GraphicsPipelineSignature  m_signature;
-
-    // Stores information about the depth clamp state
-    regDB_RENDER_OVERRIDE m_dbRenderOverride;
-
-    // Private structure used to store/load a graphics pipeline object. Does not include the data from the shader.
-    // Should correspond to the data members in Pal::Gfx6::GraphicsPipeline.
-    struct SerializedData
-    {
-        GfxPipelineStateCommonPm4Img  renderStateCommonPm4Img;
-        GfxPipelineStateContextPm4Img renderStateContextPm4Img;
-        GraphicsPipelineSignature     signature;
-        regIA_MULTI_VGT_PARAM         iaMultiVgtParam[NumIaMultiVgtParam];
-        regSX_PS_DOWNCONVERT__VI      sxPsDownconvert;
-        regSX_BLEND_OPT_EPSILON__VI   sxBlendOptEpsilon;
-        regSX_BLEND_OPT_CONTROL__VI   sxBlendOptControl;
-        regVGT_LS_HS_CONFIG           vgtLsHsConfig;
-        regPA_SC_MODE_CNTL_1          paScModeCntl1;
-        uint64                        contextPm4ImgHash;
-        uint16                        esGsLdsSizeRegGs;
-        uint16                        esGsLdsSizeRegVs;
-    };
 
     // Used to index into the IA_MULTI_VGT_PARAM array based on dynamic state. This just constructs a flat index
     // directly from the integer representations of the bool inputs (1/0).

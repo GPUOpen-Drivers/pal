@@ -385,8 +385,10 @@ void AddrMgr2::InitTilingCaps(
     }
     else
     {
-        // This Image is using optimal tiling, so don't allow linear.
-        pBlockSettings->linear   = 1;
+        // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
+        // some examples).  Address library should guarantee that we don't actually get a linear surface unless
+        // it's the only option.
+        pBlockSettings->linear   = 0;
         pBlockSettings->macro4KB = 0;
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
@@ -631,7 +633,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             const SettingsLoader* const pSettingsLoader = GetDevice()->GetSettingsLoader();
 
-            if (IsVega10(*m_pDevice)
+            if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice)
                 )
             {
                 if (createInfo.flags.videoReferenceOnly)

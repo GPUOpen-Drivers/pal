@@ -2050,6 +2050,11 @@ PAL_INLINE bool IsVega10(const Device& device)
     return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
+PAL_INLINE bool IsVega12(const Device& device)
+{
+    return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+
 PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);

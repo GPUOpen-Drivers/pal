@@ -2819,6 +2819,14 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
+    const uint32  mmPaStateStereoX = m_cmdUtil.GetRegInfo().mmPaStateStereoX;
+    if (mmPaStateStereoX != 0)
+    {
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPaStateStereoX, 0, pDeCmdSpace);
+        }
+    }
+
     // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
     // value causes the optimizer to skip optimizing redundant RMW packets.
     if (m_deCmdStream.Pm4OptimizerEnabled())

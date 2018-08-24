@@ -870,6 +870,7 @@ void Queue::ProcessIdleSubmits()
             m_availableGpaSessions.PushBack(pGpaSession);
         }
 
+        m_pDevice->ResetFences(1, &submitInfo.pFence);
         m_availableFences.PushBack(submitInfo.pFence);
     }
 }

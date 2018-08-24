@@ -2222,7 +2222,7 @@ Result Device::ResetFences(
 
     for (uint32 i = 0; i < fenceCount; ++i)
     {
-        result = reinterpret_cast<Fence*>(ppFenceList[i])->ResetAssociatedSubmission();
+        result = reinterpret_cast<Fence*>(ppFenceList[i])->Reset();
         if (result != Result::Success)
         {
             break;

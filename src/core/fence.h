@@ -41,68 +41,43 @@ class SubmissionContext;
 // Fences can be specified when calling IQueue::Submit() and will be signaled when all commands in that submit have
 // completed.  The status of the fence can be queried by the client to determine when the GPU work of interest has
 // completed.
-//
-// NOTE: The Windows and Linux flavors of this object are so similar, that it seemed excessive to create muliple child
-// classes just to override the GetStatus() method and to determine whether or not the Fence contained an Event object
-// (which is only needed on Windows).
 class Fence : public IFence
 {
 public:
     Fence();
-    virtual ~Fence();
+    virtual ~Fence() {};
 
     virtual Result Init(
-        const FenceCreateInfo& createInfo,
-        bool                   needsEvent);
+        const FenceCreateInfo& createInfo) = 0;
 
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override;
 
     void DestroyInternal(Platform* pPlatform);
 
-    // NOTE: Part of the public IFence interface.
-    virtual Result GetStatus() const override;
-
-    virtual Result OpenHandle(const FenceOpenInfo& openInfo);
-
-    virtual OsExternalHandle ExportExternalHandle(
-        const FenceExportInfo& exportInfo) const override
-    {
-        return -1;
-    }
+    virtual Result OpenHandle(const FenceOpenInfo& openInfo) = 0;
 
     // Fence association is split into two steps:
     // - Associate with a submission context, which must be done as soon as the queue is known.
     // - Associate with the submission context's last timestamp, which can only be done post-queue-batching.
-    void AssociateWithContext(SubmissionContext* pContext);
-    virtual Result AssociateWithLastTimestampOrSyncobj();
+    virtual void AssociateWithContext(SubmissionContext* pContext) = 0;
 
-    virtual Result ResetAssociatedSubmission();
-
-    // Associates the Fence object with private screen present, i.e. The WaitForFences() only needs to check the event.
-    void AssociateWithPrivateScreen() { m_fenceState.privateScreenPresentUsed = 1; }
+    virtual Result Reset() = 0;
 
     bool InitialState() const                { return (m_fenceState.initialSignalState != 0); }
     bool WasNeverSubmitted() const           { return (m_fenceState.neverSubmitted != 0); }
     bool WasPrivateScreenPresentUsed() const { return (m_fenceState.privateScreenPresentUsed != 0); }
-    bool IsBatched() const                   { return (m_timestamp == BatchedTimestamp); }
     bool IsOpened() const                    { return (m_fenceState.isOpened != 0);}
-
-    uint64 Timestamp() const { return m_timestamp; }
-
-    // True if the fence has been reset, meaning it isn't associated with a private screen present or a regular
-    // command buffer submission.
-    bool IsReset() const { return (WasPrivateScreenPresentUsed() == false) && (m_pContext == nullptr); }
 
     virtual Result WaitForFences(
         const Device&      device,
         uint32             fenceCount,
         const Fence*const* ppFenceList,
         bool               waitAll,
-        uint64             timeout) const;
+        uint64             timeout) const = 0;
 
 protected:
-    //state flag for an fence object.
+    // NOTE: winFence does not need initialSignalState and neverSubmitted after ErrorFenceNeverSubmitted is removed.
     union
     {
         struct
@@ -115,19 +90,6 @@ protected:
         };
         uint32 flags;
     } m_fenceState;
-
-    SubmissionContext* m_pContext;
-
-private:
-    // A Fence can be associated with a submission either at submission time or afterwards; the submission may be
-    // batched or already submitted to the OS. A fence can only be associated with a single Queue submission at a time.
-    // These members track the Queue and OS-specific timestamp for the current associated submission.
-    //
-    // The maximum timestamp has been reserved; it indicates that the associated submission has been batched. Note that
-    // the timestamp may be modified asynchronously to normal fence operation when a batched submission is unrolled.
-    static constexpr uint64 BatchedTimestamp = UINT64_MAX;
-
-    volatile uint64    m_timestamp;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Fence);
 };

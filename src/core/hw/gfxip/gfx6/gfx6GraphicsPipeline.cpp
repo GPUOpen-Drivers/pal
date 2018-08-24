@@ -64,6 +64,15 @@ static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format);
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
 
+// Mask of DB_RENDER_OVERRIDE fields written during pipeline bind.
+static constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
+                                                   DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK   |
+                                                   DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
+
+static_assert((DbRenderOverrideRmwMask & DepthStencilView::DbRenderOverrideRmwMask) == 0,
+              "GraphicsPipeline and DepthStencilView DB_RENDER_OVERRIDE fields intersect.  This would require"
+              "delayed validation");
+
 // =====================================================================================================================
 // The workaround for the "DB Over-Rasterization" hardware bug requires us to write the DB_SHADER_CONTROL register at
 // draw-time. This function writes the PM4 commands necessary and returns the next unused DWORD in pCmdSpace.
@@ -75,62 +84,29 @@ uint32* GraphicsPipeline::WriteDbShaderControl(
     uint32*    pCmdSpace
     ) const
 {
-    regDB_SHADER_CONTROL dbShaderControl;
-    dbShaderControl.u32All = m_chunkVsPs.DbShaderControl().u32All;
-
-    if ((m_pDevice->WaDbOverRasterization())                  &&
-        (dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z) &&
-        usesOverRasterization                                 &&
-        isDepthEnabled)
+    // NOTE: If the PM4 header for writing DB_SHADER_CONTROL is not initialized, then the register must be written at
+    // draw-time due to a hardware workaround.
+    if (m_stateContextPm4Cmds.hdrDbShaderControl.header.u32All == 0)
     {
-        // Apply the "DB Over-Rasterization" workaround: The DB has a bug with early-Z where the DB will
-        // kill pixels when over-rasterization is enabled.  Normally the fix would be to force post-Z over-rasterization
-        // via DB_EQAA, but that workaround isn't sufficient if depth testing is enabled.  In that case, we need to
-        // force late-Z in the pipeline.
-        //
-        // If the workaround is active, and both depth testing and over-rasterization are enabled, and the pipeline
-        // isn't already using late-Z, then we need to force late-Z for the current pipeline.
-        dbShaderControl.bits.Z_ORDER = LATE_Z;
-    }
+        PAL_ASSERT(m_pDevice->WaDbOverRasterization());
 
-    // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    regDB_RENDER_OVERRIDE dbRenderOverride = m_dbRenderOverride;
-    dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (dbShaderControl.bits.Z_ORDER == RE_Z);
-
-    if (m_pDevice->WaDbReZStencilCorruption())
-    {
-        // NOTE: The workaround for the Re-Z Stencil corruption bug requires setting a bit in DB_RENDER_OVERRIDE when
-        // Re-Z is active.
-        if ((dbShaderControl.bits.Z_ORDER == RE_Z) || (dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_RE_Z))
+        regDB_SHADER_CONTROL dbShaderControl = m_stateContextPm4Cmds.dbShaderControl;
+        if ((dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z) && usesOverRasterization && isDepthEnabled)
         {
-            dbRenderOverride.bits.FORCE_STENCIL_READ = 1;
+            // Apply the "DB Over-Rasterization" workaround: The DB has a bug with early-Z where the DB will kill
+            // pixels when over-rasterization is enabled.  Normally the fix would be to force post-Z over-rasterization
+            // via DB_EQAA, but that workaround isn't sufficient if depth testing is enabled.  In that case, we need to
+            // force late-Z in the pipeline.
+            //
+            // If the workaround is active, and both depth testing and over-rasterization are enabled, and the pipeline
+            // isn't already using late-Z, then we need to force late-Z for the current pipeline.
+            dbShaderControl.bits.Z_ORDER = LATE_Z;
         }
-        else
-        {
-            // This could be omitted as value of dbRenderOverride has been set to zero in declaration, but we left this
-            // for clarification.
-            dbRenderOverride.bits.FORCE_STENCIL_READ = 0;
-        }
+
+        pCmdSpace = pCmdStream->WriteSetOneContextReg<pm4OptImmediate>(mmDB_SHADER_CONTROL,
+                                                                       dbShaderControl.u32All,
+                                                                       pCmdSpace);
     }
-
-    // Write the PM4 packet to set DB_SHADER_CONTROL and DB_RENDER_OVERRIDE.  NOTE: both the bitfields
-    // FORCE_SHADER_Z_ORDER or FORCE_STENCIL_READ have a default 0 value in the preamble, thus we only need to update
-    // these three bitfields.
-    constexpr uint32 DbRenderOverrideRmwMask = (DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK |
-                                                DB_RENDER_OVERRIDE__FORCE_STENCIL_READ_MASK |
-                                                DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK);
-
-    static_assert((DbRenderOverrideRmwMask & DepthStencilView::DbRenderOverrideRmwMask) == 0,
-                  "GraphicsPipeline and DepthStencilView DB_RENDER_OVERRIDE fields intersect.  This would require"
-                  "delayed validation");
-
-    pCmdSpace = pCmdStream->WriteSetOneContextReg<pm4OptImmediate>(mmDB_SHADER_CONTROL,
-                                                                   dbShaderControl.u32All,
-                                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteContextRegRmw<pm4OptImmediate>(mmDB_RENDER_OVERRIDE,
-                                                                DbRenderOverrideRmwMask,
-                                                                dbRenderOverride.u32All,
-                                                                pCmdSpace);
 
     return pCmdSpace;
 }
@@ -271,8 +247,6 @@ GraphicsPipeline::GraphicsPipeline(
     m_sxBlendOptControl.u32All = 0;
     m_vgtLsHsConfig.u32All     = 0;
     m_paScModeCntl1.u32All     = 0;
-
-    m_dbRenderOverride.u32All = 0;
 }
 
 // =====================================================================================================================
@@ -638,9 +612,6 @@ uint32* GraphicsPipeline::RequestPrefetch(
 // payloads are computed elsewhere.
 void GraphicsPipeline::BuildPm4Headers()
 {
-    memset(&m_stateCommonPm4Cmds, 0, sizeof(m_stateCommonPm4Cmds));
-    memset(&m_stateContextPm4Cmds, 0, sizeof(m_stateContextPm4Cmds));
-
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // PM4 packet: sets the following context register: VGT_SHADER_STAGES_EN.
@@ -688,13 +659,21 @@ void GraphicsPipeline::BuildPm4Headers()
     m_stateContextPm4Cmds.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmSPI_INTERP_CONTROL_0, &m_stateContextPm4Cmds.hdrSpiInterpControl0);
 
-    // PM4 packet does a read/modify/write of DB_ALPHA_TO_MASK.  The real packet will be created later, we just need
-    // to get the size.
-    m_stateContextPm4Cmds.spaceNeeded += CmdUtil::GetContextRegRmwSize();
-
     // PM4 packet: sets the following context register: mmVGT_VERTEX_REUSE_BLOCK_CNTL.
     m_stateContextPm4Cmds.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL, &m_stateContextPm4Cmds.hdrVgtVertexReuseBlockCntl);
+
+    // PM4 packet does a read/modify/write of DB_ALPHA_TO_MASK and DB_RENDER_OVERRIDE.  The real packets will be
+    // created later, we just need to get the size.
+    m_stateContextPm4Cmds.spaceNeeded += (CmdUtil::GetContextRegRmwSize() * 2);
+
+    if (m_pDevice->WaDbOverRasterization() == false)
+    {
+        // This hardware workaround requires draw-time validation for DB_SHADER_CONTROL.  If the current GPU is not
+        // affected by this HW bug, we can just put it into the pipeline PM4 image.
+        m_stateContextPm4Cmds.spaceNeeded +=
+            cmdUtil.BuildSetOneContextReg(mmDB_SHADER_CONTROL, &m_stateContextPm4Cmds.hdrDbShaderControl);
+    }
 
     if (m_pDevice->Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp6)
     {
@@ -827,12 +806,12 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     // We need to set the enable bit for alpha to mask dithering, but MSAA state also sets some fields of this register
     // so we must use a read/modify/write packet so we only update the _ENABLE field.
-    regDB_ALPHA_TO_MASK regValue = { };
-    regValue.bits.ALPHA_TO_MASK_ENABLE = createInfo.cbState.alphaToCoverageEnable;
+    regDB_ALPHA_TO_MASK dbAlphaToMask = { };
+    dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE = createInfo.cbState.alphaToCoverageEnable;
     cmdUtil.BuildContextRegRmw(mmDB_ALPHA_TO_MASK,
                                DB_ALPHA_TO_MASK__ALPHA_TO_MASK_ENABLE_MASK,
-                               regValue.u32All,
-                               &m_stateContextPm4Cmds.dbAlphaToMaskRmw);
+                               dbAlphaToMask.u32All,
+                               &m_stateContextPm4Cmds.dbAlphaToMask);
 
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx8RbPlusEnable &&
@@ -941,15 +920,35 @@ void GraphicsPipeline::InitCommonStateRegisters(
     m_stateContextPm4Cmds.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
 
-    regDB_SHADER_CONTROL dbShaderControl;
-    dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
+    m_stateContextPm4Cmds.dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
+
+    regDB_RENDER_OVERRIDE dbRenderOverride = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
-    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampDisable == true) &&
-                                                      (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
+    if ((createInfo.rsState.depthClampDisable == true) &&
 #else
-    m_dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampEnable == false) &&
-                                                      (dbShaderControl.bits.Z_EXPORT_ENABLE == true));
+    if ((createInfo.rsState.depthClampEnable == false) &&
 #endif
+        (m_stateContextPm4Cmds.dbShaderControl.bits.Z_EXPORT_ENABLE != 0))
+    {
+        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = 1;
+    }
+
+    // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
+    dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_stateContextPm4Cmds.dbShaderControl.bits.Z_ORDER == RE_Z);
+
+    if (m_pDevice->WaDbReZStencilCorruption() &&
+        ((m_stateContextPm4Cmds.dbShaderControl.bits.Z_ORDER == RE_Z) ||
+         (m_stateContextPm4Cmds.dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_RE_Z)))
+    {
+        // NOTE: The workaround for the Re-Z Stencil corruption bug requires setting a bit in DB_RENDER_OVERRIDE when
+        // Re-Z is active.
+        dbRenderOverride.bits.FORCE_STENCIL_READ = 1;
+    }
+
+    m_pDevice->CmdUtil().BuildContextRegRmw(mmDB_RENDER_OVERRIDE,
+                                            DbRenderOverrideRmwMask,
+                                            dbRenderOverride.u32All,
+                                            &m_stateContextPm4Cmds.dbRenderOverride);
 
     m_stateContextPm4Cmds.vgtShaderStagesEn.u32All = abiProcessor.GetRegisterEntry(mmVGT_SHADER_STAGES_EN);
     m_stateContextPm4Cmds.vgtReuseOff.u32All       = abiProcessor.GetRegisterEntry(mmVGT_REUSE_OFF);

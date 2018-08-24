@@ -102,6 +102,9 @@ struct GfxPipelineStateCommonPm4ImgContext
     PM4_PFP_SET_CONTEXT_REG             hdrPaScLineCntl;
     regPA_SC_LINE_CNTL                  paScLineCntl;
 
+    PM4_PFP_SET_CONTEXT_REG             hdrPaStereoCntl;
+    regPA_STEREO_CNTL                   paStereoCntl;
+
     PM4_PFP_SET_CONTEXT_REG             hdrSpiInterpControl0;
     regSPI_INTERP_CONTROL_0             spiInterpControl0;
 

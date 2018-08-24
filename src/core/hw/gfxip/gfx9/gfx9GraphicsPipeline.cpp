@@ -650,6 +650,18 @@ void GraphicsPipeline::BuildPm4Headers(
     m_statePm4CmdsContext.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SC_LINE_CNTL, &m_statePm4CmdsContext.hdrPaScLineCntl);
 
+    if (regInfo.mmPaStereoCntl != 0)
+    {
+        // PM4 packet: sets the following context register: PA_STEREO_CNTL.
+        m_statePm4CmdsContext.spaceNeeded +=
+            cmdUtil.BuildSetOneContextReg(regInfo.mmPaStereoCntl, &m_statePm4CmdsContext.hdrPaStereoCntl);
+    }
+    else
+    {
+        m_statePm4CmdsContext.spaceNeeded +=
+            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_statePm4CmdsContext.hdrPaStereoCntl);
+    }
+
     // PM4 packet: sets the following context register: mmSPI_INTERP_CONTROL_0.
     m_statePm4CmdsContext.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmSPI_INTERP_CONTROL_0, &m_statePm4CmdsContext.hdrSpiInterpControl0);
@@ -737,6 +749,12 @@ void GraphicsPipeline::InitCommonStateRegisters(
     m_statePm4CmdsContext.paClVteCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_CL_VTE_CNTL);
     m_statePm4CmdsContext.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
+
+    m_statePm4CmdsContext.paStereoCntl.u32All = 0;
+    if (regInfo.mmPaStereoCntl != 0)
+    {
+        abiProcessor.HasRegisterEntry(regInfo.mmPaStereoCntl, &m_statePm4CmdsContext.paStereoCntl.u32All);
+    }
 
     m_statePm4CmdsContext.vgtShaderStagesEn.u32All = abiProcessor.GetRegisterEntry(mmVGT_SHADER_STAGES_EN);
     m_statePm4CmdsContext.vgtReuseOff.u32All       = abiProcessor.GetRegisterEntry(mmVGT_REUSE_OFF);
@@ -1965,6 +1983,10 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
+        if (IsVega12(device))
+        {
+            enStereo = m_statePm4CmdsContext.paStereoCntl.vg12.EN_STEREO;
+        }
     }
 
     return (enStereo != 0);
@@ -1975,6 +1997,18 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
 bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
 {
     bool usesMultipleViewports = false;
+
+    const auto&  palDevice  = *(m_pDevice->Parent());
+    uint32       vpIdOffset = 0;
+
+    {
+        if (IsVega12(palDevice))
+        {
+            vpIdOffset = m_statePm4CmdsContext.paStereoCntl.vg12.VP_ID_OFFSET;
+        }
+    }
+
+    usesMultipleViewports = (vpIdOffset != 0);
 
     return usesMultipleViewports;
 }
@@ -2021,6 +2055,16 @@ void GraphicsPipeline::SetupStereoRegisters()
 
             if (m_gfxLevel == GfxIpLevel::GfxIp9)
             {
+                PAL_ASSERT(viewInstancingDesc.viewportArrayIdx[0] == 0);
+                PAL_ASSERT(viewInstancingDesc.renderTargetArrayIdx[0] == 0);
+
+                const uint32  vpIdOffset    = viewInstancingDesc.viewportArrayIdx[1];
+                const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1];
+
+                if (IsVega12(device))
+                {
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_statePm4CmdsContext.paStereoCntl.vg12);
+                }
             }
         }
     }
@@ -2036,6 +2080,10 @@ bool GraphicsPipeline::IsNggFastLaunch() const
     if (IsVega10(device) || IsRaven(device))
     {
         gsFastLaunch = m_statePm4CmdsContext.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH;
+    }
+    else
+    {
+        gsFastLaunch = m_statePm4CmdsContext.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH;
     }
 
     return (gsFastLaunch != 0);

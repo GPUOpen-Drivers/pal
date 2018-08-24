@@ -27,10 +27,23 @@
 #define SQTT_FILE_FORMAT_H
 
 #include <stdint.h>
+#include "palInlineFuncs.h"
 
 /** Magic number for all SQTT files.
  */
 #define SQTT_FILE_MAGIC_NUMBER            0x50303042
+
+/// The major version number of the RGP file format specification that this header corresponds to.
+#define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
+
+/// The minor version number of the RGP file format specification that this header corresponds to.
+#define RGP_FILE_FORMAT_SPEC_MINOR_VER 3
+
+struct RgpChunkVersionNumbers
+{
+    uint16_t majorVersion;
+    uint16_t minorVersion;
+};
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,9 +102,29 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,            /*!< Information required to correlate between clock domains. */
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
     SQTT_FILE_CHUNK_TYPE_SPM_DB,                       /*!< SPM trace data. */
-
+    SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
+    SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS,
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
+
+/// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
+static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
+{
+    {0, 2}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
+    {0, 1}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,
+    {1, 0}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
+    {1, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS
+};
+
+static_assert(Util::ArrayLen(RgpChunkVersionNumberLookup) == static_cast<uint32_t>(SQTT_FILE_CHUNK_TYPE_COUNT),
+              "The version number lookup table must be updated when adding/deleting a chunk!");
 
 /** An enumeration of flags about ASIC info.
  */
@@ -524,11 +557,25 @@ typedef struct SpmCounterInfo
     uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
 } SpmCounterInfo;
 
+typedef struct SqttFileSpmInfoFlags
+{
+    union
+    {
+        struct
+        {
+            int32_t  reserved : 32;                  /*!< Reserved, set to 0. */
+        };
+
+        uint32_t value;                              /*!< 32bit value containing all the above fields. */
+    };
+} SqttFileSpmInfoFlags;
+
 typedef struct SqttFileChunkSpmDb
 {
-    SqttFileChunkHeader header;
-    uint32_t            numTimestamps;          /*!<  Number of timestamps in this trace. */
-    uint32_t            numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+    SqttFileChunkHeader  header;
+    SqttFileSpmInfoFlags flags;
+    uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
+    uint32_t             numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
 } SqttFileChunkSpmDb;
 
 /** A structure encapsulating the state of the SQTT file parser.

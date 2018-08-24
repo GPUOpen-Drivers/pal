@@ -135,11 +135,14 @@ enum class GfxIpLevel : uint32
     None     = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
 #endif
 
-    GfxIp6   = 0x1,
-    GfxIp7   = 0x2,
-    GfxIp8   = 0x3,
-    GfxIp8_1 = 0x4,
-    GfxIp9   = 0x5,
+    GfxIp6    = 0x1,
+    GfxIp7    = 0x2,
+    GfxIp8    = 0x3,
+    GfxIp8_1  = 0x4,
+    GfxIp9    = 0x5,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 426
+#else
+#endif
 
     Count             ///< Count of all supported GfxIp levels.
 };
@@ -178,6 +181,7 @@ enum class AsicRevision : uint32
 
 #if PAL_BUILD_GFX9
     Vega10     = 0x18,
+    Vega12     = 0x19,
     Raven      = 0x1B,
 #endif // PAL_BUILD_GFX9
 

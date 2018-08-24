@@ -94,6 +94,12 @@ Result CreateRpmGraphicsPipelines(
         break;
 #endif
 
+#if PAL_BUILD_GFX9
+    case AsicRevision::Vega12:
+        pTable = rpmGfxBinaryTableVega12;
+        break;
+#endif
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

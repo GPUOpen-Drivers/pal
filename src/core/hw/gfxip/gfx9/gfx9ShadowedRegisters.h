@@ -75,6 +75,10 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
         (mmTA_CS_BC_BASE_ADDR - UCONFIG_SPACE_START),                     // 0xC380 - 0xC381
         (mmTA_CS_BC_BASE_ADDR_HI - mmTA_CS_BC_BASE_ADDR + 1),
     },
+    {
+        (Vg12::mmPA_STATE_STEREO_X - UCONFIG_SPACE_START),                // 0xC2B5
+        1,
+    },
 
 };
 constexpr uint32 Gfx9NumUserConfigShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9UserConfigShadowRange));
@@ -124,7 +128,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
     },
     {
         (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),
-        (mmPA_SU_OVER_RASTERIZATION_CNTL - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1), // 0xA20C - 0xA20F
+        (Vg12::mmPA_STEREO_CNTL - mmPA_SU_SMALL_PRIM_FILTER_CNTL + 1),          // 0xA20C - 0xA210
     },
     {
         (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA282
@@ -474,6 +478,244 @@ const RegisterRange Gfx90NonShadowedRanges[] =
     },
 };
 constexpr uint32 Gfx90NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx90NonShadowedRanges));
+
+const RegisterRange Gfx91NonShadowedRanges[] =
+{
+    {
+        mmVGT_DMA_PRIMITIVE_TYPE,
+        mmVGT_DMA_LS_HS_CONFIG - mmVGT_DMA_PRIMITIVE_TYPE + 1
+    },
+    {
+        mmDB_DEBUG,
+        1
+    },
+    {
+        mmCOMPUTE_VMID,
+        1
+    },
+    {
+        mmSPI_RESOURCE_RESERVE_CU_0,
+        1
+    },
+    {
+        mmSPI_RESOURCE_RESERVE_EN_CU_0,
+        1
+    },
+    // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
+    {
+        mmVGT_DMA_INDEX_TYPE,
+        1
+    },
+    {
+        mmVGT_STRMOUT_BUFFER_OFFSET_0,
+        1
+    },
+    {
+        mmVGT_STRMOUT_BUFFER_OFFSET_1,
+        1
+    },
+    {
+        mmVGT_STRMOUT_BUFFER_OFFSET_2,
+        1
+    },
+    {
+        mmVGT_STRMOUT_BUFFER_OFFSET_3,
+        1
+    },
+    {
+        mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET,
+        mmVGT_STRMOUT_DRAW_OPAQUE_VERTEX_STRIDE - mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET + 1
+    },
+    {
+        mmVGT_DMA_NUM_INSTANCES,
+        1
+    },
+    {
+        mmCP_NUM_PRIM_WRITTEN_COUNT0_LO,
+        mmCP_NUM_PRIM_NEEDED_COUNT3_HI - mmCP_NUM_PRIM_WRITTEN_COUNT0_LO + 1
+    },
+    {
+        mmCP_VGT_IAVERT_COUNT_LO,
+        mmCP_SC_PSINVOC_COUNT0_HI - mmCP_VGT_IAVERT_COUNT_LO + 1
+    },
+    {
+        mmCP_VGT_CSINVOC_COUNT_LO,
+        mmCP_VGT_CSINVOC_COUNT_HI - mmCP_VGT_CSINVOC_COUNT_LO + 1
+    },
+    {
+        mmGRBM_GFX_INDEX,
+        1
+    },
+    {
+        mmVGT_INDEX_TYPE,
+        mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+    },
+    {
+        mmPA_SC_SCREEN_EXTENT_MIN_0,
+        mmPA_SC_SCREEN_EXTENT_MIN_1 - mmPA_SC_SCREEN_EXTENT_MIN_0 + 1
+    },
+    {
+        mmPA_SC_SCREEN_EXTENT_MAX_1,
+        1
+    },
+    {
+        mmDB_OCCLUSION_COUNT0_LOW,
+        mmDB_OCCLUSION_COUNT3_HI - mmDB_OCCLUSION_COUNT0_LOW + 1
+    },
+    {
+        Gfx09::mmSPI_CONFIG_CNTL,
+        1
+    },
+    {
+        mmCPG_PERFCOUNTER1_SELECT,
+        mmCPC_PERFCOUNTER0_SELECT - mmCPG_PERFCOUNTER1_SELECT + 1
+    },
+    {
+        mmCP_DRAW_OBJECT_COUNTER,
+        1
+    },
+    {
+        mmCB_PERFCOUNTER0_SELECT,
+        mmCB_PERFCOUNTER3_SELECT - mmCB_PERFCOUNTER0_SELECT + 1
+    },
+    {
+        mmDB_PERFCOUNTER0_SELECT,
+        mmDB_PERFCOUNTER3_SELECT - mmDB_PERFCOUNTER0_SELECT + 1
+    },
+    {
+        mmGRBM_PERFCOUNTER0_SELECT,
+        mmGRBM_PERFCOUNTER1_SELECT - mmGRBM_PERFCOUNTER0_SELECT + 1
+    },
+    {
+        mmGRBM_SE0_PERFCOUNTER_SELECT,
+        mmGRBM_SE3_PERFCOUNTER_SELECT - mmGRBM_SE0_PERFCOUNTER_SELECT + 1
+    },
+    {
+        Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG,
+        Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL - Gfx09::mmMC_VM_L2_PERFCOUNTER0_CFG + 1
+    },
+    {
+        mmRLC_PERFMON_CNTL,
+        mmRLC_PERFCOUNTER1_SELECT - mmRLC_PERFMON_CNTL + 1
+    },
+    {
+        mmPA_SU_PERFCOUNTER0_SELECT,
+        Gfx09::mmPA_SU_PERFCOUNTER3_SELECT - mmPA_SU_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmPA_SC_PERFCOUNTER0_SELECT,
+        mmPA_SC_PERFCOUNTER7_SELECT - mmPA_SC_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmSX_PERFCOUNTER0_SELECT,
+        mmSX_PERFCOUNTER1_SELECT1 - mmSX_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmSPI_PERFCOUNTER0_SELECT,
+        mmSPI_PERFCOUNTER_BINS - mmSPI_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmSQ_PERFCOUNTER0_LO,
+        mmSQ_PERFCOUNTER15_HI - mmSQ_PERFCOUNTER0_LO + 1,
+    },
+    {
+        mmSQ_PERFCOUNTER0_SELECT,
+        mmSQ_PERFCOUNTER15_SELECT - mmSQ_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmSQ_PERFCOUNTER_CTRL,
+        mmSQ_PERFCOUNTER_CTRL2 - mmSQ_PERFCOUNTER_CTRL + 1,
+    },
+    {
+        mmTA_PERFCOUNTER0_SELECT,
+        mmTA_PERFCOUNTER1_SELECT - mmTA_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmTD_PERFCOUNTER0_SELECT,
+        mmTD_PERFCOUNTER1_SELECT - mmTD_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmTCP_PERFCOUNTER0_SELECT,
+        mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        Gfx09::mmTCC_PERFCOUNTER0_SELECT,
+        Gfx09::mmTCC_PERFCOUNTER3_SELECT - Gfx09::mmTCC_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        Gfx09::mmTCA_PERFCOUNTER0_SELECT,
+        Gfx09::mmTCA_PERFCOUNTER3_SELECT - Gfx09::mmTCA_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmGDS_PERFCOUNTER0_SELECT,
+        mmGDS_PERFCOUNTER0_SELECT1 - mmGDS_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        Gfx09::mmVGT_PERFCOUNTER0_SELECT,
+        Gfx09::mmVGT_PERFCOUNTER1_SELECT1 - Gfx09::mmVGT_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        Gfx09::mmIA_PERFCOUNTER0_SELECT,
+        Gfx09::mmIA_PERFCOUNTER0_SELECT1 - Gfx09::mmIA_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        Gfx09::mmWD_PERFCOUNTER0_SELECT,
+        Gfx09::mmWD_PERFCOUNTER3_SELECT - Gfx09::mmWD_PERFCOUNTER0_SELECT + 1,
+    },
+    {
+        mmRLC_SPM_PERFMON_CNTL,
+        Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR - mmRLC_SPM_PERFMON_CNTL + 1,
+    },
+    {
+        Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR,
+        Gfx09::mmRLC_SPM_RING_RDPTR - Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR + 1,
+    },
+    {
+        Gfx09::mmSQ_THREAD_TRACE_BASE,
+        Gfx09::mmSQ_THREAD_TRACE_HIWATER - Gfx09::mmSQ_THREAD_TRACE_BASE + 1
+    },
+    {
+        Gfx09::mmRLC_PERFMON_CLK_CNTL,
+        1,
+    },
+    {
+        mmSQ_THREAD_TRACE_USERDATA_0,
+        mmSQ_THREAD_TRACE_USERDATA_3 - mmSQ_THREAD_TRACE_USERDATA_0 + 1
+    },
+    // The 6 pairs below are written in preamble when CU reservation is enabled.
+    {
+        mmSPI_SHADER_PGM_RSRC3_HS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_RSRC3_GS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_RSRC3_VS,
+        1
+    },
+    {
+        mmSPI_SHADER_PGM_RSRC3_PS,
+        1
+    },
+    {
+        mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
+        mmCOMPUTE_STATIC_THREAD_MGMT_SE1 - mmCOMPUTE_STATIC_THREAD_MGMT_SE0 + 1
+    },
+    {
+        mmCOMPUTE_STATIC_THREAD_MGMT_SE2,
+        mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 + 1
+    },
+    {
+        Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG,
+        Gfx09_1x::mmGCEA_PERFCOUNTER1_CFG - Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG + 1
+    },
+    {
+        Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL, 1
+    },
+};
+constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx91NonShadowedRanges));
 
 #endif // PAL_ENABLE_PRINTS_ASSERTS
 

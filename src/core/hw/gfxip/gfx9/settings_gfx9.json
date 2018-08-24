@@ -2245,6 +2245,28 @@
       "Name": "WaRestrictMetaDataUseInMipTail"
     },
     {
+      "Description": "Fixes issues related to unexposed MSAA samples.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "HashName": 3779046012,
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waFixPostZConservativeRasterization",
+      "Name": "WaFixPostZConservativeRasterization",
+      "Preprocessor" : {
+        "Custom": [
+          {
+              "Command": "#if",
+              "Expression": "PAL_BUILD_GFX10"
+          }
+        ]
+      }
+    },
+    {
       "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
       "Tags": [
         "Hardware Workarounds"

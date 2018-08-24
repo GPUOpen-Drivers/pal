@@ -262,6 +262,12 @@ Result ComputePipeline::HwlInit(
             break;
         }
 
+        if (regInfo.mmComputeShaderChksum != 0)
+        {
+            // Get the 32-bit compute shader checksum register, if present, for SPP.
+            abiProcessor.HasRegisterEntry(regInfo.mmComputeShaderChksum, &m_pm4Commands.computeShaderChksum.u32All);
+        }
+
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(abiProcessor);
     }
@@ -424,6 +430,14 @@ void ComputePipeline::BuildPm4Headers()
     m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
                                                           ShaderCompute,
                                                           &m_pm4Commands.hdrComputeUserData);
+
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        // Sets the following compute register: COMPUTE_SHADER_CHKSUM.
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(cmdUtil.GetRegInfo().mmComputeShaderChksum,
+                                                              ShaderCompute,
+                                                              &m_pm4Commands.hdrComputeShaderChksum);
+    }
 
     // Sets the following compute register: COMPUTE_RESOURCE_LIMITS.
     m_pm4CommandsDynamic.spaceNeeded = cmdUtil.BuildSetOneShReg(mmCOMPUTE_RESOURCE_LIMITS,

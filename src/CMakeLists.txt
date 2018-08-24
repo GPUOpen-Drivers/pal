@@ -271,12 +271,13 @@ if(PAL_BUILD_CORE)
         core/os/nullDevice/ndGpuMemory.cpp
         core/os/nullDevice/ndPlatform.cpp
         core/os/nullDevice/ndQueue.cpp
+		core/os/nullDevice/ndFence.cpp
     )
 
     if(UNIX)
         target_sources(pal PRIVATE
             core/os/lnx/lnxDevice.cpp
-            core/os/lnx/lnxFence.cpp
+            core/os/lnx/lnxTimestampFence.cpp
             core/os/lnx/lnxSyncobjFence.cpp
             core/os/lnx/lnxGpuMemory.cpp
             core/os/lnx/lnxImage.cpp
