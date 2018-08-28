@@ -47,9 +47,13 @@ public:
         const GpuMemoryCreateInfo&         createInfo,
         const GpuMemoryInternalCreateInfo& internalInfo) override;
 
+    Result ImportMemory(amdgpu_bo_handle_type handleType, OsExternalHandle handle);
+
     virtual void Destroy() override;
 
     virtual OsExternalHandle GetSharedExternalHandle() const override;
+
+    amdgpu_bo_handle_type GetSharedExternalHandleType() const { return m_externalHandleType; }
 
     void             SetSurfaceHandle(amdgpu_bo_handle hBuffer) { m_hSurface = hBuffer; }
     amdgpu_bo_handle SurfaceHandle() const { return m_hSurface; }
@@ -78,7 +82,7 @@ protected:
         uint32                  multiDeviceGpuMemoryCount,
         IDevice*const*          ppDevice,
         Pal::Image*const*       ppImage) override;
-    virtual Result OpenSharedMemory() override;
+    virtual Result OpenSharedMemory(OsExternalHandle handle) override;
     virtual Result OpenPeerMemory() override;
 
     virtual Result OsSetPriority(GpuMemPriority priority, GpuMemPriorityOffset priorityOffset) override;

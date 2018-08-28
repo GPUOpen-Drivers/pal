@@ -46,8 +46,6 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     m_pVsPerfDataInfo(nullptr),
     m_pPsPerfDataInfo(nullptr)
 {
-    m_dbShaderControl.u32All = 0;
-
     memset(&m_pm4ImageSh,       0, sizeof(m_pm4ImageSh));
     memset(&m_pm4ImageShDynamic, 0, sizeof(m_pm4ImageShDynamic));
     memset(&m_pm4ImageContext,  0, sizeof(m_pm4ImageContext));
@@ -101,6 +99,7 @@ void PipelineChunkVsPs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
     m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -120,12 +119,12 @@ void PipelineChunkVsPs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_PS);
     m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
 
-    m_dbShaderControl.u32All                    = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
     m_spiPsInControl.u32All                     = abiProcessor.GetRegisterEntry(mmSPI_PS_IN_CONTROL);
     m_pm4ImageContext.spiBarycCntl.u32All       = abiProcessor.GetRegisterEntry(mmSPI_BARYC_CNTL);
     m_pm4ImageContext.spiPsInputAddr.u32All     = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ADDR);
@@ -214,8 +213,15 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     {
         Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-        pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
-        pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
+        if (vsStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+        }
+
+        if (psStageInfo.wavesPerSh > 0)
+        {
+            pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
+        }
 
         if (vsStageInfo.cuEnableMask != 0)
         {

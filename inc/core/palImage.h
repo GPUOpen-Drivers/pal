@@ -152,10 +152,16 @@ union ImageCreateFlags
                                              ///  creation time and honored on open time.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
         uint32 sampleLocsAlwaysKnown   :  1; ///< Sample pattern is always known in client driver for MSAA depth image.
-        uint32 reserved                : 14; ///< Reserved for future use.
 #else
-        uint32 reserved                : 15; ///< Reserved for future use.
+        uint32 reserved0               :  1;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+        uint32 view3dAs2dArray         :  1; ///< If set, client can create 2D views of this 3D image, treating
+                                             ///  depth as array slices.
+#else
+        uint32 reserved1               :  1;
+#endif
+        uint32 reserved                : 13; ///< Reserved for future use.
     };
     uint32 u32All;                     ///< Flags packed as 32-bit uint.
 };
@@ -187,7 +193,8 @@ union ImageUsageFlags
                                              ///  is used as a color target and compute is used to generate mipmaps,PAL
                                              ///  may be able to enable additional compression on the baseLevels which
                                              ///  are used exclusively as color target and shader read.
-        uint32 reserved               : 19;  ///< Reserved for future use.
+        uint32 placeHolder1           :  1;
+        uint32 reserved               : 18;  ///< Reserved for future use.
     };
     uint32 u32All;                 ///< Flags packed as 32-bit uint.
 };

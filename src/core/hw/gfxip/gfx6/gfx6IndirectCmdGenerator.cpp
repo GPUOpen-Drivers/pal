@@ -258,8 +258,8 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
             }
         }
         const PalSettings& settings = m_device.Parent()->Settings();
-        const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                                 (Util::TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+        const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                                 (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
         const bool issueSqttMarkerEvent = (sqttEnabled ||
                                            m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 

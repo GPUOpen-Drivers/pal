@@ -104,9 +104,9 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
         // programming indexed counters previously.
         if (m_flags.hasIndexedCounters)
         {
-            regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+            regGRBM_GFX_INDEX grbmGfxIndex = {};
             grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
-            grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+            grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
             grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
             pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
@@ -130,16 +130,16 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
             if (seIndex != static_cast<uint32>(SpmDataSegmentType::Global))
             {
                 // Write the per-SE muxsel ram data.
-                regGRBM_GFX_INDEX__GFX09 grbmGfxIndex              = {};
+                regGRBM_GFX_INDEX grbmGfxIndex              = {};
                 grbmGfxIndex.bits.SE_INDEX                  = seIndex;
-                grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+                grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
                 grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
                 pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                                 grbmGfxIndex.u32All,
                                                                 pCmdSpace);
 
-                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_SE_MUXSEL_ADDR__GFX09,
+                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR,
                                                                  0,
                                                                  pCmdSpace);
 
@@ -151,7 +151,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                     pCmdSpace = pCmdStream->ReserveCommands();
 
                     pCmdSpace += m_device.CmdUtil().BuildWriteData(pCmdStream->GetEngineType(),
-                                                                   mmRLC_SPM_SE_MUXSEL_DATA__GFX09,
+                                                                   Gfx09::mmRLC_SPM_SE_MUXSEL_DATA,
                                                                    1,
                                                                    engine_sel__me_write_data__micro_engine,
                                                                    dst_sel__me_write_data__mem_mapped_register,
@@ -164,16 +164,16 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
             else
             {
                 // Write the global muxsel ram data.
-                regGRBM_GFX_INDEX__GFX09 grbmGfxIndex              = {};
+                regGRBM_GFX_INDEX grbmGfxIndex              = {};
                 grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
-                grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+                grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
                 grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
                 pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                                 grbmGfxIndex.u32All,
                                                                 pCmdSpace);
 
-                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_GLOBAL_MUXSEL_ADDR__GFX09,
+                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR,
                                                                  0,
                                                                  pCmdSpace);
 
@@ -183,7 +183,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                     pCmdSpace = pCmdStream->ReserveCommands();
 
                     pCmdSpace += m_device.CmdUtil().BuildWriteData(pCmdStream->GetEngineType(),
-                                                                   mmRLC_SPM_GLOBAL_MUXSEL_DATA__GFX09,
+                                                                   Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_DATA,
                                                                    1,
                                                                    engine_sel__me_write_data__micro_engine,
                                                                    dst_sel__me_write_data__mem_mapped_register,
@@ -228,7 +228,7 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                                                      pCmdSpace);
 
     // We do not use the ringing functionality of the output buffers, so always write 0 as the RDPTR.
-    pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmRLC_SPM_RING_RDPTR__GFX09, 0, pCmdSpace);
+    pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_SPM_RING_RDPTR, 0, pCmdSpace);
 
     // Finally, disable and reset all counters.
     regCP_PERFMON_CNTL cpPerfmonCntl     = { };
@@ -288,11 +288,11 @@ uint32* Gfx9SpmTrace::WriteEndCommands(
                                                      pCmdSpace);
 
     uint32 muxselRamDwords;
-    regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = { };
+    regGRBM_GFX_INDEX grbmGfxIndex = { };
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
-    grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+    grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
 
-    uint32 muxselAddrReg = mmRLC_SPM_SE_MUXSEL_ADDR__GFX09;
+    uint32 muxselAddrReg = Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR;
     const uint32 NumShaderEngines = m_device.Parent()->ChipProperties().gfx9.numShaderEngines;
 
     // Reset the muxsel addr register.
@@ -309,7 +309,7 @@ uint32* Gfx9SpmTrace::WriteEndCommands(
                 // Global section.
                 grbmGfxIndex.bits.SE_INDEX            = 0;
                 grbmGfxIndex.bits.SE_BROADCAST_WRITES = 1;
-                muxselAddrReg = mmRLC_SPM_GLOBAL_MUXSEL_ADDR__GFX09;
+                muxselAddrReg = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
             }
 
             pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
@@ -392,30 +392,26 @@ Gfx9ThreadTrace::Gfx9ThreadTrace(
     m_sqThreadTraceMode.bits.AUTOFLUSH_EN = 1;
 
     m_sqThreadTraceMask.u32All = 0;
-    m_sqThreadTraceMask.bits.SIMD_EN     = SimdMaskAll;
-    m_sqThreadTraceMask.bits.VM_ID_MASK  = SQ_THREAD_TRACE_VM_ID_MASK_SINGLE;
+    m_sqThreadTraceMask.gfx09.SIMD_EN     = SimdMaskAll;
+    m_sqThreadTraceMask.gfx09.VM_ID_MASK  = SQ_THREAD_TRACE_VM_ID_MASK_SINGLE;
 
     const GpuChipProperties& chipProps = pDevice->Parent()->ChipProperties();
 
-    // We need to pull some register fields for SQ_THREAD_TRACE_MASK from the Adapter.
-    regSQ_THREAD_TRACE_MASK__GFX09 sqThreadTraceMask = {};
-
-    m_sqThreadTraceMask.bits.REG_STALL_EN = sqThreadTraceMask.bits.REG_STALL_EN;
-    m_sqThreadTraceMask.bits.SQ_STALL_EN  = sqThreadTraceMask.bits.SQ_STALL_EN;
-    m_sqThreadTraceMask.bits.SPI_STALL_EN = sqThreadTraceMask.bits.SPI_STALL_EN;
-
-    // NOTE: DXX mentions in a comment that for Oland, the driver may need to force
-    //       SPI_STALL_EN to zero to avoid doubly creating some wavefronts, avoiding a
-    //       possible hang situation.
-    // TODO: Need to follow-up on this, the DXX comments for it are unclear.
+    m_sqThreadTraceMask.gfx09.REG_STALL_EN = 1;
+    m_sqThreadTraceMask.gfx09.SQ_STALL_EN  = 1;
+    m_sqThreadTraceMask.gfx09.SPI_STALL_EN = 1;
 
     m_sqThreadTraceTokenMask.u32All = 0;
-    m_sqThreadTraceTokenMask.bits.TOKEN_MASK = TokenMaskAll;
-    m_sqThreadTraceTokenMask.bits.REG_MASK   = RegMaskAll;
+    m_sqThreadTraceTokenMask.gfx09.TOKEN_MASK = TokenMaskAll;
+    m_sqThreadTraceTokenMask.gfx09.REG_MASK   = RegMaskAll;
 
     m_sqThreadTracePerfMask.u32All = 0;
     m_sqThreadTracePerfMask.bits.SH0_MASK = ShCuMaskAll;
     m_sqThreadTracePerfMask.bits.SH1_MASK = ShCuMaskAll;
+
+    // Set location within fifo to stall at
+    m_sqThreadTraceHiWater.u32All = 0;
+    m_sqThreadTraceHiWater.bits.HIWATER = HiWaterDefault;
 
     // Default to only selecting CUs that are active and not reserved for realtime use.  GFX9 only has one
     // shader array.
@@ -426,7 +422,7 @@ Gfx9ThreadTrace::Gfx9ThreadTrace(
     uint32 firstActiveCu = 0;
     if (Util::BitMaskScanForward(&firstActiveCu, cuTraceableCuMask))
     {
-        m_sqThreadTraceMask.bits.CU_SEL = firstActiveCu;
+        m_sqThreadTraceMask.gfx09.CU_SEL = firstActiveCu;
     }
 
     SetOptions();
@@ -441,22 +437,22 @@ void Gfx9ThreadTrace::SetOptions()
 
     if (flags.threadTraceTokenMask)
     {
-        m_sqThreadTraceTokenMask.bits.TOKEN_MASK = values.threadTraceTokenMask;
+        m_sqThreadTraceTokenMask.gfx09.TOKEN_MASK = values.threadTraceTokenMask;
     }
 
     if (flags.threadTraceRegMask)
     {
-        m_sqThreadTraceTokenMask.bits.REG_MASK = values.threadTraceRegMask;
+        m_sqThreadTraceTokenMask.gfx09.REG_MASK = values.threadTraceRegMask;
     }
 
     if (flags.threadTraceTargetSh)
     {
-        m_sqThreadTraceMask.bits.SH_SEL = values.threadTraceTargetSh;
+        m_sqThreadTraceMask.gfx09.SH_SEL = values.threadTraceTargetSh;
     }
 
     if (flags.threadTraceTargetCu)
     {
-        m_sqThreadTraceMask.bits.CU_SEL = values.threadTraceTargetCu;
+        m_sqThreadTraceMask.gfx09.CU_SEL = values.threadTraceTargetCu;
     }
 
     if (flags.threadTraceSh0CounterMask)
@@ -471,12 +467,12 @@ void Gfx9ThreadTrace::SetOptions()
 
     if (flags.threadTraceSimdMask)
     {
-        m_sqThreadTraceMask.bits.SIMD_EN = values.threadTraceSimdMask;
+        m_sqThreadTraceMask.gfx09.SIMD_EN = values.threadTraceSimdMask;
     }
 
     if (flags.threadTraceVmIdMask)
     {
-        m_sqThreadTraceMask.bits.VM_ID_MASK = values.threadTraceVmIdMask;
+        m_sqThreadTraceMask.gfx09.VM_ID_MASK = values.threadTraceVmIdMask;
     }
 
     if (flags.threadTraceShaderTypeMask)
@@ -499,6 +495,33 @@ void Gfx9ThreadTrace::SetOptions()
     {
         m_sqThreadTraceMode.bits.WRAP = values.threadTraceWrapBuffer;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    if (flags.threadTraceStallBehavior)
+    {
+        switch (values.threadTraceStallBehavior)
+        {
+        case GpuProfilerStallAlways:
+            // stick with default, always stall when full
+            break;
+        case GpuProfilerStallLoseDetail:
+            // On stall, lose instruction detail until we read enough
+            // This results in about 30% less stalls while still *very* unlikely to drop packets.
+            m_sqThreadTraceTokenMask.gfx09.REG_DROP_ON_STALL = 1;
+            m_sqThreadTraceMask.gfx09.REG_STALL_EN           = 0;
+            break;
+        case GpuProfilerStallNever:
+            // disable stalling entirely. Be prepared for packet loss.
+            m_sqThreadTraceMask.gfx09.REG_STALL_EN = 0;
+            m_sqThreadTraceMask.gfx09.SQ_STALL_EN  = 0;
+            m_sqThreadTraceMask.gfx09.SPI_STALL_EN = 0;
+            break;
+        default:
+            PAL_NEVER_CALLED();
+            break;
+        }
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -509,9 +532,9 @@ uint32* Gfx9ThreadTrace::WriteGrbmGfxIndex(
     uint32*    pCmdSpace
     ) const
 {
-    regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+    regGRBM_GFX_INDEX grbmGfxIndex = {};
     grbmGfxIndex.bits.SE_INDEX                  = m_shaderEngine;
-    grbmGfxIndex.bits.SH_INDEX                  = m_sqThreadTraceMask.bits.SH_SEL;
+    grbmGfxIndex.gfx09.SH_INDEX                 = m_sqThreadTraceMask.gfx09.SH_SEL;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
     return pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
@@ -535,35 +558,39 @@ uint32* Gfx9ThreadTrace::WriteSetupCommands(
     const gpusize gpuVirtAddrShifted = (baseGpuVirtAddr + m_dataOffset) >> PerfCtrInfo::BufferAlignShift;
 
     // Write the base address of the thread trace buffer.
-    regSQ_THREAD_TRACE_BASE2__GFX09 sqThreadTraceBase2 = {};
+    regSQ_THREAD_TRACE_BASE2 sqThreadTraceBase2 = {};
     sqThreadTraceBase2.bits.ADDR_HI = Util::HighPart(gpuVirtAddrShifted);
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_BASE2__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_BASE2,
                                                   sqThreadTraceBase2.u32All,
                                                   pCmdSpace);
 
-    regSQ_THREAD_TRACE_BASE__GFX09 sqThreadTraceBase = {};
+    regSQ_THREAD_TRACE_BASE sqThreadTraceBase = {};
     sqThreadTraceBase.bits.ADDR = Util::LowPart(gpuVirtAddrShifted);
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_BASE__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_BASE,
                                                   sqThreadTraceBase.u32All,
                                                   pCmdSpace);
 
     // Write the perf counter registers which control the thread trace properties.
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_SIZE__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_SIZE,
                                                   m_sqThreadTraceSize.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_MASK__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MASK,
                                                   m_sqThreadTraceMask.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_TOKEN_MASK__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                   m_sqThreadTraceTokenMask.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_PERF_MASK__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_PERF_MASK,
                                                   m_sqThreadTracePerfMask.u32All,
+                                                  pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_HIWATER,
+                                                  m_sqThreadTraceHiWater.u32All,
                                                   pCmdSpace);
 
     // NOTE: It is the caller's responsibility to reset GRBM_GFX_INDEX.
@@ -585,9 +612,9 @@ uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
 
     // Update the token mask register
-    regSQ_THREAD_TRACE_TOKEN_MASK__GFX09 tokenMaskReg = m_sqThreadTraceTokenMask;
-    tokenMaskReg.bits.TOKEN_MASK = sqttTokenMask;
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_TOKEN_MASK__GFX09,
+    regSQ_THREAD_TRACE_TOKEN_MASK tokenMaskReg = m_sqThreadTraceTokenMask;
+    tokenMaskReg.gfx09.TOKEN_MASK = sqttTokenMask;
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                   tokenMaskReg.u32All,
                                                   pCmdSpace);
 
@@ -609,19 +636,19 @@ uint32* Gfx9ThreadTrace::WriteStartCommands(
 
     // Write SQ_THREAD_TRACE_CTRL with the reset_buffer flag set to instruct the hardware to
     // reset the trace buffer.
-    regSQ_THREAD_TRACE_CTRL__GFX09 sqThreadTraceCtrl = {};
-    sqThreadTraceCtrl.bits.RESET_BUFFER = 1;
+    regSQ_THREAD_TRACE_CTRL sqThreadTraceCtrl = {};
+    sqThreadTraceCtrl.gfx09.RESET_BUFFER = 1;
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_CTRL__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_CTRL,
                                                   sqThreadTraceCtrl.u32All,
                                                   pCmdSpace);
 
     // Write SQ_THREAD_TRACE_MODE with the mode field set to "on" to enable the trace.
-    regSQ_THREAD_TRACE_MODE__GFX09 sqThreadTraceMode;
+    regSQ_THREAD_TRACE_MODE sqThreadTraceMode;
     sqThreadTraceMode.u32All    = m_sqThreadTraceMode.u32All;
     sqThreadTraceMode.bits.MODE = SQ_THREAD_TRACE_MODE_ON;
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_MODE__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MODE,
                                                   sqThreadTraceMode.u32All,
                                                   pCmdSpace);
 
@@ -645,11 +672,11 @@ uint32* Gfx9ThreadTrace::WriteStopCommands(
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
 
     // Write SQ_THREAD_TRACE_MODE with the mode field set to "off" to disable the trace.
-    regSQ_THREAD_TRACE_MODE__GFX09 sqThreadTraceMode;
+    regSQ_THREAD_TRACE_MODE sqThreadTraceMode;
     sqThreadTraceMode.u32All    = m_sqThreadTraceMode.u32All;
     sqThreadTraceMode.bits.MODE = SQ_THREAD_TRACE_MODE_OFF;
 
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmSQ_THREAD_TRACE_MODE__GFX09,
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_MODE,
                                                   sqThreadTraceMode.u32All,
                                                   pCmdSpace);
 
@@ -660,9 +687,9 @@ uint32* Gfx9ThreadTrace::WriteStopCommands(
     pCmdSpace += cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__register_space,
                                          function__me_wait_reg_mem__not_equal_reference_value,
                                          engine_sel__me_wait_reg_mem__micro_engine,
-                                         mmSQ_THREAD_TRACE_STATUS__GFX09,
+                                         Gfx09::mmSQ_THREAD_TRACE_STATUS,
                                          0x1,
-                                         SQ_THREAD_TRACE_STATUS__BUSY_MASK__GFX09,
+                                         Gfx09::SQ_THREAD_TRACE_STATUS__BUSY_MASK,
                                          pCmdSpace);
 
     // The following code which issues the COPY_DATA commands assumes that the layout of the ThreadTraceInfoData
@@ -678,9 +705,9 @@ uint32* Gfx9ThreadTrace::WriteStopCommands(
     // thread trace:
 
     const EngineType engineType = pCmdStream->GetEngineType();
-    const uint32     data[]     = { mmSQ_THREAD_TRACE_WPTR__GFX09,
-                                    mmSQ_THREAD_TRACE_STATUS__GFX09,
-                                    mmSQ_THREAD_TRACE_CNTR__GFX09 };
+    const uint32     data[]     = { Gfx09::mmSQ_THREAD_TRACE_WPTR,
+                                    Gfx09::mmSQ_THREAD_TRACE_STATUS,
+                                    Gfx09::mmSQ_THREAD_TRACE_CNTR };
 
     for (uint32 i = 0; i < Util::ArrayLen(data); i++)
     {
@@ -798,6 +825,15 @@ Result Gfx9ThreadTrace::Init()
     {
         result = Result::ErrorInvalidValue;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    if ((result == Result::Success)       &&
+        (flags.threadTraceStallBehavior)  &&
+        (values.threadTraceStallBehavior > GpuProfilerStallNever))
+    {
+        result = Result::ErrorInvalidValue;
+    }
+#endif
 
     return result;
 }

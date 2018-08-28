@@ -402,6 +402,9 @@ ThreadTrace::ThreadTrace(
     m_sqThreadTracePerfMask.bits.SH0_MASK = PerfCtrInfo::ShCuMaskAll;
     m_sqThreadTracePerfMask.bits.SH1_MASK = PerfCtrInfo::ShCuMaskAll;
 
+    m_sqThreadTraceHiWater.u32All = 0;
+    m_sqThreadTraceHiWater.bits.HIWATER = PerfCtrInfo::HiWaterDefault;
+
     // Default to only selecting CUs that aren't reserved for real time queues.
     uint32 cuTraceableCuMask = ~chipProps.gfxip.realTimeCuMask;
 
@@ -506,6 +509,34 @@ void ThreadTrace::SetOptions(
     {
         m_sqThreadTraceMode.bits.WRAP = values.threadTraceWrapBuffer;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    if (flags.threadTraceStallBehavior && (m_sqThreadTraceMask.bits.SQ_STALL_EN__CI__VI == 1))
+    {
+        // only override if kernel reports we're actually able to stall
+        switch (values.threadTraceStallBehavior)
+        {
+        case GpuProfilerStallAlways:
+            // stick with default, always stall when full
+            break;
+        case GpuProfilerStallLoseDetail:
+            // On stall, lose instruction detail until we read enough
+            // This results in about 30% less stalls while still *very* unlikely to drop packets.
+            m_sqThreadTraceTokenMask.bits.REG_DROP_ON_STALL__CI__VI = 1;
+            m_sqThreadTraceMask.bits.REG_STALL_EN__CI__VI           = 0;
+            break;
+        case GpuProfilerStallNever:
+            // disable stalling entirely. Be prepared for packet loss.
+            m_sqThreadTraceMask.bits.REG_STALL_EN__CI__VI           = 0;
+            m_sqThreadTraceMask.bits.SQ_STALL_EN__CI__VI            = 0;
+            m_sqThreadTraceMask.bits.SPI_STALL_EN__CI__VI           = 0;
+            break;
+        default:
+            PAL_NEVER_CALLED();
+            break;
+        }
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -566,6 +597,10 @@ uint32* ThreadTrace::WriteSetupCommands(
 
     pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqThreadTracePerfMask,
                                                   m_sqThreadTracePerfMask.u32All,
+                                                  pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqThreadTraceHiWater,
+                                                  m_sqThreadTraceHiWater.u32All,
                                                   pCmdSpace);
 
     // NOTE: It is the caller's responsibility to reset GRBM_GFX_INDEX.

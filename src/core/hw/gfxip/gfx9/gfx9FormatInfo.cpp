@@ -60,18 +60,6 @@ const MergedFmtInfo* MergedChannelFmtInfoTbl(
     return pFmtInfo;
 }
 
-// =====================================================================================================================
-// Returns the format info table for the specific GfxIpLevel.
-const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
-    GfxIpLevel gfxIpLevel)
-{
-    const MergedFlatFmtInfo* pFmtInfo = nullptr;
-
-    PAL_ASSERT(pFmtInfo != nullptr);
-
-    return pFmtInfo;
-}
-
 // Lookup table for converting PAL swizzle types to HW enums.
 constexpr SQ_SEL_XYZW01 ChannelSwizzleTbl[] =
 {
@@ -140,18 +128,6 @@ IMG_NUM_FORMAT HwImgNumFmt(
 }
 
 // =====================================================================================================================
-// Returns the IMG_FMT enum corresponding to the specified PAL channel format.  This enum is used when programming the
-// texture block.
-IMG_FMT HwImgFmt(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwImgFmt;
-}
-
-// =====================================================================================================================
 // Returns the PAL channel format corresponding to the specified IMG_DATA_FORMAT enum or Undefined if an error occurred.
 ChNumFormat FmtFromHwImgFmt(
     IMG_DATA_FORMAT imgDataFmt,
@@ -188,28 +164,6 @@ ChNumFormat FmtFromHwImgFmt(
 }
 
 // =====================================================================================================================
-// Returns the PAL channel format corresponding to the specified IMG_FMT enum or Undefined if an error occurred.
-ChNumFormat FmtFromHwImgFmt(
-    IMG_FMT     imgFmt,
-    GfxIpLevel  gfxIpLevel)
-{
-    // Get the right table for our GFXIP level.
-    const ChNumFormat* pImgDataFmtTbl = nullptr;
-    uint32             imgDataFmtCount = 0;
-
-    PAL_ASSERT(pImgDataFmtTbl != nullptr);
-
-    ChNumFormat format = ChNumFormat::Undefined;
-
-    if (imgFmt < imgDataFmtCount)
-    {
-        format = pImgDataFmtTbl[imgFmt];
-    }
-
-    return format;
-}
-
-// =====================================================================================================================
 // Returns the BUF_DATA_FORMAT enum corresponding to the specified PAL channel format.  This enum is used when
 // programming the texture block.
 BUF_DATA_FORMAT HwBufDataFmt(
@@ -231,18 +185,6 @@ BUF_NUM_FORMAT HwBufNumFmt(
     // Assert if we're looking at the wrong table entry.
     PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
     return fmtInfo[static_cast<uint32>(format)].hwBufNumFmt;
-}
-
-// =====================================================================================================================
-// Returns the BUF_FMT enum corresponding to the specified PAL channel format.  This enum is used when programming the
-// texture block.
-BUF_FMT HwBufFmt(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwBufFmt;
 }
 
 // =====================================================================================================================
@@ -282,45 +224,11 @@ ChNumFormat FmtFromHwBufFmt(
 }
 
 // =====================================================================================================================
-// Returns the PAL channel format corresponding to the specified BUF_FMT enum or Undefined if an error occurred.
-ChNumFormat FmtFromHwBufFmt(
-    BUF_FMT     bufFmt,
-    GfxIpLevel  gfxIpLevel)
-{
-    // Get the right table for our GFXIP level.
-    const ChNumFormat* pBufDataFmtTbl = nullptr;
-    uint32             bufDataFmtCount = 0;
-
-    PAL_ASSERT(pBufDataFmtTbl != nullptr);
-
-    ChNumFormat format = ChNumFormat::Undefined;
-
-    if (bufFmt < bufDataFmtCount)
-    {
-        format = pBufDataFmtTbl[bufFmt];
-    }
-
-    return format;
-}
-
-// =====================================================================================================================
 // Returns the ColorFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
 // the CB block.
 ColorFormat HwColorFmt(
     const MergedFmtInfo fmtInfo[],
     ChNumFormat         format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwColorFmt;
-}
-
-// =====================================================================================================================
-// Returns the ColorFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
-// the CB block.
-ColorFormat HwColorFmt(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
 {
     // Assert if we're looking at the wrong table entry.
     PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
@@ -465,18 +373,6 @@ SurfaceNumber ColorSurfNum(
 }
 
 // =====================================================================================================================
-// Returns the SurfaceNumber enum corresponding to the specified PAL numeric format.  This enum is used when
-// programming the CB block.
-SurfaceNumber ColorSurfNum(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwColorNumFmt;
-}
-
-// =====================================================================================================================
 // Returns the ZFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
 // the DB block.
 ZFormat HwZFmt(
@@ -489,35 +385,11 @@ ZFormat HwZFmt(
 }
 
 // =====================================================================================================================
-// Returns the ZFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
-// the DB block.
-ZFormat HwZFmt(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwZFmt;
-}
-
-// =====================================================================================================================
 // Returns the StencilFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
 // the DB block.
 StencilFormat HwStencilFmt(
     const MergedFmtInfo fmtInfo[],
     ChNumFormat         format)
-{
-    // Assert if we're looking at the wrong table entry.
-    PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);
-    return fmtInfo[static_cast<uint32>(format)].hwStencilFmt;
-}
-
-// =====================================================================================================================
-// Returns the StencilFormat enum corresponding to the specified PAL channel format.  This enum is used when programming
-// the DB block.
-StencilFormat HwStencilFmt(
-    const MergedFlatFmtInfo fmtInfo[],
-    ChNumFormat             format)
 {
     // Assert if we're looking at the wrong table entry.
     PAL_ASSERT(fmtInfo[static_cast<uint32>(format)].format == format);

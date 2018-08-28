@@ -78,16 +78,16 @@ static void SetupCommonPreamble(
         // UMD does not use the CUs that are intended for real time compute usage.
 
         // Enable Compute workloads on all CU's of SE0/SE1.
-        pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH1_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH0_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe0.gfx09.SH1_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH0_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe1.gfx09.SH1_CU_EN = 0xFFFF;
 
         // Enable Compute workloads on all CU's of SE2/SE3.
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH0_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe2.gfx09.SH1_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH0_CU_EN = 0xFFFF;
+        pCommonPreamble->computeStaticThreadMgmtSe3.gfx09.SH1_CU_EN = 0xFFFF;
     }
 
     pCommonPreamble->spaceNeeded +=
@@ -229,7 +229,7 @@ Result ComputeQueueContext::PreProcessSubmit(
 // application context switch between back-to-back submissions.
 void ComputeQueueContext::PostProcessSubmit()
 {
-    if (m_pDevice->Settings().forcePreambleCmdStream == false)
+    if (m_pDevice->Parent()->Settings().forcePreambleCmdStream == false)
     {
         // The next time this Queue is submitted-to, the KMD can safely skip the execution of the command stream since
         // the GPU already has received the latest updates.
@@ -402,9 +402,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
     m_currentUpdateCounter(0),
-    m_useShadowing((Device::ForceStateShadowing &&
-                    pDevice->Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt) ||
-                   m_pQueue->IsPreemptionSupported()),
+    m_useShadowing(Device::ForceStateShadowing || m_pQueue->IsPreemptionSupported()),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
     m_deCmdStream(*pDevice,
@@ -650,6 +648,15 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
 
     pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
 
+    if (m_useShadowing)
+    {
+        // Those registers (which are used to setup UniversalRingSet) are shadowed and will be set by LOAD_*_REG.
+        // We have to setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events before those LOAD_*_REGs
+        // to make sure it is safe to write the ring config.
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
+    }
+
     pCmdSpace = cmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
                                         &m_stateShadowPreamble,
                                         pCmdSpace);
@@ -752,7 +759,7 @@ Result UniversalQueueContext::PreProcessSubmit(
     pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
     ++preambleCount;
 
-    if (m_pDevice->Settings().commandBufferCombineDePreambles == false)
+    if (m_pDevice->Parent()->Settings().commandBufferCombineDePreambles == false)
     {
         // Submit the per-context preamble independently.
         pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_deCmdStream;
@@ -782,7 +789,7 @@ Result UniversalQueueContext::PreProcessSubmit(
 // application context switch between back-to-back submissions.
 void UniversalQueueContext::PostProcessSubmit()
 {
-    if (m_pDevice->Settings().forcePreambleCmdStream == false)
+    if (m_pDevice->Parent()->Settings().forcePreambleCmdStream == false)
     {
         // The next time this Queue is submitted-to, the KMD can safely skip the execution of the command stream since
         // the GPU already has received the latest updates.
@@ -894,7 +901,7 @@ void UniversalQueueContext::RebuildCommandStreams()
 
     m_perSubmitCmdStream.End();
 
-    if (m_pDevice->Settings().commandBufferCombineDePreambles)
+    if (m_pDevice->Parent()->Settings().commandBufferCombineDePreambles)
     {
         // Combine the preambles by chaining from the per-submit preamble to the per-context preamble.
         m_perSubmitCmdStream.PatchTailChain(&m_deCmdStream);
@@ -933,7 +940,7 @@ void UniversalQueueContext::RebuildCommandStreams()
         // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
         // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
         if ((m_pQueue->PersistentCeRamSize() != 0) ||
-            (m_pDevice->Settings().commandBufferForceCeRamDumpInPostamble != false))
+            (m_pDevice->Parent()->Settings().commandBufferForceCeRamDumpInPostamble != false))
         {
             m_cePostambleCmdStream.Reset(nullptr, true);
             m_cePostambleCmdStream.Begin(beginFlags, nullptr);
@@ -1103,8 +1110,8 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_universalPreamble.spaceNeeded +=
-            cmdUtil.BuildSetSeqConfigRegs(mmVGT_MAX_VTX_INDX__GFX09,
-                                          mmVGT_INDX_OFFSET__GFX09,
+            cmdUtil.BuildSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
+                                          Gfx09::mmVGT_INDX_OFFSET,
                                           &m_universalPreamble.gfx9.hdrVgtIndexRegs);
     }
 
@@ -1121,6 +1128,9 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
 
     m_universalPreamble.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL, &m_universalPreamble.hdrSmallPrimFilterCntl);
+
+    m_universalPreamble.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmCOHER_DEST_BASE_HI_0, &m_universalPreamble.hdrCoherDestBaseHi);
 }
 
 // =====================================================================================================================
@@ -1171,7 +1181,10 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     }
 
     // Set-and-forget DCC register:
-    m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_MRT_SHARING_DISABLE__GFX09 = 1;
+    if (gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        m_universalPreamble.cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+    }
 
     //     Should default to 4 according to register spec
     m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 4;

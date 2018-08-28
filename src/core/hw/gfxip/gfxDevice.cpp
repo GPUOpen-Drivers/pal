@@ -52,7 +52,9 @@ GfxDevice::GfxDevice(
     m_smallPrimFilter(SmallPrimFilterEnableAll),
     m_waEnableDccCacheFlushAndInvalidate(false),
     m_waTcCompatZRange(false),
-    m_degeneratePrimFilter(false)
+    m_degeneratePrimFilter(false),
+    m_pSettingsLoader(nullptr),
+    m_allocator(pDevice->GetPlatform())
 {
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
@@ -61,6 +63,17 @@ GfxDevice::GfxDevice(
     memset(m_flglRegSeq, 0, sizeof(m_flglRegSeq));
 
     memset(m_fastClearImageRefs, 0, sizeof(m_fastClearImageRefs));
+}
+
+// =====================================================================================================================
+GfxDevice::~GfxDevice()
+{
+    // Note that GfxDevice does not own the m_pRsrcProcMgr instance so it is not deleted here.
+
+    if (m_pSettingsLoader != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pSettingsLoader, m_pParent->GetPlatform());
+    }
 }
 
 // =====================================================================================================================
@@ -92,22 +105,67 @@ Result GfxDevice::Cleanup()
 }
 
 // =====================================================================================================================
+// Performs initialization of hardware layer settings.
+Result GfxDevice::InitHwlSettings(
+    PalSettings* pSettings)
+{
+    Result ret = Result::Success;
+
+    // Make sure we only initialize settings once
+    if (m_pSettingsLoader == nullptr)
+    {
+        switch (m_pParent->ChipProperties().gfxLevel)
+        {
+#if PAL_BUILD_GFX6
+        case GfxIpLevel::GfxIp6:
+        case GfxIpLevel::GfxIp7:
+        case GfxIpLevel::GfxIp8:
+        case GfxIpLevel::GfxIp8_1:
+            m_pSettingsLoader = Gfx6::CreateSettingsLoader(&m_allocator, m_pParent);
+            break;
+#endif
+#if PAL_BUILD_GFX9
+        case GfxIpLevel::GfxIp9:
+            m_pSettingsLoader = Gfx9::CreateSettingsLoader(&m_allocator, m_pParent);
+            break;
+#endif // PAL_BUILD_GFX9
+        case GfxIpLevel::None:
+        default:
+            break;
+        }
+
+        if (m_pSettingsLoader == nullptr)
+        {
+            ret = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            ret = m_pSettingsLoader->Init();
+        }
+    }
+
+    if (ret == Result::Success)
+    {
+        HwlOverrideDefaultSettings(pSettings);
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+const PalSettings& GfxDevice::CoreSettings() const
+{
+    return m_pParent->Settings();
+}
+
+// =====================================================================================================================
 // Finalizes any chip properties which depend on settings being read.
 void GfxDevice::FinalizeChipProperties(
     GpuChipProperties* pChipProperties
     ) const
 {
-    const auto& settings = Parent()->Settings();
-
     // The maximum number of supported user-data entries is controlled by a public PAL setting.
     pChipProperties->gfxip.maxUserDataEntries = m_pParent->GetPublicSettings()->maxUserDataEntries;
-
-    // The effective number of fast user-data registers can be overridden by a PAL setting.
-    for (uint32 i = 0; i < NumShaderTypes; ++i)
-    {
-        pChipProperties->gfxip.fastUserDataEntries[i] = Min(pChipProperties->gfxip.fastUserDataEntries[i],
-                                                            settings.forcedUserDataSpillThreshold);
-    }
 
     // Default to supporting the full 1024 threads-per-group. If necessary, the hardware layer will reduce this.
     constexpr uint32 MaxThreadsPerGroup = 1024;
@@ -279,13 +337,6 @@ Result GfxDevice::CreateMsaaStateInternal(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Returns the Device object that owns this GFXIP-specific "sub device".
-Pal::Device* GfxDevice::Parent() const
-{
-    return m_pParent;
 }
 
 // =====================================================================================================================
@@ -485,15 +536,18 @@ uint32* GfxDevice::AllocateFceRefCount()
 {
     uint32* pCounter = nullptr;
 
-    for (uint32 i = 0; i < MaxNumFastClearImageRefs; ++i)
+    if (m_pParent->GetPublicSettings()->disableSkipFceOptimization == false)
     {
-        if (m_fastClearImageRefs[i] == 0)
+        for (uint32 i = 0; i < MaxNumFastClearImageRefs; ++i)
         {
-            if (AtomicCompareAndSwap(&m_fastClearImageRefs[i], RefCounterState::Free, RefCounterState::InUse) == 0)
+            if (m_fastClearImageRefs[i] == 0)
             {
-                // The index was acquired, so return a pointer.
-                pCounter = &m_fastClearImageRefs[i];
-                break;
+                if (AtomicCompareAndSwap(&m_fastClearImageRefs[i], RefCounterState::Free, RefCounterState::InUse) == 0)
+                {
+                    // The index was acquired, so return a pointer.
+                    pCounter = &m_fastClearImageRefs[i];
+                    break;
+                }
             }
         }
     }

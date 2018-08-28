@@ -409,6 +409,9 @@ enum class Result : int32
 
     /// The returned results were incomplete.
     ErrorIncompleteResults                  = -(0x00000060),
+
+    /// The display mode is imcompatible with framebuffer or CRTC.
+    ErrorIncompatibleDisplayMode            = -(0x00000061),
 };
 
 /// Length of date field used in BuildUniqueId

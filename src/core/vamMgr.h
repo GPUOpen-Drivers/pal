@@ -96,7 +96,8 @@ public:
 protected:
     virtual void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr) = 0;
     virtual void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc) = 0;
-    virtual Result  QueryPendingUnmaps(bool force) { return Result::Success;  }
+    virtual Result QueryPendingUnmaps(bool force) { return Result::Success; }
+    virtual bool   IsVamPartition(VaPartition vaPartition) const { return true; }
 
     gpusize CalcPtbSize(Device* pDevice) const;
 

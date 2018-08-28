@@ -66,16 +66,11 @@ void PipelineChunkVs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
     m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_VS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
-
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_CHKSUM_VS,
-                                      &m_pm4ImageSh.spiShaderPgmChksumVs.u32All);
-    }
 
     uint16 vsCuDisableMask = 0;
     if (m_device.LateAllocVsLimit())
@@ -131,7 +126,10 @@ uint32* PipelineChunkVs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-    pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+    if (vsStageInfo.wavesPerSh != 0)
+    {
+        pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+    }
 
     if (vsStageInfo.cuEnableMask != 0)
     {
@@ -200,13 +198,6 @@ void PipelineChunkVs::BuildPm4Headers()
     m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
                                                                    &m_pm4ImageContext.hdrVgtPrimitiveIdEn);
 
-    // Sets the following SH register: SPI_SHADER_PGM_CHKSUM_VS.
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_CHKSUM_VS,
-                                                             ShaderGraphics,
-                                                             &m_pm4ImageSh.hdrSpiShaderPgmChksum);
-    }
 }
 
 } // Gfx9

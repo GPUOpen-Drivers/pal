@@ -91,24 +91,26 @@ protected:
     template <typename Pm4ImgType>
     void CommonBuildPm4Headers(Pm4ImgType* pPm4Img) const;
 
-    template <typename Pm4ImgType>
+    template <typename Pm4ImgType, typename CbColorViewType>
     void InitCommonBufferView(
         const ColorTargetViewCreateInfo& createInfo,
-        Pm4ImgType*                      pPm4Img) const;
+        Pm4ImgType*                      pPm4Img,
+        CbColorViewType*                 pCbColorView) const;
 
     template <typename FmtInfoType>
     regCB_COLOR0_INFO InitCommonCbColorInfo(
         const ColorTargetViewCreateInfo& createInfo,
         const FmtInfoType*               pFmtInfo) const;
 
-    template <typename Pm4ImgType>
+    template <typename Pm4ImgType, typename CbColorViewType>
     void InitCommonImageView(
         const ColorTargetViewCreateInfo&         createInfo,
         const ColorTargetViewInternalCreateInfo& internalInfo,
         const Extent3d&                          baseExtent,
         const Extent3d&                          extent,
         Pm4ImgType*                              pPm4Img,
-        regCB_COLOR0_INFO*                       pCbColorInfo) const;
+        regCB_COLOR0_INFO*                       pCbColorInfo,
+        CbColorViewType*                         pCbColorView) const;
 
     template <typename Pm4ImgType>
     void UpdateImageVa(Pm4ImgType* pPm4Img) const;
@@ -124,11 +126,10 @@ protected:
             uint32 hasCmaskFmask         :  1; // set if the associated image contains fMask and cMask meta data
             uint32 hasDcc                :  1; // set if the associated image contains DCC meta data
             uint32 hasDccStateMetaData   :  1; // set if the associated image contains DCC state metadata.
-            uint32 usesLoadRegIndexPkt   :  1; // Set if LOAD_CONTEXT_REG_INDEX is used instead of LOAD_CONTEXT_REG.
             uint32 isDccDecompress       :  1; // Indicates if dcc metadata need to be set to decompress state.
             uint32 waitOnMetadataMipTail :  1; // Set if the CmdBindTargets should insert a stall when binding this
                                                // view object.
-            uint32 reserved              : 24;
+            uint32 reserved              : 25;
         };
 
         uint32 u32All;
@@ -156,12 +157,12 @@ struct Gfx9ColorTargetViewPm4Img
     regCB_COLOR0_BASE             cbColorBase;
     regCB_COLOR0_BASE_EXT         cbColorBaseExt;
     regCB_COLOR0_ATTRIB2          cbColorAttrib2;
-    regCB_COLOR0_VIEW__GFX09      cbColorView;
+    regCB_COLOR0_VIEW             cbColorView;
 
     PM4ME_CONTEXT_REG_RMW         cbColorInfo;
 
     PM4PFP_SET_CONTEXT_REG        hdrCbColorAttrib;
-    regCB_COLOR0_ATTRIB__GFX09    cbColorAttrib;
+    regCB_COLOR0_ATTRIB           cbColorAttrib;
     regCB_COLOR0_DCC_CONTROL      cbColorDccControl;
     regCB_COLOR0_CMASK            cbColorCmask;
     regCB_COLOR0_CMASK_BASE_EXT   cbColorCmaskBaseExt;
@@ -177,15 +178,11 @@ struct Gfx9ColorTargetViewPm4Img
     regPA_SC_GENERIC_SCISSOR_BR   paScGenericScissorBr;
 
     PM4PFP_SET_CONTEXT_REG        hdrCbMrtEpitch;
-    regCB_MRT0_EPITCH__GFX09      cbMrtEpitch;
+    regCB_MRT0_EPITCH             cbMrtEpitch;
 
     // PM4 load context regs packet to load the Image's fast-clear meta-data.  This must be the last packet in the
     // image because it is either absent or present depending on compression state.
-    union
-    {
-        PM4PFP_LOAD_CONTEXT_REG       loadMetaData;
-        PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
-    };
+    PM4PFP_LOAD_CONTEXT_REG_INDEX loadMetaDataIndex;
 
     // Command space needed for compressed and decomrpessed rendering, in DWORDs.  These fields must always be last
     // in the structure to not interfere w/ the actual commands contained within.

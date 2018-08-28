@@ -75,7 +75,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 placeholder0       :  1; // Reserved. Set to 0.
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
-            uint32 reserved           : 16;
+            uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
+            uint32 reserved           : 15;
         };
         uint32 u32All;
     } flags;
@@ -176,7 +177,7 @@ public:
 
     virtual Result Init(const GpuMemoryCreateInfo& createInfo, const GpuMemoryInternalCreateInfo& internalInfo);
     virtual Result Init(const PinnedGpuMemoryCreateInfo& createInfo);
-    Result Init(const SvmGpuMemoryCreateInfo& createInfo);
+    virtual Result Init(const SvmGpuMemoryCreateInfo& createInfo);
     Result Init(const GpuMemoryOpenInfo& openInfo);
     Result Init(const PeerGpuMemoryOpenInfo& peerInfo);
 
@@ -292,7 +293,7 @@ protected:
         IDevice*const*          ppDevice,
         Image*const*            ppImage) = 0;
     // Performs OS-specific initialization for opening a shared, non-peer memory object.
-    virtual Result OpenSharedMemory() = 0;
+    virtual Result OpenSharedMemory(OsExternalHandle handle) = 0;
 
     // Performs OS-specific initialization for opening a connection to a peer memory object.
     virtual Result OpenPeerMemory() = 0;
@@ -350,7 +351,7 @@ protected:
     TypedBufferCreateInfo   m_typedBufferInfo;
 
     GpuMemoryFlags          m_flags;
-    OsExternalHandle        m_hExternalResource;
+
     MType                   m_mtype;
 
     // SDI External Physical Memory PTE index for surface and marker

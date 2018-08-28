@@ -119,14 +119,14 @@ private:
 
         PM4_ME_SET_SH_REG                 hdrSpiShaderPgmGs;
         regSPI_SHADER_PGM_RSRC1_GS        spiShaderPgmRsrc1Gs;
-        SpiShaderPgmRsrc2Gs               spiShaderPgmRsrc2Gs;
+        regSPI_SHADER_PGM_RSRC2_GS        spiShaderPgmRsrc2Gs;
 
         // Everything past this point is only necessary for legacy pipelines (non-NGG pipelines).
         PM4_ME_SET_SH_REG                 hdrSpiShaderPgmVs;
         regSPI_SHADER_PGM_LO_VS           spiShaderPgmLoVs;
         regSPI_SHADER_PGM_HI_VS           spiShaderPgmHiVs;
         regSPI_SHADER_PGM_RSRC1_VS        spiShaderPgmRsrc1Vs;   // copy-shader internal table address
-        SpiShaderPgmRsrc2Vs               spiShaderPgmRsrc2Vs;   // copy-shader internal table address
+        regSPI_SHADER_PGM_RSRC2_VS        spiShaderPgmRsrc2Vs;   // copy-shader internal table address
 
         PM4_ME_SET_SH_REG                 hdrSpiShaderUserDataVs;
         regSPI_SHADER_USER_DATA_VS_1      spiShaderUserDataLoVs; // copy-shader internal constant buffer table address
@@ -140,25 +140,14 @@ private:
         size_t                            spaceNeeded;
     };
 
-    // This is only for writing the SPI_SHADER_PGM_CHKSUM_GS register for hardware that uses it.
-    struct Pm4ImageChksum
-    {
-        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
-        regSPI_SHADER_PGM_CHKSUM_GS       spiShaderPgmChksumGs;
-
-        // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-        // actual commands contained within.
-        size_t spaceNeeded;
-    };
-
     // This is only for register writes determined during Pipeline Bind.
     struct Pm4ImageShDynamic
     {
         PM4_ME_SET_SH_REG_INDEX           hdrPgmRsrc3Gs;
-        SpiShaderPgmRsrc3Gs               spiShaderPgmRsrc3Gs;
+        regSPI_SHADER_PGM_RSRC3_GS        spiShaderPgmRsrc3Gs;
 
         PM4_ME_SET_SH_REG                 hdrPgmRsrc4Gs;
-        SpiShaderPgmRsrc4Gs               spiShaderPgmRsrc4Gs;
+        regSPI_SHADER_PGM_RSRC4_GS        spiShaderPgmRsrc4Gs;
 
         // Everything past this point is only necessary for legacy pipelines (non-NGG pipelines).
         PM4_ME_SET_SH_REG_INDEX           hdrPgmRsrc3Vs;
@@ -210,8 +199,8 @@ private:
         PM4_ME_SET_CONTEXT_REG           hdrVgtMaxPrimsPerSubgrp;
         union
         {
-            uint32                                   u32All;
-            regVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09  gfx9;
+            uint32                            u32All;
+            regVGT_GS_MAX_PRIMS_PER_SUBGROUP  gfx9;
         } maxPrimsPerSubgrp;
 
         PM4_PFP_SET_CONTEXT_REG          hdrVgtGsOnchipCntl;
@@ -221,7 +210,7 @@ private:
         regSPI_SHADER_POS_FORMAT         spiShaderPosFormat;
 
         PM4_PFP_SET_CONTEXT_REG          hdrPaClVsOutCntl;
-        PaClVsOutCntl                    paClVsOutCntl;
+        regPA_CL_VS_OUT_CNTL             paClVsOutCntl;
 
         PM4_PFP_SET_CONTEXT_REG          hdrVgtPrimitiveIdEn;
         regVGT_PRIMITIVEID_EN            vgtPrimitiveIdEn;
@@ -237,8 +226,6 @@ private:
     Pm4ImageShDynamic m_pm4ImageShDynamic; // GS sh commands to be calculated and written when the associated pipeline
                                            // is bound.
     Pm4ImageGsLds     m_pm4ImageGsLds;     // Commands related to the configuration of the ES/GS LDS space
-    Pm4ImageChksum    m_pm4ImageChksum;    // Command to write the SPI_SHADER_PGM_CHKSUM_GS register when the associated
-                                           // pipeline is bound.
     Pm4ImageContext   m_pm4ImageContext;   // ES/GS PM4 commands to be written when the associated pipeline is bound.
 
     const PerfDataInfo* m_pGsPerfDataInfo;   // GS performance data information.

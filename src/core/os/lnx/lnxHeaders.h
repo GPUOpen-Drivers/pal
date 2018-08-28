@@ -43,6 +43,7 @@ extern "C"
 #include <amdgpu_shared.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <drm_fourcc.h>
 
 #define CIASICIDGFXENGINE_UNKNOWN        0x00000000
 #define CIASICIDGFXENGINE_SOUTHERNISLAND 0x0000000A

@@ -769,10 +769,7 @@ private:
     // a stream-out target has ever been set for this command buffer.
     bool HasStreamOutBeenSet() const { return ((m_streamOut.srd[0].word0.bits.BASE_ADDRESS & 1) == 0); }
 
-    void SynchronizeCeDeCounters(
-        uint32** ppDeCmdSpace,
-        uint32** ppCeCmdSpace);
-
+    uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
     PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.packetPredicate); }

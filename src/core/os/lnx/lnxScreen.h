@@ -64,14 +64,23 @@ public:
     virtual Result WaitForVerticalBlank() const override { return Result::Unsupported; }
     virtual Result GetScanLine(Pal::int32*) const override { return Result::Unsupported; }
 
+    virtual Result AcquireScreenAccess(
+        OsDisplayHandle hDisplay,
+        WsiPlatform     wsiPlatform) override;
+    virtual Result ReleaseScreenAccess() override;
+    virtual Result SetRandrOutput(
+        uint32 randrOutput) override;
+
     Result Init();
 
+    void SetMode(const ScreenMode& mode) { m_currentMode = mode; }
 private:
     Device*const  m_pDevice;
-    const uint32  m_connectorId;
 
-    Extent2d  m_physicalDimension;
-    Extent2d  m_physicalResolution;
+    Extent2d   m_physicalDimension;
+    Extent2d   m_physicalResolution;
+    ScreenMode m_currentMode;
+    WsiScreenProperties m_wsiScreenProp;
 
     PAL_DISALLOW_DEFAULT_CTOR(Screen);
     PAL_DISALLOW_COPY_AND_ASSIGN(Screen);

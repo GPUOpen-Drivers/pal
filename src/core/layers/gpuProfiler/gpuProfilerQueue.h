@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/layers/decorators.h"
+#include "core/layers/functionIds.h"
 #include "palDeque.h"
 #include "palFile.h"
 #include "palGpaSession.h"
@@ -36,28 +37,12 @@ namespace Pal
 namespace GpuProfiler
 {
 
-class      CmdBuffer;
-class      Device;
-class      Platform;
-class      TargetCmdBuffer;
-enum class CmdBufCallId : uint32;
+class CmdBuffer;
+class Device;
+class Platform;
+class TargetCmdBuffer;
 
 static constexpr size_t MaxCommentLength = 512;
-
-// Identifies a specific IQueue function call for logging purposes.
-enum class QueueCallId : uint32
-{
-    Submit,
-    WaitIdle,
-    SignalQueueSemaphore,
-    WaitQueueSemaphore,
-    PresentDirect,
-    PresentSwapChain,
-    Delay,
-    RemapVirtualMemoryPages,
-    CopyVirtualMemoryPageMappings,
-    Count
-};
 
 // Identifies whether a specific LogItem corresponds to a queue call (Submit(), Present(), etc.), a command buffer
 // call (CmdDrawIndexed(), CmdCopyImage(), etc.), or a full frame.

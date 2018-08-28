@@ -346,7 +346,7 @@ public:
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override;
 
-    const InterfaceLoggerSettings& InterfaceLoggerSettings() const { return m_interfaceLoggerSettings; }
+    const Pal::InterfaceLoggerConfig& InterfaceLoggerSettings() const { return m_interfaceLoggerSettings; }
 
 private:
     Result UpdateSettings();
@@ -380,7 +380,7 @@ private:
         void*              pOut);
 
     const uint32 m_objectId;
-    Pal::InterfaceLoggerSettings m_interfaceLoggerSettings;
+    Pal::InterfaceLoggerConfig m_interfaceLoggerSettings;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

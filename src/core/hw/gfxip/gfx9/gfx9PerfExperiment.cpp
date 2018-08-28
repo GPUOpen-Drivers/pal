@@ -34,6 +34,7 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfTrace.h"
 #include "palDequeImpl.h"
 #include "palHashMapImpl.h"
+#include "palInlineFuncs.h"
 
 using namespace Pal::Gfx9::PerfCtrInfo;
 
@@ -58,7 +59,7 @@ PerfExperiment::PerfExperiment(
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_spiConfigCntlDefault = mmSPI_CONFIG_CNTL_DEFAULT__GFX09;
+        m_spiConfigCntlDefault = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
     }
 }
 
@@ -151,6 +152,16 @@ Result PerfExperiment::ReserveCounterResource(
 }
 
 // =====================================================================================================================
+void PerfExperiment::SetCntrRate(
+    uint32  rate)
+{
+    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        m_sqPerfCounterCtrl.gfx09.CNTR_RATE = rate;
+    }
+}
+
+// =====================================================================================================================
 // Checks that a performance counter resource is available for the specified counter create info. If the resource is
 // available, instantiates a new GcnPerfCounter object for the caller to use.
 //
@@ -195,6 +206,9 @@ Result PerfExperiment::CreateCounter(
             m_counterFlags.tcpCounters    |= (info.block == GpuBlock::Tcp);
             m_counterFlags.tccCounters    |= (info.block == GpuBlock::Tcc);
             m_counterFlags.tcaCounters    |= (info.block == GpuBlock::Tca);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+            m_counterFlags.umcchCounters  |= (info.block == GpuBlock::Umcch);
+#endif
 
             const auto& chipProps = m_device.Parent()->ChipProperties();
             if ((info.block == GpuBlock::Ta)  ||
@@ -212,7 +226,8 @@ Result PerfExperiment::CreateCounter(
                 m_sqPerfCounterCtrl.bits.HS_EN |= 1;
                 m_sqPerfCounterCtrl.bits.LS_EN |= 1;
                 m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+                SetCntrRate(SqDefaultCounterRate);
 
                 // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
                 PAL_ALERT(HasSqCounters());
@@ -228,7 +243,8 @@ Result PerfExperiment::CreateCounter(
                 m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-                m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+
+                SetCntrRate(SqDefaultCounterRate);
 
                 if (m_gfxLevel == GfxIpLevel::GfxIp9)
                 {
@@ -405,7 +421,7 @@ void PerfExperiment::UpdateCounterFlags(
         m_sqPerfCounterCtrl.bits.HS_EN |= 1;
         m_sqPerfCounterCtrl.bits.LS_EN |= 1;
         m_sqPerfCounterCtrl.bits.CS_EN |= 1;
-        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+        SetCntrRate(SqDefaultCounterRate);
 
         // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
         PAL_ALERT(HasSqCounters());
@@ -421,11 +437,10 @@ void PerfExperiment::UpdateCounterFlags(
         m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
         m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
         m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
-        m_sqPerfCounterCtrl.bits.CNTR_RATE = SqDefaultCounterRate;
+        SetCntrRate(SqDefaultCounterRate);
 
         // SQ-perWave and TA/TC/TD may interfere each other, consider collect in different pass.
-        PAL_ALERT((chipProps.gfxLevel != GfxIpLevel::GfxIp6) &&
-                  (HasTaCounters()  ||
+        PAL_ALERT((HasTaCounters()  ||
                    HasTdCounters()  ||
                    HasTcpCounters() ||
                    HasTccCounters() ||
@@ -456,7 +471,7 @@ void PerfExperiment::IssueBegin(
         // SQ tests require rlc_perfom_clk_cntl set BEFORE spiConfigCntl
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 1, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
         }
     }
 
@@ -702,7 +717,7 @@ void PerfExperiment::IssueEnd(
         // SQ tests require RLC_PERFMON_CLK_CNTL set to work
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(mmRLC_PERFMON_CLK_CNTL__GFX09, 0, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 0, pCmdSpace);
         }
     }
 
@@ -824,6 +839,11 @@ uint32* PerfExperiment::WriteSetupPerfCounters(
     regSDMA0_PERFMON_CNTL  sdma0PerfmonCntl = {};
     regSDMA1_PERFMON_CNTL  sdma1PerfmonCntl = {};
 
+    if (HasUmcchCounters())
+    {
+        pCmdSpace = WriteSetupUmcchCntlRegs(pCmdStream, pCmdSpace);
+    }
+
     // Walk the counter list and set select & filter registers.
     for (auto it = m_globalCtrs.Begin(); it.Get(); it.Next())
     {
@@ -871,6 +891,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
     uint32*    pCmdSpace
     ) const
 {
+    const auto&      device     = *(m_device.Parent());
     const auto&      cmdUtil    = m_device.CmdUtil();
     const auto&      regInfo    = cmdUtil.GetRegInfo();
     const EngineType engineType = pCmdStream->GetEngineType();
@@ -932,7 +953,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         if (HasAtcL2Counters())
         {
             // This has to be set for any ATC L2 perf counters to work.
-            regATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09  atcL2PerfCntrResultCntl = {};
+            regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
             atcL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
             pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcL2PerfResultCntl,
@@ -943,7 +964,7 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         if (HasMcVmL2Counters())
         {
             // This has to be set for any MC VM L2 perf counters to work.
-            regMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09  mcVmL2PerfCntrResultCntl = {};
+            regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
             mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
             pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmMcVmL2PerfResultCntl,
@@ -982,9 +1003,20 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL             = RmiEnSelOn;
         rmiPerfCounterCntl.bits.TC_PERF_EN_SEL                      = RmiEnSelOn;
         rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK0             = RmiEventWindowMask0Default;
-        rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK1             = RmiEventWindowMask1Default;
         rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = RmiChannelIdAll;
         rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = RmiBurstlengthThresholdDefault;
+
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            if (device.ChipProperties().familyId == FAMILY_AI)
+            {
+                rmiPerfCounterCntl.vega.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
+            }
+            else if (IsRaven(device))
+            {
+                rmiPerfCounterCntl.rv1x.PERF_EVENT_WINDOW_MASK1 = RmiEventWindowMask1Default;
+            }
+        }
 
         if (restart == false)
         {
@@ -1085,13 +1117,13 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     regGCEA_PERFCOUNTER_RSLT_CNTL  gceaPerfCntrResultCntl = {};
     gceaPerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the EA block perf counters.
 
-    regMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09  mcVmL2PerfCntrResultCntl = {};
+    regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
     mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 0; // halt all of the MC VM L2 block perf counters.
 
     regATC_PERFCOUNTER_RSLT_CNTL  atcPerfCntrResultCntl = {};
     atcPerfCntrResultCntl.bits.ENABLE_ANY    = 0; // halt all of the ATC block perf counters.
 
-    regATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09  atcL2PerfCntrResultCntl = {};
+    regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
     atcL2PerfCntrResultCntl.bits.ENABLE_ANY  = 0; // halt all of the ATC L2 block perf counters.
 
     regRPB_PERFCOUNTER_RSLT_CNTL  rpbPerfCntrResultCntl = {};
@@ -1158,6 +1190,46 @@ uint32* PerfExperiment::WriteStopPerfCounters(
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmRMI_PERF_COUNTER_CNTL,
                                                      rmiPerfCounterCntl.u32All,
                                                      pCmdSpace);
+    }
+
+    if (HasUmcchCounters())
+    {
+        // The number of UMC channels in the current device is equal to the number of SDP ports.
+        const auto&  gfx9ChipProps    = m_device.Parent()->ChipProperties().gfx9;
+        const uint32 numUmcChannels   = gfx9ChipProps.numSdpInterfaces;
+        const auto&  umcPerfBlockInfo = gfx9ChipProps.perfCounterInfo.umcChannelBlocks;
+
+        for (uint32 i = 0; i < numUmcChannels; i++)
+        {
+            if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+            {
+                // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+                // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+                break;
+            }
+
+            if (engineType == EngineTypeCompute)
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                          umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                          src_sel__mec_copy_data__immediate_data,
+                                                          0,
+                                                          count_sel__mec_copy_data__32_bits_of_data,
+                                                          wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                          pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                           dst_sel__me_copy_data__perfcounters,
+                                                           umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                           src_sel__me_copy_data__immediate_data,
+                                                           0,
+                                                           count_sel__me_copy_data__32_bits_of_data,
+                                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                           pCmdSpace);
+            }
+        }
     }
 
     if (engineType == EngineTypeCompute)
@@ -1294,9 +1366,9 @@ uint32* PerfExperiment::WriteResetGrbmGfxIndex(
 {
     PAL_ASSERT(HasIndexedCounters() || HasThreadTraces() || HasSpmTrace());
 
-    regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+    regGRBM_GFX_INDEX grbmGfxIndex = {};
     grbmGfxIndex.bits.SE_BROADCAST_WRITES       = 1;
-    grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+    grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
     return pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
@@ -1348,6 +1420,95 @@ uint32* PerfExperiment::WriteWaitIdleClean(
     // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware of a busy
     //       context, we must assume all ACQUIRE_MEM's come with a context roll.
     pCmdStream->SetContextRollDetected<false>();
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes initialization commands for UMC channel perf counters.
+uint32* PerfExperiment::WriteSetupUmcchCntlRegs(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const
+{
+    const auto& chipProps = m_device.Parent()->ChipProperties();
+    const auto& umcPerfBlockInfo = chipProps.gfx9.perfCounterInfo.umcChannelBlocks;
+
+    // If Umcch counters have been enabled, simply enable all instances available here:
+    const uint32 numUmcChannels = chipProps.gfx9.numSdpInterfaces;
+    const auto& cmdUtil         = m_device.CmdUtil();
+
+    regUMCCH0_PerfMonCtlClk umcCtlClkReg = { };
+    umcCtlClkReg.bits.GlblResetMsk      = 0x3f;
+    umcCtlClkReg.bits.GlblReset         = 1;
+
+    for (uint32 i = 0; i < numUmcChannels; i++)
+    {
+        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+        {
+            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+            break;
+        }
+
+        if (pCmdStream->GetEngineType() == EngineTypeCompute)
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                      src_sel__mec_copy_data__immediate_data,
+                                                      umcCtlClkReg.u32All,
+                                                      count_sel__mec_copy_data__32_bits_of_data,
+                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                      pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                       dst_sel__me_copy_data__perfcounters,
+                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                       src_sel__me_copy_data__immediate_data,
+                                                       umcCtlClkReg.u32All,
+                                                       count_sel__me_copy_data__32_bits_of_data,
+                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                       pCmdSpace);
+        }
+    }
+
+    umcCtlClkReg.bits.GlblReset = 0;
+    umcCtlClkReg.bits.GlblMonEn = 1;
+    umcCtlClkReg.bits.CtrClkEn  = 1;
+
+    for (uint32 i = 0; i < numUmcChannels; i++)
+    {
+        if (Gfx9::PerfCounter::IsDstRegCopyDataPossible(umcPerfBlockInfo.regInfo[i].ctlClkRegAddr) == false)
+        {
+            // UMC channel perf counter address offsets for channels 3+ are not compatible with the current
+            // COPY_DATA packet. Temporarily skip them. This implies that channels 3+ will not provide valid data.
+            break;
+        }
+
+        if (pCmdStream->GetEngineType() == EngineTypeCompute)
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                      umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                      src_sel__mec_copy_data__immediate_data,
+                                                      umcCtlClkReg.u32All,
+                                                      count_sel__mec_copy_data__32_bits_of_data,
+                                                      wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                      pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                       dst_sel__me_copy_data__perfcounters,
+                                                       umcPerfBlockInfo.regInfo[i].ctlClkRegAddr,
+                                                       src_sel__me_copy_data__immediate_data,
+                                                       umcCtlClkReg.u32All,
+                                                       count_sel__me_copy_data__32_bits_of_data,
+                                                       wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                       pCmdSpace);
+        }
+    }
 
     return pCmdSpace;
 }

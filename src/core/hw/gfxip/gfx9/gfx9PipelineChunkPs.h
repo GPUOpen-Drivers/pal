@@ -102,14 +102,10 @@ private:
         regSPI_SHADER_PGM_LO_PS           spiShaderPgmLoPs;
         regSPI_SHADER_PGM_HI_PS           spiShaderPgmHiPs;
         regSPI_SHADER_PGM_RSRC1_PS        spiShaderPgmRsrc1Ps;   // per-shader internal table address
-        SpiShaderPgmRsrc2Ps               spiShaderPgmRsrc2Ps;   // per-shader internal table address
+        regSPI_SHADER_PGM_RSRC2_PS        spiShaderPgmRsrc2Ps;   // per-shader internal table address
 
         PM4_ME_SET_SH_REG                 hdrSpiShaderUserData;
         regSPI_SHADER_USER_DATA_PS_1      spiShaderUserDataLoPs; // per-shader internal constant buffer table address
-
-        // Checksum register is optional, as not all GFX9+ hardware uses it.
-        PM4_ME_SET_SH_REG                 hdrSpiShaderPgmChksum;
-        regSPI_SHADER_PGM_CHKSUM_PS       spiShaderPgmChksumPs;
 
         // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
         // actual commands contained within.

@@ -128,6 +128,10 @@ public:
         WsiPlatform          wsiPlatform,
         int64                visualId) override { return Result::Unsupported; } // can't present anything
 
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const override { return 0; }
+
     virtual Result DetermineExternalSharedResourceType(
         const ExternalResourceOpenInfo& openInfo,
         bool*                           pIsImage) const override;
@@ -143,8 +147,6 @@ public:
         size_t*                      pImageSize,
         size_t*                      pGpuMemorySize,
         ImageCreateInfo*             pImgCreateInfo) const override;
-
-    virtual const char* GetCacheFilePath() const override { return getenv("APPDATA"); }
 
     virtual Result GetFlipStatus(
         uint32           vidPnSrcId,
@@ -289,6 +291,11 @@ public:
     virtual Result GetVirtualDisplayProperties(
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        uint32*         pConnectorId) override { return Result::Success; }
 
 protected:
     Device(
@@ -328,6 +335,8 @@ private:
     Result InitMemoryProperties();
 
     void InitExternalPhysicalHeap();
+
+    void InitOutputPaths();
 
     virtual Result OsEarlyInit() override;
 

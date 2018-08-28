@@ -39,7 +39,14 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <linux/input.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <string.h>
+#include <poll.h>
 
 namespace Util
 {
@@ -248,12 +255,178 @@ int64 GetPerfCpuTime()
 }
 
 // =====================================================================================================================
+bool KeyTranslate(
+    int      input,
+    KeyCode* pCode)
+{
+    bool ret = false;
+    PAL_ASSERT(pCode != nullptr);
+
+    switch (input)
+    {
+    case KEY_F10:
+        *pCode = KeyCode::F10;
+        ret    = true;
+        break;
+    case KEY_F11:
+        *pCode = KeyCode::F11;
+        ret    = true;
+        break;
+    case KEY_F12:
+        *pCode = KeyCode::F12;
+        ret    = true;
+        break;
+    case KEY_LEFTSHIFT:
+    case KEY_RIGHTSHIFT:
+        *pCode = KeyCode::Shift;
+        ret    = true;
+        break;
+    default:
+        break;
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+static bool FindKeyboardDeviceNode(
+    char *pNodeName)
+{
+    struct dirent** ppNameList = nullptr;
+    char            path[128]  = "/dev/input/by-path/";
+    bool            ret        = false;
+
+    // iterate the files on the directory
+    const int32 numDirs = scandir(path, &ppNameList, 0, alphasort);
+
+    for (int32 dirIdx = 0; dirIdx < numDirs; dirIdx++)
+    {
+        // 'kbd' is the key word that refers to the keyboard.
+        // Note: it is still required to iterate all ppNameList to free memory in case the node has been found
+        if ((ret == false) && (strstr(ppNameList[dirIdx]->d_name, "kbd")))
+        {
+            strcpy(pNodeName, path);
+            // construct the absolute path for the soft link
+            strcat(path, ppNameList[dirIdx]->d_name);
+            char linkName[64] = {0};
+            // get the relative path for the keyboard's device node
+            int32 n = readlink(path, linkName, sizeof(linkName));
+            if (n > 0)
+            {
+                strncat(pNodeName, linkName, n);
+                ret = true;
+            }
+        }
+        free(ppNameList[dirIdx]);
+    }
+
+    if (ppNameList)
+    {
+        free(ppNameList);
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
 // Reports whether the specified key has been pressed down.
 bool IsKeyPressed(
     KeyCode key,
     bool*   pPrevState)
 {
-    return false;
+    char              devName[128]  = {0};
+    static const bool ret           = FindKeyboardDeviceNode(devName);
+    static int        device        = ret ? open(devName, O_RDONLY|O_NONBLOCK) : -1;
+
+    bool isKeySet = false;
+
+    struct input_event ev = {};
+
+    // return false if we cannot get the device node.
+    int retVal = (device == -1) ? -1 : 0;
+
+    KeyCode keys[2] = {};
+
+    int maxIndex = IsComboKey(key, keys) ? 1 : 0;
+
+    int index = 0;
+
+    // 4 is a heuristic number
+    int retry = 4;
+
+    while ((retVal >= 0) && (index <= maxIndex))
+    {
+        retVal = read(device,&ev, sizeof(ev));
+
+        if ((retVal   >= 0) &&  // The read do grab some event back.
+            (ev.type  == 1) &&  // The event is EV_KEY
+            (ev.value == 1))    // 0: key release 1: key pressed 2: key auto repeat
+        {
+            KeyCode keyGet;
+            if (KeyTranslate(ev.code, &keyGet))
+            {
+                if (keyGet == keys[index])
+                {
+                    if (index == maxIndex)
+                    {
+                        isKeySet = true;
+                        break;
+                    }
+                    else
+                    {
+                        index ++;
+                    }
+                }
+            }
+        }
+        else if (retVal == -1)
+        {
+            // if errno is not EAGAIN, we should just close the device.
+            if (errno != EAGAIN)
+            {
+                close(device);
+                device = -1;
+            }
+            else if ((index > 0) && (retry > 0))
+            {
+                // poll at most 100ms in case it is a second key of a combo key.
+                int ret = -1;
+                do
+                {
+                    struct pollfd fd = {};
+                    fd.fd            = device;
+                    fd.events        = POLLIN;
+
+                    ret = poll(&fd, 1, 100);
+
+                    // retry if there are something to read
+                    if ((ret > 0) && (fd.revents == POLLIN))
+                    {
+                        // try to read once more
+                        retVal = 0;
+                        retry --;
+                    }
+                    // ret == 0 means the timout happens
+                    // therefore, we don't need to retry the read but kick off next round of polling.
+                    else if (ret == 0)
+                    {
+                        retVal = 0;
+                        retry --;
+                    }
+                } while (ret == 0);
+            }
+        }
+    }
+
+    // On windows, the pPrevState is supposed to provide an aux-state so that IsKeyPressed can identify
+    // the *pressed* event, but it is not needed for Linux.
+    // Just set it to isKeySet to maintain the correct prev-state.
+    if (pPrevState != nullptr)
+    {
+        *pPrevState = isKeySet;
+    }
+
+    return isKeySet;
 }
 
 // =====================================================================================================================

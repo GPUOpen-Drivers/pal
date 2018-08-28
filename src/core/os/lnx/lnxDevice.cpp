@@ -27,6 +27,7 @@
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxQueue.h"
+#include "core/os/lnx/lnxTimestampFence.h"
 #include "core/os/lnx/lnxSyncobjFence.h"
 #include "core/os/lnx/lnxGpuMemory.h"
 #include "core/os/lnx/lnxImage.h"
@@ -104,7 +105,10 @@ static PAL_INLINE Result CheckResult(
 constexpr gpusize _4GB = (1ull << 32u);
 constexpr uint32 GpuPageSize = 4096;
 
-constexpr char SettingsFileName[] = "amdPalSettings.cfg";
+constexpr char SettingsFileName[]             = "amdPalSettings.cfg";
+constexpr char UserDefaultConfigFileSubPath[] = "/.config";
+constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
+constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
 
 // Maybe the format supported by presentable image should be got from Xserver, so far we just use a fixed format list.
 constexpr SwizzledFormat PresentableImageFormats[] =
@@ -176,7 +180,7 @@ Result Device::Create(
 
     if (result == Result::Success)
     {
-        Device::GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
+        GetHwIpDeviceSizes(ipLevels, &hwDeviceSizes, &addrMgrSize);
 
         size_t totalSize = 0;
         totalSize += sizeof(Device);
@@ -505,6 +509,17 @@ Result Device::OsLateInit()
         m_supportQuerySensorInfo = true;
     }
 
+    // The fix did not bump the kernel version, thus it is only safe to enable it start from the next version: 3.27
+    // The fix also has been pulled into 4.18.rc1 upstream kernel already.
+    if (IsDrmVersionOrGreater(3,27) || IsKernelVersionEqualOrGreater(4,18))
+    {
+        m_requirePrtReserveVaWa = false;
+    }
+    else
+    {
+        m_requirePrtReserveVaWa = true;
+    }
+
     return result;
 }
 
@@ -548,9 +563,40 @@ Result Device::EarlyInit(
         result = InitGpuProperties();
     }
 
+    // Init paths
+    InitOutputPaths();
+
     if (result == Result::Success)
     {
+        // Step 1: try default(as well as global) path
         result = m_settingsMgr.Init(m_pSettingsPath);
+
+        // Step 2: if no global setting found, try XDG_CONFIG_HOME and user specific path
+        if (result == Result::ErrorUnavailable)
+        {
+            const char* pXdgConfigPath = getenv("XDG_CONFIG_HOME");
+            if (pXdgConfigPath != nullptr)
+            {
+                result = m_settingsMgr.Init(pXdgConfigPath);
+            }
+            else
+            {
+                // XDG_CONFIG_HOME is not set, fall back to $HOME
+                char userDefaultConfigFilePath[MaxPathStrLen];
+
+                const char* pPath = getenv("HOME");
+                if (pPath != nullptr)
+                {
+                    Snprintf(userDefaultConfigFilePath, sizeof(userDefaultConfigFilePath), "%s%s",
+                             pPath, UserDefaultConfigFileSubPath);
+                    result = m_settingsMgr.Init(userDefaultConfigFilePath);
+                }
+                else
+                {
+                    result = Result::ErrorUnavailable;
+                }
+            }
+        }
 
         if (result == Result::ErrorUnavailable)
         {
@@ -594,15 +640,17 @@ void Device::FinalizeQueueProperties()
     m_engineProperties.perEngine[EngineTypeDma].flags.supportVirtualMemoryRemap       = 1;
     m_engineProperties.perEngine[EngineTypeUniversal].flags.supportVirtualMemoryRemap = 1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     constexpr uint32 WindowedIdx = static_cast<uint32>(PresentMode::Windowed);
     constexpr uint32 FullscreenIdx = static_cast<uint32>(PresentMode::Fullscreen);
 
     // We can assume that we modes are valid on all WsiPlatforms
-    m_supportedSwapChainModes[WindowedIdx]   =
-        SupportImmediateSwapChain| SupportFifoSwapChain| SupportMailboxSwapChain;
+    m_supportedSwapChainModes[WindowedIdx] =
+        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
 
     m_supportedSwapChainModes[FullscreenIdx] =
-        SupportImmediateSwapChain| SupportFifoSwapChain| SupportMailboxSwapChain;
+        SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+#endif
 
     static_assert(MaxIbsPerSubmit >= MinCmdStreamsPerSubmission,
                   "The minimum supported number of command streams per submission is not enough for PAL!");
@@ -1171,11 +1219,8 @@ Result Device::InitMemQueueInfo()
             m_memoryProperties.virtualMemAllocGranularity = GpuPageSize;
             m_memoryProperties.virtualMemPageSize         = GpuPageSize;
 
-            if (m_pPlatform->SvmModeEnabled() && (MemoryProperties().flags.iommuv2Support == 0))
-            {
-                // Calculate SVM start VA
-                result = FixupUsableGpuVirtualAddressRange(m_chipProperties.gfxip.vaRangeNumBits);
-            }
+            // Calculate VA partitions
+            result = FixupUsableGpuVirtualAddressRange(m_chipProperties.gfxip.vaRangeNumBits);
         }
 
         if (result == Result::Success)
@@ -1185,8 +1230,6 @@ Result Device::InitMemQueueInfo()
 
         if (result == Result::Success)
         {
-            m_memoryProperties.flags.multipleVaRangeSupport  = 1;
-            m_memoryProperties.flags.shadowDescVaSupport     = 1;
             m_memoryProperties.flags.virtualRemappingSupport = 1;
             m_memoryProperties.flags.pinningSupport          = 1; // Supported
             m_memoryProperties.flags.supportPerSubmitMemRefs = 1; // Supported
@@ -1270,7 +1313,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1284,7 +1327,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1306,7 +1349,7 @@ Result Device::InitMemQueueInfo()
                     pEngineInfo->numAvailable      = Util::CountSetBits(engineInfo.available_rings);
                     pEngineInfo->startAlign        = engineInfo.ib_start_alignment;
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
-							       sizeof(uint32)) / sizeof(uint32);
+                                                               sizeof(uint32)) / sizeof(uint32);
                 }
                 break;
 
@@ -1354,6 +1397,58 @@ Result Device::InitMemQueueInfo()
 }
 
 // =====================================================================================================================
+// This is help methods. Init cache and debug file paths
+void Device::InitOutputPaths()
+{
+    const char* pPath;
+
+    // Initialize the root path of cache files
+    // Cascade:
+    // 1. Find AMD_SHADER_DISK_CACHE_PATH to keep backward compatibility.
+    // 2. Find XDG_CACHE_HOME.
+    // 3. If AMD_SHADER_DISK_CACHE_PATH and XDG_CACHE_HOME both not set,
+    //    use "$HOME/.cache".
+    pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("XDG_CACHE_HOME");
+    }
+
+    if (pPath != nullptr)
+    {
+        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
+    }
+    else
+    {
+        pPath = getenv("HOME");
+        if (pPath != nullptr)
+        {
+            Snprintf(m_cacheFilePath, sizeof(m_cacheFilePath), "%s%s", pPath, UserDefaultCacheFileSubPath);
+        }
+    }
+
+    // Initialize the root path of debug files which is used to put all files
+    // for debug purpose (such as logs, dumps, replace shader)
+    // Cascade:
+    // 1. Find AMD_DEBUG_DIR.
+    // 2. Find TMPDIR.
+    // 3. If AMD_DEBUG_DIR and TMPDIR both not set, use "/var/tmp"
+    pPath = getenv("AMD_DEBUG_DIR");
+    if (pPath == nullptr)
+    {
+        pPath = getenv("TMPDIR");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = UserDefaultDebugFilePath;
+    }
+
+    Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
+}
+
+// =====================================================================================================================
 // Correlates a current GPU timsetamp with the CPU clock, allowing tighter CPU/GPU synchronization using timestamps.
 // NOTE: This operation is currently not supported on Linux.
 Result Device::CalibrateGpuTimestamp(
@@ -1397,8 +1492,36 @@ Result Device::GetMultiGpuCompatibility(
 
     if (pInfo != nullptr)
     {
-        // NOTE: Presently, PAL does not support multi-GPU on the amdgpu driver.
+        const Device& otherLnxDevice = static_cast<const Device&>(otherDevice);
         pInfo->flags.u32All = 0;
+
+        const PalSettings& settings = Settings();
+
+        //Unlike windows,there is no concept of an LDA chain on Linux.
+        //Linux can share resource, like memory and semaphore, across any supported devices.
+        //And peer transfer is also supported in general.
+        if (settings.mgpuCompatibilityEnabled)
+        {
+            pInfo->flags.sharedMemory = 1;
+            pInfo->flags.sharedSync   = 1;
+            if (settings.peerMemoryEnabled)
+            {
+                pInfo->flags.peerTransfer = 1;
+            }
+            if (settings.hwCompositingEnabled)
+            {
+                pInfo->flags.shareThisGpuScreen  = 1;
+                pInfo->flags.shareOtherGpuScreen = 1;
+            }
+            if (m_chipProperties.gfxLevel == otherLnxDevice.ChipProperties().gfxLevel)
+            {
+                pInfo->flags.iqMatch = 1;
+                if (m_chipProperties.deviceId == otherLnxDevice.ChipProperties().deviceId)
+                {
+                    pInfo->flags.gpuFeatures = 1;
+                }
+            }
+        }
 
         result = Result::Success;
     }
@@ -1640,9 +1763,17 @@ Result Device::GetSwapChainInfo(
             pSwapChainProperties->minImageExtent.height = pSwapChainProperties->currentExtent.height;
         }
 
-        pSwapChainProperties->minImageCount = 2;    // This is frequently, how many images must be in a swap chain in
-                                                    // order for App to acquire an image in finite time if App currently
-                                                    // doesn't own an image.
+        if (wsiPlatform == DirectDisplay)
+        {
+            // DirectDisplay can support one presentable image for rendering on front buffer.
+            pSwapChainProperties->minImageCount = 1;
+        }
+        else
+        {
+            pSwapChainProperties->minImageCount = 2; // This is frequently, how many images must be in a swap chain in
+                                                     // order for App to acquire an image in finite time if App
+                                                     // currently doesn't own an image.
+        }
 
         // A swap chain must contain at most this many images. The only limits for maximum number of image count are
         // related with the amount of memory available, but here 16 should be enough for client.
@@ -1675,6 +1806,50 @@ Result Device::DeterminePresentationSupported(
     int64                visualId)
 {
     return WindowSystem::DeterminePresentationSupported(this, hDisplay, wsiPlatform, visualId);
+}
+
+// =====================================================================================================================
+uint32 Device::GetSupportedSwapChainModes(
+    WsiPlatform wsiPlatform,
+    PresentMode mode
+    ) const
+{
+    // The swap chain modes various from wsiPlatform to wsiPlatform. X and Wayland window system support immediate and
+    // FIFO mode, and pal implements mailbox mode for both window systems.
+    // DirectDisplay can directly render to a display without using intermediate window system, the display is exclusive
+    // to a process, so it only has full screen mode. FIFO is the basic requirement for now, and it's the only mode
+    // implemented by PAL, but immediate and mailbox modes can also be supported if necessary.
+    uint32 swapchainModes = 0;
+    if (mode == PresentMode::Windowed)
+    {
+        if (wsiPlatform != DirectDisplay)
+        {
+            swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+        }
+    }
+    else
+    {
+        if (wsiPlatform != DirectDisplay)
+        {
+            swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
+        }
+        else
+        {
+            swapchainModes = SupportFifoSwapChain;
+        }
+    }
+
+    return swapchainModes;
+}
+
+// =====================================================================================================================
+Result Device::GetConnectorIdFromOutput(
+    OsDisplayHandle hDisplay,
+    uint32          randrOutput,
+    WsiPlatform     wsiPlatform,
+    uint32*         pConnectorId)
+{
+    return WindowSystem::GetConnectorIdFromOutput(this, hDisplay, randrOutput, wsiPlatform, pConnectorId);
 }
 
 // =====================================================================================================================
@@ -1838,9 +2013,13 @@ Result Device::ReservePrtVaRange(
 {
     Result result = Result::ErrorUnavailable;
 
-    // To work around an issue with the amdgpu module not synchronizing PTE updates, we set the delayed update flag
-    // to avoid GPU faults in certain CTS tests. This should be removed once amdgpu fies the issue.
-    constexpr uint64 operations = AMDGPU_VM_PAGE_PRT  | AMDGPU_VM_DELAY_UPDATE;
+    uint64 operations = AMDGPU_VM_PAGE_PRT;
+
+    // we have to enabl w/a to delay update the va mapping in case kernel did not ready with the fix.
+    if (m_requirePrtReserveVaWa)
+    {
+        operations |= AMDGPU_VM_DELAY_UPDATE;
+    }
 
     const     uint64 mtypeFlag  = ConvertMType(mtype);
 
@@ -2185,7 +2364,7 @@ Result Device::CreateFence(
     IFence**               ppFence
     ) const
 {
-    Fence* pFence = nullptr;
+    Pal::Fence* pFence = nullptr;
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
 
     if (GetFenceType() == FenceType::SyncObj)
@@ -2194,12 +2373,12 @@ Result Device::CreateFence(
     }
     else
     {
-        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) TimestampFence();
     }
 
     // Set needsEvent argument to true - all client-created fences require event objects to support the
     // IDevice::WaitForFences interface.
-    Result result = pFence->Init(createInfo, true);
+    Result result = pFence->Init(createInfo);
 
     if (result != Result::Success)
     {
@@ -2220,7 +2399,7 @@ Result Device::OpenFence(
     IFence**             ppFence
     ) const
 {
-    Fence* pFence = nullptr;
+    Pal::Fence* pFence = nullptr;
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppFence != nullptr));
 
     if (GetFenceType() == FenceType::SyncObj)
@@ -2229,7 +2408,7 @@ Result Device::OpenFence(
     }
     else
     {
-        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) Fence();
+        pFence = PAL_PLACEMENT_NEW(pPlacementAddr) TimestampFence();
     }
     Result result = pFence->OpenHandle(openInfo);
 
@@ -2414,38 +2593,6 @@ Result Device::DestroyResourceList(
     if (m_drmProcs.pfnAmdgpuBoListDestroy(handle) != 0)
     {
         result = Result::ErrorInvalidValue;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Check if the GPU presentFd point to is same with the devices'. The caller must ensure the presentDeviceFd is valid.
-// Every GPU has three device node on Linux. card0 is a super node which require authentication and it can be used to do
-// anything, including buffer management, KMS (kernel mode setting), rendering. controlD64 is used for KMS access only.
-// renderD128 is used for rendering, and authentication is not required. X Server is usually open the card0, and PAL
-// open the renderD128. So need to get the bus ID and check if they are same. If X server opens the render node too,
-// compare the node name to check if they are the same one.
-Result Device::IsSameGpu(
-    int32 presentDeviceFd,
-    bool* pIsSame
-    ) const
-{
-    Result result = Result::Success;
-
-    *pIsSame = false;
-
-    // both the render node and master node can use this interface to get the device name.
-    const char* pDeviceName = m_drmProcs.pfnDrmGetRenderDeviceNameFromFd(presentDeviceFd);
-
-    if (pDeviceName == nullptr)
-    {
-        result = Result::ErrorUnknown;
-    }
-
-    if (result == Result::Success)
-    {
-        *pIsSame = (strcasecmp(&m_renderNodeName[0], pDeviceName) == 0);
     }
 
     return result;
@@ -2813,17 +2960,6 @@ Result Device::CreatePresentableMemoryObject(
     Pal::GpuMemory** ppMemObjOut)
 {
     return Image::CreatePresentableMemoryObject(this, pImage, pMemObjMem, ppMemObjOut);
-}
-
-// =====================================================================================================================
-const char* Device::GetCacheFilePath() const
-{
-    const char* pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
-    if (pPath == nullptr)
-    {
-        pPath = getenv("HOME");
-    }
-    return pPath;
 }
 
 // =====================================================================================================================
@@ -3686,10 +3822,8 @@ Result Device::ReserveGpuVirtualAddress(
 {
     Result result = Result::Success;
 
-    // On Linux, these partitions are reserved by VamMgrSingleton
-    if ((vaPartition != VaPartition::Svm) &&
-        (vaPartition != VaPartition::DescriptorTable) &&
-        (vaPartition != VaPartition::ShadowDescriptorTable))
+    // On Linux, some partitions are reserved by VamMgrSingleton
+    if (VamMgrSingleton::IsVamPartition(vaPartition) == false)
     {
         ReservedVaRangeInfo* pInfo = m_reservedVaMap.FindKey(baseVirtAddr);
 
@@ -3761,7 +3895,6 @@ Result Device::InitReservedVaRanges()
     return VamMgrSingleton::GetReservedVaRange(
         GetPlatform()->GetDrmLoader().GetProcsTable(),
         m_hDevice,
-        GetPlatform()->IsDtifEnabled(),
         &m_memoryProperties);
 }
 
@@ -4201,15 +4334,6 @@ Result Device::InitClkInfo()
              GetDeviceNodeIndex());
 
     return Result::Success;
-}
-
-// =====================================================================================================================
-void Device::SetVaRangeInfo(
-    uint32       partIndex,
-    VaRangeInfo* pVaRange)
-{
-    PAL_ASSERT((pVaRange != nullptr) && (partIndex < static_cast<uint32>(VaPartition::Count)));
-    m_memoryProperties.vaRange[partIndex] = *pVaRange;
 }
 
 // =====================================================================================================================

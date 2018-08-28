@@ -326,6 +326,7 @@ Result Image::Finalize(
     // For AddrMgr2 style addressing, there's no chance of a single subresource being incapable of supporting DCC.
     PAL_ASSERT(dccUnsupported == false);
 
+    const PalSettings&          coreSettings      = m_device.Settings();
     const Gfx9PalSettings&      settings          = GetGfx9Settings(m_device);
     const auto*                 pPublicSettings   = m_device.GetPublicSettings();
     const SubResourceInfo*const pBaseSubResInfo   = pSubResInfoList;
@@ -500,7 +501,7 @@ Result Image::Finalize(
                             // Enable fast Clear support for RTV/SRV or if we have a mip chain in which some mips aren't
                             // going to be used as UAV but some can be then we enable dcc fast clear on those who aren't
                             // going to be used as UAV and disable dcc fast clear on other mips.
-                            if ((m_createInfo.usageFlags.shaderWrite == 0)                  ||
+                            if ((m_createInfo.usageFlags.shaderWrite == 0) ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
                                 const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);
@@ -568,7 +569,7 @@ Result Image::Finalize(
                 result = m_pFmask->Init(*this, pGpuMemSize);
             }
 
-            if ((m_createInfo.flags.repetitiveResolve != 0) || (settings.forceFixedFuncColorResolve != 0))
+            if ((m_createInfo.flags.repetitiveResolve != 0) || (coreSettings.forceFixedFuncColorResolve != 0))
             {
                 // According to the CB Micro-Architecture Specification, it is illegal to resolve a 1 fragment eqaa
                 // surface.
@@ -715,11 +716,6 @@ Result Image::Finalize(
             {
                 InitFastClearEliminateMetaData(pGpuMemLayout, pGpuMemSize);
             }
-
-            // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
-            // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
-            // CPU cycles required to set up the fast clear eliminate.
-            m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
         }
 
         // NOTE: We're done adding bits of GPU memory to our image; its GPU memory size is now final.
@@ -1068,6 +1064,8 @@ Result Image::ComputePipeBankXor(
 {
     Result  result = Result::Success;
 
+    const PalSettings& coreSettings = m_device.Settings();
+
     // Also need to make sure that mip0 is not in miptail. In this case, tile swizzle cannot be supported. With current
     // design, when mip0 is in the miptail, swizzleOffset would be negative. This is a problem because the offset in MS
     // interface is a UINT.
@@ -1142,9 +1140,9 @@ Result Image::ComputePipeBankXor(
             if (supportSwizzle &&
                 // Check to see if non-zero fMask pipe-bank-xor values are allowed.
                 ((aspect != ImageAspect::Fmask) || settings.fmaskAllowPipeBankXor) &&
-                ((TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
-                 (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
-                 (TestAnyFlagSet(settings.tileSwizzleMode, TileSwizzleShaderRes))))
+                ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget()) ||
+                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && Parent()->IsDepthStencil()) ||
+                 (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleShaderRes))))
             {
                 uint32 surfaceIndex = 0;
 
@@ -1277,8 +1275,8 @@ bool Image::IsFastColorClearSupported(
         if (isFastClearSupported)
         {
             // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a
-            // reference to this image's ref counter.
-            const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() == 1);
+            // reference to this image's ref counter. 0 indicates that the optimzation is not enabled for this image.
+            const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() <= 1);
             const bool isClearColorTcCompatible = IsFastClearColorMetaFetchable(pColor);
 
             SetNonTcCompatClearFlag(isClearColorTcCompatible == false);
@@ -1695,6 +1693,11 @@ void Image::InitFastClearEliminateMetaData(
 
     // Update the layout information against the fast-clear eliminate metadata.
     UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearEliminateMetaDataOffset, PredicationAlign);
+
+    // Initialize data structure for fast clear eliminate optimization. The GPU predicates fast clear eliminates
+    // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
+    // CPU cycles required to set up the fast clear eliminate.
+    m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
 }
 
 // =====================================================================================================================
@@ -2703,7 +2706,9 @@ bool Image::CanMipSupportMetaData(
     uint32 mip
     ) const
 {
-    return (m_gfxDevice.AllowMetaDataForAllMips() ||
+    // If there is no restriction on meta-data usage, then this mip level is good, otherwise, check the specified
+    // mip level against where the mip-tail begins.
+    return ((m_gfxDevice.Settings().waRestrictMetaDataUseInMipTail == false) ||
             (mip <= m_addrSurfOutput[0].firstMipIdInTail));
 }
 

@@ -115,7 +115,7 @@ public:
     virtual ~Gfx9ThreadTrace() {}
 
     // Returns the CU that was selected for this thread trace.
-    virtual uint32 GetComputeUnit() const override { return m_sqThreadTraceMask.bits.CU_SEL; }
+    virtual uint32 GetComputeUnit() const override { return m_sqThreadTraceMask.gfx09.CU_SEL; }
 
     virtual uint32* WriteSetupCommands(
         gpusize    baseGpuVirtAddr,
@@ -150,12 +150,18 @@ private:
     static constexpr uint32 RegMaskAll = 0xFF;
     /// Default thread trace CU mask: enable all CU's in a shader array.
     static constexpr uint32 ShCuMaskAll = 0xFFFF;
+    /// Max thread trace high water mark, in 1/8 fifo increment: 7 means stall when full
+    static constexpr uint32 HiWaterMax = 7;
+    /// Default thread trace high water mark: stall at 5/8 since data will still come in from already-issued waves
+    static constexpr uint32 HiWaterDefault = 4;
+    static_assert(HiWaterDefault <= HiWaterMax, "SQTT high water mark too large!");
 
-    regSQ_THREAD_TRACE_SIZE__GFX09        m_sqThreadTraceSize;      ///< Size of thread trace buffer
-    regSQ_THREAD_TRACE_MODE__GFX09        m_sqThreadTraceMode;      ///< Thread trace mode
-    regSQ_THREAD_TRACE_MASK__GFX09        m_sqThreadTraceMask;      ///< Thread trace wave mask
-    regSQ_THREAD_TRACE_TOKEN_MASK__GFX09  m_sqThreadTraceTokenMask; ///< Thread trace token mask
-    regSQ_THREAD_TRACE_PERF_MASK__GFX09   m_sqThreadTracePerfMask;  ///< Thread trace perf mask
+    regSQ_THREAD_TRACE_SIZE        m_sqThreadTraceSize;      ///< Size of thread trace buffer
+    regSQ_THREAD_TRACE_MODE        m_sqThreadTraceMode;      ///< Thread trace mode
+    regSQ_THREAD_TRACE_MASK        m_sqThreadTraceMask;      ///< Thread trace wave mask
+    regSQ_THREAD_TRACE_TOKEN_MASK  m_sqThreadTraceTokenMask; ///< Thread trace token mask
+    regSQ_THREAD_TRACE_PERF_MASK   m_sqThreadTracePerfMask;  ///< Thread trace perf mask
+    regSQ_THREAD_TRACE_HIWATER     m_sqThreadTraceHiWater;   ///< Thread trace high water mark
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9ThreadTrace);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9ThreadTrace);

@@ -118,7 +118,7 @@ Result SvmMgr::AllocVa(
     uint32  align,
     gpusize* pVirtualAddress)
 {
-    gpusize assignedVa;
+    gpusize assignedVa = 0;
     MutexAuto lock(&m_allocFreeVaLock);
 
     Result result = m_pSubAllocator->Allocate(size, align, &assignedVa);

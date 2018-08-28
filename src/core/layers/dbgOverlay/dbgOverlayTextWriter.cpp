@@ -107,14 +107,14 @@ void TextWriter::WriteVisualConfirm(
 
     uint32 textLines = 0;
 
-    if (strlen(settings.miscellaneousDebugString) > 0)
+    if (strlen(settings.debugOverlayConfig.miscellaneousDebugString) > 0)
     {
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.miscellaneousDebugString);
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.debugOverlayConfig.miscellaneousDebugString);
     }
 
-    if (strlen(settings.renderedByString) > 0)
+    if (strlen(settings.debugOverlayConfig.renderedByString) > 0)
     {
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.renderedByString);
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.debugOverlayConfig.renderedByString);
     }
     else
     {
@@ -164,7 +164,7 @@ void TextWriter::WriteVisualConfirm(
     // Blank line.
     textLines++;
 
-    if (settings.printFrameNumber)
+    if (settings.debugOverlayConfig.printFrameNumber)
     {
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "Frame #: %u", pFpsMgr->FrameCount());
     }
@@ -215,7 +215,7 @@ void TextWriter::WriteVisualConfirm(
     // Blank line.
     textLines++;
 
-    const bool combinedNonLocal = (settings.overlayCombineNonLocal);
+    const bool combinedNonLocal = (settings.overlayMemoryInfoConfig.combineNonLocal);
 
     const char* pHeaderFormatString = combinedNonLocal ? "%11s %10s | %10s | %10s" : "%11s %10s | %10s | %10s | %10s";
 
@@ -229,19 +229,19 @@ void TextWriter::WriteVisualConfirm(
     const char* pMemFormatString =
         combinedNonLocal ? "%10s: %10.2f | %10.2f | %10.2f" : "%10s: %10.2f | %10.2f | %10.2f | %10.2f";
 
-    if (settings.overlayReportExternal)
+    if (settings.overlayMemoryInfoConfig.reportExternal)
     {
         PrintMemoryInfo(*m_pDevice, pMemFormatString, "External",
                         AllocTypeExternal, combinedNonLocal, &overlayText[textLines++][0]);
     }
 
-    if (settings.overlayReportInternal)
+    if (settings.overlayMemoryInfoConfig.reportInternal)
     {
         PrintMemoryInfo(*m_pDevice, pMemFormatString, "Internal",
                         AllocTypeInternal, combinedNonLocal, &overlayText[textLines++][0]);
     }
 
-    if (settings.overlayReportCmdAllocator)
+    if (settings.overlayMemoryInfoConfig.reportCmdAllocator)
     {
         PrintMemoryInfo(*m_pDevice, pMemFormatString, "CmdAlloc",
                         AllocTypeCmdAlloc, combinedNonLocal, &overlayText[textLines++][0]);

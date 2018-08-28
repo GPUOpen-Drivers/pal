@@ -683,14 +683,14 @@ static constexpr LogCategoryMask LogCategoryMaskInternal    = (1 << static_cast<
 static constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(LogCategory::Display));
 
 /// Defines the modes that the GPU Profiling layer can be enabled with. If the GpuProfilerMode is
-/// GpuProfilerThreadTraceView or GpuProfilerRgp, then the GpuProfilerTraceModeMask is examined to configure
-/// the trace type (spm, sqtt or both) requested.
+/// GpuProfilerTraceEnabledTtv or GpuProfilerTraceEnabledRgp, then the GpuProfilerConfig_TraceModeMask is examined to
+/// configure the trace type (spm, sqtt or both) requested.
 enum GpuProfilerMode : uint32
 {
-    GpuProfilerDisabled            = 0, ///< Gpu Profiler is disabled.
-    GpuProfilerSqttOff             = 1, ///< Traces are disabled but perf counter and timing operations are enabled.
-    GpuProfilerSqttThreadTraceView = 2, ///< Traces are output in format (.csv, .out) for Thread trace viewer.
-    GpuProfilerSqttRgp             = 3, ///< Trace data is output as .rgp file for Radeon Gpu Profiler.
+    GpuProfilerDisabled              = 0, ///< Gpu Profiler is disabled.
+    GpuProfilerCounterAndTimingOnly  = 1, ///< Traces are disabled but perf counter and timing operations are enabled.
+    GpuProfilerTraceEnabledTtv       = 2, ///< Traces are output in format (.csv, .out) for Thread trace viewer.
+    GpuProfilerTraceEnabledRgp       = 3, ///< Trace data is output as .rgp file for Radeon Gpu Profiler.
 };
 
 /// Defines the modes that the GPU Profiling layer can be enabled with.

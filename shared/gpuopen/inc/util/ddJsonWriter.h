@@ -38,9 +38,8 @@
 //      http://rapidjson.org/md_doc_sax.html#Writer
 
 // Turn on all the bells and whistles
-// TODO: Make sure this will run on everything we need it to.
-//       If this does not, we may want to try using RAPIDJSON_SSE2.
-#define RAPIDJSON_SSE42
+// TODO: We may want to try using SSE2 for improved string parsing performance.
+// #define RAPIDJSON_SSE2
 #define RAPIDJSON_WRITE_DEFAULT_FLAGS (kWriteValidateEncodingFlag | kWriteNanAndInfFlag)
 
 #define RAPIDJSON_ASSERT(x) DD_ASSERT(x)

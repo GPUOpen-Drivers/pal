@@ -51,7 +51,6 @@
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx6/gfx6QueueContexts.h"
-#include "core/hw/gfxip/gfx6/gfx6SettingsLoader.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalEngine.h"
 #include "core/hw/gfxip/gfx6/gfx6StreamoutStatsQueryPool.h"
@@ -1383,8 +1382,7 @@ gpusize Device::CalcNumRecords(
     // On GFX8+ GPUs, the units of the "num_records" field is always in terms of bytes.
     gpusize numRecords = range;
 
-    if ((Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6) ||
-        (Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp7))
+    if (Parent()->ChipProperties().gfxLevel <= GfxIpLevel::GfxIp7)
     {
         // On GFX6 and GFX7 GPUs, the units of the "num_records" field is in terms of the stride.
         numRecords = (stride <= 1) ? range : (range / stride);
@@ -1807,25 +1805,26 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
 
     BufferSrd* pOutSrd = static_cast<BufferSrd*>(pOut);
 
-    for (uint32 idx = 0; idx < count; ++idx)
+    for (uint32 idx = 0; idx < count; ++idx, ++pBufferViewInfo)
     {
-        const BufferViewInfo& view = pBufferViewInfo[idx];
-        PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
+                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
 
-        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(view.gpuAddr);
+        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
 
-        pOutSrd->word1.u32All = ((HighPart(view.gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
-                                 (static_cast<uint32>(view.stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
+        pOutSrd->word1.u32All =
+            ((HighPart(pBufferViewInfo->gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
+             (static_cast<uint32>(pBufferViewInfo->stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
 
-        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(view.range, view.stride);
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(pBufferViewInfo->range, pBufferViewInfo->stride);
 
-        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
+        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
         uint32 word3Atc = 0;
         if (static_cast<const Pal::Device*>(pDevice)->MemoryProperties().flags.iommuv2Support)
         {
-            word3Atc = ((HighPart(view.gpuAddr) >> 0x10) != 0)
-                ? 0 : ((LowPart(view.gpuAddr) != 0) || ((HighPart(view.gpuAddr) & 0xFFFF) != 0));
+            word3Atc = ((HighPart(pBufferViewInfo->gpuAddr) >> 0x10) != 0) ?
+                0 : ((LowPart(pBufferViewInfo->gpuAddr) != 0) || ((HighPart(pBufferViewInfo->gpuAddr) & 0xFFFF) != 0));
         }
 
         pOutSrd->word3.u32All = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT)     |
@@ -2041,7 +2040,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
             break;
         case ImageTexOptLevel::Default:
         default:
-            texOptLevel = pGfxDevice->Settings().textureOptLevel;
+            texOptLevel = pGfxDevice->Parent()->Settings().textureOptLevel;
             break;
         }
 
@@ -3273,12 +3272,14 @@ void InitializeGpuEngineProperties(
 
 // =====================================================================================================================
 // Creates a GFX6 specific settings loader object
-Pal::SettingsLoader* CreateSettingsLoader(
-    Pal::Device* pDevice)
+Pal::ISettingsLoader* CreateSettingsLoader(
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
 {
     void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx6::SettingsLoader), alignof(Gfx6::SettingsLoader),
                                     pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx6::SettingsLoader (pDevice) : nullptr;
+
+    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx6::SettingsLoader(pAllocator, pDevice) : nullptr;
 }
 
 } // Gfx6

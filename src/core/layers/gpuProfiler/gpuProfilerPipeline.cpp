@@ -99,14 +99,12 @@ bool Pipeline::OpenUniqueDumpFile(
     const ShaderDumpInfo& dumpInfo
     ) const
 {
-    const char*const pLogDir = static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName();
     char fileName[512] = {};
 
     PAL_ASSERT(ShaderHashIsNonzero(dumpInfo.hash));
 
-    Util::Snprintf(&fileName[0], sizeof(fileName), "%s/%s/0x%016llX%016llX_%s.spd",
-                   m_pDevice->ProfilerSettings().gpuProfilerLogDirectory,
-                   pLogDir,
+    Util::Snprintf(&fileName[0], sizeof(fileName), "%s/0x%016llX%016llX_%s.spd",
+                   static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirPath(),
                    dumpInfo.hash.upper,
                    dumpInfo.hash.lower,
                    ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)]);

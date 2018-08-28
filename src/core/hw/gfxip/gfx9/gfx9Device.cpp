@@ -173,10 +173,6 @@ Device::Device(
         m_firstUserDataReg[shaderStage] = GetBaseUserDataReg(static_cast<HwShaderStage>(shaderStage)) +
                                           FastUserDataStartReg;
     }
-
-    m_workarounds.u32All                    = 0;
-    m_workarounds.waAllowMetaDataForAllMips = 1;
-
 }
 
 // =====================================================================================================================
@@ -365,17 +361,11 @@ Result Device::InitOcclusionResetMem()
     // First, we initialize our copy of the reset data for a single query slot.
     memset(&m_occlusionSlotResetValues[0], 0, sizeof(m_occlusionSlotResetValues));
 
-    // Because the reset data was initialized to zero, we only need to fill in the valid bits for the disabled RBs.
-    if (chipProps.gfx9.numActiveRbs < chipProps.gfx9.numTotalRbs)
+    // For GFX9+, rbs pack the results of active rbs in-order.
+    for (uint32 rb = chipProps.gfx9.numActiveRbs; rb < chipProps.gfx9.numTotalRbs; rb++)
     {
-        for (uint32 rb = 0; rb < chipProps.gfx9.numTotalRbs; rb++)
-        {
-            if ((chipProps.gfx9.backendDisableMask & (1 << rb)) != 0)
-            {
-                m_occlusionSlotResetValues[rb].begin.bits.valid = 1;
-                m_occlusionSlotResetValues[rb].end.bits.valid   = 1;
-            }
-        }
+        m_occlusionSlotResetValues[rb].begin.bits.valid = 1;
+        m_occlusionSlotResetValues[rb].end.bits.valid   = 1;
     }
 
     const Gfx9PalSettings& gfx9Settings = GetGfx9Settings(*m_pParent);
@@ -755,9 +745,10 @@ bool Device::DetermineHwStereoRenderingSupported(
     {
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
+            hwStereoRenderingSupported |= IsVega12(*Parent());
             if (hwStereoRenderingSupported)
             {
-                // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL__GFX09.
+                // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL.
                 constexpr uint32 RightEyeSliceOffsetBits = 2;
 
                 if (viewInstancingInfo.shaderUseViewId)
@@ -1679,28 +1670,29 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
 
     Gfx9BufferSrd* pOutSrd = static_cast<Gfx9BufferSrd*>(pOut);
 
-    for (uint32 idx = 0; idx < count; ++idx)
+    for (uint32 idx = 0; idx < count; ++idx, ++pBufferViewInfo)
     {
-        const BufferViewInfo& view = pBufferViewInfo[idx];
-        PAL_ASSERT((view.gpuAddr != 0) || ((view.range == 0) && (view.stride == 0)));
+        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) ||
+                   ((pBufferViewInfo->range == 0) && (pBufferViewInfo->stride == 0)));
 
-        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(view.gpuAddr);
+        pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
 
-        pOutSrd->word1.u32All = ((HighPart(view.gpuAddr) << SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT__GFX09) |
-                                 (static_cast<uint32>(view.stride) << SQ_BUF_RSRC_WORD1__STRIDE__SHIFT__GFX09));
+        pOutSrd->word1.u32All =
+            ((HighPart(pBufferViewInfo->gpuAddr) << Gfx09::SQ_BUF_RSRC_WORD1__BASE_ADDRESS_HI__SHIFT) |
+             (static_cast<uint32>(pBufferViewInfo->stride) << Gfx09::SQ_BUF_RSRC_WORD1__STRIDE__SHIFT));
 
-        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(view.range),
-                                                                     static_cast<uint32>(view.stride));
+        pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
+                                                                     static_cast<uint32>(pBufferViewInfo->stride));
 
-        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format));
+        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
-        pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT__GFX09)   |
-                                  (SQ_SEL_X << SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT__GFX09) |
-                                  (SQ_SEL_Y << SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT__GFX09) |
-                                  (SQ_SEL_Z << SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT__GFX09) |
-                                  (SQ_SEL_W << SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT__GFX09) |
-                                  (BUF_DATA_FORMAT_32 << SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT__GFX09) |
-                                  (BUF_NUM_FORMAT_UINT << SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT__GFX09));
+        pOutSrd->word3.u32All  = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)   |
+                                  (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
+                                  (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
+                                  (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
+                                  (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
+                                  (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                  (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
 
         pOutSrd++;
     }
@@ -1858,8 +1850,7 @@ static void GetSliceAddressOffsets(
     const SubResourceInfo*const            pSubResInfo     = pParent->SubresourceInfo(subResId);
     const auto*const                       pAddrOutput     = image.GetAddrOutput(pSubResInfo);
     const auto&                            surfSetting     = image.GetAddrSettings(pSubResInfo);
-    AddrMgr2::TileInfo*                    pTileInfo       =
-        const_cast<AddrMgr2::TileInfo*>(AddrMgr2::GetTileInfo(pParent, subResId));
+    const AddrMgr2::TileInfo*              pTileInfo       = AddrMgr2::GetTileInfo(pParent, subResId);
 
     inSliceXor.size            = sizeof(ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT);
     inSliceXor.swizzleMode     = surfSetting.swizzleMode;
@@ -2144,7 +2135,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             break;
         case ImageTexOptLevel::Default:
         default:
-            texOptLevel = pGfxDevice->Settings().textureOptLevel;
+            texOptLevel = static_cast<const Pal::Device*>(pDevice)->Settings().textureOptLevel;
             break;
         }
 
@@ -2687,6 +2678,11 @@ void InitializeGpuChipProperties(
 
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Linear)]           = true;
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Optimal)]          = true;
+    if (ASICREV_IS_VEGA12_P(pInfo->eRevId))
+    {
+        pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = false;
+    }
+    else
     {
         pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = true;
     }
@@ -2712,15 +2708,14 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
     pInfo->imageProperties.prtTileSize = PrtTileSize;
 
-    pInfo->gfx9.supports2BitSignedValues                 = 1;
-    pInfo->gfx9.supportConservativeRasterization         = 1;
-    pInfo->gfx9.supportPrtBlendZeroMode                  = 1;
-    pInfo->gfx9.supportPrimitiveOrderedPs                = 1;
-    pInfo->gfx9.supportLoadRegIndexPkt                   = 1;
-    pInfo->gfx9.supportImplicitPrimitiveShader           = 1;
-    pInfo->gfx9.supportFp16Fetch                         = 1;
-    pInfo->gfx9.support16BitInstructions                 = 1;
-    pInfo->gfx9.supportDoubleRate16BitInstructions       = 1;
+    pInfo->gfx9.supports2BitSignedValues           = 1;
+    pInfo->gfx9.supportConservativeRasterization   = 1;
+    pInfo->gfx9.supportPrtBlendZeroMode            = 1;
+    pInfo->gfx9.supportPrimitiveOrderedPs          = 1;
+    pInfo->gfx9.supportImplicitPrimitiveShader     = 1;
+    pInfo->gfx9.supportFp16Fetch                   = 1;
+    pInfo->gfx9.support16BitInstructions           = 1;
+    pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
     if (
         (cpUcodeVersion  >= UcodeVersionWithDumpOffsetSupport))
@@ -2761,6 +2756,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.maxGsWavesPerVgt     = 16;
         pInfo->gfx9.parameterCacheLines  = 1024;
         pInfo->gfx9.rbPlus               = 1;
+        pInfo->gfx9.numSdpInterfaces     = 2;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {
@@ -2787,9 +2783,21 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision = AsicRevision::Vega10;
             pInfo->gfxStepping = 0;
-            pInfo->gfx9.numTccBlocks    = 16;
-            pInfo->gfx9.maxNumCuPerSh   = 16;
-            pInfo->gfx9.maxNumRbPerSe   = 4;
+            pInfo->gfx9.numTccBlocks     = 16;
+            pInfo->gfx9.maxNumCuPerSh    = 16;
+            pInfo->gfx9.maxNumRbPerSe    = 4;
+            pInfo->gfx9.numSdpInterfaces = 16;
+        }
+        else if (ASICREV_IS_VEGA12_P(pInfo->eRevId))
+        {
+            pInfo->revision = AsicRevision::Vega12;
+            pInfo->gfxStepping = 4;
+            pInfo->gfx9.numTccBlocks         = 8;
+            pInfo->gfx9.maxNumCuPerSh        = 5;
+            pInfo->gfx9.maxNumRbPerSe        = 2;
+            pInfo->gfx9.rbPlus               = 1;
+            pInfo->gfx9.timestampResetOnIdle = 1;
+            pInfo->gfx9.numSdpInterfaces     = 8;
         }
         else
         {
@@ -2836,8 +2844,9 @@ void FinalizeGpuChipProperties(
     // We need to increase MaxNumRbs if this assert triggers.
     PAL_ASSERT(pInfo->gfx9.numTotalRbs <= MaxNumRbs);
 
-    // This will be overridden if any RBs are disabled.
-    pInfo->gfx9.numActiveRbs = pInfo->gfx9.numTotalRbs;
+    // Active RB counts will be overridden if any RBs are disabled.
+    pInfo->gfx9.numActiveRbs     = pInfo->gfx9.numTotalRbs;
+    pInfo->gfx9.activeNumRbPerSe = pInfo->gfx9.maxNumRbPerSe;
 
     // GPU__GC__NUM_SE
     pInfo->primsPerClock = pInfo->gfx9.numShaderEngines;
@@ -2850,8 +2859,10 @@ void FinalizeGpuChipProperties(
             const uint32 cuMask = pInfo->gfx9.activeCuMask[sa][se];
             const uint32 cuCount = CountSetBits(cuMask);
 
-            // It is expected that all SA's/SE's have the same number of CU's.
-            PAL_ASSERT((pInfo->gfx9.numCuPerSh == 0) || (pInfo->gfx9.numCuPerSh == cuCount));
+            // For gfx9 it is expected that all SA's/SE's have the same number of CU's.
+            PAL_ASSERT((pInfo->gfxLevel != GfxIpLevel::GfxIp9) ||
+                       (pInfo->gfx9.numCuPerSh == 0)           ||
+                       (pInfo->gfx9.numCuPerSh == cuCount));
             pInfo->gfx9.numCuPerSh = Max(pInfo->gfx9.numCuPerSh, cuCount);
         }
     }
@@ -2917,7 +2928,7 @@ void InitializeGpuEngineProperties(
     uint32               eRevId,
     GpuEngineProperties* pInfo)
 {
-    auto*const pUniversal = &pInfo->perEngine[EngineTypeUniversal];
+    auto*const  pUniversal = &pInfo->perEngine[EngineTypeUniversal];
 
     // We support If/Else/While on the universal and compute queues; the command stream controls the max nesting depth.
     pUniversal->flags.timestampSupport                = 1;
@@ -3032,16 +3043,15 @@ uint32 Device::GetPipeInterleaveLog2() const
 
 // =====================================================================================================================
 // Creates a GFX9 specific settings loader object
-Pal::SettingsLoader* CreateSettingsLoader(
-    Pal::Device* pDevice)
+Pal::ISettingsLoader* CreateSettingsLoader(
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
 {
-    void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx9::SettingsLoader),
-                                    alignof(Gfx9::SettingsLoader),
-                                    pDevice->GetPlatform(),
-                                    AllocInternal,
-                                    Util::MemBlkType::New);
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx9::SettingsLoader (pDevice) : nullptr;
-}
+    void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx9::SettingsLoader), alignof(Gfx9::SettingsLoader),
+        pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
+
+    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx9::SettingsLoader(pAllocator, pDevice) : nullptr;
+ }
 
 // =====================================================================================================================
 // Returns one of the BinSizeExtend enumerations that correspond to the specified bin-size.  Doesn't work for a bin
@@ -3049,22 +3059,34 @@ Pal::SettingsLoader* CreateSettingsLoader(
 uint32 Device::GetBinSizeEnum(
     uint32  binSize)
 {
-    constexpr uint32 BinSizeEnums[]=
-    {
-        BIN_SIZE_32_PIXELS,
-        BIN_SIZE_64_PIXELS,
-        BIN_SIZE_128_PIXELS,
-        BIN_SIZE_256_PIXELS,
-        BIN_SIZE_512_PIXELS,
-    };
+    uint32 binSizeEnum = 0;
 
     PAL_ASSERT ((binSize >= 32) && (binSize <= 512));
     PAL_ASSERT (IsPowerOfTwo(binSize));
-    const uint32  log2BinSize = Log2(binSize) - 5;
 
-    PAL_ASSERT (log2BinSize < sizeof(BinSizeEnums) / sizeof(uint32));
+    switch (binSize)
+    {
+    case 32:
+        binSizeEnum = BIN_SIZE_32_PIXELS;
+        break;
+    case 64:
+        binSizeEnum = BIN_SIZE_64_PIXELS;
+        break;
+    case 128:
+        binSizeEnum = BIN_SIZE_128_PIXELS;
+        break;
+    case 256:
+        binSizeEnum = BIN_SIZE_256_PIXELS;
+        break;
+    case 512:
+        binSizeEnum = BIN_SIZE_512_PIXELS;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
 
-    return BinSizeEnums[log2BinSize];
+    return binSizeEnum;
 }
 
 // =====================================================================================================================
@@ -3356,10 +3378,18 @@ const RegisterRange* Device::GetRegisterRange(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
         case RegRangeNonShadowed:
-            pRange         = Gfx9NonShadowedRanges;
-            *pRangeEntries = Gfx9NumNonShadowedRanges;
+            if (IsVega10(*Parent()) || IsRaven(*Parent()))
+            {
+                pRange         = Gfx90NonShadowedRanges;
+                *pRangeEntries = Gfx90NumNonShadowedRanges;
+            }
+            else
+            {
+                pRange         = Gfx91NonShadowedRanges;
+                *pRangeEntries = Gfx91NumNonShadowedRanges;
+            }
             break;
-#endif
+#endif // PAL_ENABLE_PRINTS_ASSERTS
 
         default:
             // What is this?
@@ -3390,8 +3420,7 @@ PM4PFP_CONTEXT_CONTROL Device::GetContextControl() const
     contextControl.bitfields2.load_gfx_sh_regs       = 1;
     contextControl.bitfields3.update_shadow_enables  = 1;
 
-    if ((ForceStateShadowing && Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt) ||
-        Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
+    if (ForceStateShadowing || Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
     {
         // If mid command buffer preemption is enabled, shadowing and loading must be enabled for all register types,
         // because the GPU state needs to be properly restored when this Queue resumes execution after being preempted.

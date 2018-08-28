@@ -25,13 +25,14 @@
 
 #pragma once
 
-#include "core/settingsLoader.h"
+#include "palSettingsLoader.h"
+#include "core/device.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+
+namespace Util { class IndirectAllocator; }
 
 namespace Pal
 {
-
-class Device;
 
 namespace Gfx6
 {
@@ -40,35 +41,35 @@ namespace Gfx6
 // This class is responsible for loading the Gfx6-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader : public Pal::SettingsLoader
+class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
-    SettingsLoader(Pal::Device* pDevice);
-
-    static const Gfx6PalSettings* GetSettings(const PalSettings* pSettings)
-        { return (static_cast<const Gfx6PalSettings*>(pSettings)); }
-
-protected:
-    virtual void HwlInit() override;
-    virtual void HwlValidateSettings() override;
-    virtual void HwlReadSettings() override;
-
-private:
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
     virtual ~SettingsLoader();
 
-    virtual void GenerateSettingHash() override;
+    virtual Result Init() override;
 
-    void OverrideGfx6Defaults();
+    const Gfx6PalSettings& GetSettings() const { return m_settings; }
+    void ValidateSettings(PalSettings* pSettings);
+    void OverrideDefaults(PalSettings* pSettings);
 
-    // auto-generated functions
-    static void Gfx6SetupDefaults(Gfx6PalSettings* pSettings);
-    void Gfx6ReadSettings(Gfx6PalSettings* pSettings);
-
-    // Private members
-    Gfx6PalSettings m_gfx6Settings;  ///< Gfx6 settings info
-
+private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
+
+    void GenerateSettingHash();
+
+    // Private members
+    Pal::Device*    m_pDevice;
+    Gfx6PalSettings m_settings;  ///< Gfx6 settings pointer
+
+    // auto-generated functions
+    virtual void SetupDefaults() override;
+    virtual void ReadSettings() override;
+    virtual void InitSettingsInfo() override;
+    virtual void DevDriverRegister() override;
+
+    const char* m_pComponentName = "Gfx6_Pal";
 };
 
 } // Gfx6

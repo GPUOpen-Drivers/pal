@@ -96,6 +96,7 @@ private:
     DeviceProperties         m_deviceProperties;
     Pal::ShaderDbgSettings   m_shaderDbgSettings;
 
+    bool                                        m_initialized;
     Util::Mutex                                 m_gpuMemoryLock;
     Util::List<IGpuMemory*, PlatformDecorator>  m_freeGpuMemory;
     Util::List<IGpuMemory*, PlatformDecorator>  m_usedGpuMemory;

@@ -42,33 +42,34 @@ PrefetchMgr::PrefetchMgr(
     // Default Gfx6 prefetching to off for now.  Will enable in a follow-up change.
     m_curPrefetchMask = 0;
 
-    const Gfx6PalSettings& settings = static_cast<const Device&>(m_device).Settings();
+    auto gfx6Settings = static_cast<const Device&>(m_device).Settings();
+    auto coreSettings = m_device.Parent()->Settings();
 
     memset(&m_prefetchDescriptors[0], 0, sizeof(m_prefetchDescriptors));
 
     // Initialize prefetch methods.
-    m_prefetchDescriptors[PrefetchVs].method = settings.shaderPrefetchMethod;
-    m_prefetchDescriptors[PrefetchHs].method = settings.shaderPrefetchMethod;
-    m_prefetchDescriptors[PrefetchDs].method = settings.shaderPrefetchMethod;
-    m_prefetchDescriptors[PrefetchGs].method = settings.shaderPrefetchMethod;
-    m_prefetchDescriptors[PrefetchPs].method = settings.shaderPrefetchMethod;
-    m_prefetchDescriptors[PrefetchCs].method = settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchVs].method = gfx6Settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchHs].method = gfx6Settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchDs].method = gfx6Settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchGs].method = gfx6Settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchPs].method = gfx6Settings.shaderPrefetchMethod;
+    m_prefetchDescriptors[PrefetchCs].method = gfx6Settings.shaderPrefetchMethod;
 
     // Initialize prefetch minimum sizes.
-    m_prefetchDescriptors[PrefetchVs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchHs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchDs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchGs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchPs].minSize = settings.shaderPrefetchMinSize;
-    m_prefetchDescriptors[PrefetchCs].minSize = settings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchVs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchHs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchDs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchGs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchPs].minSize = coreSettings.shaderPrefetchMinSize;
+    m_prefetchDescriptors[PrefetchCs].minSize = coreSettings.shaderPrefetchMinSize;
 
     // Initialize prefetch clamp sizes.
-    m_prefetchDescriptors[PrefetchVs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchHs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchDs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchGs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchPs].clampSize = settings.shaderPrefetchClampSize;
-    m_prefetchDescriptors[PrefetchCs].clampSize = settings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchVs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchHs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchDs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchGs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchPs].clampSize = coreSettings.shaderPrefetchClampSize;
+    m_prefetchDescriptors[PrefetchCs].clampSize = coreSettings.shaderPrefetchClampSize;
 }
 
 // =====================================================================================================================
@@ -110,6 +111,7 @@ uint32* PrefetchMgr::RequestPrefetch(
                 dmaDataInfo.srcAddrSpace = CPDMA_ADDR_SPACE_MEM;
                 dmaDataInfo.srcSel       = CPDMA_SRC_SEL_SRC_ADDR_USING_L2;
                 dmaDataInfo.numBytes     = static_cast<uint32>(sizeInBytes);
+                dmaDataInfo.disableWc    = true;
 
                 pCmdSpace += device.CmdUtil().BuildDmaData(dmaDataInfo, pCmdSpace);
             }

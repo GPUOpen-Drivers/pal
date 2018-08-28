@@ -36,6 +36,7 @@
 #include "palIntrusiveList.h"
 #include "palMutex.h"
 #include "palPipeline.h"
+#include "palSysMemory.h"
 #include "palTextWriter.h"
 
 #include "core/hw/amdgpu_asic.h"
@@ -78,6 +79,11 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
+
+// Represents the maximum number of UMC channels. UMC is the block that interfaces between the Scalable Data Fabric
+// (SDF) and the physical DRAM. Each UMC block has 1..n channels. Typically, there is one UMC channel per EA block, or
+// one per SDP (Scalable Data Port).
+constexpr uint32 MaxNumUmcChannels = 32;
 
 // Internal representation of the IDevice::m_pfnTable structure.
 struct DeviceInterfacePfnTable
@@ -307,7 +313,8 @@ struct GpuEngineProperties
                 uint32 supportsMidCmdBufPreemption     :  1;
                 uint32 supportSvm                      :  1;
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
-                uint32 reserved                        : 13;
+                uint32 mustUseSvmIfSupported           :  1;
+                uint32 reserved                        : 12;
             };
             uint32 u32All;
         } flags;
@@ -391,6 +398,10 @@ struct Gfx6PerfCounterInfo
 #if PAL_BUILD_GFX9
 // Maximum amount of counters per GPU block for Gfx9
 constexpr size_t MaxCountersPerBlock = 16;
+constexpr size_t MaxUmcCountersPerBlock = 5;
+
+// Maximum number of UMC perf counter registers exposed to SW, per UMC channel.
+constexpr size_t MaxCountersPerUmcch = 5;
 
 // Contains information for perf counters for Gfx9
 struct Gfx9PerfCounterInfo
@@ -420,6 +431,22 @@ struct Gfx9PerfCounterInfo
             uint32  perfRsltCntlRegAddr;            // Perf result control register offset
         } regInfo[MaxCountersPerBlock];             // Register information for each counter
     } block[static_cast<size_t>(GpuBlock::Count)];  // Counter information for each GPU block
+
+    struct
+    {
+        struct
+        {
+            uint32 ctlClkRegAddr;                   // Per channel global control register address.
+
+            struct
+            {
+                uint32 ctrControlRegAddr;            // Perf counter event select register.
+                uint32 resultRegLoAddr;              // Perf counter result register LO address. 32 bits.
+                uint32 resultRegHiAddr;              // Perf counter result register HI address. 16 valid bits.
+            } counter[MaxCountersPerUmcch];
+        } regInfo[MaxNumUmcChannels];
+    } umcChannelBlocks;                              // This struct is valid only when the available boolean above is
+                                                     // true for GpuBlock::Umcch.
 };
 #endif // PAL_BUILD_GFX9
 
@@ -469,8 +496,9 @@ struct GpuChipProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
+                uint32 reservedForFutureHw          :  1;
                 /// Reserved for future use.
-                uint32 reserved                     : 30;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;
@@ -609,6 +637,7 @@ struct GpuChipProperties
             uint32 numShaderEngines;
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
+            uint32 activeNumRbPerSe;
             uint32 wavefrontSize;
             uint32 numShaderVisibleSgprs;
             uint32 numPhysicalSgprs;
@@ -633,6 +662,8 @@ struct GpuChipProperties
             uint32 activeCuMask[4][4];
             uint32 alwaysOnCuMask[4][4];
 
+            uint32 numSdpInterfaces;          // Number of Synchronous Data Port interfaces to memory.
+
             struct
             {
 
@@ -651,17 +682,17 @@ struct GpuChipProperties
                 uint32 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
                 uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
-                uint32 supportLoadRegIndexPkt                   :  1; // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
                                                                       // and SET_SH_REG_OFFSET indexed packet.
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  3; // Placeholder. Do not use.
+                uint32 placeholder1                             :  4; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
-                uint32 reserved                                 :  8;
+                uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint32 reserved                                 :  7;
             };
 
             struct
@@ -844,7 +875,7 @@ public:
         { return m_dbgOverlaySettings; }
     virtual const GpuProfilerSettings& GetGpuProfilerSettings() const override
         { return m_gpuProfilerSettings; }
-    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const override
+    virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const override
         { return m_interfaceLoggerSettings; }
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
@@ -1285,6 +1316,14 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override;
 
+    // NOTE: Part of the public IDevice interface.
+    virtual const char* GetCacheFilePath() const override
+        { return m_cacheFilePath; }
+
+    // NOTE: Part of the public IDevice interface.
+    virtual const char* GetDebugFilePath() const override
+        { return m_debugFilePath; }
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,
@@ -1446,8 +1485,6 @@ public:
         { m_pPlatform->DeveloperCb(m_deviceIndex, type, pCbData); }
 
     virtual bool HwsTrapHandlerPresent() const { return false; }
-
-    virtual const char* GetCacheFilePath() const = 0;
 
     // Determines the start (inclusive) and end (exclusive) virtual addresses for the specified virtual address range.
     void VirtualAddressRange(VaPartition vaPartition, gpusize* pStartVirtAddr, gpusize* pEndVirtAddr) const;
@@ -1628,9 +1665,7 @@ protected:
     GfxDevice*         m_pGfxDevice;
     OssDevice*         m_pOssDevice;
 
-#if PAL_BUILD_GPUOPEN
     GpuUtil::TextWriter<Platform>*     m_pTextWriter;
-#endif
     uint32                             m_devDriverClientId;
 
     FlglState                          m_flglState;
@@ -1650,10 +1685,12 @@ protected:
     Pal::GdsInfo  m_gdsInfo[EngineTypeCount][MaxAvailableEngines];
     bool          m_perPipelineBindPointGds;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     // A mask of SwapChainModeSupport flags for each present mode.
     // This indicates which kinds of swap chains can be
     // created depending on the client's intended present mode.
     uint32 m_supportedSwapChainModes[static_cast<uint32>(PresentMode::Count)];
+#endif
 
     char  m_gpuName[MaxDeviceName];
 
@@ -1694,7 +1731,11 @@ protected:
     CmdBufferLoggerSettings m_cmdBufLoggerSettings;
     DebugOverlaySettings    m_dbgOverlaySettings;
     GpuProfilerSettings     m_gpuProfilerSettings;
-    InterfaceLoggerSettings m_interfaceLoggerSettings;
+    InterfaceLoggerConfig  m_interfaceLoggerSettings;
+
+    // Get*FilePath need to return a persistent storage
+    char m_cacheFilePath[MaxPathStrLen];
+    char m_debugFilePath[MaxPathStrLen];
 
 private:
     Result HwlEarlyInit();
@@ -1710,17 +1751,18 @@ private:
 
     void CopyLayerSettings();
 
-    AddrMgr*              m_pAddrMgr;
-    CmdAllocator*         m_pTrackedCmdAllocator;
-    CmdAllocator*         m_pUntrackedCmdAllocator;
-    SettingsLoader*       m_pSettingsLoader;
-    const uint32          m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
-    const size_t          m_deviceSize;
-    const HwIpDeviceSizes m_hwDeviceSizes;
-    const uint32          m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
-    volatile uint32       m_frameCnt;  // Device frame count
-    ImageTexOptLevel      m_texOptLevel; // Client specified texture optimize level for internally-created views
-    ScreenColorSpace      m_hdrColorspaceFormat;  // Current HDR Colorspace Format
+    AddrMgr*                 m_pAddrMgr;
+    CmdAllocator*            m_pTrackedCmdAllocator;
+    CmdAllocator*            m_pUntrackedCmdAllocator;
+    SettingsLoader*          m_pSettingsLoader;
+    Util::IndirectAllocator  m_allocator;
+    const uint32             m_deviceIndex;       // Unique index of this GPU compared to all other GPUs in the system.
+    const size_t             m_deviceSize;
+    const HwIpDeviceSizes    m_hwDeviceSizes;
+    const uint32             m_maxSemaphoreCount; // The OS-specific GPU semaphore max signal count.
+    volatile uint32          m_frameCnt;  // Device frame count
+    ImageTexOptLevel         m_texOptLevel; // Client specified texture optimize level for internally-created views
+    ScreenColorSpace         m_hdrColorspaceFormat;  // Current HDR Colorspace Format
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);
@@ -1789,8 +1831,6 @@ extern void InitializeGpuEngineProperties(
     uint32               eRevId,
     GpuEngineProperties* pInfo);
 
-// Creates SettingsLoader object for GFXIP 6/7/8 hardware
-extern Pal::SettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx6
 #endif
 
@@ -1826,9 +1866,6 @@ extern void InitializeGpuEngineProperties(
     uint32               familyId,
     uint32               eRevId,
     GpuEngineProperties* pInfo);
-
-// Creates SettingsLoader object for GFXIP 9+ hardware
-extern Pal::SettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 }
 #endif // PAL_BUILD_GFX9
 
@@ -2011,6 +2048,11 @@ PAL_INLINE bool IsStoney(const Device& device)
 PAL_INLINE bool IsVega10(const Device& device)
 {
     return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+
+PAL_INLINE bool IsVega12(const Device& device)
+{
+    return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
 PAL_INLINE bool IsRaven(const Device& device)

@@ -54,7 +54,7 @@ public:
 
     virtual Result OpenPeerMemory() override;
 
-    virtual Result OpenSharedMemory() override;
+    virtual Result OpenSharedMemory(OsExternalHandle handle) override;
 
     virtual Result OsMap(void** ppData) override;
 

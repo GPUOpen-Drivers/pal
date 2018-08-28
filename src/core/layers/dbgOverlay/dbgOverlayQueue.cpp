@@ -381,7 +381,7 @@ Result Queue::SubmitOverlayCmdBuffer(
 
         const auto& settings = m_pDevice->OverlaySettings();
 
-        if (settings.visualConfirmEnabled == true)
+        if (settings.debugOverlayConfig.visualConfirmEnabled == true)
         {
             const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
             const ExpectedPresentMode expectedMode =
@@ -396,7 +396,7 @@ Result Queue::SubmitOverlayCmdBuffer(
             pTrackedCmdBuffer->pCmdBuffer->CmdBarrier(barrier);
         }
 
-        if (settings.timeGraphEnabled == true)
+        if (settings.debugOverlayConfig.timeGraphEnabled == true)
         {
             m_pDevice->GetTimeGraph().DrawVisualConfirm(image, pTrackedCmdBuffer->pCmdBuffer);
 

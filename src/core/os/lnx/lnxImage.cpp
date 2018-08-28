@@ -50,7 +50,8 @@ Image::Image(
                createInfo,
                internalCreateInfo),
     m_presentImageHandle(0),
-    m_pWindowSystem(nullptr)
+    m_pWindowSystem(nullptr),
+    m_framebufferId(0)
 {
 }
 
@@ -227,9 +228,8 @@ Result Image::UpdateExternalImageInfo(
         // can destroy this image handle later on.
         pLnxImage->m_pWindowSystem = pWindowSystem;
 
-        result = pWindowSystem->CreatePresentableImage(*pLnxImage,
-                                                       sharedBufferFd,
-                                                       &pLnxImage->m_presentImageHandle);
+        result = pWindowSystem->CreatePresentableImage(pLnxImage,
+                                                       sharedBufferFd);
     }
 
     return result;
@@ -416,62 +416,60 @@ Result Image::CreateExternalSharedImage(
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);
     internalCreateInfo.flags.useSharedTilingOverrides = 1;
 
-    if (createInfo.flags.optimalShareable)
+    if (pMetadata->flags.optimal_shareable)
     {
-        if (pMetadata->flags.optimal_shareable)
+        auto*const pUmdSharedMetadata =
+            reinterpret_cast<const amdgpu_shared_metadata_info*>
+            (&pMetadata->shared_metadata_info);
+        internalCreateInfo.flags.useSharedMetadata = 1;
+
+        internalCreateInfo.sharedMetadata.dccOffset = pUmdSharedMetadata->dcc_offset;
+        internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
+        internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
+        internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
+
+        internalCreateInfo.sharedMetadata.flags.shaderFetchable =
+            pUmdSharedMetadata->flags.shader_fetchable;
+        internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
+            pUmdSharedMetadata->flags.shader_fetchable_fmask;
+        internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
+            pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
+        internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
+            pUmdSharedMetadata->flags.has_eq_gpu_access;
+        internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
+            pUmdSharedMetadata->flags.has_htile_lookup_table;
+
+        internalCreateInfo.sharedMetadata.fastClearMetaDataOffset =
+            pUmdSharedMetadata->fast_clear_value_offset;
+        internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset =
+            pUmdSharedMetadata->fce_state_offset;
+
+        if (pUmdSharedMetadata->dcc_offset != 0)
         {
-            auto*const pUmdSharedMetadata =
-                reinterpret_cast<const amdgpu_shared_metadata_info*>
-                    (&pMetadata->shared_metadata_info);
-            internalCreateInfo.flags.useSharedMetadata = 1;
-
-            internalCreateInfo.sharedMetadata.dccOffset   = pUmdSharedMetadata->dcc_offset;
-            internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
-            internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
-            internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
-
-            internalCreateInfo.sharedMetadata.flags.shaderFetchable =
-                pUmdSharedMetadata->flags.shader_fetchable;
-            internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
-                pUmdSharedMetadata->flags.shader_fetchable_fmask;
-            internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
-                pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
-            internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
-                pUmdSharedMetadata->flags.has_eq_gpu_access;
-            internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
-                pUmdSharedMetadata->flags.has_htile_lookup_table;
-
-            internalCreateInfo.sharedMetadata.fastClearMetaDataOffset =
-                pUmdSharedMetadata->fast_clear_value_offset;
-            internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset =
-                pUmdSharedMetadata->fce_state_offset;
-
-            if (pUmdSharedMetadata->dcc_offset != 0)
-            {
-                internalCreateInfo.sharedMetadata.dccStateMetaDataOffset =
-                    pUmdSharedMetadata->dcc_state_offset;
-            }
-            else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
-            {
-                internalCreateInfo.sharedMetadata.htileLookupTableOffset =
-                    pUmdSharedMetadata->htile_lookup_table_offset;
-            }
-
-            if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
-            {
-                PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
-                internalCreateInfo.gfx9.sharedPipeBankXorFmask =
-                    LowPart(internalCreateInfo.sharedMetadata.htileOffset);
-                internalCreateInfo.sharedMetadata.htileOffset  = 0;
-            }
-
-            internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
+            internalCreateInfo.sharedMetadata.dccStateMetaDataOffset =
+                pUmdSharedMetadata->dcc_state_offset;
         }
-        else
+        else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
         {
-            createInfo.flags.optimalShareable = 0;
-            createInfo.flags.noMetadata       = 1;
+            internalCreateInfo.sharedMetadata.htileLookupTableOffset =
+                pUmdSharedMetadata->htile_lookup_table_offset;
         }
+
+        if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
+        {
+            PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
+            internalCreateInfo.gfx9.sharedPipeBankXorFmask =
+                LowPart(internalCreateInfo.sharedMetadata.htileOffset);
+            internalCreateInfo.sharedMetadata.htileOffset = 0;
+        }
+
+        internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
+        createInfo.flags.optimalShareable = 1;
+    }
+    else
+    {
+        createInfo.flags.optimalShareable = 0;
+        createInfo.flags.noMetadata = 1;
     }
 
     Pal::Image* pImage = nullptr;

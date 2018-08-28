@@ -200,6 +200,16 @@ void VamMgr::FreePageTableBlock(
 }
 
 // =====================================================================================================================
+// Returns true if the VA partition may be managed by VAM.
+bool VamMgr::IsVamPartition(
+    VaPartition vaPartition
+    ) const
+{
+    // Call the singleton, which controls the VA partition reservations
+    return VamMgrSingleton::IsVamPartition(vaPartition);
+}
+
+// =====================================================================================================================
 // VAM system memory allocation callback.
 void* VAM_STDCALL VamMgr::AllocSysMemCb(
     VAM_CLIENT_HANDLE hClient,
@@ -495,46 +505,37 @@ void VamMgrSingleton::FreeVirtualAddress(
 }
 
 // =====================================================================================================================
+// Return true for the partitions that may be reserved by VamMgrSingleton
+bool VamMgrSingleton::IsVamPartition(
+    VaPartition vaPartition)
+{
+    return ((vaPartition == VaPartition::DescriptorTable)       ||
+            (vaPartition == VaPartition::ShadowDescriptorTable) ||
+            (vaPartition == VaPartition::Svm));
+}
+
+// =====================================================================================================================
 // Reserves fixed VA ranges on the first logical PAL device and updates memory properties with the reserved ranges.
 Result VamMgrSingleton::GetReservedVaRange(
     const DrmLoaderFuncs& drmFuncs,
     amdgpu_device_handle  devHandle,
-    bool                  isDtifEnabled,
     GpuMemoryProperties*  pMemoryProperties)
 {
     PAL_ASSERT(pVamMgrSingleton != nullptr);
     MutexAuto lock(&pVamMgrSingleton->m_vaMapLock);
 
-    constexpr gpusize _4GB = (1ull << 32u);
+    Result result = Result::Success;
+    auto*  pInfo  = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
 
-    // Indicates a type of VA partition and the VA size required.
-    struct VaSchema
-    {
-        VaPartition vaType;
-        gpusize     vaSize;
-    };
-
-    Result  result = Result::Success;
-
-    // The default schema of pre-allocated VA partitions.
-    VaSchema vaDefault[static_cast<uint32>(VaPartition::Count)] = {
-        { VaPartition::Default, 0 },
-        { VaPartition::DefaultBackup, 0 },
-        { VaPartition::DescriptorTable, _4GB },
-        { VaPartition::ShadowDescriptorTable, _4GB },
-        { VaPartition::Svm, pMemoryProperties->vaRange[static_cast<uint32>(VaPartition::Svm)].size },
-        { VaPartition::Prt, 0 }
-    };
-    auto* pInfo = pVamMgrSingleton->m_reservedVaMap.FindKey(devHandle);
     if (pInfo != nullptr)
     {
         ++pInfo->devCounter;
         for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
         {
-            if (vaDefault[partIndex].vaSize > 0)
+            if ((pMemoryProperties->vaRange[partIndex].size > 0) &&
+                IsVamPartition(static_cast<VaPartition>(partIndex)))
             {
                 pMemoryProperties->vaRange[partIndex].baseVirtAddr = pInfo->baseVirtualAddr[partIndex];
-                pMemoryProperties->vaRange[partIndex].size         = vaDefault[partIndex].vaSize;
             }
         }
     }
@@ -544,13 +545,14 @@ Result VamMgrSingleton::GetReservedVaRange(
         int32 ret = 0;
         for (uint32 partIndex = 0; partIndex < static_cast<uint32>(VaPartition::Count); partIndex++)
         {
-            if (vaDefault[partIndex].vaSize > 0)
+            if ((pMemoryProperties->vaRange[partIndex].size > 0) &&
+                IsVamPartition(static_cast<VaPartition>(partIndex)))
             {
                 ret |= drmFuncs.pfnAmdgpuVaRangeAlloc(
                     devHandle,
                     amdgpu_gpu_va_range_general,
-                    vaDefault[partIndex].vaSize,
-                    _4GB,
+                    pMemoryProperties->vaRange[partIndex].size,
+                    pMemoryProperties->fragmentSize,
                     pMemoryProperties->vaRange[partIndex].baseVirtAddr,
                     &info.baseVirtualAddr[partIndex],
                     &info.allocatedVa[partIndex],
@@ -559,7 +561,6 @@ Result VamMgrSingleton::GetReservedVaRange(
                            ((pMemoryProperties->vaRange[partIndex].baseVirtAddr != 0) &&
                            (pMemoryProperties->vaRange[partIndex].baseVirtAddr == info.baseVirtualAddr[partIndex])));
                 pMemoryProperties->vaRange[partIndex].baseVirtAddr = info.baseVirtualAddr[partIndex];
-                pMemoryProperties->vaRange[partIndex].size         = vaDefault[partIndex].vaSize;
             }
         }
         if (ret != 0)

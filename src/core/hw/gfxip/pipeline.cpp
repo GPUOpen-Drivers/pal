@@ -31,9 +31,7 @@
 #include "palFile.h"
 #include "palPipelineAbiProcessorImpl.h"
 
-#if PAL_BUILD_GPUOPEN
 #include "core/devDriverUtil.h"
-#endif
 
 using namespace Util;
 
@@ -486,16 +484,17 @@ void Pipeline::DumpPipelineElf(
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     const PalSettings& settings = m_pDevice->Settings();
-    const uint64 hashToDump = settings.logPipelineHash;
+    uint64 hashToDump = settings.pipelineLogConfig.logPipelineHash;
+    bool hashMatches = ((hashToDump == 0) || (m_info.compilerHash == hashToDump));
 
-    const bool hashMatches   = (hashToDump == 0) || (m_info.compilerHash == hashToDump);
-    const bool dumpInternal  = TestAnyFlagSet(settings.logPipelines, PipelineLogInternal);
-    const bool dumpExternal  = TestAnyFlagSet(settings.logPipelines, PipelineLogExternal);
-    const bool dumpPipeline  = (hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
+    const bool dumpInternal  = settings.pipelineLogConfig.logInternal;
+    const bool dumpExternal  = settings.pipelineLogConfig.logExternal;
+    const bool dumpPipeline  =
+        (hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
 
     if (dumpPipeline)
     {
-        const char*const pLogDir = &settings.pipelineLogDirectory[0];
+        const char*const pLogDir = &settings.pipelineLogConfig.pipelineLogDirectory[0];
         const char*const pName   = abiProcessor.GetPipelineName();
 
         char fileName[512] = { };
@@ -514,7 +513,6 @@ void Pipeline::DumpPipelineElf(
     }
 #endif
 
-#if PAL_BUILD_GPUOPEN
     PipelineDumpService* pDumpService = m_pDevice->GetPlatform()->GetPipelineDumpService();
     if (pDumpService != nullptr)
     {
@@ -522,7 +520,6 @@ void Pipeline::DumpPipelineElf(
                                        static_cast<uint32>(m_pipelineBinaryLen),
                                        m_info.compilerHash);
     }
-#endif
 }
 
 } // Pal

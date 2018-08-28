@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 34
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 35
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
@@ -44,6 +44,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 35.0    | Updated Settings URI enum SettingType to avoid X11 macro name collision.                                 |
 *| 34.0    | Updated URI services to define a version number for each service.                                        |
 *| 33.0    | Abstracts URIRequestContext into an abstract interface.                                                  |
 *| 32.0    | Updated RGPClient::EndTrace to support user specified timeout values. This allows tools to support       |
@@ -139,6 +140,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_SETTINGS_URI_LINUX_BUILD 35
 #define GPUOPEN_VERSIONED_URI_SERVICES_VERSION 34
 #define GPUOPEN_URIINTERFACE_CLEANUP_VERSION 33
 #define GPUOPEN_LONG_RGP_TRACES_VERSION 32

@@ -104,8 +104,8 @@ struct NullDepthStencilPm4Img
     {
         struct
         {
-            regDB_Z_INFO__GFX09          dbZInfo;
-            regDB_STENCIL_INFO__GFX09    dbStencilInfo;
+            regDB_Z_INFO                 dbZInfo;
+            regDB_STENCIL_INFO           dbStencilInfo;
             regDB_Z_READ_BASE            dbZReadBase;
             regDB_Z_READ_BASE_HI         dbZReadBaseHi;
             regDB_STENCIL_READ_BASE      dbStencilReadBase;
@@ -874,10 +874,7 @@ private:
 
     bool HasStreamOutBeenSet() const;
 
-    void SynchronizeCeDeCounters(
-        uint32** ppDeCmdSpace,
-        uint32** ppCeCmdSpace);
-
+    uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
     Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.packetPredicate); }
@@ -1050,7 +1047,7 @@ private:
     WorkaroundState              m_workaroundState;
     UniversalCmdBufferState      m_state; // State tracking for internal cmd buffer operations
 
-    regVGT_DMA_INDEX_TYPE__GFX09 m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
+    regVGT_DMA_INDEX_TYPE        m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
     regSPI_VS_OUT_CONFIG         m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
     regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
     regPA_SC_SHADER_CONTROL      m_paScShaderControl;   // Register setting for PA_SC_SHADER_CONTROL

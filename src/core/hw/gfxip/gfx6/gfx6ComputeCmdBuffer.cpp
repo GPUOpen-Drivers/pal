@@ -80,8 +80,9 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    const bool sqttEnabled = (device.Settings().gpuProfilerMode > GpuProfilerSqttOff) &&
-                              TestAnyFlagSet(device.Settings().gpuProfilerTraceModeMask, GpuProfilerTraceSqtt);
+    const PalSettings& settings = m_device.Parent()->Settings();
+    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             (TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     if (issueSqttMarkerEvent)
@@ -108,6 +109,14 @@ Result ComputeCmdBuffer::Init(
     if (result == Result::Success)
     {
         result = m_cmdStream.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        // The indirect user data tables immediately follow the command buffer object in memory. The GfxIp-specific
+        // command buffer object's size must be used in order to ensure the location is correct.
+        SetupIndirectUserDataTables(reinterpret_cast<uint32*>(this + 1));
+
     }
 
     return result;

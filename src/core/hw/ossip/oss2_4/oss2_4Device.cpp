@@ -187,6 +187,14 @@ void InitializeGpuEngineProperties(
 
     pDma->flags.timestampSupport               = 1;
     pDma->flags.memoryPredicationSupport       = 1;
+
+    // For gfx8(ossip 2.4) APUs(Carrizo, Bristol, ...), on SDMA queue that supports SVM mode, UMD has to
+    // use SVM mode. That is said, non-SVM mode is not supported on SDMA queue that supports SVM mode. The
+    // limitation does not exist on other queues and will not exsist on gfx9 APUs. So we don't report SDMA
+    // queues that supports SVM mode(like SDMA1 on Bristol) as available for ossip 2.4 asics if client does
+    // not switch on SVM mode. In Device::InitMemoryProperties we'll skip reporting the queue if
+    // mustUseSvmIfSupported has been set to 1.
+    pDma->flags.mustUseSvmIfSupported          = 1;
     pDma->minTiledImageCopyAlignment.width     = 8;
     pDma->minTiledImageCopyAlignment.height    = 8;
     pDma->minTiledImageCopyAlignment.depth     = 8;

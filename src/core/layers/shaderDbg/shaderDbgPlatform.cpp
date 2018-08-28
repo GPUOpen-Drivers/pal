@@ -26,8 +26,6 @@
 #include "core/layers/shaderDbg/shaderDbgCmdBuffer.h"
 #include "core/layers/shaderDbg/shaderDbgDevice.h"
 #include "core/layers/shaderDbg/shaderDbgPlatform.h"
-#include "palSysUtil.h"
-#include <ctime>
 
 using namespace Util;
 
@@ -44,21 +42,6 @@ Platform::Platform(
     :
     PlatformDecorator(allocCb, ShaderDbgCb, enabled, enabled, pNextPlatform) // ShaderDbg doesn't install callback
 {
-    // Create a directory name that will hold any dumped logs this session.  The name will be composed of the executable
-    // name and current data/time, looking something like this: app.exe_2015-08-26_07.49.20.
-    char  executableNameBuffer[256];
-    char* pExecutableName;
-    GetExecutableName(&executableNameBuffer[0], &pExecutableName, sizeof(executableNameBuffer));
-
-    time_t rawTime;
-    time(&rawTime);
-
-    struct tm* pTimeInfo = localtime(&rawTime);
-
-    char dateTimeBuffer[64];
-    strftime(&dateTimeBuffer[0], sizeof(dateTimeBuffer), "%Y-%m-%d_%H.%M.%S", pTimeInfo);
-
-    Snprintf(&m_logDirName[0], sizeof(m_logDirName), "%s_%s", pExecutableName, &dateTimeBuffer[0]);
 }
 
 // =====================================================================================================================

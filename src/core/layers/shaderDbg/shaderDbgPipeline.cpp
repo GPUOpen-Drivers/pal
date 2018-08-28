@@ -75,32 +75,20 @@ bool Pipeline::OpenUniqueDumpFile(
     const ShaderDumpInfo& dumpInfo
     ) const
 {
-    const char*const pLogDir = m_pDevice->GetShaderDbgSettings().shaderDbgDirectory;
     char fileName[512] = {};
 
     const char* pDrawString     = "DRAW";
     const char* pDispatchString = "DISPATCH";
 
-    // NOTE: We avoid using MkDirRecursively here because it makes assumptions based on the OS you are on.
-    //       It's safer, from this layer, to just make the directories individually ourselves.
-    Result result = Util::MkDir(pLogDir);
+    // This will create the log directory the first time it is called.
+    Result result = m_pPlatform->CreateLogDir(m_pDevice->GetShaderDbgSettings().shaderDbgDirectory);
 
-    if ((result == Result::Success) || (result == Result::AlreadyExists))
+    if (result == Result::Success)
     {
-        Util::Snprintf(&fileName[0],
+        Util::Snprintf(fileName,
                        sizeof(fileName),
-                       "%s/%s",
-                       pLogDir,
-                       static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirName());
-        result = Util::MkDir(&fileName[0]);
-    }
-
-    if ((result == Result::Success) || (result == Result::AlreadyExists))
-    {
-        const size_t endOfString = strlen(&fileName[0]);
-        Util::Snprintf(&fileName[endOfString],
-                       sizeof(fileName) - endOfString + 1,
-                       "/0x%016llX_0x%016llX",
+                       "%s/0x%016llX_0x%016llX",
+                       m_pPlatform->LogDirPath(),
                        dumpInfo.compilerHash,
                        dumpInfo.pipelineHash);
         result = Util::MkDir(&fileName[0]);
@@ -109,7 +97,7 @@ bool Pipeline::OpenUniqueDumpFile(
     if ((result == Result::Success) || (result == Result::AlreadyExists))
     {
         const size_t endOfString = strlen(&fileName[0]);
-        Util::Snprintf(&fileName[endOfString], sizeof(fileName) - endOfString + 1, "/%s_%d_%d_%s.sdl",
+        Util::Snprintf(&fileName[endOfString], sizeof(fileName) - endOfString, "/%s_%d_%d_%s.sdl",
                        (dumpInfo.isDraw) ? pDrawString : pDispatchString,
                        dumpInfo.submitId,
                        dumpInfo.uniqueId,

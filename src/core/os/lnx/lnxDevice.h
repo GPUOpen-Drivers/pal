@@ -243,6 +243,10 @@ public:
         Pal::WsiPlatform     wsiPlatform,
         int64                visualId) override;
 
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const override;
+
     virtual size_t GetSwapChainSize(
         const SwapChainCreateInfo& createInfo,
         Result*                    pResult) const override;
@@ -384,6 +388,12 @@ public:
     }
 
     virtual Result CheckExecutionState() const override;
+
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        uint32*         pConnectorId) override;
 
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 
@@ -532,10 +542,6 @@ public:
     Result DestroyResourceList(
         amdgpu_bo_list_handle handle) const;
 
-    Result IsSameGpu(
-        int32 presentDeviceFd,
-        bool* pIsSame) const;
-
     Result CreateSyncObject(
         uint32                    flags,
         amdgpu_syncobj_handle*    pSyncObject) const;
@@ -647,13 +653,7 @@ public:
         OsDisplayHandle  sharedHandle,
         Pal::GpuMemory** ppMemObjOut);
 
-    virtual const char* GetCacheFilePath() const override;
-
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const override {};
-
-    void SetVaRangeInfo(
-        uint32       partIndex,
-        VaRangeInfo* pVaRange);
 
     bool SemWaitRequiresSubmission() const { return m_semType != SemaphoreType::ProOnly; }
 
@@ -661,6 +661,8 @@ public:
     {
         return m_drmProcs.pfnAmdgpuCsSubmitRawisValid();
     }
+
+    const DrmLoaderFuncs& GetDrmLoaderFuncs() const { return m_drmProcs; }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
     FenceType     GetFenceType()     const { return m_fenceType; }
@@ -691,6 +693,8 @@ public:
     Result FreeSdiSurface(GpuMemory* pGpuMem);
 
     SvmMgr* GetSvmMgr() const { return m_pSvmMgr; }
+
+    const char* GetBusId() const { return m_busId; }
 
 protected:
     virtual void FinalizeQueueProperties() override;
@@ -754,6 +758,8 @@ private:
     void InitGfx9ChipProperties();
     void InitGfx9CuMask();
 #endif
+
+    void InitOutputPaths();
 
     const uint32 GetDeviceNodeIndex() { return m_deviceNodeIndex; }
 
@@ -856,6 +862,8 @@ private:
     bool m_supportQueuePriority;
     // Support creating bo that is always resident in current VM.
     bool m_supportVmAlwaysValid;
+    // Indicate whether kernel has the fix for PRT va range handling.
+    bool m_requirePrtReserveVaWa;
 #if defined(PAL_DEBUG_PRINTS)
     const DrmLoaderFuncsProxy& m_drmProcs;
 #else

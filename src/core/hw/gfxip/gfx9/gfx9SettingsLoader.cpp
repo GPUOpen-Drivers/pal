@@ -25,12 +25,16 @@
 
 #include "pal.h"
 #include "palInlineFuncs.h"
+#include "palHashMapImpl.h"
+#include "core/device.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/amdgpu_asic.h"
+#include "devDriverServer.h"
+#include "protocols/ddSettingsService.h"
 
 using namespace Util;
 
@@ -44,34 +48,64 @@ constexpr uint32 MinUcodeFeatureVersionMcbpFix = 36;
 
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
-    Pal::Device* pDevice)
+    Util::IndirectAllocator* pAllocator,
+    Pal::Device*             pDevice)
     :
-    Pal::SettingsLoader(pDevice, &m_gfx9Settings),
+    Pal::ISettingsLoader(pAllocator,
+                         static_cast<DriverSettings*>(&m_settings),
+                         g_gfx9PalNumSettings),
+    m_pDevice(pDevice),
+    m_settings(),
     m_gfxLevel(pDevice->ChipProperties().gfxLevel)
 {
-    memset(&m_gfx9Settings, 0, sizeof(Gfx9PalSettings));
+    memset(&m_settings, 0, sizeof(Gfx9PalSettings));
 }
 
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
+    auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
+    if (pDevDriverServer != nullptr)
+    {
+        auto* pSettingsService = pDevDriverServer->GetSettingsService();
+        if (pSettingsService != nullptr)
+        {
+            pSettingsService->UnregisterComponent(m_pComponentName);
+        }
+    }
 }
 
 // =====================================================================================================================
 // Initializes the HWL environment settings.
-void SettingsLoader::HwlInit()
+Result SettingsLoader::Init()
 {
-    // setup default values
-    Gfx9SetupDefaults(&m_gfx9Settings);
+    Result ret = m_settingsInfoMap.Init();
 
-    // Override Gfx9 layer settings
-    OverrideGfx9Defaults();
+    if (ret == Result::Success)
+    {
+        // Init Settings Info HashMap
+        InitSettingsInfo();
+
+        // setup default values
+        SetupDefaults();
+
+        m_state = SettingsLoaderState::EarlyInit;
+
+        // Read the rest of the settings from the registry
+        ReadSettings();
+
+        // Register with the DevDriver settings service
+        DevDriverRegister();
+    }
+
+    return ret;
 }
 
 // =====================================================================================================================
 // Validates that the settings structure has legal values. Variables that require complicated initialization can also
 // be initialized here.
-void SettingsLoader::HwlValidateSettings()
+void SettingsLoader::ValidateSettings(
+    PalSettings* pSettings)
 {
     const auto& chipProps = m_pDevice->ChipProperties();
     const auto& gfx9Props = chipProps.gfx9;
@@ -98,32 +132,31 @@ void SettingsLoader::HwlValidateSettings()
     // support MCBP because that feature requires using those packets.
     // We also need to make sure any microcode versions which are before the microcode fix disable preemption, even if
     // the user tried to enable it through the panel.
-    if ((gfx9Props.supportLoadRegIndexPkt == 0) ||
-        ((m_gfxLevel == GfxIpLevel::GfxIp9)     &&
-         (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix)))
+    if ((m_gfxLevel == GfxIpLevel::GfxIp9) &&
+        (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
         // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
         // but we can't support state shadowing without these features.
-        m_gfx9Settings.cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
+        pSettings->cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
     }
     else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
-        m_gfx9Settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
+        pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
     // Validate the number of offchip LDS buffers used for tessellation.
-    if (m_gfx9Settings.numOffchipLdsBuffers > 0)
+    if (m_settings.numOffchipLdsBuffers > 0)
     {
-        if (m_gfx9Settings.useMaxOffchipLdsBuffers == true)
+        if (m_settings.useMaxOffchipLdsBuffers == true)
         {
             // Use the maximum amount of offchip-LDS buffers.
-            m_gfx9Settings.numOffchipLdsBuffers = maxOffchipLdsBuffers;
+            m_settings.numOffchipLdsBuffers = maxOffchipLdsBuffers;
         }
         else
         {
             // Clamp to the maximum amount of offchip LDS buffers.
-            m_gfx9Settings.numOffchipLdsBuffers =
-                    Min(maxOffchipLdsBuffers, m_gfx9Settings.numOffchipLdsBuffers);
+            m_settings.numOffchipLdsBuffers =
+                    Min(maxOffchipLdsBuffers, m_settings.numOffchipLdsBuffers);
         }
     }
 
@@ -132,15 +165,15 @@ void SettingsLoader::HwlValidateSettings()
 
     // If HTile is disabled, also disable the other settings whic
     // If HTile is disabled, also disable the other settings which depend on it:
-    if (m_gfx9Settings.htileEnable == false)
+    if (m_settings.htileEnable == false)
     {
-        m_gfx9Settings.hiDepthEnable           = false;
-        m_gfx9Settings.hiStencilEnable         = false;
-        m_gfx9Settings.dbPreloadEnable         = false;
-        m_gfx9Settings.dbPreloadWinEnable      = false;
-        m_gfx9Settings.dbPerTileExpClearEnable = false;
-        m_gfx9Settings.depthCompressEnable     = false;
-        m_gfx9Settings.stencilCompressEnable   = false;
+        m_settings.hiDepthEnable           = false;
+        m_settings.hiStencilEnable         = false;
+        m_settings.dbPreloadEnable         = false;
+        m_settings.dbPreloadWinEnable      = false;
+        m_settings.dbPerTileExpClearEnable = false;
+        m_settings.depthCompressEnable     = false;
+        m_settings.stencilCompressEnable   = false;
     }
 
     // This can't be enabled by default in PAL because enabling the feature requires doing an expand on any clear
@@ -152,16 +185,16 @@ void SettingsLoader::HwlValidateSettings()
     // the exp-clear tiles.
     if (pPalSettings->hintInvariantDepthStencilClearValues)
     {
-        m_gfx9Settings.dbPerTileExpClearEnable = true;
+        m_settings.dbPerTileExpClearEnable = true;
     }
 
-    m_pSettings->shaderPrefetchClampSize = Pow2Align(m_pSettings->shaderPrefetchClampSize, 4096);
+    pSettings->shaderPrefetchClampSize = Pow2Align(pSettings->shaderPrefetchClampSize, 4096);
 
     // By default, gfx9RbPlusEnable is true, and it should be overridden to false
     // if the ASIC doesn't support Rb+.
     if (gfx9Props.rbPlus == 0)
     {
-        m_gfx9Settings.gfx9RbPlusEnable = false;
+        m_settings.gfx9RbPlusEnable = false;
     }
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
@@ -170,28 +203,22 @@ void SettingsLoader::HwlValidateSettings()
         pPalSettings->distributionTessMode = DistributionTessTrapezoid;
     }
 
-    if (m_gfx9Settings.wdLoadBalancingMode != Gfx9WdLoadBalancingDisabled)
+    if (m_settings.wdLoadBalancingMode != Gfx9WdLoadBalancingDisabled)
     {
         // When WD load balancing flowchart optimization is enabled, the primgroup size cannot exceed 253.
-        m_gfx9Settings.primGroupSize = Min(253u, m_gfx9Settings.primGroupSize);
+        m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
     }
 
-    m_gfx9Settings.nggRegLaunchGsPrimsPerSubgrp     = Min(m_gfx9Settings.nggRegLaunchGsPrimsPerSubgrp,
+    m_settings.nggRegLaunchGsPrimsPerSubgrp     = Min(m_settings.nggRegLaunchGsPrimsPerSubgrp,
                                                           OnChipGsMaxPrimPerSubgrp);
-    m_gfx9Settings.idealNggFastLaunchWavesPerSubgrp = Min(m_gfx9Settings.idealNggFastLaunchWavesPerSubgrp, 4U);
+    m_settings.idealNggFastLaunchWavesPerSubgrp = Min(m_settings.idealNggFastLaunchWavesPerSubgrp, 4U);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_gfx9Settings.nggMode = Gfx9NggDisabled;
+        m_settings.nggMode = Gfx9NggDisabled;
     }
-}
 
-// =====================================================================================================================
-// Reads the HWL related settings.
-void SettingsLoader::HwlReadSettings()
-{
-    // read HWL settings from the registry or configure file
-    Gfx9ReadSettings(&m_gfx9Settings);
+    m_state = SettingsLoaderState::Final;
 }
 
 // =====================================================================================================================
@@ -199,16 +226,19 @@ void SettingsLoader::HwlReadSettings()
 // based on chip Family & ID.
 //
 // The workaround flags setup here can be overridden if the settings are set.
-void SettingsLoader::OverrideGfx9Defaults()
+void SettingsLoader::OverrideDefaults(
+    PalSettings* pSettings)
 {
     // Enable workarounds which are common to all Gfx9/Gfx9+ hardware.
     if (IsGfx9(*m_pDevice))
     {
-        m_gfx9Settings.waColorCacheControllerInvalidEviction = true;
+        m_settings.nggMode = Gfx9NggDisabled;
 
-        m_gfx9Settings.waDisableHtilePrefetch = true;
+        m_settings.waColorCacheControllerInvalidEviction = true;
 
-        m_gfx9Settings.waOverwriteCombinerTargetMaskOnly = true;
+        m_settings.waDisableHtilePrefetch = true;
+
+        m_settings.waOverwriteCombinerTargetMaskOnly = true;
 
         // There is a bug where the WD will page fault when it writes VGT_EVENTs into the NGG offchip control sideband
         // (CSB) because there is no page table mapped for the VMID that was left in an NGG pipeline state.
@@ -219,78 +249,64 @@ void SettingsLoader::OverrideGfx9Defaults()
         //       this one with rendering work, as the kernel performs an invalidate-and-swap with the page tables,
         //       instead of invalidate-and-erase. Since the NGG buffers are mapped into every page table, these cases
         //       will not cause the same page fault.
-        m_gfx9Settings.waNggWdPageFault = true;
+        m_settings.waNggWdPageFault = true;
 
-        m_gfx9Settings.waLegacyToNggVsPartialFlush = true;
+        m_settings.waLegacyToNggVsPartialFlush = true;
 
-        m_gfx9Settings.waDummyZpassDoneBeforeTs = true;
+        m_settings.waDummyZpassDoneBeforeTs = true;
     }
 
     if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice))
     {
-        m_gfx9Settings.waHtilePipeBankXorMustBeZero = true;
+        m_settings.waHtilePipeBankXorMustBeZero = true;
 
-        m_gfx9Settings.waWrite1xAASampleLocationsToZero = true;
+        m_settings.waWrite1xAASampleLocationsToZero = true;
 
-        m_gfx9Settings.waMiscPopsMissedOverlap = true;
+        m_settings.waMiscPopsMissedOverlap = true;
 
-        m_gfx9Settings.waMiscScissorRegisterChange = true;
+        m_settings.waMiscScissorRegisterChange = true;
 
-        m_gfx9Settings.waDisableDfsmWithEqaa = true;
+        m_settings.waDisableDfsmWithEqaa = true;
 
-        m_gfx9Settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
+        m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
     }
 
     if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice)
         )
     {
-        m_gfx9Settings.waMetaAliasingFixEnabled = false;
+        m_settings.waMetaAliasingFixEnabled = false;
     }
 
     const auto& gfx9Props = m_pDevice->ChipProperties().gfx9;
 
-    if (m_gfx9Settings.binningMaxAllocCountLegacy == 0)
+    if (m_settings.binningMaxAllocCountLegacy == 0)
     {
         // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
         // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
         // batches to ping-pong.
-        m_gfx9Settings.binningMaxAllocCountLegacy =
+        m_settings.binningMaxAllocCountLegacy =
             Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
     }
 
-    if (m_gfx9Settings.binningMaxAllocCountNggOnChip == 0)
+    if (m_settings.binningMaxAllocCountNggOnChip == 0)
     {
         // With NGG + on chip PC there is a single view of the PC rather than a division per SE. The recommended value
         // for MAX_ALLOC_COUNT is TotalParamCacheCacheLines / 2 / 3. There's a divide by 2 because the register units
         // are "2 cache lines" and a divide by 3 is because the HW team estimates it is best to only have one third of
         // the PC used by a single batch.
-        m_gfx9Settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
+        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
     }
 
-}
-
-// =====================================================================================================================
-// Overrides defaults for the independent layer settings, and applies application optimizations which consist of simple
-// settings changes.
-void SettingsLoader::HwlOverrideDefaults()
-{
+    m_state = SettingsLoaderState::LateInit;
 }
 
 // =====================================================================================================================
 // The settings hash is used during pipeline loading to verify that the pipeline data is compatible between when it was
-// stored and when it was loaded.  The CCC controls some of the settings though, and the CCC doesn't set it identically
-// across all GPUs in an MGPU configuration.  Since the CCC keys don't affect pipeline generation, just ignore those
-// values when it comes to hash generation.
+// stored and when it was loaded.
 void SettingsLoader::GenerateSettingHash()
 {
-    Gfx9PalSettings tempSettings = m_gfx9Settings;
-
-    // Ignore these CCC settings when computing a settings hash as described in the function header.
-    tempSettings.textureOptLevel = 0;
-    tempSettings.catalystAI      = 0;
-
     MetroHash128::Hash(
-        reinterpret_cast<const uint8*>(&tempSettings),
+        reinterpret_cast<const uint8*>(&m_settings),
         sizeof(Gfx9PalSettings),
         m_settingHash.bytes);
 }

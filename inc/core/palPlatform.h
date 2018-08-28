@@ -37,13 +37,11 @@
 #include "palDestroyable.h"
 #include "palDeveloperHooks.h"
 
-#if PAL_BUILD_GPUOPEN
 // DevDriver forward declarations.
 namespace DevDriver
 {
     class DevDriverServer;
 }
-#endif
 
 namespace Pal
 {
@@ -378,13 +376,11 @@ public:
         void*               pPrivateData)
         { pPlatform->InstallDeveloperCb(pfnDeveloperCb, pPrivateData); };
 
-#if PAL_BUILD_GPUOPEN
     /// Returns a pointer to the developer driver server object if developer mode is enabled on the system.
     ///
     /// @returns A valid DevDriver::DevDriverServer pointer if developer mode is enabled. If developer mode is not
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
-#endif
 
     /// Get primary surface layout based upon VidPnSource provided by client.
     ///

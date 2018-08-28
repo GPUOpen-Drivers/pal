@@ -102,18 +102,16 @@ public:
     static Result LoadWaylandWsa();
 
     virtual Result CreatePresentableImage(
-        const Image&        image,
-        int32               sharedBufferFd,
-        uint32*             pPresentImage) override;
+        Image*              pImage,
+        int32               sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
         uint32              image) override;
 
     virtual Result Present(
-        uint32              presentImage,
-        PresentMode         presentMode,
-        PresentFence*       pRenderFence,
-        PresentFence*       pIdleFence) override;
+        const PresentSwapChainInfo& presentInfo,
+        PresentFence*               pRenderFence,
+        PresentFence*               pIdleFence) override;
 
     virtual Result WaitForLastImagePresented() override;
 
@@ -133,6 +131,8 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandWindowSystem);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandWindowSystem);
+
+    static constexpr int32 DefaultImageHandle = -1;
 };
 
 } // Linux

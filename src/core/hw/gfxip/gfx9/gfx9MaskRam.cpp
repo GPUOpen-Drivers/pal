@@ -1218,6 +1218,93 @@ uint32 Gfx9Htile::GetNumSamplesLog2(
 }
 
 // =====================================================================================================================
+// Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
+template <typename RegType>
+void Gfx9Htile::SetupHtilePreload(
+    const Image&  image,
+    uint32        mipLevel,
+    RegType*      pHtileSurface)
+{
+    const  Pal::Image*       pParent         = image.Parent();
+    const  Pal::Device*      pDevice         = pParent->GetDevice();
+    const  Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
+    const  SubresId          baseSubResource = pParent->GetBaseSubResource();
+
+    pHtileSurface->PREFETCH_WIDTH  = 0;
+    pHtileSurface->PREFETCH_HEIGHT = 0;
+
+    if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
+    {
+        const uint32            activeRbCount     = pDevice->ChipProperties().gfx9.numActiveRbs;
+        const SubresId          subResId          = { baseSubResource.aspect, mipLevel, 0 };
+        const SubResourceInfo*  pSubResInfo       = pParent->SubresourceInfo(subResId);
+        const uint32            imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
+                                                     pSubResInfo->actualExtentTexels.height);
+
+        // Note: For preloading to be enabled efficiently, the DB_PRELOAD_CONTROL register needs to be set-up. The
+        // ideal setting is the largest rectangle of the Image's aspect ratio which can completely fit within the
+        // DB cache (centered in the Image). The preload rectangle doesn't need to be exact.
+        const uint32 cacheSizeInPixels = (DbHtileCacheSizeInPixels * activeRbCount);
+        const uint32 width             = pSubResInfo->extentTexels.width;
+        const uint32 height            = pSubResInfo->extentTexels.height;
+
+        // DB Preload window is in 64 pixel increments both horizontally & vertically.
+        constexpr uint32 BlockWidth  = 64;
+        constexpr uint32 BlockHeight = 64;
+
+        regDB_PRELOAD_CONTROL*  pPreloadControl = &m_dbPreloadControl[mipLevel];
+
+        pHtileSurface->HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
+        pHtileSurface->PRELOAD                = 1;
+
+        if (imageSizeInPixels <= cacheSizeInPixels)
+        {
+            // The entire Image fits into the DB cache!
+            pPreloadControl->bits.START_X = 0;
+            pPreloadControl->bits.START_Y = 0;
+            pPreloadControl->bits.MAX_X   = ((width  - 1) / BlockWidth);
+            pPreloadControl->bits.MAX_Y   = ((height - 1) / BlockHeight);
+        }
+        else
+        {
+            // Image doesn't fit into the DB cache; compute the largest centered rectangle, while preserving the
+            // Image's aspect ratio.
+            //
+            // From DXX:
+            //      w*h = cacheSize, where w = aspectRatio*h
+            // Thus,
+            //      aspectRatio*(h^2) = cacheSize
+            // so,
+            //      h = sqrt(cacheSize/aspectRatio)
+            const float ratio = static_cast<float>(width) / static_cast<float>(height);
+
+            // Compute the height in blocks first; assume there will be more width than height, giving the width
+            // decision a lower granularity, and by doing it second typically more cache will be utilized.
+            const uint32 preloadWinHeight = static_cast<uint32>(Math::Sqrt(cacheSizeInPixels / ratio));
+            // Round up, but not beyond the window size.
+            const uint32 preloadWinHeightInBlocks = Min((preloadWinHeight + BlockHeight - 1) / BlockHeight,
+                                                         height / BlockHeight);
+
+            // Accurate width can now be derived from the height.
+            const uint32 preloadWinWidth = Min(cacheSizeInPixels / (preloadWinHeightInBlocks * BlockHeight), width);
+            // Round down, to ensure that the size is smaller than the DB cache.
+            const uint32 preloadWinWidthInBlocks = (preloadWinWidth / BlockWidth);
+
+            PAL_ASSERT(cacheSizeInPixels >=
+                (preloadWinWidthInBlocks * BlockWidth * preloadWinHeightInBlocks * BlockHeight));
+
+            // Program the preload window, offsetting the preloaded area towards the middle of the Image. Round down
+            // to ensure the area is positioned partially outside the Image. (Rounding to nearest would position the
+            // rectangle more evenly, but would not guarantee the whole rectangle is inside the Image.)
+            pPreloadControl->bits.START_X = ((width - preloadWinWidthInBlocks * BlockWidth) / 2) / BlockWidth;
+            pPreloadControl->bits.START_Y = ((height - preloadWinHeightInBlocks * BlockHeight) / 2) / BlockHeight;
+            pPreloadControl->bits.MAX_X   = (pPreloadControl->bits.START_X + preloadWinWidthInBlocks);
+            pPreloadControl->bits.MAX_Y   = (pPreloadControl->bits.START_Y + preloadWinHeightInBlocks);
+        }
+    }
+}
+
+// =====================================================================================================================
 // Initializes this HTile object for the given Image and mipmap level.
 Result Gfx9Htile::Init(
     const Pal::Device& device,
@@ -1228,18 +1315,21 @@ Result Gfx9Htile::Init(
     const  Gfx9PalSettings&  settings         = GetGfx9Settings(device);
     const  Pal::Image*const  pParent          = image.Parent();
     const  ImageCreateInfo&  imageCreateInfo  = pParent->GetImageCreateInfo();
-    const  uint32            activeRbCount    = device.ChipProperties().gfx9.numActiveRbs;
+    const  auto&             chipProps        = device.ChipProperties();
+    const  uint32            activeRbCount    = chipProps.gfx9.numActiveRbs;
 
     m_flags.compressZ = settings.depthCompressEnable;
     m_flags.compressS = settings.stencilCompressEnable;
 
-    //Note: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
+    // NOTE: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
     // usually clear Z to 1.0f and use a < depth comparison for their depth testing. But we change ZRANGE_PRECISION
     // to 0 via UpdateZRangePrecision() when we detect there is a clear Z to 0.0f. We want more precision on the
     // far Z plane.
     m_flags.zrangePrecision = 1;
 
-    if (device.SupportsStencil(imageCreateInfo.swizzledFormat.format, imageCreateInfo.tiling) == false)
+    // Use Z-only hTile if this image's format doesn't have a stencil aspect
+    if ((device.SupportsStencil(imageCreateInfo.swizzledFormat.format, imageCreateInfo.tiling) == false)
+       )
     {
         // If this Image's format does not contain stencil data, allow the HW to use the extra HTile bits for improved
         // HiZ Z-range precision.
@@ -1253,7 +1343,6 @@ Result Gfx9Htile::Init(
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
     {
         regDB_HTILE_SURFACE*    pHtileSurface   = &m_dbHtileSurface[mipLevel];
-        regDB_PRELOAD_CONTROL*  pPreloadControl = &m_dbPreloadControl[mipLevel];
 
         const SubresId              subResId          = { baseSubResource.aspect, mipLevel, 0 };
         const SubResourceInfo*const pSubResInfo       = pParent->SubresourceInfo(subResId);
@@ -1261,7 +1350,6 @@ Result Gfx9Htile::Init(
                                                          pSubResInfo->actualExtentTexels.height);
         const uint32                pixelsPerRb       = imageSizeInPixels / activeRbCount;
 
-        //Note: These values come from the GFX9 DB programming guide.
         if (pixelsPerRb <= (256 * 1024)) // <= 256K pixels
         {
             pHtileSurface->bits.FULL_CACHE = 0;
@@ -1271,70 +1359,11 @@ Result Gfx9Htile::Init(
             pHtileSurface->bits.FULL_CACHE = 1;
         }
 
-        pHtileSurface->bits.PREFETCH_WIDTH          = 0;
-        pHtileSurface->bits.PREFETCH_HEIGHT         = 0;
         pHtileSurface->bits.DST_OUTSIDE_ZERO_TO_ONE = 0;
 
-        if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pHtileSurface->bits.HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
-            pHtileSurface->bits.PRELOAD                = 1;
-
-            // Note: For preloading to be enabled efficiently, the DB_PRELOAD_CONTROL register needs to be set-up. The
-            // ideal setting is the largest rectangle of the Image's aspect ratio which can completely fit within the
-            // DB cache (centered in the Image). The preload rectangle doesn't need to be exact.
-            const uint32 cacheSizeInPixels = (DbHtileCacheSizeInPixels * activeRbCount);
-            const uint32 width             = pSubResInfo->extentTexels.width;
-            const uint32 height            = pSubResInfo->extentTexels.height;
-
-            // DB Preload window is in 64 pixel increments both horizontally & vertically.
-            constexpr uint32 BlockWidth  = 64;
-            constexpr uint32 BlockHeight = 64;
-
-            if (imageSizeInPixels <= cacheSizeInPixels)
-            {
-                // The entire Image fits into the DB cache!
-                pPreloadControl->bits.START_X = 0;
-                pPreloadControl->bits.START_Y = 0;
-                pPreloadControl->bits.MAX_X   = ((width  - 1) / BlockWidth);
-                pPreloadControl->bits.MAX_Y   = ((height - 1) / BlockHeight);
-            }
-            else
-            {
-                // Image doesn't fit into the DB cache; compute the largest centered rectangle, while preserving the
-                // Image's aspect ratio.
-                //
-                // From DXX:
-                //      w*h = cacheSize, where w = aspectRatio*h
-                // Thus,
-                //      aspectRatio*(h^2) = cacheSize
-                // so,
-                //      h = sqrt(cacheSize/aspectRatio)
-                const float ratio = static_cast<float>(width) / static_cast<float>(height);
-
-                // Compute the height in blocks first; assume there will be more width than height, giving the width
-                // decision a lower granularity, and by doing it second typically more cache will be utilized.
-                const uint32 preloadWinHeight = static_cast<uint32>(Math::Sqrt(cacheSizeInPixels / ratio));
-                // Round up, but not beyond the window size.
-                const uint32 preloadWinHeightInBlocks = Min((preloadWinHeight + BlockHeight - 1) / BlockHeight,
-                                                             height / BlockHeight);
-
-                // Accurate width can now be derived from the height.
-                const uint32 preloadWinWidth = Min(cacheSizeInPixels / (preloadWinHeightInBlocks * BlockHeight), width);
-                // Round down, to ensure that the size is smaller than the DB cache.
-                const uint32 preloadWinWidthInBlocks = (preloadWinWidth / BlockWidth);
-
-                PAL_ASSERT(cacheSizeInPixels >=
-                    (preloadWinWidthInBlocks * BlockWidth * preloadWinHeightInBlocks * BlockHeight));
-
-                // Program the preload window, offsetting the preloaded area towards the middle of the Image. Round down
-                // to ensure the area is positioned partially outside the Image. (Rounding to nearest would position the
-                // rectangle more evenly, but would not guarantee the whole rectangle is inside the Image.)
-                pPreloadControl->bits.START_X = ((width - preloadWinWidthInBlocks * BlockWidth) / 2) / BlockWidth;
-                pPreloadControl->bits.START_Y = ((height - preloadWinHeightInBlocks * BlockHeight) / 2) / BlockHeight;
-                pPreloadControl->bits.MAX_X   = (pPreloadControl->bits.START_X + preloadWinWidthInBlocks);
-                pPreloadControl->bits.MAX_Y   = (pPreloadControl->bits.START_Y + preloadWinHeightInBlocks);
-            }
+            SetupHtilePreload(image, mipLevel, &pHtileSurface->gfx09);
         }
     }
 
@@ -1394,8 +1423,12 @@ Result Gfx9Htile::ComputeHtileInfo(
         // HW needs to be programmed to the same parameters the surface was created with.
         for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
         {
-            m_dbHtileSurface[mipLevel].bits.PIPE_ALIGNED      = addrHtileIn.hTileFlags.pipeAligned;
-            m_dbHtileSurface[mipLevel].bits.RB_ALIGNED__GFX09 = addrHtileIn.hTileFlags.rbAligned;
+            m_dbHtileSurface[mipLevel].bits.PIPE_ALIGNED = addrHtileIn.hTileFlags.pipeAligned;
+
+            if (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                m_dbHtileSurface[mipLevel].gfx09.RB_ALIGNED = addrHtileIn.hTileFlags.rbAligned;
+            }
         }
 
         m_alignment = m_addrOutput.baseAlign;
@@ -2377,7 +2410,7 @@ Gfx9Fmask::Gfx9Fmask()
 
 // =====================================================================================================================
 // Determines the Image format used by SRD's which access an image's fMask allocation.
-regSQ_IMG_RSRC_WORD1__GFX09 Gfx9Fmask::Gfx9FmaskFormat(
+regSQ_IMG_RSRC_WORD1 Gfx9Fmask::Gfx9FmaskFormat(
     uint32  samples,
     uint32  fragments,
     bool    isUav       // Is the fmask being setup as a UAV
@@ -2446,7 +2479,7 @@ regSQ_IMG_RSRC_WORD1__GFX09 Gfx9Fmask::Gfx9FmaskFormat(
         dataFmt = IMG_DATA_FORMAT_FMASK__GFX09;
     }
 
-    regSQ_IMG_RSRC_WORD1__GFX09 word1 = {};
+    regSQ_IMG_RSRC_WORD1 word1 = {};
     word1.bits.DATA_FORMAT = dataFmt;
     word1.bits.NUM_FORMAT  = numFmt;
 

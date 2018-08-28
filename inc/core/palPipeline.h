@@ -286,6 +286,7 @@ struct GraphicsPipelineCreateInfo
 
     ViewInstancingDescriptor viewInstancingDesc;    ///< Descriptor describes view instancing state
                                                     ///  of the graphics pipeline
+
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

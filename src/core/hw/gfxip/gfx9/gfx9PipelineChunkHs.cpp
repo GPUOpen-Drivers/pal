@@ -64,8 +64,9 @@ void PipelineChunkHs::Init(
 
     m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_HS);
     m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
 
-    m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
+    m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
     m_pm4ImageContext.vgtHosMinTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MIN_TESS_LEVEL);
     m_pm4ImageContext.vgtHosMaxTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MAX_TESS_LEVEL);
@@ -96,11 +97,6 @@ void PipelineChunkHs::Init(
         m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
     }
 
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_CHKSUM_HS,
-                                      &m_pm4ImageSh.spiShaderPgmChksumHs.u32All);
-    }
 }
 
 // =====================================================================================================================
@@ -114,11 +110,14 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-    pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+    if (hsStageInfo.wavesPerSh > 0)
+    {
+        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+    }
 
     if (hsStageInfo.cuEnableMask != 0)
     {
-        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.gfx9.bits.CU_EN &= hsStageInfo.cuEnableMask;
+        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
     }
 
     pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageSh.spaceNeeded, &m_pm4ImageSh, pCmdSpace);
@@ -183,13 +182,6 @@ void PipelineChunkHs::BuildPm4Headers()
                                                                    mmVGT_HOS_MIN_TESS_LEVEL,
                                                                    &m_pm4ImageContext.hdrvVgtHosTessLevel);
 
-    // Sets the following sh register: SPI_SHADER_PGM_CHKSUM_HS.
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_CHKSUM_HS,
-                                                             ShaderGraphics,
-                                                             &m_pm4ImageSh.hdrSpiShaderPgmChksum);
-    }
 }
 
 } // Gfx9

@@ -217,12 +217,13 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     PAL_ASSERT(createInfo.flags.virtualAlloc == 0);
 
     // By convention, the only allocations that are allowed to skip the sub-allocation scheme are are UDMA buffers, page
-    // directories, and page-table blocks. We may relax this if there is good reason to skip sub-allocation for other
+    // directories, and page-table blocks, and PageFaultDebugSrds. We may relax this if there is good reason to skip sub-allocation for other
     // kinds of allocations.
-    PAL_ASSERT(((internalInfo.flags.udmaBuffer     == 0) &&
-                (internalInfo.flags.pageDirectory  == 0) &&
-                (internalInfo.flags.pageTableBlock == 0) &&
-                (internalInfo.flags.isCmdAllocator == 0)) == (pOffset != nullptr));
+    PAL_ASSERT(((internalInfo.flags.udmaBuffer        == 0) &&
+                (internalInfo.flags.pageDirectory     == 0) &&
+                (internalInfo.flags.pageTableBlock    == 0) &&
+                (internalInfo.flags.isCmdAllocator    == 0) &&
+                (internalInfo.flags.pageFaultDebugSrd == 0)) == (pOffset != nullptr));
 
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.
     if ((pOffset != nullptr) && (createInfo.size <= PoolAllocationSize / 2))

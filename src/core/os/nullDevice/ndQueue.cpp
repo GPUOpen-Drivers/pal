@@ -25,6 +25,7 @@
 
 #include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndQueue.h"
+#include "core/os/nullDevice/ndFence.h"
 
 using namespace Util;
 
@@ -62,14 +63,7 @@ Queue::Queue(
 Result Queue::Init(
     void* pContextPlacementAddr)
 {
-    Result result = Pal::Queue::Init(pContextPlacementAddr);
-
-    if (result == Result::Success)
-    {
-        result = SubmissionContext::Create(m_pDevice->GetPlatform(), &m_pSubmissionContext);
-    }
-
-    return result;
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -118,6 +112,13 @@ Result Queue::RemapVirtualMemoryPages(
     const VirtualMemoryRemapRange* pRangeList,
     bool                           doNotWait,
     IFence*                        pFence)
+{
+    return Result::Success;
+}
+
+// =====================================================================================================================
+Result Queue::DoAssociateFenceWithLastSubmit(
+    Pal::Fence* pFence)
 {
     return Result::Success;
 }

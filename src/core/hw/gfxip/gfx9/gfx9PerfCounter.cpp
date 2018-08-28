@@ -51,8 +51,8 @@ PerfCounter::PerfCounter(
     m_mePerfCntSrcSel(src_sel__me_copy_data__mem_mapped_register),
     m_mecPerfCntSrcSel(src_sel__mec_copy_data__mem_mapped_register)
 {
-    const CmdUtil&             cmdUtil    = device.CmdUtil();
-    const Gfx9PerfCounterInfo& perfInfo   = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+    const CmdUtil&             cmdUtil  = device.CmdUtil();
+    const Gfx9PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
 
     // SDMA counters use 32bits per data sample. All other blocks use 64bits per sample.
     if (m_info.block == GpuBlock::Dma)
@@ -72,19 +72,28 @@ PerfCounter::PerfCounter(
         const auto& flags  = info.optionFlags;
         const auto& values = info.optionValues;
 
-        uint32 simdMask   = (flags.sqSimdMask) ?
-                            (values.sqSimdMask & DefaultSqSelectSimdMask) : DefaultSqSelectSimdMask;
         uint32 bankMask   = (flags.sqSqcBankMask) ?
                             (values.sqSqcBankMask & DefaultSqSelectBankMask) : DefaultSqSelectBankMask;
-        uint32 clientMask = (flags.sqSqcClientMask) ?
-                            (values.sqSqcClientMask & DefaultSqSelectClientMask) : DefaultSqSelectClientMask;
 
         regSQ_PERFCOUNTER0_SELECT sqSelect = {};
-        sqSelect.bits.PERF_SEL               = info.eventId;
-        sqSelect.bits.SIMD_MASK__GFX09       = simdMask;
-        sqSelect.bits.SQC_BANK_MASK          = bankMask;
-        sqSelect.bits.SQC_CLIENT_MASK__GFX09 = clientMask;
-        m_selectReg[0]                       = sqSelect.u32All;
+        sqSelect.bits.PERF_SEL             = info.eventId;
+        sqSelect.bits.SQC_BANK_MASK        = bankMask;
+
+        if (device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            const uint32 clientMask = (flags.sqSqcClientMask)
+                                       ? (values.sqSqcClientMask & DefaultSqSelectClientMask)
+                                       : DefaultSqSelectClientMask;
+
+            const uint32 simdMask = (flags.sqSimdMask)
+                                     ? (values.sqSimdMask & DefaultSqSelectSimdMask)
+                                     : DefaultSqSelectSimdMask;
+
+            sqSelect.gfx09.SIMD_MASK       = simdMask;
+            sqSelect.gfx09.SQC_CLIENT_MASK = clientMask;
+        }
+
+        m_selectReg[0]                     = sqSelect.u32All;
     }
     else if (m_info.block == GpuBlock::Ea)
     {
@@ -114,27 +123,27 @@ PerfCounter::PerfCounter(
     }
     else if (m_info.block == GpuBlock::AtcL2)
     {
-        regATC_L2_PERFCOUNTER0_CFG__GFX09  atcL2PerfCntrCfg  = {};
+        regATC_L2_PERFCOUNTER0_CFG  atcL2PerfCntrCfg  = {};
 
         atcL2PerfCntrCfg.bits.PERF_SEL  = info.eventId;
         atcL2PerfCntrCfg.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
         atcL2PerfCntrCfg.bits.ENABLE    = 1;
         m_selectReg[0]                  = atcL2PerfCntrCfg.u32All;
 
-        regATC_L2_PERFCOUNTER_RSLT_CNTL__GFX09 atcL2PerfCntrResultCntl = {};
+        regATC_L2_PERFCOUNTER_RSLT_CNTL atcL2PerfCntrResultCntl = {};
         atcL2PerfCntrResultCntl.bits.PERF_COUNTER_SELECT = slot; // info.instance;
         m_rsltCntlReg = atcL2PerfCntrResultCntl.u32All;
     }
     else if (m_info.block == GpuBlock::McVmL2)
     {
-        regMC_VM_L2_PERFCOUNTER0_CFG__GFX09  mcVmL2PerfCntrCfg  = {};
+        regMC_VM_L2_PERFCOUNTER0_CFG  mcVmL2PerfCntrCfg  = {};
 
         mcVmL2PerfCntrCfg.bits.PERF_SEL  = info.eventId;
         mcVmL2PerfCntrCfg.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
         mcVmL2PerfCntrCfg.bits.ENABLE    = 1;
         m_selectReg[0]                   = mcVmL2PerfCntrCfg.u32All;
 
-        regMC_VM_L2_PERFCOUNTER_RSLT_CNTL__GFX09 mcVmL2PerfCntrResultCntl = {};
+        regMC_VM_L2_PERFCOUNTER_RSLT_CNTL mcVmL2PerfCntrResultCntl = {};
         mcVmL2PerfCntrResultCntl.bits.PERF_COUNTER_SELECT = slot; // info.instance;
         m_rsltCntlReg = mcVmL2PerfCntrResultCntl.u32All;
     }
@@ -200,6 +209,18 @@ PerfCounter::PerfCounter(
         m_mePerfCntSrcSel  = src_sel__me_copy_data__perfcounters;
         m_mecPerfCntSrcSel = src_sel__mec_copy_data__perfcounters;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    else if (m_info.block == GpuBlock::Umcch)
+    {
+        // Reading Umcch performance counter registers requires two register reads. The LO register must be read first.
+        // Here {instance, slot} actually means {channel num, counter ID} for Umcch block.
+        m_perfCountLoAddr = perfInfo.umcChannelBlocks.regInfo[m_info.instance].counter[m_slot].resultRegLoAddr;
+        m_perfCountHiAddr = perfInfo.umcChannelBlocks.regInfo[m_info.instance].counter[m_slot].resultRegHiAddr;
+
+        m_mePerfCntSrcSel  = src_sel__me_copy_data__perfcounters;
+        m_mecPerfCntSrcSel = src_sel__mec_copy_data__perfcounters;
+    }
+#endif
     else
     {
         m_perfCountLoAddr = perfInfo.block[blockIdx].regInfo[m_slot].perfCountLoAddr;
@@ -240,6 +261,24 @@ PerfCounter::PerfCounter(
 }
 
 // =====================================================================================================================
+template <typename SdmaRegType>
+void PerfCounter::SetSdmaSelectReg(
+    SdmaRegType* pSdmaReg
+    ) const
+{
+    if (m_slot == 0)
+    {
+        pSdmaReg->PERF_SEL0    = m_info.eventId;
+        pSdmaReg->PERF_ENABLE0 = 1;
+    }
+    else if (m_slot == 1)
+    {
+        pSdmaReg->PERF_SEL1    = m_info.eventId;
+        pSdmaReg->PERF_ENABLE1 = 1;
+    }
+}
+
+// =====================================================================================================================
 // Accumulates the values of the SDMA counter setup registers across multiple counters.
 uint32 PerfCounter::SetupSdmaSelectReg(
     regSDMA0_PERFMON_CNTL* pSdma0PerfmonCntl, // SDMA0_PERFMON_CNTL reg value
@@ -250,36 +289,32 @@ uint32 PerfCounter::SetupSdmaSelectReg(
 
     if (m_info.instance == 0)
     {
-        if (m_slot == 0)
-        {
-            pSdma0PerfmonCntl->bits.PERF_SEL0    = m_info.eventId;
-            pSdma0PerfmonCntl->bits.PERF_ENABLE0 = 1;
-        }
-        else if (m_slot == 1)
-        {
-            pSdma0PerfmonCntl->bits.PERF_SEL1    = m_info.eventId;
-            pSdma0PerfmonCntl->bits.PERF_ENABLE1 = 1;
-        }
+        SetSdmaSelectReg(&pSdma0PerfmonCntl->bits);
 
         regValue = pSdma0PerfmonCntl->u32All;
     }
     else if (m_info.instance == 1)
     {
-        if (m_slot == 0)
         {
-            pSdma1PerfmonCntl->bits.PERF_SEL0    = m_info.eventId;
-            pSdma1PerfmonCntl->bits.PERF_ENABLE0 = 1;
-        }
-        else if (m_slot == 1)
-        {
-            pSdma1PerfmonCntl->bits.PERF_SEL1    = m_info.eventId;
-            pSdma1PerfmonCntl->bits.PERF_ENABLE1 = 1;
+            SetSdmaSelectReg(&pSdma1PerfmonCntl->vega);
         }
 
         regValue = pSdma1PerfmonCntl->u32All;
     }
 
     return regValue;
+}
+
+// =====================================================================================================================
+static void SetGrbmGfxIndexShaderArray(
+    GfxIpLevel          gfxLevel,
+    uint32              shaderArray,
+    regGRBM_GFX_INDEX*  pGrbmGfxIndex)
+{
+    if (gfxLevel == GfxIpLevel::GfxIp9)
+    {
+        pGrbmGfxIndex->gfx09.SH_INDEX = shaderArray;
+    }
 }
 
 // =====================================================================================================================
@@ -293,18 +328,21 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
 {
     if (IsIndexed())
     {
-        const auto& perfInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
-        const uint32 numInstances = perfInfo.block[static_cast<uint32>(m_info.block)].numInstances;
-        const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
+        const auto&  chipProps       = m_device.Parent()->ChipProperties();
+        const auto&  perfInfo        = chipProps.gfx9.perfCounterInfo;
+        const uint32 numInstances    = perfInfo.block[static_cast<uint32>(m_info.block)].numInstances;
+        const uint32 numShaderArrays = chipProps.gfx9.numShaderArrays;
 
         const uint32 seIndex = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_info.instance);
+        const uint32 shIndex = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_info.instance);
 
-        PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
+        PAL_ASSERT(seIndex < chipProps.gfx9.numShaderEngines);
+        PAL_ASSERT(shIndex < chipProps.gfx9.numShaderArrays);
 
-        regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+        regGRBM_GFX_INDEX grbmGfxIndex = {};
         grbmGfxIndex.bits.SE_INDEX       = seIndex;
-        grbmGfxIndex.bits.SH_INDEX       = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_info.instance);
         grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_info.instance);
+        SetGrbmGfxIndexShaderArray(chipProps.gfxLevel, shIndex, &grbmGfxIndex);
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                      grbmGfxIndex.u32All,
@@ -328,12 +366,12 @@ uint32* PerfCounter::WriteGrbmGfxBroadcastSe(
         const uint32 numInstances    = perfInfo.block[static_cast<uint32>(m_info.block)].numInstances;
         const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
 
-        const uint32 seIndex = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_info.instance);
+        const uint32 seIndex = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_info.instance);
         PAL_ASSERT(seIndex < m_device.Parent()->ChipProperties().gfx9.numShaderEngines);
 
-        regGRBM_GFX_INDEX__GFX09 grbmGfxIndex = {};
+        regGRBM_GFX_INDEX grbmGfxIndex = {};
         grbmGfxIndex.bits.SE_INDEX                  = seIndex;
-        grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
+        grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
         grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
@@ -355,29 +393,76 @@ uint32* PerfCounter::WriteSetupCommands(
     //       packed into the same registers.
     PAL_ASSERT(m_info.block != GpuBlock::Dma);
 
-    const auto&  chipProps    = m_device.Parent()->ChipProperties();
-    const auto&  perfInfo     = chipProps.gfx9.perfCounterInfo;
+    const auto&  chipProps = m_device.Parent()->ChipProperties();
+    const auto&  perfInfo  = chipProps.gfx9.perfCounterInfo;
 
-    const uint32 blockIdx     = static_cast<uint32>(m_info.block);
-    const uint32 primaryReg   = perfInfo.block[blockIdx].regInfo[m_slot].perfSel0RegAddr;
-    const uint32 secondaryReg = perfInfo.block[blockIdx].regInfo[m_slot].perfSel1RegAddr;
-
-    if (m_info.block == GpuBlock::Sq)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
+    if (m_info.block == GpuBlock::Umcch)
     {
-        pCmdSpace = WriteGrbmGfxBroadcastSe(pCmdStream, pCmdSpace);
+        // The umc block is outside the GPU core. No need to write the GRBM_GFX_INDEX. There is also only one primary
+        // select register that needs to be programmed for Umcch.
+        const uint32 cntlRegAddr = perfInfo.umcChannelBlocks.regInfo[m_info.instance].counter[m_slot].ctrControlRegAddr;
+        const auto engineType    = pCmdStream->GetEngineType();
+        const auto& cmdUtil      = m_device.CmdUtil();
+
+        regUMCCH0_PerfMonCtl1 ctlRegVal = { };
+        ctlRegVal.bits.Enable           = 1;
+        ctlRegVal.bits.EventSelect      = m_info.eventId;
+
+        // The dst_reg_offset of the copy_data packet has a bit width of 18 in ordinal5. Hence for UMC channels
+        // 3+, which have reg offsets >18 bits wide, we cannot use this packet and must resort to other methods to
+        // program those. Currently we skip these channels.
+        if (IsDstRegCopyDataPossible(m_perfCountLoAddr) == true)
+        {
+            // Write the select/cntl register with the event ID we wish to track.
+            if (engineType == EngineTypeCompute)
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
+                                                          cntlRegAddr,
+                                                          src_sel__mec_copy_data__immediate_data,
+                                                          ctlRegVal.u32All,
+                                                          count_sel__mec_copy_data__32_bits_of_data,
+                                                          wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                                          pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                           dst_sel__me_copy_data__perfcounters,
+                                                           cntlRegAddr,
+                                                           src_sel__me_copy_data__immediate_data,
+                                                           ctlRegVal.u32All,
+                                                           count_sel__me_copy_data__32_bits_of_data,
+                                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                                           pCmdSpace);
+            }
+        }
+
     }
     else
+#endif
     {
-        pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
-    }
+        const uint32 blockIdx     = static_cast<uint32>(m_info.block);
+        const uint32 secondaryReg = perfInfo.block[blockIdx].regInfo[m_slot].perfSel1RegAddr;
+        const uint32 primaryReg   = perfInfo.block[blockIdx].regInfo[m_slot].perfSel0RegAddr;
 
-    // Always write primary select register.
-    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(primaryReg, m_selectReg[0], pCmdSpace);
+        if (m_info.block == GpuBlock::Sq)
+        {
+            pCmdSpace = WriteGrbmGfxBroadcastSe(pCmdStream, pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
+        }
 
-    // Only write the secondary select register if necessary.
-    if (m_numActiveRegs > 1)
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(secondaryReg, m_selectReg[1], pCmdSpace);
+        // Always write primary select register.
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(primaryReg, m_selectReg[0], pCmdSpace);
+
+        // Only write the secondary select register if necessary.
+        if (m_numActiveRegs > 1)
+        {
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(secondaryReg, m_selectReg[1], pCmdSpace);
+        }
     }
 
     return pCmdSpace;
@@ -415,41 +500,20 @@ uint32* PerfCounter::WriteSampleCommands(
     }
 
     const gpusize gpuVirtAddr = (baseGpuVirtAddr + GetDataOffset());
-
     const EngineType engineType = pCmdStream->GetEngineType();
 
-    // Write low 32bit portion of performance counter sample to the GPU virtual address.
-    if (engineType == EngineTypeCompute)
+    // The dst_reg_offset of the copy_data packet has a bit width of 18 in ordinal5. Hence for UMC channels
+    // 3+, which have reg offsets >18 bits wide, we cannot use this packet and must resort to other methods to
+    // program those. Currently we skip these channels.
+    if (IsDstRegCopyDataPossible(m_perfCountLoAddr) == true)
     {
-        pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__memory__GFX09,
-                                                  gpuVirtAddr,
-                                                  m_mecPerfCntSrcSel,
-                                                  m_perfCountLoAddr,
-                                                  count_sel__mec_copy_data__32_bits_of_data,
-                                                  wr_confirm__mec_copy_data__wait_for_confirmation,
-                                                  pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                   dst_sel__me_copy_data__memory__GFX09,
-                                                   gpuVirtAddr,
-                                                   m_mePerfCntSrcSel,
-                                                   m_perfCountLoAddr,
-                                                   count_sel__me_copy_data__32_bits_of_data,
-                                                   wr_confirm__me_copy_data__wait_for_confirmation,
-                                                   pCmdSpace);
-    }
-    // Write high 32bit portion of performance counter sample to the GPU virtual address, if the
-    // block uses 64bit counters.
-    if (GetSampleSize() == sizeof(uint64))
-    {
+        // Write low 32bit portion of performance counter sample to the GPU virtual address.
         if (engineType == EngineTypeCompute)
         {
             pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__memory__GFX09,
-                                                      (gpuVirtAddr + sizeof(uint32)),
+                                                      gpuVirtAddr,
                                                       m_mecPerfCntSrcSel,
-                                                      m_perfCountHiAddr,
+                                                      m_perfCountLoAddr,
                                                       count_sel__mec_copy_data__32_bits_of_data,
                                                       wr_confirm__mec_copy_data__wait_for_confirmation,
                                                       pCmdSpace);
@@ -458,12 +522,39 @@ uint32* PerfCounter::WriteSampleCommands(
         {
             pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
                                                        dst_sel__me_copy_data__memory__GFX09,
-                                                       (gpuVirtAddr + sizeof(uint32)),
+                                                       gpuVirtAddr,
                                                        m_mePerfCntSrcSel,
-                                                       m_perfCountHiAddr,
+                                                       m_perfCountLoAddr,
                                                        count_sel__me_copy_data__32_bits_of_data,
                                                        wr_confirm__me_copy_data__wait_for_confirmation,
                                                        pCmdSpace);
+        }
+
+        // Write high 32bit portion of performance counter sample to the GPU virtual address, if the
+        // block uses 64bit counters.
+        if (GetSampleSize() == sizeof(uint64))
+        {
+            if (engineType == EngineTypeCompute)
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__memory__GFX09,
+                                                          (gpuVirtAddr + sizeof(uint32)),
+                                                          m_mecPerfCntSrcSel,
+                                                          m_perfCountHiAddr,
+                                                          count_sel__mec_copy_data__32_bits_of_data,
+                                                          wr_confirm__mec_copy_data__wait_for_confirmation,
+                                                          pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace += cmdUtil.BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
+                                                           dst_sel__me_copy_data__memory__GFX09,
+                                                           (gpuVirtAddr + sizeof(uint32)),
+                                                           m_mePerfCntSrcSel,
+                                                           m_perfCountHiAddr,
+                                                           count_sel__me_copy_data__32_bits_of_data,
+                                                           wr_confirm__me_copy_data__wait_for_confirmation,
+                                                           pCmdSpace);
+            }
         }
     }
 
@@ -603,21 +694,25 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
 {
     CmdStream* pHwlCmdStream = static_cast<CmdStream*>(pCmdStream);
 
-    const auto& perfInfo      = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+    const auto&  chipProps    = m_device.Parent()->ChipProperties();
+    const auto&  perfInfo     = chipProps.gfx9.perfCounterInfo;
     const uint32 blockIdx     = static_cast<uint32>(m_block);
     const uint32 primaryReg   = perfInfo.block[blockIdx].regInfo[m_slot].perfSel0RegAddr;
     const uint32 secondaryReg = perfInfo.block[blockIdx].regInfo[m_slot].perfSel1RegAddr;
 
     const uint32 numInstances    = perfInfo.block[blockIdx].numInstances;
-    const uint32 numShaderArrays = m_device.Parent()->ChipProperties().gfx9.numShaderArrays;
+    const uint32 numShaderArrays = chipProps.gfx9.numShaderArrays;
 
     // If this is an indexed counter, we need to modify the GRBM_GFX_INDEX.
     if (m_flags.isIndexed)
     {
-        regGRBM_GFX_INDEX__GFX09 grbmGfxIndex   = {};
+        const uint32  shIndex = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_instance);
+
+        regGRBM_GFX_INDEX grbmGfxIndex   = {};
         grbmGfxIndex.bits.SE_INDEX       = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_instance);
-        grbmGfxIndex.bits.SH_INDEX       = PerfCounter::InstanceIdToSh(numInstances, numShaderArrays, m_instance);
         grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
+
+        SetGrbmGfxIndexShaderArray(chipProps.gfxLevel, shIndex, &grbmGfxIndex);
 
         pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                         grbmGfxIndex.u32All,

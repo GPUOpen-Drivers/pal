@@ -53,29 +53,28 @@ public:
     ~SyncobjFence();
 
     virtual Result Init(
-        const FenceCreateInfo& createInfo,
-        bool                   needsEvent) override;
+        const FenceCreateInfo& createInfo) override;
 
     virtual Result OpenHandle(
         const FenceOpenInfo& openInfo) override;
 
+    virtual OsExternalHandle ExportExternalHandle(
+        const FenceExportInfo& exportInfo) const override;
+
     virtual Result WaitForFences(
         const Pal::Device& device,
-        uint32             fenceCount,
-        const Fence*const* ppFenceList,
-        bool               waitAll,
-        uint64             timeout) const override;
+        uint32                  fenceCount,
+        const Pal::Fence*const* ppFenceList,
+        bool                    waitAll,
+        uint64                  timeout) const override;
 
-    virtual Result AssociateWithLastTimestampOrSyncobj() override;
+    virtual void AssociateWithContext(Pal::SubmissionContext* pContext) override;
 
-    virtual Result ResetAssociatedSubmission() override;
+    virtual Result Reset() override;
 
     virtual Result GetStatus() const override;
 
-    amdgpu_syncobj_handle GetFenceSyncObject() const { return m_fenceSyncObject; }
-
-    virtual OsExternalHandle ExportExternalHandle(
-        const FenceExportInfo& exportInfo) const override;
+    amdgpu_syncobj_handle SyncObjHandle() const { return m_fenceSyncObject; }
 
 private:
     bool IsSyncobjSignaled(

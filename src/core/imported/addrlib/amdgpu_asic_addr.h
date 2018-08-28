@@ -94,6 +94,9 @@
 #if ADDR_GFX9_BUILD
 #define AMDGPU_VEGA10_RANGE     0x01, 0x14
 #endif
+#if ADDR_VEGA12_BUILD
+#define AMDGPU_VEGA12_RANGE     0x14, 0x28
+#endif
 
 #if ADDR_RAVEN1_BUILD
 #define AMDGPU_RAVEN_RANGE      0x01, 0x81
@@ -134,6 +137,10 @@
 #if ADDR_GFX9_BUILD
 #define ASICREV_IS_VEGA10_M(r)         ASICREV_IS(r, VEGA10)
 #define ASICREV_IS_VEGA10_P(r)         ASICREV_IS(r, VEGA10)
+#endif
+#if ADDR_VEGA12_BUILD
+#define ASICREV_IS_VEGA12_P(r)         ASICREV_IS(r, VEGA12)
+#define ASICREV_IS_VEGA12_p(r)         ASICREV_IS(r, VEGA12)
 #endif
 
 #if ADDR_RAVEN1_BUILD

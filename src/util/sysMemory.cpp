@@ -22,9 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-#if PAL_JEMALLOC_ALLOC_CALLBACKS
-#include "jemalloc.h"
-#endif
+
 #include "palSysMemory.h"
 
 // =====================================================================================================================
@@ -51,34 +49,6 @@ void PAL_CDECL operator delete(
 
 namespace Util
 {
-#if PAL_JEMALLOC_ALLOC_CALLBACKS
-// =====================================================================================================================
-void* GenericAllocator::Alloc(
-    const AllocInfo& allocInfo)
-{
-    // Allocating zero bytes of memory results in undefined behavior.
-    PAL_ASSERT((allocInfo.bytes > 0) && (IsPowerOfTwo(allocInfo.alignment)));
-
-    void* pMem = nullptr;
-
-    je_posix_memalign(&pMem, Pow2Align(allocInfo.alignment, sizeof(void*)), allocInfo.bytes);
-
-    if ((pMem != nullptr) && allocInfo.zeroMem)
-    {
-        memset(pMem, 0, allocInfo.bytes);
-    }
-
-    return pMem;
-}
-
-// =====================================================================================================================
-void GenericAllocator::Free(
-    const FreeInfo& freeInfo)
-{
-    je_free(freeInfo.pClientMem);
-}
-#endif
-
 // =====================================================================================================================
 template<size_t size>
 void* PAL_CDECL FastMemCpySmall(

@@ -163,6 +163,14 @@ void Queue::Destroy()
     // NOTE: If there are still outstanding batched commands for this Queue, something has gone very wrong!
     PAL_ASSERT(m_batchedCmds.NumElements() == 0);
 
+    // There are some CmdStreams which are created with UntrackedCmdAllocator, then the CmdStreamChunks in those
+    // CmdStreams will have race condition when CmdStreams are destructed. Only CPU side reference count is used to
+    // track chunks. Multi-queues share the same UntrackedCmdAllocator will have chance to overwrite command chunk
+    // which is still not executed (but is marked as free by RemoveCommandStreamReference in the ~CmdStream() )
+    // and can cause ASIC hang. This issue could be easily re-produced under SRIOV platform because virtual GPU is
+    // slow and have chance to be preempted. Solution is call WaitIdle before doing anything else.
+    WaitIdle();
+
     if (m_pDevOverlayCmdBufferDeque != nullptr)
     {
         while (m_pDevOverlayCmdBufferDeque->NumElements() > 0)
@@ -935,22 +943,6 @@ Result Queue::AssociateFenceWithLastSubmit(
                 result = DoAssociateFenceWithLastSubmit(pCoreFence);
             }
         }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-Result Queue::DoAssociateFenceWithLastSubmit(
-    Fence* pFence
-    ) const
-{
-    Result result = Result::ErrorUnavailable;
-
-    // On all platforms, a zero timestamp means that nothing has been submitted on the queue yet.
-    if (m_pSubmissionContext->LastTimestamp() > 0)
-    {
-        result = pFence->AssociateWithLastTimestampOrSyncobj();
     }
 
     return result;

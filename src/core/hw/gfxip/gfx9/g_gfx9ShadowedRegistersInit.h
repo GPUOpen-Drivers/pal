@@ -445,7 +445,7 @@ void InitializeContextRegistersGfx9(
     constexpr uint32 VgtPrimitiveidResetGfx9[] = {
         0x0
     };
-    constexpr uint32 VgtGsMaxPrimsPerSubgroupGfx09Gfx9[] = {
+    constexpr uint32 VgtGsMaxPrimsPerSubgroupGfx9[] = {
         0x0       ,
         0x0       ,
         0x0       ,
@@ -671,7 +671,7 @@ void InitializeContextRegistersGfx9(
     pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_BLEND_RED,mmPA_CL_UCP_5_W, CbBlendRedGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,mmCB_MRT7_EPITCH__GFX09, SxPsDownconvertGfx9,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,Gfx09::mmCB_MRT7_EPITCH, SxPsDownconvertGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL,mmPA_CL_NANINF_CNTL, DbDepthControlGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL,mmPA_SU_SMALL_PRIM_FILTER_CNTL, PaSuSmallPrimFilterCntlGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE,mmPA_SU_LINE_CNTL, PaSuPointSizeGfx9,pCmdSpace);
@@ -681,12 +681,12 @@ void InitializeContextRegistersGfx9(
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET,mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetGfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09,mmVGT_STRMOUT_VTX_STRIDE_0, VgtGsMaxPrimsPerSubgroupGfx09Gfx9,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP,mmVGT_STRMOUT_VTX_STRIDE_0, VgtGsMaxPrimsPerSubgroupGfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_1,mmVGT_STRMOUT_VTX_STRIDE_1, VgtStrmoutBufferSize1Gfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_2,mmVGT_STRMOUT_VTX_STRIDE_2, VgtStrmoutBufferSize2Gfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_BUFFER_SIZE_3,mmVGT_STRMOUT_VTX_STRIDE_3, VgtStrmoutBufferSize3Gfx9,pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_GS_MAX_VERT_OUT,mmVGT_STRMOUT_BUFFER_CONFIG, VgtGsMaxVertOutGfx9,pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,mmCB_COLOR7_DCC_BASE_EXT__GFX09, PaScCentroidPriority0Gfx9,pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0,Gfx09::mmCB_COLOR7_DCC_BASE_EXT, PaScCentroidPriority0Gfx9,pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)

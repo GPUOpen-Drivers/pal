@@ -63,14 +63,17 @@ DepthStencilView::DepthStencilView(
     const auto& parent    = *m_device.Parent();
 
     m_flags.u32All          = 0;
-    m_flags.hTile           = m_pImage->HasHtileData();
+
+    if (m_pImage->CanMipSupportMetaData(createInfo.mipLevel))
+    {
+        m_flags.hTile = m_pImage->HasHtileData();
+    }
+
     m_flags.depth           = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.stencil         = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil = createInfo.flags.readOnlyStencil;
     m_flags.viewVaLocked    = createInfo.flags.imageVaLocked;
-
-    m_flags.usesLoadRegIndexPkt = m_device.Parent()->ChipProperties().gfx9.supportLoadRegIndexPkt;
 
     if (m_flags.depth && m_flags.stencil)
     {
@@ -128,23 +131,10 @@ void DepthStencilView::CommonBuildPm4Headers(
         // If the parent image has HTile and some aspect is in the compressed state, we need to add a LOAD_CONTEXT_REG
         // packet to load the image's fast-clear metadata.
         // NOTE: We do not know the GPU virtual address of the metadata until bind-time.
-        constexpr uint32 StartRegAddr = mmDB_STENCIL_CLEAR;
-        constexpr uint32 RegCount     = (mmDB_DEPTH_CLEAR - mmDB_STENCIL_CLEAR + 1);
-
-        if (m_flags.usesLoadRegIndexPkt != 0)
-        {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
-                                                                            StartRegAddr,
-                                                                            RegCount,
-                                                                            &pPm4Img->loadMetaDataIndex);
-        }
-        else
-        {
-            pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegs(0,
-                                                                 StartRegAddr,
-                                                                 RegCount,
-                                                                 &pPm4Img->loadMetaData);
-        }
+        pPm4Img->spaceNeeded += cmdUtil.BuildLoadContextRegsIndex<true>(0,
+                                                                        mmDB_STENCIL_CLEAR,
+                                                                        (mmDB_DEPTH_CLEAR - mmDB_STENCIL_CLEAR + 1),
+                                                                        &pPm4Img->loadMetaDataIndex);
     }
 }
 
@@ -197,11 +187,6 @@ void DepthStencilView::InitCommonImageView(
                 (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
         pPm4Img->dbStencilInfo.bits.ALLOW_EXPCLEAR =
                 (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
-
-        // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
-        //                     order to be readable by TC
-        pPm4Img->dbZInfo.bits.ITERATE_FLUSH       = pDepthSubResInfo->flags.supportMetaDataTexFetch;
-        pPm4Img->dbStencilInfo.bits.ITERATE_FLUSH = pStencilSubResInfo->flags.supportMetaDataTexFetch;
 
         pPm4Img->dbHtileSurface.u32All   = pHtile->DbHtileSurface(m_depthSubresource.mipLevel).u32All;
         pPm4Img->dbPreloadControl.u32All = pHtile->DbPreloadControl(m_depthSubresource.mipLevel).u32All;
@@ -259,10 +244,6 @@ void DepthStencilView::InitCommonImageView(
         pDbRenderOverride->bits.DISABLE_TILE_RATE_TILES = 1;
     }
 
-    // Setup the size
-    pPm4Img->dbDepthSize.bits.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
-    pPm4Img->dbDepthSize.bits.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
-
     // Setup screen scissor registers.
     pPm4Img->paScScreenScissorTl.bits.TL_X = PaScScreenScissorMin;
     pPm4Img->paScScreenScissorTl.bits.TL_Y = PaScScreenScissorMin;
@@ -273,12 +254,10 @@ void DepthStencilView::InitCommonImageView(
     pPm4Img->dbZInfo.bits.NUM_SAMPLES        = Util::Log2(imageCreateInfo.samples);
     pPm4Img->dbZInfo.bits.MAXMIP             = (imageCreateInfo.mipLevels - 1);
     pPm4Img->dbZInfo.bits.PARTIALLY_RESIDENT = imageCreateInfo.flags.prt;
-    pPm4Img->dbZInfo.bits.FAULT_BEHAVIOR     = FAULT_ZERO;
     pPm4Img->dbZInfo.bits.FORMAT             = hwZFmt;
 
     pPm4Img->dbStencilInfo.bits.FORMAT             = HwStencilFmt(pFmtInfo, sFmt);
     pPm4Img->dbStencilInfo.bits.PARTIALLY_RESIDENT = pPm4Img->dbZInfo.bits.PARTIALLY_RESIDENT;
-    pPm4Img->dbStencilInfo.bits.FAULT_BEHAVIOR     = pPm4Img->dbZInfo.bits.FAULT_BEHAVIOR;
 
     pPm4Img->dbDfsmControl.u32All = m_device.GetDbDfsmControl();
 
@@ -327,22 +306,8 @@ void DepthStencilView::UpdateImageVa(
             gpusize metaDataVirtAddr = m_pImage->FastClearMetaDataAddr(MipLevel());
             PAL_ASSERT((metaDataVirtAddr & 0x3) == 0);
 
-            // If this view uses the legacy LOAD_CONTEXT_REG packet to load the fast-clear registers, we need to
-            // subtract the register offset for the LOAD packet from the address we specify to account for the fact that
-            // the CP uses that register offset for both the register address and to compute the final GPU address to
-            // fetch from. The newer LOAD_CONTEXT_REG_INDEX packet does not add the register offset to the GPU address.
-            if (m_flags.usesLoadRegIndexPkt == 0)
-            {
-                metaDataVirtAddr -= (sizeof(uint32) * pPm4Img->loadMetaData.bitfields4.reg_offset);
-
-                pPm4Img->loadMetaData.bitfields2.base_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-                pPm4Img->loadMetaData.base_addr_hi            = HighPart(metaDataVirtAddr);
-            }
-            else
-            {
-                pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
-                pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
-            }
+            pPm4Img->loadMetaDataIndex.bitfields2.mem_addr_lo = (LowPart(metaDataVirtAddr) >> 2);
+            pPm4Img->loadMetaDataIndex.mem_addr_hi            = HighPart(metaDataVirtAddr);
 
             // Program HTile base address.
             pPm4Img->dbHtileDataBase.bits.BASE_256B = m_pImage->GetHtile256BAddr();
@@ -570,17 +535,17 @@ void Gfx9DepthStencilView::BuildPm4Headers()
 
     CommonBuildPm4Headers(&m_pm4Cmds);
 
-    size_t spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO__GFX09,
-                                                        mmDB_DFSM_CONTROL__GFX09,
+    size_t spaceNeeded = cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
+                                                        Gfx09::mmDB_DFSM_CONTROL,
                                                         &m_pm4Cmds.hdrDbZInfoToDfsmControl);
 
-    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO2__GFX09,
-                                                  mmDB_STENCIL_INFO2__GFX09,
+    spaceNeeded += cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO2,
+                                                  Gfx09::mmDB_STENCIL_INFO2,
                                                   &m_pm4Cmds.hdrDbZInfo2ToStencilInfo2);
 
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_DEPTH_VIEW, &m_pm4Cmds.hdrDbDepthView);
     spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
-                                                  mmDB_DEPTH_SIZE__GFX09,
+                                                  Gfx09::mmDB_DEPTH_SIZE,
                                                   &m_pm4Cmds.hdrDbRenderOverride2);
 
     spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_HTILE_SURFACE, &m_pm4Cmds.hdrDbHtileSurface);
@@ -609,8 +574,10 @@ void Gfx9DepthStencilView::InitRegisters(
     DB_RENDER_OVERRIDE dbRenderOverride = { };
     InitCommonImageView(createInfo, internalInfo, pFmtInfo, &m_pm4Cmds, &dbRenderOverride);
 
-    const auto*const pDepthSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
-    const auto*const pStencilSubResInfo = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
+    const auto*const            pDepthSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
+    const auto*const            pStencilSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
+    const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
+    const SubResourceInfo*const pBaseDepthSubResInfo = m_pImage->Parent()->SubresourceInfo(baseDepthSubResId);
 
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pDepthAddrInfo = m_pImage->GetAddrOutput(pDepthSubResInfo);
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pStAddrInfo    = m_pImage->GetAddrOutput(pStencilSubResInfo);
@@ -618,10 +585,21 @@ void Gfx9DepthStencilView::InitRegisters(
     const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
     const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
 
-    m_pm4Cmds.dbZInfo.bits.SW_MODE       = AddrMgr2::GetHwSwizzleMode(depthAddrSettings.swizzleMode);
-    m_pm4Cmds.dbZInfo2.bits.EPITCH       = AddrMgr2::CalcEpitch(pDepthAddrInfo);
-    m_pm4Cmds.dbStencilInfo2.bits.EPITCH = AddrMgr2::CalcEpitch(pStAddrInfo);
-    m_pm4Cmds.dbStencilInfo.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
+    // Setup the size
+    m_pm4Cmds.dbDepthSize.gfx09.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
+    m_pm4Cmds.dbDepthSize.gfx09.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
+
+    // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
+    //                     order to be readable by TC
+    m_pm4Cmds.dbZInfo.gfx09.ITERATE_FLUSH       = pDepthSubResInfo->flags.supportMetaDataTexFetch;
+    m_pm4Cmds.dbStencilInfo.gfx09.ITERATE_FLUSH = pStencilSubResInfo->flags.supportMetaDataTexFetch;
+
+    m_pm4Cmds.dbZInfo.gfx09.FAULT_BEHAVIOR        = FAULT_ZERO;
+    m_pm4Cmds.dbStencilInfo.gfx09.FAULT_BEHAVIOR  = FAULT_ZERO;
+    m_pm4Cmds.dbZInfo.bits.SW_MODE                = AddrMgr2::GetHwSwizzleMode(depthAddrSettings.swizzleMode);
+    m_pm4Cmds.dbZInfo2.bits.EPITCH                = AddrMgr2::CalcEpitch(pDepthAddrInfo);
+    m_pm4Cmds.dbStencilInfo2.bits.EPITCH          = AddrMgr2::CalcEpitch(pStAddrInfo);
+    m_pm4Cmds.dbStencilInfo.bits.SW_MODE          = AddrMgr2::GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
 }
 
 // =====================================================================================================================
@@ -674,10 +652,10 @@ uint32* Gfx9DepthStencilView::UpdateZRangePrecision(
     }
 
     // DB_Z_INFO is the same for all compression states
-    regDB_Z_INFO__GFX09 regVal   = m_pm4Cmds.dbZInfo;
+    regDB_Z_INFO regVal          = m_pm4Cmds.dbZInfo;
     regVal.bits.ZRANGE_PRECISION = 0;
 
-    return pCmdStream->WriteSetOneContextReg(mmDB_Z_INFO__GFX09, regVal.u32All, pCmdSpace);
+    return pCmdStream->WriteSetOneContextReg(Gfx09::mmDB_Z_INFO, regVal.u32All, pCmdSpace);
 }
 
 } // Gfx9

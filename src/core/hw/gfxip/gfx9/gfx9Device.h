@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
+#include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
@@ -100,18 +101,6 @@ struct SyncReqs
     };
 };
 
-// Structure for storing GFX9-specific workaround flags
-union Workarounds
-{
-     struct
-     {
-        uint32  waAllowMetaDataForAllMips :  1;
-        uint32  reserved                  : 31;
-     };
-
-     uint32  u32All;
-};
-
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
 // pipeline bind point. Client CE RAM will be allocated after and CE load command needs a start alignment of 32 bytes,
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
@@ -124,6 +113,9 @@ constexpr size_t ReservedCeRamDwords = (ReservedCeRamBytes / sizeof(uint32));
 
 // Minimum microcode feature version required by gfx-9 hardware to support IT_LOAD_SH/CONTEXT_INDEX packets.
 constexpr uint32 MinUcodeFeatureVersionForLoadRegIndex = 29;
+
+// Forward decl
+static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
 
 // =====================================================================================================================
 // GFX9 hardware layer implementation of GfxDevice. Responsible for creating HW-specific objects such as Queue contexts
@@ -138,6 +130,16 @@ public:
     virtual Result LateInit() override;
     virtual Result Finalize() override;
     virtual Result Cleanup() override;
+
+    virtual void HwlValidateSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->ValidateSettings(pSettings);
+    }
+
+    virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) override
+    {
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
+    }
 
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
 
@@ -274,7 +276,10 @@ public:
     const CmdUtil& CmdUtil() const { return m_cmdUtil; }
     const Gfx9::RsrcProcMgr& RsrcProcMgr() const { return static_cast<Gfx9::RsrcProcMgr&>(*m_pRsrcProcMgr); }
 
-    const Gfx9PalSettings& Settings() const { return GetGfx9Settings(*m_pParent); }
+    const Gfx9PalSettings& Settings() const
+    {
+        return static_cast<const Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->GetSettings();
+    }
 
     static uint32 CalcNumRecords(
         size_t      sizeInBytes,
@@ -475,8 +480,6 @@ public:
                 (Parent()->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionForLoadRegIndex)) ? false : true;
     }
 
-    bool AllowMetaDataForAllMips() const { return m_workarounds.waAllowMetaDataForAllMips; }
-
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,
         const void* pSrcSrdTable,
@@ -528,11 +531,15 @@ private:
     const GfxIpLevel  m_gfxIpLevel;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
-    Workarounds    m_workarounds;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);
 };
+
+static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device)
+{
+    return static_cast<const Pal::Gfx9::Device*>(device.GetGfxDevice())->Settings();
+}
 
 } // Gfx9
 } // Pal

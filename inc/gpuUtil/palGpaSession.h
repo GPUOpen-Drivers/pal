@@ -119,6 +119,10 @@ union GpaSessionFlags
         /// Enables sample updates via the UpdateSampleTraceParams function.
         Pal::uint32 enableSampleUpdates      : 1;
 
+        /// Indicates that the client will use the internal Timed*QueueSemaphore() functions for queue semaphore timing
+        /// data. When not set it indicates the client will provide ETW data via the ExteralTimed* functions.
+        Pal::uint32 useInternalQueueSemaphoreTiming : 1;
+
         /// Reserved for future use.
         Pal::uint32 reserved                 : 30;
     };
@@ -193,7 +197,12 @@ struct GpaSampleConfig
                 Pal::uint32 enable                   :  1;  ///< Include SQTT data in the trace.
                 Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruciton-level SQTT tokens,
                                                             ///  significantly reducing the amount of sample data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+                Pal::uint32 stallMode                :  2;  ///< Describes behavior when buffer full
+                Pal::uint32 reserved                 : 28;  ///< Reserved for future use.
+#else
                 Pal::uint32 reserved                 : 30;  ///< Reserved for future use.
+#endif
             };
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.
@@ -636,23 +645,12 @@ private:
                                         TimedQueueState** ppQueueState,
                                         Pal::uint32* pQueueIndex);
 
-    /// Executes a timed queue semaphore operation through the given queue
-    Pal::Result TimedQueueSemaphoreOperation(Pal::IQueue* pQueue,
-                                             Pal::IQueueSemaphore* pQueueSemaphore,
-                                             const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
-                                             bool isSignalOperation);
-
     /// Injects an external timed queue semaphore operation event
     Pal::Result ExternalTimedQueueSemaphoreOperation(Pal::uint64 queueContext,
                                                      Pal::uint64 cpuSubmissionTimestamp,
                                                      Pal::uint64 cpuCompletionTimestamp,
                                                      const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
                                                      bool isSignalOperation);
-
-    /// Helper function to sample CPU & GPU timestamp, and insert a timed queue operation event.
-    Pal::Result AddCpuGpuTimedQueueEvent(Pal::IQueue* pQueue,
-                                         TimedQueueEventType eventType,
-                                         Pal::uint64 apiId);
 
     /// Converts a CPU timestamp to a GPU timestamp using a GpuTimestampCalibration struct
     Pal::uint64 ConvertCpuTimestampToGpuTimestamp(Pal::uint64                         cpuTimestamp,

@@ -321,6 +321,11 @@ constexpr uint32 TokenMaskAll = 0xFFFF;
 constexpr uint32 RegMaskAll = 0xFF;
 /// Default thread trace CU mask: enable all CU's in a shader array.
 constexpr uint32 ShCuMaskAll = 0xFFFF;
+/// Max thread trace high water mark, in 1/8 fifo increment: 7 means stall when full
+constexpr uint32 HiWaterMax = 7;
+/// Default thread trace high water mark: stall at 5/8 since data will still come in from already-issued waves
+constexpr uint32 HiWaterDefault = 4;
+static_assert(HiWaterDefault <= HiWaterMax, "SQTT high water mark too large!");
 
 } // PerfExperiment
 } // Gfx6

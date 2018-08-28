@@ -25,8 +25,10 @@
 
 #pragma once
 
+#include "palSettingsLoader.h"
 #include "core/g_palSettings.h"
-#include "palMetroHash.h"
+
+namespace Util { class IndirectAllocator; }
 
 namespace Pal
 {
@@ -34,40 +36,21 @@ namespace Pal
 class Device;
 
 // =====================================================================================================================
-// This class is responsible for loading the RuntimeSettings structure specified in the constructor.  This is a helper
-// class that only exists for a short time while the settings are initialized.
-class SettingsLoader
+// This class is responsible for loading the PAL Core runtime settings structure specified in the constructor
+class SettingsLoader : public ISettingsLoader
 {
 public:
-    SettingsLoader(Device* pDevice, PalSettings* pSettings);
-    virtual ~SettingsLoader() {}
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Device* pDevice);
+    virtual ~SettingsLoader();
 
-    Result Init();
-
+    virtual Result Init() override;
     void FinalizeSettings();
 
-    const PalSettings* GetSettings() const { return m_pSettings; };
-
-    Util::MetroHash::Hash GetSettingsHash() const { return m_settingHash; };
+    const PalSettings& GetSettings() const { return m_settings; };
+    PalSettings* GetSettingsPtr() { return &m_settings; }
 
 protected:
     void ValidateSettings();
-
-    /// Optional HWL method initializes the HWL related environment settings
-    virtual void HwlInit() { }
-
-    /// Optional HWL method to read hardware specific registry
-    virtual void HwlReadSettings() { }
-
-    /// Optional HWL method to validate the settings
-    virtual void HwlValidateSettings() { }
-
-    /// Optional HWL method to override any default registry entries
-    virtual void HwlOverrideDefaults() { }
-
-    PalSettings*          m_pSettings;
-    Device*               m_pDevice;
-    Util::MetroHash::Hash m_settingHash;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
@@ -76,7 +59,7 @@ private:
     void SetupHeapPerfRatings(PalSettings* pSettings);
 
     // Generate the settings hash which is based on HW-specific setting.
-    virtual void GenerateSettingHash() = 0;
+    void GenerateSettingHash();
 
     void OverrideDefaults();
 
@@ -84,11 +67,16 @@ private:
         void InitDpLevelSettings();
     #endif
 
-    void InitEarlySettings();
+    Device*      m_pDevice;
+    PalSettings  m_settings;
 
     // auto-generated functions
-    static void SetupDefaults(PalSettings* pSettings);
-    void ReadSettings(PalSettings* pSettings);
+    virtual void SetupDefaults() override;
+    virtual void ReadSettings() override;
+    virtual void InitSettingsInfo() override;
+    virtual void DevDriverRegister() override;
+
+    const char*const m_pComponentName = "Pal";
 };
 
 } // Pal

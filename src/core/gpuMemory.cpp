@@ -271,7 +271,6 @@ GpuMemory::GpuMemory(
     m_priority(GpuMemPriority::Unused),
     m_priorityOffset(GpuMemPriorityOffset::Offset0),
     m_pImage(nullptr),
-    m_hExternalResource(0),
     m_mtype(MType::Default),
     m_remoteSdiSurfaceIndex(0),
     m_remoteSdiMarkerIndex(0)
@@ -384,9 +383,6 @@ Result GpuMemory::Init(
         m_desc.size = Pow2Align(m_desc.size, pageSize) + pageSize;
     }
 
-    // the handle is used for importing resource
-    m_hExternalResource = internalInfo.hExternalResource;
-
     gpusize allocGranularity = 0;
 
     if (IsVirtual())
@@ -455,7 +451,7 @@ Result GpuMemory::Init(
 
     if (IsShared())
     {
-        result = OpenSharedMemory();
+        result = OpenSharedMemory(internalInfo.hExternalResource);
 
         if (IsErrorResult(result) == false)
         {
@@ -717,8 +713,8 @@ Result GpuMemory::Init(
                (m_pOriginalMem->m_flags.buddyAllocated == 0) &&
                (m_pOriginalMem->m_flags.alwaysResident == 0));
 
-    const Result result = OpenSharedMemory();
-
+    const Result result = OpenSharedMemory(
+            m_pOriginalMem->GetSharedExternalHandle());
     if (IsErrorResult(result) == false)
     {
         DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Opened);

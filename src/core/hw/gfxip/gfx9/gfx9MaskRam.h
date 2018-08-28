@@ -234,6 +234,12 @@ private:
         const Image&           image,
         const SubResourceInfo* pSubResInfo);
 
+    template <typename RegType>
+    void SetupHtilePreload(
+        const Image&          image,
+        uint32                mipLevel,
+        RegType*              pRegType);
+
     virtual void   CalcCompBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
     virtual void   CalcMetaBlkSizeLog2(Gfx9MaskRamBlockSize*  pBlockSize) const override;
 
@@ -435,7 +441,7 @@ public:
     Result Init(
         const Image&   image,
         gpusize*       pGpuOffset);
-    regSQ_IMG_RSRC_WORD1__GFX09 Gfx9FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
+    regSQ_IMG_RSRC_WORD1 Gfx9FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
     const ADDR2_COMPUTE_FMASK_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     AddrSwizzleMode GetSwizzleMode() const { return m_surfSettings.swizzleMode; }
     uint32 GetPipeBankXor() const { return m_pipeBankXor; }

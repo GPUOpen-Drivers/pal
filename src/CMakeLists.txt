@@ -50,8 +50,8 @@ if(UNIX)
         message(FATAL_ERROR "Using unknown compiler.")
     endif()
 
-    set(PAL_USE_PTHREAD TRUE)
-    set(JEMALLOC_USE_PTHREAD TRUE)
+	set(PAL_USE_PTHREAD TRUE)
+
 endif()
 
 # CMAKE-TODO: Where is this used?
@@ -101,18 +101,6 @@ if(PAL_MEMTRACK)
 
     # Public because it is used in the interface.
     target_compile_definitions(pal PUBLIC PAL_MEMTRACK)
-endif()
-
-if(PAL_BUILD_JEMALLOC)
-    target_compile_definitions(pal PRIVATE PAL_JEMALLOC_ALLOC_CALLBACKS)
-
-    if(PAL_JEMALLOC_STATS)
-        target_compile_definitions(pal PRIVATE PAL_JEMALLOC_STATS)
-    endif()
-
-    if(PAL_JEMALLOC_DEBUG)
-        target_compile_definitions(pal PRIVATE PAL_JEMALLOC_DEBUG)
-    endif()
 endif()
 
 set(PAL_CLIENT_${PAL_CLIENT} 1)
@@ -166,13 +154,12 @@ if(UNIX)
     if(NOT DEFINED DK_XCB)
         if(DEFINED GLOBAL_ROOT_DK_DIR)
             if(TARGET_ARCHITECTURE_BITS EQUAL 64)
-                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.10_64a)
+                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.13_64a)
             elseif(TARGET_ARCHITECTURE_BITS EQUAL 32)
-                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.10_x86)
+                set(DK_XCB ${GLOBAL_ROOT_DK_DIR}/xcb/1.13_x86)
             endif()
             target_include_directories(pal PUBLIC ${DK_XCB}/include)
         else()
-            #find_package(XCB REQUIRED COMPONENTS XCB DRI2 DRI3 PRESENT)
             find_package(XCB)
             set(DK_XCB ${XCB_INCLUDE_DIRS})
             target_include_directories(pal PUBLIC ${DK_XCB})
@@ -184,6 +171,7 @@ if(UNIX)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/2d)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/drm)
     target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/wsa)
+    target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/include/xcb)
 endif()
 
 # Other Includes
@@ -198,12 +186,6 @@ target_link_libraries(pal PUBLIC addrlib)
 ### VAM ########################################################################
 add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
 target_link_libraries(pal PUBLIC vam)
-
-### JEMALLOC ###################################################################
-if(PAL_BUILD_JEMALLOC)
-    add_subdirectory(${PAL_JEMALLOC_PATH} ${PROJECT_BINARY_DIR}/jemalloc)
-    target_link_libraries(pal PUBLIC jemalloc)
-endif()
 
 ### METROHASH ##################################################################
 add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
@@ -247,6 +229,7 @@ if(PAL_BUILD_CORE)
         core/internalMemMgr.cpp
         core/masterQueueSemaphore.cpp
         core/openedQueueSemaphore.cpp
+        core/palSettingsLoader.cpp
         core/perfCounter.cpp
         core/perfExperiment.cpp
         core/perfTrace.cpp
@@ -288,12 +271,13 @@ if(PAL_BUILD_CORE)
         core/os/nullDevice/ndGpuMemory.cpp
         core/os/nullDevice/ndPlatform.cpp
         core/os/nullDevice/ndQueue.cpp
+		core/os/nullDevice/ndFence.cpp
     )
 
     if(UNIX)
         target_sources(pal PRIVATE
             core/os/lnx/lnxDevice.cpp
-            core/os/lnx/lnxFence.cpp
+            core/os/lnx/lnxTimestampFence.cpp
             core/os/lnx/lnxSyncobjFence.cpp
             core/os/lnx/lnxGpuMemory.cpp
             core/os/lnx/lnxImage.cpp
@@ -307,6 +291,7 @@ if(PAL_BUILD_CORE)
             core/os/lnx/lnxVamMgr.cpp
             core/os/lnx/dri3/dri3WindowSystem.cpp
             core/os/lnx/dri3/dri3Loader.cpp
+            core/os/lnx/display/displayWindowSystem.cpp
             core/os/lnx/lnxWindowSystem.cpp
             core/os/lnx/lnxScreen.cpp
         )
@@ -609,10 +594,6 @@ target_sources(pal PRIVATE
     util/sysUtil.cpp
 )
 
-if(PAL_BUILD_JEMALLOC)
-    target_sources(pal PRIVATE util/jemallocSysMemory.cpp)
-endif()
-
 if(UNIX)
 ### PAL util/lnx ###############################################################
     target_sources(pal PRIVATE
@@ -629,12 +610,6 @@ if(UNIX)
 endif()
 
 ### PAL Auto-generated Files ###########################################################################################
-if(DEFINED ISV_BUILD)
-    set(REGISTRY_KEY_HASH_ALGORITHM ${ISV_BUILD})
-else()
-    set(REGISTRY_KEY_HASH_ALGORITHM 0)
-endif()
-
 set(GEN_TOOLS_DIR ${PROJECT_SOURCE_DIR}/tools/generate)
 set(GEN_SETTINGS  ${GEN_TOOLS_DIR}/genSettingsCode.py)
 
@@ -657,14 +632,14 @@ if(PAL_BUILD_CORE)
 
     add_custom_command(
         OUTPUT ${SETTINGS_DIR}/g_palSettings.cpp ${SETTINGS_DIR}/g_palSettings.h
-        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${SETTINGS_CFG_DIR}/settings.cfg ${SETTINGS_DIR}/ g_palSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings.cfg
-        COMMENT "Generating settings code from settings.cfg"
+        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${SETTINGS_CFG_DIR}/settings_core.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_palSettings --genRegistryCode
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
+        COMMENT "Generating settings code from settings_core.json"
     )
 
     add_custom_target(
         RunSettingsGenerator
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings.cfg
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
         COMMENT "Checking if re-generation is required for settings"
     )
 
@@ -694,14 +669,14 @@ if(PAL_BUILD_CORE)
 
             add_custom_command(
                 OUTPUT ${GFX6_DIR}/g_gfx6PalSettings.cpp ${GFX6_DIR}/g_gfx6PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg ${GFX6_DIR}/ g_gfx6PalSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg
-                COMMENT "Generating gfx6Settings code from gfx6Settings.cfg"
+                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${GFX6_CFG_DIR}/settings_gfx6.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_gfx6PalSettings --genRegistryCode
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
+                COMMENT "Generating gfx6Settings code from settings_gfx6.json"
             )
 
             add_custom_target(
                 RunGfx6SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/gfx6PalSettings.cfg
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
                 COMMENT "Checking if re-generation is required for gfx6Settings"
             )
         endif()
@@ -713,14 +688,14 @@ if(PAL_BUILD_CORE)
 
             add_custom_command(
                 OUTPUT ${GFX9_DIR}/g_gfx9PalSettings.cpp ${GFX9_DIR}/g_gfx9PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg ${GFX9_DIR}/ g_gfx9PalSettings ${REGISTRY_KEY_HASH_ALGORITHM}
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg
-                COMMENT "Generating gfx9Settings code from gfx9Settings.cfg"
+                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${GFX9_CFG_DIR}/settings_gfx9.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_gfx9PalSettings --genRegistryCode
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
+                COMMENT "Generating gfx9Settings code from settings_gfx9.json"
             )
 
             add_custom_target(
                 RunGfx9SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/gfx9PalSettings.cfg
+                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
                 COMMENT "Checking if re-generation is required for gfx9Settings"
             )
         endif()

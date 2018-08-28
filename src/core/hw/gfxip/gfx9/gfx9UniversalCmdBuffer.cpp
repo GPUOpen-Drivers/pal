@@ -266,6 +266,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeY(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
+    const PalSettings&     coreSettings    = m_device.Parent()->Settings();
     const Gfx9PalSettings& settings        = m_device.Settings();
     const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
 
@@ -289,7 +290,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                        CmdBufferEngineSupport::CpDma);
 
     // Setup all of our cached settings checks.
-    m_cachedSettings.tossPointMode              = static_cast<uint32>(settings.tossPointMode);
+    m_cachedSettings.tossPointMode              = static_cast<uint32>(coreSettings.tossPointMode);
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
     m_cachedSettings.disableDfsm                = settings.disableDfsm;
@@ -322,8 +323,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
 
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerSqttOff) &&
-                             (TestAnyFlagSet(settings.gpuProfilerTraceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     m_paScBinnerCntl0.u32All = 0;
@@ -753,10 +754,11 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     // On a legacy-to-NGG pipeline or vice versa, we need to make sure that VGT_DMA_INDEX_TYPE::PRIMGEN_EN is set
     // appropriately if the client performs an indexed draw.
-    if (m_vgtDmaIndexType.bits.PRIMGEN_EN != static_cast<uint32>(isNgg))
+    if ((m_gfxIpLevel == GfxIpLevel::GfxIp9) &&
+         (m_vgtDmaIndexType.gfx09.PRIMGEN_EN != static_cast<uint32>(isNgg)))
     {
         m_drawTimeHwState.dirty.indexType = 1;
-        m_vgtDmaIndexType.bits.PRIMGEN_EN = static_cast<uint32>(isNgg);
+        m_vgtDmaIndexType.gfx09.PRIMGEN_EN = static_cast<uint32>(isNgg);
     }
 
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
@@ -1378,7 +1380,8 @@ void UniversalCmdBuffer::CmdBindTargets(
 void UniversalCmdBuffer::CmdBindStreamOutTargets(
     const BindStreamOutTargetParams& params)
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const auto&              palDevice = *(m_device.Parent());
+    const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const auto*const         pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -1737,6 +1740,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -1837,6 +1842,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
                                                              stride >> 2,
                                                              pDeCmdSpace);
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -1916,6 +1923,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     const uint32 validIndexCount = pThis->m_graphicsState.iaState.indexCount - firstIndex;
+
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
     if (viewInstancingEnable)
     {
@@ -2067,6 +2076,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     pThis->m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const auto*const pPipeline          =
@@ -2179,6 +2190,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
         pThis->m_deCmdStream.NotifyIndirectShRegWrite(indexOffsetReg);
     }
 
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     if (viewInstancingEnable)
     {
         const Pal::Device*  pParentDev         = pThis->m_device.Parent();
@@ -2269,6 +2282,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDispatch(0uLL, x, y, z, pDeCmdSpace);
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                      pThis->PacketPredicate(),
                                                                      pDeCmdSpace);
@@ -2307,6 +2321,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
     pDeCmdSpace  = pThis->ValidateDispatch((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildSetBase(gpuMemBaseAddr,
                                                  base_index__pfp_set_base__patch_table_base,
                                                  ShaderCompute,
@@ -2364,6 +2379,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     yDim += yOffset;
     zDim += zOffset;
 
+    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(xDim,
                                                                       yDim,
                                                                       zDim,
@@ -2634,11 +2650,10 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     pm4Commands.dbHtileDataBase.u32All        = 0;
 
     // The rest of the PM4 commands depend on which GFXIP version we are.
-    const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
-    if (gfxLevel == GfxIpLevel::GfxIp9)
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(mmDB_Z_INFO__GFX09,
-                                                      mmDB_DFSM_CONTROL__GFX09,
+        cmdDwords += m_cmdUtil.BuildSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
+                                                      Gfx09::mmDB_DFSM_CONTROL,
                                                       &pm4Commands.hdrDbInfo);
 
         pm4Commands.gfx9.dbZInfo.u32All              = 0;
@@ -2729,6 +2744,8 @@ BinningMode UniversalCmdBuffer::GetDisableBinningSetting() const
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
+    const auto& device = *(m_device.Parent());
+
     // If this trips, it means that this isn't really the preamble -- i.e., somebody has inserted something into the
     // command stream before the preamble.  :-(
     PAL_ASSERT(m_ceCmdStream.IsEmpty());
@@ -2738,9 +2755,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
     pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
 
-    if ((m_device.Parent()->GetPlatform()->IsEmulationEnabled()) && (IsNested() == false))
+    if ((device.GetPlatform()->IsEmulationEnabled()) && (IsNested() == false))
     {
-        PAL_ASSERT(m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
+        PAL_ASSERT(device.IsPreemptionSupported(EngineType::EngineTypeUniversal) == false);
 
         PM4PFP_CONTEXT_CONTROL contextControl = {};
 
@@ -2765,8 +2782,6 @@ Result UniversalCmdBuffer::AddPreamble()
     }
 
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, dbRenderOverride.u32All, pDeCmdSpace);
-
-    const GfxIpLevel gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
 
     // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
     // inherited state and the optimizations won't be cleared unless cleared in this command buffer.
@@ -2804,8 +2819,12 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
-    if (gfxLevel == GfxIpLevel::GfxIp9)
+    const uint32  mmPaStateStereoX = m_cmdUtil.GetRegInfo().mmPaStateStereoX;
+    if (mmPaStateStereoX != 0)
     {
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPaStateStereoX, 0, pDeCmdSpace);
+        }
     }
 
     // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
@@ -3043,20 +3062,21 @@ CmdStream* UniversalCmdBuffer::GetCmdStreamByEngine(
 }
 
 // =====================================================================================================================
-// Helper function to synchronize the CE and DE counters at draw or dispatch time when a CE RAM dump was performed prior
-// to the draw/dispatch operation.
-void UniversalCmdBuffer::SynchronizeCeDeCounters(
-    uint32** ppDeCmdSpace,  // [in,out] Command space write location for the DE stream
-    uint32** ppCeCmdSpace)  // [in,out] Command space write location for the CE stream
+// Helper function to instruct the DE to wait on the CE counter at draw or dispatch time if a CE RAM dump was performed
+// prior to the draw or dispatch operation or during validation.
+uint32* UniversalCmdBuffer::WaitOnCeCounter(
+    uint32* pDeCmdSpace)
 {
-    PAL_ASSERT(m_state.flags.ceStreamDirty != 0);
+    if (m_state.flags.ceStreamDirty != 0)
+    {
+        pDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), pDeCmdSpace);
 
-    *ppCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(*ppCeCmdSpace);
-    *ppDeCmdSpace += m_cmdUtil.BuildWaitOnCeCounter((m_state.flags.ceInvalidateKcache != 0), *ppDeCmdSpace);
+        m_state.flags.ceInvalidateKcache = 0;
+        m_state.flags.ceStreamDirty      = 0;
+        m_state.flags.deCounterDirty     = 1;
+    }
 
-    m_state.flags.ceInvalidateKcache    = 0;
-    m_state.flags.ceStreamDirty         = 0;
-    m_state.flags.deCounterDirty        = 1;
+    return pDeCmdSpace;
 }
 
 // =====================================================================================================================
@@ -3434,8 +3454,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
     const GraphicsPipelineSignature* pPrevSignature,
     uint32*                          pDeCmdSpace)
 {
-    constexpr bool NggEnabled = !VsEnabled;
-
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
@@ -3599,9 +3617,9 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         // the CE and DE must be synchronized before the Dispatch is issued.  Note that this can only be done here
         // for non-NGG pipelines because NGG pipelines require an additional CE ring buffer for uploading the NGG
         // constant buffer.
-        if (!NggEnabled && m_state.flags.ceStreamDirty)
+        if (m_state.flags.ceStreamDirty)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
@@ -3730,7 +3748,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
         // the CE and DE must be synchronized before the Dispatch is issued.
         if (m_state.flags.ceStreamDirty)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
@@ -3964,7 +3982,7 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
         // draw and constant engines before we issue the upcoming Draw.
         if (m_state.flags.ceStreamDirty != 0)
         {
-            SynchronizeCeDeCounters(&pDeCmdSpace, &pCeCmdSpace);
+            pCeCmdSpace += m_cmdUtil.BuildIncrementCeCounter(pCeCmdSpace);
         }
 
         m_ceCmdStream.CommitCommands(pCeCmdSpace);
@@ -4009,13 +4027,37 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const auto*const pDsView =
         static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
 
-    const auto& dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     // If we're about to launch a draw we better have a pipeline bound.
     PAL_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
     m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
+
+    if (indexed                                                 &&
+        isNgg                                                   &&
+        (m_graphicsState.iaState.indexType == IndexType::Idx32) &&
+        (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::TriangleList))
+    {
+
+        // We'll underflow the numPages calculation if we're priming zero bytes.
+        const size_t  offset      = drawInfo.firstIndex  * sizeof(uint32);
+        const size_t  sizeInBytes = drawInfo.vtxIdxCount * sizeof(uint32);
+        const gpusize gpuAddr     = m_graphicsState.iaState.indexAddr + offset;
+        PAL_ASSERT(sizeInBytes > 0);
+
+        const gpusize firstPage = Pow2AlignDown(gpuAddr, PrimeUtcL2MemAlignment);
+        const gpusize lastPage  = Pow2AlignDown(gpuAddr + sizeInBytes - 1, PrimeUtcL2MemAlignment);
+        const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
+
+        pDeCmdSpace += m_cmdUtil.BuildPrimeUtcL2(firstPage,
+                                                 cache_perm__pfp_prime_utcl2__read,
+                                                 prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
+                                                 engine_sel__pfp_prime_utcl2__prefetch_parser,
+                                                 numPages,
+                                                 pDeCmdSpace);
+    }
 
     if (pipelineDirty || (stateDirty && dirtyFlags.colorBlendState))
     {
@@ -4058,7 +4100,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                 pDepthState,
                 pBlendState,
                 MayHaveActiveQueries(),
-                static_cast<Gfx9OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
+                static_cast<OutOfOrderPrimMode>(m_cachedSettings.outOfOrderPrimsEnable));
         }
         if (m_state.flags.optimizeLinearGfxCpy)
         {
@@ -4090,7 +4132,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmIA_MULTI_VGT_PARAM__GFX09,
+            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmIA_MULTI_VGT_PARAM,
                                                              iaMultiVgtParam.u32All,
                                                              pDeCmdSpace,
                                                              index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09);
@@ -4279,11 +4321,9 @@ Extent2d UniversalCmdBuffer::GetColorBinSize() const
         }
     }
 
-    const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
     Extent2d          size      = { 0, 0 };
     const CtoBinSize* pBinEntry = nullptr;
 
-    if (gfxLevel == GfxIpLevel::GfxIp9)
     {
         static constexpr CtoBinSize BinSize[][3][8]=
         {
@@ -4418,10 +4458,8 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
                                           (pDepthTargetView->ReadOnlyStencil() == false)) ? 1 : 0;
         const uint32 cDepth            = 4 * (cPerDepthSample + cPerStencilSample) * imageCreateInfo.samples;
 
-        const GfxIpLevel  gfxLevel  = m_device.Parent()->ChipProperties().gfxLevel;
         const CtoBinSize* pBinEntry = nullptr;
 
-        if (gfxLevel == GfxIpLevel::GfxIp9)
         {
             static constexpr CtoBinSize BinSize[][3][10]=
             {
@@ -5041,7 +5079,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All = vgtMultiPrimIbResetEn.u32All;
         m_drawTimeHwState.valid.vgtMultiPrimIbResetEn  = 1;
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_MULTI_PRIM_IB_RESET_EN__GFX09,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx09::mmVGT_MULTI_PRIM_IB_RESET_EN,
                                                          vgtMultiPrimIbResetEn.u32All,
                                                          pDeCmdSpace);
     }

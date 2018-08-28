@@ -207,15 +207,15 @@ inline double StrtodBigInteger(double approx, const char* decimals, size_t lengt
     const BigInteger dInt(decimals, length);
     const int dExp = static_cast<int>(decimalPosition) - static_cast<int>(length) + exp;
     Double a(approx);
-    int cmp = CheckWithinHalfULP(a.Write(), dInt, dExp);
+    int cmp = CheckWithinHalfULP(a.Value(), dInt, dExp);
     if (cmp < 0)
-        return a.Write();  // within half ULP
+        return a.Value();  // within half ULP
     else if (cmp == 0) {
         // Round towards even
         if (a.Significand() & 1)
             return a.NextPositiveDouble();
         else
-            return a.Write();
+            return a.Value();
     }
     else // adjustment
         return a.NextPositiveDouble();

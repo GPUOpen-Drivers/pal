@@ -78,13 +78,13 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
     const DepthStencilState* pDepthStencilState,
     const ColorBlendState*   pBlendState,
     uint32                   hasActiveQueries,
-    Gfx9OutOfOrderPrimMode   gfx9EnableOutOfOrderPrimitives
+    OutOfOrderPrimMode       gfx9EnableOutOfOrderPrimitives
     ) const
 {
     bool enableOutOfOrderPrims = true;
 
-    if ((gfx9EnableOutOfOrderPrimitives == Gfx9OutOfOrderPrimSafe) ||
-        (gfx9EnableOutOfOrderPrimitives == Gfx9OutOfOrderPrimAggressive))
+    if ((gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimSafe) ||
+        (gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive))
     {
         if (PsUsesUavs() || pDepthStencilState == nullptr)
         {
@@ -107,7 +107,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
 
             bool canDepthStencilRunOutOfOrder = false;
 
-            if ((gfx9EnableOutOfOrderPrimitives == Gfx9OutOfOrderPrimSafe) && (hasActiveQueries != 0))
+            if ((gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimSafe) && (hasActiveQueries != 0))
             {
                 canDepthStencilRunOutOfOrder = !isDepthStencilWriteEnabled;
             }
@@ -128,7 +128,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
                 // Aggressive setting allows render target writes to run out of order if depth testing forces
                 // ordering of primitives.
                 const bool canRenderTargetRunOutOfOrder =
-                    (gfx9EnableOutOfOrderPrimitives == Gfx9OutOfOrderPrimAggressive) &&
+                    (gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive) &&
                     (pDepthStencilState->DepthForcesOrdering());
 
                 // Depth testing is required for the z-buffer to be correctly constructed with out-of-order primitives.
@@ -145,7 +145,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
                             // primitives for commutative blending with aggressive setting.
                             const bool canBlendingRunOutOfOrder =
                                 (pBlendState->IsBlendCommutative(i) &&
-                                (gfx9EnableOutOfOrderPrimitives == Gfx9OutOfOrderPrimAggressive));
+                                (gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive));
 
                             // We cannot enable out of order primitives if
                             //   1. If blending is off and depth ordering of the samples is not enforced.
@@ -166,7 +166,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
             }
         }
     }
-    else if (gfx9EnableOutOfOrderPrimitives != Gfx9OutOfOrderPrimAlways)
+    else if (gfx9EnableOutOfOrderPrimitives != OutOfOrderPrimAlways)
     {
         enableOutOfOrderPrims = false;
     }
@@ -347,10 +347,6 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     uint32 maxWavesPerCu2
     ) const
 {
-    constexpr uint32 MaxWavesPerShGraphics         = 63u;
-    constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
-
-    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
     // The HW shader stage might a combination of two API shader stages (e.g., for GS copy shaders), so we must apply
     // the minimum wave limit of both API shader stages.  Note that zero is the largest value because it means
@@ -361,21 +357,27 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSh(
                                                         : Min(maxWavesPerCu1, maxWavesPerCu2)));
 
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVE_LIMIT field to the maximum possible value.
-    uint32 wavesPerSh = MaxWavesPerShGraphics;
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSh = 0;
 
     // If the caller would like to override the default maxWavesPerCu
     if (maxWavesPerCu > 0)
     {
-        // We assume no one is trying to use more than 100% of all waves.
-        const uint32 numWavefrontsPerCu = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
-        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
+        const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
+        const     uint32 numWavefrontsPerCu            = gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd;
+        constexpr uint32 MaxWavesPerShGraphicsUnitSize = 16u;
+        const     uint32 maxWavesPerShGraphics         = (numWavefrontsPerCu * gfx9ChipProps.maxNumCuPerSh) /
+                                                         MaxWavesPerShGraphicsUnitSize;
+
+        // We assume no one is trying to use more than 100% of all waves.
+        PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
         const uint32 maxWavesPerSh = (maxWavesPerCu * gfx9ChipProps.numCuPerSh);
 
         // For graphics shaders, the WAVES_PER_SH field is in units of 16 waves and must not exceed 63. We must
         // also clamp to one if maxWavesPerSh rounded down to zero to prevent the limit from being removed.
-        wavesPerSh = Min(MaxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
+        wavesPerSh = Min(maxWavesPerShGraphics, Max(1u, maxWavesPerSh / MaxWavesPerShGraphicsUnitSize));
     }
 
     return wavesPerSh;
@@ -595,6 +597,7 @@ void GraphicsPipeline::BuildPm4Headers(
     bool useStreamOutput)
 {
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    const auto&    regInfo = cmdUtil.GetRegInfo();
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
@@ -647,8 +650,16 @@ void GraphicsPipeline::BuildPm4Headers(
     m_statePm4CmdsContext.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SC_LINE_CNTL, &m_statePm4CmdsContext.hdrPaScLineCntl);
 
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    if (regInfo.mmPaStereoCntl != 0)
     {
+        // PM4 packet: sets the following context register: PA_STEREO_CNTL.
+        m_statePm4CmdsContext.spaceNeeded +=
+            cmdUtil.BuildSetOneContextReg(regInfo.mmPaStereoCntl, &m_statePm4CmdsContext.hdrPaStereoCntl);
+    }
+    else
+    {
+        m_statePm4CmdsContext.spaceNeeded +=
+            cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_statePm4CmdsContext.hdrPaStereoCntl);
     }
 
     // PM4 packet: sets the following context register: mmSPI_INTERP_CONTROL_0.
@@ -730,6 +741,8 @@ void GraphicsPipeline::InitCommonStateRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiProcessor&               abiProcessor)
 {
+    const CmdUtil&         cmdUtil  = m_pDevice->CmdUtil();
+    const auto&            regInfo  = cmdUtil.GetRegInfo();
     const Gfx9PalSettings& settings = m_pDevice->Settings();
 
     m_statePm4CmdsContext.paClClipCntl.u32All = abiProcessor.GetRegisterEntry(mmPA_CL_CLIP_CNTL);
@@ -737,8 +750,10 @@ void GraphicsPipeline::InitCommonStateRegisters(
     m_statePm4CmdsContext.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
 
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    m_statePm4CmdsContext.paStereoCntl.u32All = 0;
+    if (regInfo.mmPaStereoCntl != 0)
     {
+        abiProcessor.HasRegisterEntry(regInfo.mmPaStereoCntl, &m_statePm4CmdsContext.paStereoCntl.u32All);
     }
 
     m_statePm4CmdsContext.vgtShaderStagesEn.u32All = abiProcessor.GetRegisterEntry(mmVGT_SHADER_STAGES_EN);
@@ -814,6 +829,7 @@ void GraphicsPipeline::InitCommonStateRegisters(
 
     SetupNonShaderRegisters(createInfo, abiProcessor);
     SetupIaMultiVgtParam(abiProcessor);
+
 }
 
 // =====================================================================================================================
@@ -826,7 +842,7 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = { };
-    abiProcessor.HasRegisterEntry(mmIA_MULTI_VGT_PARAM__GFX09, &iaMultiVgtParam.u32All);
+    abiProcessor.HasRegisterEntry(Gfx09::mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All);
 
     if (IsTessEnabled())
     {
@@ -870,8 +886,8 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
                 PAL_ASSERT(m_iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
             }
 
-            if ((m_iaMultiVgtParam[idx].bits.EN_INST_OPT_BASIC == 1) ||
-                (m_iaMultiVgtParam[idx].bits.EN_INST_OPT_ADV   == 1))
+            if ((m_iaMultiVgtParam[idx].gfx09.EN_INST_OPT_BASIC == 1) ||
+                (m_iaMultiVgtParam[idx].gfx09.EN_INST_OPT_ADV   == 1))
             {
                 // The maximum supported setting for IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE with the instancing optimization
                 // flowchart enabled is 253.
@@ -1038,13 +1054,13 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
         {
             // Basic optimization enables small instanced draw optimizations. HW optimally distributes workload
             // across shader engines automatically.
-            pIaMultiVgtParam->bits.EN_INST_OPT_BASIC = 1;
+            pIaMultiVgtParam->gfx09.EN_INST_OPT_BASIC = 1;
         }
         else if (settings.wdLoadBalancingMode == Gfx9WdLoadBalancingAdvanced)
         {
             // Advanced optimization enables basic optimization and additional sub-draw call distribution algorithm
             // which splits batch into smaller instanced draws.
-            pIaMultiVgtParam->bits.EN_INST_OPT_ADV = 1;
+            pIaMultiVgtParam->gfx09.EN_INST_OPT_ADV = 1;
         }
     }
 
@@ -1234,7 +1250,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // independent class because they cannot be overridden by altering the pipeline creation info.
     if (IsInternal() == false)
     {
-        switch (settings.tossPointMode)
+        switch (m_pDevice->Parent()->Settings().tossPointMode)
         {
         case TossPointAfterPs:
             // This toss point is used to disable all color buffer writes.
@@ -1253,7 +1269,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     m_paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark, settings.outOfOrderWatermark);
 
     if (createInfo.rsState.outOfOrderPrimsEnable &&
-        (settings.enableOutOfOrderPrimitives != Gfx9OutOfOrderPrimDisable))
+        (settings.enableOutOfOrderPrimitives != OutOfOrderPrimDisable))
     {
         m_paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
     }
@@ -1273,10 +1289,10 @@ void GraphicsPipeline::SetupLateAllocVs(
     regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
     spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
 
-    SpiShaderPgmRsrc2Vs spiShaderPgmRsrc2Vs = { };
+    regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
     spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
 
-    SpiShaderPgmRsrc2Ps spiShaderPgmRsrc2Ps = { };
+    regSPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = { };
     spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
 
     // Default to a late-alloc limit of zero.  This will nearly mimic the GFX6 behavior where VS waves don't launch
@@ -1323,7 +1339,7 @@ void GraphicsPipeline::SetupLateAllocVs(
 
         // Find the maximum number of VS waves that can be launched based on scratch usage if both the PS and VS use
         // scratch.
-        if ((spiShaderPgmRsrc2Vs.gfx9.bits.SCRATCH_EN != 0) && (spiShaderPgmRsrc2Ps.gfx9.bits.SCRATCH_EN != 0))
+        if ((spiShaderPgmRsrc2Vs.bits.SCRATCH_EN != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
         {
             // The maximum number of waves per SH that can launch using scratch is the number of CUs per SH times
             // the setting that clamps the maximum number of in-flight scratch waves.
@@ -1962,12 +1978,18 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
 // Return if hardware stereo rendering is enabled.
 bool GraphicsPipeline::HwStereoRenderingEnabled() const
 {
-    bool hwStereoRenderingEnabled = false;
+    const auto&  device   = *(m_pDevice->Parent());
+    uint32       enStereo = 0;
 
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
+        if (IsVega12(device))
+        {
+            enStereo = m_statePm4CmdsContext.paStereoCntl.vg12.EN_STEREO;
+        }
     }
-    return hwStereoRenderingEnabled;
+
+    return (enStereo != 0);
 }
 
 // =====================================================================================================================
@@ -1976,16 +1998,42 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
 {
     bool usesMultipleViewports = false;
 
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    const auto&  palDevice  = *(m_pDevice->Parent());
+    uint32       vpIdOffset = 0;
+
     {
+        if (IsVega12(palDevice))
+        {
+            vpIdOffset = m_statePm4CmdsContext.paStereoCntl.vg12.VP_ID_OFFSET;
+        }
     }
+
+    usesMultipleViewports = (vpIdOffset != 0);
+
     return usesMultipleViewports;
+}
+
+// =====================================================================================================================
+template <typename RegType>
+static void SetPaStereoCntl(
+    uint32    rtSliceOffset,
+    uint32    vpIdOffset,
+    RegType*  pPaStereoCntl)
+{
+    pPaStereoCntl->RT_SLICE_OFFSET = rtSliceOffset;
+    pPaStereoCntl->VP_ID_OFFSET    = vpIdOffset;
+
+    if ((rtSliceOffset != 0) || (vpIdOffset != 0))
+    {
+        pPaStereoCntl->EN_STEREO = 1;
+    }
 }
 
 // =====================================================================================================================
 // Setup hw stereo rendering related registers, this must be done after signature is initialized.
 void GraphicsPipeline::SetupStereoRegisters()
 {
+    const Pal::Device&              device             = *(m_pDevice->Parent());
     const ViewInstancingDescriptor& viewInstancingDesc = GetViewInstancingDesc();
     bool viewInstancingEnable = false;
 
@@ -2007,10 +2055,38 @@ void GraphicsPipeline::SetupStereoRegisters()
 
             if (m_gfxLevel == GfxIpLevel::GfxIp9)
             {
+                PAL_ASSERT(viewInstancingDesc.viewportArrayIdx[0] == 0);
+                PAL_ASSERT(viewInstancingDesc.renderTargetArrayIdx[0] == 0);
+
+                const uint32  vpIdOffset    = viewInstancingDesc.viewportArrayIdx[1];
+                const uint32  rtSliceOffset = viewInstancingDesc.renderTargetArrayIdx[1];
+
+                if (IsVega12(device))
+                {
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_statePm4CmdsContext.paStereoCntl.vg12);
+                }
             }
         }
     }
 
+}
+
+// =====================================================================================================================
+bool GraphicsPipeline::IsNggFastLaunch() const
+{
+    const auto&  device       = *(m_pDevice->Parent());
+    uint32       gsFastLaunch = 0;
+
+    if (IsVega10(device) || IsRaven(device))
+    {
+        gsFastLaunch = m_statePm4CmdsContext.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH;
+    }
+    else
+    {
+        gsFastLaunch = m_statePm4CmdsContext.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH;
+    }
+
+    return (gsFastLaunch != 0);
 }
 
 } // Gfx9

@@ -54,19 +54,19 @@ struct CommonPreamblePm4Img
     // queue only construct in the HW, but the ability to write UCONFIG regs exists on the compute side as well.
     // Using "PFP" here to match what the "cmdUtil" class expects, but ME / MEC / PFP versions of this packet are all
     // the same.
-    PM4_PFP_SET_UCONFIG_REG                   hdrCoherDelay;
-    regCP_COHER_START_DELAY                   cpCoherStartDelay;
+    PM4_PFP_SET_UCONFIG_REG            hdrCoherDelay;
+    regCP_COHER_START_DELAY            cpCoherStartDelay;
 
     // The common preamble can get executed on engines that don't support compute, so this must be last.
-    PM4ME_SET_SH_REG                          hdrThreadMgmt01;
-    regCOMPUTE_STATIC_THREAD_MGMT_SE0__GFX09  computeStaticThreadMgmtSe0;
-    regCOMPUTE_STATIC_THREAD_MGMT_SE1__GFX09  computeStaticThreadMgmtSe1;
+    PM4ME_SET_SH_REG                   hdrThreadMgmt01;
+    regCOMPUTE_STATIC_THREAD_MGMT_SE0  computeStaticThreadMgmtSe0;
+    regCOMPUTE_STATIC_THREAD_MGMT_SE1  computeStaticThreadMgmtSe1;
 
-    PM4ME_SET_SH_REG                          hdrThreadMgmt23;
-    regCOMPUTE_STATIC_THREAD_MGMT_SE2__GFX09  computeStaticThreadMgmtSe2;
-    regCOMPUTE_STATIC_THREAD_MGMT_SE3__GFX09  computeStaticThreadMgmtSe3;
+    PM4ME_SET_SH_REG                   hdrThreadMgmt23;
+    regCOMPUTE_STATIC_THREAD_MGMT_SE2  computeStaticThreadMgmtSe2;
+    regCOMPUTE_STATIC_THREAD_MGMT_SE3  computeStaticThreadMgmtSe3;
 
-    size_t                                    spaceNeeded;
+    size_t                             spaceNeeded;
 };
 
 // Describes the GDS User Data register value.
@@ -145,6 +145,9 @@ struct UniversalPreamblePm4Img
 
     PM4_PFP_SET_CONTEXT_REG         hdrSmallPrimFilterCntl;
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl;
+
+    PM4PFP_SET_CONTEXT_REG          hdrCoherDestBaseHi;
+    regCOHER_DEST_BASE_HI_0         coherDestBaseHi;
 
     GdsRangeCompute                 gdsRangeCompute;
 

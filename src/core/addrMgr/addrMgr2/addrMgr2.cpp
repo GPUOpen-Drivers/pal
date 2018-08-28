@@ -385,8 +385,10 @@ void AddrMgr2::InitTilingCaps(
     }
     else
     {
-        // This Image is using optimal tiling, so don't allow linear.
-        pBlockSettings->linear   = 1;
+        // We have to allow linear as linear format is required for some format types (1D-color and 32-32-32 for
+        // some examples).  Address library should guarantee that we don't actually get a linear surface unless
+        // it's the only option.
+        pBlockSettings->linear   = 0;
         pBlockSettings->macro4KB = 0;
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
@@ -577,6 +579,16 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
 
     const uint32 addr2PreferredSwizzleTypeSet = GetDevice()->Settings().addr2PreferredSwizzleTypeSet;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+    if (createInfo.flags.view3dAs2dArray)
+    {
+        // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
+        // The tile size doesn't matter, though, so we still let AddrLib handle this case.
+        // D-mode isn't supported in all cases (PRT, depth-major mipmaps), so watch for overrides.
+        surfSettingInput.preferredSwSet.value = Addr2PreferredSW_D;
+    }
+    else
+#endif
     if (createInfo.tilingPreference != ImageTilingPattern::Default)
     {
         surfSettingInput.preferredSwSet.sw_Z = (createInfo.tilingPreference == ImageTilingPattern::Interleaved);
@@ -584,8 +596,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_D = (createInfo.tilingPreference == ImageTilingPattern::XMajor);
         surfSettingInput.preferredSwSet.sw_R = (createInfo.tilingPreference == ImageTilingPattern::YMajor);
     }
-    else
-    if (addr2PreferredSwizzleTypeSet != Addr2PreferredDefault)
+    else if (addr2PreferredSwizzleTypeSet != Addr2PreferredDefault)
     {
         surfSettingInput.preferredSwSet.sw_Z = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_Z);
         surfSettingInput.preferredSwSet.sw_S = TestAnyFlagSet(addr2PreferredSwizzleTypeSet, Addr2PreferredSW_S);
@@ -622,7 +633,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             const SettingsLoader* const pSettingsLoader = GetDevice()->GetSettingsLoader();
 
-            if (IsVega10(*m_pDevice)
+            if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice)
                 )
             {
                 if (createInfo.flags.videoReferenceOnly)
@@ -680,7 +691,17 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             PAL_ASSERT(IsZSwizzle(pOut->swizzleMode));
         }
 
-        result = Result::Success;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+        // view3dAs2dArray can only use D-swizzle, so fail if the hint was overriden. See full details above
+        if ((createInfo.flags.view3dAs2dArray) && (IsDisplayableSwizzle(pOut->swizzleMode) == false))
+        {
+            result = Result::ErrorInvalidFlags;
+        }
+        else
+#endif
+        {
+            result = Result::Success;
+        }
     }
 
     return result;

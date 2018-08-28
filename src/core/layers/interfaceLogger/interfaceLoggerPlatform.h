@@ -156,7 +156,6 @@ private:
     uint32                   m_loggingPresets[2]; // Masks of logging levels that the user can select for logging.
     Util::ThreadLocalKey     m_threadKey;         // Used to look up thread specific data (e.g., thread logs).
     ThreadDataVector         m_threadDataVec;     // A list of all thread-local data so they can be deleted on exit.
-    char                     m_logDirPath[512];   // The path to the directory where all logs will be written.
 
     // Tracks the next ID to be issued for all objects.
     volatile uint32          m_nextObjectIds[static_cast<uint32>(InterfaceObject::Count)];

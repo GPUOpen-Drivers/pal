@@ -27,9 +27,11 @@
 
 #include "palDevice.h"
 #include "palMetroHash.h"
+#include "palSettingsLoader.h"
 #include "core/cmdStream.h"
 #include "core/platform.h"
 #include "palHashMap.h"
+#include "palSysMemory.h"
 
 typedef union _ADDR_CREATE_FLAGS ADDR_CREATE_FLAGS;
 typedef struct _ADDR_REGISTER_VALUE ADDR_REGISTER_VALUE;
@@ -90,8 +92,10 @@ struct     ImageCreateInfo;
 struct     ImageInfo;
 struct     ImageViewInfo;
 struct     MsaaStateCreateInfo;
+struct     PalSettings;
 struct     PerfExperimentCreateInfo;
 struct     QueryPoolCreateInfo;
+struct     PalSettings;
 struct     RasterStateCreateInfo;
 struct     SamplerInfo;
 struct     ScShaderMem;
@@ -227,12 +231,56 @@ enum SmallPrimFilterCntl : uint32
 
 };
 
+// Represents the maximum number of slots in the array of reference counters in the device, used for counting number
+// of gfx cmd buffers that skipped a fast clear eliminate blit and the image that it was skipped for. The counter
+// is stored with the device as images and command buffers can have separate lifetimes.
 constexpr uint32 MaxNumFastClearImageRefs = 256;
 
+// Represents the initial state of the reference counter that tracks the number of fast clear eliminates that were
+// skipped in command buffers. When an image acquires a counter from the device, it sets it to an initial value of
+// 1 (InUse).
 enum RefCounterState : uint32
 {
     Free  = 0,
     InUse = 1
+};
+
+// Common enums used by HWL settings
+enum CsSimdDestCntlMode : uint32
+{
+    CsSimdDestCntlDefault = 0,
+    CsSimdDestCntlForce1 = 1,
+    CsSimdDestCntlForce0 = 2,
+};
+
+enum PrefetchMethod : uint32
+{
+    PrefetchCpDma = 0,
+    PrefetchPrimeUtcL2 = 1,
+};
+
+enum OffchipLdsBufferSize : uint32
+{
+    OffchipLdsBufferSize8192 = 0,
+    OffchipLdsBufferSize4096 = 1,
+    OffchipLdsBufferSize2048 = 2,
+    OffchipLdsBufferSize1024 = 3,
+};
+
+enum DecompressMask : uint32
+{
+    DecompressDcc = 0x00000001,
+    DecompressHtile = 0x00000002,
+    DecompressFmask = 0x00000004,
+    DecompressFastClear = 0x00000008,
+};
+
+enum OutOfOrderPrimMode : uint32
+{
+    OutOfOrderPrimDisable = 0,
+    OutOfOrderPrimSafe = 1,
+    OutOfOrderPrimAggressive = 2,
+    OutOfOrderPrimAlways = 3,
 };
 
 // =====================================================================================================================
@@ -249,6 +297,17 @@ public:
     virtual Result LateInit() = 0;
     virtual Result Finalize();
     virtual Result Cleanup();
+
+    Result InitHwlSettings(PalSettings* pSettings);
+    Util::MetroHash::Hash GetSettingsHash() const
+    {
+        static const Util::MetroHash::Hash zeroHash = { 0, 0, 0, 0 };
+        return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->GetSettingsHash() : zeroHash;
+    }
+
+    const PalSettings& CoreSettings() const;
+    virtual void HwlValidateSettings(PalSettings* pSettings) = 0;
+    virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) = 0;
 
     // This gives the GFX device an opportunity to override and/or fixup some of the PAL device properties after all
     // settings have been read. Called during IDevice::CommitSettingsAndInit().
@@ -419,7 +478,7 @@ public:
         ChNumFormat*           pFormat,
         uint32*                pPixelsPerBlock) const = 0;
 
-    Pal::Device* Parent() const;
+    Pal::Device* Parent() const { return m_pParent; }
     Platform* GetPlatform() const;
 
     const RsrcProcMgr& RsrcProcMgr() const { return *m_pRsrcProcMgr; }
@@ -542,7 +601,7 @@ protected:
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
-    virtual ~GfxDevice() { }
+    virtual ~GfxDevice();
 
     Device*const            m_pParent;
     Pal::RsrcProcMgr*       m_pRsrcProcMgr;
@@ -571,6 +630,8 @@ protected:
     bool    m_waEnableDccCacheFlushAndInvalidate;
     bool    m_waTcCompatZRange;
     bool    m_degeneratePrimFilter;
+    ISettingsLoader*  m_pSettingsLoader;
+    Util::IndirectAllocator m_allocator;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
 
@@ -603,6 +664,8 @@ extern Result CreateDevice(
     void*                    pPlacementAddr,
     DeviceInterfacePfnTable* pPfnTable,
     GfxDevice**              ppGfxDevice);
+// Creates SettingsLoader object for Gfx6/7/8 hardware layer
+extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
 } // Gfx6
 #endif
 
@@ -615,6 +678,8 @@ extern Result CreateDevice(
     void*                     pPlacementAddr,
     DeviceInterfacePfnTable*  pPfnTable,
     GfxDevice**               ppGfxDevice);
+// Creates SettingsLoader object for Gfx9/10 hardware layer
+extern Pal::ISettingsLoader* CreateSettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
 } // Gfx9
 #endif
 

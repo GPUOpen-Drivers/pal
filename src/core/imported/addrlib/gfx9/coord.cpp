@@ -28,6 +28,11 @@
 #include "addrcommon.h"
 #include "coord.h"
 
+namespace Addr
+{
+namespace V2
+{
+
 Coordinate::Coordinate()
 {
     dim = 'x';
@@ -705,3 +710,5 @@ BOOL_32 CoordEq::operator!=(const CoordEq& b)
     return !(*this == b);
 }
 
+} // V2
+} // Addr

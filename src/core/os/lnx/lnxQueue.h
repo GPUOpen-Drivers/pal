@@ -152,6 +152,8 @@ protected:
     virtual Result OsWaitIdle() override;
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
 
+    Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
+
     const Device&          m_device;
     amdgpu_bo_handle*const m_pResourceList;
     const size_t           m_resourceListSize;

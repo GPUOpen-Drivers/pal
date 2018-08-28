@@ -118,12 +118,25 @@ Result SwapChain::Init(
     Device*const pLnxDevice = static_cast<Device*>(m_pDevice);
 
     WindowSystemCreateInfo windowSystemInfo = {};
-    windowSystemInfo.platform = m_createInfo.wsiPlatform;
-    windowSystemInfo.hDisplay = m_createInfo.hDisplay;
-    windowSystemInfo.hWindow  = m_createInfo.hWindow;
-    windowSystemInfo.format   = m_createInfo.imageSwizzledFormat;
+    windowSystemInfo.platform       = m_createInfo.wsiPlatform;
+    windowSystemInfo.swapChainMode  = m_createInfo.swapChainMode;
 
-    windowSystemInfo.swapChainMode = m_createInfo.swapChainMode;
+    if (m_createInfo.wsiPlatform == WsiPlatform::DirectDisplay)
+    {
+        PAL_ASSERT(m_createInfo.pScreen != nullptr);
+        const Pal::IScreen* pScreen = m_createInfo.pScreen;
+        Pal::ScreenProperties props = {};
+        pScreen->GetProperties(&props);
+        windowSystemInfo.crtcId      = props.wsiScreenProp.crtcId;
+        windowSystemInfo.drmMasterFd = props.wsiScreenProp.drmMasterFd;
+        windowSystemInfo.connectorId = props.wsiScreenProp.connectorId;
+    }
+    else
+    {
+        windowSystemInfo.hDisplay = m_createInfo.hDisplay;
+        windowSystemInfo.hWindow  = m_createInfo.hWindow;
+        windowSystemInfo.format   = m_createInfo.imageSwizzledFormat;
+    }
 
     Result result  = WindowSystem::Create(*pLnxDevice, windowSystemInfo, pPlacementAddr, &m_pWindowSystem);
 
@@ -160,7 +173,12 @@ void SwapChain::WaitForImageIdle(
         // Linux presents aren't queue operations so we must manually wait for the present to complete by waiting on
         // its idle fence before we let the base class do its work. Note that we shouldn't wait in mailbox mode because
         // it has no semaphore to signal and waiting now could deadlock the algorithm.
-        Result result = m_pPresentIdle[imageIndex]->WaitForCompletion(true);
+        //
+        // In DirectDisplay, the presentable image need to be signaled by the next VSync, however, if there is only one
+        // presentable image, it has no chance to be signaled.
+        bool doWait =
+            ((m_createInfo.wsiPlatform == WsiPlatform::DirectDisplay) && (m_createInfo.imageCount == 1)) ? false : true;
+        Result result = m_pPresentIdle[imageIndex]->WaitForCompletion(doWait);
         if (result == Result::Success)
         {
             m_pPresentIdle[imageIndex]->Reset();

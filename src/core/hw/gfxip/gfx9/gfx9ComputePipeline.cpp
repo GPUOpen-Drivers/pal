@@ -165,6 +165,8 @@ Result ComputePipeline::HwlInit(
     const AbiProcessor& abiProcessor)
 {
     const Gfx9PalSettings& settings  = m_pDevice->Settings();
+    const CmdUtil&         cmdUtil   = m_pDevice->CmdUtil();
+    const auto&            regInfo   = cmdUtil.GetRegInfo();
     const auto&            chipProps = m_pDevice->Parent()->ChipProperties();
 
     // First, handle relocations and upload the pipeline code & data to GPU memory.
@@ -210,6 +212,7 @@ Result ComputePipeline::HwlInit(
         m_threadsPerTgY = m_pm4Commands.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_pm4Commands.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
+        abiProcessor.HasRegisterEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_pm4CommandsDynamic.computeResourceLimits.u32All);
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
         const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx9.wavefrontSize);
 
@@ -239,10 +242,10 @@ Result ComputePipeline::HwlInit(
 
         // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
         // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
-        constexpr uint32 Gfx6MaxLockThreshold = 252;
-        PAL_ASSERT(settings.csLockThreshold <= Gfx6MaxLockThreshold);
+        constexpr uint32 Gfx9MaxLockThreshold = 252;
+        PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
         m_pm4CommandsDynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
-                                                                             Gfx6MaxLockThreshold >> 2);
+                                                                             Gfx9MaxLockThreshold >> 2);
 
         // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
         // the existing value in COMPUTE_RESOURCE_LIMITS.
@@ -259,8 +262,11 @@ Result ComputePipeline::HwlInit(
             break;
         }
 
-        // Get the 32-bit compute shader checksum register, if present, for SPP.
-        abiProcessor.HasRegisterEntry(mmCOMPUTE_SHADER_CHKSUM, &m_pm4Commands.computeShaderChksum.u32All);
+        if (regInfo.mmComputeShaderChksum != 0)
+        {
+            // Get the 32-bit compute shader checksum register, if present, for SPP.
+            abiProcessor.HasRegisterEntry(regInfo.mmComputeShaderChksum, &m_pm4Commands.computeShaderChksum.u32All);
+        }
 
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(abiProcessor);
@@ -275,25 +281,24 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     uint32 maxWavesPerCu
     ) const
 {
-    constexpr uint32 MaxWavesPerShCompute = (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
-                                             COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT);
-
-    const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
-
     // The maximum number of waves per SH in "register units".
-    // By default set the WAVES_PER_SH field to the maximum possible value.
-    uint32 wavesPerSh = MaxWavesPerShCompute;
+    // By default set the WAVE_LIMIT field to be unlimited.
+    // Limits given by the ELF will only apply if the caller doesn't set their own limit.
+    uint32 wavesPerSh = 0;
 
     if (maxWavesPerCu > 0)
     {
+        const auto&  gfx9ChipProps        = m_pDevice->Parent()->ChipProperties().gfx9;
+        const uint32 numWavefrontsPerCu   = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
+        const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.numCuPerSh;
+
         // We assume no one is trying to use more than 100% of all waves.
-        const uint32 numWavefrontsPerCu = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
         PAL_ASSERT(maxWavesPerCu <= numWavefrontsPerCu);
 
         const uint32 maxWavesPerSh = (maxWavesPerCu * gfx9ChipProps.numCuPerSh);
 
         // For compute shaders, it is in units of 1 wave and must not exceed the max.
-        wavesPerSh = Min(MaxWavesPerShCompute, maxWavesPerSh);
+        wavesPerSh = Min(maxWavesPerShCompute, maxWavesPerSh);
     }
 
     return wavesPerSh;
@@ -314,7 +319,10 @@ uint32* ComputePipeline::WriteCommands(
 
     ComputePipelinePm4ImgDynamic pm4CommandsDynamic = m_pm4CommandsDynamic;
 
-    pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    if (csInfo.maxWavesPerCu > 0)
+    {
+        pm4CommandsDynamic.computeResourceLimits.bits.WAVES_PER_SH = CalcMaxWavesPerSh(csInfo.maxWavesPerCu);
+    }
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
     constexpr uint32 Gfx9MaxTgPerCu = 15;
@@ -325,21 +333,17 @@ uint32* ComputePipeline::WriteCommands(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 384
     if (csInfo.ldsBytesPerTg > 0)
     {
-        const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            const uint32 ldsSizeDwords = csInfo.ldsBytesPerTg / sizeof(uint32);
-            uint32 ldsSpace = 0;
+        const uint32 ldsSizeDwords = csInfo.ldsBytesPerTg / sizeof(uint32);
 
-            // Round to nearest multiple of the LDS granularity, then convert to the register value.
-            // NOTE: On Gfx9+, granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
-            ldsSpace = Pow2Align(ldsSizeDwords, Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+        // Round to nearest multiple of the LDS granularity, then convert to the register value.
+        // NOTE: On Gfx9+, granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to
+        //       16K DWORDs.
+        regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = m_pm4Commands.computePgmRsrc2;
+        computePgmRsrc2.bits.LDS_SIZE        = Pow2Align(ldsSizeDwords, Gfx9LdsDwGranularity) >>
+                                               Gfx9LdsDwGranularityShift;
 
-            regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = m_pm4Commands.computePgmRsrc2;
-            computePgmRsrc2.bits.LDS_SIZE = ldsSpace;
-            pCmdSpace =
-                pGfx9CmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2, computePgmRsrc2.u32All, pCmdSpace);
-        }
+        pCmdSpace =
+            pGfx9CmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2, computePgmRsrc2.u32All, pCmdSpace);
     }
 #endif
 
@@ -400,7 +404,8 @@ Result ComputePipeline::GetShaderStats(
 // payloads are computed elsewhere.
 void ComputePipeline::BuildPm4Headers()
 {
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    const auto&    chipProps = m_pDevice->Parent()->ChipProperties();
+    const CmdUtil& cmdUtil   = m_pDevice->CmdUtil();
 
     // Sets the following compute registers: COMPUTE_NUM_THREAD_X, COMPUTE_NUM_THREAD_Y,
     // COMPUTE_NUM_THREAD_Z.
@@ -426,10 +431,10 @@ void ComputePipeline::BuildPm4Headers()
                                                           ShaderCompute,
                                                           &m_pm4Commands.hdrComputeUserData);
 
-    if (m_pDevice->Parent()->ChipProperties().gfx9.supportSpp != 0)
+    if (chipProps.gfx9.supportSpp != 0)
     {
         // Sets the following compute register: COMPUTE_SHADER_CHKSUM.
-        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_SHADER_CHKSUM,
+        m_pm4Commands.spaceNeeded += cmdUtil.BuildSetOneShReg(cmdUtil.GetRegInfo().mmComputeShaderChksum,
                                                               ShaderCompute,
                                                               &m_pm4Commands.hdrComputeShaderChksum);
     }

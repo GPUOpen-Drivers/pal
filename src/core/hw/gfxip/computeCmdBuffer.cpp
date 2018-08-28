@@ -86,22 +86,12 @@ Result ComputeCmdBuffer::Init(
 {
     Result result = GfxCmdBuffer::Init(internalInfo);
 
-    // Initialize the states for the embedded-data GPU memory tables for spilling and indirect user-data tables.
+    // Initialize the states for the embedded-data GPU memory table for spilling.
     if (result == Result::Success)
     {
         const auto& chipProps = m_device.Parent()->ChipProperties();
 
         m_spillTableCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
-
-        uint32* pIndirectUserDataTables = reinterpret_cast<uint32*>(this + 1);
-        for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-        {
-            m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
-            pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
-
-            m_indirectUserDataInfo[id].state.sizeInDwords =
-                    static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
-        }
     }
 
     return result;
@@ -359,6 +349,21 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
 
     // NOTE: Compute command buffers shouldn't have changed either of their CmdSetUserData callbacks.
     PAL_ASSERT(memcmp(&m_funcTable, &cmdBuffer.m_funcTable, sizeof(m_funcTable)) == 0);
+}
+
+// =====================================================================================================================
+// Helper method for initializing the states for the indirect user-data tables.
+void ComputeCmdBuffer::SetupIndirectUserDataTables(
+    uint32* pIndirectUserDataTables)
+{
+    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+    {
+        m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
+        pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
+
+        m_indirectUserDataInfo[id].state.sizeInDwords =
+            static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
+    }
 }
 
 } // Pal

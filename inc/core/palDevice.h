@@ -135,11 +135,14 @@ enum class GfxIpLevel : uint32
     None     = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
 #endif
 
-    GfxIp6   = 0x1,
-    GfxIp7   = 0x2,
-    GfxIp8   = 0x3,
-    GfxIp8_1 = 0x4,
-    GfxIp9   = 0x5,
+    GfxIp6    = 0x1,
+    GfxIp7    = 0x2,
+    GfxIp8    = 0x3,
+    GfxIp8_1  = 0x4,
+    GfxIp9    = 0x5,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 426
+#else
+#endif
 
     Count             ///< Count of all supported GfxIp levels.
 };
@@ -178,6 +181,7 @@ enum class AsicRevision : uint32
 
 #if PAL_BUILD_GFX9
     Vega10     = 0x18,
+    Vega12     = 0x19,
     Raven      = 0x1B,
 #endif // PAL_BUILD_GFX9
 
@@ -238,6 +242,7 @@ enum class UvdIpLevel : uint32
     UvdIp6_2 = 0x5,
     UvdIp6_3 = 0x6,
     UvdIp7   = 0x7,
+    UvdIp7_2 = 0x8,
 };
 
 /// Specifies which VCN IP level this device has.
@@ -356,6 +361,38 @@ enum TextureFilterOptimizationSettings : uint32
 
 };
 
+/// Distribution Tess Mode enum values
+enum DistributionTessMode : uint32
+{
+    DistributionTessOff = 0,
+    DistributionTessDefault = 1,
+    DistributionTessPatch = 2,
+    DistributionTessDonut = 3,
+    DistributionTessTrapezoid = 4,
+    DistributionTessTrapezoidOnly = 5,
+
+};
+
+/// Defines the context roll optimization flags
+enum ContextRollOptimizationFlags : uint32
+{
+    OptFlagNone = 0x00000000,
+    PadParamCacheSpace = 0x00000001,
+
+};
+
+/// Enum defining the different scopes (i.e. registry locations) where settings values are stored
+enum InternalSettingScope : uint32
+{
+    PrivateDriverKey = 0x0,
+    PublicPalKey = 0x1,
+    PrivatePalKey = 0x2,
+    PrivatePalGfx6Key = 0x3,
+    PrivatePalGfx9Key = 0x4,
+    PublicCatalystKey = 0x5,
+
+};
+
 static constexpr uint32 MaxPathStrLen = 512;
 static constexpr uint32 MaxFileNameStrLen = 256;
 static constexpr uint32 MaxMiscStrLen = 61;
@@ -463,6 +500,10 @@ struct PalPublicSettings
     bool longRunningSubmissions;
     /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
     bool disableCommandBufferPreemption;
+    /// Disable the fast clear eliminate skipping optimization.  This optimization will conservatively track the usage
+    /// of clear values to allow the vast majority of images that never clear to a value that isn't TC-compatible to
+    /// skip the CPU and front-end GPU overhead of issuing a predicated fast clear eliminate BLT.
+    bool disableSkipFceOptimization;
 };
 
 /// Command Buffer Logger layer runtime settings
@@ -494,29 +535,53 @@ enum TimeGraphColor : uint32
     WhiteColor = 7,
 };
 
-/// Debug overlay layer runtime settings
-struct DebugOverlaySettings
+/// Config struct that controls what information is displayed on the Debug Overlay
+struct DebugOverlayConfig
 {
     bool                    visualConfirmEnabled;
     bool                    timeGraphEnabled;
-    DebugOverlayLocation    debugOverlayLocation;
-    TimeGraphColor          timeGraphGridLineColor;
-    TimeGraphColor          timeGraphCpuLineColor;
-    TimeGraphColor          timeGraphGpuLineColor;
+    DebugOverlayLocation overlayLocation;
+    char                 renderedByString[61];
+    char                 miscellaneousDebugString[61];
+    bool                 printFrameNumber;
+};
+
+/// Time Graph display configuration
+struct TimeGraphConfig
+{
+    uint32 gridLineColor;
+    uint32 cpuLineColor;
+    uint32 gpuLineColor;
+};
+
+/// Debug Overlay Benchmark configuration.
+struct OverlayBenchmarkConfig
+{
     uint32                  maxBenchmarkTime;
-    bool                    debugUsageLogEnable;
-    char                    debugUsageLogDirectory[MaxPathStrLen];
-    char                    debugUsageLogFilename[MaxPathStrLen];
+    bool   usageLogEnable;
+    char   usageLogDirectory[MaxPathStrLen];
+    char   usageLogFilename[MaxPathStrLen];
     bool                    logFrameStats;
     char                    frameStatsLogDirectory[MaxPathStrLen];
     uint32                  maxLoggedFrames;
-    bool                    overlayCombineNonLocal;
-    bool                    overlayReportCmdAllocator;
-    bool                    overlayReportExternal;
-    bool                    overlayReportInternal;
-    char                    renderedByString[MaxMiscStrLen];
-    char                    miscellaneousDebugString[MaxMiscStrLen];
-    bool                    printFrameNumber;
+};
+
+/// Configures the memory usage display on the Debug Overlay.
+struct OverlayMemoryInfoConfig
+{
+    bool combineNonLocal;
+    bool reportCmdAllocator;
+    bool reportExternal;
+    bool reportInternal;
+};
+
+/// Debug overlay layer runtime settings
+struct DebugOverlaySettings
+{
+    DebugOverlayConfig      debugOverlayConfig;
+    TimeGraphConfig         timeGraphConfig;
+    OverlayBenchmarkConfig  overlayBenchmarkConfig;
+    OverlayMemoryInfoConfig overlayMemoryInfoConfig;
 };
 
 /// Enum describing the supported granularity for the GPU profiler layer
@@ -535,44 +600,75 @@ enum GpuProfilerTraceModeFlags : uint32
     GpuProfilerTraceSqtt     =  0x2  ///< SQ thread trace flag.
 };
 
+/// Defines the modes that the GPU Profiling layer can use when its buffer fills.
+enum GpuProfilerStallMode : uint32
+{
+    GpuProfilerStallAlways     = 0, ///< Always stall to get accurate trace data
+    GpuProfilerStallLoseDetail = 1, ///< Lose register-level detail if under pressure to avoid stalls
+    GpuProfilerStallNever      = 2, ///< Never stall, miss trace packets
+};
+
+/// Configuration options for the PAL GPU Profiler layer.
+struct GpuProfilerConfig
+{
+    char   logDirectory[MaxPathStrLen];
+    uint32 startFrame;
+    uint32 frameCount;
+    bool   recordPipelineStats;
+    bool   breakSubmitBatches;
+    uint32 traceModeMask;
+};
+
+/// Configuration options for performance counter collection through the Profiler Layer.
+struct GpuProfilerPerfCounterConfig{
+    char                   globalPerfCounterConfigFile[MaxFileNameStrLen];
+    bool                   cacheFlushOnCounterCollection;
+    GpuProfilerGranularity granularity;
+};
+
+struct GpuProfilerSqttConfig
+{
+    uint32               tokenMask;
+    uint32               pipelineHashHi;
+    uint32               pipelineHashLo;
+    uint64               pipelineHash;
+    ShaderHash           vsHash;
+    ShaderHash           hsHash;
+    ShaderHash           dsHash;
+    ShaderHash           gsHash;
+    ShaderHash           psHash;
+    ShaderHash           csHash;
+    uint32               maxDraws;
+    size_t               bufferSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
+    GpuProfilerStallMode stallMode;
+#endif
+};
+
+///Configuration options for capturing Streaming Performance Monitors through the Profiler layer.
+struct GpuProfilerSpmConfig
+{
+    char   spmPerfCounterConfigFile[MaxFileNameStrLen];
+    uint32 spmTraceInterval;
+    size_t spmTraceBufferSize;
+};
+
 /// GPU profiler layer runtime settings
 struct GpuProfilerSettings
 {
-    char                      gpuProfilerLogDirectory[MaxPathStrLen];
-    uint32                    gpuProfilerStartFrame;
-    uint32                    gpuProfilerFrameCount;
-    bool                      gpuProfilerRecordPipelineStats;
-    char                      gpuProfilerGlobalPerfCounterConfigFile[MaxFileNameStrLen];
-    bool                      gpuProfilerGlobalPerfCounterPerInstance;
-    bool                      gpuProfilerBreakSubmitBatches;
-    bool                      gpuProfilerCacheFlushOnCounterCollection;
-    GpuProfilerGranularity    gpuProfilerGranularity;
-    uint32                    gpuProfilerSqThreadTraceTokenMask;
-    uint64                    gpuProfilerSqttPipelineHash;
-    ShaderHash                gpuProfilerSqttVsHash;
-    ShaderHash                gpuProfilerSqttHsHash;
-    ShaderHash                gpuProfilerSqttDsHash;
-    ShaderHash                gpuProfilerSqttGsHash;
-    ShaderHash                gpuProfilerSqttPsHash;
-    ShaderHash                gpuProfilerSqttCsHash;
-    uint32                    gpuProfilerSqttMaxDraws;
-    size_t                    gpuProfilerSqttBufferSize;
-
-    uint32                     gpuProfilerTraceModeMask;
-
-    // Streaming performance counter specific settings
-    char                       gpuProfilerSpmPerfCounterConfigFile[MaxFileNameStrLen];
-    uint32                     gpuProfilerSpmTraceInterval;
-    size_t                     gpuProfilerSpmTraceBufferSize;
+    GpuProfilerConfig            profilerConfig;
+    GpuProfilerPerfCounterConfig perfCounterConfig;
+    GpuProfilerSqttConfig        sqttConfig;
+    GpuProfilerSpmConfig         spmConfig;
 };
 
-/// Interface logger layer runtime settings
-struct InterfaceLoggerSettings
+/// Configuration options for the Interface Logger layer.
+struct InterfaceLoggerConfig
 {
-    char    interfaceLoggerDirectory[MaxPathStrLen];
-    bool    interfaceLoggerMultithreaded;
-    uint32  interfaceLoggerBasePreset;
-    uint32  interfaceLoggerElevatedPreset;
+    char    logDirectory[MaxPathStrLen];
+    bool    multithreaded;
+    uint32  basePreset;
+    uint32  elevatedPreset;
 };
 
 /// Describes the equations needed to interpret the raw memory of a tiled texture.
@@ -698,6 +794,7 @@ struct DeviceProperties
                                              ///  For example, one indicates that queue semaphores are binary.
     PalPublicSettings settings;              ///< Public settings that the client has the option of overriding
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 415
     struct
     {
         ///< A mask of SwapChainModeSupport flags for each present mode.
@@ -706,6 +803,7 @@ struct DeviceProperties
         uint32 supportedSwapChainModes[static_cast<uint32>(Pal::PresentMode::Count)];
 
     } swapChainProperties;
+#endif
 
     struct
     {
@@ -914,8 +1012,10 @@ struct DeviceProperties
                 /// array-based stereo feature supported by Presentable images.
                 uint32 supportsAqbsStereoMode       :  1;
 
+                uint32 reservedForFutureHw          :  1;
+
                 /// Reserved for future use.
-                uint32 reserved                     : 30;
+                uint32 reserved                     : 29;
             };
             uint32 u32All;              ///< Flags packed as 32-bit uint.
         } flags;                        ///< GPU memory property flags.
@@ -1008,7 +1108,9 @@ struct DeviceProperties
                                                                      ///  timestamps will increase monotonically across
                                                                      ///  command buffer submissions.
                 uint32 placeholder3                             : 1; ///< Reserved for future hardware.
-                uint32 reserved                                 : 12; ///< Reserved for future use.
+                uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
+                uint32 placeholder4                             : 1; ///< Placeholder, do not use
+                uint32 reserved                                 : 10; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2194,7 +2296,7 @@ public:
     /// Returns this devices Interface Logger layer settings structure initialized with appropriate defaults.
     ///
     /// @returns Pointer to this devices Interface Logger layer settings.
-    virtual const InterfaceLoggerSettings& GetInterfaceLoggerSettings() const = 0;
+        virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const = 0;
 
     /// Reads a specific setting from the operating system specific source (e.g. registry or config file).
     ///
@@ -2664,6 +2766,17 @@ public:
         OsDisplayHandle      hDisplay,
         WsiPlatform          wsiPlatform,
         int64                visualId) = 0;
+
+    /// Returns a mask of SwapChainModeSupport flags for each present mode. The swapchain modes are different for each
+    /// WsiPlatform.
+    ///
+    /// @param [in]  wsiPlatform             WSI Platform the swapchain is supposed to work on.
+    /// @param [in]  mode                    The swap chain will use this present mode.
+    ///
+    /// @returns Returns a mask of SwapChainModeSupport.
+    virtual uint32 GetSupportedSwapChainModes(
+        WsiPlatform wsiPlatform,
+        PresentMode mode) const = 0;
 
     /// Determines if the given information corresponds to an external shared image.
     ///
@@ -4301,6 +4414,31 @@ public:
     /// @returns True if hardware accelerated stereo rendering can be enabled, False otherwise.
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
+
+    /// Get connector ID from RandR output object.
+    ///
+    /// @param [in]   hDisplay        Display handle of the window system.
+    /// @param [in]   randrOutput     RandR output object which is going to be leased. The output represents the
+    ///                               underlying display hardware which include encoder and connector.
+    /// @param [in]   wsiPlatform     WSI platform.
+    /// @param [out]  pConnectorId    Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result GetConnectorIdFromOutput(
+        OsDisplayHandle hDisplay,
+        uint32          randrOutput,
+        WsiPlatform     wsiPlatform,
+        uint32*         pConnectorId) = 0;
+
+    /// Get file path used to put all files for cache purpose
+    ///
+    /// @returns Pointer to cache file path.
+    virtual const char* GetCacheFilePath() const = 0;
+
+    /// Get file path used to put all files for debug purpose (such as logs, dumps, replace shader)
+    ///
+    /// @returns Pointer to debug file path.
+    virtual const char* GetDebugFilePath() const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

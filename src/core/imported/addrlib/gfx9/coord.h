@@ -28,6 +28,11 @@
 #ifndef __COORD_H
 #define __COORD_H
 
+namespace Addr
+{
+namespace V2
+{
+
 class Coordinate
 {
 public:
@@ -108,6 +113,9 @@ private:
 
     CoordTerm m_eq[MaxEqBits];
 };
+
+} // V2
+} // Addr
 
 #endif
 

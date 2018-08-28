@@ -36,11 +36,6 @@
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_enum.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_mask.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_shift.h"
-
-// Some registers define a CS_ENABLE field which conflicts with a Windows GDI constant. Our driver is never going to
-// call ColorMatchToTarget so we should be able to undefine any prior definition of CS_ENABLE.
-// https://msdn.microsoft.com/en-us/library/windows/desktop/dd371949(v=vs.85).aspx
-#undef CS_ENABLE
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_registers.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_typedef.h"
 
@@ -54,50 +49,6 @@ namespace Pal
 {
 namespace Gfx9
 {
-
-// Any generally useful constants, structures, etc. for gfx9 go here
-
-union SpiShaderPgmRsrc2Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc3Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC3_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc4Gs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC4_GS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Hs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_HS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc3Hs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC3_HS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Ps
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_PS__GFX09  gfx9;
-};
-
-union SpiShaderPgmRsrc2Vs
-{
-    uint32                             u32All;
-    regSPI_SHADER_PGM_RSRC2_VS__GFX09  gfx9;
-};
 
 // Describes the layout of the index buffer attributes used by a INDEX_ATTRIBUTES_INDIRECT packet.
 struct IndexAttribIndirect
@@ -136,7 +87,7 @@ static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
 // Context reg space technically goes to 0xBFFF, but in reality there are no registers we currently write beyond
 // a certain limit. This enum can save some memory space in situations where we shadow register state in the driver.
 constexpr uint32 CntxRegUsedRangeEnd  =
-                    mmCB_COLOR7_DCC_BASE_EXT__GFX09;
+                    Gfx09::mmCB_COLOR7_DCC_BASE_EXT;
 
 constexpr uint32 CntxRegUsedRangeSize = (CntxRegUsedRangeEnd - CONTEXT_SPACE_START + 1);
 constexpr uint32 CntxRegCount         = (CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
@@ -348,8 +299,6 @@ constexpr PrtFeatureFlags Gfx9PrtFeatures = static_cast<PrtFeatureFlags>(
     PrtFeatureBuffer            | // - sparse buffers
     PrtFeatureImage2D           | // - sparse 2D images
     PrtFeatureImage3D           | // - sparse 3D images
-    PrtFeatureImageMultisampled | // - sparse multisampled images
-    PrtFeatureImageDepthStencil | // - sparse depth/stencil images
     PrtFeatureShaderStatus      | // - residency status in shader instructions
     PrtFeatureShaderLodClamp    | // - LOD clamping in shader instructions
     PrtFeatureUnalignedMipSize  | // - unaligned levels outside of the miptail
@@ -383,10 +332,10 @@ enum BUF_INDEX_STRIDE : uint32
 // GFX9-specific buffer resource descriptor structure
 struct Gfx9BufferSrd
 {
-    SQ_BUF_RSRC_WORD0__GFX09 word0;
-    SQ_BUF_RSRC_WORD1__GFX09 word1;
-    SQ_BUF_RSRC_WORD2__GFX09 word2;
-    SQ_BUF_RSRC_WORD3__GFX09 word3;
+    SQ_BUF_RSRC_WORD0 word0;
+    SQ_BUF_RSRC_WORD1 word1;
+    SQ_BUF_RSRC_WORD2 word2;
+    SQ_BUF_RSRC_WORD3 word3;
 };
 
 // Buffer resource descriptor structure
@@ -395,24 +344,17 @@ union BufferSrd
     Gfx9BufferSrd  gfx9;
 };
 
-// Defines the PA_CL_VS_OUT_CNTL register for all GPUs supported by this HWL.
-union PaClVsOutCntl
-{
-    uint32                       u32All;
-    regPA_CL_VS_OUT_CNTL__GFX09  gfx9;
-};
-
 // GFX9-specific image resource descriptor structure
 struct Gfx9ImageSrd
 {
-    SQ_IMG_RSRC_WORD0__GFX09 word0;
-    SQ_IMG_RSRC_WORD1__GFX09 word1;
-    SQ_IMG_RSRC_WORD2__GFX09 word2;
-    SQ_IMG_RSRC_WORD3__GFX09 word3;
-    SQ_IMG_RSRC_WORD4__GFX09 word4;
-    SQ_IMG_RSRC_WORD5__GFX09 word5;
-    SQ_IMG_RSRC_WORD6__GFX09 word6;
-    SQ_IMG_RSRC_WORD7__GFX09 word7;
+    SQ_IMG_RSRC_WORD0 word0;
+    SQ_IMG_RSRC_WORD1 word1;
+    SQ_IMG_RSRC_WORD2 word2;
+    SQ_IMG_RSRC_WORD3 word3;
+    SQ_IMG_RSRC_WORD4 word4;
+    SQ_IMG_RSRC_WORD5 word5;
+    SQ_IMG_RSRC_WORD6 word6;
+    SQ_IMG_RSRC_WORD7 word7;
 };
 
 // Image resource descriptor structure
@@ -424,10 +366,10 @@ union ImageSrd
 // GFX9-specific image sampler descriptor structure
 struct Gfx9SamplerSrd
 {
-    SQ_IMG_SAMP_WORD0__GFX09 word0;
-    SQ_IMG_SAMP_WORD1__GFX09 word1;
-    SQ_IMG_SAMP_WORD2__GFX09 word2;
-    SQ_IMG_SAMP_WORD3__GFX09 word3;
+    SQ_IMG_SAMP_WORD0 word0;
+    SQ_IMG_SAMP_WORD1 word1;
+    SQ_IMG_SAMP_WORD2 word2;
+    SQ_IMG_SAMP_WORD3 word3;
 };
 
 // Image sampler descriptor structure

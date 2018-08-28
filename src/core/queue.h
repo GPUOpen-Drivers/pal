@@ -301,6 +301,8 @@ protected:
 
     Result SubmitDevOverlayCmdBuffer(const Image& image);
 
+    virtual Result DoAssociateFenceWithLastSubmit(Fence* pFence) = 0;
+
     Device*const        m_pDevice;
     const QueueType     m_type;
     const EngineType    m_engineType;
@@ -355,8 +357,6 @@ private:
     Result WaitQueueSemaphoreNoChecks(
         IQueueSemaphore* pQueueSemaphore,
         volatile bool*   pIsStalled);
-
-    Result DoAssociateFenceWithLastSubmit(Fence* pFence) const;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void DumpCmdToFile(

@@ -87,7 +87,7 @@ WaylandPresentFence::WaylandPresentFence(
     const WaylandWindowSystem& windowSystem)
     :
     m_windowSystem(windowSystem),
-    m_hImage(-1)
+    m_hImage(WaylandWindowSystem::DefaultImageHandle)
 {
 }
 
@@ -119,11 +119,26 @@ Result WaylandPresentFence::Trigger()
 Result WaylandPresentFence::WaitForCompletion(
     bool doWait)
 {
-    Result result = Result::Success;
+    Result result = Result::NotReady;
 
-    if (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) != Success)
+    if (m_hImage == WaylandWindowSystem::DefaultImageHandle)
     {
-        result = Result::NotReady;
+        result = Result::Success;
+    }
+
+    if (result != Result::Success)
+    {
+        // quick check
+        if (WaylandWindowSystem::s_pWsaInterface->pfnImageAvailable(m_windowSystem.m_hWsa, m_hImage) == Success)
+        {
+            result = Result::Success;
+        }
+    }
+
+    if ((result != Result::Success) && doWait)
+    {
+        WaylandWindowSystem::s_pWsaInterface->pfnWaitForLastImagePresented(m_windowSystem.m_hWsa);
+        result = Result::Success;
     }
 
     return result;
@@ -246,20 +261,20 @@ Result WaylandWindowSystem::Init()
 // =====================================================================================================================
 // Interface for the window system to do things related with creating presentable image.
 Result WaylandWindowSystem::CreatePresentableImage(
-    const Image&   image,
-    int32          sharedBufferFd,
-    uint32*        pPresentImage)
+    Image*         pImage,
+    int32          sharedBufferFd)
 {
     PAL_ASSERT(s_pWsaInterface != nullptr);
 
     Result result = Result::Success;
     const SubresId              subres      = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subres);
+    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
 
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;
     const uint32 stride = pSubResInfo->rowPitch;
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
+    uint32 presentImage = 0;
 
     //we should get alpha from create info, now just hard code it temporarily.
     WsaFormat format = WlDrmFormat(pSubResInfo->format.format, false);
@@ -273,7 +288,9 @@ Result WaylandWindowSystem::CreatePresentableImage(
     {
         WsaError ret = s_pWsaInterface->pfnCreateImage(
                                m_hWsa, sharedBufferFd, width, height, format,
-                               stride, reinterpret_cast<int32*>(pPresentImage));
+                               stride, reinterpret_cast<int32*>(&presentImage));
+        pImage->SetPresentImageHandle(presentImage);
+
         if (ret != Success)
         {
             result = Result::ErrorOutOfMemory;
@@ -296,12 +313,13 @@ void WaylandWindowSystem::DestroyPresentableImage(
 // =====================================================================================================================
 // Present a pixmap on wayland.
 Result WaylandWindowSystem::Present(
-    uint32             pixmap,
-    PresentMode        presentMode,
-    PresentFence*      pRenderFence,
-    PresentFence*      pIdleFence)
+    const PresentSwapChainInfo& presentInfo,
+    PresentFence*               pRenderFence,
+    PresentFence*               pIdleFence)
 {
     PAL_ASSERT(s_pWsaInterface != nullptr);
+    const Image&       srcImage = static_cast<Image&>(*presentInfo.pSrcImage);
+    uint32             pixmap   = srcImage.GetPresentImageHandle();
 
     WaylandPresentFence*const pWaylandIdleFence = static_cast<WaylandPresentFence*>(pIdleFence);
 

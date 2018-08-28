@@ -39,6 +39,7 @@ namespace Pal
 // Forward declarations.
 class IDevice;
 class IImage;
+class IScreen;
 
 /// Maximum string length for display names.  @see ScreenProperties.
 constexpr uint32 MaxDisplayName = 256;
@@ -143,6 +144,22 @@ struct ScreenColorConfig
     ColorGamut          userDefinedColorGamut;  ///< Color gamut to Present used with ScreenColorSpace::CS_userDefined
 };
 
+/// Specifies Windos system screen properties for use with IScreen::GetProperties()
+struct WsiScreenProperties
+{
+    uint32  crtcId;         ///< The ID of CRTC. CRTC stands for CRT Controller, though it's not only related to CRT
+                            ///  display, it supports HDMI, DP, VGA and DVI etc.. It can be used to set display
+                            ///  timings, display resolution. And it can scan a frame buffer content to one or more
+                            ///  displays.
+    uint32  randrOutput;    ///< A handle to RandR output object. The output represents the underlying display hardware
+                            ///  which include encoder and connector.
+
+    uint32  connectorId;    ///< Connector ID. Connector represents a display connector (HDMI, DP, VGA, DVI...).
+    int32   drmMasterFd;    ///< A file descriptor of DRM-master, it's used to hold/control the leased objects. DRM
+                            ///  exposes an API that user-space programs can use to send commands and data to the GPU.
+                            ///  If a process owns the fd of DRM-master, it has the highest privilege of the DRM.
+};
+
 /// Reports properties of a screen (typically corresponds to one monitor attached to the desktop).  Output structure of
 /// IScreen::GetProperties().
 struct ScreenProperties
@@ -187,6 +204,7 @@ struct ScreenProperties
     Extent2d        physicalDimension; ///< The physical dimension of screen in millimeters
     Extent2d        physicalResolution;///< The preferred or native resolution of screen
 #endif
+    WsiScreenProperties wsiScreenProp; ///< Window system screen properties.
 };
 
 /// Reports properties of a particular screen mode including resolution, pixel format, and other capabilities.  Output
@@ -385,6 +403,35 @@ public:
     ///          + ErrorUnavailable if the screen is not in fullscreen exclusive mode.
     virtual Result GetScanLine(
         int32* pScanLine) const = 0;
+
+    /// Acquires exclusive access to the screen. AcquireScreenAccess will lease crtcs, encoders and connectors from
+    /// window system, and a new DRM master will be created to hold and control those lease objects. Once leased, those
+    /// resources cannot be controlled by the window system, such as XServer, Wayland, unless the new DRM master is
+    /// closed.
+    /// AcquireScreenAccess can be called after SetRandrOutput is called.
+    ///
+    /// @param [in]   hDisplay        OS-native handle to the display.
+    /// @param [in]   wsiPlatform     WSI platform.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result AcquireScreenAccess(
+        OsDisplayHandle hDisplay,
+        WsiPlatform     wsiPlatform) = 0;
+
+    /// Closes the lease DRM master. It will return leased resources to window system and release exclusive access to
+    /// the screen.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result ReleaseScreenAccess() = 0;
+
+    /// Set RandR output object, which will be used to lease resources from XServer. SetRandrOutput should be called
+    /// before calling AcquireScreenAccess, since AcquireScreenAccess depends on the RandR output.
+    ///
+    /// @param [in] randrOutput  RandR output object.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result SetRandrOutput(
+        uint32 randrOutput) = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

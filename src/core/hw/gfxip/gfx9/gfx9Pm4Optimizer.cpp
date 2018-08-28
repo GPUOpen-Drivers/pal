@@ -110,7 +110,7 @@ void Pm4Optimizer::Reset()
     // optimize away writes to this register, which would cause a hang or incorrect skipping of commands.
     if (m_waTcCompatZRange)
     {
-        constexpr uint32 dbZInfoIdx = mmDB_Z_INFO__GFX09 - CONTEXT_SPACE_START;
+        constexpr uint32 dbZInfoIdx = Gfx09::mmDB_Z_INFO - CONTEXT_SPACE_START;
 
         m_cntxRegs[dbZInfoIdx].flags.mustWrite = 1;
     }

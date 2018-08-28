@@ -953,6 +953,465 @@ xcb_dri2_connect_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri2ConnectReply(
     return pRet;
 }
 
+#if XCB_RANDR_SUPPORTS_LEASE
+
+// =====================================================================================================================
+xcb_randr_create_lease_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrCreateLease(
+    xcb_connection_t*          pConnection,
+    xcb_window_t               window,
+    xcb_randr_lease_t          leaseId,
+    uint16_t                   numCrtcs,
+    uint16_t                   numOutputs,
+    const xcb_randr_crtc_t*    pCrtcs,
+    const xcb_randr_output_t*  pOutputs
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_create_lease_cookie_t ret = m_pFuncs->pfnXcbRandrCreateLease(pConnection,
+                                                                           window,
+                                                                           leaseId,
+                                                                           numCrtcs,
+                                                                           numOutputs,
+                                                                           pCrtcs,
+                                                                           pOutputs);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrCreateLease,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrCreateLease(%p, %x, %x, %x, %x, %p, %p)\n",
+        pConnection,
+        window,
+        leaseId,
+        numCrtcs,
+        numOutputs,
+        pCrtcs,
+        pOutputs);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_create_lease_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrCreateLeaseReply(
+    xcb_connection_t*                pConnection,
+    xcb_randr_create_lease_cookie_t  cookie,
+    xcb_generic_error_t**            ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_create_lease_reply_t* pRet = m_pFuncs->pfnXcbRandrCreateLeaseReply(pConnection,
+                                                                                 cookie,
+                                                                                 ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrCreateLeaseReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrCreateLeaseReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+int* Dri3LoaderFuncsProxy::pfnXcbRandrCreateLeaseReplyFds(
+    xcb_connection_t *               pConnection,
+    xcb_randr_create_lease_reply_t*  pReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int* pRet = m_pFuncs->pfnXcbRandrCreateLeaseReplyFds(pConnection,
+                                                         pReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrCreateLeaseReplyFds,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrCreateLeaseReplyFds(%p, %p)\n",
+        pConnection,
+        pReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+#endif
+
+// =====================================================================================================================
+xcb_randr_get_screen_resources_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResources(
+    xcb_connection_t*  pConnection,
+    xcb_window_t       window
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_screen_resources_cookie_t ret = m_pFuncs->pfnXcbRandrGetScreenResources(pConnection,
+                                                                                          window);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResources,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResources(%p, %x)\n",
+        pConnection,
+        window);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_get_screen_resources_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesReply(
+    xcb_connection_t*                        pConnection,
+    xcb_randr_get_screen_resources_cookie_t  cookie,
+    xcb_generic_error_t**                    ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_screen_resources_reply_t* pRet = m_pFuncs->pfnXcbRandrGetScreenResourcesReply(pConnection,
+                                                                                                cookie,
+                                                                                                ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResourcesReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResourcesReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesOutputs(
+    const xcb_randr_get_screen_resources_reply_t*  pScrResReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_output_t* pRet = m_pFuncs->pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResourcesOutputs,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResourcesOutputs(%p)\n",
+        pScrResReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_get_output_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInfo(
+    xcb_connection_t*   pConnection,
+    xcb_randr_output_t  output,
+    xcb_timestamp_t     configTimestamp
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_output_info_cookie_t ret = m_pFuncs->pfnXcbRandrGetOutputInfo(pConnection,
+                                                                                output,
+                                                                                configTimestamp);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputInfo(%p, %x, %x)\n",
+        pConnection,
+        output,
+        configTimestamp);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_get_output_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInfoReply(
+    xcb_connection_t*                   pConnection,
+    xcb_randr_get_output_info_cookie_t  cookie,
+    xcb_generic_error_t **              ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_output_info_reply_t* pRet = m_pFuncs->pfnXcbRandrGetOutputInfoReply(pConnection,
+                                                                                      cookie,
+                                                                                      ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputInfoReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputInfoReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_get_output_property_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputProperty(
+    xcb_connection_t*   pConnection,
+    xcb_randr_output_t  output,
+    xcb_atom_t          property,
+    xcb_atom_t          type,
+    uint32_t            offset,
+    uint32_t            length,
+    uint8_t             _delete,
+    uint8_t             pending
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_output_property_cookie_t ret = m_pFuncs->pfnXcbRandrGetOutputProperty(pConnection,
+                                                                                        output,
+                                                                                        property,
+                                                                                        type,
+                                                                                        offset,
+                                                                                        length,
+                                                                                        _delete,
+                                                                                        pending);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputProperty,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputProperty(%p, %x, %x, %x, %x, %x, %x, %x)\n",
+        pConnection,
+        output,
+        property,
+        type,
+        offset,
+        length,
+        _delete,
+        pending);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+uint8_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputPropertyData(
+    const xcb_randr_get_output_property_reply_t*  pReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    uint8_t* pRet = m_pFuncs->pfnXcbRandrGetOutputPropertyData(pReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputPropertyData,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputPropertyData(%p)\n",
+        pReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_get_output_property_reply_t * Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputPropertyReply(
+    xcb_connection_t*                       pConnection,
+    xcb_randr_get_output_property_cookie_t  cookie,
+    xcb_generic_error_t**                   ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_output_property_reply_t * pRet = m_pFuncs->pfnXcbRandrGetOutputPropertyReply(pConnection,
+                                                                                               cookie,
+                                                                                               ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputPropertyReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputPropertyReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_get_providers_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetProviders(
+    xcb_connection_t*  c,
+    xcb_window_t       window
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_providers_cookie_t ret = m_pFuncs->pfnXcbRandrGetProviders(c,
+                                                                             window);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProviders,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProviders(%p, %x)\n",
+        c,
+        window);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_get_providers_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetProvidersReply(
+    xcb_connection_t*                 c,
+    xcb_randr_get_providers_cookie_t  cookie,
+    xcb_generic_error_t**             e
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_providers_reply_t* pRet = m_pFuncs->pfnXcbRandrGetProvidersReply(c,
+                                                                                   cookie,
+                                                                                   e);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProvidersReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProvidersReply(%p, %p, %p)\n",
+        c,
+        &cookie,
+        e);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_randr_provider_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetProvidersProviders(
+    const xcb_randr_get_providers_reply_t*  R
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_provider_t* pRet = m_pFuncs->pfnXcbRandrGetProvidersProviders(R);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProvidersProviders,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProvidersProviders(%p)\n",
+        R);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+int Dri3LoaderFuncsProxy::pfnXcbRandrGetProvidersProvidersLength(
+    const xcb_randr_get_providers_reply_t*  R
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnXcbRandrGetProvidersProvidersLength(R);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProvidersProvidersLength,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProvidersProvidersLength(%p)\n",
+        R);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_get_provider_info_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetProviderInfo(
+    xcb_connection_t*     c,
+    xcb_randr_provider_t  provider,
+    xcb_timestamp_t       config_timestamp
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_provider_info_cookie_t ret = m_pFuncs->pfnXcbRandrGetProviderInfo(c,
+                                                                                    provider,
+                                                                                    config_timestamp);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProviderInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProviderInfo(%p, %x, %x)\n",
+        c,
+        provider,
+        config_timestamp);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_get_provider_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetProviderInfoReply(
+    xcb_connection_t*                     c,
+    xcb_randr_get_provider_info_cookie_t  cookie,
+    xcb_generic_error_t**                 e
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_provider_info_reply_t* pRet = m_pFuncs->pfnXcbRandrGetProviderInfoReply(c,
+                                                                                          cookie,
+                                                                                          e);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProviderInfoReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProviderInfoReply(%p, %p, %p)\n",
+        c,
+        &cookie,
+        e);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+char* Dri3LoaderFuncsProxy::pfnXcbRandrGetProviderInfoName(
+    const xcb_randr_get_provider_info_reply_t*  R
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    char* pRet = m_pFuncs->pfnXcbRandrGetProviderInfoName(R);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetProviderInfoName,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetProviderInfoName(%p)\n",
+        R);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
 // =====================================================================================================================
 xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
     xcb_connection_t*  pConnection,
@@ -1043,6 +1502,29 @@ int32 Dri3LoaderFuncsProxy::pfnXFree(
     m_paramLogger.Printf(
         "XFree(%p)\n",
         pAddress);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+Window Dri3LoaderFuncsProxy::pfnXRootWindow(
+    Display*  pDisplay,
+    int       screenNum
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    Window ret = m_pFuncs->pfnXRootWindow(pDisplay,
+                                          screenNum);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XRootWindow,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XRootWindow(%p, %x)\n",
+        pDisplay,
+        screenNum);
     m_paramLogger.Flush();
 
     return ret;
@@ -1252,6 +1734,10 @@ Dri3Loader::~Dri3Loader()
     {
         dlclose(m_libraryHandles[LibXcbDri2]);
     }
+    if (m_libraryHandles[LibXcbRandr] != nullptr)
+    {
+        dlclose(m_libraryHandles[LibXcbRandr]);
+    }
     if (m_libraryHandles[LibXcbSync] != nullptr)
     {
         dlclose(m_libraryHandles[LibXcbSync]);
@@ -1278,6 +1764,7 @@ Result Dri3Loader::Init(
         "libxshmfence.so.1",
         "libxcb-dri3.so.0",
         "libxcb-dri2.so.0",
+        "libxcb-randr.so.0",
         "libxcb-sync.so.1",
         "libX11.so.6",
         "libxcb-present.so.0",
@@ -1452,6 +1939,72 @@ Result Dri3Loader::Init(
                         "xcb_dri2_connect_reply"));
         }
 
+        // resolve symbols from libxcb-randr.so.0
+        m_libraryHandles[LibXcbRandr] = dlopen(LibNames[LibXcbRandr], RTLD_LAZY);
+        if (m_libraryHandles[LibXcbRandr] == nullptr)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+#if XCB_RANDR_SUPPORTS_LEASE
+            m_funcs.pfnXcbRandrCreateLease = reinterpret_cast<XcbRandrCreateLease>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_create_lease"));
+            m_funcs.pfnXcbRandrCreateLeaseReply = reinterpret_cast<XcbRandrCreateLeaseReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_create_lease_reply"));
+            m_funcs.pfnXcbRandrCreateLeaseReplyFds = reinterpret_cast<XcbRandrCreateLeaseReplyFds>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_create_lease_reply_fds"));
+#endif
+            m_funcs.pfnXcbRandrGetScreenResources = reinterpret_cast<XcbRandrGetScreenResources>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_screen_resources"));
+            m_funcs.pfnXcbRandrGetScreenResourcesReply = reinterpret_cast<XcbRandrGetScreenResourcesReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_screen_resources_reply"));
+            m_funcs.pfnXcbRandrGetScreenResourcesOutputs = reinterpret_cast<XcbRandrGetScreenResourcesOutputs>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_screen_resources_outputs"));
+            m_funcs.pfnXcbRandrGetOutputInfo = reinterpret_cast<XcbRandrGetOutputInfo>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_output_info"));
+            m_funcs.pfnXcbRandrGetOutputInfoReply = reinterpret_cast<XcbRandrGetOutputInfoReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_output_info_reply"));
+            m_funcs.pfnXcbRandrGetOutputProperty = reinterpret_cast<XcbRandrGetOutputProperty>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_output_property"));
+            m_funcs.pfnXcbRandrGetOutputPropertyData = reinterpret_cast<XcbRandrGetOutputPropertyData>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_output_property_data"));
+            m_funcs.pfnXcbRandrGetOutputPropertyReply = reinterpret_cast<XcbRandrGetOutputPropertyReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_output_property_reply"));
+            m_funcs.pfnXcbRandrGetProviders = reinterpret_cast<XcbRandrGetProviders>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_providers"));
+            m_funcs.pfnXcbRandrGetProvidersReply = reinterpret_cast<XcbRandrGetProvidersReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_providers_reply"));
+            m_funcs.pfnXcbRandrGetProvidersProviders = reinterpret_cast<XcbRandrGetProvidersProviders>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_providers_providers"));
+            m_funcs.pfnXcbRandrGetProvidersProvidersLength = reinterpret_cast<XcbRandrGetProvidersProvidersLength>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_providers_providers_length"));
+            m_funcs.pfnXcbRandrGetProviderInfo = reinterpret_cast<XcbRandrGetProviderInfo>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_provider_info"));
+            m_funcs.pfnXcbRandrGetProviderInfoReply = reinterpret_cast<XcbRandrGetProviderInfoReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_provider_info_reply"));
+            m_funcs.pfnXcbRandrGetProviderInfoName = reinterpret_cast<XcbRandrGetProviderInfoName>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_get_provider_info_name"));
+        }
+
         // resolve symbols from libxcb-sync.so.1
         m_libraryHandles[LibXcbSync] = dlopen(LibNames[LibXcbSync], RTLD_LAZY);
         if (m_libraryHandles[LibXcbSync] == nullptr)
@@ -1482,6 +2035,9 @@ Result Dri3Loader::Init(
             m_funcs.pfnXFree = reinterpret_cast<XFree>(dlsym(
                         m_libraryHandles[LibX11],
                         "XFree"));
+            m_funcs.pfnXRootWindow = reinterpret_cast<XRootWindow>(dlsym(
+                        m_libraryHandles[LibX11],
+                        "XRootWindow"));
         }
 
         // resolve symbols from libxcb-present.so.0

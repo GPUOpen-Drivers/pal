@@ -45,7 +45,7 @@ namespace SettingsURIService
 {
 
 static const char* kSettingsServiceName = "settings";
-DD_STATIC_CONST Version kSettingsServiceVersion = 1;
+DD_STATIC_CONST Version kSettingsServiceVersion = 2;
 
 // =====================================================================================================================
 // Settings Service
@@ -122,6 +122,9 @@ private:
 
     // A hash map of all the components that are currently available to the SettingsService.
     HashMap<uint32, RegisteredComponent, 16> m_registeredComponents;
+
+    // Context to be used for tokenizing the argument string for settings commands
+    char* m_pContext;
 };
 } // SettingsURIService
 } // DevDriver

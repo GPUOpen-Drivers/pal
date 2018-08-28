@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,20 +23,51 @@
  *
  **********************************************************************************************************************/
 
-// Copyright (c) AMD Corporation. All rights reserved.
-
 #ifndef SQTT_FILE_FORMAT_H
 #define SQTT_FILE_FORMAT_H
 
 #include <stdint.h>
+#include "palInlineFuncs.h"
 
 /** Magic number for all SQTT files.
  */
 #define SQTT_FILE_MAGIC_NUMBER            0x50303042
 
+/// The major version number of the RGP file format specification that this header corresponds to.
+#define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
+
+/// The minor version number of the RGP file format specification that this header corresponds to.
+#define RGP_FILE_FORMAT_SPEC_MINOR_VER 3
+
+struct RgpChunkVersionNumbers
+{
+    uint16_t majorVersion;
+    uint16_t minorVersion;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** An structure defining available File Header flags.
+*/
+typedef struct SqttFileHeaderFlags
+{
+    union
+    {
+        struct
+        {
+            int32_t  isSemaphoreQueueTimingETW            :  1;  /*!< Indicates the source of semaphore queue timing
+                                                                      data is ETW. */
+            int32_t  noQueueSemaphoreTimeStamps           :  1;  /*!< Indicates the queue timing data does not perform
+                                                                      dummy submits for semaphore signal/wait timestamps
+                                                                      and just reports those timestamps as 0. */
+            int32_t  reserved                             : 30;  /*!< Reserved, set to 0. */
+        };
+
+        uint32_t value;                              /*!< 32bit value containing all the above fields. */
+    };
+} SqttFileHeaderFlags;
 
 /** Structure encapsulating the file header of an SQTT file.
  */
@@ -45,7 +76,7 @@ typedef struct SqttFileHeader
     uint32_t                magicNumber;       /*!< Magic number, always set to <c><i>SQTT_FILE_MAGIC_NUMBER</i></c> */
     uint32_t                versionMajor;      /*!< The major version number of the file. */
     uint32_t                versionMinor;      /*!< The minor version number of the file. */
-    uint32_t                flags;             /*!< Bitfield of flags set with information about the file. */
+    SqttFileHeaderFlags     flags;             /*!< Bitfield of flags set with information about the file. */
     int32_t                 chunkOffset;       /*!< The offset in bytes to the first chunk contained in the file. */
     int32_t                 second;            /*!< The second in the minute that the RGP file was created. */
     int32_t                 minute;            /*!< The minute in the hour that the RGP file was created. */
@@ -71,9 +102,29 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,            /*!< Information required to correlate between clock domains. */
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
     SQTT_FILE_CHUNK_TYPE_SPM_DB,                       /*!< SPM trace data. */
-
+    SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
+    SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS,
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
+
+/// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
+static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
+{
+    {0, 2}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
+    {0, 1}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,
+    {1, 0}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
+    {1, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS
+};
+
+static_assert(Util::ArrayLen(RgpChunkVersionNumberLookup) == static_cast<uint32_t>(SQTT_FILE_CHUNK_TYPE_COUNT),
+              "The version number lookup table must be updated when adding/deleting a chunk!");
 
 /** An enumeration of flags about ASIC info.
  */
@@ -88,7 +139,9 @@ typedef enum SqttFileChunkAsicInfoFlags
 typedef enum SqttApiType
 {
     SQTT_API_TYPE_DIRECTX_12,
-    SQTT_API_TYPE_VULKAN
+    SQTT_API_TYPE_VULKAN,
+    SQTT_API_TYPE_GENERIC,
+    SQTT_API_TYPE_OPENCL
 } SqttApiType;
 
 /** A structure encapsulating a single chunk identifier.
@@ -117,7 +170,8 @@ typedef struct SqttFileChunkIdentifier
 typedef struct SqttFileChunkHeader
 {
     SqttFileChunkIdentifier     chunkIdentifier;            /*!< A unique identifier for the chunk. */
-    int32_t                     version;                    /*!< The version of the chunk. */
+    uint16_t                    minorVersion;               /*!< The minor version of the chunk. */
+    uint16_t                    majorVersion;               /*!< The major version of the chunk. */
     int32_t                     sizeInBytes;                /*!< The size of the chunk in bytes. */
     int32_t                     padding;                    /*!< Reserved padding dword. */
 } SqttFileChunkHeader;
@@ -503,11 +557,25 @@ typedef struct SpmCounterInfo
     uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
 } SpmCounterInfo;
 
+typedef struct SqttFileSpmInfoFlags
+{
+    union
+    {
+        struct
+        {
+            int32_t  reserved : 32;                  /*!< Reserved, set to 0. */
+        };
+
+        uint32_t value;                              /*!< 32bit value containing all the above fields. */
+    };
+} SqttFileSpmInfoFlags;
+
 typedef struct SqttFileChunkSpmDb
 {
-    SqttFileChunkHeader header;
-    uint32_t            numTimestamps;          /*!<  Number of timestamps in this trace. */
-    uint32_t            numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+    SqttFileChunkHeader  header;
+    SqttFileSpmInfoFlags flags;
+    uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
+    uint32_t             numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
 } SqttFileChunkSpmDb;
 
 /** A structure encapsulating the state of the SQTT file parser.

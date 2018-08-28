@@ -25,9 +25,11 @@
 
 #pragma once
 
-#include "core/settingsLoader.h"
+#include "palSettingsLoader.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palAssert.h"
+
+namespace Util { class IndirectAllocator; }
 
 namespace Pal
 {
@@ -41,38 +43,37 @@ namespace Gfx9
 // This class is responsible for loading the Gfx9-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader : public Pal::SettingsLoader
+class SettingsLoader : public Pal::ISettingsLoader
 {
 public:
-    SettingsLoader(Pal::Device* pDevice);
-
-    static const Gfx9PalSettings* GetSettings(const PalSettings* pSettings)
-        { return (static_cast<const Gfx9PalSettings*>(pSettings)); }
-
-protected:
-    virtual void HwlInit() override;
-    virtual void HwlValidateSettings() override;
-    virtual void HwlReadSettings() override;
-
-    virtual void HwlOverrideDefaults() override;
-
-private:
+    SettingsLoader(Util::IndirectAllocator* pAllocator, Pal::Device* pDevice);
     virtual ~SettingsLoader();
 
-    virtual void GenerateSettingHash() override;
+    virtual Result Init() override;
 
-    void OverrideGfx9Defaults();
+    const Gfx9PalSettings& GetSettings() const { return m_settings; }
 
-    // auto-generated functions
-    static void Gfx9SetupDefaults(Gfx9PalSettings* pSettings);
-    void Gfx9ReadSettings(Gfx9PalSettings* pSettings);
+    void ValidateSettings(PalSettings* pSettings);
+    void OverrideDefaults(PalSettings* pSettings);
 
-    // Private members
-    Gfx9PalSettings   m_gfx9Settings;  ///< Gfx9 settings info
-    const GfxIpLevel  m_gfxLevel;
-
+private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
+
+    void GenerateSettingHash();
+
+    // Private members
+    Pal::Device*     m_pDevice;
+    Gfx9PalSettings  m_settings;  ///< Gfx9 settings pointer
+    const GfxIpLevel m_gfxLevel;
+
+    // auto-generated functions
+    virtual void SetupDefaults() override;
+    virtual void ReadSettings() override;
+    virtual void InitSettingsInfo() override;
+    virtual void DevDriverRegister() override;
+
+    const char* m_pComponentName = "Gfx9_Pal";
 };
 
 } // Gfx9

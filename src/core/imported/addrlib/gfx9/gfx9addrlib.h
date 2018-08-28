@@ -58,7 +58,11 @@ struct Gfx9ChipSettings
 #else
         UINT_32                     : 1;
 #endif
+#if ADDR_VEGA12_BUILD
+        UINT_32 isVega12            : 1;
+#else
         UINT_32                     : 1;
+#endif
         UINT_32                     : 1;
         UINT_32 reserved0           : 27;
 

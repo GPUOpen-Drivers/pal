@@ -77,7 +77,8 @@ void MsaaState::BuildPm4Headers()
 {
     memset(&m_pm4Image, 0, sizeof(m_pm4Image));
 
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+    const CmdUtil& cmdUtil  = m_device.CmdUtil();
+    const auto&    settings = GetGfx9Settings(*m_device.Parent());
 
     // 1st PM4 packet
     m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);
@@ -194,7 +195,12 @@ Result MsaaState::Init(
     m_pm4Image.paScModeCntl0.u32All = 0;
     m_pm4Image.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE   = 1;
     m_pm4Image.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+    m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = (((NumSamples() > 1) ||
+                                                             (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
+#else
     m_pm4Image.paScModeCntl0.bits.MSAA_ENABLE            = ((NumSamples() > 1) ? 1 : 0);
+#endif
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
     m_pm4Image.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;
@@ -202,8 +208,11 @@ Result MsaaState::Init(
     m_pm4Image.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
     m_pm4Image.dbEqaa.bits.INTERPOLATE_COMP_Z         = 1;
 
-    const CmdUtil& cmdUtil = m_device.CmdUtil();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+    if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
+#else
     if (msaaState.coverageSamples > 1)
+#endif
     {
         const uint32 log2ShaderExportSamples   = Log2(msaaState.shaderExportMaskSamples);
 
@@ -248,30 +257,63 @@ Result MsaaState::Init(
 
     if (msaaState.flags.enableConservativeRasterization)
     {
-        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 1;
-        paScConsRastCntl.bits.OVER_RAST_ENABLE                = 1;
-        paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT         = 0;
-        paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT        = 1;
-        paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE   = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+        switch (msaaState.conservativeRasterizationMode)
+        {
+        case ConservativeRasterizationMode::Overestimate:
+            {
+#endif
+                paScAaConfig.bits.AA_MASK_CENTROID_DTMN                 = 1;
+                paScConsRastCntl.bits.OVER_RAST_ENABLE                  = 1;
+                paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT           = 0;
+                paScConsRastCntl.bits.UNDER_RAST_ENABLE                 = 0;
+                paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT          = 1;
+                paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE     = 1;
 
-        paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE       = 0;
-        paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE             = 1;
-        paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE            = 1;
-        paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE        = 1;
+                paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE         = 0;
+                paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE               = 1;
+                paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE              = 1;
+                paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE          = 1;
 
-        m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
-        m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
+                m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION   = 0;
+                m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT         = 4;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+            }
+            break;
+        case ConservativeRasterizationMode::Underestimate:
+            {
+                paScAaConfig.bits.AA_MASK_CENTROID_DTMN                 = 1;
+                paScConsRastCntl.bits.OVER_RAST_ENABLE                  = 0;
+                paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT           = 1;
+                paScConsRastCntl.bits.UNDER_RAST_ENABLE                 = 1;
+                paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT          = 0;
+                paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE     = 0;
+
+                paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE         = 0;
+                paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE               = 1;
+                paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE              = 1;
+                paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE          = 1;
+
+                m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION   = 0;
+                m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT         = 4;
+            }
+            break;
+        default:
+            break;
+        }
+#endif
     }
     else
     {
-        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 0;
-        paScConsRastCntl.bits.OVER_RAST_ENABLE                = 0;
-        paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE   = 0;
+        paScAaConfig.bits.AA_MASK_CENTROID_DTMN             = 0;
+        paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
+        paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
+        paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
 
-        paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE  = 1;
-        paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE        = 0;
-        paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE       = 0;
-        paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE   = 0;
+        paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
+        paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
+        paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
+        paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
     }
 
     m_pm4Image.paScConservativeRastCntl.reg_data = paScConsRastCntl.u32All;

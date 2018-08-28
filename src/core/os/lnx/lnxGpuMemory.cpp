@@ -53,13 +53,6 @@ GpuMemory::~GpuMemory()
     Device* pDevice = static_cast<Device*>(m_pDevice);
     Result  result  = Result::Success;
 
-    if (m_hExternalResource != 0)
-    {
-        // Driver need to close the fd if importing successfully otherwise there is a resource leak.
-        close(m_hExternalResource);
-        m_hExternalResource = 0;
-    }
-
     if (m_desc.flags.isExternPhys)
     {
         result = pDevice->FreeSdiSurface(this);
@@ -385,23 +378,85 @@ Result GpuMemory::FreeSvmVirtualAddress()
 }
 
 // =====================================================================================================================
+Result GpuMemory::ImportMemory(
+    amdgpu_bo_handle_type handleType,
+    OsExternalHandle handle)
+{
+    amdgpu_bo_import_result importResult    = {};
+    Device* pDevice                         = static_cast<Device*>(m_pDevice);
+    gpusize baseVirtAddr                    = 0;
+
+    Result result = pDevice->ImportBuffer(handleType, handle, &importResult);
+
+    if (result == Result::Success)
+    {
+        m_hSurface  = importResult.buf_handle;
+
+        if (IsGpuVaPreReserved())
+        {
+            // It's not expected to get here. Implement later if this feature is desired for Linux.
+            PAL_NOT_IMPLEMENTED();
+            result = Result::Unsupported;
+        }
+        else
+        {
+            // if we allocate from external memory handle, the size/alignment of original memory is unknown.
+            // we have to query the kernel to get those information and fill the desc struct.
+            // Otherwise, we should not override the size/alignment.
+            if (m_desc.size == 0)
+            {
+                amdgpu_bo_info bufferInfo   = {};
+                result = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
+                if (result == Result::Success)
+                {
+                    m_desc.size         = bufferInfo.alloc_size;
+                    m_desc.alignment    = bufferInfo.phys_alignment;
+                }
+            }
+
+            if (result == Result::Success)
+            {
+                result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        m_desc.gpuVirtAddr = baseVirtAddr;
+
+        result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
+
+        if (result != Result::Success)
+        {
+            pDevice->FreeVirtualAddress(this);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Performs OS-specific initialization for allocating shared memory objects.
 // The "shared" memory object refers to
 // a:   GPU memory object residing in a non-local heap which can be accessed (shared between) two or more GPU's
 //      without requiring peer memory transfers.
 // b:   The memory may allocated from the same device but export/imported across driver stack or process boundary.
 // c:   The memory may be allocated from peer device and need to be imported to current device.
-Result GpuMemory::OpenSharedMemory()
+Result GpuMemory::OpenSharedMemory(
+    OsExternalHandle handle)
 {
     amdgpu_bo_info          bufferInfo   = {};
     Device*                 pDevice      = static_cast<Device*>(m_pDevice);
     gpusize                 baseVirtAddr = 0;
 
     // open the external memory with virtual address assigned
-    Result result = OpenPeerMemory();
+    Result result = ImportMemory(m_externalHandleType, handle);
 
     if (result == Result::Success)
     {
+        PAL_ASSERT(m_hSurface != nullptr);
+
         result      = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
         m_heapCount = 1;
 
@@ -473,69 +528,27 @@ Result GpuMemory::OpenSharedMemory()
 
     }
 
+    // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.
+    close(handle);
+
     return result;
 }
 
 // =====================================================================================================================
 // Performs OS-specific initialization for allocating peer memory objects.
+// For peer memory, the external handle and type are getting from the m_pOriginalMem.
 Result GpuMemory::OpenPeerMemory()
 {
     // Get the external resource handle from original memory object if it is not set before.
-    if ((m_hExternalResource == 0) && (m_pOriginalMem != nullptr))
-    {
-        m_hExternalResource = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandle();
-    }
+    amdgpu_bo_handle_type handleType = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandleType();
+    OsExternalHandle      handle     = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandle();
 
-    amdgpu_bo_import_result importResult    = {};
-    Device* pDevice                         = static_cast<Device*>(m_pDevice);
-    gpusize baseVirtAddr                    = 0;
+    PAL_ASSERT(handle);
 
-    Result result = pDevice->ImportBuffer(m_externalHandleType, m_hExternalResource, &importResult);
+    Result result = ImportMemory(handleType, handle);
 
-    if (result == Result::Success)
-    {
-        m_hSurface  = importResult.buf_handle;
-
-        if (IsGpuVaPreReserved())
-        {
-            // It's not expected to get here. Implement later if this feature is desired for Linux.
-            PAL_NOT_IMPLEMENTED();
-            result = Result::Unsupported;
-        }
-        else
-        {
-            // if we allocate from external memory handle, the size/alignment of original memory is unknown.
-            // we have to query the kernel to get those information and fill the desc struct.
-            // Otherwise, we should not override the size/alignment.
-            if (m_desc.size == 0)
-            {
-                amdgpu_bo_info bufferInfo   = {};
-                result = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
-                if (result == Result::Success)
-                {
-                    m_desc.size         = bufferInfo.alloc_size;
-                    m_desc.alignment    = bufferInfo.phys_alignment;
-                }
-            }
-
-            if (result == Result::Success)
-            {
-                result = pDevice->AssignVirtualAddress(this, &baseVirtAddr);
-            }
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        m_desc.gpuVirtAddr = baseVirtAddr;
-
-        result = pDevice->MapVirtualAddress(m_hSurface, 0, importResult.alloc_size, m_desc.gpuVirtAddr, m_mtype);
-
-        if (result != Result::Success)
-        {
-            pDevice->FreeVirtualAddress(this);
-        }
-    }
+    // handle should be closed here otherwise, the memory would never be freed since it takes one extra refcount.
+    close(handle);
 
     return result;
 }
@@ -559,7 +572,7 @@ OsExternalHandle GpuMemory::GetSharedExternalHandle() const
     // another valid use case for this is to share image to XServer as pixmap.
     OsExternalHandle fd;
     Result result = static_cast<Device*>(m_pDevice)->ExportBuffer(m_hSurface,
-                                            amdgpu_bo_handle_type_dma_buf_fd,
+                                            m_externalHandleType,
                                             reinterpret_cast<uint32*>(&fd));
     PAL_ASSERT(result == Result::Success);
     return fd;

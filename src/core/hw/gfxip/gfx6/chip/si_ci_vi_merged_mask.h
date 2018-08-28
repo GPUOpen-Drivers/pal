@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,15 +22,6 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-
-// *
-// *
-// *	 (c) 2014 AMD Inc.  (unpublished)
-// *
-// *	 All rights reserved.  This notice is intended as a precaution against
-// *	 inadvertent publication and does not imply publication or any waiver
-// *	 of confidentiality.  The year included in the foregoing notice is the
-// *	 year of creation of the work.
 
 #if !defined __SI__CI__VImask_HEADER
 #define __SI__CI__VImask_HEADER

@@ -49,10 +49,10 @@ PipelineChunkGs::PipelineChunkGs(
     memset(&m_pm4ImageSh,        0, sizeof(m_pm4ImageSh));
     memset(&m_pm4ImageShDynamic, 0, sizeof(m_pm4ImageShDynamic));
     memset(&m_pm4ImageGsLds,     0, sizeof(m_pm4ImageGsLds));
-    memset(&m_pm4ImageChksum,    0, sizeof(m_pm4ImageChksum));
     memset(&m_pm4ImageContext,   0, sizeof(m_pm4ImageContext));
     memset(&m_stageInfo,         0, sizeof(m_stageInfo));
     memset(&m_stageInfoCopy,     0, sizeof(m_stageInfoCopy));
+
     m_stageInfo.stageId     = Abi::HardwareStage::Gs;
     m_stageInfoCopy.stageId = Abi::HardwareStage::Vs;
 }
@@ -73,16 +73,11 @@ void PipelineChunkGs::Init(
     m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_GS);
     m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_GS);
     m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC4_GS);
+    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_GS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
-
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_CHKSUM_GS,
-                                      &m_pm4ImageChksum.spiShaderPgmChksumGs.u32All);
-    }
 
     uint32 lateAllocWaves  = settings.lateAllocGs;
     uint16 gsCuDisableMask = 0;
@@ -97,15 +92,15 @@ void PipelineChunkGs::Init(
         gsCuDisableMask = 0x2;
     }
 
-    m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.gfx9.bits.CU_EN =
+    m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.bits.CU_EN =
         m_device.GetCuEnableMask(gsCuDisableMask, settings.gsCuEnLimitMask);
 
     switch (m_device.Parent()->ChipProperties().gfxLevel)
     {
     case GfxIpLevel::GfxIp9:
-        m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.gfx9.bits.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
-        m_pm4ImageContext.maxPrimsPerSubgrp.gfx9.u32All                =
-            abiProcessor.GetRegisterEntry(mmVGT_GS_MAX_PRIMS_PER_SUBGROUP__GFX09);
+        m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
+        m_pm4ImageContext.maxPrimsPerSubgrp.u32All =
+            abiProcessor.GetRegisterEntry(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP);
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -208,11 +203,14 @@ uint32* PipelineChunkGs::WriteShCommands(
 {
     Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
 
-    pm4ImageShDynamic.spiShaderPgmRsrc3Gs.gfx9.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
+    if (gsStageInfo.wavesPerSh > 0)
+    {
+        pm4ImageShDynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
+    }
 
     if (gsStageInfo.cuEnableMask != 0)
     {
-        pm4ImageShDynamic.spiShaderPgmRsrc3Gs.gfx9.bits.CU_EN &= gsStageInfo.cuEnableMask;
+        pm4ImageShDynamic.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
 
     }
 
@@ -235,11 +233,6 @@ uint32* PipelineChunkGs::WriteShCommands(
     }
 
     pCmdSpace = pCmdStream->WritePm4Image(pm4ImageShDynamic.spaceNeeded, &pm4ImageShDynamic, pCmdSpace);
-
-    if (m_pm4ImageChksum.spaceNeeded > 0)
-    {
-        pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageChksum.spaceNeeded, &m_pm4ImageChksum, pCmdSpace);
-    }
 
     if (m_pGsPerfDataInfo->regOffset != UserDataNotMapped)
     {
@@ -410,13 +403,6 @@ void PipelineChunkGs::BuildPm4Headers(
                                                                 &m_pm4ImageGsLds.hdrEsGsSizeForGs);
     }
 
-    // Sets the following sh register: SPI_SHADER_PGM_CHKSUM_GS.
-    if (m_device.Parent()->ChipProperties().gfx9.supportSpp != 0)
-    {
-        m_pm4ImageChksum.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_PGM_CHKSUM_GS,
-                                                                 ShaderGraphics,
-                                                                 &m_pm4ImageChksum.hdrSpiShaderPgmChksum);
-    }
 }
 
 } // Gfx9

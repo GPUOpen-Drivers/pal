@@ -60,6 +60,10 @@ struct MsaaStatePm4Img
 
     PM4ME_NON_SAMPLE_EVENT_WRITE          flushDfsm;            // flushDfsm event
 
+    // This register is only written on some GPUs, it must be last.  This is the same register as
+    // DB_DEPTH_INFO which is conditionally written by the depth-view class.
+    PM4ME_CONTEXT_REG_RMW                 dbReservedReg2;
+
     // Command space needed, in DWORDs. This field must always be last in the structure to not
     // interfere w/ the actual commands contained within.
     size_t                                spaceNeeded;

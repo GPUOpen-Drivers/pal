@@ -54,7 +54,6 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     bool IsEnabled() const { return m_layerEnabled; }
-    const char* LogDirName() const { return &m_logDirName[0]; }
 
     static void PAL_STDCALL ShaderDbgCb(
         void*                   pPrivateData,
@@ -64,10 +63,6 @@ public:
 
 private:
     virtual ~Platform() { }
-
-    // Storage for a unique log directory per session based on the executable name and current date/time.
-    static constexpr size_t LogDirNameLength = 512;
-    char m_logDirName[LogDirNameLength];
 
     PAL_DISALLOW_DEFAULT_CTOR(Platform);
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);

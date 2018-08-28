@@ -41,7 +41,7 @@ template <typename T> struct Void { typedef void Type; };
 // BoolType, TrueType, FalseType
 //
 template <bool Cond> struct BoolType {
-    static const bool Write = Cond;
+    static const bool Value = Cond;
     typedef BoolType Type;
 };
 typedef BoolType<true> TrueType;
@@ -55,7 +55,7 @@ typedef BoolType<false> FalseType;
 template <bool C> struct SelectIfImpl { template <typename T1, typename T2> struct Apply { typedef T1 Type; }; };
 template <> struct SelectIfImpl<false> { template <typename T1, typename T2> struct Apply { typedef T2 Type; }; };
 template <bool C, typename T1, typename T2> struct SelectIfCond : SelectIfImpl<C>::template Apply<T1,T2> {};
-template <typename C, typename T1, typename T2> struct SelectIf : SelectIfCond<C::Write, T1, T2> {};
+template <typename C, typename T1, typename T2> struct SelectIf : SelectIfCond<C::Value, T1, T2> {};
 
 template <bool Cond1, bool Cond2> struct AndExprCond : FalseType {};
 template <> struct AndExprCond<true, true> : TrueType {};
@@ -64,8 +64,8 @@ template <> struct OrExprCond<false, false> : FalseType {};
 
 template <typename C> struct BoolExpr : SelectIf<C,TrueType,FalseType>::Type {};
 template <typename C> struct NotExpr  : SelectIf<C,FalseType,TrueType>::Type {};
-template <typename C1, typename C2> struct AndExpr : AndExprCond<C1::Write, C2::Write>::Type {};
-template <typename C1, typename C2> struct OrExpr  : OrExprCond<C1::Write, C2::Write>::Type {};
+template <typename C1, typename C2> struct AndExpr : AndExprCond<C1::Value, C2::Value>::Type {};
+template <typename C1, typename C2> struct OrExpr  : OrExprCond<C1::Value, C2::Value>::Type {};
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -88,7 +88,7 @@ template <typename T> struct IsConst<const T> : TrueType {};
 template <typename CT, typename T>
 struct IsMoreConst
     : AndExpr<IsSame<typename RemoveConst<CT>::Type, typename RemoveConst<T>::Type>,
-              BoolType<IsConst<CT>::Write >= IsConst<T>::Write> >::Type {};
+              BoolType<IsConst<CT>::Value >= IsConst<T>::Value> >::Type {};
 
 template <typename T> struct IsPointer : FalseType {};
 template <typename T> struct IsPointer<T*> : TrueType {};
@@ -119,7 +119,7 @@ template<typename B, typename D> struct IsBaseOfImpl {
         operator const D*();
     };
 
-    enum { Write = (sizeof(Check(Host(), 0)) == sizeof(Yes)) };
+    enum { Value = (sizeof(Check(Host(), 0)) == sizeof(Yes)) };
 };
 
 template <typename B, typename D> struct IsBaseOf
@@ -138,10 +138,10 @@ template <bool Condition, typename T = void> struct DisableIfCond { typedef T Ty
 template <typename T> struct DisableIfCond<true, T> { /* empty */ };
 
 template <typename Condition, typename T = void>
-struct EnableIf : EnableIfCond<Condition::Write, T> {};
+struct EnableIf : EnableIfCond<Condition::Value, T> {};
 
 template <typename Condition, typename T = void>
-struct DisableIf : DisableIfCond<Condition::Write, T> {};
+struct DisableIf : DisableIfCond<Condition::Value, T> {};
 
 // SFINAE helpers
 struct SfinaeTag {};

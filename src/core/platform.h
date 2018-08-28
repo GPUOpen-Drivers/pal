@@ -139,19 +139,12 @@ public:
         void*                   pData)
         { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
 
-#if PAL_BUILD_GPUOPEN
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
     bool ShowDevDriverOverlay() const;
     PipelineDumpService* GetPipelineDumpService() { return m_pPipelineDumpService; }
-#else
-    bool IsDeveloperModeEnabled() const { return false; }
-    bool IsDevDriverProfilingEnabled() const { return false; }
-    bool ShowDevDriverOverlay() const { return false; }
-#endif
-
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     bool SvmModeEnabled()     const { return m_flags.enableSvmMode; }
@@ -222,9 +215,7 @@ private:
 
     void InitRuntimeSettings(Device* pDevice);
 
-#if PAL_BUILD_GPUOPEN
     // Developer Driver functionality.
-
     // Initialization + Destruction functions
     void EarlyInitDevDriver();
     void LateInitDevDriver();
@@ -241,7 +232,6 @@ private:
 
     // Pipeline dump service exposed via the developer driver.
     PipelineDumpService* m_pPipelineDumpService;
-#endif
 
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;

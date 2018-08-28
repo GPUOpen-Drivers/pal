@@ -37,6 +37,16 @@
 namespace Pal
 {
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+/// Specifies conservative rasterization mode
+enum class ConservativeRasterizationMode : uint32
+{
+    Overestimate    = 0x0,  ///< Fragments will be generated if the primitive area covers any portion of the pixel.
+    Underestimate   = 0x1,  ///< Fragments will be generated if all of the pixel is covered by the primitive.
+    Count
+};
+#endif
+
 /// Maximum supported number of MSAA color samples.
 constexpr uint32 MaxMsaaColorSamples = 16;
 
@@ -48,6 +58,9 @@ constexpr uint32 MaxMsaaFragments = 8;
 
 /// Sampling pattern grid size. This is a quad of pixels, i.e. 2x2 grid of pixels.
 constexpr Extent2d MaxGridSize = { 2, 2 };
+
+/// 1xMSAA grid size in which sample locations can vary, i.e. all 4 pixels in quad must have the same sample location.
+constexpr Extent2d Max1xMsaaGridSize = { 1, 1 };
 
 /// The positions are rounded to 1/Pow2(SubPixelBits)
 constexpr uint32 SubPixelBits = 4;
@@ -90,12 +103,24 @@ struct MsaaStateCreateInfo
                                           ///  This value must never exceed the MSAA rate.
     bool   disableAlphaToCoverageDither;  ///< Disables coverage dithering.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
+    ConservativeRasterizationMode conservativeRasterizationMode;
+                                          ///< Selects overestimate or underestimate conservative
+                                          ///  rasterization mode. Used only if
+                                          ///  @ref MsaaStateCreateInfo::flags::enableConservativeRasterization
+                                          ///  is set to true.
+#endif
     union
     {
         struct
         {
             uint32  enableConservativeRasterization :  1; ///< Set to true to enable conservative rasterization
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 417
+            uint32  enable1xMsaaSampleLocations     :  1; ///< Set to true to enable 1xMSAA quad sample pattern
+            uint32  reserved                        : 30;
+#else
             uint32  reserved                        : 31;
+#endif
         };
 
         uint32  u32All;
