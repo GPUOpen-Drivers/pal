@@ -475,6 +475,7 @@ struct ChannelMapping
             ChannelSwizzle a;          ///< Alpha component swizzle.
         };
         ChannelSwizzle     swizzle[4]; ///< All four swizzles packed into one array.
+        uint32             swizzleValue;
     };
 };
 

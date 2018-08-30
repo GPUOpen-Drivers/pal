@@ -1254,6 +1254,9 @@ void UniversalCmdBuffer::CmdBindTargets(
     // tail since they will share the same block.
     bool waitOnMetadataMipTail = false;
 
+    // Gfx9 requires TCC F/I with some depth/stencil targets before a shader can read the DB metadata.
+    bool depthStencilNeedsEopFlushTcc = false;
+
     // Bind all color targets.
     const uint32 colorTargetLimit = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
     uint32 newColorTargetMask = 0;
@@ -1324,10 +1327,15 @@ void UniversalCmdBuffer::CmdBindTargets(
             // COND_EXEC which checks the metadata because we don't know the last fast clear value here.
             pDeCmdSpace = pNewDepthView->UpdateZRangePrecision(true, &m_deCmdStream, pDeCmdSpace);
         }
+
+        // Check if the bound image requires TCC flush/invalidate before reading metadata in a shader.
+        m_gfxCmdBufState.depthMdNeedsTccFlush = pNewDepthView->ShaderMetadataReadRequiresTccFlush() ? 1 : 0;
     }
     else
     {
         pDeCmdSpace = WriteNullDepthTarget(pDeCmdSpace);
+
+        m_gfxCmdBufState.depthMdNeedsTccFlush = 0;
     }
 
     if ((pCurrentDepthView != nullptr) && (pCurrentDepthView != pNewDepthView))  // view1->view2 or view->null
@@ -1338,13 +1346,21 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Record if this depth view we are switching from should trigger a Release_Mem due to being in the MetaData
         // tail region.
         waitOnMetadataMipTail |= pCurrentDepthView->WaitOnMetadataMipTail();
+
+        // Determine if TCC flush/invalidate is required for the depth/stencil view that is being unbound.
+        if (pCurrentDepthView->ShaderMetadataReadRequiresTccFlush())
+        {
+            depthStencilNeedsEopFlushTcc = true;
+        }
     }
 
-    if (waitOnMetadataMipTail)
+    if (waitOnMetadataMipTail || depthStencilNeedsEopFlushTcc)
     {
+        const auto tcCacheOp = (depthStencilNeedsEopFlushTcc ? TcCacheOp::WbInvL2Nc : TcCacheOp::Nop);
+
         pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(EngineTypeUniversal,
                                                             BOTTOM_OF_PIPE_TS,
-                                                            TcCacheOp::Nop,
+                                                            tcCacheOp,
                                                             TimestampGpuVirtAddr(),
                                                             pDeCmdSpace);
     }

@@ -1,3 +1,4 @@
+
 ##
  #######################################################################################################################
  #
@@ -22,167 +23,223 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-project(ADDRLIB C CXX)
+
+cmake_minimum_required(VERSION 3.1)
+
+project(AddrLib VERSION 4.4.0 LANGUAGES CXX)
+
+include(CMakeDependentOption)
+include(TestBigEndian)
+
+function(get_cpu_endianness CPU_ENDIANNESS)
+    test_big_endian(isBigEndianCpu)
+
+    if(isBigEndianCpu)
+        set(${CPU_ENDIANNESS}    "BIGENDIAN_CPU" PARENT_SCOPE)
+    else()
+        set(${CPU_ENDIANNESS} "LITTLEENDIAN_CPU" PARENT_SCOPE)
+    endif()
+endfunction()
+
+                option(ADDR_R800_BUILD       "Build support for R800?"       OFF                                               )
+                option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
+cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         OFF "ADDR_SI_BUILD"                            OFF)
+                option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
+cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    OFF "ADDR_GFX9_BUILD"                          OFF)
+
+                option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
+                option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
 
 add_library(addrlib STATIC "")
-install(TARGETS addrlib DESTINATION ${CMAKE_SOURCE_DIR}/lib/${CMAKE_BUILD_TYPE}${TARGET_ARCHITECTURE_BITS})
 
-### Cached Project Options #############################################################################################
-option(ADDR_R600_BUILD "Build ${PROJECT_NAME} with R600 support?" OFF)
-option(ADDR_R800_BUILD "Build ${PROJECT_NAME} with R800 support?" OFF)
-option(ADDR_R900_BUILD "Build ${PROJECT_NAME} with R900 support?" OFF)
+target_include_directories(addrlib PUBLIC  inc
+                                   PRIVATE src
+                                           src/core)
 
-option(ADDR_SI_BUILD "Build ${PROJECT_NAME} with SI support?" OFF)
-option(ADDR_CI_BUILD "Build ${PROJECT_NAME} with CI support?" OFF)
-option(ADDR_VI_BUILD "Build ${PROJECT_NAME} with VI support?" OFF)
-option(ADDR_GFX9_BUILD "Build ${PROJECT_NAME} with GFX9 support?" OFF)
+target_sources(addrlib PRIVATE inc/addrtypes.h
+                               inc/addrinterface.h)
 
-if(ADDR_R900_BUILD AND NOT ADDR_R800_BUILD)
-    set(ADDR_R800_BUILD ON CACHE BOOL "Forcing R800 ON as ADDR_R900_BUILD is ON." FORCE)
-endif()
+target_sources(addrlib PRIVATE src/addrinterface.cpp)
 
-if(ADDR_CI_BUILD AND NOT ADDR_SI_BUILD)
-    set(ADDR_SI_BUILD ON CACHE BOOL "Forcing SI ON as it is required when ADDR_CI_BUILD is ON." FORCE)
-elseif(ADDR_VI_BUILD AND NOT ADDR_SI_BUILD)
-    set(ADDR_SI_BUILD ON CACHE BOOL "Forcing SI ON as it is required when ADDR_VI_BUILD is ON." FORCE)
-endif()
-
-if(ADDR_R600_BUILD)
-    set(ADDR_R600_CHIP_DIR ${PROJECT_SOURCE_DIR}/r600/chip CACHE PATH "Specify the path to the r600 register chip headers.")
-endif()
-if(ADDR_R800_BUILD)
-    set(ADDR_R800_CHIP_DIR ${PROJECT_SOURCE_DIR}/r800/chip CACHE PATH "Specify the path to the r800 register chip headers.")
-endif()
-if(ADDR_SI_BUILD)
-    set(ADDR_SI_CHIP_DIR   ${PROJECT_SOURCE_DIR}/r800/chip CACHE PATH "Specify the path to the SI register chip headers.")
-endif()
-if(ADDR_GFX9_BUILD)
-    set(ADDR_GFX9_CHIP_DIR ${PROJECT_SOURCE_DIR}/gfx9/chip CACHE PATH "Specify the path to the GFX9 register chip headers.")
-endif()
-
-# CMAKE-TODO: What is this used for? PAL never sets this.
-# option(ADDR_AM_BUILD  "Build ADDRLIB as an AM Build?" OFF)
-# ADDR_LNX_KERNEL_BUILD
-# ADDR_LNX_KERNEL_ESX_BUILD
-
-### Compiler Options ###################################################################################################
-if(UNIX)
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(addrlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fPIC -fcheck-new -fno-rtti -fno-math-errno>)
-        target_compile_options(addrlib PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused -Wno-unused-parameter -Wno-ignored-qualifiers -Wno-missing-field-initializers>)
-
-        message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        #message(STATUS "Configured ${PROJECT_NAME} compiler options for Clang.")
-        message(WARNING "Clang is untested.")
-    else()
-        message(FATAL_ERROR "Using unknown compiler.")
-    endif()
-endif()
-
-### Defines/Includes/Sources ###########################################################################################
-target_compile_definitions(addrlib PRIVATE ${TARGET_ARCHITECTURE_ENDIANESS}ENDIAN_CPU)
-
-#if(ADDR_AM_BUILD)
-#    target_compile_definitions(addrlib PRIVATE ADDR_AM_BUILD)
-#endif()
-
-# CMAKE-TODO: What is this used for? PAL never sets this.
-#if(ADDR_LNX_KERNEL_BUILD)
-#    target_include_directories(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/inc)
-#    target_compile_definitions(addrlib PRIVATE ADDR_LNX_KERNEL_BUILD)
-#endif()
-
-# CMAKE-TODO: What is this used for? PAL never sets this.
-#if(ADDR_LNX_KERNEL_ESX_BUILD)
-#    target_compile_definitions(addrlib PRIVATE ADDR_LNX_KERNEL_BUILD)
-
-#    target_include_directories(addrlib PRIVATE
-#        ${ADDR_GCC64}/RHEL5/usr/include
-#        ${GLOBAL_ROOT_SRC_DIR}/drivers/cmmqs/driver/src/lnx/visibility.hpp
-#    )
-#endif()
-
-target_include_directories(addrlib
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/core
-        ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/asic_reg
-)
-
-target_sources(addrlib PRIVATE
-    ${PROJECT_SOURCE_DIR}/addrinterface.cpp
-    ${PROJECT_SOURCE_DIR}/core/addrobject.cpp
-    ${PROJECT_SOURCE_DIR}/core/addrlib.cpp
-    ${PROJECT_SOURCE_DIR}/core/addrlib1.cpp
-    ${PROJECT_SOURCE_DIR}/core/addrlib2.cpp
-    ${PROJECT_SOURCE_DIR}/core/addrelemlib.cpp
-)
-
-if(ADDR_R600_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_R600_BUILD)
-
-    target_include_directories(addrlib PRIVATE
-        ${PROJECT_SOURCE_DIR}/r600
-        ${ADDR_R600_CHIP_DIR}
-        ${PROJECT_SOURCE_DIR}/inc/chip/r600
-    )
-
-    target_sources(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r600/r600addrlib.cpp)
-endif()
-
-if(ADDR_R900_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_R900_BUILD)
-endif()
-
-if(ADDR_GFX9_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD ADDR_RAVEN1_BUILD)
-
-    target_include_directories(addrlib PRIVATE
-        ${PROJECT_SOURCE_DIR}/gfx9
-        ${ADDR_GFX9_CHIP_DIR}
-        ${PROJECT_SOURCE_DIR}/inc/chip/gfx9
-    )
-
-    target_sources(addrlib PRIVATE
-        ${PROJECT_SOURCE_DIR}/gfx9/gfx9addrlib.cpp
-        ${PROJECT_SOURCE_DIR}/gfx9/coord.cpp
-    )
-endif()
-
-# CMAKE-TODO: Check this for correctness. Previously ADDR_EGBASED
-if(ADDR_R800_BUILD OR ADDR_SI_BUILD)
-    target_include_directories(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r800)
-    target_include_directories(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/inc/chip/r800)
-    target_sources(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r800/egbaddrlib.cpp)
-endif()
+target_sources(addrlib PRIVATE src/core/addrcommon.h
+                               src/core/addrobject.h
+                               src/core/addrobject.cpp
+                               src/core/addrelemlib.h
+                               src/core/addrelemlib.cpp
+                               src/core/addrlib.h
+                               src/core/addrlib.cpp
+                               src/core/addrlib1.h
+                               src/core/addrlib1.cpp
+                               src/core/addrlib2.h
+                               src/core/addrlib2.cpp
+                               src/core/coord.h
+                               src/core/coord.cpp)
 
 if(ADDR_R800_BUILD)
-    target_include_directories(addrlib PRIVATE ${ADDR_R800_CHIP_DIR})
+    target_sources(addrlib PRIVATE src/chip/r800/r800_gb_reg.h
+                                   src/r800/r800addrlib.h
+                                   src/r800/r800addrlib.cpp)
+
     target_compile_definitions(addrlib PRIVATE ADDR_R800_BUILD)
-    target_sources(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r800/r800addrlib.cpp)
 endif()
 
 if(ADDR_SI_BUILD)
-    target_include_directories(addrlib PRIVATE ${ADDR_SI_CHIP_DIR})
+    target_sources(addrlib PRIVATE src/chip/r800/si_gb_reg.h
+                                   src/r800/siaddrlib.h
+                                   src/r800/siaddrlib.cpp)
+
     target_compile_definitions(addrlib PRIVATE ADDR_SI_BUILD)
-    target_sources(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r800/siaddrlib.cpp)
-
-    if(ADDR_CI_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_CI_BUILD)
-        target_sources(addrlib PRIVATE ${PROJECT_SOURCE_DIR}/r800/ciaddrlib.cpp)
-    endif()
-
-    if(ADDR_VI_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_VI_BUILD)
-    endif()
 endif()
 
-### Visual Studio Filters ##############################################################################################
-target_vs_filters(addrlib)
+if(ADDR_CI_BUILD)
+    target_sources(addrlib PRIVATE src/r800/ciaddrlib.h
+                                   src/r800/ciaddrlib.cpp)
 
-### Mark all options as advanced #######################################################################################
-if(ADDR_OPTIONS_MARK_ADVANCED)
-    mark_grouped_as_advanced(ADDR)
+    target_compile_definitions(addrlib PRIVATE ADDR_CI_BUILD)
+endif()
+
+if(ADDR_R800_BUILD OR ADDR_SI_BUILD OR ADDR_CI_BUILD)
+    target_sources(addrlib PRIVATE src/r800/egbaddrlib.h
+                                   src/r800/egbaddrlib.cpp)
+
+    target_include_directories(addrlib PRIVATE src/chip/r800)
+endif()
+
+if(ADDR_GFX9_BUILD)
+    target_sources(addrlib PRIVATE src/chip/gfx9/gfx9_gb_reg.h
+                                   src/gfx9/gfx9addrlib.h
+                                   src/gfx9/gfx9addrlib.cpp)
+
+    target_include_directories(addrlib PRIVATE src/chip/gfx9)
+
+    target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD)
+endif()
+
+    target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)
+
+if(ADDR_AM_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_AM_BUILD)
+endif()
+
+if(ADDR_LNX_KERNEL_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_LNX_KERNEL_BUILD)
+endif()
+
+get_cpu_endianness(CPU_ENDIANNESS)
+target_compile_definitions(addrlib PRIVATE ${CPU_ENDIANNESS})
+
+target_compile_definitions(addrlib PRIVATE $<$<CONFIG:Debug>:DEBUG>)
+
+set_target_properties(addrlib PROPERTIES CXX_STANDARD              11
+                                         CXX_STANDARD_REQUIRED     ON
+                                         CXX_EXTENSIONS            OFF
+                                         POSITION_INDEPENDENT_CODE ON)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+
+    # [GCC] Options That Control Optimization
+    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
+    target_compile_options(addrlib PRIVATE -flto)
+
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+
+    # [Clang] Command Line Argument Reference
+    #    https://clang.llvm.org/docs/ClangCommandLineReference.html
+    #
+    # [Clang] Thin LTO
+    #    https://clang.llvm.org/docs/ThinLTO.html
+    target_compile_options(addrlib PRIVATE -flto=thin)
+
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+
+    # [MSVC] Whole Program Optimization
+    #    https://msdn.microsoft.com/en-us/library/0zza0de8.aspx
+    target_compile_options(addrlib PRIVATE /GL)
+
+    # [MSVC] Link-time Code Generation
+    #    https://msdn.microsoft.com/en-us/library/xbf3tbeh.aspx
+    set_target_properties(addrlib PROPERTIES STATIC_LIBRARY_FLAGS /LTCG)
+
+else()
+    message(FATAL_ERROR "IPO is not supported!")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+
+    # [GCC] Exceptions
+    #   https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html
+    #
+    # [GCC] Options Controlling C++ Dialect
+    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/C_002b_002b-Dialect-Options.html
+    #
+    # [GCC] Options That Control Optimization
+    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Optimize-Options.html
+    target_compile_options(addrlib PRIVATE
+        -fno-exceptions  # Disable exception handling support.
+        -fno-rtti        # Disable run-time type information support.
+        -fcheck-new      # Check if pointer returned by operator new is non-null.
+        -fno-math-errno) # Single instruction math operations do not set ERRNO.
+
+    # [GCC] Options to Request or Suppress Warnings
+    #   https://gcc.gnu.org/onlinedocs/gcc-8.1.0/gcc/Warning-Options.html
+    target_compile_options(addrlib PRIVATE
+        -Wall
+        -Wextra
+        -Werror
+        -Wno-unused
+        -Wno-unused-parameter
+        -Wno-ignored-qualifiers
+        -Wno-missing-field-initializers
+        -Wno-self-assign
+        -Wno-implicit-fallthrough)
+
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+
+    # [MSVC] Code Analysis
+    #    https://msdn.microsoft.com/en-us/library/ms173498.aspx
+    #
+    # [MSVC] Exception Handling Model
+    #    https://msdn.microsoft.com/en-us/library/1deeycx5.aspx
+    #
+    # [MSVC] Enable Run-Time Type Information
+    #    https://msdn.microsoft.com/en-us/library/we6hfdy0.aspx
+    #
+    # [MSVC] Buffer Security Check
+    #    https://msdn.microsoft.com/en-us/library/8dbf701c.aspx
+    #
+    # [MSVC] Whole Program Optimization
+    #    https://msdn.microsoft.com/en-us/library/0zza0de8.aspx
+    target_compile_options(addrlib PRIVATE
+        $<$<CONFIG:Debug>:/analyze>
+              # Turns on static analysis for debug build.
+        /EHsc # Catches only C++ exceptions and assumes
+              # functions declared as extern "C" never throw a C++ exception.
+        /GR-  # Disables run-time type information.
+        /GS-) # Disables detection of buffer overruns.
+
+    # [MSVC] Warning Level
+    #    https://msdn.microsoft.com/en-us/library/thxezb7y.aspx
+    #
+    # [MSVC] Compiler Warnings
+    #    https://msdn.microsoft.com/en-us/library/ysb0wexw.aspx
+    #    https://msdn.microsoft.com/en-us/library/t460hcc3.aspx
+    #    https://msdn.microsoft.com/en-us/library/cfahxw6k.aspx
+    #
+    # [MSVC] Code Analysis for C/C++ Warnings
+    #    https://msdn.microsoft.com/en-us/library/9t02bbsx.aspx
+    target_compile_options(addrlib PRIVATE
+        /W4      # Enable warning level 4.
+        /WX      # Treat warnings as errors.
+        /wd4018  # signed/unsigned mismatch
+        /wd4065  # switch statement contains 'default' but no 'case' labels
+        /wd4100  # unreferenced formal parameter
+        /wd4127  # conditional expression is constant
+        /wd4189  # local variable is initialized but not referenced
+        /wd4201  # nonstandard extension used : nameless struct/union
+        /wd4244  # conversion from 'type1' to 'type2', possible loss of data
+        /wd4701  # potentially uninitialized local variable
+        /wd6297) # arithmetic overflow: 32-bit value is shifted, then cast to 64-bit value
+
+else()
+    message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
 endif()

@@ -1383,8 +1383,7 @@ uint32 GpaSession::BeginSample(
                         // Initialize the thread trace portion of the TraceSample.
                         if (pSampleItem->sampleConfig.sqtt.flags.enable)
                         {
-                            result = pTraceSample->InitThreadTrace(
-                                        m_deviceProps.gfxipProperties.shaderCore.numShaderEngines);
+                            result = pTraceSample->InitThreadTrace();
                         }
 
                         // Spm trace is enabled, so init the Spm trace portion of the TraceSample.
@@ -2274,7 +2273,6 @@ Result GpaSession::ImportSampleItem(
 
                         // Import thread trace layout to this session's perf item.
                         result = pSample->SetThreadTraceLayout(
-                            pSampleItem->sampleConfig.perfCounters.numCounters,
                             static_cast<TraceSample*>(pSrcTraceSample)->GetThreadTraceLayout());
                     }
                     else
@@ -2633,8 +2631,13 @@ Result GpaSession::AcquirePerfExperiment(
 
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
-                    sqttInfo.instance = i;
-                    result = (*ppExperiment)->AddThreadTrace(sqttInfo);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 429
+                    if (Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
+#endif
+                    {
+                        sqttInfo.instance = i;
+                        result = (*ppExperiment)->AddThreadTrace(sqttInfo);
+                    }
                 }
             }
 
@@ -2918,9 +2921,8 @@ Result GpaSession::DumpRgpData(
     {
         pThreadTraceLayout = pTraceSample->GetThreadTraceLayout();
 
-        // Get each shader engine's data for rgp dump
-        uint32 shaderEngineCount = m_deviceProps.gfxipProperties.shaderCore.numShaderEngines;
-        for (uint32 i = 0; i < shaderEngineCount; i++)
+        // Get the data for each shader engine that has been traced for rgp dump
+        for (uint32 i = 0; i < pThreadTraceLayout->traceCount; i++)
         {
             const ThreadTraceSeLayout& seLayout     = pThreadTraceLayout->traces[i];
 

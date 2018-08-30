@@ -1092,13 +1092,14 @@ void RsrcProcMgr::CopyImageCompute(
                    (copyRegion.numSlices == 1) ||
                    (copyRegion.extent.depth == 1));
 
+#if PAL_ENABLE_PRINTS_ASSERTS
         // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
-        PAL_ASSERT((srcCreateInfo.imageType == dstCreateInfo.imageType) ||
-                   ((((srcCreateInfo.imageType == ImageType::Tex3d) &&
-                      (dstCreateInfo.imageType == ImageType::Tex2d)) ||
-                     ((srcCreateInfo.imageType == ImageType::Tex2d) &&
-                      (dstCreateInfo.imageType == ImageType::Tex3d))) &&
-                    (copyRegion.numSlices == copyRegion.extent.depth)));
+        if (((srcCreateInfo.imageType == ImageType::Tex3d) && (dstCreateInfo.imageType == ImageType::Tex2d)) ||
+            ((srcCreateInfo.imageType == ImageType::Tex2d) && (dstCreateInfo.imageType == ImageType::Tex3d)))
+        {
+            PAL_ASSERT(copyRegion.numSlices == copyRegion.extent.depth);
+        }
+#endif
 
         if (p2pBltInfoRequired)
         {
@@ -1252,7 +1253,7 @@ void RsrcProcMgr::GetCopyImageFormats(
 
     const bool chFmtsMatch  = Formats::ShareChFmt(srcFormat.format, dstFormat.format);
     const bool formatsMatch = (srcFormat.format == dstFormat.format) &&
-                              (srcFormat.swizzle.swizzle == dstFormat.swizzle.swizzle);
+                              (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
 
     // Both formats must have the same pixel size.
     PAL_ASSERT(Formats::BitsPerPixel(srcFormat.format) == Formats::BitsPerPixel(dstFormat.format));

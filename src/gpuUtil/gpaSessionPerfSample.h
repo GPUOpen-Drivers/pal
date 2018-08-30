@@ -168,7 +168,7 @@ public:
     virtual ~TraceSample();
 
     // Initializes this TraceSample by setting thread trace layout.
-    Pal::Result InitThreadTrace(Pal::uint32 numShaderEngines);
+    Pal::Result InitThreadTrace();
     Pal::Result InitSpmTrace(Pal::uint32 numCounters);
 
     Pal::ThreadTraceLayout* GetThreadTraceLayout() const { return m_pThreadTraceLayout; }
@@ -178,7 +178,7 @@ public:
     Pal::Result             GetSpmTraceResults(void* pDstBuffer, size_t bufferSize);
     void                    GetSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
 
-    Pal::Result SetThreadTraceLayout(Pal::uint32 numShaderEngines, Pal::ThreadTraceLayout* pLayout);
+    Pal::Result SetThreadTraceLayout(Pal::ThreadTraceLayout* pLayout);
     void SetTraceMemory(const GpuMemoryInfo& gpuMemoryInfo, Pal::gpusize offset, Pal::gpusize size);
     void WriteCopyTraceData(Pal::ICmdBuffer* pCmdBuffer);
 

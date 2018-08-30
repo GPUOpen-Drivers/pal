@@ -1897,6 +1897,14 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         //    adopt 256b address of startsubres's miplevel.
         bool forceBaseMip   = false;
         bool padToEvenWidth = false;
+
+        if (Formats::IsDepthStencilOnly(imageCreateInfo.swizzledFormat.format) &&
+            (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth)    &&
+            (viewInfo.subresRange.numMips > 1))
+        {
+            PAL_ASSERT_ALWAYS_MSG("See above comment#2");
+        }
+
         if (viewInfo.subresRange.numMips == 1)
         {
             if (imgIsBc || (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth))
@@ -2137,7 +2145,12 @@ void PAL_STDCALL Device::CreateImageViewSrds(
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
             const SurfaceSwap surfSwap = Formats::Gfx6::ColorCompSwap(viewInfo.swizzledFormat);
 
-            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+            // For the single component FORMAT cases, ALPHA_IS_ON_MSB (AIOM)=0 indicates the component is color.
+            // ALPHA_IS_ON_MSB (AIOM)=1 indicates the component is alpha.
+            // ALPHA_IS_ON_MSB should be only set to 1 for all one-component formats only if swap is SWAP_ALT_REV
+            const uint32 numComponents = Formats::NumComponents(viewInfo.swizzledFormat.format);
+            if (((numComponents == 1) && (surfSwap == SWAP_ALT_REV)) ||
+                ((numComponents != 1) && (surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV)))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB__VI = 1;
             }

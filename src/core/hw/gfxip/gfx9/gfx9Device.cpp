@@ -2234,7 +2234,12 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
-            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+            // For the single component FORMAT cases, ALPHA_IS_ON_MSB (AIOM)=0 indicates the component is color.
+            // ALPHA_IS_ON_MSB (AIOM)=1 indicates the component is alpha.
+            // ALPHA_IS_ON_MSB should be only set to 1 for all one-component formats only if swap is SWAP_ALT_REV
+            const uint32 numComponents = Formats::NumComponents(viewInfo.swizzledFormat.format);
+            if (((numComponents == 1) && (surfSwap == SWAP_ALT_REV)) ||
+                ((numComponents != 1) && (surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV)))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB = 1;
             }

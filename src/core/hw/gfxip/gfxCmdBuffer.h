@@ -124,7 +124,8 @@ union GfxCmdBufferState
         uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer submitted on
                                                 // this queue may still be active.  This flag starts set and will be
                                                 // cleared if/when an EOP wait is inserted in this command buffer.
-        uint32 reserved                  : 22;
+        uint32 depthMdNeedsTccFlush      :  1;  // Whether a TCC flush/inv is needed before a shader reads D/S metadata.
+        uint32 reserved                  : 21;
     };
 
     uint32 u32All;

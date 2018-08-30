@@ -1063,6 +1063,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
             // Thread trace specific config.
             m_gpaSessionSampleConfig.sqtt.flags.enable = m_pDevice->IsThreadTraceEnabled();
+            m_gpaSessionSampleConfig.sqtt.seMask = m_pDevice->GetSeMask();
             m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit =
                 settings.sqttConfig.bufferSize * perfExpProps.shaderEngineCount;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422

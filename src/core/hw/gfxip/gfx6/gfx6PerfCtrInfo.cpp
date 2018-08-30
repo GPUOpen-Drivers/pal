@@ -1282,13 +1282,6 @@ Result ValidateThreadTraceOptions(
     }
 
     if ((result == Result::Success)   &&
-        (flags.threadTraceVmIdMask)   &&
-        (values.threadTraceVmIdMask > SQ_THREAD_TRACE_VM_ID_MASK_SINGLE_DETAIL))
-    {
-        result = Result::ErrorInvalidValue;
-    }
-
-    if ((result == Result::Success)   &&
         (flags.threadTraceRandomSeed) &&
         (values.threadTraceRandomSeed > MaximumRandomSeed))
     {

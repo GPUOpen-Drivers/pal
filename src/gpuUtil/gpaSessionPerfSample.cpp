@@ -201,11 +201,37 @@ GpaSession::TraceSample::~TraceSample()
 
 // =====================================================================================================================
 // Initializes thread trace layout.
-Pal::Result GpaSession::TraceSample::InitThreadTrace(
-    Pal::uint32 numShaderEngines)
+Pal::Result GpaSession::TraceSample::InitThreadTrace()
 {
-    m_flags.threadTraceEnabled = 1;
-    return SetThreadTraceLayout(numShaderEngines, nullptr);
+    ThreadTraceLayout layout = {};
+    Result            result = m_pPerfExperiment->GetThreadTraceLayout(&layout);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(layout.traceCount > 0);
+
+        // Allocate enough space for one SeLayout per thread trace.
+        const size_t size = sizeof(ThreadTraceLayout) + (sizeof(ThreadTraceSeLayout) * (layout.traceCount - 1));
+
+        m_pThreadTraceLayout = static_cast<ThreadTraceLayout*>(PAL_CALLOC(size,
+                                                                          m_pAllocator,
+                                                                          Util::SystemAllocType::AllocObject));
+
+        if (m_pThreadTraceLayout != nullptr)
+        {
+            m_flags.threadTraceEnabled = 1;
+
+            m_pThreadTraceLayout->traceCount = layout.traceCount;
+
+            result = m_pPerfExperiment->GetThreadTraceLayout(m_pThreadTraceLayout);
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -237,33 +263,21 @@ Pal::Result GpaSession::TraceSample::InitSpmTrace(
 // =====================================================================================================================
 // Initializes the thread trace layout of this sample.
 Result GpaSession::TraceSample::SetThreadTraceLayout(
-    Pal::uint32             numShaderEngines,
     Pal::ThreadTraceLayout* pLayout)
 {
     Result result = Result::Success;
 
-    // Allocate enough space for one SeLayout per shader engine.
-    const size_t size = sizeof(ThreadTraceLayout) +
-                        (sizeof(ThreadTraceSeLayout) * (numShaderEngines - 1));
+    PAL_ASSERT(pLayout != nullptr);
+
+    const size_t size = sizeof(ThreadTraceLayout) + (sizeof(ThreadTraceSeLayout) * (pLayout->traceCount - 1));
 
     m_pThreadTraceLayout = static_cast<ThreadTraceLayout*>(PAL_CALLOC(size,
                                                                       m_pAllocator,
                                                                       Util::SystemAllocType::AllocObject));
-    PAL_ASSERT(m_pThreadTraceLayout != nullptr);
 
     if (m_pThreadTraceLayout != nullptr)
     {
-        m_pThreadTraceLayout->traceCount = numShaderEngines;
-
-        // Update layout info
-        if (pLayout == nullptr)
-        {
-            m_pPerfExperiment->GetThreadTraceLayout(m_pThreadTraceLayout);
-        }
-        else
-        {
-            memcpy(m_pThreadTraceLayout->traces, pLayout->traces, sizeof(ThreadTraceSeLayout) * numShaderEngines);
-        }
+        memcpy(m_pThreadTraceLayout, pLayout, size);
     }
     else
     {

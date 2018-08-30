@@ -115,6 +115,20 @@ DepthStencilView::DepthStencilView(
     {
         m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(MipLevel());
     }
+
+    if (m_device.Settings().waDepthStencilTargetMetadataNeedsTccFlush &&
+        m_flags.hTile                                                 &&
+        (m_flags.depthMetadataTexFetch || m_flags.stencilMetadataTexFetch))
+    {
+        const auto& parentImageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
+
+        if (m_flags.stencil                     ||
+            (parentImageCreateInfo.samples > 1) ||
+            (m_pImage->IsInMetadataMipTail(MipLevel())))
+        {
+            m_flags.shaderRequiresTccFlush = 1;
+        }
+    }
 }
 
 // =====================================================================================================================

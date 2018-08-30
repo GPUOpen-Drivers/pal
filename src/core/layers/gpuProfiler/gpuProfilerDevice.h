@@ -78,6 +78,7 @@ public:
     const PerfCounter* StreamingPerfCounters() const { return m_pStreamingPerfCounters; }
 
     GpuProfilerStallMode GetSqttStallMode() const { return m_stallMode; }
+    uint32 GetSeMask() const { return m_seMask; }
     uint32 GetSqttMaxDraws() const { return m_maxDrawsForThreadTrace; }
     uint32 GetSqttCurDraws() const { return m_curDrawsForThreadTrace; }
     void   AddSqttCurDraws() { Util::AtomicIncrement(&m_curDrawsForThreadTrace); }
@@ -131,8 +132,9 @@ public:
     // Returns true if the settings config has successfully requested for SQ thread trace.
     bool IsThreadTraceEnabled() const
     {
-        return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
-                (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSqtt)));
+        return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly)
+                && (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSqtt))
+                && (GetSeMask() > 0));
     }
 
     // Returns true if the settings config has successfully requested for Streaming counter trace.
@@ -187,6 +189,7 @@ private:
     uint32                 m_startFrame;
     uint32                 m_endFrame;
     uint32                 m_minTimestampAlignment[EngineTypeCount];
+    uint32                 m_seMask;
 
     // Track array of which performance counters the user has requested to capture.
     PerfCounter*           m_pGlobalPerfCounters;

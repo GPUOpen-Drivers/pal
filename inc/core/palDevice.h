@@ -629,6 +629,7 @@ struct GpuProfilerPerfCounterConfig{
 struct GpuProfilerSqttConfig
 {
     uint32               tokenMask;
+    uint32               seMask;
     uint32               pipelineHashHi;
     uint32               pipelineHashLo;
     uint64               pipelineHash;

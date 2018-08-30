@@ -271,6 +271,11 @@ Result Queue::Submit(
             (m_gpuTimestampPairDeque.Front()->numActiveSubmissions == 0))
         {
             result = m_gpuTimestampPairDeque.PopFront(&pTimestamp);
+
+            if (result == Result::Success)
+            {
+                result = m_pDevice->ResetFences(1, &pTimestamp->pFence);
+            }
         }
         else if (m_nextTimestampOffset < m_timestampMemorySize)
         {

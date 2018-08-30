@@ -1187,6 +1187,7 @@ void Device::CopyLayerSettings()
 
     GpuProfilerSqttConfig* pSqttCfg = &m_gpuProfilerSettings.sqttConfig;
     pSqttCfg->tokenMask    = settings.gpuProfilerSqttConfig.tokenMask;
+    pSqttCfg->seMask       = settings.gpuProfilerSqttConfig.seMask;
     pSqttCfg->pipelineHash = settings.gpuProfilerSqttConfig.pipelineHash;
     pSqttCfg->vsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
     pSqttCfg->vsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;

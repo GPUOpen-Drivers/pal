@@ -713,9 +713,9 @@ void Queue::OutputTraceDataToFile(
                 {
                     // Optional chunks: The following chunks are expected to be in the RGP file only if thread trace
                     // is enabled.
-                    for (uint32 i = 0; i < m_shaderEngineCount; i++)
+                    SqttFileChunkSqttDesc* pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
+                    while (pDesc->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DESC)
                     {
-                        SqttFileChunkSqttDesc* pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
                         pResult = Util::VoidPtrInc(pResult, pDesc->header.sizeInBytes);
 
                         SqttFileChunkSqttData* pData = static_cast<SqttFileChunkSqttData*>(pResult);
@@ -740,6 +740,7 @@ void Queue::OutputTraceDataToFile(
                         logFile.Close();
 
                         pResult = Util::VoidPtrInc(pResult, pData->size);
+                        pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
                     }
 
                     // Skip the shader ISA db chunk if present. Thread trace viewer doesn't need this info.

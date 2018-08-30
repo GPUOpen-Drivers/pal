@@ -132,12 +132,14 @@ Result Device::CommitSettingsAndInit()
 
     if (result == Result::Success)
     {
-        m_fragmentSize        = info.gpuMemoryProperties.fragmentSize;
-        m_bufferSrdDwords     = info.gfxipProperties.srdSizes.bufferView / sizeof(uint32);
-        m_imageSrdDwords      = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
-        m_timestampFreq       = info.timestampFrequency;
-        m_logPipeStats        = settings.profilerConfig.recordPipelineStats;
-        m_sqttCompilerHash    = settings.sqttConfig.pipelineHash;
+        const uint32 maxSeMask = (1 << info.gfxipProperties.shaderCore.numShaderEngines) - 1;
+        m_fragmentSize         = info.gpuMemoryProperties.fragmentSize;
+        m_bufferSrdDwords      = info.gfxipProperties.srdSizes.bufferView / sizeof(uint32);
+        m_imageSrdDwords       = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
+        m_timestampFreq        = info.timestampFrequency;
+        m_logPipeStats         = settings.profilerConfig.recordPipelineStats;
+        m_sqttCompilerHash     = settings.sqttConfig.pipelineHash;
+        m_seMask               = settings.sqttConfig.seMask & maxSeMask;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
         m_stallMode           = settings.sqttConfig.stallMode;
 #endif
@@ -214,6 +216,7 @@ Result Device::UpdateSettings()
 
     // SQTT config
     m_profilerSettings.sqttConfig.tokenMask = 0xFFFF;
+    m_profilerSettings.sqttConfig.seMask = 0xF;
     m_profilerSettings.sqttConfig.pipelineHash = 0;
     m_profilerSettings.sqttConfig.vsHash = ZeroShaderHash;
     m_profilerSettings.sqttConfig.hsHash = ZeroShaderHash;

@@ -1086,6 +1086,17 @@ void Device::Barrier(
         {
             globalSyncReqs.cacheFlags |= CacheSyncInvTccMd;
         }
+
+        // Check if the currently bound depth/stencil target requires TCC flush. This may be needed before a shader
+        // reads D/S metadata.
+        if ((transition.imageInfo.pImage == nullptr) &&
+            (TestAnyFlagSet(globalSyncReqs.cacheFlags, CacheSyncInvTcc | CacheSyncFlushTcc) == false))
+        {
+            if (cmdBufState.depthMdNeedsTccFlush)
+            {
+                globalSyncReqs.cacheFlags |= CacheSyncInvTcc | CacheSyncFlushTcc;
+            }
+        }
     }
 
     // Check conditions that end up requiring a stall for all GPU work to complete.  The cases are:

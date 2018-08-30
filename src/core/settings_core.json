@@ -182,7 +182,7 @@
       "HashName": 2665794079,
       "Flags": {
         "IsHex": true
-      }, 
+      },
       "Defaults": {
         "Default": 0
       },
@@ -279,7 +279,7 @@
       "HashName": 2972919517,
       "Flags": {
         "IsHex": true
-      }, 
+      },
       "Defaults": {
         "Default": 16045690984833335023
       },
@@ -342,7 +342,7 @@
         "General",
         "Resource Settings"
       ],
-      "HashName": 2252676842, 
+      "HashName": 2252676842,
       "Flags": {
         "IsHex": true
       },
@@ -392,7 +392,7 @@
       "Tags": [
         "Performance"
       ],
-      "HashName": 2263765076, 
+      "HashName": 2263765076,
       "Flags": {
         "IsHex": true
       },
@@ -782,7 +782,7 @@
       "Defaults": {
         "Default": "CmdBufDumpModeDisabled"
       },
-      "Scope": "PrivatePalKey", 
+      "Scope": "PrivatePalKey",
       "Type": "enum",
       "VariableName": "cmdBufDumpMode",
       "Description": "Determines if dumping is enabled, and whether it is at record or submit time."
@@ -825,12 +825,12 @@
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "CmdBufDumpMode"
           }
         ]
       },
-      "Scope": "PrivatePalKey", 
+      "Scope": "PrivatePalKey",
       "Type": "enum",
       "VariableName": "cmdBufDumpFormat",
       "Description": "Controls the format of command buffer dumps."
@@ -843,7 +843,7 @@
       "HashName": 3293295025,
       "Flags": {
         "IsPath": true
-      }, 
+      },
       "Defaults": {
         "Default": "amdpal/",
         "WinDefault": "PalCmdBuffers\\",
@@ -855,13 +855,13 @@
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "CmdBufDumpMode"
           }
         ]
       },
       "Scope": "PrivatePalKey",
-      "Name": "CmdBufDumpDirectory", 
+      "Name": "CmdBufDumpDirectory",
       "Type": "string",
       "VariableName": "cmdBufDumpDirectory",
       "Size": "MaxPathStrLen"
@@ -881,7 +881,7 @@
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "CmdBufDumpMode"
           }
         ]
@@ -906,14 +906,14 @@
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "CmdBufDumpMode"
           },
           {
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "SubmitTimeCmdBufDumpStartFrame"
           }
         ]
@@ -966,7 +966,7 @@
       "Tags": [
         "Printing and Logging"
       ],
-      "HashName": 2587845825, 
+      "HashName": 2587845825,
       "DependsOn": {
         "BuildType": [
           "dbg"
@@ -985,8 +985,8 @@
       "VariableName": "pipelineLogConfig",
       "Structure": [
         {
-          "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc", 
-          "HashName": 1161296785, 
+          "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc",
+          "HashName": 1161296785,
           "Defaults": {
             "Default": false
           },
@@ -995,8 +995,8 @@
           "Name": "LogInternal"
         },
         {
-          "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines", 
-          "HashName": 80714519, 
+          "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines",
+          "HashName": 80714519,
           "Defaults": {
             "Default": false
           },
@@ -1005,8 +1005,8 @@
           "Name": "LogExternal"
         },
         {
-          "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file", 
-          "HashName": 2954641676, 
+          "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file",
+          "HashName": 2954641676,
           "Defaults": {
             "Default": false
           },
@@ -1015,8 +1015,8 @@
           "Name": "LogShadersSeparately"
         },
         {
-          "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.", 
-          "HashName": 2579830276, 
+          "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.",
+          "HashName": 2579830276,
           "Defaults": {
             "Default": true
           },
@@ -1025,8 +1025,8 @@
           "Name": "LogDuplicatePipelines"
         },
         {
-          "Description": "If true, disassembly information will be embedded into compiled ELF binaries.", 
-          "HashName": 3586402143, 
+          "Description": "If true, disassembly information will be embedded into compiled ELF binaries.",
+          "HashName": 3586402143,
           "Defaults": {
             "Default": false
           },
@@ -1072,10 +1072,10 @@
             "Name": "PipelineLogFilters"
           },
           "Name": "PipelineTypeFilter",
-          "HashName": 1911443886, 
+          "HashName": 1911443886,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -1085,10 +1085,10 @@
         },
         {
           "Name": "LogPipelineHash",
-          "HashName": 3585556466, 
+          "HashName": 3585556466,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -1098,16 +1098,16 @@
         },
         {
           "Description": "Relative directory where pipeline information logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent. Each unique pipeline is in a separate file within that directory. The log name is based on a hash of the pipeline's create info and which shader stages are active.",
-          "HashName": 3768253245, 
+          "HashName": 3768253245,
           "Flags": {
             "IsPath": true
-          }, 
+          },
           "Defaults": {
             "Default": "amdpal/",
             "WinDefault": "PalPipelines\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "pipelineLogDirectory",
           "Name": "PipelineLogDirectory"
@@ -1485,7 +1485,7 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 1146877010, 
+      "HashName": 1146877010,
       "Flags": {
         "IsHex": true
       },
@@ -1553,7 +1553,7 @@
       "Tags": [
         "Resource Settings"
       ],
-      "HashName": 1836557167, 
+      "HashName": 1836557167,
       "Flags": {
         "IsHex": true
       },
@@ -1645,7 +1645,7 @@
       "HashName": 3517626664,
       "Flags": {
         "IsHex": true
-      }, 
+      },
       "Defaults": {
         "Default": 15
       },
@@ -1655,7 +1655,7 @@
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "IfhMode"
           }
         ]
@@ -1764,7 +1764,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 4215443526, 
+      "HashName": 4215443526,
       "DependsOn": {
         "Settings": [
           {
@@ -1780,8 +1780,8 @@
       "VariableName": "debugOverlayConfig",
       "Structure": [
         {
-          "Description": "Writes debug overlay information to the screen.", 
-          "HashName": 1116165338, 
+          "Description": "Writes debug overlay information to the screen.",
+          "HashName": 1116165338,
           "Defaults": {
             "Default": true
           },
@@ -1790,8 +1790,8 @@
           "Name": "VisualConfirmEnabled"
         },
         {
-          "Description": "Draws the timegraph to the screen.", 
-          "HashName": 2485887783, 
+          "Description": "Draws the timegraph to the screen.",
+          "HashName": 2485887783,
           "Defaults": {
             "Default": false
           },
@@ -1822,7 +1822,7 @@
             "Name": "DebugOverlayLocation"
           },
           "Name": "DebugOverlayLocation",
-          "HashName": 248899441, 
+          "HashName": 248899441,
           "Defaults": {
             "Default": "DebugOverlayLowerLeft"
           },
@@ -1832,29 +1832,29 @@
         },
         {
           "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
-          "HashName": 3965817458, 
+          "HashName": 3965817458,
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxMiscStrLen", 
+          "Size": "MaxMiscStrLen",
           "Type": "string",
           "VariableName": "renderedByString",
           "Name": "RenderedByString"
         },
         {
           "Description": "Debug information that the client or tester might want reported.",
-          "HashName": 1845251913, 
+          "HashName": 1845251913,
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxMiscStrLen", 
+          "Size": "MaxMiscStrLen",
           "Type": "string",
           "VariableName": "miscellaneousDebugString",
           "Name": "MiscellaneousDebugString"
         },
         {
-          "Description": "Output current frame number in the debug overlay.", 
-          "HashName": 3798504442, 
+          "Description": "Output current frame number in the debug overlay.",
+          "HashName": 3798504442,
           "Defaults": {
             "Default": false
           },
@@ -1870,7 +1870,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 4101550198, 
+      "HashName": 4101550198,
       "DependsOn": {
         "Settings": [
           {
@@ -1924,7 +1924,7 @@
             "Name": "TimeGraphColor"
           },
           "Name": "GridLineColor",
-          "HashName": 2774338144, 
+          "HashName": 2774338144,
           "Defaults": {
             "Default": 1
           },
@@ -1971,7 +1971,7 @@
             "Name": "TimeGraphColor"
           },
           "Name": "CpuLineColor",
-          "HashName": 3593358936, 
+          "HashName": 3593358936,
           "Defaults": {
             "Default": 4
           },
@@ -2018,7 +2018,7 @@
             "Name": "TimeGraphColor"
           },
           "Name": "GpuLineColor",
-          "HashName": 683848132, 
+          "HashName": 683848132,
           "Defaults": {
             "Default": 2
           },
@@ -2034,7 +2034,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 1270852940, 
+      "HashName": 1270852940,
       "DependsOn": {
         "Settings": [
           {
@@ -2050,8 +2050,8 @@
       "VariableName": "overlayBenchmarkConfig",
       "Structure": [
         {
-          "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.", 
-          "HashName": 1613865845, 
+          "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.",
+          "HashName": 1613865845,
           "Defaults": {
             "Default": 0
           },
@@ -2060,8 +2060,8 @@
           "Name": "MaxBenchmarkTime"
         },
         {
-          "Description": "Whether or not a log entry of PAL usage will be generated to disk.", 
-          "HashName": 1439000029, 
+          "Description": "Whether or not a log entry of PAL usage will be generated to disk.",
+          "HashName": 1439000029,
           "Defaults": {
             "Default": false
           },
@@ -2071,34 +2071,34 @@
         },
         {
           "Description": "Relative directory where usage logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 3345515589, 
+          "HashName": 3345515589,
           "Flags": {
             "IsPath": true
-          }, 
+          },
           "Defaults": {
             "Default": "amdpal/",
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "usageLogDirectory",
           "Name": "UsageLogDirectory"
         },
         {
           "Description": "Filename and extension of the usage log.",
-          "HashName": 570887899, 
+          "HashName": 570887899,
           "Defaults": {
             "Default": "PalUsageLog.txt"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "usageLogFilename",
           "Name": "UsageLogFilename"
         },
         {
-          "Description": "Log frame time and average FPS during benchmark session to files. Only enabled when DebugVisualDisplay is enabled.", 
-          "HashName": 2989332685, 
+          "Description": "Log frame time and average FPS during benchmark session to files. Only enabled when DebugVisualDisplay is enabled.",
+          "HashName": 2989332685,
           "Defaults": {
             "Default": false
           },
@@ -2108,23 +2108,23 @@
         },
         {
           "Description": "Relative directory where frame statistic logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 1128423400, 
+          "HashName": 1128423400,
           "Flags": {
             "IsPath": true
-          }, 
+          },
           "Defaults": {
             "Default": "amdpal/",
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "frameStatsLogDirectory",
           "Name": "FrameStatsLogDirectory"
         },
         {
-          "Description": "Max mumber of frame time samples that can be logged in a benchmark session.", 
-          "HashName": 1247452473, 
+          "Description": "Max mumber of frame time samples that can be logged in a benchmark session.",
+          "HashName": 1247452473,
           "Defaults": {
             "Default": 65536
           },
@@ -2140,7 +2140,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "HashName": 1508271022, 
+      "HashName": 1508271022,
       "DependsOn": {
         "Settings": [
           {
@@ -2156,8 +2156,8 @@
       "VariableName": "overlayMemoryInfoConfig",
       "Structure": [
         {
-          "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.", 
-          "HashName": 1412889158, 
+          "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.",
+          "HashName": 1412889158,
           "Defaults": {
             "Default": true
           },
@@ -2166,8 +2166,8 @@
           "Name": "CombineNonLocal"
         },
         {
-          "Description": "Determines if the overlay will report information about CmdAllocator allocations.", 
-          "HashName": 819062876, 
+          "Description": "Determines if the overlay will report information about CmdAllocator allocations.",
+          "HashName": 819062876,
           "Defaults": {
             "Default": true
           },
@@ -2176,8 +2176,8 @@
           "Name": "ReportCmdAllocator"
         },
         {
-          "Description": "Determines if the overlay will report information about external allocations.", 
-          "HashName": 1211449330, 
+          "Description": "Determines if the overlay will report information about external allocations.",
+          "HashName": 1211449330,
           "Defaults": {
             "Default": true
           },
@@ -2186,8 +2186,8 @@
           "Name": "ReportExternal"
         },
         {
-          "Description": "Determines if the overlay will report information about internal allocations.", 
-          "HashName": 373898840, 
+          "Description": "Determines if the overlay will report information about internal allocations.",
+          "HashName": 373898840,
           "Defaults": {
             "Default": true
           },
@@ -2244,14 +2244,14 @@
         "GPU Profiler",
         "Profiling"
       ],
-      "HashName": 1361464226, 
+      "HashName": 1361464226,
       "DependsOn": {
         "Settings": [
           {
             "Values": [
               0
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "GpuProfilerMode"
           }
         ]
@@ -2262,23 +2262,23 @@
       "Structure": [
         {
           "Description": "Relative directory where GPU profiler logs are written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 1786197374, 
+          "HashName": 1786197374,
           "Flags": {
             "IsPath": true
-          }, 
+          },
           "Defaults": {
             "Default": "amdpal/",
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
-          "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0", 
-          "HashName": 3281941262, 
+          "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0",
+          "HashName": 3281941262,
           "Defaults": {
             "Default": 0
           },
@@ -2287,8 +2287,8 @@
           "Name": "StartFrame"
         },
         {
-          "Description": "Number of frames to enable performance data collection.", 
-          "HashName": 3899735123, 
+          "Description": "Number of frames to enable performance data collection.",
+          "HashName": 3899735123,
           "Defaults": {
             "Default": 0
           },
@@ -2297,8 +2297,8 @@
           "Name": "FrameCount"
         },
         {
-          "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.", 
-          "HashName": 3225763835, 
+          "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.",
+          "HashName": 3225763835,
           "Defaults": {
             "Default": false
           },
@@ -2307,8 +2307,8 @@
           "Name": "RecordPipelineStats"
         },
         {
-          "Description": "Split up IQueue::Submit() calls so that the PAL core is called once per command buffer in the batch.  This can significantly reduce the GPU memory overhead of the profiler, but may have a slight impact on results.", 
-          "HashName": 3699637222, 
+          "Description": "Split up IQueue::Submit() calls so that the PAL core is called once per command buffer in the batch.  This can significantly reduce the GPU memory overhead of the profiler, but may have a slight impact on results.",
+          "HashName": 3699637222,
           "Defaults": {
             "Default": false
           },
@@ -2338,7 +2338,7 @@
             ]
           },
           "Name": "TraceModeMask",
-          "HashName": 2733188403, 
+          "HashName": 2733188403,
           "Defaults": {
             "Default": 0
           },
@@ -2355,7 +2355,7 @@
         "GPU Profiler",
         "Profiling"
       ],
-      "HashName": 3485507659, 
+      "HashName": 3485507659,
       "DependsOn": {
         "Settings": [
           {
@@ -2372,21 +2372,21 @@
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD. ID should correspond to the specific counter of interest for the specified Block, these can be selected by reading the performance counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows.",
-          "HashName": 2182449032, 
+          "HashName": 2182449032,
           "Flags": {
             "IsFile": true
-          }, 
+          },
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxFileNameStrLen", 
+          "Size": "MaxFileNameStrLen",
           "Type": "string",
           "VariableName": "globalPerfCounterConfigFile",
           "Name": "GlobalPerfCounterConfigFile"
           },
         {
-          "Description": "Forces global performance counters to be dumped per instance, rather than added together.", 
-          "HashName": 103401748, 
+          "Description": "Forces global performance counters to be dumped per instance, rather than added together.",
+          "HashName": 103401748,
           "Defaults": {
             "Default": false
           },
@@ -2395,8 +2395,8 @@
           "Name": "GlobalPerfCounterPerInstance"
         },
         {
-          "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.", 
-          "HashName": 1201772335, 
+          "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.",
+          "HashName": 1201772335,
           "Defaults": {
             "Default": false
           },
@@ -2426,7 +2426,7 @@
             "Name": "GpuProfilerGranularity"
           },
           "Name": "Granularity",
-          "HashName": 3414628368, 
+          "HashName": 3414628368,
           "Defaults": {
             "Default": "GpuProfilerGranularityDraw"
           },
@@ -2443,14 +2443,14 @@
         "GPU Profiler",
         "Profiling"
       ],
-      "HashName": 3046844658, 
+      "HashName": 3046844658,
       "DependsOn": {
         "Settings": [
           {
             "Values": [
               1
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "GpuProfilerMode"
           }
         ]
@@ -2461,10 +2461,10 @@
       "Structure": [
         {
           "Name": "TokenMask",
-          "HashName": 1136095484, 
+          "HashName": 1136095484,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 65535
           },
@@ -2473,11 +2473,49 @@
           "Description": "Mask indicating which SQTT tokens should be included in the trace.  Value will be written to TOKEN_MASK field in hardware.  For reference, based on GFX8 SQTT user guide: 0x0001: TIME (TT2.0 only), MISC (TT2.1+) 0x0002: TIMESTAMP 0x0004: REG 0x0008: WAVE_START 0x0010: WAVE_PS_ALLOC (TT2.0 only) / WAVE_ALLOC (TT2.1+) 0x0020: WAVE_VS_ALLOC (TT2.0 only) / REG_CSPRIV (TT2.1+) 0x0040: WAVE_END 0x0080: EVENT 0x0100: EVENT_CS 0x0200: EVENT_GFX1 0x0400: INST 0x0800: INST_PC 0x1000: INST_USERDATA 0x2000: ISSUE 0x4000: PERF 0x8000: MISC (TT2.0 only), REG_CS(TT2.1+)"
         },
         {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "ShaderEngine-0",
+                "Value": 1,
+                "Description": "Trace for Shader Engine 0"
+              },
+              {
+                "Name": "ShaderEngine-1",
+                "Value": 2,
+                "Description": "Trace for Shader Engine 1"
+              },
+              {
+                "Name": "ShaderEngine-2",
+                "Value": 4,
+                "Description": "Trace for Shader Engine 2"
+              },
+              {
+                "Name": "ShaderEngine-3",
+                "Value": 8,
+                "Description": "Trace for Shader Engine 3"
+              }
+            ]
+          },
+          "Name": "SEMask",
+          "HashName": 4066555951,
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": 15
+          },
+          "Type": "uint32",
+          "VariableName": "seMask",
+          "Description": "Mask indicating which which SE to gather thread trace from."
+        },
+        {
           "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",
-          "HashName": 3932789981, 
+          "HashName": 3932789981,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Preprocessor": {
             "MinVersion": 298
           },
@@ -2490,10 +2528,10 @@
         },
         {
           "Name": "VsHashHi",
-          "HashName": 3163259987, 
+          "HashName": 3163259987,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2503,10 +2541,10 @@
         },
         {
           "Name": "VsHashLo",
-          "HashName": 3801397889, 
+          "HashName": 3801397889,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2516,10 +2554,10 @@
         },
         {
           "Name": "HsHashHi",
-          "HashName": 1390489601, 
+          "HashName": 1390489601,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2529,10 +2567,10 @@
         },
         {
           "Name": "HsHashLo",
-          "HashName": 886572651, 
+          "HashName": 886572651,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2542,10 +2580,10 @@
         },
         {
           "Name": "DsHashHi",
-          "HashName": 3315456133, 
+          "HashName": 3315456133,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2555,10 +2593,10 @@
         },
         {
           "Name": "DsHashLo",
-          "HashName": 3752365775, 
+          "HashName": 3752365775,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2568,10 +2606,10 @@
         },
         {
           "Name": "GsHashHi",
-          "HashName": 1775931482, 
+          "HashName": 1775931482,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2581,10 +2619,10 @@
         },
         {
           "Name": "GsHashLo",
-          "HashName": 1137690412, 
+          "HashName": 1137690412,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2594,10 +2632,10 @@
         },
         {
           "Name": "PsHashHi",
-          "HashName": 1805758793, 
+          "HashName": 1805758793,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2607,10 +2645,10 @@
         },
         {
           "Name": "PsHashLo",
-          "HashName": 1301841843, 
+          "HashName": 1301841843,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2620,10 +2658,10 @@
         },
         {
           "Name": "CsHashHi",
-          "HashName": 1629297294, 
+          "HashName": 1629297294,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2633,10 +2671,10 @@
         },
         {
           "Name": "CsHashLo",
-          "HashName": 1663440912, 
+          "HashName": 1663440912,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2646,10 +2684,10 @@
         },
         {
           "Name": "MaxDraws",
-          "HashName": 3208735818, 
+          "HashName": 3208735818,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 0
           },
@@ -2658,8 +2696,8 @@
           "Description": "Max number of draws to thread-trace.  A value of 0 indicates no limit."
         },
         {
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.", 
-          "HashName": 1277078724, 
+          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
+          "HashName": 1277078724,
           "Defaults": {
             "Default": 1048576
           },
@@ -2702,14 +2740,14 @@
         "GPU Profiler",
         "Profiling"
       ],
-      "HashName": 3153542192, 
+      "HashName": 3153542192,
       "DependsOn": {
         "Settings": [
           {
             "Values": [
               1
             ],
-            "LogicOp": "GreaterThan", 
+            "LogicOp": "GreaterThan",
             "Name": "GpuProfilerMode"
           }
         ]
@@ -2720,14 +2758,14 @@
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD.  ID should correspond counter of interest for the specified Block, these can be selected by reading the performance to the specific counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows. WARNING: Page fault will occur when attempting spm traces on GFX9 HW, unless RLC_SPM_VMID is set in the RLC_SPM_MC_CNTL register. KMD has to set this register (SWDEV-142337). This register can be set manually (debug VMID: 0xb, RequestDebugVmid=true) for testing. Also, the sample delay register values need to be set for correct streaming counter data: (SCSW-3404).",
-          "HashName": 1274479618, 
+          "HashName": 1274479618,
           "Flags": {
             "IsFile": true
-          }, 
+          },
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxFileNameStrLen", 
+          "Size": "MaxFileNameStrLen",
           "Type": "string",
           "VariableName": "spmPerfCounterConfigFile",
           "Name": "SpmPerfCounterConfigFile"
@@ -2743,7 +2781,7 @@
             ]
           },
           "Name": "SpmTraceInterval",
-          "HashName": 3756226799, 
+          "HashName": 3756226799,
           "Defaults": {
             "Default": 4096
           },
@@ -2752,8 +2790,8 @@
           "Description": "Sample interval in sclck."
         },
         {
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.", 
-          "HashName": 3798430118, 
+          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
+          "HashName": 3798430118,
           "Defaults": {
             "Default": 1048576
           },
@@ -2826,7 +2864,7 @@
       "HashName": 2297477296,
       "Flags": {
         "IsHex": true
-      }, 
+      },
       "Defaults": {
         "Default": 511
       },
@@ -2864,7 +2902,7 @@
       "Tags": [
         "Interface Logger"
       ],
-      "HashName": 2996145826, 
+      "HashName": 2996145826,
       "DependsOn": {
         "Settings": [
           {
@@ -2881,23 +2919,23 @@
       "Structure": [
         {
           "Description": "Relative directory where the interface logger writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "HashName": 885284478, 
+          "HashName": 885284478,
           "Flags": {
             "IsPath": true
-          }, 
+          },
           "Defaults": {
             "Default": "amdpal/",
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen", 
+          "Size": "MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
-          "Description": "Each thread will write into its own log file, avoiding taking a global lock.", 
-          "HashName": 800910225, 
+          "Description": "Each thread will write into its own log file, avoiding taking a global lock.",
+          "HashName": 800910225,
           "Defaults": {
             "Default": false
           },
@@ -2935,10 +2973,10 @@
             ]
           },
           "Name": "BasePreset",
-          "HashName": 2924533825, 
+          "HashName": 2924533825,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 7
           },
@@ -2976,10 +3014,10 @@
             ]
           },
           "Name": "ElevatedPreset",
-          "HashName": 4040226650, 
+          "HashName": 4040226650,
           "Flags": {
             "IsHex": true
-          }, 
+          },
           "Defaults": {
             "Default": 31
           },
@@ -2999,11 +3037,11 @@
       "Preprocessor": {
         "Custom": [
           {
-            "Expression": "PAL_BUILD_SHADER_DBG", 
+            "Expression": "PAL_BUILD_SHADER_DBG",
             "Command": "#if"
           }
         ]
-      }, 
+      },
       "Defaults": {
         "Default": false
       },
@@ -3017,15 +3055,15 @@
       "Tags": [
         "Shader Debug"
       ],
-      "HashName": 3625824541, 
+      "HashName": 3625824541,
       "Preprocessor": {
         "Custom": [
           {
-            "Expression": "PAL_BUILD_SHADER_DBG", 
+            "Expression": "PAL_BUILD_SHADER_DBG",
             "Command": "#if"
           }
         ]
-      }, 
+      },
       "DependsOn": {
         "Settings": [
           {
@@ -3045,7 +3083,7 @@
           "Tags": [
             "Shader Debug"
           ],
-          "HashName": 3452944710, 
+          "HashName": 3452944710,
           "Defaults": {
             "Default": 67108864
           },
@@ -3059,8 +3097,8 @@
           "Tags": [
             "Shader Debug"
           ],
-          "HashName": 1977205897, 
-          "Description": "Relative directory where the shader debug layer writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.", 
+          "HashName": 1977205897,
+          "Description": "Relative directory where the shader debug layer writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Defaults": {
             "Default": "PalLog\\",
             "WinDefault": "PalLog\\",
@@ -3071,50 +3109,50 @@
           "VariableName": "shaderDbgDirectory",
           "Size": "MaxPathStrLen"
         }
-      ], 
+      ],
       "Description": "Configuration options for the shader debug layer."
         }
       ],
   "DefinedConstants": [
     {
-      "Name": "MaxPathStrLen", 
-      "Value": 512, 
+      "Name": "MaxPathStrLen",
+      "Value": 512,
       "Description": "Maximum string length for a directory/path setting"
-    }, 
+    },
     {
-      "Name": "MaxFileNameStrLen", 
-      "Value": 256, 
+      "Name": "MaxFileNameStrLen",
+      "Value": 256,
       "Description": "Maximum string length for a filename setting"
-    }, 
+    },
     {
-      "Name": "MaxMiscStrLen", 
-      "Value": 61, 
+      "Name": "MaxMiscStrLen",
+      "Value": 61,
       "Description": "Maximum string length for a miscellaneous string setting"
     }
-  ], 
+  ],
   "Tags": [
-    "Public CCC Options", 
-    "General", 
-    "GPU Info", 
-    "Performance", 
-    "Printing and Logging", 
-    "Command Buffer", 
-    "Resource Settings", 
-    "Prefetching (L2 Cache Warming)", 
-    "Shader Options", 
-    "MGPU", 
-    "WSI", 
-    "Debug Overlay", 
-    "GPU Profiler", 
-    "CmdBuffer Logger", 
-    "Interface Logger", 
-    "Debug", 
-    "SafeSetting", 
-    "DevMode", 
-    "HDR", 
-    "Profiling", 
-    "Bringup", 
-    "HeapPerf", 
+    "Public CCC Options",
+    "General",
+    "GPU Info",
+    "Performance",
+    "Printing and Logging",
+    "Command Buffer",
+    "Resource Settings",
+    "Prefetching (L2 Cache Warming)",
+    "Shader Options",
+    "MGPU",
+    "WSI",
+    "Debug Overlay",
+    "GPU Profiler",
+    "CmdBuffer Logger",
+    "Interface Logger",
+    "Debug",
+    "SafeSetting",
+    "DevMode",
+    "HDR",
+    "Profiling",
+    "Bringup",
+    "HeapPerf",
     "Emulation"
   ]
 }
