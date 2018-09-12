@@ -611,19 +611,19 @@ enum GpuProfilerStallMode : uint32
 /// Configuration options for the PAL GPU Profiler layer.
 struct GpuProfilerConfig
 {
-    char   logDirectory[MaxPathStrLen];
-    uint32 startFrame;
-    uint32 frameCount;
-    bool   recordPipelineStats;
-    bool   breakSubmitBatches;
-    uint32 traceModeMask;
+    char                   logDirectory[MaxPathStrLen];
+    uint32                 startFrame;
+    uint32                 frameCount;
+    bool                   recordPipelineStats;
+    bool                   breakSubmitBatches;
+    uint32                 traceModeMask;
+    GpuProfilerGranularity granularity;
 };
 
 /// Configuration options for performance counter collection through the Profiler Layer.
 struct GpuProfilerPerfCounterConfig{
     char                   globalPerfCounterConfigFile[MaxFileNameStrLen];
     bool                   cacheFlushOnCounterCollection;
-    GpuProfilerGranularity granularity;
 };
 
 struct GpuProfilerSqttConfig
@@ -889,7 +889,10 @@ struct DeviceProperties
                                                 ///  engine type.
         uint32   gdsSizePerEngine;              ///< Maximum GDS size in bytes available for a single engine.
         uint32   maxNumDedicatedCu;             ///< The maximum number of dedicated CUs for the real time audio queue
-
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 430)
+        uint32   maxNumDedicatedCuPerQueue;     ///< The maximum number of dedicated CUs per queue
+        uint32   dedicatedCuGranularity;        ///< The granularity at which compute units can be dedicated to a queue
+#endif
         /// Specifies the suggested heap preference clients should use when creating an @ref ICmdAllocator that will
         /// allocate command space for this engine type.  These heap preferences should be specified in the allocHeap
         /// parameter of @ref CmdAllocatorCreateInfo.  Clients are free to ignore these defaults and use their own

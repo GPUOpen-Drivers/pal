@@ -101,9 +101,10 @@ enum EngineType : uint32
 
         /// Corresponds to a hw engine that supports all operations (graphics and compute)
         EngineTypeHighPriorityUniversal = 0x5,
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         /// Corresponds to a hw engine that supports only graphics operations
         EngineTypeHighPriorityGraphics  = 0x6,
+#endif
     /// Number of engine types.
     EngineTypeCount,
 };

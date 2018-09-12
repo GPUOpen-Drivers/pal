@@ -57,8 +57,10 @@ PipelineChunkPs::PipelineChunkPs(
 // =====================================================================================================================
 // Initializes this pipeline chunk.
 void PipelineChunkPs::Init(
-    const AbiProcessor& abiProcessor,
-    const PsParams&     params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const PsParams&           params)
 {
     const Gfx9PalSettings& settings = m_device.Settings();
 
@@ -68,7 +70,7 @@ void PipelineChunkPs::Init(
     for (uint32 i = 0; i < MaxPsInputSemantics; ++i)
     {
         const uint16 offset = static_cast<uint16>(mmSPI_PS_INPUT_CNTL_0 + i);
-        if (abiProcessor.HasRegisterEntry(offset, &m_pm4ImageContext.spiPsInputCntl[i].u32All))
+        if (registers.HasEntry(offset, &m_pm4ImageContext.spiPsInputCntl[i].u32All))
         {
             lastPsInterpolator = offset;
         }
@@ -80,9 +82,9 @@ void PipelineChunkPs::Init(
 
     BuildPm4Headers(lastPsInterpolator);
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_PS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_PS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -90,16 +92,16 @@ void PipelineChunkPs::Init(
 
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.CU_EN      = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
-    m_pm4ImageContext.dbShaderControl.u32All    = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
-    m_pm4ImageContext.paScAaConfig.reg_data     = abiProcessor.GetRegisterEntry(mmPA_SC_AA_CONFIG);
-    m_paScShaderControl.u32All                  = abiProcessor.GetRegisterEntry(mmPA_SC_SHADER_CONTROL);
-    m_pm4ImageContext.spiBarycCntl.u32All       = abiProcessor.GetRegisterEntry(mmSPI_BARYC_CNTL);
-    m_pm4ImageContext.spiPsInputAddr.u32All     = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ADDR);
-    m_pm4ImageContext.spiPsInputEna.u32All      = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ENA);
-    m_pm4ImageContext.spiShaderColFormat.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_COL_FORMAT);
-    m_pm4ImageContext.spiShaderZFormat.u32All   = abiProcessor.GetRegisterEntry(mmSPI_SHADER_Z_FORMAT);
+    m_pm4ImageContext.dbShaderControl.u32All    = registers.At(mmDB_SHADER_CONTROL);
+    m_pm4ImageContext.paScAaConfig.reg_data     = registers.At(mmPA_SC_AA_CONFIG);
+    m_paScShaderControl.u32All                  = registers.At(mmPA_SC_SHADER_CONTROL);
+    m_pm4ImageContext.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
+    m_pm4ImageContext.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
+    m_pm4ImageContext.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
+    m_pm4ImageContext.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+    m_pm4ImageContext.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
     m_pm4ImageContext.paScConservativeRastCntl.reg_data =
-            abiProcessor.GetRegisterEntry(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL);
+            registers.At(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL);
 
     // Override the Pipeline ABI's reported COVERAGE_AA_MASK_ENABLE bit if the settings request it.
     if (settings.disableCoverageAaMask)

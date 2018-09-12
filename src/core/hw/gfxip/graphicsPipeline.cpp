@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/graphicsPipeline.h"
 #include "palFormatInfo.h"
 #include "palMetroHash.h"
+#include "palPipelineAbi.h"
 #include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
@@ -152,11 +153,25 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
 
+    MsgPackReader      metadataReader;
+    CodeObjectMetadata metadata;
+
     if (result == Result::Success)
     {
-        ExtractPipelineInfo(abiProcessor, ShaderType::Vertex, ShaderType::Pixel);
+        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+    }
 
-        DumpPipelineElf(abiProcessor, "PipelineGfx");
+    if (result == Result::Success)
+    {
+        ExtractPipelineInfo(metadata, ShaderType::Vertex, ShaderType::Pixel);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
+        DumpPipelineElf(abiProcessor,
+                        "PipelineGfx",
+                        ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
+#else
+        DumpPipelineElf(abiProcessor, "PipelineGfx", abiProcessor.GetPipelineName());
+#endif
 
         // The pipeline ABI reports a unique pipeline hash of all of the components of its pipeline.  However, PAL
         // includes more state in the graphics pipeline than just the shaders.  We need to incorporate the reported
@@ -174,28 +189,21 @@ Result GraphicsPipeline::InitFromPipelineBinary(
             m_flags.tessEnabled = 1;
         }
 
-        uint32 metadataValue = 0;
-        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::StreamOutTableEntry, &metadataValue))
+        if (metadata.pipeline.hasEntry.streamOutTableAddress != 0)
         {
-            m_flags.streamOut = (metadataValue != 0);
+            m_flags.streamOut = (metadata.pipeline.streamOutTableAddress != 0);
         }
 
-        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::PsUsesUavs, &metadataValue))
-        {
-            m_flags.psUsesUavs = metadataValue;
-        }
+        m_flags.vportArrayIdx = (metadata.pipeline.flags.usesViewportArrayIndex != 0);
 
-        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::PsUsesRovs, &metadataValue))
-        {
-            m_flags.psUsesRovs = metadataValue;
-        }
+        const auto& psStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)];
 
-        if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UsesViewportArrayIndex, &metadataValue))
-        {
-            m_flags.vportArrayIdx = metadataValue;
-        }
+        m_flags.psUsesUavs    = (psStageMetadata.flags.usesUavs    != 0);
+        m_flags.psUsesRovs    = (psStageMetadata.flags.usesRovs    != 0);
+        m_flags.psWritesUavs  = (psStageMetadata.flags.writesUavs  != 0);
+        m_flags.psWritesDepth = (psStageMetadata.flags.writesDepth != 0);
 
-        result = HwlInit(createInfo, abiProcessor);
+        result = HwlInit(createInfo, abiProcessor, metadata, &metadataReader);
     }
 
     // Finalize the hash.

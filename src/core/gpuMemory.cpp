@@ -713,8 +713,9 @@ Result GpuMemory::Init(
                (m_pOriginalMem->m_flags.buddyAllocated == 0) &&
                (m_pOriginalMem->m_flags.alwaysResident == 0));
 
+    Pal::GpuMemoryExportInfo exportInfo = {};
     const Result result = OpenSharedMemory(
-            m_pOriginalMem->GetSharedExternalHandle());
+            m_pOriginalMem->ExportExternalHandle(exportInfo));
     if (IsErrorResult(result) == false)
     {
         DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Opened);

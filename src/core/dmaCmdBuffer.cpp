@@ -135,6 +135,7 @@ Result DmaCmdBuffer::BeginCommandStreams(
 
     if (doReset)
     {
+        m_pT2tEmbeddedGpuMemory = nullptr;
         m_cmdStream.Reset(nullptr, true);
     }
 

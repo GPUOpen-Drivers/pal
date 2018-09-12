@@ -105,8 +105,9 @@ struct QueueSemaphoreExportInfo
                                               ///< to the new Semaphore.
             uint32 reserved           : 31;   ///< Resevered for future use.
         };
-        uint32 u32All;                  ///< Flags packed as 32-bit uint.
-    } flags;                            ///< External queue semaphore export flags.
+        uint32 u32All;                        ///< Flags packed as 32-bit uint.
+    } flags;                                  ///< External queue semaphore export flags.
+
 };
 
 /**

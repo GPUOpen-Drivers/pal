@@ -327,7 +327,8 @@ Result WindowSystem::AcquireScreenAccess(
     Device*         pDevice,
     OsDisplayHandle hDisplay,
     WsiPlatform     wsiPlatform,
-    uint32          randrOutput,
+    uint32          connector,
+    uint32*         pRandrOutput,
     int32*          pDrmMasterFd)
 {
     Result result = Result::ErrorUnavailable;
@@ -337,7 +338,11 @@ Result WindowSystem::AcquireScreenAccess(
         {
         case WsiPlatform::Xcb:
         case WsiPlatform::Xlib:
-            result = Dri3WindowSystem::AcquireScreenAccess(hDisplay, pDevice, randrOutput, pDrmMasterFd);
+            result = Dri3WindowSystem::AcquireScreenAccess(hDisplay,
+                                                           pDevice,
+                                                           connector,
+                                                           pRandrOutput,
+                                                           pDrmMasterFd);
             break;
         default:
             PAL_NOT_IMPLEMENTED();

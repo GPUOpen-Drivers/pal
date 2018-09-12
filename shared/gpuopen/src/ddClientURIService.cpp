@@ -179,14 +179,17 @@ namespace DevDriver
                     const uint32 developerModeEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::DeveloperModeEnabled)) != 0) ? 1 : 0;
                     pResponse->Write("\nClient Developer Mode Status Flag: %u", developerModeEnabled);
 
-                    const uint32 haltOnConnect = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::HaltOnConnect)) != 0) ? 1 : 0;
-                    pResponse->Write("\nClient Halt On Connect Status Flag: %u", haltOnConnect);
+                    const uint32 deviceHaltOnConnect = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::DeviceHaltOnConnect)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Device Halt On Connect Status Flag: %u", deviceHaltOnConnect);
 
                     const uint32 gpuCrashDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::GpuCrashDumpsEnabled)) != 0) ? 1 : 0;
                     pResponse->Write("\nClient Gpu Crash Dumps Enabled Status Flag: %u", gpuCrashDumpsEnabled);
 
                     const uint32 pipelineDumpsEnabled = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::PipelineDumpsEnabled)) != 0) ? 1 : 0;
                     pResponse->Write("\nClient Pipeline Dumps Enabled Status Flag: %u", pipelineDumpsEnabled);
+
+                    const uint32 platformHaltOnConnect = ((clientInfo.metadata.status & static_cast<uint32>(ClientStatusFlags::PlatformHaltOnConnect)) != 0) ? 1 : 0;
+                    pResponse->Write("\nClient Platform Halt On Connect Status Flag: %u", platformHaltOnConnect);
 #endif
 
                     // Write the process id

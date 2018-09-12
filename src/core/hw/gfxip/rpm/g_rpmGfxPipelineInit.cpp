@@ -61,8 +61,6 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Oland:
     case AsicRevision::Hainan:
     case AsicRevision::Bonaire:
-    case AsicRevision::Kalindi:
-    case AsicRevision::Godavari:
     case AsicRevision::Spectre:
     case AsicRevision::Spooky:
         pTable = rpmGfxBinaryTableOland;
@@ -72,14 +70,22 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableHawaii;
         break;
 
+    case AsicRevision::Kalindi:
+    case AsicRevision::Godavari:
+        pTable = rpmGfxBinaryTableKalindi;
+        break;
+
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
-    case AsicRevision::Stoney:
     case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
+        break;
+
+    case AsicRevision::Stoney:
+        pTable = rpmGfxBinaryTableStoney;
         break;
 
     case AsicRevision::Iceland:
@@ -780,6 +786,502 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[Copy_UNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32ABGR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_32ABGR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32GR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_32GR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_32R].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_32R].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_32R],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_FP16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_FP16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_SINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_SINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_SNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_SNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_UINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_UINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy2d_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy2d_UNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy2d_UNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32ABGR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_32ABGR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32GR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_32GR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_32R].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_32R].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_32R],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_FP16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_FP16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_SINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_SINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_SNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_SNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_UINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_UINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ScaledCopy3d_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ScaledCopy3d_UNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopy3d_UNORM16],
             AllocInternal);
     }
 

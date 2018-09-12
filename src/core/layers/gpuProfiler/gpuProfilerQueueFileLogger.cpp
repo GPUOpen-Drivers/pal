@@ -145,7 +145,9 @@ void Queue::OpenLogFile(
         "Dma",
         "Timer",
         "HpUniversal",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "HpGfxOnly",
+#endif
     };
 
     static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
@@ -222,7 +224,9 @@ void Queue::OpenSqttFile(
         "Dma",
         "Timer",
         "HpUniversal",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "HpGfxOnly",
+#endif
     };
 
     static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
@@ -511,7 +515,7 @@ void Queue::OutputTimestampsToFile(
         m_logFile.Printf("%llu,%llu,", pResult[0], pResult[1]);
 
         bool hideElapsedTime =
-            (m_pDevice->ProfilerSettings().perfCounterConfig.granularity == GpuProfilerGranularityDraw) &&
+            (m_pDevice->ProfilerSettings().profilerConfig.granularity == GpuProfilerGranularityDraw) &&
                                (logItem.type == LogItemType::CmdBufferCall) &&
                                (logItem.cmdBufCall.callId == CmdBufCallId::Begin);
 
@@ -650,7 +654,7 @@ void Queue::OutputTraceDataToFile(
         // Output trace data in RGP format.
         if ((m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledRgp))
         {
-            if (settings.perfCounterConfig.granularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
+            if (settings.profilerConfig.granularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
                 m_logFile.Printf("%u,", m_curLogFrame);
@@ -731,13 +735,31 @@ void Queue::OutputTraceDataToFile(
                         // The ThreadTraceView app expects the raw data to be dumped with one 16-bit hex per line.
                         const uint32 tokenCount = pData->size / sizeof(uint16);
 
+                        constexpr uint32 LineLength = 5; // 4 hex digits + newline
+                        const uint32 outputBufSize  = tokenCount * LineLength;
+                        char* pOutputBuf            = static_cast<char*>(
+                            PAL_MALLOC(outputBufSize, m_pDevice->GetPlatform(), AllocInternalTemp));
+                        char* pCurLine              = pOutputBuf;
+
                         uint16* pRawData = static_cast<uint16*>(pResult);
+
+                        // Equivalent to sprintf(curLine, "%04x\n", ...) but much faster since dumps can be huge
+                        // Looks up each half of a byte (nibble) here, then shifts 4 bits to next nibble
+                        constexpr char NibbleLut[] = "0123456789abcdef";
                         for (uint32 j = 0; j < tokenCount; j++)
                         {
-                            logFile.Printf("%04x\n", *pRawData++);
+                            uint16 curData = *pRawData++;
+                            for (int8 k = LineLength - 2; k >= 0; k--)
+                            {
+                                pCurLine[k] = NibbleLut[curData & 0x0F];
+                                curData >>= 4;
+                            }
+                            pCurLine[LineLength - 1] = '\n';
+                            pCurLine += LineLength;
                         }
-
+                        logFile.Write(pOutputBuf, outputBufSize);
                         logFile.Close();
+                        PAL_SAFE_FREE(pOutputBuf, m_pDevice->GetPlatform());
 
                         pResult = Util::VoidPtrInc(pResult, pData->size);
                         pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);

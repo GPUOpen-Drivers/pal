@@ -214,7 +214,7 @@ void PAL_STDCALL Platform::GpuProfilerCb(
         if (hasValidData)
         {
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
-            TargetCmdBuffer*        pCmdBuffer = static_cast<TargetCmdBuffer*>(pData->pCmdBuffer);
+            CmdBufferDecorator*     pCmdBuffer = static_cast<CmdBufferDecorator*>(pData->pCmdBuffer);
 
             if (pCmdBuffer != nullptr)
             {

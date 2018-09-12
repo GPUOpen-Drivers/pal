@@ -28,6 +28,7 @@
 #include "pal.h"
 #include "palAssert.h"
 #include "palDevice.h"
+#include "palSparseVector.h"
 
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
@@ -126,6 +127,15 @@ struct RegisterRange
                         // E.g., PERSISTENT_SPACE_START for SH registers, etc.
     uint32 regCount;    // Number of registers to load.
 };
+
+// Container used for storing registers during pipeline load.
+using RegisterVector = Util::SparseVector<
+    uint32,
+    uint8,
+    50,
+    Platform,
+    CONTEXT_SPACE_START,    CntxRegUsedRangeEnd,
+    PERSISTENT_SPACE_START, ShRegUsedRangeEnd>;
 
 // Number of user-data registers per shader stage on the chip. PAL reserves a number of these for internal use, making
 // them unusable from the client. The registers PAL reserves are:

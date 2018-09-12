@@ -3338,7 +3338,11 @@ TargetCmdBuffer::TargetCmdBuffer(
     const DeviceDecorator*     pNextDevice)
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pNextDevice),
+#if (PAL_COMPILE_TYPE == 32)
     m_allocator(2 * 1024 * 1024),
+#else
+    m_allocator(8 * 1024 * 1024),
+#endif
     m_pAllocatorStream(nullptr),
     m_pCurrentBarrierComment(nullptr),
     m_currentCommentSize(0),

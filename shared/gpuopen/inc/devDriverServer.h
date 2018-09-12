@@ -84,6 +84,9 @@ namespace DevDriver
         void Finalize();
         void Destroy();
 
+        // Called by the driver to mark the end of Platform and the start of device initialization.
+        void StartDeviceInit();
+
         bool IsConnected() const;
         IMsgChannel* GetMessageChannel() const;
 

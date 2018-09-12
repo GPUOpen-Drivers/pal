@@ -211,6 +211,15 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 
 #define DD_SANITIZE_RESULT(x) ((x != Result::Success) ? Result::Error : x)
 
+// Include in the private section of a class declaration in order to disallow use of the copy and assignment operator
+#define DD_DISALLOW_COPY_AND_ASSIGN(_typename) \
+    _typename(const _typename&);               \
+    _typename& operator =(const _typename&);
+
+// Include in the private section of a class declaration in order to disallow use of the default constructor
+#define DD_DISALLOW_DEFAULT_CTOR(_typename)   \
+    _typename();
+
 namespace DevDriver
 {
     typedef int8_t   int8;    ///< 8-bit integer.
@@ -299,11 +308,12 @@ namespace DevDriver
     // Client status codes
     enum struct ClientStatusFlags : StatusFlags
     {
-        None                 = 0,
-        DeveloperModeEnabled = (1 << 0),
-        HaltOnConnect        = (1 << 1),
-        GpuCrashDumpsEnabled = (1 << 2),
-        PipelineDumpsEnabled = (1 << 3)
+        None                  = 0,
+        DeveloperModeEnabled  = (1 << 0),
+        DeviceHaltOnConnect   = (1 << 1),
+        GpuCrashDumpsEnabled  = (1 << 2),
+        PipelineDumpsEnabled  = (1 << 3),
+        PlatformHaltOnConnect = (1 << 4),
     };
 
     DD_CHECK_SIZE(ClientId, 2);

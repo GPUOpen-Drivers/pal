@@ -449,6 +449,7 @@ public:
         CE_SET_BASE_base_index_enum  baseIndex,
         Pm4ShaderType                shaderType,
         void*                        pBuffer) const;
+    template <bool resetFilterCam = false>
     size_t BuildSetOneConfigReg(
         uint32                               regAddr,
         void*                                pBuffer,
@@ -472,6 +473,7 @@ public:
         Pm4ShaderType                    shaderType,
         void*                            pBuffer,
         PFP_SET_SH_REG_OFFSET_index_enum index = index__pfp_set_sh_reg_offset__data_indirect_1dw) const;
+    template <bool resetFilterCam = false>
     size_t BuildSetSeqConfigRegs(
         uint32                         startRegAddr,
         uint32                         endRegAddr,

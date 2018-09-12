@@ -50,10 +50,12 @@ struct DbgPrintTarget
 // Global table of information for each debug print category.
 static DbgPrintTarget g_dbgPrintTable[DbgPrintCatCount] =
 {
-    { DbgPrintMode::Print,   "Info",  "palInfo.txt",  },  // DbgPrintCatInfoMsg
-    { DbgPrintMode::Print,   "Warn",  "palWarn.txt",  },  // DbgPrintCatWarnMsg
-    { DbgPrintMode::Print,   "Error", "palError.txt", },  // DbgPrintCatErrorMsg
-    { DbgPrintMode::Disable, "ScMsg", "palScMsg.txt", }   // DbgPrintCatScMsg
+    { DbgPrintMode::Print,         "Info",  "palInfo.txt",  },  // DbgPrintCatInfoMsg
+    { DbgPrintMode::Print,         "Warn",  "palWarn.txt",  },  // DbgPrintCatWarnMsg
+    { DbgPrintMode::Print,         "Error", "palError.txt", },  // DbgPrintCatErrorMsg
+    { DbgPrintMode::Disable,       "ScMsg", "palScMsg.txt", },  // DbgPrintCatScMsg
+    { DbgPrintMode::Print,         "Event", "palEvent.txt", },  // DbgPrintCatEventPrintMsg
+    { DbgPrintMode::PrintCallback, "Event", "palEvent.txt", }   // DbgPrintCatEventPrintCallbackMsg
 };
 
 // =====================================================================================================================
@@ -73,6 +75,19 @@ static void OutputString(
     {
         // Otherwise, send the string to stderr.
         fputs(pString, stderr);
+
+        // If there's a valid callback function, then invoke it with the current message.
+        if (g_dbgPrintCallback.pCallbackFunc != nullptr)
+        {
+            g_dbgPrintCallback.pCallbackFunc(g_dbgPrintCallback.pUserdata, category, pString);
+        }
+
+        break;
+    }
+
+    case DbgPrintMode::PrintCallback:
+    {
+        // Only output to the debug callback and avoid other debug output.
 
         // If there's a valid callback function, then invoke it with the current message.
         if (g_dbgPrintCallback.pCallbackFunc != nullptr)

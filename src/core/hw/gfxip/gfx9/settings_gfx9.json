@@ -14,8 +14,45 @@
     "Prefetching (L2 Cache Warming)",
     "Texture Filtering",
     "Hardware Workarounds",
-    "Gfx9",
-    "Gfx10"
+    "Gfx9"
+  ],
+  "Enums": [
+    {
+      "Name": "Gfx9NggPipelineType",
+      "IsEnum": true,
+      "Values": [
+        {
+          "Name": "NggPipelineTypeDisabled",
+          "Value": 0,
+          "Description": "Disabled."
+        },
+        {
+          "Name": "NggPipelineTypeVsPs",
+          "Value": 1,
+          "Description": "Enabled for all VsPs (VsPs) pipelines."
+        },
+        {
+          "Name": "NggPipelineTypeVsGsPs",
+          "Value": 2,
+          "Description": "Enabled for all VsGsPs (Gs) pipelines."
+        },
+        {
+          "Name": "NggPipelineTypeVsHsDsPs",
+          "Value": 4,
+          "Description": "Enabled for all VsHsDsPs (Tess) pipelines."
+        },
+        {
+          "Name": "NggPipelineTypeVsHsDsGsPs",
+          "Value": 8,
+          "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines."
+        },
+        {
+          "Name": "NggPipelineTypeAll",
+          "Value": 15,
+          "Description": "Enabled for all pipeline types."
+        }
+      ]
+    }
   ],
   "Settings": [
     {
@@ -202,152 +239,6 @@
       "Name": "Treat1dAs2d"
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "Gfx10ForceWaveBreakSizeNone",
-            "Value": 0,
-            "Description": "No wave breaks by region."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSize8x8",
-            "Value": 1,
-            "Description": "8x8 region size."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSize16x16",
-            "Value": 2,
-            "Description": "16x16 region size."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSize32x32",
-            "Value": 3,
-            "Description": "32x32 region size."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSizeClient",
-            "Value": 4,
-            "Description": "Use client specified value."
-          },
-          {
-            "Name": "Gfx10ForceWaveBreakSizeAuto",
-            "Value": 5,
-            "Description": "Let PAL decide."
-          }
-        ],
-        "Name": "Gfx10ForceWaveBreakSize"
-      },
-      "Description": "Forces the size of a wave break; over-rides client-specified value.",
-      "Tags": [
-        "General",
-        "Gfx10"
-      ],
-      "HashName": 3257946177,
-      "Defaults": {
-        "Default": "Gfx10ForceWaveBreakSizeClient"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "forceWaveBreakSize",
-      "Name": "ForceWaveBreakSize",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "Affects tiled-to-tiled image copies on the GFX10 SDMA engine where both images are compressed Set to true to leave the source image in a compressed state, set to false to leave the dest image in a compressed state.",
-      "Tags": [
-        "General",
-        "Gfx10"
-      ],
-      "HashName": 1884222990,
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "sdmaPreferCompressedSource",
-      "Name": "SdmaPreferCompressedSource",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          }
-        ]
-      }
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
-            "Name": "Gfx10UseCompToSingleNone",
-            "Value": 0,
-            "Description": "Use comp-to-reg all image type."
-          },
-          {
-            "Name": "Gfx10UseCompToSingle2d",
-            "Value": 1,
-            "Description": "Use comp-to-single for 2d image."
-          },
-          {
-            "Name": "Gfx10UseCompToSingle2dArray",
-            "Value": 2,
-            "Description": "Use comp-to-single for 2d array image."
-          },
-          {
-            "Name": "Gfx10UseCompToSingleMsaa",
-            "Value": 4,
-            "Description": "Use comp-to-single for MSAA image."
-          },
-          {
-            "Name": "Gfx10UseCompToSingle3D",
-            "Value": 8,
-            "Description": "Use comp-to-single for 3d image."
-          },
-          {
-            "Name": "Gfx10DisableCompToReg",
-            "Value": 16,
-            "Description": "If set, comp-to-reg rendering will be disabled for images that were cleared with comp-to-single."
-          }
-        ],
-        "Name": "Gfx10UseCompToSingle"
-      },
-      "Description": "Whether we need to set first pixel of each block that corresponds to 1 byte in DCC memory, and don't need to do a fast clear eliminate based on image type.",
-      "Tags": [
-        "General",
-        "Gfx10"
-      ],
-      "HashName": 3110040174,
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 23
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "useCompToSingle",
-      "Name": "UseCompToSingle",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          }
-        ]
-      }
-    },
-    {
       "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
       "Tags": [
         "General",
@@ -530,11 +421,6 @@
             "Name": "Gfx9UseDccEqaa",
             "Value": 128,
             "Description": "EQAA render targets"
-          },
-          {
-            "Name": "Gfx10UseDccUav",
-            "Value": 256,
-            "Description": "Shader writable surfaces(UAV)"
           }
         ],
         "Name": "Gfx9UseDcc"
@@ -1689,49 +1575,166 @@
       "Name": "NggLateAllocGs"
     },
     {
-      "Description": "If true, disables backface culling for all NGG pipelines. For quality testing purposes only.",
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "NggPipelineTypeDisabled",
+            "Value": 0,
+            "Description": "Disabled."
+          },
+          {
+            "Name": "NggPipelineTypeVsPs",
+            "Value": 1,
+            "Description": "Enabled for all VsPs (VsPs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsGsPs",
+            "Value": 2,
+            "Description": "Enabled for all VsGsPs (Gs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsPs",
+            "Value": 4,
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Value": 8,
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeAll",
+            "Value": 15,
+            "Description": "Enabled for all pipeline types."
+          }
+        ],
+        "Name": "Gfx9NggPipelineType"
+      },
+      "Description": "Setting for the enablement of backface culling on a per-pipeline type basis. For quality purposes only.",
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "HashName": 4141018301,
-      "Defaults": {
-        "Default": false
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
       },
+      "Defaults": {
+        "Default": "NggPipelineTypeDisabled"
+      },
+      "HashName": 1669167072,
       "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "nggDisableBackfaceCulling",
-      "Name": "NggDisableBackfaceCulling"
+      "Type": "enum",
+      "VariableName": "enableBackfaceCullMask",
+      "Name": "EnableBackfaceCullMask"
     },
     {
-      "Description": "If true, enables frustum culling for all NGG pipelines. For quality testing purposes only.",
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "NggPipelineTypeDisabled",
+            "Value": 0,
+            "Description": "Disabled."
+          },
+          {
+            "Name": "NggPipelineTypeVsPs",
+            "Value": 1,
+            "Description": "Enabled for all VsPs (VsPs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsGsPs",
+            "Value": 2,
+            "Description": "Enabled for all VsGsPs (Gs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsPs",
+            "Value": 4,
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Value": 8,
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeAll",
+            "Value": 15,
+            "Description": "Enabled for all pipeline types."
+          }
+        ],
+        "Name": "Gfx9NggPipelineType"
+      },
+      "Description": "Setting for the enablement of accurate frustum culling on a per-pipeline type basis. For quality purposes only.",
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "HashName": 1220820826,
-      "Defaults": {
-        "Default": false
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
       },
+      "Defaults": {
+        "Default": "NggPipelineTypeDisabled"
+      },
+      "HashName": 1388275830,
       "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "nggEnableFrustumCulling",
-      "Name": "NggEnableFrustumCulling"
+      "Type": "enum",
+      "VariableName": "enableAccurateFrustumCullMask",
+      "Name": "EnableAccurateFrustumCullMask"
     },
     {
-      "Description": "If true, enables small primitive filter culling for all NGG pipelines. For quality testing purposes only.",
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "NggPipelineTypeDisabled",
+            "Value": 0,
+            "Description": "Disabled."
+          },
+          {
+            "Name": "NggPipelineTypeVsPs",
+            "Value": 1,
+            "Description": "Enabled for all VsPs (VsPs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsGsPs",
+            "Value": 2,
+            "Description": "Enabled for all VsGsPs (Gs) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsPs",
+            "Value": 4,
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Value": 8,
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines."
+          },
+          {
+            "Name": "NggPipelineTypeAll",
+            "Value": 15,
+            "Description": "Enabled for all pipeline types."
+          }
+        ],
+        "Name": "Gfx9NggPipelineType"
+      },
+      "Description": "Setting for the enablement of small primitive filter culling on a per-pipeline type basis. For quality purposes only.",
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "HashName": 2076615117,
-      "Defaults": {
-        "Default": false
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
       },
+      "Defaults": {
+        "Default": "NggPipelineTypeDisabled"
+      },
+      "HashName": 2981395067,
       "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "nggEnableSmallPrimFilter",
-      "Name": "NggEnableSmallPrimFilter"
+      "Type": "enum",
+      "VariableName": "enableSmallPrimFilterMask",
+      "Name": "EnableSmallPrimFilterMask"
     },
     {
       "Description": "If true, enables faster launch rate for all NGG pipelines. For quality testing purposes only.",
@@ -2245,28 +2248,6 @@
       "Name": "WaRestrictMetaDataUseInMipTail"
     },
     {
-      "Description": "Fixes issues related to unexposed MSAA samples.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 3779046012,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waFixPostZConservativeRasterization",
-      "Name": "WaFixPostZConservativeRasterization",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          }
-        ]
-      }
-    },
-    {
       "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
       "Tags": [
         "Hardware Workarounds"
@@ -2293,28 +2274,6 @@
       "Type": "bool",
       "VariableName": "waColorCacheControllerInvalidEviction",
       "Name": "WaColorCacheControllerInvalidEviction"
-    },
-    {
-      "Description": "This workaround forces hTile data to be Z-only for images with multiple mip levels.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 860624612,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waForceZonlyHtileForMipmaps",
-      "Name": "WaForceZonlyHtileForMipmaps",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          }
-        ]
-      }
     },
     {
       "Description": "The overwrite combiner takes only the target mask into consideration while decidingto overwrite combine whereas the other parts of the CB decide on shader mask andtarget mask. This discrepancy may lead to the overwrite combiner incorrectly signalinga read optimization when shader and target mask are different",
@@ -2525,162 +2484,6 @@
       "Type": "bool",
       "VariableName": "waCmaskImageSyncs",
       "Name": "WaCmaskImageSyncs"
-    },
-    {
-      "Description": "If set PAL disable DFSM punchout mode.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 2130346129,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waDisableDfsmPunchout",
-      "Name": "WaDisableDfsmPunchout",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "If set, PAL will fit the tessellation factor ring buffer to be the size of a single page. This is due to an incorrect memory address translation if two SEs are simultaneously working on different pages in memory.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 2846916971,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waTessFactorBufferSizeLimit",
-      "Name": "WaTessFactorBufferSizeLimit",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "If set, PAL will set the thin line width adjustment threshold to zero.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 1859855222,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waFsrThinLineWidthCorruption",
-      "Name": "WaFsrThinLineWidthCorruption",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "If set, PAL will force all GCR syncs with a virtual address to invalidation everything.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 1523635231,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waRangedGcrVaInvalidation",
-      "Name": "WaRangedGcrVaInvalidation",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "If set, PAL will force MAX_VERT_OUT to be the maximum of MAX_VERT_OUT and VERTS_PER_INPUT_PRIM.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 2468976032,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waNggMaxVertOut",
-      "Name": "WaNggMaxVertOut",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
-    },
-    {
-      "Description": "If set, PAL will force RMI_PERF_COUNTER.EVENT_BASED_PER_EN_SEL=1 to fix the issue of RMI performance counters not working for the redundant RB.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "HashName": 1969554153,
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waRmiRedundantRbPerfCounter",
-      "Name": "WaRmiRedundantRbPerfCounter",
-      "Preprocessor" : {
-        "Custom": [
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_GFX10"
-          },
-          {
-              "Command": "#if",
-              "Expression": "PAL_BUILD_NAVI10_LITE"
-          }
-        ]
-      }
     },
     {
       "Description": "Controls whether to F/I TCC when working with depth/stencil targets that use HTile. This is required on Gfx9 by shader reads if the target is MSAA, has stencil, or has metadata in the mip tail region.",

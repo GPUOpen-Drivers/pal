@@ -544,7 +544,9 @@ Result Device::CreateEngine(
 
     switch (engineType)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
     case EngineTypeHighPriorityGraphics:
+#endif
         // Assume (for now) that the UniversalEngine will work for the purposes of high-priority gfx engines as well
     case EngineTypeHighPriorityUniversal:
     case EngineTypeUniversal:
@@ -1130,10 +1132,7 @@ size_t Device::GetCmdBufferSize(
     }
     else if (createInfo.queueType == QueueTypeUniversal)
     {
-        if (Pal::Device::EngineSupportsCompute(createInfo.engineType))
-        {
-            cmdBufferSize = UniversalCmdBuffer::GetSize(*this);
-        }
+        cmdBufferSize = UniversalCmdBuffer::GetSize(*this);
     }
 
     return cmdBufferSize;
@@ -1155,12 +1154,9 @@ Result Device::CreateCmdBuffer(
     }
     else if (createInfo.queueType == QueueTypeUniversal)
     {
-        if (Pal::Device::EngineSupportsCompute(createInfo.engineType))
-        {
-            result = Result::Success;
+        result = Result::Success;
 
-            *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) UniversalCmdBuffer(*this, createInfo);
-        }
+        *ppCmdBuffer = PAL_PLACEMENT_NEW(pPlacementAddr) UniversalCmdBuffer(*this, createInfo);
     }
 
     return result;
@@ -2839,6 +2835,7 @@ void InitializeGpuChipProperties(
 // Finalizes the GPU chip properties for a Device object, specifically for the GFX9 hardware layer. Intended to be
 // called after InitializeGpuChipProperties().
 void FinalizeGpuChipProperties(
+    const Platform*    pPlatform,
     GpuChipProperties* pInfo)
 {
     // Setup some GPU properties which can be derived from other properties:
@@ -2876,7 +2873,7 @@ void FinalizeGpuChipProperties(
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx9 structure is "good to go".
-    PerfCtrInfo::InitPerfCtrInfo(pInfo);
+    PerfCtrInfo::InitPerfCtrInfo(pPlatform, pInfo);
 }
 
 // =====================================================================================================================

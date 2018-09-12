@@ -60,8 +60,10 @@ PipelineChunkGs::PipelineChunkGs(
 // =====================================================================================================================
 // Initializes this pipeline chunk for the scenario where the tessellation stages are inactive.
 void PipelineChunkGs::Init(
-    const AbiProcessor& abiProcessor,
-    const GsParams&     params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const GsParams&           params)
 {
     BuildPm4Headers(params.usesOnChipGs, params.isNgg, params.esGsLdsSizeRegGs, params.esGsLdsSizeRegVs);
 
@@ -70,10 +72,10 @@ void PipelineChunkGs::Init(
 
     const Gfx9PalSettings& settings = m_device.Settings();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_GS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_GS);
-    m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC4_GS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_GS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_GS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_GS);
+    m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC4_GS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_GS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -100,7 +102,7 @@ void PipelineChunkGs::Init(
     case GfxIpLevel::GfxIp9:
         m_pm4ImageShDynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
         m_pm4ImageContext.maxPrimsPerSubgrp.u32All =
-            abiProcessor.GetRegisterEntry(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP);
+            registers.At(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP);
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -109,37 +111,38 @@ void PipelineChunkGs::Init(
 
     if (params.isNgg == false)
     {
-        m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
-        m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
+        m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+        m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
     }
 
-    m_pm4ImageContext.vgtGsMaxVertOut.u32All    = abiProcessor.GetRegisterEntry(mmVGT_GS_MAX_VERT_OUT);
+    m_pm4ImageContext.vgtGsMaxVertOut.u32All    = registers.At(mmVGT_GS_MAX_VERT_OUT);
 
-    m_pm4ImageContext.vgtGsInstanceCnt.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GS_INSTANCE_CNT);
-    m_pm4ImageContext.vgtGsVertItemSize0.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE);
-    m_pm4ImageContext.vgtGsVertItemSize1.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_1);
-    m_pm4ImageContext.vgtGsVertItemSize2.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_2);
-    m_pm4ImageContext.vgtGsVertItemSize3.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_3);
-    m_pm4ImageContext.ringOffset1.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_1);
-    m_pm4ImageContext.ringOffset2.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_2);
-    m_pm4ImageContext.ringOffset3.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_3);
-    m_pm4ImageContext.gsVsRingItemSize.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_ITEMSIZE);
-    m_pm4ImageContext.esGsRingItemSize.u32All   = abiProcessor.GetRegisterEntry(mmVGT_ESGS_RING_ITEMSIZE);
-    m_pm4ImageContext.vgtGsOutPrimType.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GS_OUT_PRIM_TYPE);
+    m_pm4ImageContext.vgtGsInstanceCnt.u32All   = registers.At(mmVGT_GS_INSTANCE_CNT);
+    m_pm4ImageContext.vgtGsVertItemSize0.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE);
+    m_pm4ImageContext.vgtGsVertItemSize1.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_1);
+    m_pm4ImageContext.vgtGsVertItemSize2.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_2);
+    m_pm4ImageContext.vgtGsVertItemSize3.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_3);
+    m_pm4ImageContext.ringOffset1.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_1);
+    m_pm4ImageContext.ringOffset2.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_2);
+    m_pm4ImageContext.ringOffset3.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_3);
+    m_pm4ImageContext.gsVsRingItemSize.u32All   = registers.At(mmVGT_GSVS_RING_ITEMSIZE);
+    m_pm4ImageContext.esGsRingItemSize.u32All   = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
+    m_pm4ImageContext.vgtGsOutPrimType.u32All   = registers.At(mmVGT_GS_OUT_PRIM_TYPE);
 
     uint32 esGsLdsSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::EsGsLdsByteSize, &esGsLdsSizeBytes))
+
+    if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
-        m_pm4ImageGsLds.gsUserDataLdsEsGsSize.u32All = esGsLdsSizeBytes;
-        m_pm4ImageSh.vsUserDataLdsEsGsSize.u32All    = esGsLdsSizeBytes;
+        m_pm4ImageGsLds.gsUserDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
+        m_pm4ImageSh.vsUserDataLdsEsGsSize.u32All    = metadata.pipeline.esGsLdsSize;
     }
 
-    m_pm4ImageContext.vgtGsOnchipCntl.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GS_ONCHIP_CNTL);
-    m_pm4ImageContext.vgtGsPerVs.u32All             = abiProcessor.GetRegisterEntry(mmVGT_GS_PER_VS);
+    m_pm4ImageContext.vgtGsOnchipCntl.u32All        = registers.At(mmVGT_GS_ONCHIP_CNTL);
+    m_pm4ImageContext.vgtGsPerVs.u32All             = registers.At(mmVGT_GS_PER_VS);
 
-    m_pm4ImageContext.spiShaderPosFormat.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_POS_FORMAT);
-    m_pm4ImageContext.paClVsOutCntl.u32All      = abiProcessor.GetRegisterEntry(mmPA_CL_VS_OUT_CNTL);
-    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = abiProcessor.GetRegisterEntry(mmVGT_PRIMITIVEID_EN);
+    m_pm4ImageContext.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_pm4ImageContext.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 
     // Compute the checksum here because we don't want it to include the GPU virtual addresses!
     params.pHasher->Update(m_pm4ImageContext);

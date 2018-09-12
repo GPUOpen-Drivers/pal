@@ -146,6 +146,9 @@ namespace DevDriver
     namespace Platform
     {
 
+        template <typename T, DevDriver::uint32 Size>
+        constexpr DevDriver::uint32 ArraySize(const T(&)[Size]) { return Size; }
+
         void DebugPrint(LogLevel lvl, const char* format, ...);
 
         /* platform functions for performing atomic operations */

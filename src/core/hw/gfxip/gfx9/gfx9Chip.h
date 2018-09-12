@@ -29,6 +29,7 @@
 #include "palAssert.h"
 #include "palInlineFuncs.h"
 #include "palCmdBuffer.h"
+#include "palSparseVector.h"
 
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_offset.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
@@ -112,6 +113,17 @@ struct RegisterRange
                         // E.g., PERSISTENT_SPACE_START for SH registers, etc.
     uint32 regCount;    // Number of registers to load.
 };
+
+// Container used for storing registers during pipeline load.
+using RegisterVector = Util::SparseVector<
+    uint32,
+    uint8,
+    50,
+    Platform,
+    CONTEXT_SPACE_START,         CntxRegUsedRangeEnd,
+    PERSISTENT_SPACE_START,      ShRegUsedRangeEnd,
+    Gfx09::mmIA_MULTI_VGT_PARAM, Gfx09::mmIA_MULTI_VGT_PARAM
+    >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
 // wave, each SIMD has 800 physical SGPRs so it can acommodate multiple wave even if the waves use the max available

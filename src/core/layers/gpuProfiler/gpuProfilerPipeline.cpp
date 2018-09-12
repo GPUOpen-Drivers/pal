@@ -151,8 +151,8 @@ bool Pipeline::OpenUniqueDumpFile(
         ShaderPerfData::PerformanceDataHeader header = {};
         header.version               = ShaderPerfData::HeaderVersion;
         Util::Strncpy(&header.apiShaderType[0],
-                        ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
-                        sizeof(header.apiShaderType));
+                      ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
+                      sizeof(header.apiShaderType));
         header.shaderHash.lower      = dumpInfo.hash.lower;
         header.shaderHash.upper      = dumpInfo.hash.upper;
         header.pipelineHash          = dumpInfo.pipelineHash;
@@ -254,8 +254,8 @@ void Pipeline::Destroy()
             ShaderPerfData::PerformanceDataHeader header = {};
             header.version               = ShaderPerfData::HeaderVersion;
             Util::Strncpy(&header.apiShaderType[0],
-                            ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
-                            sizeof(header.apiShaderType));
+                          ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)],
+                          sizeof(header.apiShaderType));
             header.shaderHash.lower      = dumpInfo.hash.lower;
             header.shaderHash.upper      = dumpInfo.hash.upper;
             header.pipelineHash          = dumpInfo.pipelineHash;
@@ -283,6 +283,14 @@ Result Pipeline::InitGfx(
         PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
         result = abiProcessor.LoadFromBuffer(createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
 
+        MsgPackReader              metadataReader;
+        Abi::PalCodeObjectMetadata metadata;
+
+        if (result == Result::Success)
+        {
+            result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        }
+
         if (result == Result::Success)
         {
             static_assert(((static_cast<uint32>(HardwareStage::Cs) + 1) ==
@@ -292,11 +300,7 @@ Result Pipeline::InitGfx(
             // We need to check if any graphics stage contains performance data.
             for (uint32 i = 0; i < static_cast<uint32>(HardwareStage::Cs); i++)
             {
-                const PipelineMetadataType type =
-                    GetMetadataForStage(PipelineMetadataType::ShaderPerformanceDataBufferSize,
-                                        static_cast<HardwareStage>(i));
-
-                if (abiProcessor.HasPipelineMetadataEntry(type))
+                if (metadata.pipeline.hardwareStage[i].hasEntry.perfDataBufferSize != 0)
                 {
                     // If the ELF contains any of the performance data buffer size entries, then one of the stages
                     // contains performance data.
@@ -305,17 +309,15 @@ Result Pipeline::InitGfx(
                 }
             }
 
-            if (abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo) &&
-                abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi))
+            result = Result::Unsupported;
+
+            for (uint32 s = 0; s < static_cast<uint32>(ApiShaderType::Count); ++s)
             {
-                m_apiHwMapping.u32Lo =
-                    abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo);
-                m_apiHwMapping.u32Hi =
-                    abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi);
-            }
-            else
-            {
-                result = Result::Unsupported;
+                if (metadata.pipeline.shader[s].hasEntry.hardwareMapping)
+                {
+                    m_apiHwMapping.apiShaders[s] = static_cast<uint8>(metadata.pipeline.shader[s].hardwareMapping);
+                    result = Result::Success;
+                }
             }
         }
     }
@@ -334,22 +336,28 @@ Result Pipeline::InitCompute(
         PipelineAbiProcessor<PlatformDecorator> abiProcessor(m_pDevice->GetPlatform());
         result = abiProcessor.LoadFromBuffer(createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
 
+        MsgPackReader              metadataReader;
+        Abi::PalCodeObjectMetadata metadata;
+
         if (result == Result::Success)
         {
-            m_hasPerformanceData =
-                abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::CsPerformanceDataBufferSize);
+            result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+        }
 
-            if (abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo) &&
-                abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi))
+        if (result == Result::Success)
+        {
+            static constexpr uint32 HwStageCs = static_cast<uint32>(HardwareStage::Cs);
+            m_hasPerformanceData = (metadata.pipeline.hardwareStage[HwStageCs].hasEntry.perfDataBufferSize != 0);
+
+            result = Result::Unsupported;
+
+            for (uint32 s = 0; s < static_cast<uint32>(ApiShaderType::Count); ++s)
             {
-                m_apiHwMapping.u32Lo =
-                    abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo);
-                m_apiHwMapping.u32Hi =
-                    abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi);
-            }
-            else
-            {
-                result = Result::Unsupported;
+                if (metadata.pipeline.shader[s].hasEntry.hardwareMapping)
+                {
+                    m_apiHwMapping.apiShaders[s] = static_cast<uint8>(metadata.pipeline.shader[s].hardwareMapping);
+                    result = Result::Success;
+                }
             }
         }
     }

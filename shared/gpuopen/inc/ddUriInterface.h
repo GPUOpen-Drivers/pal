@@ -72,16 +72,9 @@ namespace DevDriver
         template <typename T>
         void Write(const T& value)
         {
+            static_assert(!Platform::IsPointer<T>::Value, "Writing a pointer is likely an error. Cast to an integer type if you mean it.");
             WriteBytes(&value, sizeof(value));
         }
-
-        // Explicitly prevent copying pointers.
-        // If you want to write the address, use an appropriately sized integer type, like std::ptrdiff_t.
-        // If you want to write the data at the address, provide a length.
-        // Be careful of member function pointers, they're probably not the size you think they are.
-        //      https://blogs.msdn.microsoft.com/oldnewthing/20040209-00/?p=40713
-        template <typename T>
-        void Write(const T* value) = delete;
     };
 
     // An interface to write and validate text.

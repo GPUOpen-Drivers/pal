@@ -51,7 +51,7 @@ public:
 
     virtual void Destroy() override;
 
-    virtual OsExternalHandle GetSharedExternalHandle() const override;
+    virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& exportInfo) const override;
 
     amdgpu_bo_handle_type GetSharedExternalHandleType() const { return m_externalHandleType; }
 

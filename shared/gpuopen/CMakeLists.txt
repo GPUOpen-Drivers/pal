@@ -30,6 +30,8 @@ project(GPUOPEN)
 include(AmdCmakeHelper)
 
 ### Create GpuOpen Library #############################################################################################
+set(CMAKE_CXX_STANDARD          14)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 add_library(gpuopen STATIC "")
 
 ### Cached Project Options #############################################################################################
@@ -61,10 +63,16 @@ macro(apply_gpuopen_warnings _target)
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|(Apple)?Clang)$")
         target_compile_options(${_target} PRIVATE
             -Wall -Wextra
-            -Wno-unused-parameter
+            # This warning triggers when you memcpy into or out of a "non trivial" type.
+            # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
+            #   it not count.
+            #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
+            #   Read more here: https://msdn.microsoft.com/en-us/library/mt767760.aspx
+            #   This warning is new in gcc 8.x
+            -Wno-class-memaccess
         )
     else()
-        message(FATAL_ERROR "Using unknown compiler.")
+        message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()
 endmacro()
 
@@ -132,6 +140,7 @@ target_sources(gpuopen PRIVATE
     src/ddClientURIService.cpp
     src/protocols/ddURIServer.cpp
     src/protocols/ddSettingsService.cpp
+    src/protocols/ddPipelineUriService.cpp
     src/util/ddTextWriter.cpp
     src/util/ddJsonWriter.cpp
 )

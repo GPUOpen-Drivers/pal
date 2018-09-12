@@ -43,9 +43,10 @@ endfunction()
 
                 option(ADDR_R800_BUILD       "Build support for R800?"       OFF                                               )
                 option(ADDR_SI_BUILD         "Build support for SI?"         OFF                                               )
-cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         OFF "ADDR_SI_BUILD"                            OFF)
+cmake_dependent_option(ADDR_CI_BUILD         "Build support for CI?"         ON  "ADDR_SI_BUILD"                            OFF)
                 option(ADDR_GFX9_BUILD       "Build support for GFX9?"       OFF                                               )
-cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    OFF "ADDR_GFX9_BUILD"                          OFF)
+cmake_dependent_option(ADDR_RAVEN1_BUILD     "Build support for Raven 1?"    ON  "ADDR_GFX9_BUILD"                          OFF)
+cmake_dependent_option(ADDR_VEGA12_BUILD     "Build support for Vega 12?"    ON  "ADDR_GFX9_BUILD"                          OFF)
 
                 option(ADDR_AM_BUILD         "Build support for fmask addressing and addr5Swizzle?" OFF                        )
                 option(ADDR_LNX_KERNEL_BUILD "Linux kernel build?"                                  OFF                        )
@@ -113,6 +114,13 @@ if(ADDR_GFX9_BUILD)
     target_include_directories(addrlib PRIVATE src/chip/gfx9)
 
     target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD)
+
+    if(ADDR_VEGA12_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_VEGA12_BUILD)
+    endif()
+    if(ADDR_RAVEN1_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_RAVEN1_BUILD)
+    endif()
 endif()
 
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)

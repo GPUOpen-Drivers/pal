@@ -282,17 +282,31 @@ uint32* CmdStream::WriteSetVgtLsHsConfig<false>(
 // =====================================================================================================================
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool isPerfCtr>
 uint32* CmdStream::WriteSetOneConfigReg(
     uint32                               regAddr,
     uint32                               regData,
     uint32*                              pCmdSpace,
     PFP_SET_UCONFIG_REG_INDEX_index_enum index)
 {
-    const size_t totalDwords = m_cmdUtil.BuildSetOneConfigReg(regAddr, pCmdSpace, index);
+    const size_t totalDwords = m_cmdUtil.BuildSetOneConfigReg<isPerfCtr>(regAddr, pCmdSpace, index);
     pCmdSpace[CmdUtil::ConfigRegSizeDwords] = regData;
 
     return pCmdSpace + totalDwords;
 }
+
+template
+uint32* CmdStream::WriteSetOneConfigReg<true>(
+    uint32                               regAddr,
+    uint32                               regData,
+    uint32*                              pCmdSpace,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index);
+template
+uint32* CmdStream::WriteSetOneConfigReg<false>(
+    uint32                               regAddr,
+    uint32                               regData,
+    uint32*                              pCmdSpace,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index);
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given set of sequential config registers.  Returns a pointer to the next unused DWORD
@@ -925,7 +939,7 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
     else
     {
         // Non-protected register: use a normal SET_DATA command.
-        pReturnVal = WriteSetOneConfigReg(regAddr, value, pCmdSpace);
+        pReturnVal = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
     }
 
     return pReturnVal;

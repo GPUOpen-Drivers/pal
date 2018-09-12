@@ -397,6 +397,9 @@ public:
         m_pfnFree(&DispatchFree<Allocator>)
     { }
 
+    /// Constructor specialization for a pointer to another IndirectAllocator, which acts like a copy constructor.
+    IndirectAllocator(IndirectAllocator*const pAllocator) : IndirectAllocator(*pAllocator) { }
+
     /// Allocates memory.
     ///
     /// @param [in] allocInfo Contains information about the requested allocation.
@@ -410,7 +413,7 @@ public:
     void  Free(const FreeInfo& freeInfo) { return m_pfnFree(m_pAllocator, freeInfo); }
 
 private:
-    /// @internal Allocation dispatch function. This is what the non-templated m_pfnAlloc callback pointer references.
+    /// @internal Allocation dispatch function. This is what the non-templated @ref m_pfnAlloc callback pointer references.
     template <typename Allocator>
     static void* DispatchAlloc(void*const pAllocator, const AllocInfo& allocInfo)
     {
@@ -418,7 +421,7 @@ private:
         return pTypedAllocator->Alloc(allocInfo);
     }
 
-    /// @internal Free dispatch function. This is what the non-templated m_pfnFree callback pointer references.
+    /// @internal Free dispatch function. This is what the non-templated @ref m_pfnFree callback pointer references.
     template <typename Allocator>
     static void  DispatchFree(void*const pAllocator, const FreeInfo& freeInfo)
     {

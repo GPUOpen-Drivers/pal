@@ -34,6 +34,7 @@
 
 #include "palElfProcessorImpl.h"
 #include "palPipelineAbi.h"
+#include "g_palPipelineAbiMetadata.h"
 
 namespace Util
 {
@@ -45,6 +46,7 @@ template <typename Allocator>
 class PipelineAbiProcessor
 {
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
 typedef HashMap<
     uint32,
     RegisterEntry,
@@ -64,15 +66,24 @@ typedef HashIterator<
     HashAllocator<Allocator>,
     PAL_CACHE_LINE_BYTES * 2> RegisterMapIter;
 
-typedef VectorIterator<PipelineMetadataEntry, 16, Allocator> PipelineMetadataVectorIter;
-typedef Vector<PipelineMetadataEntry, 16, Allocator>         PipelineMetadataVector;
+typedef VectorIterator<PipelineMetadataEntry, 1, Allocator> PipelineMetadataVectorIter;
+typedef Vector<PipelineMetadataEntry, 1, Allocator>         PipelineMetadataVector;
+#endif
 
 typedef VectorIterator<PipelineSymbolEntry, 8, Allocator> PipelineSymbolVectorIter;
 typedef Vector<PipelineSymbolEntry, 8, Allocator>         PipelineSymbolVector;
 
 public:
     explicit PipelineAbiProcessor(Allocator* const pAllocator);
+    ~PipelineAbiProcessor()
+    {
+        if (m_pAllocator != nullptr)
+        {
+            PAL_FREE(m_pCompatRegisterBlob, m_pAllocator);
+        }
+    }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
     /// Add a RegisterEntry.
     ///
     /// @param [in] entry The RegisterEntry to add.
@@ -95,6 +106,7 @@ public:
     ///
     /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
     Result AddPipelineMetadataEntry(PipelineMetadataEntry entry);
+#endif
 
     /// Add a PipelineSymbolEntry.
     ///
@@ -105,13 +117,13 @@ public:
 
     /// Set the GFXIP version.
     ///
-    /// @param [in] gfxipMajorVer The major version.
-    /// @param [in] gfxipMinorVer The minor version.
-    /// @param [in] gfxipStepping The stepping.
+    /// @param [in] gfxIpMajorVer The major version.
+    /// @param [in] gfxIpMinorVer The minor version.
+    /// @param [in] gfxIpStepping The stepping.
     void SetGfxIpVersion(
-        uint32 gfxipMajorVer,
-        uint32 gfxipMinorVer,
-        uint32 gfxipStepping);
+        uint32 gfxIpMajorVer,
+        uint32 gfxIpMinorVer,
+        uint32 gfxIpStepping);
 
     /// Set the pipeline shader code.
     ///
@@ -175,6 +187,7 @@ public:
     bool HasReadOnlyData() const
         { return (m_pRoDataSection != nullptr); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
     /// Check if a RegisterEntry exists.
     ///
     /// @param [in] registerOffset The register to check.
@@ -264,6 +277,7 @@ public:
     uint64 GetPipelineMetadataEntries(
         PipelineMetadataType pipelineMetadataTypeHigh,
         PipelineMetadataType pipelineMetadataTypeLow) const;
+#endif
 
     /// Check if a PipelineSymbolEntry exists.
     ///
@@ -293,6 +307,27 @@ public:
         PAL_ASSERT(m_pipelineSymbolIndices[static_cast<uint32>(pipelineSymbolType)] >= 0);
         return m_pipelineSymbolsVector.At(m_pipelineSymbolIndices[static_cast<uint32>(pipelineSymbolType)]);
     }
+
+    /// Get the Pipeline Metadata as a deserialized struct using the given MsgPackReader instance. If successful,
+    /// the reader's position will then be moved to either the start of the registers map, or to EOF if there are
+    /// no registers.
+    ///
+    /// @param [in/out] pReader    Pointer to the MsgPackReader to use and (re)init with the metadata blob.
+    /// @param [out]    pMetadata  Pointer to where to store the deserialized metadata.
+    ///
+    /// @returns Result if successful, ErrorInvalidValue if a parser error occurred, ErrorInvalidPipelineElf if
+    ///          there is no metadata.
+    Result GetMetadata(
+        MsgPackReader*         pReader,
+        PalCodeObjectMetadata* pMetadata) const;
+
+    /// Get the Pipeline Metadata as a binary blob.
+    ///
+    /// @param [out] ppMetadata     Pointer to the pipeline metadata.
+    /// @param [out] pMetadataSize  The size of the pipeline metadata in bytes.
+    void GetMetadata(
+        const void** ppMetadata,
+        size_t*      pMetadataSize) const;
 
     /// Get the pipeline shader code.
     ///
@@ -342,27 +377,29 @@ public:
 
     /// Get the GFXIP version.
     ///
-    /// @param [out] pGfxipMajorVer The major version.
-    /// @param [out] pGfxipMinorVer The minor version.
-    /// @param [out] pGgfxipStepping The stepping.
+    /// @param [out] pGfxIpMajorVer The major version.
+    /// @param [out] pGfxIpMinorVer The minor version.
+    /// @param [out] pGfxIpStepping The stepping.
     void GetGfxIpVersion(
-        uint32* pGfxipMajorVer,
-        uint32* pGfxipMinorVer,
-        uint32* pGfxipStepping) const;
+        uint32* pGfxIpMajorVer,
+        uint32* pGfxIpMinorVer,
+        uint32* pGfxIpStepping) const;
 
+    /// Get the Metadata version.
+    ///
+    /// @param [out] pMajorVer The major version.
+    /// @param [out] pMinorVer The minor version.
+    void GetMetadataVersion(
+        uint32* pMajorVer,
+        uint32* pMinorVer) const;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
     /// Get the ABI version.
     ///
-    /// @param [out] pAbiMajorVer The major version.
-    /// @param [out] pAbiMinorVer The minor version.
-    void GetAbiVersion(
-        uint32* pAbiMajorVer,
-        uint32* pAbiMinorVer) const;
-
-    /// Get the human-readable pipeline name from the ELF binary.  This was either supplied to the compiler during
-    /// compilation, or was not added at all.
-    ///
-    /// @returns The human-readable pipeline name, or nullptr if no name was added to the ELF binary.
-    const char* GetPipelineName() const;
+    /// @param [out] pMajorVer The major version.
+    /// @param [out] pMinorVer The minor version.
+    void GetAbiVersion(uint32* pMajorVer, uint32* pMinorVer) const { return GetMetadataVersion(pMajorVer, pMinorVer); }
+#endif
 
     /// Get the symbol type when given a symbol name.
     ///
@@ -371,23 +408,31 @@ public:
     /// @returns The corresponding PipelineSymbolType.
     PipelineSymbolType GetSymbolTypeFromName(const char* pName) const;
 
-    /// Get an iterator at the beginning of the register map.
-    ///
-    /// @returns An iterator at the beginning of the register map.
-    RegisterMapIter RegistersBegin() const
-        { return m_registerMap.Begin(); }
-
     /// Get an iterator at the beginning of the pipeline symbols vector.
     ///
     /// @returns An iterator at the beginning of the pipeline symbols vector.
     PipelineSymbolVectorIter PipelineSymbolsBegin() const
         { return m_pipelineSymbolsVector.Begin(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
+    /// Get the human-readable pipeline name from the ELF binary.  This was either supplied to the compiler during
+    /// compilation, or was not added at all.
+    ///
+    /// @returns The human-readable pipeline name, or nullptr if no name was added to the ELF binary.
+    const char* GetPipelineName() const;
+
+    /// Get an iterator at the beginning of the register map.
+    ///
+    /// @returns An iterator at the beginning of the register map.
+    RegisterMapIter RegistersBegin() const
+        { return m_registerMap.Begin(); }
+
     /// Get an iterator at the beginning of the pipeline metadata vector.
     ///
     /// @returns An iterator at the beginning of the pipeline metadata vector.
     PipelineMetadataVectorIter PipelineMetadataBegin() const
         { return m_pipelineMetadataVector.Begin(); }
+#endif
 
     /// Apply relocations to the Code, Data, or ReadOnly Data.
     ///
@@ -404,8 +449,14 @@ public:
     /// make custom changes with the returned ElfProcessor before calling
     /// GetRequiredBufferSizeBytes() and SaveToBuffer().
     ///
+    /// @param [in] pipelineMetadataWriter  MsgPack writer containing a blob encoding pipeline metadata.
+    ///
     /// @returns Returns Success if successful, otherwise ErrorOutOfMemory if memory allocation failed.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
+    Result Finalize(const MsgPackWriter& pipelineMetadataWriter);
+#else
     Result Finalize(const char* pPipelineName);
+#endif
 
     /// Returns an ElfProcessor to allow direct ELF queries.
     ///
@@ -446,6 +497,8 @@ private:
         uint64                   baseAddress,
         Elf::Section<Allocator>* pRelocationSection) const;
 
+    Result TranslateLegacyMetadata(MsgPackReader* pReader, PalCodeObjectMetadata* pOut) const;
+
     Result CreateDataSection();
     Result CreateRoDataSection();
     Result CreateTextSection();
@@ -466,6 +519,17 @@ private:
     Elf::Section<Allocator>* m_pCommentSection;      // Comment with compiler info
     Elf::Section<Allocator>* m_pDisasmSection;       // Disassembly section (.AMDGPU.disasm)
 
+    AmdGpuElfFlags         m_flags;                  // ELF flags. Contains GPU info, such as GFXIP version.
+
+    uint32                 m_metadataMajorVer;       // Metadata ABI major version.
+    uint32                 m_metadataMinorVer;       // Metadata ABI minor version.
+
+    uint32                 m_compatRegisterSize;     // Back-compat: Size of the register MsgPack blob.
+    void*                  m_pCompatRegisterBlob;    // Back-compat: MsgPack blob encoding registers.
+
+    const void*            m_pMetadata;              // Pointer to metadata blob.
+    size_t                 m_metadataSize;           // Size of the metadata blob in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
     AbiAmdGpuVersionNote   m_gpuVersionNote;         // GPU version info.
     AbiMinorVersionNote    m_abiMinorVersionNote;    // ABI minor version version.
 
@@ -473,6 +537,7 @@ private:
 
     PipelineMetadataVector m_pipelineMetadataVector; // Pipeline metadata entries
     int32 m_pipelineMetadataIndices[static_cast<uint32>(PipelineMetadataType::Count)];
+#endif
 
     PipelineSymbolVector   m_pipelineSymbolsVector;  // Pipeline symbols
     int32 m_pipelineSymbolIndices[static_cast<uint32>(PipelineSymbolType::Count)];

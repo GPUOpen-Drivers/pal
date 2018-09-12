@@ -254,14 +254,23 @@ GraphicsPipeline::GraphicsPipeline(
 // specified Pipeline ABI processor and create info.
 Result GraphicsPipeline::HwlInit(
     const GraphicsPipelineCreateInfo& createInfo,
-    const AbiProcessor&               abiProcessor)
+    const AbiProcessor&               abiProcessor,
+    const CodeObjectMetadata&         metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     const Gfx6PalSettings& settings = m_pDevice->Settings();
 
-    // First, handle relocations and upload the pipeline code & data to GPU memory.
+    RegisterVector registers(m_pDevice->GetPlatform());
+    Result result = pMetadataReader->Unpack(&registers);
+
     gpusize codeGpuVirtAddr = 0;
     gpusize dataGpuVirtAddr = 0;
-    Result result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, &codeGpuVirtAddr, &dataGpuVirtAddr);
+    if (result ==  Result::Success)
+    {
+        // First, handle relocations and upload the pipeline code & data to GPU memory.
+        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &codeGpuVirtAddr, &dataGpuVirtAddr);
+    }
+
     if (result ==  Result::Success)
     {
         BuildPm4Headers();
@@ -270,9 +279,9 @@ Result GraphicsPipeline::HwlInit(
 
         uint16 esGsLdsSizeRegGs = UserDataNotMapped;
         uint16 esGsLdsSizeRegVs = UserDataNotMapped;
-        SetupSignatureFromElf(abiProcessor, &esGsLdsSizeRegGs, &esGsLdsSizeRegVs);
+        SetupSignatureFromElf(metadata, registers, &esGsLdsSizeRegGs, &esGsLdsSizeRegVs);
 
-        InitCommonStateRegisters(createInfo, abiProcessor);
+        InitCommonStateRegisters(createInfo, registers);
 
         if (IsTessEnabled())
         {
@@ -283,7 +292,7 @@ Result GraphicsPipeline::HwlInit(
             params.pHsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)];
             params.pHasher         = &hasher;
 
-            m_chunkLsHs.Init(abiProcessor, params);
+            m_chunkLsHs.Init(abiProcessor, metadata, registers, params);
         }
         if (IsGsEnabled())
         {
@@ -297,7 +306,7 @@ Result GraphicsPipeline::HwlInit(
             params.pGsPerfDataInfo  = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Gs)];
             params.pHasher          = &hasher;
 
-            m_chunkEsGs.Init(abiProcessor, params);
+            m_chunkEsGs.Init(abiProcessor, metadata, registers, params);
         }
 
         VsPsParams params = {};
@@ -307,12 +316,12 @@ Result GraphicsPipeline::HwlInit(
         params.pPsPerfDataInfo = &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)];
         params.pHasher         = &hasher;
 
-        m_chunkVsPs.Init(abiProcessor, params);
+        m_chunkVsPs.Init(abiProcessor, metadata, registers, params);
         hasher.Update(m_stateContextPm4Cmds);
 
         hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextPm4ImgHash));
 
-        UpdateRingSizes(abiProcessor);
+        UpdateRingSizes(metadata);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 387
         m_info.ps.flags.perSampleShading = m_paScModeCntl1.bits.PS_ITER_SAMPLE;
@@ -911,16 +920,16 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 // Initializes some render-state registers based on the provided pipeline builder and create info.
 void GraphicsPipeline::InitCommonStateRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
-    const AbiProcessor&               abiProcessor)
+    const RegisterVector&             registers)
 {
     const Gfx6PalSettings& settings = m_pDevice->Settings();
 
-    m_stateContextPm4Cmds.paClClipCntl.u32All = abiProcessor.GetRegisterEntry(mmPA_CL_CLIP_CNTL);
-    m_stateContextPm4Cmds.paClVteCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_CL_VTE_CNTL);
-    m_stateContextPm4Cmds.paSuVtxCntl.u32All  = abiProcessor.GetRegisterEntry(mmPA_SU_VTX_CNTL);
-    m_paScModeCntl1.u32All                    = abiProcessor.GetRegisterEntry(mmPA_SC_MODE_CNTL_1);
+    m_stateContextPm4Cmds.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
+    m_stateContextPm4Cmds.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
+    m_stateContextPm4Cmds.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
+    m_paScModeCntl1.u32All                    = registers.At(mmPA_SC_MODE_CNTL_1);
 
-    m_stateContextPm4Cmds.dbShaderControl.u32All = abiProcessor.GetRegisterEntry(mmDB_SHADER_CONTROL);
+    m_stateContextPm4Cmds.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
 
     regDB_RENDER_OVERRIDE dbRenderOverride = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
@@ -950,13 +959,13 @@ void GraphicsPipeline::InitCommonStateRegisters(
                                             dbRenderOverride.u32All,
                                             &m_stateContextPm4Cmds.dbRenderOverride);
 
-    m_stateContextPm4Cmds.vgtShaderStagesEn.u32All = abiProcessor.GetRegisterEntry(mmVGT_SHADER_STAGES_EN);
-    m_stateContextPm4Cmds.vgtReuseOff.u32All       = abiProcessor.GetRegisterEntry(mmVGT_REUSE_OFF);
+    m_stateContextPm4Cmds.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+    m_stateContextPm4Cmds.vgtReuseOff.u32All       = registers.At(mmVGT_REUSE_OFF);
 
     // NOTE: The following registers are assumed to have the value zero if the pipeline ELF does not specify values.
-    abiProcessor.HasRegisterEntry(mmVGT_GS_MODE,      &m_stateContextPm4Cmds.vgtGsMode.u32All);
-    abiProcessor.HasRegisterEntry(mmVGT_TF_PARAM,     &m_stateContextPm4Cmds.vgtTfParam.u32All);
-    abiProcessor.HasRegisterEntry(mmVGT_LS_HS_CONFIG, &m_vgtLsHsConfig.u32All);
+    registers.HasEntry(mmVGT_GS_MODE,      &m_stateContextPm4Cmds.vgtGsMode.u32All);
+    registers.HasEntry(mmVGT_TF_PARAM,     &m_stateContextPm4Cmds.vgtTfParam.u32All);
+    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_vgtLsHsConfig.u32All);
 
     // If dynamic tessellation mode is enabled (where the shader chooses whether each patch goes to off-chip or to
     // on-chip memory), we should override DS_WAVES_PER_SIMD according to the panel setting.
@@ -991,10 +1000,10 @@ void GraphicsPipeline::InitCommonStateRegisters(
         }
     }
 
-    m_stateContextPm4Cmds.cbShaderMask.u32All = abiProcessor.GetRegisterEntry(mmCB_SHADER_MASK);
+    m_stateContextPm4Cmds.cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
 
     m_stateContextPm4Cmds.spiInterpControl0.u32All = 0;
-    abiProcessor.HasRegisterEntry(mmSPI_INTERP_CONTROL_0, &m_stateContextPm4Cmds.spiInterpControl0.u32All);
+    registers.HasEntry(mmSPI_INTERP_CONTROL_0, &m_stateContextPm4Cmds.spiInterpControl0.u32All);
 
     m_stateContextPm4Cmds.spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
     if (m_stateContextPm4Cmds.spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
@@ -1004,24 +1013,24 @@ void GraphicsPipeline::InitCommonStateRegisters(
     }
 
     SetupNonShaderRegisters(createInfo);
-    SetupLateAllocVs(abiProcessor);
-    SetupIaMultiVgtParam(abiProcessor);
+    SetupLateAllocVs(registers);
+    SetupIaMultiVgtParam(registers);
 }
 
 // =====================================================================================================================
 // The pipeline binary is allowed to partially specify the value for IA_MULTI_VGT_PARAM.  PAL will finish initializing
 // this register based on GPU properties, hardware workarounds, pipeline create info, and the values of other registers.
 void GraphicsPipeline::SetupIaMultiVgtParam(
-    const AbiProcessor& abiProcessor)
+    const RegisterVector& registers)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
 
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = { };
-    abiProcessor.HasRegisterEntry(mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All);
+    registers.HasEntry(mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All);
 
     regVGT_STRMOUT_CONFIG vgtStrmoutConfig = { };
-    abiProcessor.HasRegisterEntry(mmVGT_STRMOUT_CONFIG, &vgtStrmoutConfig.u32All);
+    registers.HasEntry(mmVGT_STRMOUT_CONFIG, &vgtStrmoutConfig.u32All);
 
     if (IsTessEnabled())
     {
@@ -1183,7 +1192,7 @@ void GraphicsPipeline::FixupIaMultiVgtParamOnGfx7Plus(
 // =====================================================================================================================
 // Initializes the SPI_SHADER_LATE_ALLOC_VS register for GFX7 and newer hardware.
 void GraphicsPipeline::SetupLateAllocVs(
-    const AbiProcessor& abiProcessor)
+    const RegisterVector& registers)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
@@ -1193,13 +1202,13 @@ void GraphicsPipeline::SetupLateAllocVs(
         const auto pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
         regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
-        spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
+        spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
 
         regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
-        spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
+        spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
 
         regSPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = { };
-        spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
+        spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
 
         // Default to a late-alloc limit of zero.  This will nearly mimic the GFX6 behavior where VS waves don't
         // launch without allocating export space.
@@ -1278,7 +1287,7 @@ void GraphicsPipeline::SetupLateAllocVs(
 // =====================================================================================================================
 // Updates the device that this pipeline has some new ring-size requirements.
 void GraphicsPipeline::UpdateRingSizes(
-    const AbiProcessor& abiProcessor)
+    const CodeObjectMetadata& metadata)
 {
     const Gfx6PalSettings& settings = m_pDevice->Settings();
 
@@ -1301,7 +1310,7 @@ void GraphicsPipeline::UpdateRingSizes(
         ringSizes.itemSize[static_cast<size_t>(ShaderRingType::OffChipLds)] = settings.numOffchipLdsBuffers;
     }
 
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(abiProcessor);
+    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
 
     // Inform the device that this pipeline has some new ring-size requirements.
     m_pDevice->UpdateLargestRingSizes(&ringSizes);
@@ -1310,39 +1319,17 @@ void GraphicsPipeline::UpdateRingSizes(
 // =====================================================================================================================
 // Calculates the maximum scratch memory in dwords necessary by checking the scratch memory needed for each shader.
 uint32 GraphicsPipeline::ComputeScratchMemorySize(
-    const AbiProcessor& abiProcessor
+    const CodeObjectMetadata& metadata
     ) const
 {
-    uint32 psScratchUsageBytes = 0;
-    abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::PsScratchByteSize, &psScratchUsageBytes);
-
-    uint32 vsScratchUsageBytes = 0;
-    abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::VsScratchByteSize, &vsScratchUsageBytes);
-
-    uint32 scratchMemorySizeBytes = Max(psScratchUsageBytes, vsScratchUsageBytes);
-
-    uint32 tempScratchSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::LsScratchByteSize, &tempScratchSizeBytes))
+    uint32 scratchMemorySizeBytes = 0;
+    for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); ++i)
     {
-        scratchMemorySizeBytes = Max(scratchMemorySizeBytes, tempScratchSizeBytes);
-    }
-
-    tempScratchSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::HsScratchByteSize, &tempScratchSizeBytes))
-    {
-        scratchMemorySizeBytes = Max(scratchMemorySizeBytes, tempScratchSizeBytes);
-    }
-
-    tempScratchSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::EsScratchByteSize, &tempScratchSizeBytes))
-    {
-        scratchMemorySizeBytes = Max(scratchMemorySizeBytes, tempScratchSizeBytes);
-    }
-
-    tempScratchSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::GsScratchByteSize, &tempScratchSizeBytes))
-    {
-        scratchMemorySizeBytes = Max(scratchMemorySizeBytes, tempScratchSizeBytes);
+        const auto& stageMetadata = metadata.pipeline.hardwareStage[i];
+        if (stageMetadata.hasEntry.scratchMemorySize != 0)
+        {
+            scratchMemorySizeBytes = Max(scratchMemorySizeBytes, stageMetadata.scratchMemorySize);
+        }
     }
 
     return scratchMemorySizeBytes / sizeof(uint32);
@@ -1434,9 +1421,10 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 // =====================================================================================================================
 // Initializes the signature for a single stage within a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureForStageFromElf(
-    const AbiProcessor& abiProcessor,
-    HwShaderStage       stage,
-    uint16*             pEsGsLdsSizeReg)
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    HwShaderStage             stage,
+    uint16*                   pEsGsLdsSizeReg)
 {
     constexpr uint16 BaseRegAddr[] =
     {
@@ -1466,7 +1454,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     for (uint16 offset = BaseRegAddr[stageId]; offset <= LastRegAddr[stageId]; ++offset)
     {
         uint32 value = 0;
-        if (abiProcessor.HasRegisterEntry(offset, &value))
+        if (registers.HasEntry(offset, &value))
         {
             if (value < MaxUserDataEntries)
             {
@@ -1545,7 +1533,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 // This appears to be an illegally-specified user-data register!
                 PAL_NEVER_CALLED();
             }
-        } // If HasRegisterEntry()
+        } // If HasEntry()
     } // For each user-SGPR
 
     for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
@@ -1571,50 +1559,46 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 // =====================================================================================================================
 // Initializes the signature of a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureFromElf(
-    const AbiProcessor& abiProcessor,
-    uint16*             pEsGsLdsSizeRegGs,
-    uint16*             pEsGsLdsSizeRegVs)
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    uint16*                   pEsGsLdsSizeRegGs,
+    uint16*                   pEsGsLdsSizeRegVs)
 {
-    uint32 value = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::StreamOutTableEntry, &value))
+    if (metadata.pipeline.hasEntry.streamOutTableAddress != 0)
     {
-        m_signature.streamOutTableAddr = static_cast<uint16>(value);
+        m_signature.streamOutTableAddr = static_cast<uint16>(metadata.pipeline.streamOutTableAddress);
     }
 
-    // Indirect user-data table(s):
-    for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
+    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
     {
-        const auto entryType = static_cast<Abi::PipelineMetadataType>(
-                static_cast<uint32>(Abi::PipelineMetadataType::IndirectTableEntryLow) + i);
-
-        if (abiProcessor.HasPipelineMetadataEntry(entryType, &value))
+        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
         {
-            m_signature.indirectTableAddr[i] = static_cast<uint16>(value);
+            m_signature.indirectTableAddr[i] = static_cast<uint16>(metadata.pipeline.indirectUserDataTableAddresses[i]);
         }
     }
 
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::SpillThreshold, &value))
+    if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
-        m_signature.spillThreshold = static_cast<uint16>(value);
+        m_signature.spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);
     }
 
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UserDataLimit, &value))
+    if (metadata.pipeline.hasEntry.userDataLimit != 0)
     {
-        m_signature.userDataLimit = static_cast<uint16>(value);
+        m_signature.userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
 
     if (IsTessEnabled())
     {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ls, nullptr);
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Hs, nullptr);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Ls, nullptr);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Hs, nullptr);
     }
     if (IsGsEnabled())
     {
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Es, nullptr);
-        SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Gs, pEsGsLdsSizeRegGs);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Es, nullptr);
+        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Gs, pEsGsLdsSizeRegGs);
     }
-    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Vs, pEsGsLdsSizeRegVs);
-    SetupSignatureForStageFromElf(abiProcessor, HwShaderStage::Ps, nullptr);
+    SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Vs, pEsGsLdsSizeRegVs);
+    SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Ps, nullptr);
 
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.

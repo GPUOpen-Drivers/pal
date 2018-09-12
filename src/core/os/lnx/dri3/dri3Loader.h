@@ -321,6 +321,16 @@ typedef xcb_randr_get_provider_info_reply_t* (*XcbRandrGetProviderInfoReply)(
 typedef char* (*XcbRandrGetProviderInfoName)(
             const xcb_randr_get_provider_info_reply_t*    R);
 
+typedef xcb_randr_query_version_cookie_t (*XcbRandrQueryVersion)(
+            xcb_connection_t*     c,
+            uint32_t              major_version,
+            uint32_t              minor_version);
+
+typedef xcb_randr_query_version_reply_t* (*XcbRandrQueryVersionReply)(
+            xcb_connection_t*                 c,
+            xcb_randr_query_version_cookie_t  cookie,
+            xcb_generic_error_t**             e);
+
 // symbols from libxcb-sync.so.1
 typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
             xcb_connection_t*     pConnection,
@@ -738,6 +748,18 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrGetProviderInfoNameisValid() const
     {
         return (pfnXcbRandrGetProviderInfoName != nullptr);
+    }
+
+    XcbRandrQueryVersion                  pfnXcbRandrQueryVersion;
+    bool pfnXcbRandrQueryVersionisValid() const
+    {
+        return (pfnXcbRandrQueryVersion != nullptr);
+    }
+
+    XcbRandrQueryVersionReply             pfnXcbRandrQueryVersionReply;
+    bool pfnXcbRandrQueryVersionReplyisValid() const
+    {
+        return (pfnXcbRandrQueryVersionReply != nullptr);
     }
 
     XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
@@ -1334,6 +1356,26 @@ public:
     bool pfnXcbRandrGetProviderInfoNameisValid() const
     {
         return (m_pFuncs->pfnXcbRandrGetProviderInfoName != nullptr);
+    }
+
+    xcb_randr_query_version_cookie_t pfnXcbRandrQueryVersion(
+            xcb_connection_t*     c,
+            uint32_t              major_version,
+            uint32_t              minor_version) const;
+
+    bool pfnXcbRandrQueryVersionisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrQueryVersion != nullptr);
+    }
+
+    xcb_randr_query_version_reply_t* pfnXcbRandrQueryVersionReply(
+            xcb_connection_t*                 c,
+            xcb_randr_query_version_cookie_t  cookie,
+            xcb_generic_error_t**             e) const;
+
+    bool pfnXcbRandrQueryVersionReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrQueryVersionReply != nullptr);
     }
 
     xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(

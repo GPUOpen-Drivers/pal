@@ -271,7 +271,7 @@ enum class ObjectFileType : uint32
 /// ELF Machine Type: e_machine
 enum class MachineType : uint16
 {
-    AmdGpu = 0xe0, ///< AMDGPU machine architecture magic number.
+    AmdGpu = 0xe0, ///< EM_AMDGPU.  AMDGPU machine architecture magic number.
 };
 
 /// ELF Section Header Index

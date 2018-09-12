@@ -126,7 +126,8 @@ public:
     static Result AcquireScreenAccess(
         OsDisplayHandle hDisplay,
         Device*         pDevice,
-        uint32          randrOutput,
+        uint32          connector,
+        uint32*         pRandrOutput,
         int32*          pDrmMasterFd);
 
     virtual Result CreatePresentableImage(
@@ -157,6 +158,18 @@ private:
     Result SelectEvent();
 
     Result HandlePresentEvent(xcb_present_generic_event_t* pPresentEvent);
+
+    static Result GetRootWindowFromOutput(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        uint32          randrOutput,
+        uint32*         pRootWindow);
+
+    static Result GetOutputFromConnector(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        uint32          connector,
+        uint32*         pOutput);
 
     const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;

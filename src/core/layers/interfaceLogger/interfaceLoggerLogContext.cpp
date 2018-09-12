@@ -1148,7 +1148,9 @@ const char* LogContext::GetEngineName(
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
             "HpUniversal",      // EngineTypeHighPriorityUniversal
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
             "HpGfxOnly",        // EngineTypeHighPriorityGraphics
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == EngineTypeCount,

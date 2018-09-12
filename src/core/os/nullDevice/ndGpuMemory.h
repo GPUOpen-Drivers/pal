@@ -50,7 +50,7 @@ public:
         IDevice*const*          ppDevice,
         Pal::Image*const*       ppImage) override;
 
-    virtual OsExternalHandle GetSharedExternalHandle() const override;
+    virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& exportInfo) const override;
 
     virtual Result OpenPeerMemory() override;
 

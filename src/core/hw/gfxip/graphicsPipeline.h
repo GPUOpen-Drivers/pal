@@ -47,6 +47,7 @@ public:
     bool IsTessEnabled() const { return m_flags.tessEnabled; }
     bool UsesStreamOut() const { return m_flags.streamOut; }
     bool PsUsesUavs() const { return m_flags.psUsesUavs; }
+    bool PsWritesUavs() const { return m_flags.psWritesUavs; }
     bool PsUsesRovs() const { return m_flags.psUsesRovs; }
     bool PsUsesAppendConsume() const { return m_flags.psUsesAppendConsume; }
     bool UsesViewportArrayIndex() const { return m_flags.vportArrayIdx; }
@@ -67,7 +68,9 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor) = 0;
+        const AbiProcessor&               abiProcessor,
+        const CodeObjectMetadata&         metadata,
+        Util::MsgPackReader*              pMetadataReader) = 0;
 
     bool UsesAdjacency()        const { return m_flags.adjacencyPrim; }
     bool IsDccDecompress()      const { return m_flags.dccDecompress; }
@@ -106,7 +109,9 @@ private:
             uint32 psWritesDepth         :  1; // This pipeline explicitly outputs depth data.
             uint32 psUsesAppendConsume   :  1; // PS uses atomic append/consume instructions.
             uint32 perpLineEndCapsEnable :  1; // use perpendicular line end caps instead of axis-aligned end caps
-            uint32 reserved              : 16;
+            uint32 placeholder0          :  1;
+            uint32 psWritesUavs          :  1; // PS writes at least one UAV.
+            uint32 reserved              : 14;
         };
         uint32 u32All;
     } m_flags;

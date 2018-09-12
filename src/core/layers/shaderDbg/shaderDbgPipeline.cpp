@@ -123,19 +123,22 @@ Result Pipeline::Init(
     PipelineAbiProcessor<Platform> abiProcessor(m_pPlatform);
     Result result = abiProcessor.LoadFromBuffer(pPipelineBinary, pipelineBinarySize);
 
+    MsgPackReader              metadataReader;
+    Abi::PalCodeObjectMetadata metadata;
+
     if (result == Result::Success)
     {
-        if (abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo) &&
-            abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi))
+        abiProcessor.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        for (uint32 s = 0; s < static_cast<uint32>(ApiShaderType::Count); ++s)
         {
-            m_apiHwMapping.u32Lo = abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingLo);
-            m_apiHwMapping.u32Hi = abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::ApiHwShaderMappingHi);
+            m_apiHwMapping.apiShaders[s] = static_cast<uint8>(metadata.pipeline.shader[s].hardwareMapping);
         }
 
-        if (abiProcessor.HasPipelineMetadataEntry(PipelineMetadataType::HwShaderDbgMask))
-        {
-            m_hwShaderDbgMask = abiProcessor.GetPipelineMetadataEntry(PipelineMetadataType::HwShaderDbgMask);
-        }
+        m_hwShaderDbgMask = metadata.pipeline.debugHwStages;
     }
 
     return result;

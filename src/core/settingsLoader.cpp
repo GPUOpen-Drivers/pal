@@ -84,10 +84,12 @@ void SettingsLoader::InitDpLevelSettings()
         DbgPrintCategory palCategory;
     } dbgPrintSettingsTbl[] =
     {
-        "Info",  DbgPrintCategory::DbgPrintCatInfoMsg,
-        "Warn",  DbgPrintCategory::DbgPrintCatWarnMsg,
-        "Error", DbgPrintCategory::DbgPrintCatErrorMsg,
-        "ScMsg", DbgPrintCategory::DbgPrintCatScMsg,
+        "Info",    DbgPrintCategory::DbgPrintCatInfoMsg,
+        "Warn",    DbgPrintCategory::DbgPrintCatWarnMsg,
+        "Error",   DbgPrintCategory::DbgPrintCatErrorMsg,
+        "ScMsg",   DbgPrintCategory::DbgPrintCatScMsg,
+        "Event",   DbgPrintCategory::DbgPrintCatEventPrintMsg,
+        "EventCb", DbgPrintCategory::DbgPrintCatEventPrintCallbackMsg,
         nullptr, DbgPrintCategory::DbgPrintCatCount
     };
 

@@ -166,12 +166,12 @@ constexpr bool TestAllFlagsSet(
 ///
 /// @returns True if the flag is set.
 template <typename T, size_t N>
-PAL_INLINE bool WideBitfieldIsSet(
+bool WideBitfieldIsSet(
     const T (&bitfield)[N],
     uint32  bit)
 {
     const uint32 index = (bit / (sizeof(T) << 3));
-    const uint32 mask  = (1 << (bit & ((sizeof(T) << 3) - 1)));
+    const T      mask  = (static_cast<T>(1) << (bit & ((sizeof(T) << 3) - 1)));
 
     return (0 != (bitfield[index] & mask));
 }
@@ -182,12 +182,12 @@ PAL_INLINE bool WideBitfieldIsSet(
 /// @param [in] bitfield  Reference to the bitfield being modified
 /// @param [in] bit       Index of the flag to set
 template <typename T, size_t N>
-PAL_INLINE void WideBitfieldSetBit(
+void WideBitfieldSetBit(
     T      (&bitfield)[N],
     uint32 bit)
 {
     const uint32 index = (bit / (sizeof(T) << 3));
-    const uint32 mask  = (1 << (bit & ((sizeof(T) << 3) - 1)));
+    const T      mask  = (static_cast<T>(1) << (bit & ((sizeof(T) << 3) - 1)));
 
     bitfield[index] |= mask;
 }
@@ -198,12 +198,12 @@ PAL_INLINE void WideBitfieldSetBit(
 /// @param [in] bitfield  Reference to the bitfield being modified
 /// @param [in] bit       Index of the flag to set
 template <typename T, size_t N>
-PAL_INLINE void WideBitfieldClearBit(
+void WideBitfieldClearBit(
     T      (&bitfield)[N],
     uint32 bit)
 {
     const uint32 index = (bit / (sizeof(T) << 3));
-    const uint32 mask  = (1 << (bit & ((sizeof(T) << 3) - 1)));
+    const T      mask  = (static_cast<T>(1) << (bit & ((sizeof(T) << 3) - 1)));
 
     bitfield[index] &= ~mask;
 }
@@ -215,7 +215,7 @@ PAL_INLINE void WideBitfieldClearBit(
 /// @param [in] bitfield2 Reference to the second bitfield.
 /// @param [in] pOut      Result of (bitfield1 ^ bitfield2)
 template <typename T, size_t N>
-PAL_INLINE void WideBitfieldXorBits(
+void WideBitfieldXorBits(
     T      (&bitfield1)[N],
     T      (&bitfield2)[N],
     T*     pOut)
@@ -233,7 +233,7 @@ PAL_INLINE void WideBitfieldXorBits(
 /// @param [in] bitfield2 Reference to the second bitfield.
 /// @param [in] pOut      Result of (bitfield1 & bitfield2)
 template <typename T, size_t N>
-PAL_INLINE void WideBitfieldAndBits(
+void WideBitfieldAndBits(
     T      (&bitfield1)[N],
     T      (&bitfield2)[N],
     T*     pOut)
@@ -268,8 +268,8 @@ PAL_INLINE bool IsPow2Aligned(
 /// alignments are supported by this function.
 ///
 /// @returns Aligned value.
-template<typename T>
-PAL_INLINE T Pow2Align(
+template <typename T>
+T Pow2Align(
     T      value,      ///< Value to align.
     uint64 alignment)  ///< Desired alignment (must be a power of 2).
 {
@@ -280,7 +280,7 @@ PAL_INLINE T Pow2Align(
 /// Implements an alternative version of integer division in which the quotient is always rounded up instead of down.
 ///
 /// @returns The rounded quotient.
-template<typename T>
+template <typename T>
 constexpr T RoundUpQuotient(
     T dividend, ///< Value to divide.
     T divisor)  ///< Value to divide by.
@@ -291,7 +291,7 @@ constexpr T RoundUpQuotient(
 /// Rounds up the specified integer to the nearest multiple of the specified alignment value.
 ///
 /// @returns Rounded value.
-template<typename T>
+template <typename T>
 constexpr T RoundUpToMultiple(
     T operand,   ///< Value to be aligned.
     T alignment) ///< Alignment desired.
@@ -302,7 +302,7 @@ constexpr T RoundUpToMultiple(
 /// Rounds down the specified integer to the nearest multiple of the specified alignment value.
 ///
 /// @returns Rounded value.
-template<typename T>
+template <typename T>
 constexpr T RoundDownToMultiple(
     T operand,    ///< Value to be aligned.
     T alignment)  ///< Alignment desired.
@@ -314,8 +314,8 @@ constexpr T RoundDownToMultiple(
 /// alignments are supported by this function.
 ///
 /// @returns Rounded value.
-template<typename T>
-PAL_INLINE T Pow2AlignDown(
+template <typename T>
+T Pow2AlignDown(
     T      value,      ///< Value to align.
     uint64 alignment)  ///< Desired alignment (must be a power of 2).
 {
@@ -326,8 +326,8 @@ PAL_INLINE T Pow2AlignDown(
 /// Rounds the specified uint 'value' up to the nearest power of 2
 ///
 /// @returns Power of 2 padded value.
-template<typename T>
-PAL_INLINE T Pow2Pad(
+template <typename T>
+T Pow2Pad(
     T value)  ///< Value to pad.
 {
     T ret = 1;
@@ -396,8 +396,8 @@ constexpr T Clamp(
 /// If the given integer is not a power of 2, this function will not provide an exact answer.
 ///
 /// @returns log_2(u)
-template< typename T>
-PAL_INLINE uint32 Log2(
+template <typename T>
+uint32 Log2(
     T u)  ///< Value to compute the logarithm of.
 {
     uint32 logValue = 0;
@@ -416,8 +416,8 @@ PAL_INLINE uint32 Log2(
 /// If the given integer is not a power of 2, this function will not provide an exact answer.
 ///
 /// @returns ceilLog_2(u)
-template< typename T>
-PAL_INLINE uint32 CeilLog2(
+template <typename T>
+uint32 CeilLog2(
     T u)  ///< Value to compute the ceil logarithm of.
 {
     uint32 logValue = 0;
@@ -458,7 +458,7 @@ PAL_INLINE bool BitMaskScanForward(
 ///
 /// @returns True if input was nonzero; false otherwise.
 template <typename T, size_t N>
-PAL_INLINE bool WideBitMaskScanForward(
+bool WideBitMaskScanForward(
     uint32* pIndex,        ///< [out] Index of least-significant '1' bit.
     T       (&mask)[N])    ///< Bit-mask to scan.
 {
@@ -536,7 +536,7 @@ PAL_INLINE void Strncpy(
 {
     PAL_ASSERT(pDst != nullptr);
     PAL_ASSERT(pSrc != nullptr);
-    PAL_ASSERT(strlen(pSrc) < dstSize);
+    PAL_ALERT(strlen(pSrc) >= dstSize);
 
     strncpy(pDst, pSrc, (dstSize - 1));
     pDst[dstSize - 1] = '\0';
@@ -624,46 +624,63 @@ PAL_INLINE uint32 HashString(
 {
     PAL_ASSERT((pStr != nullptr) && (strSize > 0));
 
-    const uint32 fnvPrime  = 16777619;
-    const uint32 fnvOffset = 2166136261;
+    static constexpr uint32 FnvPrime  = 16777619u;
+    static constexpr uint32 FnvOffset = 2166136261u;
 
-    uint32 hash = fnvOffset;
+    uint32 hash = FnvOffset;
 
     for (uint32 i = 0; i < strSize; i++)
     {
         hash ^= static_cast<uint32>(pStr[i]);
-        hash *= fnvPrime;
+        hash *= FnvPrime;
     }
 
     return hash;
 }
 
-/// Counts the number of one bits (population count) in a 32-bit unsinged integer using some bitwise magic explained in
-/// the Software Optimization Guide for AMD64 Processors.
+///@{
+/// Counts the number of one bits (population count) in an unsigned integer using some bitwise magic explained in the
+/// Software Optimization Guide for AMD64 Processors.
+///
+/// @param [in] value  The value need to be counted.
 ///
 /// @returns Number of one bits in the input
-PAL_INLINE uint32 CountSetBits(
-    uint32  value)    ///< [in] The value need to be counted
+template <typename T>
+uint32 CountSetBits(
+    T  value)
 {
-    uint32 x = value;
+    uint32 x = static_cast<uint32>(value);
 
     x = x - ((x >> 1) & 0x55555555);
     x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
-    x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> ((sizeof(uint32) - 1) << 3);
 
     return x;
 }
+
+PAL_INLINE uint32 CountSetBits(
+    uint64  value)
+{
+    uint64 x = value;
+
+    x = x - ((x >> 1) & 0x5555555555555555ull);
+    x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
+    x = (((x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full) * 0x0101010101010101ull) >> ((sizeof(uint64) - 1) << 3);
+
+    return static_cast<uint32>(x);
+}
+///@}
 
 /// Indicates that an object may be moved from.
 /// Can be understood as preparation for possible move operation.
 ///
 /// @warning Do not read object after it has been moved from!
 ///
-/// @param[in] object Universal reference to an object that may be moved from.
+/// @param [in] object Universal reference to an object that may be moved from.
 ///
 /// @returns Rvalue reference to the parameter object.
 template <typename T>
-PAL_INLINE typename std::remove_reference<T>::type&& Move(T&& object)
+constexpr typename std::remove_reference<T>::type&& Move(T&& object)
 {
     // Cast universal reference to rvalue reference.
     return static_cast<typename std::remove_reference<T>::type&&>(object);
@@ -671,10 +688,10 @@ PAL_INLINE typename std::remove_reference<T>::type&& Move(T&& object)
 
 /// Exchanges values between two variables.
 ///
-/// @param[in] left First variable used in swap operation.
-/// @param[in] right Second variable used in swap operation.
+/// @param [in] left  First variable used in swap operation.
+/// @param [in] right Second variable used in swap operation.
 template <typename T>
-PAL_INLINE void Swap(T& left, T& right)
+void Swap(T& left, T& right)
 {
     T tmp = Move(left);
     left = Move(right);
@@ -687,7 +704,7 @@ using Array = Element[Size];
 
 /// Prevent swapping arrays because of the cost of this operation.
 template <typename Element, size_t Size>
-PAL_INLINE void Swap(Array<Element, Size>& a, Array<Element, Size>& b);
+void Swap(Array<Element, Size>& a, Array<Element, Size>& b);
 
 /// Compacts an array by moving all empty slots to the end of the array.
 ///         +---+---+---+---+---+---+---+---+---+---+

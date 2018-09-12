@@ -86,7 +86,7 @@ union alloc_DEBUG_DATA {
         unsigned int Reserved0                                                    :  3;
         unsigned int GDS_DEBUG_REG5_error_ds_address                              : 14;
         unsigned int Reserved1                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int GDS_DEBUG_REG5_write_dis                                     :  1;
         unsigned int GDS_DEBUG_REG5_dec_error                                     :  1;
@@ -96,7 +96,7 @@ union alloc_DEBUG_DATA {
         unsigned int Reserved0                                                    :  3;
         unsigned int GDS_DEBUG_REG5_error_ds_address                              : 14;
         unsigned int Reserved1                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2949,17 +2949,17 @@ union CB_DCC_CONFIG {
         unsigned int                                                              : 16;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  7;
-        unsigned int DISABLE_CONSTANT_ENCODE                                      :  1;
-        unsigned int                                                              : 24;
-    } gfx09_1xPlus;
-    struct {
         unsigned int                                                              : 16;
         unsigned int READ_RETURN_SKID_FIFO_DEPTH                                  :  7;
         unsigned int                                                              :  1;
         unsigned int DCC_CACHE_EVICT_POINT                                        :  4;
         unsigned int DCC_CACHE_NUM_TAGS                                           :  4;
     } gfx09;
+    struct {
+        unsigned int                                                              :  7;
+        unsigned int DISABLE_CONSTANT_ENCODE                                      :  1;
+        unsigned int                                                              : 24;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2974,6 +2974,11 @@ union CB_DCC_CONTROL {
         unsigned int                                                              : 25;
     } bits, bitfields;
     struct {
+        unsigned int                                                              :  1;
+        unsigned int OVERWRITE_COMBINER_MRT_SHARING_DISABLE                       :  1;
+        unsigned int                                                              : 30;
+    } gfx09;
+    struct {
         unsigned int                                                              :  8;
         unsigned int DISABLE_CONSTANT_ENCODE_AC01                                 :  1;
         unsigned int DISABLE_CONSTANT_ENCODE_SINGLE                               :  1;
@@ -2984,11 +2989,6 @@ union CB_DCC_CONTROL {
         unsigned int ENABLE_ELIMFC_SKIP_OF_REG                                    :  1;
         unsigned int                                                              : 17;
     } gfx09_1xPlus;
-    struct {
-        unsigned int                                                              :  1;
-        unsigned int OVERWRITE_COMBINER_MRT_SHARING_DISABLE                       :  1;
-        unsigned int                                                              : 30;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3022,7 +3022,7 @@ union CB_DEBUGBUS_1 {
         unsigned int FC_CLEAR_QUAD_VALID_READYB                                   :  1;
         unsigned int FC_CLEAR_QUAD_VALIDB_READY                                   :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CB_BUSY                                                      :  1;
         unsigned int DB_CB_TILE_VALID_READY                                       :  1;
@@ -3049,7 +3049,7 @@ union CB_DEBUGBUS_1 {
         unsigned int FC_CLEAR_QUAD_VALID_READYB                                   :  1;
         unsigned int FC_CLEAR_QUAD_VALIDB_READY                                   :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3083,7 +3083,7 @@ union CB_DEBUGBUS_2 {
         unsigned int CC_RB_BC_EVENFRAG_VALIDB_READY                               :  1;
         unsigned int CC_RB_BC_EVENFRAG_VALIDB_READYB                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FC_CLEAR_QUAD_VALIDB_READYB                                  :  1;
         unsigned int FC_QUAD_RESIDENCY_STALL                                      :  1;
@@ -3110,7 +3110,7 @@ union CB_DEBUGBUS_2 {
         unsigned int CC_RB_BC_EVENFRAG_VALIDB_READY                               :  1;
         unsigned int CC_RB_BC_EVENFRAG_VALIDB_READYB                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3144,7 +3144,7 @@ union CB_DEBUGBUS_3 {
         unsigned int CM_CACHE_REEVICTION_STALL                                    :  1;
         unsigned int CM_CACHE_EVICT_NONZERO_INFLIGHT_STALL                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_RB_BC_ODDFRAG_VALID_READY                                 :  1;
         unsigned int CC_RB_BC_ODDFRAG_VALID_READYB                                :  1;
@@ -3171,7 +3171,7 @@ union CB_DEBUGBUS_3 {
         unsigned int CM_CACHE_REEVICTION_STALL                                    :  1;
         unsigned int CM_CACHE_EVICT_NONZERO_INFLIGHT_STALL                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3205,7 +3205,7 @@ union CB_DEBUGBUS_4 {
         unsigned int CC_CACHE_REPLACE_PENDING_EVICT_STALL                         :  1;
         unsigned int CC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL                      :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CM_CACHE_REPLACE_PENDING_EVICT_STALL                         :  1;
         unsigned int CM_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL                      :  1;
@@ -3232,7 +3232,7 @@ union CB_DEBUGBUS_4 {
         unsigned int CC_CACHE_REPLACE_PENDING_EVICT_STALL                         :  1;
         unsigned int CC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL                      :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3258,7 +3258,7 @@ union CB_DEBUGBUS_5 {
         unsigned int CC_CACHE_TAGS_FLUSHED                                        :  1;
         unsigned int CC_CACHE_SECTORS_FLUSHED                                     :  3;
         unsigned int                                                              : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_CACHE_READ_OUTPUT_STALL                                   :  1;
         unsigned int CC_CACHE_WRITE_OUTPUT_STALL                                  :  1;
@@ -3277,7 +3277,7 @@ union CB_DEBUGBUS_5 {
         unsigned int CC_CACHE_TAGS_FLUSHED                                        :  1;
         unsigned int CC_CACHE_SECTORS_FLUSHED                                     :  3;
         unsigned int                                                              : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3295,7 +3295,7 @@ union CB_DEBUGBUS_6 {
         unsigned int CC_MC_WRITE_REQUEST                                          :  1;
         unsigned int CM_MC_READ_REQUESTS_IN_FLIGHT                                :  8;
         unsigned int                                                              : 15;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_CACHE_DIRTY_SECTORS_FLUSHED                               :  3;
         unsigned int CM_MC_READ_REQUEST                                           :  1;
@@ -3306,7 +3306,7 @@ union CB_DEBUGBUS_6 {
         unsigned int CC_MC_WRITE_REQUEST                                          :  1;
         unsigned int CM_MC_READ_REQUESTS_IN_FLIGHT                                :  8;
         unsigned int                                                              : 15;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3318,12 +3318,12 @@ union CB_DEBUGBUS_7 {
         unsigned int FC_MC_READ_REQUESTS_IN_FLIGHT                                : 11;
         unsigned int CC_MC_READ_REQUESTS_IN_FLIGHT                                : 10;
         unsigned int                                                              : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FC_MC_READ_REQUESTS_IN_FLIGHT                                : 11;
         unsigned int CC_MC_READ_REQUESTS_IN_FLIGHT                                : 10;
         unsigned int                                                              : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3339,7 +3339,7 @@ union CB_DEBUGBUS_8 {
         unsigned int FC_SEQUENCER_ELIMINATE_FAST_CLEAR                            :  1;
         unsigned int FC_SEQUENCER_CLEAR                                           :  1;
         unsigned int                                                              :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CM_MC_WRITE_REQUESTS_IN_FLIGHT                               :  8;
         unsigned int FC_MC_WRITE_REQUESTS_IN_FLIGHT                               : 11;
@@ -3348,7 +3348,7 @@ union CB_DEBUGBUS_8 {
         unsigned int FC_SEQUENCER_ELIMINATE_FAST_CLEAR                            :  1;
         unsigned int FC_SEQUENCER_CLEAR                                           :  1;
         unsigned int                                                              :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3370,7 +3370,7 @@ union CB_DEBUGBUS_9 {
         unsigned int EVENT_CACHE_FLUSH_TS                                         :  1;
         unsigned int EVENT_CONTEXT_DONE                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_MC_WRITE_REQUESTS_IN_FLIGHT                               : 10;
         unsigned int CC_SURFACE_SYNC                                              :  1;
@@ -3385,7 +3385,7 @@ union CB_DEBUGBUS_9 {
         unsigned int EVENT_CACHE_FLUSH_TS                                         :  1;
         unsigned int EVENT_CONTEXT_DONE                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3419,7 +3419,7 @@ union CB_DEBUGBUS_10 {
         unsigned int FOP_QUAD_HAS_3_FRAGMENTS_BEFORE_UPDATE                       :  1;
         unsigned int FOP_QUAD_HAS_4_FRAGMENTS_BEFORE_UPDATE                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int EVENT_CACHE_FLUSH                                            :  1;
         unsigned int EVENT_CACHE_FLUSH_AND_INV_TS_EVENT                           :  1;
@@ -3446,7 +3446,7 @@ union CB_DEBUGBUS_10 {
         unsigned int FOP_QUAD_HAS_3_FRAGMENTS_BEFORE_UPDATE                       :  1;
         unsigned int FOP_QUAD_HAS_4_FRAGMENTS_BEFORE_UPDATE                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3480,7 +3480,7 @@ union CB_DEBUGBUS_11 {
         unsigned int FOP_QUAD_REMOVED_4_FRAGMENTS                                 :  1;
         unsigned int FOP_QUAD_REMOVED_5_FRAGMENTS                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FOP_QUAD_HAS_5_FRAGMENTS_BEFORE_UPDATE                       :  1;
         unsigned int FOP_QUAD_HAS_6_FRAGMENTS_BEFORE_UPDATE                       :  1;
@@ -3507,7 +3507,7 @@ union CB_DEBUGBUS_11 {
         unsigned int FOP_QUAD_REMOVED_4_FRAGMENTS                                 :  1;
         unsigned int FOP_QUAD_REMOVED_5_FRAGMENTS                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3541,7 +3541,7 @@ union CB_DEBUGBUS_12 {
         unsigned int FC_QUAD_KILLED_BY_COLOR_INVALID                              :  1;
         unsigned int FC_QUAD_KILLED_BY_NULL_TARGET_SHADER_MASK                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FOP_QUAD_REMOVED_6_FRAGMENTS                                 :  1;
         unsigned int FOP_QUAD_REMOVED_7_FRAGMENTS                                 :  1;
@@ -3568,7 +3568,7 @@ union CB_DEBUGBUS_12 {
         unsigned int FC_QUAD_KILLED_BY_COLOR_INVALID                              :  1;
         unsigned int FC_QUAD_KILLED_BY_NULL_TARGET_SHADER_MASK                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3602,7 +3602,7 @@ union CB_DEBUGBUS_13 {
         unsigned int FC_PF_DCC_CACHE_DIRTY_SECTORS_FLUSHED                        :  1;
         unsigned int FC_PF_DCC_CACHE_TAGS_FLUSHED                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FC_PF_FC_KEYID_RDLAT_FIFO_FULL                               :  1;
         unsigned int FC_DOC_QTILE_CAM_MISS                                        :  1;
@@ -3629,7 +3629,7 @@ union CB_DEBUGBUS_13 {
         unsigned int FC_PF_DCC_CACHE_DIRTY_SECTORS_FLUSHED                        :  1;
         unsigned int FC_PF_DCC_CACHE_TAGS_FLUSHED                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3643,14 +3643,14 @@ union CB_DEBUGBUS_14 {
         unsigned int CC_PF_DCC_BEYOND_TILE_SPLIT                                  :  1;
         unsigned int CC_PF_DCC_RDREQ_STALL                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int FC_MC_DCC_WRITE_REQUESTS_IN_FLIGHT                           : 11;
         unsigned int FC_MC_DCC_READ_REQUESTS_IN_FLIGHT                            : 11;
         unsigned int CC_PF_DCC_BEYOND_TILE_SPLIT                                  :  1;
         unsigned int CC_PF_DCC_RDREQ_STALL                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3669,7 +3669,7 @@ union CB_DEBUGBUS_15 {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_6TO4                                :  2;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_6TO5                                :  2;
         unsigned int                                                              : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_2TO1                                :  3;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_4TO1                                :  2;
@@ -3681,7 +3681,7 @@ union CB_DEBUGBUS_15 {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_6TO4                                :  2;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_6TO5                                :  2;
         unsigned int                                                              : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3698,7 +3698,7 @@ union CB_DEBUGBUS_16 {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO6                                :  1;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO7                                :  1;
         unsigned int                                                              : 25;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO1                                :  1;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO2                                :  1;
@@ -3708,7 +3708,7 @@ union CB_DEBUGBUS_16 {
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO6                                :  1;
         unsigned int CC_PF_DCC_COMPRESS_RATIO_8TO7                                :  1;
         unsigned int                                                              : 25;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3730,7 +3730,7 @@ union CB_DEBUGBUS_17 {
         unsigned int LAST_RD_ARB_WINNER                                           :  1;
         unsigned int MU_STATE                                                     :  8;
         unsigned int                                                              : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int TILE_INTFC_BUSY                                              :  1;
         unsigned int MU_BUSY                                                      :  1;
@@ -3745,7 +3745,7 @@ union CB_DEBUGBUS_17 {
         unsigned int LAST_RD_ARB_WINNER                                           :  1;
         unsigned int MU_STATE                                                     :  8;
         unsigned int                                                              : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3777,7 +3777,7 @@ union CB_DEBUGBUS_18 {
         unsigned int DCS_READ_CC_PENDING                                          :  1;
         unsigned int DCS_WRITE_MC_PENDING                                         :  1;
         unsigned int                                                              : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int TILE_RETIREMENT_BUSY                                         :  1;
         unsigned int FOP_BUSY                                                     :  1;
@@ -3802,7 +3802,7 @@ union CB_DEBUGBUS_18 {
         unsigned int DCS_READ_CC_PENDING                                          :  1;
         unsigned int DCS_WRITE_MC_PENDING                                         :  1;
         unsigned int                                                              : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3819,7 +3819,7 @@ union CB_DEBUGBUS_19 {
         unsigned int DD_BUSY                                                      :  1;
         unsigned int DC_BUSY                                                      :  1;
         unsigned int                                                              : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int                                                              :  3;
         unsigned int SF_BUSY                                                      :  1;
@@ -3829,7 +3829,7 @@ union CB_DEBUGBUS_19 {
         unsigned int DD_BUSY                                                      :  1;
         unsigned int DC_BUSY                                                      :  1;
         unsigned int                                                              : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3853,7 +3853,7 @@ union CB_DEBUGBUS_20 {
         unsigned int CM_WRREQ_FIFO_EMPTY                                          :  1;
         unsigned int DCC_WRREQ_FIFO_EMPTY                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int MC_RDREQ_CREDITS                                             :  6;
         unsigned int MC_WRREQ_CREDITS                                             :  6;
@@ -3870,7 +3870,7 @@ union CB_DEBUGBUS_20 {
         unsigned int CM_WRREQ_FIFO_EMPTY                                          :  1;
         unsigned int DCC_WRREQ_FIFO_EMPTY                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3887,7 +3887,7 @@ union CB_DEBUGBUS_21 {
         unsigned int REG_SCLK1_VLD                                                :  1;
         unsigned int REG_SCLK0_VLD                                                :  1;
         unsigned int                                                              : 24;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int                                                              :  2;
         unsigned int CC_BUSY                                                      :  1;
@@ -3897,7 +3897,7 @@ union CB_DEBUGBUS_21 {
         unsigned int REG_SCLK1_VLD                                                :  1;
         unsigned int REG_SCLK0_VLD                                                :  1;
         unsigned int                                                              : 24;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3909,12 +3909,12 @@ union CB_DEBUGBUS_22 {
         unsigned int OUTSTANDING_MC_READS                                         : 12;
         unsigned int OUTSTANDING_MC_WRITES                                        : 12;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int OUTSTANDING_MC_READS                                         : 12;
         unsigned int OUTSTANDING_MC_WRITES                                        : 12;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11050,7 +11050,7 @@ union CP_SCRATCH_INDEX {
     struct {
         unsigned int SCRATCH_INDEX                                                :  8;
         unsigned int                                                              : 24;
-    } bits, bitfields;
+    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11867,17 +11867,17 @@ union DB_DEBUG2 {
         unsigned int DISABLE_WRITE_STALL_ON_RDWR_CONFLICT                         :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 26;
-        unsigned int DISABLE_VR_OBJ_PRIM_ID                                       :  1;
-        unsigned int DISABLE_VR_PS_INVOKE                                         :  1;
-        unsigned int                                                              :  4;
-    } gfx09_1xPlus;
-    struct {
         unsigned int                                                              : 15;
         unsigned int ENABLE_SUBTILE_GROUPING                                      :  1;
         unsigned int RESERVED                                                     :  1;
         unsigned int                                                              : 15;
     } gfx09;
+    struct {
+        unsigned int                                                              : 26;
+        unsigned int DISABLE_VR_OBJ_PRIM_ID                                       :  1;
+        unsigned int DISABLE_VR_PS_INVOKE                                         :  1;
+        unsigned int                                                              :  4;
+    } gfx09_1xPlus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11950,16 +11950,6 @@ union DB_DEBUG4 {
         unsigned int                                                              : 17;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 19;
-        unsigned int DB_EXTRA_DEBUG4                                              : 11;
-        unsigned int DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS                :  1;
-        unsigned int                                                              :  1;
-    } vg12;
-    struct {
-        unsigned int                                                              : 19;
-        unsigned int DB_EXTRA_DEBUG4                                              : 13;
-    } gfx09_0;
-    struct {
         unsigned int                                                              :  4;
         unsigned int DISABLE_4XAA_2P_ZD_HOLDOFF                                   :  1;
         unsigned int ENABLE_A2M_DQUAD_OPTIMIZATION                                :  1;
@@ -11975,9 +11965,19 @@ union DB_DEBUG4 {
         unsigned int                                                              : 13;
     } gfx09;
     struct {
+        unsigned int                                                              : 19;
+        unsigned int DB_EXTRA_DEBUG4                                              : 13;
+    } gfx09_0;
+    struct {
         unsigned int                                                              : 31;
         unsigned int FULL_TILE_CACHE_EVICT_ON_HALF_FULL                           :  1;
     } gfx09_1x;
+    struct {
+        unsigned int                                                              : 19;
+        unsigned int DB_EXTRA_DEBUG4                                              : 11;
+        unsigned int DISABLE_8PPC_OBJPRIMID_WHEN_NO_SHADER_EXPORTS                :  1;
+        unsigned int                                                              :  1;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11987,10 +11987,10 @@ union DB_DEBUG4 {
 union DB_DEBUG_BUS_0 {
     struct {
         unsigned int BUSY_DATA0                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int BUSY_DATA0                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12000,10 +12000,10 @@ union DB_DEBUG_BUS_0 {
 union DB_DEBUG_BUS_1 {
     struct {
         unsigned int BUSY_DATA1                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int BUSY_DATA1                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12013,10 +12013,10 @@ union DB_DEBUG_BUS_1 {
 union DB_DEBUG_BUS_2 {
     struct {
         unsigned int BUSY_DATA2                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int BUSY_DATA2                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12026,10 +12026,10 @@ union DB_DEBUG_BUS_2 {
 union DB_DEBUG_BUS_3 {
     struct {
         unsigned int BUSY_DATA3                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int BUSY_DATA3                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12039,10 +12039,10 @@ union DB_DEBUG_BUS_3 {
 union DB_DEBUG_BUS_4 {
     struct {
         unsigned int STALL_DATA0                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA0                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12052,10 +12052,10 @@ union DB_DEBUG_BUS_4 {
 union DB_DEBUG_BUS_5 {
     struct {
         unsigned int STALL_DATA1                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA1                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12065,10 +12065,10 @@ union DB_DEBUG_BUS_5 {
 union DB_DEBUG_BUS_6 {
     struct {
         unsigned int STALL_DATA2                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA2                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12078,10 +12078,10 @@ union DB_DEBUG_BUS_6 {
 union DB_DEBUG_BUS_7 {
     struct {
         unsigned int STALL_DATA3                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA3                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12091,10 +12091,10 @@ union DB_DEBUG_BUS_7 {
 union DB_DEBUG_BUS_8 {
     struct {
         unsigned int STALL_DATA4                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA4                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12104,10 +12104,10 @@ union DB_DEBUG_BUS_8 {
 union DB_DEBUG_BUS_9 {
     struct {
         unsigned int STALL_DATA5                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA5                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12117,10 +12117,10 @@ union DB_DEBUG_BUS_9 {
 union DB_DEBUG_BUS_A {
     struct {
         unsigned int STALL_DATA6                                                  : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STALL_DATA6                                                  : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12130,10 +12130,10 @@ union DB_DEBUG_BUS_A {
 union DB_DEBUG_BUS_B {
     struct {
         unsigned int INFO_DATA0                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INFO_DATA0                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12143,10 +12143,10 @@ union DB_DEBUG_BUS_B {
 union DB_DEBUG_BUS_C {
     struct {
         unsigned int INFO_DATA1                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INFO_DATA1                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12156,10 +12156,10 @@ union DB_DEBUG_BUS_C {
 union DB_DEBUG_BUS_D {
     struct {
         unsigned int INFO_DATA2                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INFO_DATA2                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12169,10 +12169,10 @@ union DB_DEBUG_BUS_D {
 union DB_DEBUG_BUS_E {
     struct {
         unsigned int INFO_DATA3                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INFO_DATA3                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -12182,10 +12182,10 @@ union DB_DEBUG_BUS_E {
 union DB_DEBUG_BUS_F {
     struct {
         unsigned int INFO_DATA4                                                   : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INFO_DATA4                                                   : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13392,7 +13392,7 @@ union DEBUG_BUS_ME0PIPE0_CF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13405,7 +13405,7 @@ union DEBUG_BUS_ME0PIPE0_CF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13425,7 +13425,7 @@ union DEBUG_BUS_ME0PIPE0_PF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13438,7 +13438,7 @@ union DEBUG_BUS_ME0PIPE0_PF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13458,7 +13458,7 @@ union DEBUG_BUS_ME0PIPE1_CF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13471,7 +13471,7 @@ union DEBUG_BUS_ME0PIPE1_CF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13491,7 +13491,7 @@ union DEBUG_BUS_ME0PIPE1_PF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13504,7 +13504,7 @@ union DEBUG_BUS_ME0PIPE1_PF {
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int oPIPE_AVAIL_SPACE                                            :  4;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13523,7 +13523,7 @@ union DEBUG_BUS_ME1PIPE0 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13535,7 +13535,7 @@ union DEBUG_BUS_ME1PIPE0 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13554,7 +13554,7 @@ union DEBUG_BUS_ME1PIPE1 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13566,7 +13566,7 @@ union DEBUG_BUS_ME1PIPE1 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13585,7 +13585,7 @@ union DEBUG_BUS_ME1PIPE2 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13597,7 +13597,7 @@ union DEBUG_BUS_ME1PIPE2 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13616,7 +13616,7 @@ union DEBUG_BUS_ME1PIPE3 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13628,7 +13628,7 @@ union DEBUG_BUS_ME1PIPE3 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13647,7 +13647,7 @@ union DEBUG_BUS_ME2PIPE0 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13659,7 +13659,7 @@ union DEBUG_BUS_ME2PIPE0 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13678,7 +13678,7 @@ union DEBUG_BUS_ME2PIPE1 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13690,7 +13690,7 @@ union DEBUG_BUS_ME2PIPE1 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13709,7 +13709,7 @@ union DEBUG_BUS_ME2PIPE2 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13721,7 +13721,7 @@ union DEBUG_BUS_ME2PIPE2 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13740,7 +13740,7 @@ union DEBUG_BUS_ME2PIPE3 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_PIPE_RTR                                                :  1;
         unsigned int oPIPE_SCH_RTS                                                :  1;
@@ -13752,7 +13752,7 @@ union DEBUG_BUS_ME2PIPE3 {
         unsigned int PIPE_FIFO_FULL                                               :  1;
         unsigned int iCPG_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 23;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13783,7 +13783,7 @@ union DEBUG_BUS_REG0 {
         unsigned int iRSMU_PIPE_BUSY                                              :  1;
         unsigned int GRBM_BUSY                                                    :  1;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int COMPUTE_PIPE_BUSY                                            :  1;
         unsigned int GFX_PIPE_BUSY                                                :  1;
@@ -13807,7 +13807,7 @@ union DEBUG_BUS_REG0 {
         unsigned int iRSMU_PIPE_BUSY                                              :  1;
         unsigned int GRBM_BUSY                                                    :  1;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13838,7 +13838,7 @@ union DEBUG_BUS_REG1 {
         unsigned int oPWR_REQUEST_HALT_GFX_TARG                                   :  1;
         unsigned int PWR_REQUEST_GFX_COMPLETE                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int INT_xXFER_ID                                                 :  2;
         unsigned int INT_XFER_ID                                                  :  2;
@@ -13862,7 +13862,7 @@ union DEBUG_BUS_REG1 {
         unsigned int oPWR_REQUEST_HALT_GFX_TARG                                   :  1;
         unsigned int PWR_REQUEST_GFX_COMPLETE                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13876,14 +13876,14 @@ union DEBUG_BUS_REG2 {
         unsigned int REGBUS_RE                                                    :  1;
         unsigned int REGBUS_WE                                                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int REGBUS_ADDR                                                  : 16;
         unsigned int REGBUS_WD                                                    :  6;
         unsigned int REGBUS_RE                                                    :  1;
         unsigned int REGBUS_WE                                                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13903,7 +13903,7 @@ union DEBUG_BUS_RLC {
         unsigned int RLC_FIFO_FULL                                                :  1;
         unsigned int iRLC_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 22;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSCH_RLC_RTR                                                 :  1;
         unsigned int oRLC_SCH_RTS                                                 :  1;
@@ -13916,7 +13916,7 @@ union DEBUG_BUS_RLC {
         unsigned int RLC_FIFO_FULL                                                :  1;
         unsigned int iRLC_GRBM_REG_SEND                                           :  1;
         unsigned int Reserved0                                                    : 22;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -13946,7 +13946,7 @@ union DEBUG_BUS_SCH0 {
         unsigned int oRBB_RLC_REQUEST                                             :  1;
         unsigned int oRBB_RSMU_REQUEST                                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int oSCH_SEND_SYSTEM                                             :  1;
         unsigned int oSCH_SEND_GRAPHICS_TARG_PWR_MASKED                           :  3;
@@ -13969,7 +13969,7 @@ union DEBUG_BUS_SCH0 {
         unsigned int oRBB_RLC_REQUEST                                             :  1;
         unsigned int oRBB_RSMU_REQUEST                                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14002,7 +14002,7 @@ union DEBUG_BUS_SCH1 {
         unsigned int oCPF_READ_PENDING                                            :  1;
         unsigned int oRBB_INTR_REQUEST                                            :  1;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int oGDS_DMA_READ_PENDING                                        :  1;
         unsigned int oME2PIPE3_READ_PENDING                                       :  1;
@@ -14028,7 +14028,7 @@ union DEBUG_BUS_SCH1 {
         unsigned int oCPF_READ_PENDING                                            :  1;
         unsigned int oRBB_INTR_REQUEST                                            :  1;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14050,7 +14050,7 @@ union DEBUG_BUS_SCH2 {
         unsigned int oSCH_SEND_GRAPHICS_TARG_GDS_MASKED                           :  3;
         unsigned int GRBM_IS_TRAPPED                                              :  1;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int oSCH_READ_GDS_DMA                                            :  1;
         unsigned int oSCH_READ_CPC                                                :  1;
@@ -14065,7 +14065,7 @@ union DEBUG_BUS_SCH2 {
         unsigned int oSCH_SEND_GRAPHICS_TARG_GDS_MASKED                           :  3;
         unsigned int GRBM_IS_TRAPPED                                              :  1;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14099,7 +14099,7 @@ union DEBUG_BUS_SCH3 {
         unsigned int SYSTEM_READ_PENDING                                          :  1;
         unsigned int TWO_READ_PENDING                                             :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iRSMU_GRBM_READ_VALID                                        :  1;
         unsigned int iGDS_GRBM_READ_FED                                           :  1;
@@ -14126,7 +14126,7 @@ union DEBUG_BUS_SCH3 {
         unsigned int SYSTEM_READ_PENDING                                          :  1;
         unsigned int TWO_READ_PENDING                                             :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14152,7 +14152,7 @@ union DEBUG_BUS_SCH_CNTL0 {
         unsigned int oSCH_ME1PIPE1_RTR                                            :  1;
         unsigned int oSCH_ME1PIPE0_RTR                                            :  1;
         unsigned int Reserved0                                                    : 16;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iME2PIPE3_SCH_RTS                                            :  1;
         unsigned int iME2PIPE2_SCH_RTS                                            :  1;
@@ -14171,7 +14171,7 @@ union DEBUG_BUS_SCH_CNTL0 {
         unsigned int oSCH_ME1PIPE1_RTR                                            :  1;
         unsigned int oSCH_ME1PIPE0_RTR                                            :  1;
         unsigned int Reserved0                                                    : 16;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14199,7 +14199,7 @@ union DEBUG_BUS_SCH_CNTL1 {
         unsigned int iINTR_SCH_RTS                                                :  1;
         unsigned int oSCH_INTR_RTR                                                :  1;
         unsigned int Reserved0                                                    : 14;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iGDS_DMA_SCH_RTS                                             :  1;
         unsigned int                                                              :  1;
@@ -14220,7 +14220,7 @@ union DEBUG_BUS_SCH_CNTL1 {
         unsigned int iINTR_SCH_RTS                                                :  1;
         unsigned int oSCH_INTR_RTR                                                :  1;
         unsigned int Reserved0                                                    : 14;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14247,7 +14247,7 @@ union DEBUG_BUS_SCH_CNTL2 {
         unsigned int CPF_RTS                                                      :  1;
         unsigned int INTR_RTS                                                     :  1;
         unsigned int Reserved0                                                    : 15;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ME2PIPE3_RTS                                                 :  1;
         unsigned int ME2PIPE2_RTS                                                 :  1;
@@ -14267,7 +14267,7 @@ union DEBUG_BUS_SCH_CNTL2 {
         unsigned int CPF_RTS                                                      :  1;
         unsigned int INTR_RTS                                                     :  1;
         unsigned int Reserved0                                                    : 15;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14287,7 +14287,7 @@ union DEBUG_BUS_SCH_CNTL3 {
         unsigned int CPF_XFC                                                      :  1;
         unsigned int INTR_XFC                                                     :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ME2PIPE_PRIORITY_ONE_EXISTS                                  :  1;
         unsigned int ME1PIPE_PRIORITY_ONE_EXISTS                                  :  1;
@@ -14300,7 +14300,7 @@ union DEBUG_BUS_SCH_CNTL3 {
         unsigned int CPF_XFC                                                      :  1;
         unsigned int INTR_XFC                                                     :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14334,7 +14334,7 @@ union DEBUG_BUS_SCH_CNTL4 {
         unsigned int RLC_XFC                                                      :  1;
         unsigned int RSMU_XFC                                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ME2PIPE3_CNT_NONZERO                                         :  1;
         unsigned int ME2PIPE2_CNT_NONZERO                                         :  1;
@@ -14361,7 +14361,7 @@ union DEBUG_BUS_SCH_CNTL4 {
         unsigned int RLC_XFC                                                      :  1;
         unsigned int RSMU_XFC                                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14374,13 +14374,13 @@ union DEBUG_BUS_SCH_HAND0 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE0SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE0SPI_ME0PIPE0_AVAIL_CNT0                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE0SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14393,13 +14393,13 @@ union DEBUG_BUS_SCH_HAND1 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE1SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE1SPI_ME0PIPE0_AVAIL_CNT0                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE1SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14412,13 +14412,13 @@ union DEBUG_BUS_SCH_HAND2 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE2SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE2SPI_ME0PIPE0_AVAIL_CNT0                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE2SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14431,13 +14431,13 @@ union DEBUG_BUS_SCH_HAND3 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE3SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE3SPI_ME0PIPE0_AVAIL_CNT0                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE3SPI_ME0PIPE1_AVAIL_CNT0                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14450,13 +14450,13 @@ union DEBUG_BUS_SCH_HAND4 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE0SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE0SPI_ME0PIPE0_AVAIL_CNT1                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE0SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14469,13 +14469,13 @@ union DEBUG_BUS_SCH_HAND5 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE1SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE1SPI_ME0PIPE0_AVAIL_CNT1                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE1SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14488,13 +14488,13 @@ union DEBUG_BUS_SCH_HAND6 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE2SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE2SPI_ME0PIPE0_AVAIL_CNT1                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE2SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14507,13 +14507,13 @@ union DEBUG_BUS_SCH_HAND7 {
         unsigned int Reserved0                                                    :  2;
         unsigned int SE3SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SE3SPI_ME0PIPE0_AVAIL_CNT1                                   :  6;
         unsigned int Reserved0                                                    :  2;
         unsigned int SE3SPI_ME0PIPE1_AVAIL_CNT1                                   :  6;
         unsigned int Reserved1                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14529,7 +14529,7 @@ union DEBUG_BUS_SCH_HAND8 {
         unsigned int CPF_AVAIL_CNT                                                :  4;
         unsigned int CPG_AVAIL_CNT                                                :  4;
         unsigned int Reserved2                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int GDS_AVAIL_CNT                                                :  5;
         unsigned int Reserved0                                                    :  3;
@@ -14538,7 +14538,7 @@ union DEBUG_BUS_SCH_HAND8 {
         unsigned int CPF_AVAIL_CNT                                                :  4;
         unsigned int CPG_AVAIL_CNT                                                :  4;
         unsigned int Reserved2                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14553,7 +14553,7 @@ union DEBUG_BUS_SCH_HAND9 {
         unsigned int Reserved1                                                    :  2;
         unsigned int iGRAPHICS_RBB_XFC_GFX_PWR_MASKED                             :  3;
         unsigned int Reserved2                                                    : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int WD_ME0PIPE0_AVAIL_CNT                                        :  6;
         unsigned int Reserved0                                                    :  2;
@@ -14561,7 +14561,7 @@ union DEBUG_BUS_SCH_HAND9 {
         unsigned int Reserved1                                                    :  2;
         unsigned int iGRAPHICS_RBB_XFC_GFX_PWR_MASKED                             :  3;
         unsigned int Reserved2                                                    : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14591,7 +14591,7 @@ union DEBUG_BUS_SCH_HAND10 {
         unsigned int oTARGETS_FOR_CPF_RDY                                         :  1;
         unsigned int oTARGETS_FOR_INTR_RDY                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iSYSTEM_RBB_XFC                                              :  1;
         unsigned int iGRAPHICS_RBB_XFC_PWR_MASKED                                 :  3;
@@ -14614,7 +14614,7 @@ union DEBUG_BUS_SCH_HAND10 {
         unsigned int oTARGETS_FOR_CPF_RDY                                         :  1;
         unsigned int oTARGETS_FOR_INTR_RDY                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14642,7 +14642,7 @@ union DEBUG_BUS_SCH_HAND11 {
         unsigned int oALL_TARGETS_FLUSHED                                         :  1;
         unsigned int oALL_GFX_TARGETS_FLUSHED                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int iALLOW_ME0PIPE1_WD_DMA_DRAW_INIT_REQUESTS                    :  1;
         unsigned int iALLOW_ME0PIPE1_WD_DMA_REQUESTS                              :  1;
@@ -14663,7 +14663,7 @@ union DEBUG_BUS_SCH_HAND11 {
         unsigned int oALL_TARGETS_FLUSHED                                         :  1;
         unsigned int oALL_GFX_TARGETS_FLUSHED                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14691,7 +14691,7 @@ union DEBUG_BUS_SCH_HAND12 {
         unsigned int CPF_READ_PENDING                                             :  1;
         unsigned int oTARGETS_RDY_CPF_AF                                          :  1;
         unsigned int Reserved0                                                    : 14;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int GDS_DMA_READ_PENDING                                         :  1;
         unsigned int ME2PIPE3_READ_PENDING                                        :  1;
@@ -14712,7 +14712,7 @@ union DEBUG_BUS_SCH_HAND12 {
         unsigned int CPF_READ_PENDING                                             :  1;
         unsigned int oTARGETS_RDY_CPF_AF                                          :  1;
         unsigned int Reserved0                                                    : 14;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14727,7 +14727,7 @@ union DEBUG_BUS_SCH_ME0PIPE0_WD_DMA {
         unsigned int VGT_DRAW_INITIATOR                                           :  1;
         unsigned int VGT_DMA_SIZE_REQ                                             :  1;
         unsigned int Reserved0                                                    : 17;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STOP_DMA_REQUEST                                             :  1;
         unsigned int iME0PIPEX_SKEW_TOP_THRESHOLD                                 :  6;
@@ -14735,7 +14735,7 @@ union DEBUG_BUS_SCH_ME0PIPE0_WD_DMA {
         unsigned int VGT_DRAW_INITIATOR                                           :  1;
         unsigned int VGT_DMA_SIZE_REQ                                             :  1;
         unsigned int Reserved0                                                    : 17;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -14750,7 +14750,7 @@ union DEBUG_BUS_SCH_ME0PIPE1_WD_DMA {
         unsigned int VGT_DRAW_INITIATOR                                           :  1;
         unsigned int VGT_DMA_SIZE_REQ                                             :  1;
         unsigned int Reserved0                                                    : 17;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int STOP_DMA_REQUEST                                             :  1;
         unsigned int iME0PIPEX_SKEW_TOP_THRESHOLD                                 :  6;
@@ -14758,7 +14758,7 @@ union DEBUG_BUS_SCH_ME0PIPE1_WD_DMA {
         unsigned int VGT_DRAW_INITIATOR                                           :  1;
         unsigned int VGT_DMA_SIZE_REQ                                             :  1;
         unsigned int Reserved0                                                    : 17;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15741,10 +15741,10 @@ union GC_CAC_ACC_BCI0 {
 union GC_CAC_ACC_BCI1 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15894,10 +15894,10 @@ union GC_CAC_ACC_CU2 {
 union GC_CAC_ACC_CU3 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -15907,10 +15907,10 @@ union GC_CAC_ACC_CU3 {
 union GC_CAC_ACC_CU4 {
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } vega;
+    } rv1x;
     struct {
         unsigned int ACCUMULATOR_31_0                                             : 32;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17133,20 +17133,20 @@ union GC_CAC_CNTL {
         unsigned int                                                              : 15;
     } bits, bitfields;
     struct {
-        unsigned int CAC_FORCE_DISABLE                                            :  1;
-        unsigned int                                                              : 31;
-    } vg12;
+        unsigned int                                                              : 17;
+        unsigned int CAC_BLOCK_ID                                                 :  6;
+        unsigned int CAC_SIGNAL_ID                                                :  8;
+        unsigned int                                                              :  1;
+    } gfx09;
     struct {
         unsigned int CAC_ENABLE                                                   :  1;
         unsigned int                                                              : 30;
         unsigned int UNUSED_0                                                     :  1;
     } gfx09_0;
     struct {
-        unsigned int                                                              : 17;
-        unsigned int CAC_BLOCK_ID                                                 :  6;
-        unsigned int CAC_SIGNAL_ID                                                :  8;
-        unsigned int                                                              :  1;
-    } gfx09;
+        unsigned int CAC_FORCE_DISABLE                                            :  1;
+        unsigned int                                                              : 31;
+    } vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17222,12 +17222,12 @@ union GC_CAC_OVRD_BCI {
         unsigned int OVRRD_SELECT                                                 :  2;
         unsigned int OVRRD_VALUE                                                  :  2;
         unsigned int                                                              : 28;
-    } vega;
+    } rv1x;
     struct {
         unsigned int OVRRD_SELECT                                                 :  2;
         unsigned int OVRRD_VALUE                                                  :  2;
         unsigned int                                                              : 28;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18490,6 +18490,10 @@ union GC_EDC_CTRL {
         unsigned int                                                              : 22;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 10;
+        unsigned int UNUSED_0                                                     : 22;
+    } gfx09_0;
+    struct {
         unsigned int                                                              : 11;
         unsigned int GC_EDC_ONLY_MODE                                             :  1;
         unsigned int EDC_THROTTLE_PATTERN_BIT_NUMS                                :  4;
@@ -18497,10 +18501,6 @@ union GC_EDC_CTRL {
         unsigned int RELEASE_STEP_INTERVAL                                        : 10;
         unsigned int                                                              :  2;
     } vg12;
-    struct {
-        unsigned int                                                              : 10;
-        unsigned int UNUSED_0                                                     : 22;
-    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20037,7 +20037,7 @@ union gws_DEBUG_DATA {
         unsigned int credit_cnt                                                   :  1;
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int                                                              :  3;
         unsigned int cur_reso_5to0                                                :  6;
@@ -20046,7 +20046,7 @@ union gws_DEBUG_DATA {
         unsigned int credit_cnt                                                   :  1;
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -20150,13 +20150,13 @@ union IA_DEBUG_REG9 {
         unsigned int SPARE0                                                       :  1;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 16;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 14;
         unsigned int SPARE0                                                       :  1;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 16;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21398,14 +21398,14 @@ union oa_wc0_DEBUG_DATA {
         unsigned int                                                              :  6;
         unsigned int req                                                          : 11;
         unsigned int Reserved0                                                    : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int                                                              :  1;
         unsigned int credit_cnt                                                   :  1;
         unsigned int                                                              :  6;
         unsigned int req                                                          : 11;
         unsigned int Reserved0                                                    : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21434,7 +21434,7 @@ union oa_wc1_DEBUG_DATA {
         unsigned int pipe0_busy6                                                  :  1;
         unsigned int pipe0_busy7                                                  :  1;
         unsigned int Reserved0                                                    : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pipe0_busy                                                   :  1;
         unsigned int pipe1_busy                                                   :  1;
@@ -21456,7 +21456,7 @@ union oa_wc1_DEBUG_DATA {
         unsigned int pipe0_busy6                                                  :  1;
         unsigned int pipe0_busy7                                                  :  1;
         unsigned int Reserved0                                                    : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21478,7 +21478,7 @@ union ord_app_DEBUG_DATA {
         unsigned int sh2_data_fifo_empty                                          :  1;
         unsigned int sh3_data_fifo_empty                                          :  1;
         unsigned int Reserved1                                                    : 20;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int fifo_busy                                                    :  1;
         unsigned int ord_busy                                                     :  1;
@@ -21493,7 +21493,7 @@ union ord_app_DEBUG_DATA {
         unsigned int sh2_data_fifo_empty                                          :  1;
         unsigned int sh3_data_fifo_empty                                          :  1;
         unsigned int Reserved1                                                    : 20;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21568,6 +21568,12 @@ union PA_CL_ENHANCE {
         unsigned int ECO_SPARE0                                                   :  1;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 28;
+        unsigned int ECO_SPARE3                                                   :  1;
+        unsigned int ECO_SPARE2                                                   :  1;
+        unsigned int                                                              :  2;
+    } gfx09Plus;
+    struct {
         unsigned int                                                              : 17;
         unsigned int PROG_NEAR_CLIP_PLANE_ENABLE                                  :  1;
         unsigned int OUTPUT_SWITCH_TO_LEGACY_EVENT                                :  1;
@@ -21576,12 +21582,6 @@ union PA_CL_ENHANCE {
         unsigned int TC_REQUEST_PERF_CNTR_ENABLE                                  :  1;
         unsigned int                                                              : 10;
     } gfx09_1xPlus;
-    struct {
-        unsigned int                                                              : 28;
-        unsigned int ECO_SPARE3                                                   :  1;
-        unsigned int ECO_SPARE2                                                   :  1;
-        unsigned int                                                              :  2;
-    } gfx09Plus;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23017,7 +23017,7 @@ union PA_DEBUG00_0 {
         unsigned int vte_out_orig_fifo_fifo_write                                 :  1;
         unsigned int vgt_to_clipp_fifo_write                                      :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clip_ga_bc_fifo_write                                        :  1;
         unsigned int su_clip_baryc_free                                           :  2;
@@ -23043,7 +23043,7 @@ union PA_DEBUG00_0 {
         unsigned int vte_out_orig_fifo_fifo_write                                 :  1;
         unsigned int vgt_to_clipp_fifo_write                                      :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23067,7 +23067,7 @@ union PA_DEBUG00_1 {
         unsigned int sx0_receive_fifo_write                                       :  1;
         unsigned int ccgen_to_clipcc_write                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vertex_fifo_entriesavailable                                 :  4;
         unsigned int statevar_bits_vs_out_ccdist1_vec_ena                         :  1;
@@ -23084,7 +23084,7 @@ union PA_DEBUG00_1 {
         unsigned int sx0_receive_fifo_write                                       :  1;
         unsigned int ccgen_to_clipcc_write                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23110,7 +23110,7 @@ union PA_DEBUG01_0 {
         unsigned int vte_out_clip_fifo_fifo_advanceread                           :  1;
         unsigned int vte_out_clip_fifo_fifo_empty                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clip_extra_bc_valid                                          :  3;
         unsigned int                                                              :  2;
@@ -23129,7 +23129,7 @@ union PA_DEBUG01_0 {
         unsigned int vte_out_clip_fifo_fifo_advanceread                           :  1;
         unsigned int vte_out_clip_fifo_fifo_empty                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23150,7 +23150,7 @@ union PA_DEBUG01_1 {
         unsigned int vte_out_clip_fifo_fifo_advanceread                           :  1;
         unsigned int vte_out_clip_fifo_fifo_empty                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ALWAYS_ZERO                                                  :  8;
         unsigned int clip_extra_bc_valid                                          :  3;
@@ -23164,7 +23164,7 @@ union PA_DEBUG01_1 {
         unsigned int vte_out_clip_fifo_fifo_advanceread                           :  1;
         unsigned int vte_out_clip_fifo_fifo_empty                                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23189,7 +23189,7 @@ union PA_DEBUG02_0 {
         unsigned int                                                              :  8;
         unsigned int clip_to_outsm_fifo_advanceread                               :  1;
         unsigned int clip_to_outsm_fifo_empty                                     :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clip_to_outsm_vertex_store_indx_2                            :  4;
         unsigned int clip_to_outsm_vertex_store_indx_1                            :  4;
@@ -23207,7 +23207,7 @@ union PA_DEBUG02_0 {
         unsigned int                                                              :  8;
         unsigned int clip_to_outsm_fifo_advanceread                               :  1;
         unsigned int clip_to_outsm_fifo_empty                                     :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23230,7 +23230,7 @@ union PA_DEBUG02_1 {
         unsigned int clip_to_outsm_fifo_advanceread                               :  1;
         unsigned int clip_to_outsm_fifo_empty                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clip_extra_bc_valid                                          :  3;
         unsigned int clip_vert_vte_valid                                          :  3;
@@ -23246,7 +23246,7 @@ union PA_DEBUG02_1 {
         unsigned int clip_to_outsm_fifo_advanceread                               :  1;
         unsigned int clip_to_outsm_fifo_empty                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23266,7 +23266,7 @@ union PA_DEBUG03_0 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm0_clprim_to_clip_clip_code_or                          :  6;
         unsigned int clipsm0_clprim_to_clip_event_id                              :  6;
@@ -23279,7 +23279,7 @@ union PA_DEBUG03_0 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23297,7 +23297,7 @@ union PA_DEBUG03_1 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm0_clprim_to_clip_clip_code_or                          : 14;
         unsigned int clipsm0_clprim_to_clip_event_id                              :  2;
@@ -23308,7 +23308,7 @@ union PA_DEBUG03_1 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23325,7 +23325,7 @@ union PA_DEBUG04_0 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm0_clprim_to_clip_param_cache_indx_0                    :  3;
         unsigned int clipsm0_clprim_to_clip_vertex_store_indx_2                   :  6;
@@ -23335,7 +23335,7 @@ union PA_DEBUG04_0 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23351,7 +23351,7 @@ union PA_DEBUG04_1 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm0_clprim_to_clip_param_cache_indx_0                    : 11;
         unsigned int clipsm0_clprim_to_clip_vertex_store_indx_2                   :  5;
@@ -23360,7 +23360,7 @@ union PA_DEBUG04_1 {
         unsigned int clipsm0_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23380,7 +23380,7 @@ union PA_DEBUG05_0 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm1_clprim_to_clip_clip_code_or                          :  6;
         unsigned int clipsm1_clprim_to_clip_event_id                              :  6;
@@ -23393,7 +23393,7 @@ union PA_DEBUG05_0 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23411,7 +23411,7 @@ union PA_DEBUG05_1 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm1_clprim_to_clip_clip_code_or                          : 14;
         unsigned int clipsm1_clprim_to_clip_event_id                              :  2;
@@ -23422,7 +23422,7 @@ union PA_DEBUG05_1 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23439,7 +23439,7 @@ union PA_DEBUG06_0 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm1_clprim_to_clip_param_cache_indx_0                    :  3;
         unsigned int clipsm1_clprim_to_clip_vertex_store_indx_2                   :  6;
@@ -23449,7 +23449,7 @@ union PA_DEBUG06_0 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23465,7 +23465,7 @@ union PA_DEBUG06_1 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm1_clprim_to_clip_param_cache_indx_0                    : 11;
         unsigned int clipsm1_clprim_to_clip_vertex_store_indx_2                   :  5;
@@ -23474,7 +23474,7 @@ union PA_DEBUG06_1 {
         unsigned int clipsm1_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm1_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23494,7 +23494,7 @@ union PA_DEBUG07_0 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm2_clprim_to_clip_clip_code_or                          :  6;
         unsigned int clipsm2_clprim_to_clip_event_id                              :  6;
@@ -23507,7 +23507,7 @@ union PA_DEBUG07_0 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23525,7 +23525,7 @@ union PA_DEBUG07_1 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm2_clprim_to_clip_clip_code_or                          : 14;
         unsigned int clipsm2_clprim_to_clip_event_id                              :  2;
@@ -23536,7 +23536,7 @@ union PA_DEBUG07_1 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23553,7 +23553,7 @@ union PA_DEBUG08_0 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm2_clprim_to_clip_param_cache_indx_0                    :  3;
         unsigned int clipsm2_clprim_to_clip_vertex_store_indx_2                   :  6;
@@ -23563,7 +23563,7 @@ union PA_DEBUG08_0 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23579,7 +23579,7 @@ union PA_DEBUG08_1 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm2_clprim_to_clip_param_cache_indx_0                    : 11;
         unsigned int clipsm2_clprim_to_clip_vertex_store_indx_2                   :  5;
@@ -23588,7 +23588,7 @@ union PA_DEBUG08_1 {
         unsigned int clipsm2_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm2_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23608,7 +23608,7 @@ union PA_DEBUG09_0 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clprim_to_clip_clip_code_or                          :  6;
         unsigned int clipsm3_clprim_to_clip_event_id                              :  6;
@@ -23621,7 +23621,7 @@ union PA_DEBUG09_0 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23639,7 +23639,7 @@ union PA_DEBUG09_1 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clprim_to_clip_clip_code_or                          : 14;
         unsigned int clipsm3_clprim_to_clip_event_id                              :  2;
@@ -23650,7 +23650,7 @@ union PA_DEBUG09_1 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23667,7 +23667,7 @@ union PA_DEBUG10_0 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clprim_to_clip_param_cache_indx_0                    :  3;
         unsigned int clipsm3_clprim_to_clip_vertex_store_indx_2                   :  6;
@@ -23677,7 +23677,7 @@ union PA_DEBUG10_0 {
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int clipsm3_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23692,7 +23692,7 @@ union PA_DEBUG10_1 {
         unsigned int clipsm3_clprim_to_clip_event                                 :  1;
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int                                                              :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clprim_to_clip_param_cache_indx_0                    : 11;
         unsigned int clipsm3_clprim_to_clip_vertex_store_indx_2                   :  5;
@@ -23700,7 +23700,7 @@ union PA_DEBUG10_1 {
         unsigned int clipsm3_clprim_to_clip_event                                 :  1;
         unsigned int clipsm3_clprim_to_clip_null_primitive                        :  1;
         unsigned int                                                              :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23722,7 +23722,7 @@ union PA_DEBUG11_0 {
         unsigned int clipsm1_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int clipsm0_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clip_to_clipga_clip_to_outsm_cnt                     :  4;
         unsigned int clipsm2_clip_to_clipga_clip_to_outsm_cnt                     :  4;
@@ -23737,7 +23737,7 @@ union PA_DEBUG11_0 {
         unsigned int clipsm1_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int clipsm0_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23765,7 +23765,7 @@ union PA_DEBUG11_1 {
         unsigned int clipsm1_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int clipsm0_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipsm3_clip_to_clipga_event                                 :  1;
         unsigned int clipsm2_clip_to_clipga_event                                 :  1;
@@ -23786,7 +23786,7 @@ union PA_DEBUG11_1 {
         unsigned int clipsm1_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int clipsm0_inc_clip_to_clipga_clip_to_outsm_cnt                 :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23809,7 +23809,7 @@ union PA_DEBUG12_0 {
         unsigned int clipsm0_clprim_to_clip_clip_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clip_priority_available_vte_out_clip                         :  5;
         unsigned int clip_priority_available_clip_verts                           :  5;
@@ -23825,7 +23825,7 @@ union PA_DEBUG12_0 {
         unsigned int clipsm0_clprim_to_clip_clip_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23846,7 +23846,7 @@ union PA_DEBUG12_1 {
         unsigned int clipsm0_clprim_to_clip_clip_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ALWAYS_ZERO                                                  :  8;
         unsigned int clip_priority_available_vte_out_clip                         :  5;
@@ -23860,7 +23860,7 @@ union PA_DEBUG12_1 {
         unsigned int clipsm0_clprim_to_clip_clip_primitive                        :  1;
         unsigned int clipsm0_clprim_to_clip_prim_valid                            :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23882,7 +23882,7 @@ union PA_DEBUG13_0 {
         unsigned int outsm_clr_fifo_advanceread                                   :  1;
         unsigned int outsm_clr_fifo_write                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vertval_bits_vertex_cc_next_valid                            :  4;
         unsigned int clipcc_vertex_store_indx                                     :  2;
@@ -23897,7 +23897,7 @@ union PA_DEBUG13_0 {
         unsigned int outsm_clr_fifo_advanceread                                   :  1;
         unsigned int outsm_clr_fifo_write                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23921,7 +23921,7 @@ union PA_DEBUG13_1 {
         unsigned int outsm_clr_fifo_advanceread                                   :  1;
         unsigned int outsm_clr_fifo_write                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clprim_in_back_state_var_indx                                :  3;
         unsigned int point_clip_candidate                                         :  1;
@@ -23938,7 +23938,7 @@ union PA_DEBUG13_1 {
         unsigned int outsm_clr_fifo_advanceread                                   :  1;
         unsigned int outsm_clr_fifo_write                                         :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23957,7 +23957,7 @@ union PA_DEBUG14_0 {
         unsigned int clprim_in_back_event                                         :  1;
         unsigned int prim_back_valid                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clprim_in_back_vertex_store_indx_1                           :  4;
         unsigned int clprim_in_back_vertex_store_indx_0                           :  6;
@@ -23969,7 +23969,7 @@ union PA_DEBUG14_0 {
         unsigned int clprim_in_back_event                                         :  1;
         unsigned int prim_back_valid                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -23985,7 +23985,7 @@ union PA_DEBUG14_1 {
         unsigned int clprim_in_back_event                                         :  1;
         unsigned int prim_back_valid                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clprim_in_back_vertex_store_indx_2                           :  6;
         unsigned int clprim_in_back_vertex_store_indx_1                           :  6;
@@ -23994,7 +23994,7 @@ union PA_DEBUG14_1 {
         unsigned int clprim_in_back_event                                         :  1;
         unsigned int prim_back_valid                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24009,7 +24009,7 @@ union PA_DEBUG15_0 {
         unsigned int primic_to_clprim_fifo_vertex_store_indx_0                    :  5;
         unsigned int primic_to_clprim_valid                                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vertval_bits_vertex_vertex_store_msb                         :  8;
         unsigned int primic_to_clprim_fifo_vertex_store_indx_2                    :  5;
@@ -24017,7 +24017,7 @@ union PA_DEBUG15_0 {
         unsigned int primic_to_clprim_fifo_vertex_store_indx_0                    :  5;
         unsigned int primic_to_clprim_valid                                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24031,14 +24031,14 @@ union PA_DEBUG15_1 {
         unsigned int primic_to_clprim_fifo_vertex_store_indx_0                    :  5;
         unsigned int primic_to_clprim_valid                                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vertval_bits_vertex_vertex_store_msb                         : 16;
         unsigned int primic_to_clprim_fifo_vertex_store_indx_1                    :  2;
         unsigned int primic_to_clprim_fifo_vertex_store_indx_0                    :  5;
         unsigned int primic_to_clprim_valid                                       :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24058,7 +24058,7 @@ union PA_DEBUG16_0 {
         unsigned int sm0_outputcliptoga_0                                         :  1;
         unsigned int sm0_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm0_clip_vert_cnt                                            :  5;
         unsigned int sm0_vertex_clip_cnt                                          :  5;
@@ -24071,7 +24071,7 @@ union PA_DEBUG16_0 {
         unsigned int sm0_outputcliptoga_0                                         :  1;
         unsigned int sm0_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24091,7 +24091,7 @@ union PA_DEBUG16_1 {
         unsigned int sm0_outputcliptoga_0                                         :  1;
         unsigned int sm0_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm0_prim_end_state                                           :  7;
         unsigned int sm0_ps_expand                                                :  1;
@@ -24104,7 +24104,7 @@ union PA_DEBUG16_1 {
         unsigned int sm0_outputcliptoga_0                                         :  1;
         unsigned int sm0_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24124,7 +24124,7 @@ union PA_DEBUG17_0 {
         unsigned int sm1_outputcliptoga_0                                         :  1;
         unsigned int sm1_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm1_clip_vert_cnt                                            :  5;
         unsigned int sm1_vertex_clip_cnt                                          :  5;
@@ -24137,7 +24137,7 @@ union PA_DEBUG17_0 {
         unsigned int sm1_outputcliptoga_0                                         :  1;
         unsigned int sm1_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24157,7 +24157,7 @@ union PA_DEBUG17_1 {
         unsigned int sm1_outputcliptoga_0                                         :  1;
         unsigned int sm1_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm1_prim_end_state                                           :  7;
         unsigned int sm1_ps_expand                                                :  1;
@@ -24170,7 +24170,7 @@ union PA_DEBUG17_1 {
         unsigned int sm1_outputcliptoga_0                                         :  1;
         unsigned int sm1_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24190,7 +24190,7 @@ union PA_DEBUG18_0 {
         unsigned int sm2_outputcliptoga_0                                         :  1;
         unsigned int sm2_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm2_clip_vert_cnt                                            :  5;
         unsigned int sm2_vertex_clip_cnt                                          :  5;
@@ -24203,7 +24203,7 @@ union PA_DEBUG18_0 {
         unsigned int sm2_outputcliptoga_0                                         :  1;
         unsigned int sm2_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24223,7 +24223,7 @@ union PA_DEBUG18_1 {
         unsigned int sm2_outputcliptoga_0                                         :  1;
         unsigned int sm2_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm2_prim_end_state                                           :  7;
         unsigned int sm2_ps_expand                                                :  1;
@@ -24236,7 +24236,7 @@ union PA_DEBUG18_1 {
         unsigned int sm2_outputcliptoga_0                                         :  1;
         unsigned int sm2_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24256,7 +24256,7 @@ union PA_DEBUG19_0 {
         unsigned int sm3_outputcliptoga_0                                         :  1;
         unsigned int sm3_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm3_clip_vert_cnt                                            :  5;
         unsigned int sm3_vertex_clip_cnt                                          :  5;
@@ -24269,7 +24269,7 @@ union PA_DEBUG19_0 {
         unsigned int sm3_outputcliptoga_0                                         :  1;
         unsigned int sm3_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24289,7 +24289,7 @@ union PA_DEBUG19_1 {
         unsigned int sm3_outputcliptoga_0                                         :  1;
         unsigned int sm3_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sm3_prim_end_state                                           :  7;
         unsigned int sm3_ps_expand                                                :  1;
@@ -24302,7 +24302,7 @@ union PA_DEBUG19_1 {
         unsigned int sm3_outputcliptoga_0                                         :  1;
         unsigned int sm3_clprim_to_clip_prim_valid                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24320,7 +24320,7 @@ union PA_DEBUG20_0 {
         unsigned int sx_pending_rd_aux_inc                                        :  1;
         unsigned int sx_pending_rd_advance                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int point_address                                                :  1;
         unsigned int sx_pending_rd_state_var_indx                                 :  3;
@@ -24331,7 +24331,7 @@ union PA_DEBUG20_0 {
         unsigned int sx_pending_rd_aux_inc                                        :  1;
         unsigned int sx_pending_rd_advance                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24350,7 +24350,7 @@ union PA_DEBUG20_1 {
         unsigned int sx_pending_rd_aux_inc                                        :  1;
         unsigned int sx_pending_rd_advance                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int position_address                                             :  6;
         unsigned int point_address                                                :  3;
@@ -24362,7 +24362,7 @@ union PA_DEBUG20_1 {
         unsigned int sx_pending_rd_aux_inc                                        :  1;
         unsigned int sx_pending_rd_advance                                        :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24381,7 +24381,7 @@ union PA_DEBUG21_0 {
         unsigned int pasx_req_cnt_1                                               :  4;
         unsigned int pasx_req_cnt_0                                               :  4;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sx_receive_indx                                              :  2;
         unsigned int sx_pending_fifo_contents                                     :  5;
@@ -24393,7 +24393,7 @@ union PA_DEBUG21_0 {
         unsigned int pasx_req_cnt_1                                               :  4;
         unsigned int pasx_req_cnt_0                                               :  4;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24409,7 +24409,7 @@ union PA_DEBUG21_1 {
         unsigned int pasx_req_cnt_1                                               :  4;
         unsigned int pasx_req_cnt_0                                               :  4;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int available_positions                                          :  7;
         unsigned int sx_receive_indx                                              :  3;
@@ -24418,7 +24418,7 @@ union PA_DEBUG21_1 {
         unsigned int pasx_req_cnt_1                                               :  4;
         unsigned int pasx_req_cnt_0                                               :  4;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24434,7 +24434,7 @@ union PA_DEBUG22_0 {
         unsigned int vgt_to_ccgen_state_var_indx                                  :  3;
         unsigned int vgt_to_ccgen_active_verts                                    :  6;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int su_aux                                                       :  1;
         unsigned int sx_request_indx                                              :  6;
@@ -24443,7 +24443,7 @@ union PA_DEBUG22_0 {
         unsigned int vgt_to_ccgen_state_var_indx                                  :  3;
         unsigned int vgt_to_ccgen_active_verts                                    :  6;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24459,7 +24459,7 @@ union PA_DEBUG22_1 {
         unsigned int vgt_to_ccgen_state_var_indx                                  :  2;
         unsigned int vgt_to_ccgen_active_verts                                    :  6;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int param_cache_base                                             :  7;
         unsigned int su_aux                                                       :  2;
@@ -24468,7 +24468,7 @@ union PA_DEBUG22_1 {
         unsigned int vgt_to_ccgen_state_var_indx                                  :  2;
         unsigned int vgt_to_ccgen_active_verts                                    :  6;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24490,7 +24490,7 @@ union PA_DEBUG23_0 {
         unsigned int geom_busy                                                    :  1;
         unsigned int event_id_gated_1to0                                          :  2;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int su_baryc_cntl_state                                          :  2;
         unsigned int su_cntl_state                                                :  4;
@@ -24505,7 +24505,7 @@ union PA_DEBUG23_0 {
         unsigned int geom_busy                                                    :  1;
         unsigned int event_id_gated_1to0                                          :  2;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24521,7 +24521,7 @@ union PA_DEBUG24_0 {
         unsigned int cl_dyn_sclk_vld                                              :  1;
         unsigned int y_sort0_gated_23_8                                           : 16;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int event_id_gated_5to2                                          :  4;
         unsigned int event_gated                                                  :  1;
@@ -24530,7 +24530,7 @@ union PA_DEBUG24_0 {
         unsigned int cl_dyn_sclk_vld                                              :  1;
         unsigned int y_sort0_gated_23_8                                           : 16;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24542,12 +24542,12 @@ union PA_DEBUG25_0 {
         unsigned int x_sort0_gated_23_8                                           : 16;
         unsigned int y_sort1_gated_15_8                                           :  8;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int x_sort0_gated_23_8                                           : 16;
         unsigned int y_sort1_gated_15_8                                           :  8;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24559,12 +24559,12 @@ union PA_DEBUG26_0 {
         unsigned int y_sort1_gated_23_16                                          :  8;
         unsigned int x_sort1_gated_23_8                                           : 16;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int y_sort1_gated_23_16                                          :  8;
         unsigned int x_sort1_gated_23_8                                           : 16;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24576,12 +24576,12 @@ union PA_DEBUG27_0 {
         unsigned int y_sort2_gated_23_8                                           : 16;
         unsigned int x_sort2_gated_15_8                                           :  8;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int y_sort2_gated_23_8                                           : 16;
         unsigned int x_sort2_gated_15_8                                           :  8;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24595,14 +24595,14 @@ union PA_DEBUG28_0 {
         unsigned int null_prim_gated                                              :  1;
         unsigned int backfacing_gated                                             :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int x_sort2_gated_23to16                                         :  8;
         unsigned int attr_indx_sort0_gated                                        : 14;
         unsigned int null_prim_gated                                              :  1;
         unsigned int backfacing_gated                                             :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24621,7 +24621,7 @@ union PA_DEBUG29_0 {
         unsigned int eop_gated                                                    :  1;
         unsigned int attr_indx_sort2_gated_7to0                                   :  8;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int st_indx_gated                                                :  3;
         unsigned int clipped_gated                                                :  1;
@@ -24633,7 +24633,7 @@ union PA_DEBUG29_0 {
         unsigned int eop_gated                                                    :  1;
         unsigned int attr_indx_sort2_gated_7to0                                   :  8;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24648,7 +24648,7 @@ union PA_DEBUG30_0 {
         unsigned int valid_prim_gated                                             :  1;
         unsigned int pa_reg_sclk_vld                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int attr_indx_sort2_gated_13to8                                  :  6;
         unsigned int attr_indx_sort1_gated                                        : 14;
@@ -24656,7 +24656,7 @@ union PA_DEBUG30_0 {
         unsigned int valid_prim_gated                                             :  1;
         unsigned int pa_reg_sclk_vld                                              :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24690,7 +24690,7 @@ union PA_DEBUG31_0 {
         unsigned int clipper_busy_debug_primic_to_clprim_valid                    :  1;
         unsigned int clipper_busy_debug_clipsm_clip_to_outsm_fifo_write           :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int VGT_PA_clipv_send_q                                          :  1;
         unsigned int VGT_PA_clips_send_q                                          :  1;
@@ -24717,7 +24717,7 @@ union PA_DEBUG31_0 {
         unsigned int clipper_busy_debug_primic_to_clprim_valid                    :  1;
         unsigned int clipper_busy_debug_clipsm_clip_to_outsm_fifo_write           :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24751,7 +24751,7 @@ union PA_DEBUG32_0 {
         unsigned int clipper_busy_debug_vgt_to_clipp_fifo_write                   :  1;
         unsigned int clipper_busy_debug_vgt_to_clips_fifo_busy                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipper_busy_debug_clipsm3_current_state_not_empty           :  1;
         unsigned int clipper_busy_debug_clipsm2_current_state_not_empty           :  1;
@@ -24778,7 +24778,7 @@ union PA_DEBUG32_0 {
         unsigned int clipper_busy_debug_vgt_to_clipp_fifo_write                   :  1;
         unsigned int clipper_busy_debug_vgt_to_clips_fifo_busy                    :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24791,13 +24791,13 @@ union PA_DEBUG33_0 {
         unsigned int                                                              :  3;
         unsigned int PA_SE3SC_freeze                                              :  1;
         unsigned int Reserved0                                                    : 27;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int clipper_busy_debug_vgt_to_clips_fifo_write                   :  1;
         unsigned int                                                              :  3;
         unsigned int PA_SE3SC_freeze                                              :  1;
         unsigned int Reserved0                                                    : 27;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24819,7 +24819,7 @@ union PA_DEBUG34_0 {
         unsigned int ngg_sideband_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_sideband_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_sideband_utc_driver_tag                                  :  8;
         unsigned int ngg_sideband_utc_driver_client_send_reg_rtr_out              :  1;
@@ -24834,7 +24834,7 @@ union PA_DEBUG34_0 {
         unsigned int ngg_sideband_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_sideband_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24844,10 +24844,10 @@ union PA_DEBUG34_0 {
 union PA_DEBUG34_1 {
     struct {
         unsigned int ngg_utcl1_debug00                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug00                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24869,7 +24869,7 @@ union PA_DEBUG35_0 {
         unsigned int ngg_index_utc_driver_outcl1_send_vmid                        :  4;
         unsigned int ngg_index_utc_driver_outcl1_send_type                        :  2;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_index_utc_driver_tag                                     :  8;
         unsigned int ngg_index_utc_driver_client_send_fifo_read                   :  1;
@@ -24884,7 +24884,7 @@ union PA_DEBUG35_0 {
         unsigned int ngg_index_utc_driver_outcl1_send_vmid                        :  4;
         unsigned int ngg_index_utc_driver_outcl1_send_type                        :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24894,10 +24894,10 @@ union PA_DEBUG35_0 {
 union PA_DEBUG35_1 {
     struct {
         unsigned int ngg_utcl1_debug01                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug01                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24919,7 +24919,7 @@ union PA_DEBUG36_0 {
         unsigned int ngg_position_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_position_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_position_utc_driver_tag                                  :  8;
         unsigned int ngg_position_utc_driver_client_send_fifo_read                :  1;
@@ -24934,7 +24934,7 @@ union PA_DEBUG36_0 {
         unsigned int ngg_position_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_position_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24944,10 +24944,10 @@ union PA_DEBUG36_0 {
 union PA_DEBUG36_1 {
     struct {
         unsigned int ngg_utcl1_debug02                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug02                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24971,7 +24971,7 @@ union PA_DEBUG37_0 {
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_sideband_utc_receiver_busy                         :  1;
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_rtr_out           :  1;
@@ -24988,7 +24988,7 @@ union PA_DEBUG37_0 {
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24998,10 +24998,10 @@ union PA_DEBUG37_0 {
 union PA_DEBUG37_1 {
     struct {
         unsigned int ngg_utcl1_debug03                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug03                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25025,7 +25025,7 @@ union PA_DEBUG38_0 {
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_vmid         :  4;
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_tag          :  8;
         unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_index_utc_receiver_busy                            :  1;
         unsigned int ngg_debug_index_utc_receiver_output_reg_rtr_out              :  1;
@@ -25042,7 +25042,7 @@ union PA_DEBUG38_0 {
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_vmid         :  4;
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_tag          :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25052,10 +25052,10 @@ union PA_DEBUG38_0 {
 union PA_DEBUG38_1 {
     struct {
         unsigned int ngg_utcl1_debug04                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug04                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25079,7 +25079,7 @@ union PA_DEBUG39_0 {
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_position_utc_receiver_busy                         :  1;
         unsigned int ngg_debug_position_utc_receiver_output_reg_rtr_out           :  1;
@@ -25096,7 +25096,7 @@ union PA_DEBUG39_0 {
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25106,10 +25106,10 @@ union PA_DEBUG39_0 {
 union PA_DEBUG39_1 {
     struct {
         unsigned int ngg_utcl1_debug05                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug05                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25123,14 +25123,14 @@ union PA_DEBUG40_0 {
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_tag             :  8;
         unsigned int ngg_debug_tc_request_arbiter_ostream0_client_rtr             :  1;
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_rts             :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_tc_request_arbiter_current_client_count            :  2;
         unsigned int                                                              : 20;
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_tag             :  8;
         unsigned int ngg_debug_tc_request_arbiter_ostream0_client_rtr             :  1;
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_rts             :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25140,10 +25140,10 @@ union PA_DEBUG40_0 {
 union PA_DEBUG40_1 {
     struct {
         unsigned int ngg_utcl1_debug06                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug06                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25169,7 +25169,7 @@ union PA_DEBUG41_0 {
         unsigned int ngg_debug_tc_if_data_wr_ptr                                  :  1;
         unsigned int ngg_debug_tc_if_outstanding_tc_requests                      : 10;
         unsigned int Reserved0                                                    :  3;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_tc_if_credit_count_overflow                        :  1;
         unsigned int ngg_debug_tc_if_credit_count_underflow                       :  1;
@@ -25188,7 +25188,7 @@ union PA_DEBUG41_0 {
         unsigned int ngg_debug_tc_if_data_wr_ptr                                  :  1;
         unsigned int ngg_debug_tc_if_outstanding_tc_requests                      : 10;
         unsigned int Reserved0                                                    :  3;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25198,10 +25198,10 @@ union PA_DEBUG41_0 {
 union PA_DEBUG41_1 {
     struct {
         unsigned int ngg_utcl1_debug07                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug07                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25224,7 +25224,7 @@ union PA_DEBUG42_0 {
         unsigned int ngg_debug_sideband_current_sideband_event_bit_set            :  1;
         unsigned int ngg_debug_sideband_have_available_sideband_tokens            :  1;
         unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_sideband_sideband_tokens_not_max_value             :  1;
         unsigned int ngg_debug_sideband_pending_subgroup_count_not_zero           :  1;
@@ -25240,7 +25240,7 @@ union PA_DEBUG42_0 {
         unsigned int ngg_debug_sideband_current_sideband_event_bit_set            :  1;
         unsigned int ngg_debug_sideband_have_available_sideband_tokens            :  1;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25250,10 +25250,10 @@ union PA_DEBUG42_0 {
 union PA_DEBUG42_1 {
     struct {
         unsigned int ngg_utcl1_debug08                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug08                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25272,7 +25272,7 @@ union PA_DEBUG43_0 {
         unsigned int ngg_debug_sideband_wdif_current_state                        :  1;
         unsigned int ngg_debug_sideband_wdif_osideband_active                     :  1;
         unsigned int Reserved0                                                    : 20;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_sideband_wdif_ovmid                                :  4;
         unsigned int ngg_debug_sideband_wdif_vmid_fifo_busy                       :  1;
@@ -25284,7 +25284,7 @@ union PA_DEBUG43_0 {
         unsigned int ngg_debug_sideband_wdif_current_state                        :  1;
         unsigned int ngg_debug_sideband_wdif_osideband_active                     :  1;
         unsigned int Reserved0                                                    : 20;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25294,10 +25294,10 @@ union PA_DEBUG43_0 {
 union PA_DEBUG43_1 {
     struct {
         unsigned int ngg_utcl1_debug09                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug09                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25313,7 +25313,7 @@ union PA_DEBUG44_0 {
         unsigned int ngg_debug_sideband_memory_contents0                          :  8;
         unsigned int ngg_debug_sideband_memory_contents1                          :  8;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_sideband_memory_contents1_underflow                :  1;
         unsigned int ngg_debug_sideband_memory_contents1_overflow                 :  1;
@@ -25322,7 +25322,7 @@ union PA_DEBUG44_0 {
         unsigned int ngg_debug_sideband_memory_contents0                          :  8;
         unsigned int ngg_debug_sideband_memory_contents1                          :  8;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25332,10 +25332,10 @@ union PA_DEBUG44_0 {
 union PA_DEBUG44_1 {
     struct {
         unsigned int ngg_utcl1_debug10                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug10                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25362,7 +25362,7 @@ union PA_DEBUG45_0 {
         unsigned int ngg_debug_index_index_receive_fifo_full                      :  1;
         unsigned int ngg_debug_index_have_available_index_tokens                  :  1;
         unsigned int Reserved0                                                    :  2;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_index_index_tokens_underflow                       :  1;
         unsigned int ngg_debug_index_index_tokens_overflow                        :  1;
@@ -25382,7 +25382,7 @@ union PA_DEBUG45_0 {
         unsigned int ngg_debug_index_index_receive_fifo_full                      :  1;
         unsigned int ngg_debug_index_have_available_index_tokens                  :  1;
         unsigned int Reserved0                                                    :  2;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25392,10 +25392,10 @@ union PA_DEBUG45_0 {
 union PA_DEBUG45_1 {
     struct {
         unsigned int ngg_utcl1_debug11                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug11                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25429,7 +25429,7 @@ union PA_DEBUG46_0 {
         unsigned int ngg_debug_position_request_start_prev_diff                   :  1;
         unsigned int ngg_debug_position_request_end_start_diff                    :  1;
         unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_position_request_position_tokens_underflow         :  1;
         unsigned int ngg_debug_position_request_position_tokens_overflow          :  1;
@@ -25456,7 +25456,7 @@ union PA_DEBUG46_0 {
         unsigned int ngg_debug_position_request_start_prev_diff                   :  1;
         unsigned int ngg_debug_position_request_end_start_diff                    :  1;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25466,10 +25466,10 @@ union PA_DEBUG46_0 {
 union PA_DEBUG46_1 {
     struct {
         unsigned int ngg_utcl1_debug12                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug12                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25493,7 +25493,7 @@ union PA_DEBUG47_0 {
         unsigned int ngg_debug_position_reuse_input_sideband_dword_event_bit      :  1;
         unsigned int ngg_debug_position_reuse_input_sideband_dword_state_id       :  3;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_position_reuse_sideband_fifo_full                  :  1;
         unsigned int ngg_debug_position_reuse_sideband_fifo_empty                 :  1;
@@ -25510,7 +25510,7 @@ union PA_DEBUG47_0 {
         unsigned int ngg_debug_position_reuse_input_sideband_dword_event_bit      :  1;
         unsigned int ngg_debug_position_reuse_input_sideband_dword_state_id       :  3;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25520,10 +25520,10 @@ union PA_DEBUG47_0 {
 union PA_DEBUG47_1 {
     struct {
         unsigned int ngg_utcl1_debug13                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug13                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25546,7 +25546,7 @@ union PA_DEBUG48_0 {
         unsigned int ngg_debug_position_return_active_pos_return_first_vert       :  1;
         unsigned int ngg_debug_position_return_active_pos_return_cache_pos_index  :  2;
         unsigned int Reserved0                                                    : 16;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_position_return_ifetch_to_sxif_fifo_full           :  1;
         unsigned int ngg_debug_position_return_ipa_to_wd_dealloc_position_full    :  1;
@@ -25562,7 +25562,7 @@ union PA_DEBUG48_0 {
         unsigned int ngg_debug_position_return_active_pos_return_first_vert       :  1;
         unsigned int ngg_debug_position_return_active_pos_return_cache_pos_index  :  2;
         unsigned int Reserved0                                                    : 16;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25572,10 +25572,10 @@ union PA_DEBUG48_0 {
 union PA_DEBUG48_1 {
     struct {
         unsigned int ngg_utcl1_debug14                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug14                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25595,7 +25595,7 @@ union PA_DEBUG49_0 {
         unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream2     :  1;
         unsigned int ngg_debug_tc_return_if_crawler_busy                          :  1;
         unsigned int Reserved0                                                    : 22;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_tc_return_if_memreg0_busy                          :  1;
         unsigned int ngg_debug_tc_return_if_oreturn_empty_stream0                 :  1;
@@ -25608,7 +25608,7 @@ union PA_DEBUG49_0 {
         unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream2     :  1;
         unsigned int ngg_debug_tc_return_if_crawler_busy                          :  1;
         unsigned int Reserved0                                                    : 22;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25618,10 +25618,10 @@ union PA_DEBUG49_0 {
 union PA_DEBUG49_1 {
     struct {
         unsigned int ngg_utcl1_debug15                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug15                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25638,7 +25638,7 @@ union PA_DEBUG50_0 {
         unsigned int ngg_debug_return_crawler_memory_data_valid_stream2_count     :  8;
         unsigned int ngg_debug_return_crawler_obusy                               :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_return_crawler_encountered_error_writing_to_busy_location_stream0 :  1;
         unsigned int ngg_debug_return_crawler_encountered_error_writing_to_busy_location_stream1 :  1;
@@ -25648,7 +25648,7 @@ union PA_DEBUG50_0 {
         unsigned int ngg_debug_return_crawler_memory_data_valid_stream2_count     :  8;
         unsigned int ngg_debug_return_crawler_obusy                               :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25658,10 +25658,10 @@ union PA_DEBUG50_0 {
 union PA_DEBUG50_1 {
     struct {
         unsigned int ngg_utcl1_debug16                                            : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_utcl1_debug16                                            : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25679,7 +25679,7 @@ union PA_DEBUG51_0 {
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_state_var_index       :  3;
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_type                  :  1;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_wd_dealloc_pa_to_wd_dealloc_fifo_read              :  1;
         unsigned int ngg_debug_wd_dealloc_pa_to_wd_dealloc_fifo_empty             :  1;
@@ -25690,7 +25690,7 @@ union PA_DEBUG51_0 {
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_state_var_index       :  3;
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_type                  :  1;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25715,7 +25715,7 @@ union PA_DEBUG52_0 {
         unsigned int ngg_debug_shootdown_control_oclean                           :  1;
         unsigned int ngg_debug_shootdown_control_current_state                    :  3;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_shootdown_control_iutcl1_busy                      :  1;
         unsigned int ngg_debug_shootdown_control_iposition_requester_idle         :  1;
@@ -25733,7 +25733,7 @@ union PA_DEBUG52_0 {
         unsigned int ngg_debug_shootdown_control_oclean                           :  1;
         unsigned int ngg_debug_shootdown_control_current_state                    :  3;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25758,7 +25758,7 @@ union PA_DEBUG53_0 {
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream1 :  1;
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream2 :  1;
         unsigned int Reserved0                                                    : 17;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_fatal_events_status_fatal_tc_credit_count_overflow :  1;
         unsigned int ngg_debug_fatal_events_status_fatal_tc_credit_count_underflow :  1;
@@ -25776,7 +25776,7 @@ union PA_DEBUG53_0 {
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream1 :  1;
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream2 :  1;
         unsigned int Reserved0                                                    : 17;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25800,7 +25800,7 @@ union PA_DEBUG54_0 {
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_index_full  :  1;
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_position_full :  1;
         unsigned int Reserved0                                                    : 18;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_fifo_full_status_fifo_sideband_pop_bit_fifo_full   :  1;
         unsigned int ngg_debug_fifo_full_status_fifo_vmid_fifo_full               :  1;
@@ -25817,7 +25817,7 @@ union PA_DEBUG54_0 {
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_index_full  :  1;
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_position_full :  1;
         unsigned int Reserved0                                                    : 18;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25840,7 +25840,7 @@ union PA_DEBUG55_0 {
         unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream2   :  1;
         unsigned int ngg_debug_fifo_empty_status_fifo_pa_to_wd_dealloc_fifo_empty :  1;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int ngg_debug_fifo_empty_status_fifo_sideband_pop_bit_fifo_empty :  1;
         unsigned int ngg_debug_fifo_empty_status_fifo_vmid_fifo_empty             :  1;
@@ -25856,7 +25856,7 @@ union PA_DEBUG55_0 {
         unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream2   :  1;
         unsigned int ngg_debug_fifo_empty_status_fifo_pa_to_wd_dealloc_fifo_empty :  1;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26674,14 +26674,14 @@ union PA_SC_ENHANCE_1 {
         unsigned int                                                              :  9;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 23;
-        unsigned int RSVD                                                         :  9;
-    } gfx09_0;
-    struct {
         unsigned int                                                              : 13;
         unsigned int DISABLE_PACKER_GRAD_FDCE_ENHANCE                             :  1;
         unsigned int                                                              : 18;
     } gfx09;
+    struct {
+        unsigned int                                                              : 23;
+        unsigned int RSVD                                                         :  9;
+    } gfx09_0;
     struct {
         unsigned int                                                              : 31;
         unsigned int RSVD                                                         :  1;
@@ -30603,13 +30603,13 @@ union rbuf_DEBUG_DATA {
         unsigned int pixel_addr_mask                                              : 15;
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int                                                              :  2;
         unsigned int pixel_addr_mask                                              : 15;
         unsigned int                                                              :  7;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31316,7 +31316,7 @@ union RMI_DEBUGBUS_0 {
         unsigned int DYN_CLK_CMN_VLD                                              :  1;
         unsigned int REG_CLK_VLD                                                  :  1;
         unsigned int BUSY                                                         :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID7                      :  1;
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID6                      :  1;
@@ -31350,7 +31350,7 @@ union RMI_DEBUGBUS_0 {
         unsigned int DYN_CLK_CMN_VLD                                              :  1;
         unsigned int REG_CLK_VLD                                                  :  1;
         unsigned int BUSY                                                         :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31391,7 +31391,7 @@ union RMI_DEBUGBUS_1 {
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID10                     :  1;
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID9                      :  1;
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID8                      :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RB0_RMI_RDREQ_BUSY                                           :  1;
         unsigned int RB0_RMI_RDREQ_ALL_CID                                        :  1;
@@ -31425,7 +31425,7 @@ union RMI_DEBUGBUS_1 {
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID10                     :  1;
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID9                      :  1;
         unsigned int RMI_INVALIDATION_REQ_START_FINISH_VMID8                      :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31452,7 +31452,7 @@ union RMI_DEBUGBUS_2 {
         unsigned int RB0_RMI_WRREQ_RESIDENCY                                      :  1;
         unsigned int RB0_RMI_WRREQ_BURST_ALL_ORONE_CID                            :  1;
         unsigned int RB0_RMI_WRREQ_INFLIGHT_ALL_ORONE_CID                         : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_UTC_REQ0                                                 :  1;
         unsigned int RMI_RB0_WRRET_VALID_NACK3                                    :  1;
@@ -31472,7 +31472,7 @@ union RMI_DEBUGBUS_2 {
         unsigned int RB0_RMI_WRREQ_RESIDENCY                                      :  1;
         unsigned int RB0_RMI_WRREQ_BURST_ALL_ORONE_CID                            :  1;
         unsigned int RB0_RMI_WRREQ_INFLIGHT_ALL_ORONE_CID                         : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31489,7 +31489,7 @@ union RMI_DEBUGBUS_3 {
         unsigned int RB0_RMI_32BRDREQ_CID2                                        :  4;
         unsigned int RB0_RMI_32BRDREQ_CID1                                        :  4;
         unsigned int RB0_RMI_32BRDREQ_CID0                                        :  4;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RB0_RMI_32BRDREQ_CID7                                        :  4;
         unsigned int RB0_RMI_32BRDREQ_CID6                                        :  4;
@@ -31499,7 +31499,7 @@ union RMI_DEBUGBUS_3 {
         unsigned int RB0_RMI_32BRDREQ_CID2                                        :  4;
         unsigned int RB0_RMI_32BRDREQ_CID1                                        :  4;
         unsigned int RB0_RMI_32BRDREQ_CID0                                        :  4;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31523,7 +31523,7 @@ union RMI_DEBUGBUS_4 {
         unsigned int RB0_RMI_RDREQ_CID1                                           :  1;
         unsigned int RB0_RMI_RDREQ_CID0                                           :  1;
         unsigned int RB0_RMI_32BRDREQ_ALL_CID                                     :  4;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_UTC_BUSY0                                                :  1;
         unsigned int RMI_RB0_32BRDRET_VALID_ALL_CID                               :  1;
@@ -31540,7 +31540,7 @@ union RMI_DEBUGBUS_4 {
         unsigned int RB0_RMI_RDREQ_CID1                                           :  1;
         unsigned int RB0_RMI_RDREQ_CID0                                           :  1;
         unsigned int RB0_RMI_32BRDREQ_ALL_CID                                     :  4;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31573,7 +31573,7 @@ union RMI_DEBUGBUS_5 {
         unsigned int RMI_RB0_32BRDRET_VALID_CID2                                  :  1;
         unsigned int RMI_RB0_32BRDRET_VALID_CID1                                  :  1;
         unsigned int RMI_RB0_32BRDRET_VALID_CID0                                  :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI0_TC_RDREQ_ALL_CID                                        :  1;
         unsigned int RMI0_TC_WRREQ_INFLIGHT_ALL_CID                               :  9;
@@ -31599,7 +31599,7 @@ union RMI_DEBUGBUS_5 {
         unsigned int RMI_RB0_32BRDRET_VALID_CID2                                  :  1;
         unsigned int RMI_RB0_32BRDRET_VALID_CID1                                  :  1;
         unsigned int RMI_RB0_32BRDRET_VALID_CID0                                  :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31624,7 +31624,7 @@ union RMI_DEBUGBUS_6 {
         unsigned int RMI0_TC_RDREQ_CID2                                           :  1;
         unsigned int RMI0_TC_RDREQ_CID1                                           :  1;
         unsigned int RMI0_TC_RDREQ_CID0                                           :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int XNACK_FIFO_FULL                                              :  1;
         unsigned int XNACK_FIFO_NUM_USED                                          :  9;
@@ -31642,7 +31642,7 @@ union RMI_DEBUGBUS_6 {
         unsigned int RMI0_TC_RDREQ_CID2                                           :  1;
         unsigned int RMI0_TC_RDREQ_CID1                                           :  1;
         unsigned int RMI0_TC_RDREQ_CID0                                           :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31677,7 +31677,7 @@ union RMI_DEBUGBUS_7 {
         unsigned int LAT_FIFO_0_NUM_USED                                          :  7;
         unsigned int UTCL1_UTCL2_REQ                                              :  1;
         unsigned int UTCL1_BUSY                                                   :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int DEMUX_TCIW_FORMATTER0_RTS_RTRB                               :  1;
         unsigned int DEMUX_TCIW_FORMATTER0_RTSB_RTR                               :  1;
@@ -31705,7 +31705,7 @@ union RMI_DEBUGBUS_7 {
         unsigned int LAT_FIFO_0_NUM_USED                                          :  7;
         unsigned int UTCL1_UTCL2_REQ                                              :  1;
         unsigned int UTCL1_BUSY                                                   :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31722,7 +31722,7 @@ union RMI_DEBUGBUS_8 {
         unsigned int PRT_FIFO_0_NUM_USED                                          :  9;
         unsigned int TCIW0_INFLIGHT_COUNT                                         :  9;
         unsigned int SKID_FIFO_0_DEPTH                                            :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int WRREQCONSUMER0_XBAR_WRREQ_RTSB_RTRB                          :  1;
         unsigned int WRREQCONSUMER0_XBAR_WRREQ_RTS_RTRB                           :  1;
@@ -31732,7 +31732,7 @@ union RMI_DEBUGBUS_8 {
         unsigned int PRT_FIFO_0_NUM_USED                                          :  9;
         unsigned int TCIW0_INFLIGHT_COUNT                                         :  9;
         unsigned int SKID_FIFO_0_DEPTH                                            :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31773,7 +31773,7 @@ union RMI_DEBUGBUS_9 {
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTS_RTRB                           :  1;
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTSB_RTR                           :  1;
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTS_RTR                            :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SKID_FIFO_0_OUT_RTSB                                         :  1;
         unsigned int SKID_FIFO_0_OUT_RTS                                          :  1;
@@ -31807,7 +31807,7 @@ union RMI_DEBUGBUS_9 {
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTS_RTRB                           :  1;
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTSB_RTR                           :  1;
         unsigned int RDREQCONSUMER0_XBAR_RDREQ_RTS_RTR                            :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31848,7 +31848,7 @@ union RMI_DEBUGBUS_10 {
         unsigned int XBAR_PROBEGEN0_WRITE_RTS_RTR                                 :  1;
         unsigned int XBAR_PROBEGEN0_READ_RTS_RTR                                  :  1;
         unsigned int RESERVED0                                                    :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int UTCL1_STALL_LFIFO_NOT_RES1                                   :  1;
         unsigned int RB1_RMI_RDREQ_BUSY                                           :  1;
@@ -31882,7 +31882,7 @@ union RMI_DEBUGBUS_10 {
         unsigned int XBAR_PROBEGEN0_WRITE_RTS_RTR                                 :  1;
         unsigned int XBAR_PROBEGEN0_READ_RTS_RTR                                  :  1;
         unsigned int RESERVED0                                                    :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31909,7 +31909,7 @@ union RMI_DEBUGBUS_11 {
         unsigned int RB1_RMI_WRREQ_CID2                                           :  1;
         unsigned int RB1_RMI_WRREQ_CID1                                           :  1;
         unsigned int RB1_RMI_WRREQ_CID0                                           :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_UTC_REQ1                                                 :  1;
         unsigned int RMI_RB1_WRRET_VALID_NACK3                                    :  1;
@@ -31929,7 +31929,7 @@ union RMI_DEBUGBUS_11 {
         unsigned int RB1_RMI_WRREQ_CID2                                           :  1;
         unsigned int RB1_RMI_WRREQ_CID1                                           :  1;
         unsigned int RB1_RMI_WRREQ_CID0                                           :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31946,7 +31946,7 @@ union RMI_DEBUGBUS_12 {
         unsigned int RB1_RMI_32BRDREQ_CID2                                        :  4;
         unsigned int RB1_RMI_32BRDREQ_CID1                                        :  4;
         unsigned int RB1_RMI_32BRDREQ_CID0                                        :  4;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RB1_RMI_32BRDREQ_CID7                                        :  4;
         unsigned int RB1_RMI_32BRDREQ_CID6                                        :  4;
@@ -31956,7 +31956,7 @@ union RMI_DEBUGBUS_12 {
         unsigned int RB1_RMI_32BRDREQ_CID2                                        :  4;
         unsigned int RB1_RMI_32BRDREQ_CID1                                        :  4;
         unsigned int RB1_RMI_32BRDREQ_CID0                                        :  4;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31980,7 +31980,7 @@ union RMI_DEBUGBUS_13 {
         unsigned int RB1_RMI_RDREQ_CID1                                           :  1;
         unsigned int RB1_RMI_RDREQ_CID0                                           :  1;
         unsigned int RB1_RMI_32BRDREQ_ALL_CID                                     :  4;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_UTC_BUSY1                                                :  1;
         unsigned int RMI_RB1_32BRDRET_VALID_ALL_CID                               :  1;
@@ -31997,7 +31997,7 @@ union RMI_DEBUGBUS_13 {
         unsigned int RB1_RMI_RDREQ_CID1                                           :  1;
         unsigned int RB1_RMI_RDREQ_CID0                                           :  1;
         unsigned int RB1_RMI_32BRDREQ_ALL_CID                                     :  4;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32030,7 +32030,7 @@ union RMI_DEBUGBUS_14 {
         unsigned int RMI_RB1_32BRDRET_VALID_CID2                                  :  1;
         unsigned int RMI_RB1_32BRDRET_VALID_CID1                                  :  1;
         unsigned int RMI_RB1_32BRDRET_VALID_CID0                                  :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI1_TC_RDREQ_ALL_CID                                        :  1;
         unsigned int RMI1_TC_WRREQ_INFLIGHT_ALL_CID                               :  9;
@@ -32056,7 +32056,7 @@ union RMI_DEBUGBUS_14 {
         unsigned int RMI_RB1_32BRDRET_VALID_CID2                                  :  1;
         unsigned int RMI_RB1_32BRDRET_VALID_CID1                                  :  1;
         unsigned int RMI_RB1_32BRDRET_VALID_CID0                                  :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32088,7 +32088,7 @@ union RMI_DEBUGBUS_15 {
         unsigned int RMI1_TC_RDREQ_CID2                                           :  1;
         unsigned int RMI1_TC_RDREQ_CID1                                           :  1;
         unsigned int RMI1_TC_RDREQ_CID0                                           :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RMI_RB1_WRRET_VALID_CID7                                     :  1;
         unsigned int RMI_RB1_WRRET_VALID_CID6                                     :  1;
@@ -32113,7 +32113,7 @@ union RMI_DEBUGBUS_15 {
         unsigned int RMI1_TC_RDREQ_CID2                                           :  1;
         unsigned int RMI1_TC_RDREQ_CID1                                           :  1;
         unsigned int RMI1_TC_RDREQ_CID0                                           :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32147,7 +32147,7 @@ union RMI_DEBUGBUS_16 {
         unsigned int LAT_FIFO_1_NONBLOCKING_REQ                                   :  1;
         unsigned int LAT_FIFO_1_BLOCKING_REQ                                      :  1;
         unsigned int LAT_FIFO_1_NUM_USED                                          :  7;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int XBAR_PROBEGEN1_RTSB_RTRB                                     :  1;
         unsigned int XBAR_PROBEGEN1_RTS_RTRB                                      :  1;
@@ -32174,7 +32174,7 @@ union RMI_DEBUGBUS_16 {
         unsigned int LAT_FIFO_1_NONBLOCKING_REQ                                   :  1;
         unsigned int LAT_FIFO_1_BLOCKING_REQ                                      :  1;
         unsigned int LAT_FIFO_1_NUM_USED                                          :  7;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32191,7 +32191,7 @@ union RMI_DEBUGBUS_17 {
         unsigned int PRT_FIFO_1_NUM_USED                                          :  9;
         unsigned int TCIW1_INFLIGHT_COUNT                                         :  9;
         unsigned int SKID_FIFO_1_DEPTH                                            :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int WRREQCONSUMER1_XBAR_WRREQ_RTSB_RTRB                          :  1;
         unsigned int WRREQCONSUMER1_XBAR_WRREQ_RTS_RTRB                           :  1;
@@ -32201,7 +32201,7 @@ union RMI_DEBUGBUS_17 {
         unsigned int PRT_FIFO_1_NUM_USED                                          :  9;
         unsigned int TCIW1_INFLIGHT_COUNT                                         :  9;
         unsigned int SKID_FIFO_1_DEPTH                                            :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32241,7 +32241,7 @@ union RMI_DEBUGBUS_18 {
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTS_RTRB                           :  1;
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTSB_RTR                           :  1;
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTS_RTR                            :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RESERVED0                                                    :  2;
         unsigned int SKID_FIFO_1_IN_RTSB                                          :  1;
@@ -32274,7 +32274,7 @@ union RMI_DEBUGBUS_18 {
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTS_RTRB                           :  1;
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTSB_RTR                           :  1;
         unsigned int RDREQCONSUMER1_XBAR_RDREQ_RTS_RTR                            :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32306,7 +32306,7 @@ union RMI_DEBUGBUS_19 {
         unsigned int XBAR_PROBEGEN1_IN0_RTS_RTR                                   :  1;
         unsigned int XBAR_PROBEGEN1_WRITE_RTS_RTR                                 :  1;
         unsigned int XBAR_PROBEGEN1_READ_RTS_RTR                                  :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int Reserved0                                                    : 10;
         unsigned int RMI_RB1_EARLY_WRACK_NACK3                                    :  1;
@@ -32331,7 +32331,7 @@ union RMI_DEBUGBUS_19 {
         unsigned int XBAR_PROBEGEN1_IN0_RTS_RTR                                   :  1;
         unsigned int XBAR_PROBEGEN1_WRITE_RTS_RTR                                 :  1;
         unsigned int XBAR_PROBEGEN1_READ_RTS_RTR                                  :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32368,7 +32368,7 @@ union RMI_DEBUGBUS_20 {
         unsigned int UTC_OUT_STALL_SOURCE                                         :  3;
         unsigned int UTC_IN_STALL_SOURCE                                          :  3;
         unsigned int UTCL1_INFLIGHT_WATERMARK_HIT                                 :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RB0_WRREQ_CONSUMER_FIFO_EMPTY                                :  1;
         unsigned int RB0_RDREQ_CONSUMER_FIFO_EMPTY                                :  1;
@@ -32398,7 +32398,7 @@ union RMI_DEBUGBUS_20 {
         unsigned int UTC_OUT_STALL_SOURCE                                         :  3;
         unsigned int UTC_IN_STALL_SOURCE                                          :  3;
         unsigned int UTCL1_INFLIGHT_WATERMARK_HIT                                 :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32429,7 +32429,7 @@ union RMI_DEBUGBUS_21 {
         unsigned int XBAR_PROBEGEN0_RTS                                           :  1;
         unsigned int XBAR_PROBEGEN1_RTR                                           :  1;
         unsigned int XBAR_PROBEGEN1_RTS                                           :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int TCIW0_PRODUCER_CREDIT_CNT                                    :  6;
         unsigned int TCIW1_PRODUCER_CREDIT_CNT                                    :  6;
@@ -32453,7 +32453,7 @@ union RMI_DEBUGBUS_21 {
         unsigned int XBAR_PROBEGEN0_RTS                                           :  1;
         unsigned int XBAR_PROBEGEN1_RTR                                           :  1;
         unsigned int XBAR_PROBEGEN1_RTS                                           :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32466,13 +32466,13 @@ union RMI_DEBUGBUS_22 {
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO0_F2                       :  8;
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO1_F1                       :  8;
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO1_F2                       :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO0_F1                       :  8;
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO0_F2                       :  8;
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO1_F1                       :  8;
         unsigned int RTNFORMATTER_REQFORMATTER_SKIDFIFO1_F2                       :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32559,7 +32559,7 @@ union RMI_DEBUGBUS_25 {
         unsigned int IS_FROM_CB_RB1_WR                                            :  1;
         unsigned int IS_FROM_CB_RB0_RD                                            :  1;
         unsigned int IS_FROM_CB_RB1_RD                                            :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int XBAR_INCOMING_REQUESTS_REENABLE_INPUT_RB0                    :  1;
         unsigned int XBAR_INCOMING_REQUESTS_FLUSH_START_RB0                       :  1;
@@ -32593,7 +32593,7 @@ union RMI_DEBUGBUS_25 {
         unsigned int IS_FROM_CB_RB1_WR                                            :  1;
         unsigned int IS_FROM_CB_RB0_RD                                            :  1;
         unsigned int IS_FROM_CB_RB1_RD                                            :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32656,7 +32656,7 @@ union RMI_DEBUGBUS_28 {
         unsigned int RTNFORMATTER0_SB_SESSION_ID                                  :  1;
         unsigned int RTNFORMATTER1_SB_SESSION_ID                                  :  1;
         unsigned int Reserved0                                                    :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RUNNING_CNT0                                                 : 12;
         unsigned int RUNNING_CNT1                                                 : 12;
@@ -32668,7 +32668,7 @@ union RMI_DEBUGBUS_28 {
         unsigned int RTNFORMATTER0_SB_SESSION_ID                                  :  1;
         unsigned int RTNFORMATTER1_SB_SESSION_ID                                  :  1;
         unsigned int Reserved0                                                    :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32687,7 +32687,7 @@ union RMI_DEBUGBUS_29 {
         unsigned int CPF_RMI_INVREQ_START                                         :  1;
         unsigned int CPF_RMI_INVREQ_CLEAN_NXT                                     :  1;
         unsigned int Reserved0                                                    :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int SNAPSHOT_CNT0                                                : 12;
         unsigned int SNAPSHOT_CNT1                                                : 12;
@@ -32699,7 +32699,7 @@ union RMI_DEBUGBUS_29 {
         unsigned int CPF_RMI_INVREQ_START                                         :  1;
         unsigned int CPF_RMI_INVREQ_CLEAN_NXT                                     :  1;
         unsigned int Reserved0                                                    :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32725,7 +32725,7 @@ union RMI_DEBUGBUS_30 {
         unsigned int PROBE1_SB_VALID                                              :  1;
         unsigned int SB_PROBE_INVREQ_VMID_VEC                                     : 16;
         unsigned int SB_PROBE_INVREQ_START                                        :  1;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int UPDATE_SNAPSHOT_CNT0                                         :  1;
         unsigned int UPDATE_SNAPSHOT_CNT1                                         :  1;
@@ -32744,7 +32744,7 @@ union RMI_DEBUGBUS_30 {
         unsigned int PROBE1_SB_VALID                                              :  1;
         unsigned int SB_PROBE_INVREQ_VMID_VEC                                     : 16;
         unsigned int SB_PROBE_INVREQ_START                                        :  1;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32755,7 +32755,7 @@ union RMI_DEBUGBUS_31 {
     struct {
         unsigned int                                                              : 11;
         unsigned int Reserved0                                                    : 21;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RTNFORMATTER_RB_SEND_TCIW0                                   :  1;
         unsigned int SEND_BOTH_HALVES_TO_RB_TCIW0                                 :  1;
@@ -32771,7 +32771,7 @@ union RMI_DEBUGBUS_31 {
     struct {
         unsigned int                                                              : 11;
         unsigned int Reserved0                                                    : 21;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -32782,7 +32782,7 @@ union RMI_DEBUGBUS_32 {
     struct {
         unsigned int                                                              : 11;
         unsigned int Reserved0                                                    : 21;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int RTNFORMATTER_RB_SEND_TCIW1                                   :  1;
         unsigned int SEND_BOTH_HALVES_TO_RB_TCIW1                                 :  1;
@@ -32798,7 +32798,7 @@ union RMI_DEBUGBUS_32 {
     struct {
         unsigned int                                                              : 11;
         unsigned int Reserved0                                                    : 21;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -33396,12 +33396,12 @@ union RMI_GENERAL_CNTL1 {
         unsigned int                                                              : 23;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  6;
-        unsigned int TCIW1_64B_RD_STALL_MODE                                      :  2;
-        unsigned int                                                              :  4;
-        unsigned int UTCL1_PROBE1_RR_ARB_BURST_HINT_EN                            :  1;
-        unsigned int                                                              : 19;
-    } vega;
+        unsigned int                                                              :  9;
+        unsigned int POLICY_OVERRIDE_VALUE                                        :  1;
+        unsigned int POLICY_OVERRIDE                                              :  1;
+        unsigned int UTCL1_PROBE0_RR_ARB_BURST_HINT_EN                            :  1;
+        unsigned int                                                              : 20;
+    } gfx09;
     struct {
         unsigned int                                                              :  6;
         unsigned int TCIW1_64B_RD_STALL_MODE                                      :  2;
@@ -33410,12 +33410,12 @@ union RMI_GENERAL_CNTL1 {
         unsigned int                                                              : 19;
     } rv1x;
     struct {
-        unsigned int                                                              :  9;
-        unsigned int POLICY_OVERRIDE_VALUE                                        :  1;
-        unsigned int POLICY_OVERRIDE                                              :  1;
-        unsigned int UTCL1_PROBE0_RR_ARB_BURST_HINT_EN                            :  1;
-        unsigned int                                                              : 20;
-    } gfx09;
+        unsigned int                                                              :  6;
+        unsigned int TCIW1_64B_RD_STALL_MODE                                      :  2;
+        unsigned int                                                              :  4;
+        unsigned int UTCL1_PROBE1_RR_ARB_BURST_HINT_EN                            :  1;
+        unsigned int                                                              : 19;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34008,7 +34008,7 @@ union RMI_TCIW_FORMATTER1_CNTL {
         unsigned int RMI_IN1_REORDER_DIS                                          :  1;
         unsigned int WR_COMBINE1_DIS_AT_LAST_OF_BURST                             :  1;
         unsigned int ALL_FAULT_RET1_DATA                                          :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int WR_COMBINE1_DIS_OVERRIDE                                     :  1;
         unsigned int WR_COMBINE1_TIME_OUT_WINDOW                                  :  8;
@@ -34019,7 +34019,7 @@ union RMI_TCIW_FORMATTER1_CNTL {
         unsigned int RMI_IN1_REORDER_DIS                                          :  1;
         unsigned int WR_COMBINE1_DIS_AT_LAST_OF_BURST                             :  1;
         unsigned int ALL_FAULT_RET1_DATA                                          :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -34377,14 +34377,14 @@ union RPB_EA_QUEUE_WR {
         unsigned int READ_QUEUE                                                   :  3;
         unsigned int UPDATE                                                       :  1;
         unsigned int                                                              : 20;
-    } vg10_Vg12;
+    } apu09Plus;
     struct {
         unsigned int EA_NUMBER                                                    :  5;
         unsigned int WRITE_QUEUE                                                  :  3;
         unsigned int READ_QUEUE                                                   :  3;
         unsigned int UPDATE                                                       :  1;
         unsigned int                                                              : 20;
-    } apu09Plus;
+    } vg10_Vg12;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35607,7 +35607,7 @@ union spi_clk_gate0 {
         unsigned int cgtt_reg_oclk_vld                                            :  1;
         unsigned int cgtt_dyn_oclk_vld                                            :  1;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int read_ack_out                                                 :  1;
         unsigned int program_ack_out                                              :  1;
@@ -35629,7 +35629,7 @@ union spi_clk_gate0 {
         unsigned int cgtt_reg_oclk_vld                                            :  1;
         unsigned int cgtt_dyn_oclk_vld                                            :  1;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35653,7 +35653,7 @@ union spi_clk_gate1 {
         unsigned int mxn_bit_reg_ld_out                                           :  1;
         unsigned int mxn_bit_reg_shift_out                                        :  1;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int off_seq_cnt_eq0                                              :  1;
         unsigned int off_seq_cnt_decr                                             :  1;
@@ -35670,7 +35670,7 @@ union spi_clk_gate1 {
         unsigned int mxn_bit_reg_ld_out                                           :  1;
         unsigned int mxn_bit_reg_shift_out                                        :  1;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35691,7 +35691,7 @@ union spi_clk_gate2 {
         unsigned int rss_cnt_eq0                                                  :  1;
         unsigned int rss_cnt_ld                                                   :  1;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int on_monitor_cnt_10_0                                          : 11;
         unsigned int clkgate_all_on_out                                           :  1;
@@ -35705,7 +35705,7 @@ union spi_clk_gate2 {
         unsigned int rss_cnt_eq0                                                  :  1;
         unsigned int rss_cnt_ld                                                   :  1;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35720,7 +35720,7 @@ union spi_clk_gate3 {
         unsigned int rdbus_valid                                                  :  1;
         unsigned int rd_reg_loaded                                                : 10;
         unsigned int Reserved0                                                    : 14;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int rd_row_mux_sel                                               :  5;
         unsigned int rd_reg_loaded_dummy                                          :  1;
@@ -35728,7 +35728,7 @@ union spi_clk_gate3 {
         unsigned int rdbus_valid                                                  :  1;
         unsigned int rd_reg_loaded                                                : 10;
         unsigned int Reserved0                                                    : 14;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35956,7 +35956,7 @@ union spi_cs_ctl0 {
         unsigned int cpc_csdata_fifo_empty                                        :  1;
         unsigned int cpc_csdata_fifo_full                                         :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int Reserved3                                                    :  7;
         unsigned int remaining_threads0                                           :  7;
@@ -35969,7 +35969,7 @@ union spi_cs_ctl0 {
         unsigned int cpc_csdata_fifo_empty                                        :  1;
         unsigned int cpc_csdata_fifo_full                                         :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -35987,7 +35987,7 @@ union spi_cs_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int event_count                                                  :  3;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crw_event_id                                                 :  6;
         unsigned int crw_event_valid                                              :  1;
@@ -35998,7 +35998,7 @@ union spi_cs_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int event_count                                                  :  3;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36017,7 +36017,7 @@ union spi_cs_ctl2 {
         unsigned int Reserved1                                                    :  3;
         unsigned int current_state0_q                                             :  3;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int send_to_shader_array_0                                       :  1;
         unsigned int wave_count                                                   :  6;
@@ -36029,7 +36029,7 @@ union spi_cs_ctl2 {
         unsigned int Reserved1                                                    :  3;
         unsigned int current_state0_q                                             :  3;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36049,7 +36049,7 @@ union spi_cs_ctl_gfx0 {
         unsigned int cpg_csdata_fifo_empty                                        :  1;
         unsigned int cpg_csdata_fifo_full                                         :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int UNUSED_remaining_threads1                                    :  7;
         unsigned int remaining_threads0                                           :  7;
@@ -36062,7 +36062,7 @@ union spi_cs_ctl_gfx0 {
         unsigned int cpg_csdata_fifo_empty                                        :  1;
         unsigned int cpg_csdata_fifo_full                                         :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36080,7 +36080,7 @@ union spi_cs_ctl_gfx1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int event_count                                                  :  3;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crw_event_id                                                 :  6;
         unsigned int crw_event_valid                                              :  1;
@@ -36091,7 +36091,7 @@ union spi_cs_ctl_gfx1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int event_count                                                  :  3;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36110,7 +36110,7 @@ union spi_cs_ctl_gfx2 {
         unsigned int UNUSED_current_state1_q                                      :  3;
         unsigned int current_state0_q                                             :  3;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int send_to_shader_array_0                                       :  1;
         unsigned int wave_count                                                   :  6;
@@ -36122,7 +36122,7 @@ union spi_cs_ctl_gfx2 {
         unsigned int UNUSED_current_state1_q                                      :  3;
         unsigned int current_state0_q                                             :  3;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36140,7 +36140,7 @@ union spi_cs_wave_ctl {
         unsigned int csc_ca_first_tg                                              :  1;
         unsigned int csc_ca_first_req_dispatch                                    :  1;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int tr_slots_used                                                :  9;
         unsigned int loader_state_q                                               :  3;
@@ -36151,7 +36151,7 @@ union spi_cs_wave_ctl {
         unsigned int csc_ca_first_tg                                              :  1;
         unsigned int csc_ca_first_req_dispatch                                    :  1;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36168,7 +36168,7 @@ union spi_cs_wave_gfx_ctl {
         unsigned int Reserved1                                                    :  2;
         unsigned int csc_ra0_first_req_dispatch                                   :  1;
         unsigned int Reserved0                                                    : 13;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int tr_slots_used0                                               :  9;
         unsigned int loader_state_q                                               :  2;
@@ -36178,7 +36178,7 @@ union spi_cs_wave_gfx_ctl {
         unsigned int Reserved1                                                    :  2;
         unsigned int csc_ra0_first_req_dispatch                                   :  1;
         unsigned int Reserved0                                                    : 13;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36210,7 +36210,7 @@ union SPI_DEBUG_BUSY {
         unsigned int GRBM_BUSY                                                    :  1;
         unsigned int SPIS_BUSY                                                    :  1;
         unsigned int                                                              : 10;
-    } vg10;
+    } gfx09_1x;
     struct {
         unsigned int                                                              :  1;
         unsigned int HS_BUSY                                                      :  1;
@@ -36262,7 +36262,7 @@ union SPI_DEBUG_BUSY {
         unsigned int GRBM_BUSY                                                    :  1;
         unsigned int SPIS_BUSY                                                    :  1;
         unsigned int                                                              : 10;
-    } gfx09_1x;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36350,7 +36350,7 @@ union spi_es_wave_ctl0 {
         unsigned int es_wave_first_subgrp                                         :  1;
         unsigned int esc_ra0_is_ds                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int f_double_data                                                :  1;
         unsigned int f_gpr_ld_buf_sel                                             :  2;
@@ -36367,7 +36367,7 @@ union spi_es_wave_ctl0 {
         unsigned int es_wave_first_subgrp                                         :  1;
         unsigned int esc_ra0_is_ds                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36384,7 +36384,7 @@ union spi_es_wave_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int crawler_rd                                                   :  9;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_is_event                                             :  1;
         unsigned int stall_events                                                 :  1;
@@ -36394,7 +36394,7 @@ union spi_es_wave_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int crawler_rd                                                   :  9;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36417,7 +36417,7 @@ union spi_es_wave_ctl2 {
         unsigned int vgt_eswave_fifo_empty                                        :  1;
         unsigned int es_group_fifo_full                                           :  1;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  1;
         unsigned int esc_ra_rts                                                   :  1;
@@ -36433,7 +36433,7 @@ union spi_es_wave_ctl2 {
         unsigned int vgt_eswave_fifo_empty                                        :  1;
         unsigned int es_group_fifo_full                                           :  1;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36456,12 +36456,12 @@ union spi_gfx_tmp_ring_mgr {
         unsigned int trm_tr_slots_used                                            :  9;
         unsigned int trm_hs_lock                                                  :  1;
         unsigned int Reserved0                                                    : 22;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int trm_tr_slots_used                                            :  9;
         unsigned int trm_hs_lock                                                  :  1;
         unsigned int Reserved0                                                    : 22;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36481,7 +36481,7 @@ union spi_gs_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    : 15;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int f_double_data                                                :  1;
         unsigned int f_gpr_ld_buf_sel                                             :  2;
@@ -36494,7 +36494,7 @@ union spi_gs_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    : 15;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36511,7 +36511,7 @@ union spi_gs_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_rd                                                   :  7;
         unsigned int crawler_is_event                                             :  1;
@@ -36521,7 +36521,7 @@ union spi_gs_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36544,7 +36544,7 @@ union spi_gs_wave_ctl2 {
         unsigned int esc_gsc_group_cu_id                                          :  4;
         unsigned int gs_onchip                                                    :  2;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  1;
         unsigned int clocks_on                                                    :  1;
@@ -36560,7 +36560,7 @@ union spi_gs_wave_ctl2 {
         unsigned int esc_gsc_group_cu_id                                          :  4;
         unsigned int gs_onchip                                                    :  2;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36580,7 +36580,7 @@ union spi_hs_wave_ctl0 {
         unsigned int outstanding_events                                           :  3;
         unsigned int es_is_ds                                                     :  1;
         unsigned int Reserved0                                                    : 15;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int f_gpr_ld_line_sel                                            :  2;
         unsigned int wave_buffer_fifo_empty                                       :  1;
@@ -36593,7 +36593,7 @@ union spi_hs_wave_ctl0 {
         unsigned int outstanding_events                                           :  3;
         unsigned int es_is_ds                                                     :  1;
         unsigned int Reserved0                                                    : 15;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36610,7 +36610,7 @@ union spi_hs_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_rd                                                   :  7;
         unsigned int crawler_is_event                                             :  1;
@@ -36620,7 +36620,7 @@ union spi_hs_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36643,7 +36643,7 @@ union spi_hs_wave_ctl2 {
         unsigned int hs_wave_is_event                                             :  1;
         unsigned int vgt_hswave_fifo_empty                                        :  1;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  1;
         unsigned int hsc_ra_rts                                                   :  1;
@@ -36659,7 +36659,7 @@ union spi_hs_wave_ctl2 {
         unsigned int hs_wave_is_event                                             :  1;
         unsigned int vgt_hswave_fifo_empty                                        :  1;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36775,7 +36775,7 @@ union spi_lds_wr_ctl0 {
         unsigned int even_debug_lds_pass_cnt_q                                    :  4;
         unsigned int even_debug_stall_odd                                         :  1;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int state_id                                                     :  3;
         unsigned int lds_in_fifo_empty                                            :  1;
@@ -36788,7 +36788,7 @@ union spi_lds_wr_ctl0 {
         unsigned int even_debug_lds_pass_cnt_q                                    :  4;
         unsigned int even_debug_stall_odd                                         :  1;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36803,7 +36803,7 @@ union spi_lds_wr_ctl1 {
         unsigned int odd_debug_lds_param_sent_cnt_q                               :  6;
         unsigned int odd_debug_lds_pass_cnt_q                                     :  4;
         unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int odd_debug_lds_valid_d                                        :  1;
         unsigned int odd_debug_lds_valid_q1                                       :  1;
@@ -36811,7 +36811,7 @@ union spi_lds_wr_ctl1 {
         unsigned int odd_debug_lds_param_sent_cnt_q                               :  6;
         unsigned int odd_debug_lds_pass_cnt_q                                     :  4;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36830,7 +36830,7 @@ union spi_ls_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    : 16;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int f_vsr_ld_buf_sel                                             :  2;
         unsigned int wave_buffer_fifo_empty                                       :  1;
@@ -36842,7 +36842,7 @@ union spi_ls_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    : 16;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36859,7 +36859,7 @@ union spi_ls_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_rd                                                   :  7;
         unsigned int crawler_is_event                                             :  1;
@@ -36869,7 +36869,7 @@ union spi_ls_wave_ctl1 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36891,7 +36891,7 @@ union spi_ls_wave_ctl2 {
         unsigned int ls_wave_is_event                                             :  1;
         unsigned int vgt_lswave_fifo_empty                                        :  1;
         unsigned int Reserved0                                                    : 14;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  2;
         unsigned int lsc_ra_rts                                                   :  1;
@@ -36906,7 +36906,7 @@ union spi_ls_wave_ctl2 {
         unsigned int ls_wave_is_event                                             :  1;
         unsigned int vgt_lswave_fifo_empty                                        :  1;
         unsigned int Reserved0                                                    : 14;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36921,7 +36921,7 @@ union spi_offchip_lds_mgr0 {
         unsigned int Reserved1                                                    :  1;
         unsigned int lds_offchip_head                                             :  7;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int es_threadgroup_done_count                                    :  7;
         unsigned int Reserved2                                                    :  1;
@@ -36929,7 +36929,7 @@ union spi_offchip_lds_mgr0 {
         unsigned int Reserved1                                                    :  1;
         unsigned int lds_offchip_head                                             :  7;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36947,7 +36947,7 @@ union spi_offchip_lds_mgr1 {
         unsigned int Reserved1                                                    :  2;
         unsigned int vs_threadgroup_done_count                                    :  7;
         unsigned int Reserved0                                                    : 17;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int lds_offchip_full                                             :  1;
         unsigned int order_fifo_rd                                                :  1;
@@ -36958,7 +36958,7 @@ union spi_offchip_lds_mgr1 {
         unsigned int Reserved1                                                    :  2;
         unsigned int vs_threadgroup_done_count                                    :  7;
         unsigned int Reserved0                                                    : 17;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37079,13 +37079,13 @@ union spi_pc_dealloc_ctl0 {
         unsigned int pc_dealloc_min_cnt                                           : 10;
         unsigned int pc0_dealloc_cnt                                              : 10;
         unsigned int Reserved0                                                    : 11;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int decr_pc_dealloc_cnt                                          :  1;
         unsigned int pc_dealloc_min_cnt                                           : 10;
         unsigned int pc0_dealloc_cnt                                              : 10;
         unsigned int Reserved0                                                    : 11;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37097,12 +37097,12 @@ union spi_pc_dealloc_ctl1 {
         unsigned int pc1_dealloc_cnt                                              : 10;
         unsigned int pc_deallocIn0_cnt                                            : 10;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pc1_dealloc_cnt                                              : 10;
         unsigned int pc_deallocIn0_cnt                                            : 10;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37114,12 +37114,12 @@ union spi_pc_dealloc_ctl2 {
         unsigned int pc_deallocIn1_cnt                                            : 10;
         unsigned int pc_deallocIn2_cnt                                            : 10;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pc_deallocIn1_cnt                                            : 10;
         unsigned int pc_deallocIn2_cnt                                            : 10;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37131,12 +37131,12 @@ union spi_pc_dealloc_ctl3 {
         unsigned int pc0_deallocOut0_cnt                                          : 10;
         unsigned int pc0_deallocOut1_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pc0_deallocOut0_cnt                                          : 10;
         unsigned int pc0_deallocOut1_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37148,12 +37148,12 @@ union spi_pc_dealloc_ctl4 {
         unsigned int pc0_deallocOut2_cnt                                          : 10;
         unsigned int pc1_deallocOut0_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pc0_deallocOut2_cnt                                          : 10;
         unsigned int pc1_deallocOut0_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37165,12 +37165,12 @@ union spi_pc_dealloc_ctl5 {
         unsigned int pc1_deallocOut1_cnt                                          : 10;
         unsigned int pc1_deallocOut2_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int pc1_deallocOut1_cnt                                          : 10;
         unsigned int pc1_deallocOut2_cnt                                          : 10;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37469,7 +37469,7 @@ union spi_ps_ctl0_0 {
         unsigned int psc_wr_line_q                                                :  3;
         unsigned int psc_gdbg_en_q                                                :  1;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int new_vector1_save_q                                           :  1;
         unsigned int new_vector0_save_q                                           :  1;
@@ -37479,7 +37479,7 @@ union spi_ps_ctl0_0 {
         unsigned int psc_wr_line_q                                                :  3;
         unsigned int psc_gdbg_en_q                                                :  1;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37503,7 +37503,7 @@ union spi_ps_ctl0_1 {
         unsigned int ef_new2                                                      :  1;
         unsigned int pipe_id                                                      :  2;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int wd_end_of_wave                                               :  1;
         unsigned int wd_fifo_empty                                                :  1;
@@ -37520,7 +37520,7 @@ union spi_ps_ctl0_1 {
         unsigned int ef_new2                                                      :  1;
         unsigned int pipe_id                                                      :  2;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37538,7 +37538,7 @@ union spi_ps_ctl0_2 {
         unsigned int tr_fits                                                      :  1;
         unsigned int ps_wave_cnt_lt_lim                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  1;
         unsigned int psr_wave_cnt                                                 :  6;
@@ -37549,7 +37549,7 @@ union spi_ps_ctl0_2 {
         unsigned int tr_fits                                                      :  1;
         unsigned int ps_wave_cnt_lt_lim                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37565,7 +37565,7 @@ union spi_ps_ctl0_3 {
         unsigned int dealloc2_save_q                                              :  3;
         unsigned int dealloc3_save_q                                              :  3;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int new_vector2_save_q                                           :  1;
         unsigned int new_vector3_save_q                                           :  1;
@@ -37574,7 +37574,7 @@ union spi_ps_ctl0_3 {
         unsigned int dealloc2_save_q                                              :  3;
         unsigned int dealloc3_save_q                                              :  3;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37593,7 +37593,7 @@ union spi_ps_ctl0_4 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_rd                                                   :  7;
         unsigned int crawler_is_event                                             :  1;
@@ -37605,7 +37605,7 @@ union spi_ps_ctl0_4 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37622,7 +37622,7 @@ union spi_ps_ctl1_0 {
         unsigned int psc_wr_line_q                                                :  3;
         unsigned int psc_gdbg_en_q                                                :  1;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int new_vector1_save_q                                           :  1;
         unsigned int new_vector0_save_q                                           :  1;
@@ -37632,7 +37632,7 @@ union spi_ps_ctl1_0 {
         unsigned int psc_wr_line_q                                                :  3;
         unsigned int psc_gdbg_en_q                                                :  1;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37656,7 +37656,7 @@ union spi_ps_ctl1_1 {
         unsigned int ef_new2                                                      :  1;
         unsigned int pipe_id                                                      :  2;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int wd_end_of_wave                                               :  1;
         unsigned int wd_fifo_empty                                                :  1;
@@ -37673,7 +37673,7 @@ union spi_ps_ctl1_1 {
         unsigned int ef_new2                                                      :  1;
         unsigned int pipe_id                                                      :  2;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37691,7 +37691,7 @@ union spi_ps_ctl1_2 {
         unsigned int tr_fits                                                      :  1;
         unsigned int ps_wave_cnt_lt_lim                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  1;
         unsigned int psr_wave_cnt                                                 :  6;
@@ -37702,7 +37702,7 @@ union spi_ps_ctl1_2 {
         unsigned int tr_fits                                                      :  1;
         unsigned int ps_wave_cnt_lt_lim                                           :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37718,7 +37718,7 @@ union spi_ps_ctl1_3 {
         unsigned int dealloc2_save_q                                              :  3;
         unsigned int dealloc3_save_q                                              :  3;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int new_vector2_save_q                                           :  1;
         unsigned int new_vector3_save_q                                           :  1;
@@ -37727,7 +37727,7 @@ union spi_ps_ctl1_3 {
         unsigned int dealloc2_save_q                                              :  3;
         unsigned int dealloc3_save_q                                              :  3;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -37746,7 +37746,7 @@ union spi_ps_ctl1_4 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_rd                                                   :  7;
         unsigned int crawler_is_event                                             :  1;
@@ -37758,7 +37758,7 @@ union spi_ps_ctl1_4 {
         unsigned int crawler_full                                                 :  1;
         unsigned int crawler_empty                                                :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38613,7 +38613,7 @@ union spi_resource_alloc0 {
         unsigned int vgpr_updating_cu_simd_id_q                                   :  6;
         unsigned int allocating_cu_simd_q                                         :  6;
         unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int Reserved1                                                    :  1;
         unsigned int lds_updating_cu_simd_id_q                                    :  4;
@@ -38621,7 +38621,7 @@ union spi_resource_alloc0 {
         unsigned int vgpr_updating_cu_simd_id_q                                   :  6;
         unsigned int allocating_cu_simd_q                                         :  6;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38632,11 +38632,11 @@ union spi_resource_alloc1 {
     struct {
         unsigned int vgpr_dealloc_pointer_23_0                                    : 24;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vgpr_dealloc_pointer_23_0                                    : 24;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38647,11 +38647,11 @@ union spi_resource_alloc2 {
     struct {
         unsigned int vgpr_dealloc_pointer_47_24                                   : 24;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int vgpr_dealloc_pointer_47_24                                   : 24;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38662,11 +38662,11 @@ union spi_resource_alloc3 {
     struct {
         unsigned int sgpr_dealloc_pointer_23_0                                    : 24;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sgpr_dealloc_pointer_23_0                                    : 24;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38677,11 +38677,11 @@ union spi_resource_alloc4 {
     struct {
         unsigned int sgpr_dealloc_pointer_47_24                                   : 24;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sgpr_dealloc_pointer_47_24                                   : 24;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38691,10 +38691,10 @@ union spi_resource_alloc4 {
 union spi_resource_alloc5 {
     struct {
         unsigned int Reserved0                                                    : 32;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int Reserved0                                                    : 32;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38707,13 +38707,13 @@ union spi_resource_alloc6 {
         unsigned int vgpr_max_fits_cnt                                            :  7;
         unsigned int dbg_cu_simd_id                                               :  6;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int sgpr_max_fits_cnt                                            :  7;
         unsigned int vgpr_max_fits_cnt                                            :  7;
         unsigned int dbg_cu_simd_id                                               :  6;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38726,13 +38726,13 @@ union spi_resource_alloc7 {
         unsigned int ts_priority                                                  :  3;
         unsigned int dbg_lds_dealloc_pointer                                      : 16;
         unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int alloc_state_q                                                :  1;
         unsigned int ts_priority                                                  :  3;
         unsigned int dbg_lds_dealloc_pointer                                      : 16;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38743,11 +38743,11 @@ union spi_resource_alloc8 {
     struct {
         unsigned int dbg_lock_mask                                                : 16;
         unsigned int Reserved0                                                    : 16;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int dbg_lock_mask                                                : 16;
         unsigned int Reserved0                                                    : 16;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38760,13 +38760,13 @@ union spi_resource_alloc9 {
         unsigned int vgpr_rsv_max_fits_cnt                                        :  7;
         unsigned int sgpr_rsv_max_fits_cnt                                        :  7;
         unsigned int Reserved0                                                    : 14;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int wave_cnt_cu_simd                                             :  4;
         unsigned int vgpr_rsv_max_fits_cnt                                        :  7;
         unsigned int sgpr_rsv_max_fits_cnt                                        :  7;
         unsigned int Reserved0                                                    : 14;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -38780,14 +38780,14 @@ union spi_resource_alloc10 {
         unsigned int Reserved1                                                    :  1;
         unsigned int lds_max_fits_cnt                                             :  8;
         unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int barrier_cnt_per_cu                                           :  5;
         unsigned int lds_rsv_max_fits_cnt                                         :  8;
         unsigned int Reserved1                                                    :  1;
         unsigned int lds_max_fits_cnt                                             :  8;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -41453,7 +41453,7 @@ union spi_vs_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int f_double_data                                                :  1;
         unsigned int f_vs_vert_gs_on                                              :  1;
@@ -41469,7 +41469,7 @@ union spi_vs_wave_ctl0 {
         unsigned int outstanding_waves                                            :  4;
         unsigned int outstanding_events                                           :  3;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -41486,7 +41486,7 @@ union spi_vs_wave_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int crawler_rd                                                   :  9;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int crawler_is_event                                             :  1;
         unsigned int stall_events                                                 :  1;
@@ -41496,7 +41496,7 @@ union spi_vs_wave_ctl1 {
         unsigned int crawler_empty                                                :  1;
         unsigned int crawler_rd                                                   :  9;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -41521,7 +41521,7 @@ union spi_vs_wave_ctl2 {
         unsigned int vgt_vswave_fifo_empty                                        :  1;
         unsigned int gsc_vsc_group_fifo_empty                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int res_alloc_state                                              :  2;
         unsigned int vsc_ra_rts                                                   :  1;
@@ -41539,7 +41539,7 @@ union spi_vs_wave_ctl2 {
         unsigned int vgt_vswave_fifo_empty                                        :  1;
         unsigned int gsc_vsc_group_fifo_empty                                     :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -42592,6 +42592,10 @@ union SQ_CONFIG {
         unsigned int                                                              :  2;
     } bits, bitfields;
     struct {
+        unsigned int UNUSED                                                       :  7;
+        unsigned int                                                              : 25;
+    } apu09Plus;
+    struct {
         unsigned int                                                              :  7;
         unsigned int OVERRIDE_ALU_BUSY                                            :  1;
         unsigned int DEBUG_EN                                                     :  1;
@@ -42608,10 +42612,6 @@ union SQ_CONFIG {
         unsigned int DISABLE_FLAT_SOFT_CLAUSE                                     :  1;
         unsigned int DISABLE_MIMG_SOFT_CLAUSE                                     :  1;
     } gfx09;
-    struct {
-        unsigned int UNUSED                                                       :  7;
-        unsigned int                                                              : 25;
-    } apu09Plus;
     struct {
         unsigned int UNUSED                                                       :  7;
         unsigned int                                                              : 25;
@@ -45406,14 +45406,14 @@ union SX_DEBUG_1 {
         unsigned int                                                              : 19;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 14;
+        unsigned int DEBUG_DATA                                                   : 18;
+    } gfx09;
+    struct {
         unsigned int                                                              : 13;
         unsigned int PC_CFG                                                       :  1;
         unsigned int                                                              : 18;
     } gfx09_0;
-    struct {
-        unsigned int                                                              : 14;
-        unsigned int DEBUG_DATA                                                   : 18;
-    } gfx09;
     struct {
         unsigned int                                                              : 13;
         unsigned int DISABLE_SX_DB_FGCG                                           :  1;
@@ -46096,8 +46096,7 @@ union TA_CNTL {
 union TA_CNTL_AUX {
     struct {
         unsigned int SCOAL_DSWIZZLE_N                                             :  1;
-        unsigned int RESERVED                                                     :  3;
-        unsigned int                                                              :  1;
+        unsigned int                                                              :  4;
         unsigned int TFAULT_EN_OVERRIDE                                           :  1;
         unsigned int GATHERH_DST_SEL                                              :  1;
         unsigned int DISABLE_GATHER4_BC_SWIZZLE                                   :  1;
@@ -46124,7 +46123,9 @@ union TA_CNTL_AUX {
         unsigned int ARRAY_ROUND_MODE                                             :  2;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  9;
+        unsigned int                                                              :  1;
+        unsigned int RESERVED                                                     :  3;
+        unsigned int                                                              :  5;
         unsigned int NONIMG_ANISO_BYPASS                                          :  1;
         unsigned int                                                              :  9;
         unsigned int ANISO_MIP_ADJ_MODE                                           :  1;
@@ -46200,14 +46201,17 @@ union TA_PERFCOUNTER0_LO {
 
 union TA_PERFCOUNTER0_SELECT {
     struct {
-        unsigned int PERF_SEL                                                     :  8;
-        unsigned int                                                              :  2;
-        unsigned int PERF_SEL1                                                    :  8;
-        unsigned int                                                              :  2;
+        unsigned int                                                              : 20;
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL                                                     :  8;
+        unsigned int                                                              :  2;
+        unsigned int PERF_SEL1                                                    :  8;
+        unsigned int                                                              : 14;
+    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46216,13 +46220,16 @@ union TA_PERFCOUNTER0_SELECT {
 
 union TA_PERFCOUNTER0_SELECT1 {
     struct {
-        unsigned int PERF_SEL2                                                    :  8;
-        unsigned int                                                              :  2;
-        unsigned int PERF_SEL3                                                    :  8;
-        unsigned int                                                              :  6;
+        unsigned int                                                              : 24;
         unsigned int PERF_MODE3                                                   :  4;
         unsigned int PERF_MODE2                                                   :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL2                                                    :  8;
+        unsigned int                                                              :  2;
+        unsigned int PERF_SEL3                                                    :  8;
+        unsigned int                                                              : 14;
+    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46251,12 +46258,15 @@ union TA_PERFCOUNTER1_LO {
 
 union TA_PERFCOUNTER1_SELECT {
     struct {
-        unsigned int PERF_SEL                                                     :  8;
-        unsigned int                                                              : 12;
+        unsigned int                                                              : 20;
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL                                                     :  8;
+        unsigned int                                                              : 24;
+    } gfx09;
     struct {
         unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    :  8;
@@ -47273,14 +47283,17 @@ union TD_PERFCOUNTER0_LO {
 
 union TD_PERFCOUNTER0_SELECT {
     struct {
-        unsigned int PERF_SEL                                                     :  8;
-        unsigned int                                                              :  2;
-        unsigned int PERF_SEL1                                                    :  8;
-        unsigned int                                                              :  2;
+        unsigned int                                                              : 20;
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int PERF_MODE1                                                   :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL                                                     :  8;
+        unsigned int                                                              :  2;
+        unsigned int PERF_SEL1                                                    :  8;
+        unsigned int                                                              : 14;
+    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -47289,13 +47302,16 @@ union TD_PERFCOUNTER0_SELECT {
 
 union TD_PERFCOUNTER0_SELECT1 {
     struct {
-        unsigned int PERF_SEL2                                                    :  8;
-        unsigned int                                                              :  2;
-        unsigned int PERF_SEL3                                                    :  8;
-        unsigned int                                                              :  6;
+        unsigned int                                                              : 24;
         unsigned int PERF_MODE3                                                   :  4;
         unsigned int PERF_MODE2                                                   :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL2                                                    :  8;
+        unsigned int                                                              :  2;
+        unsigned int PERF_SEL3                                                    :  8;
+        unsigned int                                                              : 14;
+    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -47324,12 +47340,15 @@ union TD_PERFCOUNTER1_LO {
 
 union TD_PERFCOUNTER1_SELECT {
     struct {
-        unsigned int PERF_SEL                                                     :  8;
-        unsigned int                                                              : 12;
+        unsigned int                                                              : 20;
         unsigned int CNTR_MODE                                                    :  4;
         unsigned int                                                              :  4;
         unsigned int PERF_MODE                                                    :  4;
     } bits, bitfields;
+    struct {
+        unsigned int PERF_SEL                                                     :  8;
+        unsigned int                                                              : 24;
+    } gfx09;
     struct {
         unsigned int                                                              : 10;
         unsigned int PERF_SEL1                                                    :  8;
@@ -51281,18 +51300,10 @@ union VGT_DEBUG_REG0 {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              :  6;
-        unsigned int SPARE5                                                       :  1;
-        unsigned int SPARE4                                                       :  1;
-        unsigned int                                                              : 12;
-        unsigned int SPARE3                                                       :  1;
-        unsigned int                                                              :  4;
-        unsigned int SPARE2                                                       :  1;
-        unsigned int                                                              :  2;
-        unsigned int SPARE1                                                       :  1;
-        unsigned int                                                              :  2;
-        unsigned int SPARE0                                                       :  1;
-    } vega;
+        unsigned int                                                              : 11;
+        unsigned int pg_busy                                                      :  1;
+        unsigned int                                                              : 20;
+    } gfx09_1x;
     struct {
         unsigned int                                                              :  6;
         unsigned int SPARE5                                                       :  1;
@@ -51307,10 +51318,18 @@ union VGT_DEBUG_REG0 {
         unsigned int SPARE0                                                       :  1;
     } rv1x;
     struct {
-        unsigned int                                                              : 11;
-        unsigned int pg_busy                                                      :  1;
-        unsigned int                                                              : 20;
-    } gfx09_1x;
+        unsigned int                                                              :  6;
+        unsigned int SPARE5                                                       :  1;
+        unsigned int SPARE4                                                       :  1;
+        unsigned int                                                              : 12;
+        unsigned int SPARE3                                                       :  1;
+        unsigned int                                                              :  4;
+        unsigned int SPARE2                                                       :  1;
+        unsigned int                                                              :  2;
+        unsigned int SPARE1                                                       :  1;
+        unsigned int                                                              :  2;
+        unsigned int SPARE0                                                       :  1;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51327,7 +51346,7 @@ union VGT_DEBUG_REG1 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 22;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  4;
         unsigned int SPARE5                                                       :  1;
@@ -51337,7 +51356,7 @@ union VGT_DEBUG_REG1 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 22;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51348,11 +51367,11 @@ union VGT_DEBUG_REG2 {
     struct {
         unsigned int                                                              : 29;
         unsigned int SPARE                                                        :  3;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 29;
         unsigned int SPARE                                                        :  3;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51363,11 +51382,11 @@ union VGT_DEBUG_REG4 {
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE                                                        :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE                                                        :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51384,7 +51403,7 @@ union VGT_DEBUG_REG5 {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  3;
         unsigned int                                                              :  5;
-    } vega;
+    } rv1x;
     struct {
         unsigned int SPARE4                                                       :  3;
         unsigned int                                                              :  5;
@@ -51394,7 +51413,7 @@ union VGT_DEBUG_REG5 {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  3;
         unsigned int                                                              :  5;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51406,12 +51425,12 @@ union VGT_DEBUG_REG7 {
         unsigned int                                                              :  5;
         unsigned int SPARE                                                        : 11;
         unsigned int                                                              : 16;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  5;
         unsigned int SPARE                                                        : 11;
         unsigned int                                                              : 16;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51423,12 +51442,12 @@ union VGT_DEBUG_REG9 {
         unsigned int                                                              : 30;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 30;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51440,12 +51459,12 @@ union VGT_DEBUG_REG10 {
         unsigned int                                                              :  9;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              : 21;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  9;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              : 21;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51464,14 +51483,14 @@ union VGT_DEBUG_REG11 {
         unsigned int                                                              : 12;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 13;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  5;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              : 12;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 13;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51482,11 +51501,11 @@ union VGT_DEBUG_REG12 {
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE0                                                       :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 31;
         unsigned int SPARE0                                                       :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51499,13 +51518,13 @@ union VGT_DEBUG_REG13 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  5;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 25;
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  5;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51524,7 +51543,7 @@ union VGT_DEBUG_REG14 {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } vega;
+    } rv1x;
     struct {
         unsigned int SPARE3                                                       :  4;
         unsigned int                                                              :  8;
@@ -51536,7 +51555,7 @@ union VGT_DEBUG_REG14 {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              :  1;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51570,11 +51589,11 @@ union VGT_DEBUG_REG23 {
     struct {
         unsigned int                                                              : 24;
         unsigned int SPARE                                                        :  8;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 24;
         unsigned int SPARE                                                        :  8;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51583,14 +51602,6 @@ union VGT_DEBUG_REG23 {
 
 union VGT_DEBUG_REG30 {
     struct {
-        unsigned int                                                              : 19;
-        unsigned int SPARE                                                        : 13;
-    } vega;
-    struct {
-        unsigned int                                                              : 19;
-        unsigned int SPARE                                                        : 13;
-    } rv1x;
-    struct {
         unsigned int                                                              :  4;
         unsigned int pg_busy                                                      :  1;
         unsigned int pg_noif_busy                                                 :  1;
@@ -51598,6 +51609,14 @@ union VGT_DEBUG_REG30 {
         unsigned int pg_te_prim_fifo_busy                                         :  1;
         unsigned int                                                              : 24;
     } gfx09_1x;
+    struct {
+        unsigned int                                                              : 19;
+        unsigned int SPARE                                                        : 13;
+    } rv1x;
+    struct {
+        unsigned int                                                              : 19;
+        unsigned int SPARE                                                        : 13;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -51608,11 +51627,11 @@ union VGT_DEBUG_REG32 {
     struct {
         unsigned int                                                              : 28;
         unsigned int SPARE                                                        :  4;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 28;
         unsigned int SPARE                                                        :  4;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53150,7 +53169,7 @@ union wbuf_DEBUG_DATA {
         unsigned int cstate_3to0                                                  :  4;
         unsigned int                                                              :  5;
         unsigned int Reserved1                                                    : 10;
-    } vg10;
+    } apu09Plus;
     struct {
         unsigned int Reserved0                                                    :  6;
         unsigned int                                                              :  1;
@@ -53159,7 +53178,7 @@ union wbuf_DEBUG_DATA {
         unsigned int cstate_3to0                                                  :  4;
         unsigned int                                                              :  5;
         unsigned int Reserved1                                                    : 10;
-    } apu09Plus;
+    } vg10;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53246,16 +53265,6 @@ union WD_DEBUG_REG0 {
         unsigned int                                                              :  1;
     } bits, bitfields;
     struct {
-        unsigned int                                                              : 16;
-        unsigned int SPARE3                                                       :  1;
-        unsigned int                                                              : 15;
-    } vega;
-    struct {
-        unsigned int                                                              : 16;
-        unsigned int SPARE3                                                       :  1;
-        unsigned int                                                              : 15;
-    } rv1x;
-    struct {
         unsigned int                                                              : 12;
         unsigned int SPARE2                                                       :  1;
         unsigned int                                                              : 19;
@@ -53265,6 +53274,16 @@ union WD_DEBUG_REG0 {
         unsigned int wd_ngg_busy                                                  :  1;
         unsigned int                                                              : 19;
     } gfx09_1x;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int SPARE3                                                       :  1;
+        unsigned int                                                              : 15;
+    } rv1x;
+    struct {
+        unsigned int                                                              : 16;
+        unsigned int SPARE3                                                       :  1;
+        unsigned int                                                              : 15;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53276,12 +53295,12 @@ union WD_DEBUG_REG1 {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53293,12 +53312,12 @@ union WD_DEBUG_REG2 {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  8;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 23;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53312,14 +53331,14 @@ union WD_DEBUG_REG3 {
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53333,14 +53352,14 @@ union WD_DEBUG_REG5 {
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              :  1;
         unsigned int SPARE0                                                       :  1;
         unsigned int                                                              : 21;
         unsigned int SPARE1                                                       :  1;
         unsigned int                                                              :  8;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53348,24 +53367,6 @@ union WD_DEBUG_REG5 {
 };
 
 union WD_DEBUG_REG7 {
-    struct {
-        unsigned int                                                              :  4;
-        unsigned int SPARE0                                                       :  4;
-        unsigned int SPARE1                                                       :  4;
-        unsigned int SPARE2                                                       :  4;
-        unsigned int SPARE3                                                       :  4;
-        unsigned int                                                              :  2;
-        unsigned int SPARE4                                                       :  6;
-        unsigned int                                                              :  4;
-    } vega;
-    struct {
-        unsigned int                                                              :  8;
-        unsigned int SPARE1                                                       :  4;
-        unsigned int SPARE2                                                       :  4;
-        unsigned int te11_arb_state_q                                             :  3;
-        unsigned int SPARE5                                                       :  1;
-        unsigned int                                                              : 12;
-    } rv1x;
     struct {
         unsigned int                                                              :  4;
         unsigned int SE1VGT_WD_thdgrp_send_in                                     :  1;
@@ -53377,6 +53378,24 @@ union WD_DEBUG_REG7 {
         unsigned int se1_thdgrp_eop                                               :  1;
         unsigned int                                                              :  8;
     } raven;
+    struct {
+        unsigned int                                                              :  8;
+        unsigned int SPARE1                                                       :  4;
+        unsigned int SPARE2                                                       :  4;
+        unsigned int te11_arb_state_q                                             :  3;
+        unsigned int SPARE5                                                       :  1;
+        unsigned int                                                              : 12;
+    } rv1x;
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int SPARE0                                                       :  4;
+        unsigned int SPARE1                                                       :  4;
+        unsigned int SPARE2                                                       :  4;
+        unsigned int SPARE3                                                       :  4;
+        unsigned int                                                              :  2;
+        unsigned int SPARE4                                                       :  6;
+        unsigned int                                                              :  4;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;
@@ -53391,7 +53410,7 @@ union WD_DEBUG_REG9 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              :  2;
-    } vega;
+    } rv1x;
     struct {
         unsigned int                                                              : 11;
         unsigned int SPARE0                                                       :  5;
@@ -53399,7 +53418,7 @@ union WD_DEBUG_REG9 {
         unsigned int SPARE1                                                       :  1;
         unsigned int SPARE2                                                       :  2;
         unsigned int                                                              :  2;
-    } rv1x;
+    } vega;
 
     unsigned int u32All;
     signed int   i32All;

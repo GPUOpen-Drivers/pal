@@ -238,7 +238,9 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor) override;
+        const AbiProcessor&               abiProcessor,
+        const CodeObjectMetadata&         metadata,
+        Util::MsgPackReader*              pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
@@ -259,34 +261,36 @@ private:
         DynamicStageInfos*                pStageInfos) const;
 
     void UpdateRingSizes(
-        const AbiProcessor& abiProcessor);
+        const CodeObjectMetadata& metadata);
     uint32 ComputeScratchMemorySize(
-        const AbiProcessor& abiProcessor) const;
+        const CodeObjectMetadata& metadata) const;
 
     void SetupSignatureFromElf(
-        const AbiProcessor& abiProcessor);
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers);
     void SetupSignatureForStageFromElf(
-        const AbiProcessor& abiProcessor,
-        HwShaderStage       stage);
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        HwShaderStage             stage);
 
     // Helper methods used to initialize portions of the pipeline register state:
     void BuildPm4Headers(bool useStreamOutput);
     void InitCommonStateRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor);
+        const RegisterVector&             registers);
     void SetupStereoRegisters();
 
     void SetupIaMultiVgtParam(
-        const AbiProcessor& abiProcessor);
+        const RegisterVector& registers);
     void FixupIaMultiVgtParam(
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
 
     void SetupNonShaderRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor);
+        const RegisterVector&             registers);
     void SetupLateAllocVs(
-        const AbiProcessor& abiProcessor);
+        const RegisterVector& registers);
     void SetupRbPlusRegistersForSlot(
         uint32                   slot,
         uint8                    writeMask,

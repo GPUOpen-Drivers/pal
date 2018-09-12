@@ -1864,7 +1864,444 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 void RsrcProcMgr::CmdScaledCopyImage(
     GfxCmdBuffer*           pCmdBuffer,
     const ScaledCopyInfo&   copyInfo,
-    ScaledCopyInternalFlags flags) const
+    ScaledCopyInternalFlags flags
+    ) const
+{
+    const auto&      srcInfo = copyInfo.pSrcImage->GetImageCreateInfo();
+    const auto&      dstInfo = copyInfo.pDstImage->GetImageCreateInfo();
+    const auto*      pDstImage = static_cast<const Image*>(copyInfo.pDstImage);
+    const ImageType  srcImageType = srcInfo.imageType;
+    const ImageType  dstImageType = dstInfo.imageType;
+
+    // MSAA source and destination images must have the same number of samples.
+    PAL_ASSERT(srcInfo.samples == dstInfo.samples);
+
+    const bool isDepth      = ((srcInfo.usageFlags.depthStencil != 0) ||
+                               (dstInfo.usageFlags.depthStencil != 0) ||
+                               Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) ||
+                               Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format));
+    const bool isCompressed = (Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
+                               Formats::IsBlockCompressed(dstInfo.swizzledFormat.format));
+    const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
+                               Formats::IsYuv(dstInfo.swizzledFormat.format));
+    const bool isSrgb       = Formats::IsSrgb(dstInfo.swizzledFormat.format);
+    const bool p2pBltWa     = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
+                              pDstImage->GetBoundGpuMemory().Memory()->AccessesPeerMemory();
+
+    SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyInfo.pRegions[0].dstSubres)->format;
+    const bool enableGammaConversion =
+        (Formats::IsSrgb(dstFormat.format) && (flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
+
+    // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
+    // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
+    const bool useGraphicsCopy = ((Image::PreferGraphicsScaledCopy                       &&
+                                  pCmdBuffer->IsGraphicsSupported())                     &&
+                                  ((srcImageType != ImageType::Tex1d)                    &&
+                                   (dstImageType != ImageType::Tex1d)                    &&
+                                   (dstInfo.samples == 1)                                &&
+                                   (isCompressed == false)                               &&
+                                   (isYuv == false)                                      &&
+                                   (isDepth == false)                                    &&
+                                   ((isSrgb == false) || srcInfo.flags.copyFormatsMatch) &&
+                                   (p2pBltWa == false)                                   &&
+                                   (copyInfo.flags.dstColorKey == false)                 &&
+                                   (copyInfo.flags.srcAlpha == false)                    &&
+                                   (enableGammaConversion == false)                      &&
+                                   (copyInfo.rotation == Pal::ImageRotation::Ccw0)));
+
+    if (useGraphicsCopy)
+    {
+        ScaledCopyImageGraphics(pCmdBuffer, copyInfo, flags);
+    }
+    else
+    {
+        ScaledCopyImageCompute(pCmdBuffer, copyInfo, flags);
+    }
+}
+// =====================================================================================================================
+void RsrcProcMgr::ScaledCopyImageGraphics(
+    GfxCmdBuffer*           pCmdBuffer,
+    const ScaledCopyInfo&   copyInfo,
+    ScaledCopyInternalFlags flags
+    ) const
+{
+    // Get some useful information about the image.
+    const auto* pSrcImage                 = static_cast<const Image*>(copyInfo.pSrcImage);
+    const auto* pDstImage                 = static_cast<const Image*>(copyInfo.pDstImage);
+    ImageLayout srcImageLayout            = copyInfo.srcImageLayout;
+    ImageLayout dstImageLayout            = copyInfo.dstImageLayout;
+    uint32 regionCount                    = copyInfo.regionCount;
+    const ImageScaledCopyRegion* pRegions = copyInfo.pRegions;
+
+    const auto& dstSubResInfo = pDstImage->SubresourceInfo(pDstImage->GetBaseSubResource());
+    const auto& srcSubResInfo = pSrcImage->SubresourceInfo(pSrcImage->GetBaseSubResource());
+    const auto& dstCreateInfo = pDstImage->GetImageCreateInfo();
+    const auto& srcCreateInfo = pSrcImage->GetImageCreateInfo();
+    const auto& device        = *m_pDevice->Parent();
+    const bool isTex3d        = (srcCreateInfo.imageType == ImageType::Tex3d) ? 1 : 0;
+
+    Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+    PAL_ASSERT(pStream != nullptr);
+
+    const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
+    const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
+    const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
+    const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+
+    ViewportParams viewportInfo = {};
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+
+    ScissorRectParams scissorInfo = {};
+    scissorInfo.count = 1;
+
+    const ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
+
+    ColorTargetViewCreateInfo colorViewInfo = {};
+    colorViewInfo.imageInfo.pImage    = copyInfo.pDstImage;
+    colorViewInfo.imageInfo.arraySize = 1;
+
+    if (dstCreateInfo.imageType == ImageType::Tex3d)
+    {
+        colorViewInfo.zRange.extent     = 1;
+        colorViewInfo.flags.zRangeValid = true;
+    }
+
+    BindTargetParams bindTargetsInfo = {};
+    bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
+    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+
+    // Save current command buffer state.
+    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
+    pCmdBuffer->CmdSetDepthBiasState(depthBias);
+    pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
+    pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+
+    // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
+    const GraphicsPipeline* pPreviousPipeline = nullptr;
+
+    // Accumulate the restore mask for each region copied.
+    uint32 restoreMask = 0;
+
+    uint32 colorKey[4]          = {0};
+    uint32 alphaDiffMul         = 0;
+    float  threshold            = 0.0f;
+    uint32 colorKeyEnableMask   = 0;
+
+    if (copyInfo.flags.srcColorKey)
+    {
+        colorKeyEnableMask = 1;
+    }
+
+    if (colorKeyEnableMask > 0)
+    {
+        const bool srcColorKey = (colorKeyEnableMask == 1);
+
+        PAL_ASSERT(copyInfo.pColorKey != nullptr);
+        PAL_ASSERT(srcCreateInfo.imageType == ImageType::Tex2d);
+        PAL_ASSERT(dstCreateInfo.imageType == ImageType::Tex2d);
+        PAL_ASSERT(srcCreateInfo.samples <= 1);
+        PAL_ASSERT(dstCreateInfo.samples <= 1);
+
+        memcpy(&colorKey[0], &copyInfo.pColorKey->u32Color[0], sizeof(colorKey));
+
+        // Convert uint color key to float representation
+        SwizzledFormat format = srcColorKey ? srcCreateInfo.swizzledFormat : dstCreateInfo.swizzledFormat;
+        RpmUtil::ConvertClearColorToNativeFormat(format, format, colorKey);
+
+        // Set constant to respect or ignore alpha channel color diff
+        constexpr uint32 FloatOne = 0x3f800000;
+        alphaDiffMul = Formats::HasUnusedAlpha(format) ? 0 : FloatOne;
+
+        // Compute the threshold for comparing 2 float value
+        const uint32 bitCount = Formats::MaxComponentBitCount(format.format);
+        threshold = static_cast<float>(pow(2, -2.0f * bitCount) - pow(2, -2.0f * bitCount - 24.0f));
+    }
+
+    // Each region needs to be copied individually.
+    for (uint32 region = 0; region < regionCount; ++region)
+    {
+        // Multiply all x-dimension values in our region by the texel scale.
+
+        ImageScaledCopyRegion copyRegion = pRegions[region];
+        // Calculate the absolute value of dstExtent, which will get fed to the shader.
+        const uint32 dstExtentW = Math::Absu(copyRegion.dstExtent.width);
+        const uint32 dstExtentH = Math::Absu(copyRegion.dstExtent.height);
+        const uint32 dstExtentD = Math::Absu(copyRegion.dstExtent.depth);
+        if ((dstExtentW > 0) && (dstExtentH > 0) && (dstExtentD > 0))
+        {
+            // A negative extent means that we should do a reverse the copy.
+            // We want to always use the absolute value of dstExtent.
+            // If dstExtent is negative in one dimension, then we negate srcExtent in that dimension,
+            // and we adjust the offsets as well.
+            if (copyRegion.dstExtent.width < 0)
+            {
+                copyRegion.dstOffset.x = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
+                copyRegion.srcOffset.x = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
+                copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
+                copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
+            }
+
+            if (copyRegion.dstExtent.height < 0)
+            {
+                copyRegion.dstOffset.y = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
+                copyRegion.srcOffset.y = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
+                copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
+                copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
+            }
+
+            if (copyRegion.dstExtent.depth < 0)
+            {
+                copyRegion.dstOffset.z = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
+                copyRegion.srcOffset.z = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
+                copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
+                copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
+            }
+
+            // The shader expects the region data to be arranged as follows for each dispatch:
+            // Src Normalized Left,  Src Normalized Top,Src Normalized Right, SrcNormalized Bottom.
+
+            const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
+            const float srcLeft       = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
+            const float srcTop        = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
+            const float srcRight      = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
+            const float srcBottom     = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
+
+            PAL_ASSERT((srcLeft   >= 0.0f)   && (srcLeft   <= 1.0f) &&
+                       (srcTop    >= 0.0f)   && (srcTop    <= 1.0f) &&
+                       (srcRight  >= 0.0f)   && (srcRight  <= 1.0f) &&
+                       (srcBottom >= 0.0f)   && (srcBottom <= 1.0f));
+
+            const uint32 userData[4] =
+            {
+                reinterpret_cast<const uint32&>(srcLeft),
+                reinterpret_cast<const uint32&>(srcTop),
+                reinterpret_cast<const uint32&>(srcRight),
+                reinterpret_cast<const uint32&>(srcBottom)
+            };
+
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+
+        }
+
+        // Determine which image formats to use for the copy.
+        SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
+        SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
+
+        const uint32 zfilter   = copyInfo.filter.zFilter;
+        const uint32 magfilter = copyInfo.filter.magnification;
+        const uint32 minfilter = copyInfo.filter.minification;
+
+        float zOffset = 0.0f;
+
+        if (zfilter == ZFilterNone)
+        {
+            if ((magfilter != XyFilterPoint) || (minfilter != XyFilterPoint))
+            {
+                zOffset = 0.5f;
+            }
+        }
+        else if (zfilter != ZFilterPoint)
+        {
+            zOffset = 0.5f;
+        }
+
+        // Update the color target view format with the destination format.
+        colorViewInfo.swizzledFormat = dstFormat;
+
+        const GraphicsPipeline* pPipeline = nullptr;
+        if (srcCreateInfo.imageType == ImageType::Tex2d)
+        {
+            pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+        }
+        else
+        {
+            pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy3d_32ABGR, 0, dstFormat);
+        }
+
+        // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
+        if (pPreviousPipeline != pPipeline)
+        {
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
+            pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+            pPreviousPipeline = pPipeline;
+        }
+
+        const uint32 copyData[] =
+        {
+            colorKeyEnableMask,
+            alphaDiffMul,
+            Util::Math::FloatToBits(threshold),
+            colorKey[0],
+            colorKey[1],
+            colorKey[2],
+            colorKey[3],
+        };
+
+        // Create an embedded SRD table and bind it to user data 1. We need image views and
+        // a sampler for the src subresource, as well as some inline constants for src and dest
+        // color key
+        const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * 2 + DataDwords,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Graphics,
+                                                                   1);
+
+        // We'll setup both 2D and 3D src images as a 2D view.
+        ImageViewInfo imageView = {};
+        SubresRange   viewRange = { copyRegion.srcSubres, 1, copyRegion.numSlices };
+        RpmUtil::BuildImageViewInfo(&imageView, *pSrcImage, viewRange, srcFormat, false, device.TexOptLevel());
+
+        if (isTex3d == false)
+        {
+            imageView.viewType = ImageViewType::Tex2d;
+        }
+
+        // Populate the table with an image view of the source image.
+        device.CreateImageViewSrds(1, &imageView, pSrdTable);
+        pSrdTable += SrdDwordAlignment();
+
+        SamplerInfo samplerInfo = {};
+        samplerInfo.filter      = copyInfo.filter;
+        samplerInfo.addressU    = TexAddressMode::Clamp;
+        samplerInfo.addressV    = TexAddressMode::Clamp;
+        samplerInfo.addressW    = TexAddressMode::Clamp;
+        samplerInfo.compareFunc = CompareFunc::Always;
+        device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
+        pSrdTable += SrdDwordAlignment();
+
+        // Copy the copy parameters into the embedded user-data space
+        memcpy(pSrdTable, &copyData[0], sizeof(copyData));
+
+        // Give the gfxip layer a chance to optimize the hardware before we start copying.
+        const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
+        restoreMask              |= HwlBeginGraphicsCopy(pCmdBuffer, pPipeline, *pDstImage, bitsPerPixel);
+
+        // When copying from 3D to 3D, the number of slices should be 1. When copying from
+        // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
+        // to the dst image type, either the depth or the number of slices should be equal to 1.
+        PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
+                   (copyRegion.numSlices == 1) ||
+                   (copyRegion.srcExtent.depth == 1));
+
+        // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
+        PAL_ASSERT((srcCreateInfo.imageType == dstCreateInfo.imageType) ||
+                   ((((srcCreateInfo.imageType == ImageType::Tex3d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex2d)) ||
+                     ((srcCreateInfo.imageType == ImageType::Tex2d) &&
+                      (dstCreateInfo.imageType == ImageType::Tex3d))) &&
+                    (copyRegion.numSlices == static_cast<uint32>(copyRegion.dstExtent.depth))));
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        viewportInfo.viewports[0].originX = static_cast<float>(copyRegion.dstOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(copyRegion.dstOffset.y);
+        viewportInfo.viewports[0].width   = static_cast<float>(copyRegion.dstExtent.width);
+        viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.dstExtent.height);
+
+        scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
+        scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
+        scissorInfo.scissors[0].extent.width  = copyRegion.dstExtent.width;
+        scissorInfo.scissors[0].extent.height = copyRegion.dstExtent.height;
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+        // Copy may happen between the layers of a 2d image and the slices of a 3d image.
+        const uint32 numSlices = Max(copyRegion.numSlices, static_cast<uint32>(copyRegion.dstExtent.depth));
+
+        // Each slice is copied individually, we can optimize this into fewer draw calls if it becomes a
+        // performance bottleneck, but for now this is simpler.
+        for (uint32 sliceOffset = 0; sliceOffset < numSlices; ++sliceOffset)
+        {
+            const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
+            const float src3dSlice    = (1.f * sliceOffset) / srcExtent.depth;
+            const float src2dSlice    = static_cast<const float>(sliceOffset);
+            const uint32 srcSlice     = isTex3d
+                                        ? reinterpret_cast<const uint32&>(src3dSlice)
+                                        : reinterpret_cast<const uint32&>(src2dSlice);
+
+            const uint32 userData[1] =
+            {
+                srcSlice
+            };
+
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 1, &userData[0]);
+
+            colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
+
+            if (dstCreateInfo.imageType == ImageType::Tex3d)
+            {
+                colorViewInfo.zRange.offset = copyRegion.dstOffset.z + sliceOffset;
+            }
+            else
+            {
+                colorViewInfo.imageInfo.baseSubRes.arraySlice = copyRegion.dstSubres.arraySlice + sliceOffset;
+            }
+
+            // Create and bind a color-target view for this slice.
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            IColorTargetView* pColorView = nullptr;
+            void* pColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if (pColorViewMem == nullptr)
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                // Since our color target view can only bind 1 slice at a time, we have to issue a separate draw for
+                // each slice in extent.z. We can keep the same src image view since we pass the explicit slice to
+                // read from in user data, but we'll need to create a new color target view each time.
+                Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
+                                                                 colorViewInfoInternal,
+                                                                 pColorViewMem,
+                                                                 &pColorView);
+                PAL_ASSERT(result == Result::Success);
+
+                bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
+                bindTargetsInfo.colorTargetCount = 1;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                // Draw a fullscreen quad.
+                pCmdBuffer->CmdDraw(0, 3, 0, 1);
+
+                // Unbind the color-target view.
+                bindTargetsInfo.colorTargetCount = 0;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+            }
+        }
+    }
+    // Call back to the gfxip layer so it can restore any state it modified previously.
+    HwlEndGraphicsCopy(pStream, restoreMask);
+
+    // Restore original command buffer state.
+    pCmdBuffer->PopGraphicsState();
+
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::ScaledCopyImageCompute(
+    GfxCmdBuffer*           pCmdBuffer,
+    const ScaledCopyInfo&   copyInfo,
+    ScaledCopyInternalFlags flags
+    ) const
 {
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);

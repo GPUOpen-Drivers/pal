@@ -48,8 +48,9 @@ Screen::Screen(
     m_physicalResolution(physicalResolution)
 {
     memset(&m_wsiScreenProp, 0, sizeof(m_wsiScreenProp));
+
     m_wsiScreenProp.connectorId = connectorId;
-    m_wsiScreenProp.drmMasterFd = -1;
+    m_wsiScreenProp.drmMasterFd = InvalidFd;
 }
 
 // =====================================================================================================================
@@ -60,6 +61,9 @@ void Screen::Destroy()
 // =====================================================================================================================
 Result Screen::Init()
 {
+    // The displayName should be gotten from KMS, however there is no this kind of interface so far. Hard code it.
+    Util::Strncpy(m_wsiScreenProp.displayName, "monitor", sizeof(m_wsiScreenProp.displayName));
+
     return Result::Success;
 }
 
@@ -69,10 +73,8 @@ Result Screen::GetProperties(
     ) const
 {
     pInfo->hDisplay = nullptr;
-    // hard code the screen name for now.
-    const char ScreenName[] = "AmdMonitor";
-    Util::Strncpy(pInfo->displayName, ScreenName, sizeof(pInfo->displayName));
-    pInfo->screen = m_wsiScreenProp.connectorId;
+    pInfo->screen   = m_wsiScreenProp.connectorId;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 402
     pInfo->physicalDimension.width  = m_physicalDimension.width;
     pInfo->physicalDimension.height = m_physicalDimension.height;
@@ -80,6 +82,7 @@ Result Screen::GetProperties(
     pInfo->physicalResolution.width  = m_physicalResolution.width;
     pInfo->physicalResolution.height = m_physicalResolution.height;
 #endif
+
     pInfo->pMainDevice = m_pDevice;
 
     // Don't support cross display for now.
@@ -87,11 +90,14 @@ Result Screen::GetProperties(
 
     // Todo.
     pInfo->supportWindowedWaitForVerticalBlank = false;
-    pInfo->supportWindowedGetScanLine = false;
+    pInfo->supportWindowedGetScanLine          = false;
+
     // Linux don't have pn source id concept.
     pInfo->vidPnSourceId = 0;
 
     pInfo->wsiScreenProp = m_wsiScreenProp;
+
+    Util::Strncpy(pInfo->displayName, m_wsiScreenProp.displayName, sizeof(pInfo->displayName));
 
     return Result::Success;
 }
@@ -114,15 +120,16 @@ Result Screen::AcquireScreenAccess(
 {
     Result ret = Result::ErrorPrivateScreenUsed;
 
-    if (m_wsiScreenProp.drmMasterFd == -1)
+    if (m_wsiScreenProp.drmMasterFd == InvalidFd)
     {
-        const DrmLoaderFuncs& drmLoader = m_pDevice->GetDrmLoaderFuncs();
         ret = WindowSystem::AcquireScreenAccess(m_pDevice,
                                                 hDisplay,
                                                 wsiPlatform,
-                                                m_wsiScreenProp.randrOutput,
+                                                m_wsiScreenProp.connectorId,
+                                                &m_wsiScreenProp.randrOutput,
                                                 &m_wsiScreenProp.drmMasterFd);
 
+        const DrmLoaderFuncs& drmLoader = m_pDevice->GetDrmLoaderFuncs();
         // Get crtc id
         uint32 crtcId = 0;
         int32 fd = m_wsiScreenProp.drmMasterFd;
@@ -186,10 +193,10 @@ Result Screen::ReleaseScreenAccess()
 {
     Result ret = Result::ErrorPrivateScreenNotEnabled;
 
-    if (m_wsiScreenProp.drmMasterFd > -1)
+    if (m_wsiScreenProp.drmMasterFd != InvalidFd)
     {
         close(m_wsiScreenProp.drmMasterFd);
-        m_wsiScreenProp.drmMasterFd = -1;
+        m_wsiScreenProp.drmMasterFd = InvalidFd;
         ret = Result::Success;
     }
 
@@ -200,7 +207,6 @@ Result Screen::ReleaseScreenAccess()
 Result Screen::SetRandrOutput(
     uint32 randrOutput)
 {
-    PAL_ASSERT(m_wsiScreenProp.randrOutput == 0);
     m_wsiScreenProp.randrOutput = randrOutput;
 
     return Result::Success;

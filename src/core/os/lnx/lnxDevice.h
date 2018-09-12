@@ -69,6 +69,27 @@ struct ExternalSharedInfo
     amdgpu_bo_info          info;               // DRM's internal allocation info.
 };
 
+// All of the parameters for Pal::Linux::Device constructor.
+struct DeviceConstructorParams
+{
+    Platform*                   pPlatform;
+    const char*                 pSettingsPath;
+    const char*                 pBusId;
+    const char*                 pRenderNode;
+    const char*                 pPrimaryNode;
+    int32                       fileDescriptor;
+    int32                       primaryFileDescriptor;
+    amdgpu_device_handle        hDevice;
+    uint32                      drmMajorVer;
+    uint32                      drmMinorVer;
+    uint32                      deviceIndex;
+    uint32                      deviceNodeIndex;
+    uint32                      attachedScreenCount;
+    const amdgpu_gpu_info&      gpuInfo;
+    const HwIpDeviceSizes&      hwDeviceSizes;
+    const drmPciBusInfo&        pciBusInfo;
+};
+
 // =====================================================================================================================
 // Linux flavor of the Device class. Objects of this class are responsible for managing virtual address space via VAM
 // and implementing the factory methods exposed by the public IDevice interface.
@@ -85,23 +106,7 @@ public:
         uint32                  deviceIndex,
         Device**                ppDeviceOut);
 
-    Device(
-        Platform*                   pPlatform,
-        const char*                 pSettingsPath,
-        const char*                 pBusId,
-        const char*                 pRenderNode,
-        const char*                 pPrimaryNode,
-        uint32                      fileDescriptor,
-        amdgpu_device_handle        hDevice,
-        uint32                      drmMajorVer,
-        uint32                      drmMinorVer,
-        size_t                      deviceSize,
-        uint32                      deviceIndex,
-        uint32                      deviceNodeIndex,
-        uint32                      attachedScreenCount,
-        const amdgpu_gpu_info&      gpuInfo,
-        const HwIpDeviceSizes&      hwDeviceSizes,
-        const drmPciBusInfo&        pciBusInfo);
+    explicit Device(const DeviceConstructorParams& constructorParams);
 
     virtual ~Device();
 
@@ -778,7 +783,7 @@ private:
         amdgpu_va_handle        hVaRange);
 
     int32                 m_fileDescriptor;         // File descriptor used for communicating with the kernel driver
-    int32                 m_masterFileDescriptor;   // primary node file descriptor used for display subsystem.
+    int32                 m_primaryFileDescriptor;  // primary node file descriptor used for display subsystem.
     amdgpu_device_handle  m_hDevice;                // Device handle of the amdgpu
     amdgpu_context_handle m_hContext;               // Context handle of the amdgpu device
     const uint32          m_deviceNodeIndex;        // The device node index in the system, with this node, driver could

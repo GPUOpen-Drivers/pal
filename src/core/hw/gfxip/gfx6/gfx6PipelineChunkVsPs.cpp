@@ -60,8 +60,10 @@ PipelineChunkVsPs::PipelineChunkVsPs(
 // =====================================================================================================================
 // Initializes this pipeline chunk using RelocatableShader objects representing the VS & PS hardware stages.
 void PipelineChunkVsPs::Init(
-    const AbiProcessor& abiProcessor,
-    const VsPsParams&   params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const VsPsParams&         params)
 {
     const Gfx6PalSettings&   settings = m_device.Settings();
     const GpuChipProperties& chipInfo = m_device.Parent()->ChipProperties();
@@ -73,7 +75,7 @@ void PipelineChunkVsPs::Init(
     for (uint32 i = 0; i < MaxPsInputSemantics; ++i)
     {
         const uint16 offset = static_cast<uint16>(mmSPI_PS_INPUT_CNTL_0 + i);
-        if (abiProcessor.HasRegisterEntry(offset, &m_pm4ImageContext.spiPsInputCntl[i].u32All))
+        if (registers.HasEntry(offset, &m_pm4ImageContext.spiPsInputCntl[i].u32All))
         {
             lastPsInterpolator = offset;
         }
@@ -83,32 +85,32 @@ void PipelineChunkVsPs::Init(
         }
     }
 
-    if (abiProcessor.HasRegisterEntry(mmVGT_STRMOUT_CONFIG, &m_pm4ImageStrmout.vgtStrmoutConfig.u32All) &&
+    if (registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_pm4ImageStrmout.vgtStrmoutConfig.u32All) &&
         (m_pm4ImageStrmout.vgtStrmoutConfig.u32All != 0))
     {
         for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
             m_pm4ImageStrmout.stride[i].vgtStrmoutVtxStride.u32All =
-                abiProcessor.GetRegisterEntry(mmVGT_STRMOUT_VTX_STRIDE_0 + i);
+                registers.At(mmVGT_STRMOUT_VTX_STRIDE_0 + i);
         }
 
-        m_pm4ImageStrmout.vgtStrmoutBufferConfig.u32All = abiProcessor.GetRegisterEntry(mmVGT_STRMOUT_BUFFER_CONFIG);
+        m_pm4ImageStrmout.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
     }
 
     BuildPm4Headers(lastPsInterpolator, (m_pm4ImageStrmout.vgtStrmoutConfig.u32All != 0));
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
 
-    m_pm4ImageContext.paClVsOutCntl.u32All      = abiProcessor.GetRegisterEntry(mmPA_CL_VS_OUT_CNTL);
-    m_pm4ImageContext.spiShaderPosFormat.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_POS_FORMAT);
-    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = abiProcessor.GetRegisterEntry(mmVGT_PRIMITIVEID_EN);
-    m_spiVsOutConfig.u32All                     = abiProcessor.GetRegisterEntry(mmSPI_VS_OUT_CONFIG);
+    m_pm4ImageContext.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_pm4ImageContext.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
+    m_spiVsOutConfig.u32All                     = registers.At(mmSPI_VS_OUT_CONFIG);
 
     // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
     // mind that the number of VS exports are represented by a -1 field in the HW register!
@@ -117,20 +119,20 @@ void PipelineChunkVsPs::Init(
         m_spiVsOutConfig.bits.VS_HALF_PACK = 1;
     }
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_PS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_PS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
 
-    m_spiPsInControl.u32All                     = abiProcessor.GetRegisterEntry(mmSPI_PS_IN_CONTROL);
-    m_pm4ImageContext.spiBarycCntl.u32All       = abiProcessor.GetRegisterEntry(mmSPI_BARYC_CNTL);
-    m_pm4ImageContext.spiPsInputAddr.u32All     = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ADDR);
-    m_pm4ImageContext.spiPsInputEna.u32All      = abiProcessor.GetRegisterEntry(mmSPI_PS_INPUT_ENA);
-    m_pm4ImageContext.spiShaderColFormat.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_COL_FORMAT);
-    m_pm4ImageContext.spiShaderZFormat.u32All   = abiProcessor.GetRegisterEntry(mmSPI_SHADER_Z_FORMAT);
+    m_spiPsInControl.u32All                     = registers.At(mmSPI_PS_IN_CONTROL);
+    m_pm4ImageContext.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
+    m_pm4ImageContext.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
+    m_pm4ImageContext.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
+    m_pm4ImageContext.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+    m_pm4ImageContext.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
 
     if (chipInfo.gfxLevel >= GfxIpLevel::GfxIp7)
     {

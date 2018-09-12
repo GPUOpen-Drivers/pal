@@ -359,20 +359,31 @@ namespace DevDriver
         pProtocolServer->Finalize();
     }
 
+    void DevDriverServer::StartDeviceInit()
+    {
+        auto* pDriverControl = GetDriverControlServer();
+        if (pDriverControl != nullptr)
+        {
+            pDriverControl->StartDeviceInit();
+        }
+    }
+
     bool DevDriverServer::ShouldShowOverlay()
     {
         // Note: This function should probably be marked const, but it calls IsTraceRunning which takes the RGPServer
         // mutex to check trace state which is not a const operation.  A read/write lock might solve the problem.
         RGPProtocol::RGPServer* pRgpServer = GetServer<Protocol::RGP>();
         static const char* const pRenderDocAppName = "qrenderdoc";
+        static const char* const pPixAppName = "WinPixEngineHost.exe";
         char clientName[128] = {};
         Platform::GetProcessName(&clientName[0], sizeof(clientName));
         bool traceInProgress = ((pRgpServer != nullptr) && pRgpServer->IsTraceRunning());
+        bool isAppWhitelisted = (strcmp(clientName, pRenderDocAppName) == 0) || (strcmp(clientName, pPixAppName) == 0);
         // We always show the overlay except in two cases:
         // 1) When an RGP trace is actively running.
         // 2) [Temporary] When the active process is RenderDoc. This exception is temporary until a more robust
         //      solution for disabling the overlay is implemented.
-        return ((traceInProgress == false) && (strcmp(clientName, pRenderDocAppName) != 0));
+        return ((traceInProgress == false) && (isAppWhitelisted == false));
     }
 
 #if !DD_VERSION_SUPPORTS(GPUOPEN_CREATE_INFO_CLEANUP_VERSION)

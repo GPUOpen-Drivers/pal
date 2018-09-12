@@ -306,18 +306,6 @@ uint32 PerfCounter::SetupSdmaSelectReg(
 }
 
 // =====================================================================================================================
-static void SetGrbmGfxIndexShaderArray(
-    GfxIpLevel          gfxLevel,
-    uint32              shaderArray,
-    regGRBM_GFX_INDEX*  pGrbmGfxIndex)
-{
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pGrbmGfxIndex->gfx09.SH_INDEX = shaderArray;
-    }
-}
-
-// =====================================================================================================================
 // Counters associated with indexed GPU blocks need to write GRBM_GFX_INDEX to mask-off the SE/SH/Instance the counter
 // is sampling from. This issues the PM4 command which sets up GRBM_GFX_INDEX appropriately. Returns the next unused
 // DWORD in pCmdSpace.
@@ -341,8 +329,11 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
 
         regGRBM_GFX_INDEX grbmGfxIndex = {};
         grbmGfxIndex.bits.SE_INDEX       = seIndex;
-        grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_info.instance);
-        SetGrbmGfxIndexShaderArray(chipProps.gfxLevel, shIndex, &grbmGfxIndex);
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_info.instance);
+            grbmGfxIndex.gfx09.SH_INDEX      = shIndex;
+        }
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                      grbmGfxIndex.u32All,
@@ -711,8 +702,7 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
         regGRBM_GFX_INDEX grbmGfxIndex   = {};
         grbmGfxIndex.bits.SE_INDEX       = PerfCounter::InstanceIdToSe(numInstances, numShaderArrays, m_instance);
         grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
-
-        SetGrbmGfxIndexShaderArray(chipProps.gfxLevel, shIndex, &grbmGfxIndex);
+        grbmGfxIndex.gfx09.SH_INDEX      = shIndex;
 
         pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
                                                         grbmGfxIndex.u32All,

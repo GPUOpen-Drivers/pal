@@ -94,7 +94,9 @@ Result NdGpuMemory::AllocateOrPinMemory(
 }
 
 // =====================================================================================================================
-OsExternalHandle NdGpuMemory::GetSharedExternalHandle() const
+
+OsExternalHandle NdGpuMemory::ExportExternalHandle(
+    const GpuMemoryExportInfo& exportInfo) const
 {
     return 0;
 }

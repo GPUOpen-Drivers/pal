@@ -1413,6 +1413,58 @@ char* Dri3LoaderFuncsProxy::pfnXcbRandrGetProviderInfoName(
 }
 
 // =====================================================================================================================
+xcb_randr_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrQueryVersion(
+    xcb_connection_t*  c,
+    uint32_t           major_version,
+    uint32_t           minor_version
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_query_version_cookie_t ret = m_pFuncs->pfnXcbRandrQueryVersion(c,
+                                                                             major_version,
+                                                                             minor_version);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrQueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrQueryVersion(%p, %x, %x)\n",
+        c,
+        major_version,
+        minor_version);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_randr_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrQueryVersionReply(
+    xcb_connection_t*                 c,
+    xcb_randr_query_version_cookie_t  cookie,
+    xcb_generic_error_t**             e
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_query_version_reply_t* pRet = m_pFuncs->pfnXcbRandrQueryVersionReply(c,
+                                                                                   cookie,
+                                                                                   e);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrQueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrQueryVersionReply(%p, %p, %p)\n",
+        c,
+        &cookie,
+        e);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
 xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
     xcb_connection_t*  pConnection,
     xcb_sync_fence_t   fence
@@ -2003,6 +2055,12 @@ Result Dri3Loader::Init(
             m_funcs.pfnXcbRandrGetProviderInfoName = reinterpret_cast<XcbRandrGetProviderInfoName>(dlsym(
                         m_libraryHandles[LibXcbRandr],
                         "xcb_randr_get_provider_info_name"));
+            m_funcs.pfnXcbRandrQueryVersion = reinterpret_cast<XcbRandrQueryVersion>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_query_version"));
+            m_funcs.pfnXcbRandrQueryVersionReply = reinterpret_cast<XcbRandrQueryVersionReply>(dlsym(
+                        m_libraryHandles[LibXcbRandr],
+                        "xcb_randr_query_version_reply"));
         }
 
         // resolve symbols from libxcb-sync.so.1

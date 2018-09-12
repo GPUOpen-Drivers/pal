@@ -466,13 +466,10 @@ void PerfExperiment::IssueBegin(
     // Wait for GFX engine to become idle before freezing or sampling counters.
     pCmdSpace = WriteWaitIdleClean(pCmdStream, CacheFlushOnPerfCounter(), engineType, pCmdSpace);
 
-     if (HasSqCounters())
+    // Enable perfmon clocks for all blocks. This register controls medium grain clock gating.
+    if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
-        // SQ tests require rlc_perfom_clk_cntl set BEFORE spiConfigCntl
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
-        }
+        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
     }
 
     if (chipProps.gfx9.sqgEventsEnabled == false)

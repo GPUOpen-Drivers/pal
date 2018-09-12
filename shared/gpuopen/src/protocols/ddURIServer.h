@@ -41,7 +41,7 @@ namespace DevDriver
 {
     namespace URIProtocol
     {
-        static const char* kInternalServiceName = "internal";
+        constexpr const char* kInternalServiceName = "internal";
 
         // The protocol server implementation for the uri protocol.
         class URIServer : public BaseProtocolServer

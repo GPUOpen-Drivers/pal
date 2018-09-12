@@ -75,7 +75,7 @@ inline uint32 Compact32(
 inline uint64 MetroHash64(const uint8* pData, const uint64 dataSize)
 {
     uint64 hash = 0;
-    Util::MetroHash64::Hash(pData, dataSize, reinterpret_cast<uint8* const>(&hash));
+    Util::MetroHash64::Hash(pData, dataSize, reinterpret_cast<uint8*>(&hash));
     return hash;
 }
 

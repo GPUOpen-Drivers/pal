@@ -93,9 +93,11 @@ namespace DevDriver
         {
             Running = 0,
             Paused,
-            HaltedOnStart,
-            EarlyInit,
-            LateInit,
+            HaltedOnDeviceInit,
+            EarlyDeviceInit,
+            LateDeviceInit,
+            PlatformInit,
+            HaltedOnPlatformInit,
             Count
         };
 

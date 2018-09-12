@@ -55,7 +55,10 @@ protected:
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override
         { return (shaderType == ShaderType::Compute) ? &m_stageInfo : nullptr; }
 
-    virtual Result HwlInit(const AbiProcessor& abiProcessor) = 0;
+    virtual Result HwlInit(
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        Util::MsgPackReader*      pMetadataReader) = 0;
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     uint32  m_threadsPerTgX;

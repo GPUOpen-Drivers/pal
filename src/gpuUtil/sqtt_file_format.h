@@ -545,8 +545,8 @@ typedef enum SpmGpuBlock
     GL1A,
     GL1C,
     GL1CG,
-    GL2A,           // TCA is used in Gfx9, and changed to GL2A in Gfx10
-    GL2C,           // TCC is used in Gfx9, and changed to GL2C in Gfx10
+    GL2A,
+    GL2C,
     COUNT
 } SpmGpuBlock;
 

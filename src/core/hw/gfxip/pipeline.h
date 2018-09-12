@@ -31,6 +31,7 @@
 #include "palElfPackager.h"
 #include "palLib.h"
 #include "palMetroHash.h"
+#include "palSparseVectorImpl.h"
 #include "palPipeline.h"
 #include "palPipelineAbiProcessor.h"
 
@@ -96,6 +97,9 @@ struct PerfDataInfo
 // Shorthand for a pipeline ABI processor based on the Platform allocator.
 typedef Util::Abi::PipelineAbiProcessor<Platform>  AbiProcessor;
 
+// Shorthand for the PAL code object metadata structure.
+typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
+
 // =====================================================================================================================
 // Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
 // implementations will support compute or graphics pipelines.
@@ -132,14 +136,15 @@ protected:
     bool IsInternal() const { return m_flags.isInternal != 0; }
 
     Result PerformRelocationsAndUploadToGpuMemory(
-        const AbiProcessor& abiProcessor,
-        gpusize*            pCodeGpuVirtAddr,
-        gpusize*            pDataGpuVirtAddr);
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        gpusize*                  pCodeGpuVirtAddr,
+        gpusize*                  pDataGpuVirtAddr);
 
     void ExtractPipelineInfo(
-        const AbiProcessor& abiProcessor,
-        ShaderType          firstShader,
-        ShaderType          lastShader);
+        const CodeObjectMetadata& metadata,
+        ShaderType                firstShader,
+        ShaderType                lastShader);
 
     // Obtains a structure describing the traits of the hardware shader stage associated with a particular API shader
     // type.  Returns nullptr if the shader type is not present for the current pipeline.
@@ -152,10 +157,11 @@ protected:
 
     void DumpPipelineElf(
         const AbiProcessor& abiProcessor,
-        const char*         pPrefix) const;
+        const char*         pPrefix,
+        const char*         pName) const;
 
     size_t PerformanceDataSize(
-        const AbiProcessor& abiProcessor) const;
+        const CodeObjectMetadata& metadata) const;
 
     Device*const  m_pDevice;
 

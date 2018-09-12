@@ -191,6 +191,10 @@ target_link_libraries(pal PUBLIC vam)
 add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
 target_link_libraries(pal PUBLIC metrohash)
 
+### CWPACK #####################################################################
+add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
+target_link_libraries(pal PUBLIC cwpack)
+
 ### GPUOPEN ####################################################################
 if(PAL_BUILD_GPUOPEN)
     add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen)

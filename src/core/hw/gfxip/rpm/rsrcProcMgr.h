@@ -428,6 +428,16 @@ private:
         const ImageCopyRegion* pRegions,
         uint32                 flags) const;
 
+    void ScaledCopyImageGraphics(
+        GfxCmdBuffer*           pCmdBuffer,
+        const ScaledCopyInfo&   copyInfo,
+        ScaledCopyInternalFlags flags) const;
+
+    void ScaledCopyImageCompute(
+        GfxCmdBuffer*           pCmdBuffer,
+        const ScaledCopyInfo&   copyInfo,
+        ScaledCopyInternalFlags flags) const;
+
     void CopyDepthStencilImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,

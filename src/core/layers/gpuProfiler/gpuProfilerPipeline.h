@@ -27,6 +27,7 @@
 
 #include "core/layers/decorators.h"
 #include "palPipelineAbi.h"
+#include "g_palPipelineAbiMetadataImpl.h"
 
 namespace Util { class File;  }
 

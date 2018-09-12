@@ -44,16 +44,53 @@ constexpr uint64 PipelineShaderBaseAddrAlignment = 256; ///< Base address alignm
 constexpr uint64 DataMinBaseAddrAlignment        = 32;  ///< Minimum base address alignment for Data section.
 constexpr uint64 RoDataMinBaseAddrAlignment      = 32;  ///< Minimum base address alignment for RoData section.
 
-constexpr uint8  ElfOsAbiVersion    = 65;   ///< ELFOSABI_AMDGPU_PAL
+constexpr uint8  ElfOsAbiVersion = 65; ///< ELFOSABI_AMDGPU_PAL
+constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
+constexpr uint32 MetadataNoteType = 13; ///< NT_AMD_AMDGPU_HSA_METADATA
+
+constexpr uint32 PipelineMetadataMajorVersion = 1;  ///< Pipeline Metadata Major Version
+constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
+#else
+constexpr uint32 MetadataNoteType = 12; ///< NT_AMD_AMDGPU_HSA_METADATA
+
+constexpr uint32 PipelineMetadataMajorVersion = 0;  ///< Pipeline Metadata Major Version
+constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
 
 constexpr uint8  ElfAbiMajorVersion = 0;    ///< Initial ABI Major Version
 constexpr uint32 ElfAbiMinorVersion = 1;    ///< Initial ABI Minor Version
+#endif
 
-constexpr uint32 PipelineMetadataBase = 0x10000000;     ///< Pipeline Metadata base value to be OR'd with the
-                                                        ///  PipelineMetadataEntry value when saving to ELF.
+constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
+                                                    ///  PipelineMetadataEntry value when saving to ELF.
 
-static const char AmdGpuVendorName[] = "AMD";           ///< Vendor name string.
-static const char AmdGpuArchName[]   = "AMDGPU";        ///< Architecture name string.
+static constexpr char AmdGpuVendorName[] = "AMD";           ///< Vendor name string.
+static constexpr char AmdGpuArchName[]   = "AMDGPU";        ///< Architecture name string.
+
+/// AmdGpuMachineType for the EF_AMDGPU_MACH selection mask in e_flags.
+enum class AmdGpuMachineType : uint8
+{
+    GfxNone = 0x00,  ///< EF_AMDGPU_MACH_NONE
+    Gfx600  = 0x20,  ///< EF_AMDGPU_MACH_AMDGCN_GFX600
+    Gfx601  = 0x21,  ///< EF_AMDGPU_MACH_AMDGCN_GFX601
+    Gfx700  = 0x22,  ///< EF_AMDGPU_MACH_AMDGCN_GFX700
+    Gfx701  = 0x23,  ///< EF_AMDGPU_MACH_AMDGCN_GFX701
+    Gfx702  = 0x24,  ///< EF_AMDGPU_MACH_AMDGCN_GFX702
+    Gfx703  = 0x25,  ///< EF_AMDGPU_MACH_AMDGCN_GFX703
+    Gfx704  = 0x26,  ///< EF_AMDGPU_MACH_AMDGCN_GFX704
+    Gfx800  = 0x27,  ///< EF_AMDGPU_MACH_AMDGCN_GFX800
+    Gfx801  = 0x28,  ///< EF_AMDGPU_MACH_AMDGCN_GFX801
+    Gfx802  = 0x29,  ///< EF_AMDGPU_MACH_AMDGCN_GFX802
+    Gfx803  = 0x2a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX803
+    Gfx810  = 0x2b,  ///< EF_AMDGPU_MACH_AMDGCN_GFX810
+#if PAL_BUILD_GFX9
+    Gfx900  = 0x2c,  ///< EF_AMDGPU_MACH_AMDGCN_GFX900
+    Gfx902  = 0x2d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX902
+    Gfx904  = 0x2e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX904
+    Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
+#endif
+};
 
 /// Name of the section where our pipeline binaries store the disassembly for all shader stages.
 static constexpr char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
@@ -93,7 +130,7 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_pipeline_intrl_data",
 };
 
-/// String table of the Pipeline Metadata names.
+/// Deprecated - String table of the Pipeline Metadata key names.
 static const char* PipelineMetadataNameStrings[] =
 {
     "API_CS_HASH_DWORD0",
@@ -216,6 +253,18 @@ static const char* PipelineMetadataNameStrings[] =
     "RESERVED1",
 };
 
+/// The pipeline ABI note types.
+enum class PipelineAbiNoteType : uint32
+{
+    PalMetadata = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+
+    /// The following legacy note types are deprecated.
+
+    HsaIsa          = 3,  ///< Structure defining the ISA type in the code object.  Shared with HSA code objects.
+    AbiMinorVersion = 8,  ///< ABI minor version.
+    LegacyMetadata  = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+};
+
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to
 /// easily find a particular piece of metadata or symbol for any hardware shader stage.
 /// @note: The order of these stages must match the order used for each stages' symbol type or metadata
@@ -334,15 +383,7 @@ PAL_INLINE PipelineSymbolType GetSymbolForStage(
     return static_cast<PipelineSymbolType>(static_cast<uint32>(symbolType) + static_cast<uint32>(stage));
 }
 
-/// The pipeline ABI note types.
-enum class PipelineAbiNoteType : uint32
-{
-    HsaIsa          = 3,  ///< Structure defining the ISA type in the code object.  Shared with HSA code objects.
-    AbiMinorVersion = 8,  ///< ABI minor version.
-    PalMetadata     = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-};
-
-/// The pipeline metadata types.
+/// Deprecated - Legacy pipeline metadata types.
 enum class PipelineMetadataType : uint32
 {
     ApiCsHashDword0 = 0,   ///< Dword 0 of a 128-bit hash identifying the API compute shader.
@@ -492,6 +533,7 @@ enum class PipelineMetadataType : uint32
                                   ///  shader and the size in bytes required.
     CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
                                   ///  shader and the size in bytes required.
+
     Reserved0,                    ///< Reserved for future use.
 
     Reserved1,                    ///< Reserved for future use.
@@ -511,10 +553,12 @@ enum class PipelineMetadataType : uint32
                                                                    ///  data buffer's size.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
 static_assert(static_cast<uint32>(PipelineMetadataType::Count) == sizeof(PipelineMetadataNameStrings)/sizeof(char*),
               "PipelineMetadataType enum does not match PipelineMetadataNameStrings.");
+#endif
 
-/// Helper function to get a pipeline metadata type for a specific hardware shader stage.
+/// Deprecated - Helper function to get a pipeline metadata type for a specific hardware shader stage.
 ///
 /// @param [in] metadataType Type of Pipeline Metadata to retrieve
 /// @param [in] stage        Hardware shader stage of interest
@@ -527,7 +571,7 @@ PAL_INLINE PipelineMetadataType GetMetadataForStage(
     return static_cast<PipelineMetadataType>(static_cast<uint32>(metadataType) + static_cast<uint32>(stage));
 }
 
-/// Helper function to get a pipeline metadata hash type for a specific API shader stage.
+/// Deprecated - Helper function to get a pipeline metadata hash type for a specific API shader stage.
 ///
 /// @param [in] shader        API shader stage of interest
 /// @param [in] dwordSelected The selected dword [0-3]
@@ -637,7 +681,24 @@ struct PipelineSymbolEntry
     uint64                    size;
 };
 
-/// The structure of a NT_AMDGPU_HSA_ISA note.
+/// The structure of the AMDGPU ELF e_flags header field.
+union AmdGpuElfFlags
+{
+    struct
+    {
+        uint32 machineId    : 8;    ///< EF_AMDGPU_MACH
+        uint32 xnackEnabled : 1;    ///< EF_AMDGPU_XNACK
+        uint32 reserved     : 23;
+    };
+
+    AmdGpuMachineType machineType;  ///< EF_AMDGPU_MACH
+
+    uint32 u32All;                  ///< e_flags packed as a 32-bit unsigned integer.
+};
+
+static_assert(sizeof(AmdGpuMachineType) == 1, "AmdGpuMachineType enum underlying type is larger than expected.");
+
+/// Deprecated - The structure of a NT_AMDGPU_HSA_ISA note.
 #pragma pack (push, 1)
 struct AbiAmdGpuVersionNote
 {
@@ -651,7 +712,7 @@ struct AbiAmdGpuVersionNote
 };
 #pragma pack (pop)
 
-/// The structure of a NT_AMDGPU_ABI_MINOR_VERSION note.
+/// Deprecated - The structure of a NT_AMDGPU_ABI_MINOR_VERSION note.
 #pragma pack (push, 1)
 struct AbiMinorVersionNote
 {
@@ -659,7 +720,7 @@ struct AbiMinorVersionNote
 };
 #pragma pack (pop)
 
-/// Holds the details required by PAL runtime to configure and launch the pipeline.
+/// Deprecated - Holds the details required by PAL runtime to configure and launch the pipeline.
 #pragma pack (push, 1)
 struct PalMetadataNoteEntry
 {
@@ -668,7 +729,7 @@ struct PalMetadataNoteEntry
 };
 #pragma pack (pop)
 
-/// Interpret the PalMetadataNoteEntry as pipeline metadata if the key >= 0x10000000.
+/// Deprecated - Interpret the PalMetadataNoteEntry as pipeline metadata if the key >= 0x10000000.
 /// The pipeline metadata specifies metadata useful to PAL that doesn't correspond directly
 /// to a GFX hardware register.
 #pragma pack (push, 1)
@@ -679,7 +740,7 @@ struct PipelineMetadataEntry
 };
 #pragma pack (pop)
 
-/// Interpret the PalMetadataNoteEntry as a register if the key < 0x10000000.
+/// Deprecated - Interpret the PalMetadataNoteEntry as a register if the key < 0x10000000.
 /// The value specifies how the GFX hardware register at the corresponding byte offset should be
 /// programmed by the PAL runtime when executing the pipeline.
 typedef PalMetadataNoteEntry RegisterEntry;

@@ -59,8 +59,10 @@ PipelineChunkEsGs::PipelineChunkEsGs(
 // =====================================================================================================================
 // Initializes this pipeline chunk using RelocatableShader objects representing the ES & GS hardware stages.
 void PipelineChunkEsGs::Init(
-    const AbiProcessor& abiProcessor,
-    const EsGsParams&   params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const EsGsParams&         params)
 {
     const Gfx6PalSettings&   settings = m_device.Settings();
     const GpuChipProperties& chipInfo = m_device.Parent()->ChipProperties();
@@ -70,45 +72,44 @@ void PipelineChunkEsGs::Init(
 
     BuildPm4Headers(params.usesOnChipGs, params.esGsLdsSizeRegGs, params.esGsLdsSizeRegVs);
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Es.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_ES);
-    m_pm4ImageSh.spiShaderPgmRsrc2Es.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_ES);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_ES__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Es.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Es.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_ES);
+    m_pm4ImageSh.spiShaderPgmRsrc2Es.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_ES);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_ES__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Es.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Es.bits.CU_GROUP_ENABLE = (settings.esCuGroupEnabled ? 1 : 0);
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_GS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_GS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_GS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_GS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_GS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_GS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Gs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
     m_pm4ImageSh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
 
-    uint32 esGsLdsSizeBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::EsGsLdsByteSize, &esGsLdsSizeBytes))
+    if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
-        m_pm4ImageSh.gsUserDataLdsEsGsSize.u32All = esGsLdsSizeBytes;
-        m_pm4ImageSh.vsUserDataLdsEsGsSize.u32All = esGsLdsSizeBytes;
+        m_pm4ImageSh.gsUserDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
+        m_pm4ImageSh.vsUserDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
     }
 
-    m_pm4ImageContext.vgtGsMaxVertOut.u32All    = abiProcessor.GetRegisterEntry(mmVGT_GS_MAX_VERT_OUT);
-    m_pm4ImageContext.vgtGsInstanceCnt.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GS_INSTANCE_CNT);
-    m_pm4ImageContext.vgtGsOutPrimType.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GS_OUT_PRIM_TYPE);
-    m_pm4ImageContext.vgtGsVertItemSize0.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE);
-    m_pm4ImageContext.vgtGsVertItemSize1.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_1);
-    m_pm4ImageContext.vgtGsVertItemSize2.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_2);
-    m_pm4ImageContext.vgtGsVertItemSize3.u32All = abiProcessor.GetRegisterEntry(mmVGT_GS_VERT_ITEMSIZE_3);
-    m_pm4ImageContext.ringOffset1.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_1);
-    m_pm4ImageContext.ringOffset2.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_2);
-    m_pm4ImageContext.ringOffset3.u32All        = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_OFFSET_3);
-    m_pm4ImageContext.gsVsRingItemsize.u32All   = abiProcessor.GetRegisterEntry(mmVGT_GSVS_RING_ITEMSIZE);
-    m_pm4ImageContext.esGsRingItemsize.u32All   = abiProcessor.GetRegisterEntry(mmVGT_ESGS_RING_ITEMSIZE);
-    m_pm4ImageContext.vgtGsOnchipCntl.u32All    = abiProcessor.GetRegisterEntry(mmVGT_GS_ONCHIP_CNTL__CI__VI);
-    m_pm4ImageContext.vgtEsPerGs.u32All         = abiProcessor.GetRegisterEntry(mmVGT_ES_PER_GS);
-    m_pm4ImageContext.vgtGsPerEs.u32All         = abiProcessor.GetRegisterEntry(mmVGT_GS_PER_ES);
-    m_pm4ImageContext.vgtGsPerVs.u32All         = abiProcessor.GetRegisterEntry(mmVGT_GS_PER_VS);
+    m_pm4ImageContext.vgtGsMaxVertOut.u32All    = registers.At(mmVGT_GS_MAX_VERT_OUT);
+    m_pm4ImageContext.vgtGsInstanceCnt.u32All   = registers.At(mmVGT_GS_INSTANCE_CNT);
+    m_pm4ImageContext.vgtGsOutPrimType.u32All   = registers.At(mmVGT_GS_OUT_PRIM_TYPE);
+    m_pm4ImageContext.vgtGsVertItemSize0.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE);
+    m_pm4ImageContext.vgtGsVertItemSize1.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_1);
+    m_pm4ImageContext.vgtGsVertItemSize2.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_2);
+    m_pm4ImageContext.vgtGsVertItemSize3.u32All = registers.At(mmVGT_GS_VERT_ITEMSIZE_3);
+    m_pm4ImageContext.ringOffset1.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_1);
+    m_pm4ImageContext.ringOffset2.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_2);
+    m_pm4ImageContext.ringOffset3.u32All        = registers.At(mmVGT_GSVS_RING_OFFSET_3);
+    m_pm4ImageContext.gsVsRingItemsize.u32All   = registers.At(mmVGT_GSVS_RING_ITEMSIZE);
+    m_pm4ImageContext.esGsRingItemsize.u32All   = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
+    m_pm4ImageContext.vgtGsOnchipCntl.u32All    = registers.At(mmVGT_GS_ONCHIP_CNTL__CI__VI);
+    m_pm4ImageContext.vgtEsPerGs.u32All         = registers.At(mmVGT_ES_PER_GS);
+    m_pm4ImageContext.vgtGsPerEs.u32All         = registers.At(mmVGT_GS_PER_ES);
+    m_pm4ImageContext.vgtGsPerVs.u32All         = registers.At(mmVGT_GS_PER_VS);
 
     if (chipInfo.gfxLevel >= GfxIpLevel::GfxIp7)
     {

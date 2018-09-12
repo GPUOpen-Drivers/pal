@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,13 @@
 /**
  ***********************************************************************************************************************
  * @file  palHashLiteralString.h
- * @brief PAL utility collection implementation of the HashLiteralString template function.
+ * @brief PAL utility collection implementation of the HashLiteralString constexpr template function.
  ***********************************************************************************************************************
  */
 
-#include "palUtil.h"
+#pragma once
+
+#include "palInlineFuncs.h"
 
 namespace Util
 {
@@ -49,10 +51,10 @@ public:
     /// @param [in] string C-style string to be hashed.
     ///
     /// @returns Hash of the specified substring.
-    static uint32 Hash(
+    static constexpr uint32 Hash(
         const char (&string)[N])
     {
-        return ((Fnv1aHashHelper<N, I - 1>::Hash(string) ^ string[I - 1]) * Fnv1aPrime);
+        return LowPart(static_cast<uint64>(Fnv1aHashHelper<N, I - 1>::Hash(string) ^ string[I - 1]) * Fnv1aPrime);
     }
 };
 
@@ -67,26 +69,20 @@ public:
     /// @param [in] string C-style string to be hashed.
     ///
     /// @returns Hash of the specified substring.
-    static uint32 Hash(
+    static constexpr uint32 Hash(
         const char (&string)[N])
     {
-        return ((Fnv1aOffset ^ string[0]) * Fnv1aPrime);
+        return LowPart(static_cast<uint64>(Fnv1aOffset ^ string[0]) * Fnv1aPrime);
     }
 };
 
-/// Hashes the specified literal C-style string using the FNV-1a hash algorithm.
-///
-/// This function generates compile-time hashes of string literals because it leverages function inlining combined with
-/// the template metafunction Fnv1aHashHelper.
-///
-/// @note This only generates a compile-time hash in release builds! The MS compiler doesn't inline anything for debug
-///       builds so in debug builds, this will compute the hash at runtime (it still computes it correctly, however).
+/// Generates a compile-time hash of the specified literal C-style string using the FNV-1a hash algorithm.
 ///
 /// @param [in] string C-style string literal to be hashed.
 ///
 /// @returns 32-bit hash value for the specified string.
 template <size_t N>
-PAL_INLINE uint32 HashLiteralString(
+constexpr uint32 HashLiteralString(
     const char (&string)[N])
 {
     // The "-1" on the second template parameter is necessary to avoid hashing the string's null-terminator!

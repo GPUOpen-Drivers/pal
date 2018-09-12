@@ -159,7 +159,7 @@ Result Device::CommitSettingsAndInit()
                                   ShaderHashIsNonzero(m_sqttPsHash) ||
                                   ShaderHashIsNonzero(m_sqttCsHash));
 
-        m_profilerGranularity = settings.perfCounterConfig.granularity;
+        m_profilerGranularity = settings.profilerConfig.granularity;
 
         m_maxDrawsForThreadTrace = settings.sqttConfig.maxDraws;
         m_curDrawsForThreadTrace = 0;
@@ -207,12 +207,12 @@ Result Device::UpdateSettings()
     m_profilerSettings.profilerConfig.frameCount = 0;
     m_profilerSettings.profilerConfig.recordPipelineStats = false;
     m_profilerSettings.profilerConfig.breakSubmitBatches = false;
+    m_profilerSettings.profilerConfig.granularity = GpuProfilerGranularityDraw;
 
     // Perf Counter config
     memset(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, 0, 256);
     strncpy(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, "", 256);
     m_profilerSettings.perfCounterConfig.cacheFlushOnCounterCollection = false;
-    m_profilerSettings.perfCounterConfig.granularity = GpuProfilerGranularityDraw;
 
     // SQTT config
     m_profilerSettings.sqttConfig.tokenMask = 0xFFFF;

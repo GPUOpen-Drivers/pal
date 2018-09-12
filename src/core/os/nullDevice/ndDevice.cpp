@@ -717,7 +717,7 @@ void Device::InitGfx9ChipProperties()
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
-    Gfx9::FinalizeGpuChipProperties(&m_chipProperties);
+    Gfx9::FinalizeGpuChipProperties(GetPlatform(), &m_chipProperties);
 }
 #endif
 

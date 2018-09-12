@@ -201,7 +201,9 @@ protected:
 
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor) override;
+        const AbiProcessor&               abiProcessor,
+        const CodeObjectMetadata&         metadata,
+        Util::MsgPackReader*              pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
@@ -219,26 +221,28 @@ private:
         ) const;
 
     void UpdateRingSizes(
-        const AbiProcessor& abiProcessor);
+        const CodeObjectMetadata& metadata);
     uint32 ComputeScratchMemorySize(
-        const AbiProcessor& abiProcessor) const;
+        const CodeObjectMetadata& metadata) const;
 
     void SetupSignatureFromElf(
-        const AbiProcessor& abiProcessor,
-        uint16*             pEsGsLdsSizeRegGs,
-        uint16*             pEsGsLdsSizeRegVs);
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        uint16*                   pEsGsLdsSizeRegGs,
+        uint16*                   pEsGsLdsSizeRegVs);
     void SetupSignatureForStageFromElf(
-        const AbiProcessor& abiProcessor,
-        HwShaderStage       stage,
-        uint16*             pEsGsLdsSizeReg);
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        HwShaderStage             stage,
+        uint16*                   pEsGsLdsSizeReg);
 
     void BuildPm4Headers();
     void InitCommonStateRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const AbiProcessor&               abiProcessor);
+        const RegisterVector&             registers);
 
     void SetupIaMultiVgtParam(
-        const AbiProcessor& abiProcessor);
+        const RegisterVector& registers);
     void FixupIaMultiVgtParamOnGfx7Plus(
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
@@ -246,7 +250,7 @@ private:
     void SetupNonShaderRegisters(
         const GraphicsPipelineCreateInfo& createInfo);
     void SetupLateAllocVs(
-        const AbiProcessor& abiProcessor);
+        const RegisterVector& registers);
     void SetupRbPlusRegistersForSlot(
         uint32                       slot,
         uint8                        writeMask,

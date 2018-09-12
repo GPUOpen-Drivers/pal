@@ -64,14 +64,6 @@ public:
         const Image&  srcImage,
         const Image&  dstImage) const;
 
-    virtual void CmdFillMemory(
-        GfxCmdBuffer*    pCmdBuffer,
-        bool             saveRestoreComputeState,
-        const GpuMemory& dstGpuMemory,
-        gpusize          dstOffset,
-        gpusize          fillSize,
-        uint32           data) const override;
-
     void CmdUpdateMemory(
         GfxCmdBuffer*    pCmdBuffer,
         const GpuMemory& dstMem,
@@ -244,13 +236,6 @@ protected:
     const CmdUtil& m_cmdUtil;
 
 private:
-    void CmdFillMemoryGraphics(
-        GfxCmdBuffer*    pCmdBuffer,
-        const GpuMemory& dstGpuMemory,
-        gpusize          dstOffset,
-        gpusize          fillSize,
-        uint32           data) const;
-
     void CmdCopyMemoryFromToImageViaPixels(
         GfxCmdBuffer*                 pCmdBuffer,
         const Pal::Image&             image,

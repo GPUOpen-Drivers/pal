@@ -51,7 +51,7 @@ namespace DevDriver
 
         DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
             : BaseProtocolServer(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION, DRIVERCONTROL_SERVER_MAX_MAJOR_VERSION)
-            , m_driverStatus(DriverStatus::EarlyInit)
+            , m_driverStatus(DriverStatus::PlatformInit)
             , m_driverResumedEvent(true)
             , m_numGpus(0)
             , m_deviceClockCallbackInfo()
@@ -72,8 +72,15 @@ namespace DevDriver
 
         void DriverControlServer::Finalize()
         {
-            DD_STATIC_CONST uint32 kDefaultDriverStartTimeoutMs = 1000;
-            WaitForDriverStart(kDefaultDriverStartTimeoutMs);
+            // If the driver hasn't marked the beginning of device init we do so here
+            if (m_driverStatus == DriverStatus::PlatformInit)
+            {
+                StartDeviceInit();
+            }
+
+            // Finalize is the end of Device EarlyInit, this is where we halt if if there is a request
+            // to halt on Device init.
+            HandleDriverHalt(kDefaultDriverStartTimeoutMs);
 
             LockData();
             BaseProtocolServer::Finalize();
@@ -146,14 +153,36 @@ namespace DevDriver
                         {
                             Result result = Result::Error;
 
-                            // Allow resuming the driver from the initial "halted on start" state and from the regular paused state.
-                            if ((m_driverStatus == DriverStatus::HaltedOnStart) || (m_driverStatus == DriverStatus::Paused))
+                            // Allow resuming the driver from the initial "halted on {Device/Platform} init" states and
+                            // from the regular paused state.
+                            if ((m_driverStatus == DriverStatus::HaltedOnDeviceInit) ||
+                                (m_driverStatus == DriverStatus::HaltedOnPlatformInit) ||
+                                (m_driverStatus == DriverStatus::Paused))
                             {
                                 // If we're resuming from the paused state, move to the running state, otherwise we're moving from
-                                // halt on start to the late initialization phase.
-                                m_driverStatus = (m_driverStatus == DriverStatus::Paused) ? DriverStatus::Running : DriverStatus::LateInit;
+                                // one of the halt on start states to the next initialization phase.
+                                switch(m_driverStatus)
+                                {
+                                case DriverStatus::HaltedOnDeviceInit:
+                                    m_driverStatus = DriverStatus::LateDeviceInit;
+                                    result = Result::Success;
+                                    break;
+
+                                case DriverStatus::HaltedOnPlatformInit:
+                                    m_driverStatus = DriverStatus::EarlyDeviceInit;
+                                    result = Result::Success;
+                                    break;
+
+                                case DriverStatus::Paused:
+                                    m_driverStatus = DriverStatus::Running;
+                                    result = Result::Success;
+                                    break;
+
+                                default:
+                                    DD_ASSERT_ALWAYS();
+                                    break;
+                                }
                                 m_driverResumedEvent.Signal();
-                                result = Result::Success;
                             }
 
                             pSessionData->payload.command = DriverControlMessage::ResumeDriverResponse;
@@ -318,7 +347,7 @@ namespace DevDriver
 
                             // On older versions, override EarlyInit and LateInit to the running state to maintain backwards compatibility.
                             if ((pSession->GetVersion() < DRIVERCONTROL_INITIALIZATION_STATUS_VERSION) &&
-                                ((driverStatus == DriverStatus::EarlyInit) || (driverStatus == DriverStatus::LateInit)))
+                                ((driverStatus == DriverStatus::EarlyDeviceInit) || (driverStatus == DriverStatus::LateDeviceInit)))
                             {
                                 pSessionData->payload.queryDriverStatusResponse.status = DriverStatus::Running;
                             }
@@ -446,7 +475,7 @@ namespace DevDriver
 
         void DriverControlServer::FinishDriverInitialization()
         {
-            if (m_driverStatus == DriverStatus::LateInit)
+            if (m_driverStatus == DriverStatus::LateDeviceInit)
             {
                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Driver initialization finished\n");
                 m_driverStatus = DriverStatus::Running;
@@ -464,9 +493,28 @@ namespace DevDriver
 
         void DriverControlServer::PauseDriver()
         {
-            if ((m_driverStatus == DriverStatus::Running) || (m_driverStatus == DriverStatus::EarlyInit))
+            if ((m_driverStatus == DriverStatus::Running) ||
+                (m_driverStatus == DriverStatus::EarlyDeviceInit) ||
+                (m_driverStatus == DriverStatus::PlatformInit))
             {
-                m_driverStatus = (m_driverStatus == DriverStatus::Running) ? DriverStatus::Paused : DriverStatus::HaltedOnStart;
+                switch(m_driverStatus)
+                {
+                case DriverStatus::Running:
+                    m_driverStatus = DriverStatus::Paused;
+                    break;
+
+                case DriverStatus::EarlyDeviceInit:
+                    m_driverStatus = DriverStatus::HaltedOnDeviceInit;
+                    break;
+
+                case DriverStatus::PlatformInit:
+                    m_driverStatus = DriverStatus::HaltedOnPlatformInit;
+                    break;
+
+                default:
+                    DD_ASSERT_ALWAYS();
+                    break;
+                }
                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Paused driver\n");
                 m_driverResumedEvent.Clear();
             }
@@ -474,9 +522,28 @@ namespace DevDriver
 
         void DriverControlServer::ResumeDriver()
         {
-            if ((m_driverStatus == DriverStatus::Paused) || (m_driverStatus == DriverStatus::HaltedOnStart))
+            if ((m_driverStatus == DriverStatus::Paused) ||
+                (m_driverStatus == DriverStatus::HaltedOnDeviceInit) ||
+                (m_driverStatus == DriverStatus::HaltedOnPlatformInit))
             {
-                m_driverStatus = (m_driverStatus == DriverStatus::Paused) ? DriverStatus::Running : DriverStatus::LateInit;
+                switch (m_driverStatus)
+                {
+                case DriverStatus::HaltedOnDeviceInit:
+                    m_driverStatus = DriverStatus::LateDeviceInit;
+                    break;
+
+                case DriverStatus::HaltedOnPlatformInit:
+                    m_driverStatus = DriverStatus::EarlyDeviceInit;
+                    break;
+
+                case DriverStatus::Paused:
+                    m_driverStatus = DriverStatus::Running;
+                    break;
+
+                default:
+                    DD_ASSERT_ALWAYS();
+                    break;
+                }
                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Resumed driver\n");
                 m_driverResumedEvent.Signal();
             }
@@ -537,23 +604,43 @@ namespace DevDriver
             m_mutex.Unlock();
         }
 
-        void DriverControlServer::WaitForDriverStart(uint64 timeoutInMs)
+        void DriverControlServer::StartDeviceInit()
+        {
+            // This is the end of the PlatformInit phase, where we halt if if there is a request to halt on Platform init.
+            HandleDriverHalt(kDefaultDriverStartTimeoutMs);
+        }
+
+        void DriverControlServer::HandleDriverHalt(uint64 timeoutInMs)
         {
             ClientId clientId = kBroadcastClientId;
 
-            if (m_driverStatus == DriverStatus::EarlyInit)
+            if (m_driverStatus == DriverStatus::EarlyDeviceInit)
             {
                 ClientMetadata filter = {};
-                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::HaltOnConnect);
+                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
                 if (m_pMsgChannel->FindFirstClient(filter, &clientId, kBroadcastIntervalInMs) == Result::Success)
                 {
                     DD_ASSERT(clientId != kBroadcastClientId);
-                    DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Found client requesting driver halt: %u", clientId);
+                    DD_PRINT(LogLevel::Verbose,
+                        "[DriverControlServer] Found client requesting driver halt on Device init: %u", clientId);
                     PauseDriver();
                 }
             }
 
-            if (m_driverStatus == DriverStatus::HaltedOnStart)
+            if (m_driverStatus == DriverStatus::PlatformInit)
+            {
+                ClientMetadata filter = {};
+                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::PlatformHaltOnConnect);
+                if (m_pMsgChannel->FindFirstClient(filter, &clientId, kBroadcastIntervalInMs) == Result::Success)
+                {
+                    DD_ASSERT(clientId != kBroadcastClientId);
+                    DD_PRINT(LogLevel::Verbose,
+                        "[DriverControlServer] Found client requesting driver halt on Platform init: %u", clientId);
+                    PauseDriver();
+                }
+            }
+
+            if ((m_driverStatus == DriverStatus::HaltedOnDeviceInit) || (m_driverStatus == DriverStatus::HaltedOnPlatformInit))
             {
                 Result waitResult = Result::NotReady;
                 uint64 startTime = Platform::GetCurrentTimeInMs();
@@ -587,8 +674,10 @@ namespace DevDriver
             }
             else
             {
-                // If we don't need to halt on start, just skip straight to the late init phase.
-                m_driverStatus = DriverStatus::LateInit;
+                DD_ASSERT((m_driverStatus == DriverStatus::EarlyDeviceInit) || (m_driverStatus == DriverStatus::PlatformInit));
+                // If we don't need to halt on start, just skip to the next init phase.
+                m_driverStatus = (m_driverStatus == DriverStatus::EarlyDeviceInit) ?
+                    DriverStatus::LateDeviceInit : DriverStatus::EarlyDeviceInit;
             }
         }
     }

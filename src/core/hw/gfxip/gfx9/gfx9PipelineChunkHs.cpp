@@ -55,21 +55,23 @@ PipelineChunkHs::PipelineChunkHs(
 // =====================================================================================================================
 // Initializes this pipeline chunk for the scenario where the tessellation stages are active.
 void PipelineChunkHs::Init(
-    const AbiProcessor& abiProcessor,
-    const HsParams&     params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const HsParams&           params)
 {
     m_pHsPerfDataInfo = params.pHsPerfDataInfo;
 
     BuildPm4Headers();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_HS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
 
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
-    m_pm4ImageContext.vgtHosMinTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MIN_TESS_LEVEL);
-    m_pm4ImageContext.vgtHosMaxTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MAX_TESS_LEVEL);
+    m_pm4ImageContext.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
+    m_pm4ImageContext.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
 
     // Compute the checksum here because we don't want it to include the GPU virtual addresses!
     params.pHasher->Update(m_pm4ImageContext);

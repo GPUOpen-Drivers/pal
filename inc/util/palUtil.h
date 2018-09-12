@@ -57,8 +57,10 @@
 /// Undefined on GCC platforms.
 #define PAL_ALIGN(__x)
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
+#define PAL_WEAK_LINK __attribute__((weak))
 
-/// Give a hint to the compiler to make a function inline.
+/// Used for defining a function inline with a header. This gives it weak linkage.
+/// The compiler may also use this as a hint to merge the function into calling functions.
 #define PAL_INLINE inline
 
 /// Platform cache line size in bytes.

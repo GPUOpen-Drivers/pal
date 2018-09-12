@@ -433,6 +433,24 @@ void ComputeQueueContext::RebuildCommandStream()
                                               true,
                                               pCmdSpace);
 
+    // The gfx7 MEC microcode assumes that all RELEASE_MEMs in indirect buffers have the same VMID. If this assumption
+    // is broken timestamps from prior IBs will be written using the VMID of the current IB which will cause a page
+    // fault. PAL has no way to know if KMD is going to schedule work with different VMIDs on the same compute ring so
+    // we must assume the CP's assumption will be broken. In that case, we must guarantee that all of our timestamps
+    // are written before we end this postamble so that they use the proper VMID. We can do this by simply waiting on
+    // the EOP timestamp we just issued.
+    if (m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp7)
+    {
+        pCmdSpace += cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                             WAIT_REG_MEM_FUNC_EQUAL,
+                                             WAIT_REG_MEM_ENGINE_PFP,
+                                             m_timestampMem.GpuVirtAddr(),
+                                             0,
+                                             0xFFFFFFFF,
+                                             false,
+                                             pCmdSpace);
+    }
+
     m_postambleCmdStream.CommitCommands(pCmdSpace);
     m_postambleCmdStream.End();
 

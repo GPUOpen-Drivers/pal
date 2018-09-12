@@ -59,8 +59,10 @@ PipelineChunkLsHs::PipelineChunkLsHs(
 // =====================================================================================================================
 // Initializes this pipeline chunk using RelocatableShader objects representing the LS & HS hardware stages.
 void PipelineChunkLsHs::Init(
-    const AbiProcessor& abiProcessor,
-    const LsHsParams&   params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const LsHsParams&         params)
 {
     const Gfx6PalSettings&   settings = m_device.Settings();
     const GpuChipProperties& chipInfo = m_device.Parent()->ChipProperties();
@@ -70,14 +72,14 @@ void PipelineChunkLsHs::Init(
 
     BuildPm4Headers();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Ls.u32All     = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_LS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Ls.u32All     = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_LS);
-    m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All     = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_HS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All     = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_HS);
-    m_pm4ImageContext.vgtHosMinTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MIN_TESS_LEVEL);
-    m_pm4ImageContext.vgtHosMaxTessLevel.u32All = abiProcessor.GetRegisterEntry(mmVGT_HOS_MAX_TESS_LEVEL);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_LS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ls.u32All);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_HS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Ls.u32All     = registers.At(mmSPI_SHADER_PGM_RSRC1_LS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Ls.u32All     = registers.At(mmSPI_SHADER_PGM_RSRC2_LS);
+    m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All     = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All     = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
+    m_pm4ImageContext.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
+    m_pm4ImageContext.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_LS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ls.u32All);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
 
     // Set up the register values written for the WaShaderSpiWriteShaderPgmRsrc2Ls hardware bug workaround.  See
     // BuildPm4Headers() for more info.

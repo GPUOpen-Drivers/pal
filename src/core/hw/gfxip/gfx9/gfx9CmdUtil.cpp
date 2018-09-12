@@ -229,8 +229,9 @@ static_assert(ArrayLen(TcCacheOpConversionTable) == static_cast<size_t>(TcCacheO
 static uint32 Type3Header(
     IT_OpCodeType  opCode,
     uint32         count,
-    Pm4ShaderType  shaderType = ShaderGraphics,
-    Pm4Predicate   predicate  = PredDisable);
+    bool           resetFilterCam = false,
+    Pm4ShaderType  shaderType     = ShaderGraphics,
+    Pm4Predicate   predicate      = PredDisable);
 
 // =====================================================================================================================
 // Returns a 32-bit quantity that corresponds to a type-3 packet header.  "count" is the actual size of the packet in
@@ -245,17 +246,19 @@ static uint32 Type3Header(
 static PAL_INLINE uint32 Type3Header(
     IT_OpCodeType  opCode,
     uint32         count,
+    bool           resetFilterCam,
     Pm4ShaderType  shaderType,
     Pm4Predicate   predicate)
 {
     // PFP and ME headers are the same structure...  doesn't really matter which one we use.
     PM4_ME_TYPE_3_HEADER  header = {};
 
-    header.predicate  = predicate;
-    header.shaderType = shaderType;
-    header.type       = 3; // type-3 packet
-    header.opcode     = opCode;
-    header.count      = (count - 2);
+    header.predicate      = predicate;
+    header.shaderType     = shaderType;
+    header.type           = 3; // type-3 packet
+    header.opcode         = opCode;
+    header.count          = (count - 2);
+    header.resetFilterCam = resetFilterCam;
 
     return header.u32All;
 }
@@ -957,7 +960,7 @@ size_t CmdUtil::BuildDispatchDirect(
     constexpr uint32 PacketSize = (sizeof(PM4ME_DISPATCH_DIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4MEC_DISPATCH_DIRECT*>(pBuffer);
 
-    pPacket->header.u32All      = Type3Header(IT_DISPATCH_DIRECT, PacketSize, ShaderCompute, predicate);
+    pPacket->header.u32All      = Type3Header(IT_DISPATCH_DIRECT, PacketSize, false, ShaderCompute, predicate);
     pPacket->dim_x              = xDim;
     pPacket->dim_y              = yDim;
     pPacket->dim_z              = zDim;
@@ -1008,7 +1011,7 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
     constexpr uint32 PacketSize = (sizeof(PM4ME_DISPATCH_INDIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4ME_DISPATCH_INDIRECT*>(pBuffer);
 
-    pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, ShaderCompute, predicate);
+    pPacket->header.u32All      = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, false, ShaderCompute, predicate);
     pPacket->data_offset        = LowPart(byteOffset);
     pPacket->dispatch_initiator = dispatchInitiator.u32All;
 
@@ -1056,7 +1059,7 @@ size_t CmdUtil::BuildDrawIndex2(
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_2) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_2*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_2, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_2, PacketSize, false, ShaderGraphics, predicate);
     pPacket->max_size      = indexBufSize;
     pPacket->index_base_lo = LowPart(indexBufAddr);
     pPacket->index_base_hi = HighPart(indexBufAddr);
@@ -1085,7 +1088,7 @@ size_t CmdUtil::BuildDrawIndexOffset2(
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_OFFSET_2) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_OFFSET_2*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_OFFSET_2, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_OFFSET_2, PacketSize, false, ShaderGraphics, predicate);
     pPacket->max_size      = indexBufSize;
     pPacket->index_offset  = indexOffset;
     pPacket->index_count   = indexCount;
@@ -1113,7 +1116,7 @@ size_t CmdUtil::BuildDrawIndexAuto(
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_AUTO) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_AUTO*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_AUTO, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_AUTO, PacketSize, false, ShaderGraphics, predicate);
     pPacket->index_count   = indexCount;
 
     regVGT_DRAW_INITIATOR drawInitiator = {};
@@ -1146,7 +1149,7 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     constexpr uint32 PacketSize = (sizeof(PM4PFP_DRAW_INDEX_INDIRECT) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_DRAW_INDEX_INDIRECT*>(pBuffer);
 
-    pPacket->header.u32All             = Type3Header(IT_DRAW_INDEX_INDIRECT, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT, PacketSize, false, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
     pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
@@ -1192,7 +1195,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDEX_INDIRECT_MULTI) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDEX_INDIRECT_MULTI*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT_MULTI, PacketSize, false, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
     pPacket->bitfields3.base_vtx_loc   = baseVtxLoc - PERSISTENT_SPACE_START;
@@ -1256,7 +1259,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     constexpr uint32 PacketSize = (sizeof(PM4_PFP_DRAW_INDIRECT_MULTI) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4_PFP_DRAW_INDIRECT_MULTI*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize, ShaderGraphics, predicate);
+    pPacket->header.u32All = Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize, false, ShaderGraphics, predicate);
     pPacket->data_offset               = LowPart(offset);
     pPacket->ordinal3                  = 0;
     pPacket->bitfields3.start_vtx_loc  = baseVtxLoc - PERSISTENT_SPACE_START;
@@ -1344,7 +1347,7 @@ size_t CmdUtil::BuildDmaData(
     constexpr uint32 PacketSize = (sizeof(PM4PFP_DMA_DATA) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_DMA_DATA*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_DMA_DATA, PacketSize, ShaderGraphics, dmaDataInfo.predicate);
+    pPacket->header.u32All         = Type3Header(IT_DMA_DATA, PacketSize, false, ShaderGraphics, dmaDataInfo.predicate);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.engine_sel = static_cast<PFP_DMA_DATA_engine_sel_enum>(dmaDataInfo.usePfp
                                         ? static_cast<uint32>(engine_sel__pfp_dma_data__prefetch_parser)
@@ -2120,7 +2123,7 @@ size_t CmdUtil::BuildLoadShRegs(
     constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_SH_REG) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_LOAD_SH_REG*>(pBuffer);
 
-    pPacket->header.u32All              = Type3Header(IT_LOAD_SH_REG, PacketSize, shaderType);
+    pPacket->header.u32All              = Type3Header(IT_LOAD_SH_REG, PacketSize, false, shaderType);
     pPacket->ordinal2                   = 0;
     pPacket->bitfields2.base_address_lo = (LowPart(gpuVirtAddr) >> 2);
     pPacket->base_address_hi            = HighPart(gpuVirtAddr);
@@ -2153,7 +2156,7 @@ size_t CmdUtil::BuildLoadShRegs(
     uint32 packetSize       = (sizeof(PM4PFP_LOAD_SH_REG) / sizeof(uint32)) + (2 * (rangeCount - 1));
     auto*const   pPacket    = static_cast<PM4PFP_LOAD_SH_REG*>(pBuffer);
 
-    pPacket->header.u32All              = Type3Header(IT_LOAD_SH_REG, packetSize, shaderType);
+    pPacket->header.u32All              = Type3Header(IT_LOAD_SH_REG, packetSize, false, shaderType);
     pPacket->ordinal2                   = 0;
     pPacket->bitfields2.base_address_lo = (LowPart(gpuVirtAddr) >> 2);
     pPacket->base_address_hi            = HighPart(gpuVirtAddr);
@@ -2510,7 +2513,7 @@ size_t CmdUtil::BuildRewind(
     constexpr size_t PacketSize = sizeof(PM4_MEC_REWIND) / sizeof(uint32);
     auto*const       pPacket    = static_cast<PM4_MEC_REWIND*>(pBuffer);
 
-    pPacket->header.u32All = Type3Header(IT_REWIND, PacketSize, ShaderCompute);
+    pPacket->header.u32All = Type3Header(IT_REWIND, PacketSize, false, ShaderCompute);
     pPacket->ordinal2                  = 0;
     pPacket->bitfields2.offload_enable = offloadEnable;
     pPacket->bitfields2.valid          = valid;
@@ -2530,7 +2533,7 @@ size_t CmdUtil::BuildSetBase(
     constexpr uint32 PacketSize = (sizeof(PM4PFP_SET_BASE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_SET_BASE*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_SET_BASE, PacketSize, shaderType);
+    pPacket->header.u32All         = Type3Header(IT_SET_BASE, PacketSize, false, shaderType);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.base_index = baseIndex;
     pPacket->ordinal3              = LowPart(address);
@@ -2554,7 +2557,7 @@ size_t CmdUtil::BuildSetBaseCe(
     constexpr uint32 PacketSize = (sizeof(PM4CE_SET_BASE) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4CE_SET_BASE*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_SET_BASE, PacketSize, shaderType);
+    pPacket->header.u32All         = Type3Header(IT_SET_BASE, PacketSize, false, shaderType);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.base_index = baseIndex;
     pPacket->ordinal3              = LowPart(address);
@@ -2569,6 +2572,7 @@ size_t CmdUtil::BuildSetBaseCe(
 // =====================================================================================================================
 // Builds a PM4 packet which sets one config register. The index field is used to set special registers and should be
 // set to zero except when setting one of those registers. Returns the size of the PM4 command assembled, in DWORDs.
+template <bool resetFilterCam>
 size_t CmdUtil::BuildSetOneConfigReg(
     uint32                               regAddr,
     void*                                pBuffer,  // [out] Build the PM4 packet in this buffer.
@@ -2589,9 +2593,21 @@ size_t CmdUtil::BuildSetOneConfigReg(
     return BuildSetSeqConfigRegs(regAddr, regAddr, pBuffer, index);
 }
 
+template
+size_t CmdUtil::BuildSetOneConfigReg<true>(
+    uint32                               regAddr,
+    void*                                pBuffer,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index) const;
+template
+size_t CmdUtil::BuildSetOneConfigReg<false>(
+    uint32                               regAddr,
+    void*                                pBuffer,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index) const;
+
 // =====================================================================================================================
 // Builds a PM4 packet which sets a sequence of config registers starting with startRegAddr and ending with endRegAddr
 // (inclusive). Returns the size of the PM4 command assembled, in DWORDs.
+template <bool resetFilterCam>
 size_t CmdUtil::BuildSetSeqConfigRegs(
     uint32                                startRegAddr,
     uint32                                endRegAddr,
@@ -2637,11 +2653,24 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
         }
     }
 
-    pPacket->header.u32All  = Type3Header(opCode, packetSize);
+    pPacket->header.u32All  = Type3Header(opCode, packetSize, resetFilterCam);
     pPacket->ordinal2       = Type3Ordinal2((startRegAddr - UCONFIG_SPACE_START), index);
 
     return packetSize;
 }
+
+template
+size_t CmdUtil::BuildSetSeqConfigRegs<false>(
+    uint32                                startRegAddr,
+    uint32                                endRegAddr,
+    void*                                 pBuffer,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum  index) const;
+template
+size_t CmdUtil::BuildSetSeqConfigRegs<true>(
+    uint32                                startRegAddr,
+    uint32                                endRegAddr,
+    void*                                 pBuffer,
+    PFP_SET_UCONFIG_REG_INDEX_index_enum  index) const;
 
 // =====================================================================================================================
 // Builds a PM4 packet which sets one SH register. Returns size of the PM4 command assembled, in DWORDs.
@@ -2683,7 +2712,7 @@ size_t CmdUtil::BuildSetSeqShRegs(
     const uint32         packetSize = ShRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const           pPacket    = static_cast<PM4_ME_SET_SH_REG*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_SET_SH_REG, packetSize, shaderType);
+    pPacket->header.u32All         = Type3Header(IT_SET_SH_REG, packetSize, false, shaderType);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.reg_offset = startRegAddr - PERSISTENT_SPACE_START;
 
@@ -2719,7 +2748,7 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
         packetSize         = ShRegIndexSizeDwords + endRegAddr - startRegAddr + 1;
         auto*const pPacket = static_cast<PM4_PFP_SET_SH_REG_INDEX*>(pBuffer);
 
-        pPacket->header.u32All         = Type3Header(IT_SET_SH_REG_INDEX, static_cast<uint32>(packetSize), shaderType);
+        pPacket->header.u32All = Type3Header(IT_SET_SH_REG_INDEX, static_cast<uint32>(packetSize), false, shaderType);
         pPacket->ordinal2              = 0;
         pPacket->bitfields2.index      = index;
         pPacket->bitfields2.reg_offset = startRegAddr - PERSISTENT_SPACE_START;
@@ -2747,7 +2776,7 @@ size_t CmdUtil::BuildSetShRegDataOffset(
     const uint32 packetSize = (sizeof(PM4PFP_SET_SH_REG_OFFSET) / sizeof(uint32));
     auto*const   pPacket    = static_cast<PM4PFP_SET_SH_REG_OFFSET*>(pBuffer);
 
-    pPacket->header.u32All         = Type3Header(IT_SET_SH_REG_OFFSET, packetSize, shaderType);
+    pPacket->header.u32All         = Type3Header(IT_SET_SH_REG_OFFSET, packetSize, false, shaderType);
     pPacket->ordinal2              = 0;
     pPacket->bitfields2.reg_offset = regAddr - PERSISTENT_SPACE_START;
     pPacket->bitfields2.index      = index;
@@ -3272,7 +3301,7 @@ size_t CmdUtil::BuildWriteDataInternal(
     const uint32 packetSize = static_cast<uint32>((sizeof(PM4ME_WRITE_DATA) / sizeof(uint32)) + dwordsToWrite);
     auto*const   pPacket    = static_cast<PM4ME_WRITE_DATA*>(pBuffer);
 
-    pPacket->header.u32All           = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, predicate);
+    pPacket->header.u32All           = Type3Header(IT_WRITE_DATA, packetSize, false, ShaderGraphics, predicate);
     pPacket->ordinal2                = 0;
     pPacket->bitfields2.addr_incr    = addr_incr__me_write_data__increment_address;
     pPacket->bitfields2.cache_policy = cache_policy__me_write_data__lru;

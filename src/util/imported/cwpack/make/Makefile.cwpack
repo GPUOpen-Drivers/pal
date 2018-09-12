@@ -1,0 +1,52 @@
+####
+#
+#   Makefile for building CWPack
+#
+####
+
+#-----------------------------------------------------------------------
+# Common CWPack Implementation Files
+#-----------------------------------------------------------------------
+
+vpath %.c $(CWPACK_DEPTH)/src
+
+CFILES += cwpack.c
+
+#-----------------------------------------------------------------------
+# Common CWPack Includes
+#-----------------------------------------------------------------------
+
+LCINCS   += -I$(CWPACK_DEPTH)/inc
+LCXXINCS += -I$(CWPACK_DEPTH)/inc
+
+#-----------------------------------------------------------------------
+# Common CWPack Build Options
+#-----------------------------------------------------------------------
+
+# Fix for error X "can not be used when making a shared object;
+# recompile with -fPIC"
+# -fPIC signifies Position Independent Code and is specified when
+# building *.so shared objects.
+ifeq ($(PAL_OS_BUILD), lnx64a)
+    LCXXOPTS += -fPIC
+    LCOPTS += -fPIC
+endif
+
+#-----------------------------------------------------------------------
+# Common CWPack Defines
+#-----------------------------------------------------------------------
+
+LCDEFS += -DCOMPILE_FOR_LITTLE_ENDIAN=1
+
+# WA - We currently do not propagate default calling convention build
+#      flag from LCXXOPTS to LCOPTS, partly because it breaks jemalloc.
+#      Using a define to make cwpack use the correct calling convention.
+ifeq ($(PAL_OS_BUILD), wNow)
+    ifneq ($(filter /Gr, $(LCXXOPTS)),)
+        LCDEFS += -DCWP_CALL=__fastcall
+    else
+        ifneq ($(filter /Gz, $(LCXXOPTS)),)
+            LCDEFS += -DCWP_CALL=__stdcall
+        endif
+    endif
+endif

@@ -130,7 +130,8 @@ static Result OpenAndInitializeDrmDevice(
     const char*             pBusId,
     const char*             pPrimaryNodeName,
     const char*             pRenderNodeName,
-    uint32*                 pFileDescriptor,
+    int32*                  pFileDescriptor,
+    int32*                  pPrimaryFileDescriptor,
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
@@ -148,22 +149,24 @@ Result Device::Create(
     uint32                  deviceIndex,
     Device**                ppDeviceOut)
 {
-    HwIpLevels             ipLevels           = {};
-    HwIpDeviceSizes        hwDeviceSizes      = {};
-    size_t                 addrMgrSize        = 0;
-    uint32                 fileDescriptor     = 0;
-    amdgpu_device_handle   hDevice            = nullptr;
-    uint32                 drmMajorVer        = 0;
-    uint32                 drmMinorVer        = 0;
-    struct amdgpu_gpu_info gpuInfo            = {};
-    uint32                 cpVersion          = 0;
-    uint32                 attachedScreenCount= 0;
+    HwIpLevels             ipLevels              = {};
+    HwIpDeviceSizes        hwDeviceSizes         = {};
+    size_t                 addrMgrSize           = 0;
+    int32                  fileDescriptor        = 0;
+    int32                  primaryFileDescriptor = 0;
+    amdgpu_device_handle   hDevice               = nullptr;
+    uint32                 drmMajorVer           = 0;
+    uint32                 drmMinorVer           = 0;
+    struct amdgpu_gpu_info gpuInfo               = {};
+    uint32                 cpVersion             = 0;
+    uint32                 attachedScreenCount   = 0;
 
     Result result = OpenAndInitializeDrmDevice(pPlatform,
                                                pBusId,
                                                pPrimaryNode,
                                                pRenderNode,
                                                &fileDescriptor,
+                                               &primaryFileDescriptor,
                                                &hDevice,
                                                &drmMajorVer,
                                                &drmMinorVer,
@@ -198,22 +201,26 @@ Result Device::Create(
         {
             const uint32 deviceNodeIndex = atoi(strstr(pPrimaryNode, "card") + strlen("card"));
 
-            (*ppDeviceOut) = PAL_PLACEMENT_NEW(pMemory) Device(pPlatform,
-                                                               pSettingsPath,
-                                                               pBusId,
-                                                               pRenderNode,
-                                                               pPrimaryNode,
-                                                               fileDescriptor,
-                                                               hDevice,
-                                                               drmMajorVer,
-                                                               drmMinorVer,
-                                                               sizeof(Device),
-                                                               deviceIndex,
-                                                               deviceNodeIndex,
-                                                               attachedScreenCount,
-                                                               gpuInfo,
-                                                               hwDeviceSizes,
-                                                               pciBusInfo);
+            DeviceConstructorParams constructorParams = {
+                .pPlatform             = pPlatform,
+                .pSettingsPath         = pSettingsPath,
+                .pBusId                = pBusId,
+                .pRenderNode           = pRenderNode,
+                .pPrimaryNode          = pPrimaryNode,
+                .fileDescriptor        = fileDescriptor,
+                .primaryFileDescriptor = primaryFileDescriptor,
+                .hDevice               = hDevice,
+                .drmMajorVer           = drmMajorVer,
+                .drmMinorVer           = drmMinorVer,
+                .deviceIndex           = deviceIndex,
+                .deviceNodeIndex       = deviceNodeIndex,
+                .attachedScreenCount   = attachedScreenCount,
+                .gpuInfo               = gpuInfo,
+                .hwDeviceSizes         = hwDeviceSizes,
+                .pciBusInfo            = pciBusInfo
+            };
+
+            (*ppDeviceOut) = PAL_PLACEMENT_NEW(pMemory) Device(constructorParams);
 
             result = (*ppDeviceOut)->EarlyInit(ipLevels);
 
@@ -240,7 +247,8 @@ static Result OpenAndInitializeDrmDevice(
     const char*             pBusId,
     const char*             pPrimaryNode,
     const char*             pRenderNode,
-    uint32*                 pFileDescriptor,
+    int32*                  pFileDescriptor,
+    int32*                  pPrimaryFileDescriptor,
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
@@ -253,11 +261,12 @@ static Result OpenAndInitializeDrmDevice(
     uint32                 minorVersion = 0;
 
     // Using render node here so that we can do the off-screen rendering without authentication.
-    int32 fd = open(pRenderNode, O_RDWR, 0);
+    int32 fd        = open(pRenderNode, O_RDWR, 0);
+    int32 primaryFd = open(pPrimaryNode, O_RDWR, 0);
 
     const DrmLoaderFuncs& procs = pPlatform->GetDrmLoader().GetProcsTable();
 
-    if (fd < 0 )
+    if ((fd < 0) || (primaryFd < 0))
     {
         result = Result::ErrorInitializationFailed;
     }
@@ -286,10 +295,11 @@ static Result OpenAndInitializeDrmDevice(
 
     if (result == Result::Success)
     {
-        *pFileDescriptor = fd;
-        *pDeviceHandle   = deviceHandle;
-        *pDrmMajorVer    = majorVersion;
-        *pDrmMinorVer    = minorVersion;
+        *pFileDescriptor        = fd;
+        *pPrimaryFileDescriptor = primaryFd;
+        *pDeviceHandle          = deviceHandle;
+        *pDrmMajorVer           = majorVersion;
+        *pDrmMinorVer           = minorVersion;
     }
     else
     {
@@ -298,11 +308,21 @@ static Result OpenAndInitializeDrmDevice(
             procs.pfnAmdgpuDeviceDeinitialize(deviceHandle);
             *pDeviceHandle = nullptr;
         }
+
         if (fd > 0)
         {
             close(fd);
-            fd = 0;
-            *pFileDescriptor = 0;
+
+            fd               = InvalidFd;
+            *pFileDescriptor = InvalidFd;
+        }
+
+        if (primaryFd > 0)
+        {
+            close(primaryFd);
+
+            primaryFd               = InvalidFd;
+            *pPrimaryFileDescriptor = InvalidFd;
         }
     }
 
@@ -311,58 +331,48 @@ static Result OpenAndInitializeDrmDevice(
 
 // =====================================================================================================================
 Device::Device(
-    Platform*                   pPlatform,
-    const char*                 pSettingsPath,
-    const char*                 pBusId,
-    const char*                 pRenderNode,
-    const char*                 pPrimaryNode,
-    uint32                      fileDescriptor,
-    amdgpu_device_handle        hDevice,
-    uint32                      drmMajorVer,
-    uint32                      drmMinorVer,
-    size_t                      deviceSize,
-    uint32                      deviceIndex,
-    uint32                      deviceNodeIndex,
-    uint32                      attachedScreenCount,
-    const amdgpu_gpu_info&      gpuInfo,
-    const HwIpDeviceSizes&      hwDeviceSizes,
-    const drmPciBusInfo&        pciBusInfo)
+    const DeviceConstructorParams& constructorParams)
     :
-    Pal::Device(pPlatform, deviceIndex, attachedScreenCount, deviceSize, hwDeviceSizes, MaxSemaphoreCount),
-    m_fileDescriptor(fileDescriptor),
-    m_masterFileDescriptor(0),
-    m_hDevice(hDevice),
+    Pal::Device(constructorParams.pPlatform,
+                constructorParams.deviceIndex,
+                constructorParams.attachedScreenCount,
+                sizeof(Device),
+                constructorParams.hwDeviceSizes,
+                MaxSemaphoreCount),
+    m_fileDescriptor(constructorParams.fileDescriptor),
+    m_primaryFileDescriptor(constructorParams.primaryFileDescriptor),
+    m_hDevice(constructorParams.hDevice),
     m_hContext(nullptr),
-    m_deviceNodeIndex(deviceNodeIndex),
-    m_drmMajorVer(drmMajorVer),
-    m_drmMinorVer(drmMinorVer),
+    m_deviceNodeIndex(constructorParams.deviceNodeIndex),
+    m_drmMajorVer(constructorParams.drmMajorVer),
+    m_drmMinorVer(constructorParams.drmMinorVer),
     m_useDedicatedVmid(false),
-    m_pSettingsPath(pSettingsPath),
-    m_settingsMgr(SettingsFileName, pPlatform),
+    m_pSettingsPath(constructorParams.pSettingsPath),
+    m_settingsMgr(SettingsFileName, constructorParams.pPlatform),
     m_pSvmMgr(nullptr),
     m_mapAllocator(),
     m_reservedVaMap(32, &m_mapAllocator),
     m_supportQuerySensorInfo(false),
-    m_globalRefMap(MemoryRefMapElements, pPlatform),
+    m_globalRefMap(MemoryRefMapElements, constructorParams.pPlatform),
     m_semType(SemaphoreType::Legacy),
     m_fenceType(FenceType::Legacy),
     m_supportQueuePriority(false),
     m_supportVmAlwaysValid(false),
 #if defined(PAL_DEBUG_PRINTS)
-    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTableProxy())
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
-    m_drmProcs(pPlatform->GetDrmLoader().GetProcsTable())
+    m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTable())
 #endif
 {
-    Util::Strncpy(m_busId, pBusId, MaxBusIdStringLen);
-    Util::Strncpy(m_renderNodeName, pRenderNode, MaxNodeNameLen);
-    Util::Strncpy(m_primaryNodeName, pPrimaryNode, MaxNodeNameLen);
+    Util::Strncpy(m_busId, constructorParams.pBusId, MaxBusIdStringLen);
+    Util::Strncpy(m_renderNodeName, constructorParams.pRenderNode, MaxNodeNameLen);
+    Util::Strncpy(m_primaryNodeName, constructorParams.pPrimaryNode, MaxNodeNameLen);
 
-    memcpy(&m_gpuInfo, &gpuInfo, sizeof(gpuInfo));
+    memcpy(&m_gpuInfo, &constructorParams.gpuInfo, sizeof(constructorParams.gpuInfo));
 
-    m_chipProperties.pciBusNumber      = pciBusInfo.bus;
-    m_chipProperties.pciDeviceNumber   = pciBusInfo.dev;
-    m_chipProperties.pciFunctionNumber = pciBusInfo.func;
+    m_chipProperties.pciBusNumber               = constructorParams.pciBusInfo.bus;
+    m_chipProperties.pciDeviceNumber            = constructorParams.pciBusInfo.dev;
+    m_chipProperties.pciFunctionNumber          = constructorParams.pciBusInfo.func;
     m_chipProperties.gpuConnectedViaThunderbolt = false;
 
     memset(m_supportsPresent, 0, sizeof(m_supportsPresent));
@@ -388,16 +398,17 @@ Device::~Device()
         m_drmProcs.pfnAmdgpuDeviceDeinitialize(m_hDevice);
         m_hDevice = nullptr;
     }
+
     if (m_fileDescriptor > 0)
     {
         close(m_fileDescriptor);
-        m_fileDescriptor = 0;
+        m_fileDescriptor = InvalidFd;
     }
 
-    if (m_masterFileDescriptor > 0)
+    if (m_primaryFileDescriptor > 0)
     {
-        close(m_masterFileDescriptor);
-        m_masterFileDescriptor = 0;
+        close(m_primaryFileDescriptor);
+        m_primaryFileDescriptor = InvalidFd;
     }
 }
 
@@ -1009,7 +1020,7 @@ void Device::InitGfx9ChipProperties()
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
-    Gfx9::FinalizeGpuChipProperties(&m_chipProperties);
+    Gfx9::FinalizeGpuChipProperties(GetPlatform(), &m_chipProperties);
 
     pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
 
@@ -1361,7 +1372,9 @@ Result Device::InitMemQueueInfo()
                 break;
 
             case EngineTypeHighPriorityUniversal:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
             case EngineTypeHighPriorityGraphics:
+#endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;
                 pEngineInfo->startAlign         = 1;
@@ -2350,7 +2363,7 @@ size_t Device::GetFenceSize(
     }
     else
     {
-        fenceSize = sizeof(Fence);
+        fenceSize = sizeof(TimestampFence);
     }
 
     return fenceSize;
@@ -4755,13 +4768,7 @@ Result Device::QueryScreenModesForConnector(
 {
     Result result = Result::Success;
 
-    if (!m_masterFileDescriptor)
-    {
-        m_masterFileDescriptor = open(m_primaryNodeName, O_RDWR | O_CLOEXEC | O_NONBLOCK);
-        m_drmProcs.pfnDrmDropMaster(m_masterFileDescriptor);
-    }
-
-    drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_masterFileDescriptor, connectorId);
+    drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_primaryFileDescriptor, connectorId);
     if (pConnector == nullptr)
     {
         result = Result::ErrorInvalidValue;
@@ -4809,21 +4816,13 @@ Result Device::GetScreens(
     uint32*  pScreenCount,
     void*    pStorage[MaxScreens],
     IScreen* pScreens[MaxScreens])
-
 {
     Result result = Result::Success;
 
-    if (!m_masterFileDescriptor)
-    {
-        m_masterFileDescriptor = open(m_primaryNodeName, O_RDWR | O_CLOEXEC | O_NONBLOCK);
-        m_drmProcs.pfnDrmDropMaster(m_masterFileDescriptor);
-    }
-
-    PAL_ASSERT(m_masterFileDescriptor >= 0);
     PAL_ASSERT(pScreenCount != nullptr);
 
     // Enumerate connector and construct IScreen for any connected connector.
-    drmModeRes *pResources = m_drmProcs.pfnDrmModeGetResources(m_masterFileDescriptor);
+    drmModeRes* pResources = m_drmProcs.pfnDrmModeGetResources(m_primaryFileDescriptor);
 
     if (pResources != nullptr)
     {
@@ -4831,7 +4830,7 @@ Result Device::GetScreens(
 
         for (int32 i = 0; i < pResources->count_connectors; i++)
         {
-            drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_masterFileDescriptor,
+            drmModeConnector* pConnector = m_drmProcs.pfnDrmModeGetConnector(m_primaryFileDescriptor,
                                                                              pResources->connectors[i]);
             if (pConnector == nullptr)
             {
@@ -4845,12 +4844,12 @@ Result Device::GetScreens(
                     // Find out the preferred mode
                     uint32 preferredWidth  = 0;
                     uint32 preferredHeight = 0;
+
                     for (int32 j = 0; j < pConnector->count_modes; j++)
                     {
                         auto*const pMode = reinterpret_cast<drm_mode_modeinfo *>(&pConnector->modes[j]);
 
-                        if ((preferredWidth  < pMode->hdisplay) &&
-                            (preferredHeight < pMode->vdisplay))
+                        if ((preferredWidth  < pMode->hdisplay) && (preferredHeight < pMode->vdisplay))
                         {
                             preferredWidth  = pMode->hdisplay;
                             preferredHeight = pMode->vdisplay;

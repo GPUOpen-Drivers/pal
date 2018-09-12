@@ -214,10 +214,11 @@ Result Image::UpdateExternalImageInfo(
     Pal::Image*                          pImage)
 {
     Result result = Result::Success;
-    auto*const pLnxImage  = static_cast<Image*>(pImage);
-    auto*const pLnxGpuMemory = static_cast<GpuMemory*>(pGpuMemory);
-    auto*const  pWindowSystem  = static_cast<SwapChain*>(createInfo.pSwapChain)->GetWindowSystem();
-    const int32 sharedBufferFd = static_cast<int32>(pLnxGpuMemory->GetSharedExternalHandle());
+    auto*const pLnxImage        = static_cast<Image*>(pImage);
+    auto*const pLnxGpuMemory    = static_cast<GpuMemory*>(pGpuMemory);
+    auto*const  pWindowSystem   = static_cast<SwapChain*>(createInfo.pSwapChain)->GetWindowSystem();
+    Pal::GpuMemoryExportInfo exportInfo = {};
+    const int32 sharedBufferFd  = static_cast<int32>(pLnxGpuMemory->ExportExternalHandle(exportInfo));
 
     // Update the image information to metadata.
     pDevice->UpdateMetaData(pLnxGpuMemory->SurfaceHandle(), *pLnxImage);

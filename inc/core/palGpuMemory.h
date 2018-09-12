@@ -118,7 +118,8 @@ union GpuMemoryCreateFlags
         uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
         uint32 placeholder0      :  1; ///< Placeholder.
-        uint32 reserved          : 15; ///< Reserved for future use.
+        uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
+        uint32 reserved          : 14; ///< Reserved for future use.
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.
 };
@@ -336,6 +337,11 @@ struct DoppRef
     IGpuMemory* pGpuMemory;        ///< The GPU memory object referenced by this residency operation.
 };
 
+/// Specifies parameters for export a GPUMemory NT handle from its name.
+struct GpuMemoryExportInfo
+{
+};
+
 /**
  ***********************************************************************************************************************
  * @interface IGpuMemory
@@ -450,13 +456,22 @@ public:
     ///          + ErrorUnavailable if the GPU memory object is not a real allocation.
     virtual Result Unmap() = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 433
+    PAL_INLINE OsExternalHandle GetSharedExternalHandle() const
+    {
+        const GpuMemoryExportInfo exportInfo = {};
+        return ExportExternalHandle(exportInfo);
+    }
+#endif
     /// Returns an OS-specific handle which can be used to refer to this GPU memory object across processes. This will
     /// return a null or invalid handle if the object was not created with the @ref interprocess create flag set.
     ///
     /// @note This function is only available for Linux builds or KMT builds.
     ///
+    /// @param [in] handleInfo       The info is used to open handle.
+    ///
     /// @returns An OS-specific handle which can be used to access the GPU memory object across processes.
-    virtual OsExternalHandle GetSharedExternalHandle() const = 0;
+    virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& exportInfo) const = 0;
 
     /// Returns a structure containing some fundemental information that describes this GPU memory object.
     ///

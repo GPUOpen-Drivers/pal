@@ -47,19 +47,22 @@ enum  FileAccessMode : uint32;
 /// Driver developer can enable/disable each category separately through settings.
 enum DbgPrintCategory : uint32
 {
-    DbgPrintCatInfoMsg = 0,  ///< Generic informational messages.
-    DbgPrintCatWarnMsg,      ///< Warning messages.
-    DbgPrintCatErrorMsg,     ///< Error messages.
-    DbgPrintCatScMsg,        ///< Generic shader compiler messages.
+    DbgPrintCatInfoMsg = 0,             ///< Generic informational messages.
+    DbgPrintCatWarnMsg,                 ///< Warning messages.
+    DbgPrintCatErrorMsg,                ///< Error messages.
+    DbgPrintCatScMsg,                   ///< Generic shader compiler messages.
+    DbgPrintCatEventPrintMsg,           ///< System event messages.
+    DbgPrintCatEventPrintCallbackMsg,   ///< System event messages via callback.
     DbgPrintCatCount
 };
 
 /// Specifies the debug print mode: disabled, print to debugger, or print to file.
 enum class DbgPrintMode : uint32
 {
-    Disable,  ///< Debug print is ignored.
-    Print,    ///< Debug print is routed to the debug window or stdout.
-    File      ///< Debug print is routed to a file.
+    Disable,         ///< Debug print is ignored.
+    Print,           ///< Debug print is routed to the debug window or stdout.
+    File,            ///< Debug print is routed to a file.
+    PrintCallback,   ///< Debug print is routed to the print callback only
 };
 
 /// Flags specifying style controls for a debug print.

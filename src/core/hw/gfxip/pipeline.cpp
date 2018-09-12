@@ -118,9 +118,10 @@ void Pipeline::DestroyInternal()
 // Allocates GPU memory for this pipeline and uploads the code and data contain in the ELF binary to it.  Any ELF
 // relocations are also applied to the memory during this operation.
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
-    const AbiProcessor& abiProcessor,
-    gpusize*            pCodeGpuVirtAddr,
-    gpusize*            pDataGpuVirtAddr)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    gpusize*                  pCodeGpuVirtAddr,
+    gpusize*                  pDataGpuVirtAddr)
 {
     PAL_ASSERT((pCodeGpuVirtAddr != nullptr) && (pDataGpuVirtAddr != nullptr));
 
@@ -155,7 +156,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
     }
 
     const gpusize perfDataOffset = createInfo.size;
-    createInfo.size += PerformanceDataSize(abiProcessor);
+    createInfo.size += PerformanceDataSize(metadata);
 
     GpuMemory* pGpuMem = nullptr;
     gpusize    offset  = 0;
@@ -205,14 +206,11 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
             size_t  currentOffset = static_cast<size_t>(perfDataOffset);
             for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); i++)
             {
-                Abi::PipelineMetadataType type =
-                    Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderPerformanceDataBufferSize,
-                                             static_cast<Abi::HardwareStage>(i));
-
                 uint32 perfDataSize = 0;
-                if (abiProcessor.HasPipelineMetadataEntry(type, &perfDataSize))
+
+                if (metadata.pipeline.hardwareStage[i].hasEntry.perfDataBufferSize)
                 {
-                    m_perfDataInfo[i].sizeInBytes = perfDataSize;
+                    m_perfDataInfo[i].sizeInBytes = metadata.pipeline.hardwareStage[i].perfDataBufferSize;
                     m_perfDataInfo[i].cpuOffset   = currentOffset;
                     m_perfDataInfo[i].gpuVirtAddr = LowPart(perfGpuAddr);
                     memset(VoidPtrInc(pMappedPtr, m_perfDataInfo[i].cpuOffset), 0, perfDataSize);
@@ -230,15 +228,13 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 }
 
 // =====================================================================================================================
-// Helper function for extracting the pipeline hash and per-shader hashes from a pipeline ABI processor.
+// Helper function for extracting the pipeline hash and per-shader hashes from pipeline metadata.
 void Pipeline::ExtractPipelineInfo(
-    const AbiProcessor& abiProcessor,
-    ShaderType          firstShader,
-    ShaderType          lastShader)
+    const CodeObjectMetadata& metadata,
+    ShaderType                firstShader,
+    ShaderType                lastShader)
 {
-    abiProcessor.HasPipelineMetadataEntries(Abi::PipelineMetadataType::PipelineHashHi,
-                                            Abi::PipelineMetadataType::PipelineHashLo,
-                                            &m_info.compilerHash);
+    m_info.compilerHash = metadata.pipeline.pipelineCompilerHash;
     PAL_ALERT(m_info.compilerHash == 0); // We don't expect the pipeline ABI to report a hash of zero.
 
     // Default the pipeline hash to the compiler hash. PAL pipelines that include additional state should override this
@@ -249,24 +245,10 @@ void Pipeline::ExtractPipelineInfo(
     {
         Abi::ApiShaderType shaderType = static_cast<Abi::ApiShaderType>(s);
 
-        abiProcessor.HasPipelineMetadataEntries(
-            GetMetadataHashForApiShader(shaderType, 1),
-            GetMetadataHashForApiShader(shaderType, 0),
-            &m_info.shader[s].hash.lower);
+        const auto& shaderMetadata = metadata.pipeline.shader[s];
 
-        abiProcessor.HasPipelineMetadataEntries(
-            GetMetadataHashForApiShader(shaderType, 3),
-            GetMetadataHashForApiShader(shaderType, 2),
-            &m_info.shader[s].hash.upper);
-    }
-
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::ApiHwShaderMappingLo) &&
-        abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::ApiHwShaderMappingHi))
-    {
-        m_apiHwMapping.u32Lo =
-            abiProcessor.GetPipelineMetadataEntry(Abi::PipelineMetadataType::ApiHwShaderMappingLo);
-        m_apiHwMapping.u32Hi =
-            abiProcessor.GetPipelineMetadataEntry(Abi::PipelineMetadataType::ApiHwShaderMappingHi);
+        m_info.shader[s].hash = { shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] };
+        m_apiHwMapping.apiShaders[s] = static_cast<uint8>(shaderMetadata.hardwareMapping);
     }
 }
 
@@ -402,51 +384,42 @@ Result Pipeline::GetShaderStatsForStage(
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
+
+    MsgPackReader      metadataReader;
+    CodeObjectMetadata metadata;
+
     if (result == Result::Success)
     {
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumUsedSgprs, stageInfo.stageId),
-            &pStats->common.numUsedSgprs);
+        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+    }
 
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumUsedVgprs, stageInfo.stageId),
-            &pStats->common.numUsedVgprs);
+    if (result == Result::Success)
+    {
+        const auto& stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(stageInfo.stageId)];
 
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumAvailSgprs, stageInfo.stageId),
-            &pStats->numAvailableSgprs);
+        pStats->common.numUsedSgprs = stageMetadata.sgprCount;
+        pStats->common.numUsedVgprs = stageMetadata.vgprCount;
 
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumAvailVgprs, stageInfo.stageId),
-            &pStats->numAvailableVgprs);
+        pStats->numAvailableSgprs = stageMetadata.sgprLimit;
+        pStats->numAvailableVgprs = stageMetadata.vgprLimit;
 
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderLdsByteSize, stageInfo.stageId),
-            reinterpret_cast<uint32*>(&pStats->common.ldsUsageSizeInBytes));
-
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderScratchByteSize, stageInfo.stageId),
-            reinterpret_cast<uint32*>(&pStats->common.scratchMemUsageInBytes));
+        pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
+        pStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
 
         pStats->isaSizeInBytes = stageInfo.disassemblyLength;
 
         if (pStageInfoCopy != nullptr)
         {
-            abiProcessor.HasPipelineMetadataEntry(
-                Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumUsedSgprs, pStageInfoCopy->stageId),
-                &pStats->copyShader.numUsedSgprs);
+            const auto& copyStageMetadata =
+                metadata.pipeline.hardwareStage[static_cast<uint32>(pStageInfoCopy->stageId)];
 
-            abiProcessor.HasPipelineMetadataEntry(
-                Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderNumUsedVgprs, pStageInfoCopy->stageId),
-                &pStats->copyShader.numUsedVgprs);
+            pStats->flags.copyShaderPresent = 1;
 
-            abiProcessor.HasPipelineMetadataEntry(
-                Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderLdsByteSize, pStageInfoCopy->stageId),
-                reinterpret_cast<uint32*>(&pStats->copyShader.ldsUsageSizeInBytes));
+            pStats->copyShader.numUsedSgprs = copyStageMetadata.sgprCount;
+            pStats->copyShader.numUsedVgprs = copyStageMetadata.vgprCount;
 
-            abiProcessor.HasPipelineMetadataEntry(
-                Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderScratchByteSize, pStageInfoCopy->stageId),
-                reinterpret_cast<uint32*>(&pStats->copyShader.scratchMemUsageInBytes));
+            pStats->copyShader.ldsUsageSizeInBytes    = copyStageMetadata.ldsSize;
+            pStats->copyShader.scratchMemUsageInBytes = copyStageMetadata.scratchMemorySize;
         }
     }
 
@@ -456,21 +429,14 @@ Result Pipeline::GetShaderStatsForStage(
 // =====================================================================================================================
 // Calculates the size, in bytes, of the performance data buffers needed total for the entire pipeline.
 size_t Pipeline::PerformanceDataSize(
-    const AbiProcessor& abiProcessor
+    const CodeObjectMetadata& metadata
     ) const
 {
     size_t dataSize = 0;
 
     for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); i++)
     {
-        const  Abi::HardwareStage hwStage       = static_cast<Abi::HardwareStage>(i);
-        uint32                    perShaderSize = 0;
-
-        abiProcessor.HasPipelineMetadataEntry(
-            Abi::GetMetadataForStage(Abi::PipelineMetadataType::ShaderPerformanceDataBufferSize, hwStage),
-            &perShaderSize);
-
-        dataSize += perShaderSize;
+        dataSize += metadata.pipeline.hardwareStage[i].perfDataBufferSize;
     }
 
     return dataSize;
@@ -479,7 +445,8 @@ size_t Pipeline::PerformanceDataSize(
 // =====================================================================================================================
 void Pipeline::DumpPipelineElf(
     const AbiProcessor& abiProcessor,
-    const char*         pPrefix
+    const char*         pPrefix,
+    const char*         pName         // Optional: Non-null if we want to use a human-readable name for the filename.
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -495,10 +462,9 @@ void Pipeline::DumpPipelineElf(
     if (dumpPipeline)
     {
         const char*const pLogDir = &settings.pipelineLogConfig.pipelineLogDirectory[0];
-        const char*const pName   = abiProcessor.GetPipelineName();
 
         char fileName[512] = { };
-        if (pName == nullptr)
+        if ((pName == nullptr) || (pName[0] == '\0'))
         {
             Snprintf(&fileName[0], sizeof(fileName), "%s/%s_0x%016llX.elf", pLogDir, pPrefix, m_info.compilerHash);
         }

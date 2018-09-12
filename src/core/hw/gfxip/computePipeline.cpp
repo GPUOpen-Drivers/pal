@@ -89,11 +89,25 @@ Result ComputePipeline::InitFromPipelineBinary()
     AbiProcessor abiProcessor(m_pDevice->GetPlatform());
     Result result = abiProcessor.LoadFromBuffer(m_pPipelineBinary, m_pipelineBinaryLen);
 
+    MsgPackReader      metadataReader;
+    CodeObjectMetadata metadata;
+
     if (result == Result::Success)
     {
-        ExtractPipelineInfo(abiProcessor, ShaderType::Compute, ShaderType::Compute);
+        result = abiProcessor.GetMetadata(&metadataReader, &metadata);
+    }
 
-        DumpPipelineElf(abiProcessor, "PipelineCs");
+    if (result == Result::Success)
+    {
+        ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
+        DumpPipelineElf(abiProcessor,
+                        "PipelineCs",
+                        ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
+#else
+        DumpPipelineElf(abiProcessor, "PipelineCs", abiProcessor.GetPipelineName());
+#endif
 
         Abi::PipelineSymbolEntry symbol = { };
         if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::CsDisassembly, &symbol))
@@ -101,7 +115,7 @@ Result ComputePipeline::InitFromPipelineBinary()
             m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
         }
 
-        result = HwlInit(abiProcessor);
+        result = HwlInit(abiProcessor, metadata, &metadataReader);
     }
 
     return result;

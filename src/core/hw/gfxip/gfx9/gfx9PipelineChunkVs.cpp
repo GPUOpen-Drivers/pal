@@ -55,8 +55,10 @@ PipelineChunkVs::PipelineChunkVs(
 // =====================================================================================================================
 // Initializes this pipeline chunk.
 void PipelineChunkVs::Init(
-    const AbiProcessor& abiProcessor,
-    const VsParams&     params)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers,
+    const VsParams&           params)
 {
     const Gfx9PalSettings& settings = m_device.Settings();
 
@@ -64,9 +66,9 @@ void PipelineChunkVs::Init(
 
     BuildPm4Headers();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC1_VS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_PGM_RSRC2_VS);
-    abiProcessor.HasRegisterEntry(mmSPI_SHADER_PGM_RSRC3_VS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
+    m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+    m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
@@ -84,9 +86,9 @@ void PipelineChunkVs::Init(
     m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.CU_EN = m_device.GetCuEnableMask(vsCuDisableMask,
                                                                                   settings.vsCuEnLimitMask);
 
-    m_pm4ImageContext.paClVsOutCntl.u32All      = abiProcessor.GetRegisterEntry(mmPA_CL_VS_OUT_CNTL);
-    m_pm4ImageContext.spiShaderPosFormat.u32All = abiProcessor.GetRegisterEntry(mmSPI_SHADER_POS_FORMAT);
-    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = abiProcessor.GetRegisterEntry(mmVGT_PRIMITIVEID_EN);
+    m_pm4ImageContext.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_pm4ImageContext.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 
     // Compute the checksum here because we don't want it to include the GPU virtual addresses!
     params.pHasher->Update(m_pm4ImageContext);

@@ -577,12 +577,6 @@ void SetupUmcchBlockInfo(
         // Both Ravens.
         pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_Raven[0];
     }
-#if PAL_BUILD_GXF10
-    else if (AMDGPU_IS_NAVI(pProps->familyId, pProps->eRevId)
-    {
-        pPerfCtrAddr = &Gfx10UmcchPerfCounterInfo_Navi[0];
-    }
-#endif
     else
     {
         // This ASIC is not supported.
@@ -703,16 +697,6 @@ static void SetupHwlCounters(
                    mmRLC_PERFCOUNTER0_HI,
                    (mmRLC_PERFCOUNTER1_LO - mmRLC_PERFCOUNTER0_LO));
 
-    // PA block
-    SetupBlockInfo(pProps,
-                   GpuBlock::Pa,
-                   shaderEngines,
-                   defaultNumShaderArrays,
-                   defaultNumInstances,
-                   mmPA_SU_PERFCOUNTER0_LO,
-                   mmPA_SU_PERFCOUNTER0_HI,
-                   (mmPA_SU_PERFCOUNTER1_LO - mmPA_SU_PERFCOUNTER0_LO));
-
     // SC block
     SetupBlockInfo(pProps,
                    GpuBlock::Sc,
@@ -752,16 +736,6 @@ static void SetupHwlCounters(
                    mmTA_PERFCOUNTER0_LO,
                    mmTA_PERFCOUNTER0_HI,
                    (mmTA_PERFCOUNTER1_LO - mmTA_PERFCOUNTER0_LO));
-
-    // TCP block
-    SetupBlockInfo(pProps,
-                   GpuBlock::Tcp,
-                   shaderEngines,
-                   shaderArrays,
-                   numCuPerSh,
-                   mmTCP_PERFCOUNTER0_LO,
-                   mmTCP_PERFCOUNTER0_HI,
-                   (mmTCP_PERFCOUNTER1_LO - mmTCP_PERFCOUNTER0_LO));
 
     // TD block
     SetupBlockInfo(pProps,
@@ -826,6 +800,26 @@ void SetupGfx9Counters(
     const uint32 rbPerShaderArray   = (pProps->gfx9.maxNumRbPerSe / shaderArrays);
 
     SetupHwlCounters(pProps, DefaultShaderEngines, DefaultShaderArrays, DefaultInstances);
+
+    // PA block
+    SetupBlockInfo(pProps,
+                   GpuBlock::Pa,
+                   DefaultShaderEngines,
+                   DefaultShaderArrays,
+                   DefaultInstances,
+                   mmPA_SU_PERFCOUNTER0_LO,
+                   mmPA_SU_PERFCOUNTER0_HI,
+                   (mmPA_SU_PERFCOUNTER1_LO - mmPA_SU_PERFCOUNTER0_LO));
+
+    // TCP block
+    SetupBlockInfo(pProps,
+                   GpuBlock::Tcp,
+                   shaderEngines,
+                   shaderArrays,
+                   numCuPerSh,
+                   mmTCP_PERFCOUNTER0_LO,
+                   mmTCP_PERFCOUNTER0_HI,
+                   (mmTCP_PERFCOUNTER1_LO - mmTCP_PERFCOUNTER0_LO));
 
     // TCC block
     SetupBlockInfo(pProps,
@@ -974,6 +968,7 @@ void SetupGfx9Counters(
 // =====================================================================================================================
 // Initializes the performance counter information for an adapter structure, specifically for the Gfx9 hardware layer.
 void InitPerfCtrInfo(
+    const Platform*    pPlatform,
     GpuChipProperties* pProps)
 {
     Gfx9PerfCounterInfo*const pInfo = &pProps->gfx9.perfCounterInfo;

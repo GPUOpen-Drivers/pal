@@ -458,148 +458,6 @@ void RsrcProcMgr::CmdCopyMemory(
 }
 
 // =====================================================================================================================
-// Builds commands to fill every DWORD of the memory object with 'data' between dstOffset and (dstOffset + fillSize).
-// The offset and fill size must be DWORD aligned.
-void RsrcProcMgr::CmdFillMemoryGraphics(
-    GfxCmdBuffer*    pCmdBuffer,
-    const GpuMemory& dstGpuMemory,
-    gpusize          dstOffset,
-    gpusize          fillSize,
-    uint32           data
-    ) const
-{
-    // Shoot me now
-    PAL_ASSERT((HighPart(fillSize) == 0) && (HighPart(dstOffset) == 0));
-
-    ColorTargetViewCreateInfo colorViewInfo = { };
-    colorViewInfo.flags.isBufferView          = 1;
-    colorViewInfo.swizzledFormat.format       = ChNumFormat::X32_Uint;
-    colorViewInfo.swizzledFormat.swizzle.r    = ChannelSwizzle::X;
-    colorViewInfo.swizzledFormat.swizzle.g    = ChannelSwizzle::Zero;
-    colorViewInfo.swizzledFormat.swizzle.b    = ChannelSwizzle::Zero;
-    colorViewInfo.swizzledFormat.swizzle.a    = ChannelSwizzle::Zero;
-    colorViewInfo.bufferInfo.pGpuMemory       = &dstGpuMemory;
-    // "dstOffset" and "fillSize" come in in terms of bytes, but the bufferInfo parameters are in terms of pixels
-    // which we have forced to dword quantities above.
-    colorViewInfo.bufferInfo.offset           = NumBytesToNumDwords(LowPart(dstOffset));
-    colorViewInfo.bufferInfo.extent           = NumBytesToNumDwords(LowPart(fillSize));
-
-    LinearAllocatorAuto<VirtualLinearAllocator> colorViewAlloc(pCmdBuffer->Allocator(), false);
-
-    // Create a color-target view for this mipmap level and slice.
-    IColorTargetView* pColorView         = nullptr;
-    const size_t      colorViewAllocsize = m_pDevice->GetColorTargetViewSize(nullptr);
-    void*             pColorViewMem      = PAL_MALLOC(colorViewAllocsize, &colorViewAlloc, AllocInternalTemp);
-
-    if (pColorViewMem != nullptr)
-    {
-        ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
-
-        Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
-                                                         colorViewInfoInternal,
-                                                         pColorViewMem,
-                                                         &pColorView);
-
-        if (result == Result::Success)
-        {
-            const uint32 convertedColor[4] = { data, 0, 0, 0 };
-
-            const auto*  pPipeline = GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR,
-                                                                          0, // target index
-                                                                          colorViewInfo.swizzledFormat);
-            ScissorRectParams                scissorInfo          = {};
-            const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
-            const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
-            const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
-            const TriangleRasterStateParams  triangleRasterState  =
-            {
-                FillMode::Solid,        // fillMode
-                CullMode::None,         // cullMode
-                FaceOrientation::Cw,    // frontFace
-                ProvokingVertex::First  // provokingVertex
-            };
-
-            ViewportParams viewportInfo = { };
-            viewportInfo.count                 = 1;
-            viewportInfo.viewports[0].originX  = 0;
-            viewportInfo.viewports[0].originY  = 0;
-            viewportInfo.viewports[0].minDepth = 0.f;
-            viewportInfo.viewports[0].maxDepth = 1.f;
-            viewportInfo.viewports[0].width    = static_cast<float>(colorViewInfo.bufferInfo.extent);
-            viewportInfo.viewports[0].height   = 1.0f;
-            viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
-            viewportInfo.horzClipRatio         = FLT_MAX;
-            viewportInfo.horzDiscardRatio      = 1.0f;
-            viewportInfo.vertClipRatio         = FLT_MAX;
-            viewportInfo.vertDiscardRatio      = 1.0f;
-
-            scissorInfo.count                     = 1;
-            scissorInfo.scissors[0].extent.width  = colorViewInfo.bufferInfo.extent;
-            scissorInfo.scissors[0].extent.height = 1;
-
-            BindTargetParams bindTargetsInfo                    = { };
-            bindTargetsInfo.colorTargets[0].imageLayout.usages  = ImageLayoutUsageFlags::LayoutColorTarget;
-            bindTargetsInfo.colorTargets[0].imageLayout.engines = ImageLayoutEngineFlags::LayoutUniversalEngine;
-            bindTargetsInfo.colorTargets[0].pColorTargetView    = pColorView;
-            bindTargetsInfo.colorTargetCount                    = 1;
-            bindTargetsInfo.depthTarget.pDepthStencilView       = nullptr;
-
-            // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-            pCmdBuffer->PushGraphicsState();
-            RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-            RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
-            pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, });
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &convertedColor[0]);
-            pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
-            pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-            pCmdBuffer->CmdBindMsaaState(GetMsaaState(1, 1)); // No MSAA with buffers
-            pCmdBuffer->CmdSetDepthBiasState(depthBias);
-            pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
-            pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
-            pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
-            pCmdBuffer->CmdSetScissorRects(scissorInfo);
-            pCmdBuffer->CmdSetViewports(viewportInfo);
-            pCmdBuffer->CmdDraw(0, 3, 0, 1);
-
-            // Restore original command buffer state.
-            pCmdBuffer->PopGraphicsState();
-        }
-
-        PAL_SAFE_FREE(pColorViewMem, &colorViewAlloc);
-    }
-}
-
-// =====================================================================================================================
-// Builds commands to fill every DWORD of the memory object with 'data' between dstOffset and (dstOffset + fillSize).
-// The offset and fill size must be DWORD aligned.
-void RsrcProcMgr::CmdFillMemory(
-    GfxCmdBuffer*    pCmdBuffer,
-    bool             saveRestoreComputeState,
-    const GpuMemory& dstGpuMemory,
-    gpusize          dstOffset,
-    gpusize          fillSize,
-    uint32           data
-    ) const
-{
-    // If this command buffer doesn't support compute, then we have to use the graphics fill path...  Otherwise,
-    // use the graphics fill path if the panel requests it AND the command buffer supports graphics operations.
-    if ((pCmdBuffer->IsComputeSupported() == false) ||
-        (ForceGraphicsFillMemoryPath && pCmdBuffer->IsGraphicsSupported()))
-    {
-        // No compute functionality is available, so this needs to be done through the graphics path.  :(  This is
-        // especially problematic as the various mask-ram initialization paths will come through here.
-        CmdFillMemoryGraphics(pCmdBuffer, dstGpuMemory, dstOffset, fillSize, data);
-    }
-    else
-    {
-        // Base implementation of fill-memory assumes that compute functionality is available.  In this instance
-        // it is, so go ahead and use it.
-        Pal::RsrcProcMgr::CmdFillMemory(pCmdBuffer, saveRestoreComputeState, dstGpuMemory, dstOffset, fillSize, data);
-    }
-}
-
-// =====================================================================================================================
 // Adds commands to pCmdBuffer to copy the provided data into the specified GPU memory location. Note that this
 // function requires a command buffer that supports CP DMA workloads.
 void RsrcProcMgr::CmdUpdateMemory(
@@ -1260,8 +1118,11 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     SwizzledFormat format
     ) const
 {
-    // There are only two ranges of pipelines that vary by export format and these are their bases.
-    PAL_ASSERT((basePipeline == Copy_32ABGR) || (basePipeline == SlowColorClear0_32ABGR));
+    // There are only four ranges of pipelines that vary by export format and these are their bases.
+    PAL_ASSERT((basePipeline == Copy_32ABGR)            ||
+               (basePipeline == SlowColorClear0_32ABGR) ||
+               (basePipeline == ScaledCopy2d_32ABGR)    ||
+               (basePipeline == ScaledCopy3d_32ABGR));
 
     const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
                                                                    false,  // Blend disabled
@@ -2213,29 +2074,23 @@ void RsrcProcMgr::InitHtile(
 
     // There shouldn't be any 3D images with HTile allocations.
     PAL_ASSERT(createInfo.imageType != ImageType::Tex3d);
+    PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
-    if (pCmdBuffer->IsComputeSupported())
+    if (clearRange.startSubres.aspect == ImageAspect::Depth)
     {
-        if (clearRange.startSubres.aspect == ImageAspect::Depth)
-        {
-            FastDepthStencilClearCompute(pCmdBuffer,
-                                         dstImage,
-                                         clearRange,
-                                         initValue,
-                                         HtileAspectDepth);
-        }
-        else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
-        {
-            FastDepthStencilClearCompute(pCmdBuffer,
-                                         dstImage,
-                                         clearRange,
-                                         initValue,
-                                         HtileAspectStencil);
-        }
+        FastDepthStencilClearCompute(pCmdBuffer,
+                                        dstImage,
+                                        clearRange,
+                                        initValue,
+                                        HtileAspectDepth);
     }
-    else
+    else if ((clearRange.startSubres.aspect == ImageAspect::Stencil) && (pHtile->TileStencilDisabled() == false))
     {
-        PAL_NOT_IMPLEMENTED();
+        FastDepthStencilClearCompute(pCmdBuffer,
+                                        dstImage,
+                                        clearRange,
+                                        initValue,
+                                        HtileAspectStencil);
     }
 }
 

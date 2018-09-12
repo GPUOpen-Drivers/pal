@@ -491,7 +491,9 @@ void LogContext::Enum(
         "EngineTypeDma",              // 0x3,
         "EngineTypeTimer",            // 0x4,
         "EngineTypeHpUniversal",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "EngineTypeHpGfxOnly",
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == EngineTypeCount,

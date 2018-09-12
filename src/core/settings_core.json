@@ -2345,6 +2345,36 @@
           "Type": "uint32",
           "VariableName": "traceModeMask",
           "Description": "Mask indicating which traces are enabled. Both spm trace and Sqtt trace are disabled (0x0)   Spm trace is enabled (0x1). Sqtt trace is enabled (0x2)."
+        },
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "GpuProfilerGranularityDraw",
+                "Value": 0,
+                "Description": "Per draw.  Each separate draw will be measured."
+              },
+              {
+                "Name": "GpuProfilerGranularityCmdBuf",
+                "Value": 1,
+                "Description": "Per command buffer.  Whole command buffers will be grouped."
+              },
+              {
+                "Name": "GpuProfilerGranularityFrame",
+                "Value": 2,
+                "Description": "Per frame, the whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats will not be gathered in this mode.  NOTE: Since SQTT will be filtered by VMID if you wish to gather a thread trace across multiple queues (i.e., including async compute work), a Debug VMID should also be requested to ensure work in all queues share the same VMID."
+              }
+            ],
+            "Name": "GpuProfilerGranularity"
+          },
+          "Name": "Granularity",
+          "HashName": 3414628368,
+          "Defaults": {
+            "Default": "GpuProfilerGranularityDraw"
+          },
+          "Type": "enum",
+          "VariableName": "granularity",
+          "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid."
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."
@@ -2383,16 +2413,6 @@
           "Type": "string",
           "VariableName": "globalPerfCounterConfigFile",
           "Name": "GlobalPerfCounterConfigFile"
-          },
-        {
-          "Description": "Forces global performance counters to be dumped per instance, rather than added together.",
-          "HashName": 103401748,
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "globalPerfCounterPerInstance",
-          "Name": "GlobalPerfCounterPerInstance"
         },
         {
           "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.",
@@ -2403,36 +2423,6 @@
           "Type": "bool",
           "VariableName": "cacheFlushOnCounterCollection",
           "Name": "CacheFlushOnCounterCollection"
-        },
-        {
-          "ValidValues": {
-            "Values": [
-              {
-                "Name": "GpuProfilerGranularityDraw",
-                "Value": 0,
-                "Description": "Per draw.  Each separate draw will be measured."
-              },
-              {
-                "Name": "GpuProfilerGranularityCmdBuf",
-                "Value": 1,
-                "Description": "Per command buffer.  Whole command buffers will be grouped."
-              },
-              {
-                "Name": "GpuProfilerGranularityFrame",
-                "Value": 2,
-                "Description": "Per frame, the whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats will not be gathered in this mode.  NOTE: Since SQTT will be filtered by VMID if you wish to gather a thread trace across multiple queues (i.e., including async compute work), a Debug VMID should also be requested to ensure work in all queues share the same VMID."
-              }
-            ],
-            "Name": "GpuProfilerGranularity"
-          },
-          "Name": "Granularity",
-          "HashName": 3414628368,
-          "Defaults": {
-            "Default": "GpuProfilerGranularityDraw"
-          },
-          "Type": "enum",
-          "VariableName": "granularity",
-          "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid."
         }
       ],
       "Description": "Configuration options for performance counter collection through the PAL GPU Profiler Layer."

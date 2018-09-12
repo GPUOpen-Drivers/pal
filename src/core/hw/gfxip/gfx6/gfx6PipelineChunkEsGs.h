@@ -68,8 +68,10 @@ public:
     ~PipelineChunkEsGs() { }
 
     void Init(
-        const AbiProcessor& abiProcessor,
-        const EsGsParams&   params);
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        const EsGsParams&         params);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,

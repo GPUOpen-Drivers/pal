@@ -66,6 +66,7 @@ public:
     template <bool pm4OptImmediate>
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
+    template <bool isPerfCtr = false>
     uint32* WriteSetOneConfigReg(
         uint32                                regAddr,
         uint32                                regData,

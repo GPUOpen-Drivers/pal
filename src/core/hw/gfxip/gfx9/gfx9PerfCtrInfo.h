@@ -32,6 +32,7 @@ namespace Pal
 
 // Forward decl's
 class  Device;
+class  Platform;
 struct GpuChipProperties;
 struct ThreadTraceInfo;
 
@@ -41,7 +42,7 @@ namespace Gfx9
 namespace PerfCtrInfo
 {
 
-extern void   InitPerfCtrInfo(GpuChipProperties* pProps);
+extern void   InitPerfCtrInfo(const Platform*  pPlatform, GpuChipProperties* pProps);
 
 // Maximum number of ShaderEngines
 constexpr uint32 MaxNumShaderEngines = 4;

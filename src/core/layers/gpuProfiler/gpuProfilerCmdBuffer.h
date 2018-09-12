@@ -754,7 +754,7 @@ public:
     void AddBarrierString(const char* pString);
     const char* GetBarrierString() const { return m_pCurrentBarrierComment; }
 
-    void UpdateCommentString(Developer::BarrierData* pData);
+    virtual void UpdateCommentString(Developer::BarrierData* pData) override;
 
     void BeginSample(Queue* pQueue, LogItem* pLogItem, bool pipeStats, bool perfExp);
     void EndSample(Queue* pQueue, const LogItem* pLogItem);

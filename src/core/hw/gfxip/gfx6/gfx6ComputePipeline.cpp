@@ -66,7 +66,8 @@ ComputePipeline::ComputePipeline(
 // =====================================================================================================================
 // Initializes the signature of a compute pipeline using a pipeline ELF.
 void ComputePipeline::SetupSignatureFromElf(
-    const AbiProcessor& abiProcessor)
+    const CodeObjectMetadata& metadata,
+    const RegisterVector&     registers)
 {
     uint16  entryToRegAddr[MaxUserDataEntries] = { };
 
@@ -74,7 +75,7 @@ void ComputePipeline::SetupSignatureFromElf(
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {
         uint32 value = 0;
-        if (abiProcessor.HasRegisterEntry(offset, &value))
+        if (registers.HasEntry(offset, &value))
         {
             if (value < MaxUserDataEntries)
             {
@@ -123,33 +124,33 @@ void ComputePipeline::SetupSignatureFromElf(
                 // This appears to be an illegally-specified user-data register!
                 PAL_NEVER_CALLED();
             }
-        } // If HasRegisterEntry()
+        } // If HasEntry()
     } // For each user-SGPR
 
     // Indirect user-data table(s):
-    uint32 value = 0;
-    for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
+    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
     {
-        const auto entryType = static_cast<Abi::PipelineMetadataType>(
-                static_cast<uint32>(Abi::PipelineMetadataType::IndirectTableEntryLow) + i);
-
-        if (abiProcessor.HasPipelineMetadataEntry(entryType, &value) && (value != UserDataNotMapped))
+        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
         {
-            m_signature.indirectTableAddr[i]          = static_cast<uint16>(value);
-            m_signature.stage.indirectTableRegAddr[i] = entryToRegAddr[value - 1];
+            const uint32 value = metadata.pipeline.indirectUserDataTableAddresses[i];
+            if (value != UserDataNotMapped)
+            {
+                m_signature.indirectTableAddr[i] = static_cast<uint16>(value);
+                m_signature.stage.indirectTableRegAddr[i] = entryToRegAddr[value - 1];
+            }
         }
     }
 
     // NOTE: We skip the stream-out table address here because it is not used by compute pipelines.
 
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::SpillThreshold, &value))
+    if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
-        m_signature.spillThreshold = static_cast<uint16>(value);
+        m_signature.spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);
     }
 
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::UserDataLimit, &value))
+    if (metadata.pipeline.hasEntry.userDataLimit != 0)
     {
-        m_signature.userDataLimit = static_cast<uint16>(value);
+        m_signature.userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
 }
 
@@ -157,19 +158,28 @@ void ComputePipeline::SetupSignatureFromElf(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
-    const AbiProcessor& abiProcessor)
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    MsgPackReader*            pMetadataReader)
 {
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
     const auto&              chipProps = m_pDevice->Parent()->ChipProperties();
 
+    RegisterVector registers(m_pDevice->GetPlatform());
+    Result result = pMetadataReader->Unpack(&registers);
+
     // First, handle relocations and upload the pipeline code & data to GPU memory.
     gpusize codeGpuVirtAddr = 0;
     gpusize dataGpuVirtAddr = 0;
-    Result result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, &codeGpuVirtAddr, &dataGpuVirtAddr);
+    if (result == Result::Success)
+    {
+        result = PerformRelocationsAndUploadToGpuMemory(abiProcessor, metadata, &codeGpuVirtAddr, &dataGpuVirtAddr);
+    }
+
     if (result ==  Result::Success)
     {
         BuildPm4Headers();
-        UpdateRingSizes(abiProcessor);
+        UpdateRingSizes(metadata);
 
         // Next, update our PM4 image with the now-known GPU virtual addresses for the shader entrypoints and
         // internal SRD table addresses:
@@ -196,17 +206,17 @@ Result ComputePipeline::HwlInit(
 
         // Initialize the rest of the PM4 image initialization with register data contained in the ELF:
 
-        m_pm4Commands.computePgmRsrc1.u32All       = abiProcessor.GetRegisterEntry(mmCOMPUTE_PGM_RSRC1);
-        m_pm4Commands.computePgmRsrc2.u32All       = abiProcessor.GetRegisterEntry(mmCOMPUTE_PGM_RSRC2);
-        m_pm4Commands.computeNumThreadX.u32All     = abiProcessor.GetRegisterEntry(mmCOMPUTE_NUM_THREAD_X);
-        m_pm4Commands.computeNumThreadY.u32All     = abiProcessor.GetRegisterEntry(mmCOMPUTE_NUM_THREAD_Y);
-        m_pm4Commands.computeNumThreadZ.u32All     = abiProcessor.GetRegisterEntry(mmCOMPUTE_NUM_THREAD_Z);
+        m_pm4Commands.computePgmRsrc1.u32All       = registers.At(mmCOMPUTE_PGM_RSRC1);
+        m_pm4Commands.computePgmRsrc2.u32All       = registers.At(mmCOMPUTE_PGM_RSRC2);
+        m_pm4Commands.computeNumThreadX.u32All     = registers.At(mmCOMPUTE_NUM_THREAD_X);
+        m_pm4Commands.computeNumThreadY.u32All     = registers.At(mmCOMPUTE_NUM_THREAD_Y);
+        m_pm4Commands.computeNumThreadZ.u32All     = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
         m_threadsPerTgX = m_pm4Commands.computeNumThreadX.bits.NUM_THREAD_FULL;
         m_threadsPerTgY = m_pm4Commands.computeNumThreadY.bits.NUM_THREAD_FULL;
         m_threadsPerTgZ = m_pm4Commands.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
-        abiProcessor.HasRegisterEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_pm4CommandsDynamic.computeResourceLimits.u32All);
+        registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_pm4CommandsDynamic.computeResourceLimits.u32All);
         const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
         const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.wavefrontSize);
 
@@ -255,7 +265,7 @@ Result ComputePipeline::HwlInit(
         }
 
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
-        SetupSignatureFromElf(abiProcessor);
+        SetupSignatureFromElf(metadata, registers);
     }
 
     return result;
@@ -445,14 +455,15 @@ void ComputePipeline::BuildPm4Headers()
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.
 void ComputePipeline::UpdateRingSizes(
-    const AbiProcessor& abiProcessor)
+    const CodeObjectMetadata& metadata)
 {
     ShaderRingItemSizes ringSizes = { };
 
-    uint32 scratchUsageBytes = 0;
-    if (abiProcessor.HasPipelineMetadataEntry(Abi::PipelineMetadataType::CsScratchByteSize, &scratchUsageBytes))
+    const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+    if (csStageMetadata.hasEntry.scratchMemorySize != 0)
     {
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] = (scratchUsageBytes / sizeof(uint32));
+        ringSizes.itemSize[static_cast<uint32>(ShaderRingType::ComputeScratch)] = (csStageMetadata.scratchMemorySize /
+                                                                                   sizeof(uint32));
     }
 
     // Inform the device that this pipeline has some new ring-size requirements.

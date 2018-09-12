@@ -151,7 +151,8 @@ public:
         Device*         pDevice,
         OsDisplayHandle hDisplay,
         WsiPlatform     wsiPlatform,
-        uint32          randrOutput,
+        uint32          connector,
+        uint32*         pRandrOutput,
         int32*          pDrmMasterFd);
 
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.

@@ -541,7 +541,9 @@ Result GpuMemory::OpenPeerMemory()
 {
     // Get the external resource handle from original memory object if it is not set before.
     amdgpu_bo_handle_type handleType = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandleType();
-    OsExternalHandle      handle     = static_cast<GpuMemory*>(m_pOriginalMem)->GetSharedExternalHandle();
+
+    Pal::GpuMemoryExportInfo handleInfo = {};
+    OsExternalHandle handle = static_cast<GpuMemory*>(m_pOriginalMem)->ExportExternalHandle(handleInfo);
 
     PAL_ASSERT(handle);
 
@@ -564,7 +566,8 @@ Result GpuMemory::OsSetPriority(
 
 // =====================================================================================================================
 // Export gpu memory as fd (dma_buf_fd)
-OsExternalHandle GpuMemory::GetSharedExternalHandle() const
+OsExternalHandle GpuMemory::ExportExternalHandle(
+    const GpuMemoryExportInfo& exportInfo) const
 {
     // According to Vulkan spec, the vkGetMemoryFdKHX requires a new fd for each call, and it is application's
     // responsibility to close the fd.

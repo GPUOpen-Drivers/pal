@@ -285,6 +285,7 @@ struct GpuEngineProperties
         uint32   gdsSizePerEngine;              // Maximum GDS size in bytes available for a single engine.
         uint32   queueSupport;                  // A mask of QueueTypeSupport flags indicating queue support.
         uint32   maxNumDedicatedCu;             // The maximum possible number of dedicated CUs per compute ring
+        uint32   dedicatedCuGranularity;        // The granularity at which compute units can be dedicated to a queue.
 
         gpusize  contextSaveAreaSize;           // Size of the context-save-area for this engine, in bytes. This area
                                                 // of memory is used for mid-command buffer preemption.
@@ -1858,6 +1859,7 @@ extern void InitializeGpuChipProperties(
 
 // Finalize default values for the GPU chip properties for GFXIP9+ hardware.
 extern void FinalizeGpuChipProperties(
+    const Platform*    pPlatform,
     GpuChipProperties* pInfo);
 
 // Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.

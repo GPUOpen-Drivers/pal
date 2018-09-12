@@ -988,7 +988,7 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
                 if (result == Result::Success)
                 {
-                    m_pPlatform->SetSvmRangeStart(baseVirtAddr);
+                    m_pPlatform->SetSvmRangeStart(startVirtAddr);
                 }
             }
             else
@@ -1179,9 +1179,9 @@ void Device::CopyLayerSettings()
     pProfilerCfg->recordPipelineStats = settings.gpuProfilerConfig.recordPipelineStats;
     pProfilerCfg->breakSubmitBatches  = settings.gpuProfilerConfig.breakSubmitBatches;
     pProfilerCfg->traceModeMask       = settings.gpuProfilerConfig.traceModeMask;
+    pProfilerCfg->granularity         = settings.gpuProfilerConfig.granularity;
 
     GpuProfilerPerfCounterConfig* pPerfCounterCfg = &m_gpuProfilerSettings.perfCounterConfig;
-    pPerfCounterCfg->granularity                   = settings.gpuProfilerPerfCounterConfig.granularity;
     pPerfCounterCfg->cacheFlushOnCounterCollection =
         settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
 
@@ -1723,6 +1723,14 @@ Result Device::GetProperties(
             pEngineInfo->availableGdsSize              = engineInfo.availableGdsSize;
             pEngineInfo->gdsSizePerEngine              = engineInfo.gdsSizePerEngine;
             pEngineInfo->maxNumDedicatedCu             = engineInfo.maxNumDedicatedCu;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 430)
+            // This may have its own value in the future for now use maxNumDedicatedCu
+            pEngineInfo->maxNumDedicatedCuPerQueue     = engineInfo.maxNumDedicatedCu;
+
+            // Long-term this value would be preferred to be reported by KMD.
+            pEngineInfo->dedicatedCuGranularity        = engineInfo.dedicatedCuGranularity;
+#endif
 
             if (engineInfo.flags.borderColorPaletteSupport != 0)
             {
@@ -4230,8 +4238,11 @@ bool Device::EngineSupportsGraphics(
 {
     bool  supportsGraphics = (engineType == EngineTypeUniversal);
 
-    supportsGraphics |= ((engineType == EngineTypeHighPriorityUniversal) ||
-                         (engineType == EngineTypeHighPriorityGraphics));
+    supportsGraphics |= ((engineType == EngineTypeHighPriorityUniversal)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
+                         ||(engineType == EngineTypeHighPriorityGraphics)
+#endif
+                        );
 
     return supportsGraphics;
 }

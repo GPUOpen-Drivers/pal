@@ -144,7 +144,7 @@ struct ScreenColorConfig
     ColorGamut          userDefinedColorGamut;  ///< Color gamut to Present used with ScreenColorSpace::CS_userDefined
 };
 
-/// Specifies Windos system screen properties for use with IScreen::GetProperties()
+/// Specifies window system screen properties for use with IScreen::GetProperties()
 struct WsiScreenProperties
 {
     uint32  crtcId;         ///< The ID of CRTC. CRTC stands for CRT Controller, though it's not only related to CRT
@@ -158,6 +158,8 @@ struct WsiScreenProperties
     int32   drmMasterFd;    ///< A file descriptor of DRM-master, it's used to hold/control the leased objects. DRM
                             ///  exposes an API that user-space programs can use to send commands and data to the GPU.
                             ///  If a process owns the fd of DRM-master, it has the highest privilege of the DRM.
+
+    char    displayName[MaxDisplayName]; ///< The display name of the screen.
 };
 
 /// Reports properties of a screen (typically corresponds to one monitor attached to the desktop).  Output structure of
@@ -424,8 +426,7 @@ public:
     /// @returns Success if the call succeeded.
     virtual Result ReleaseScreenAccess() = 0;
 
-    /// Set RandR output object, which will be used to lease resources from XServer. SetRandrOutput should be called
-    /// before calling AcquireScreenAccess, since AcquireScreenAccess depends on the RandR output.
+    /// Set RandR output object, which will be used to lease resources from XServer.
     ///
     /// @param [in] randrOutput  RandR output object.
     ///

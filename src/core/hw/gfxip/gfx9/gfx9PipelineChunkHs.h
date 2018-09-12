@@ -63,8 +63,10 @@ public:
     ~PipelineChunkHs() { }
 
     void Init(
-        const AbiProcessor& abiProcessor,
-        const HsParams&     params);
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        const HsParams&           params);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,

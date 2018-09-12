@@ -305,7 +305,12 @@ void Queue::BeginNextFrame(
     }
     else if (m_profilingModeEnabled) // Sampling is disabled for all granularity - we must reset the clock mode.
     {
-        ProfilingClockMode(false);
+        // Make sure that all the log items have been logged before resetting the device clock mode. Resetting the clock
+        // mode before all gpu workload has been finished results in incorrect perf counter results in gfx-9 and above.
+        if (m_logItems.NumElements() == 0)
+        {
+            ProfilingClockMode(false);
+        }
     }
 }
 
@@ -1008,7 +1013,7 @@ Result Queue::BuildGpaSessionSampleConfig()
 
                 if (ringSizeInBytes == 0)
                 {
-                    switch (settings.perfCounterConfig.granularity)
+                    switch (settings.profilerConfig.granularity)
                     {
                     case GpuProfilerGranularityDraw:
                         ringSizeInBytes = 1024 * 1024; // 1 MB

@@ -1138,6 +1138,7 @@ public:
     m_pNextLayer(pNextCmdBuffer), m_pDevice(pNextDevice)
     {}
 
+    virtual void    UpdateCommentString(Developer::BarrierData* pData) {};
     const IDevice*  GetDevice() const { return m_pDevice; }
     ICmdBuffer*     GetNextLayer() const { return m_pNextLayer; }
 
@@ -2246,8 +2247,8 @@ public:
     virtual Result Unmap() override
         { return m_pNextLayer->Unmap(); }
 
-    virtual OsExternalHandle GetSharedExternalHandle() const override
-        { return m_pNextLayer->GetSharedExternalHandle(); }
+    virtual OsExternalHandle ExportExternalHandle(const GpuMemoryExportInfo& handleInfo) const override
+        { return m_pNextLayer->ExportExternalHandle(handleInfo); }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

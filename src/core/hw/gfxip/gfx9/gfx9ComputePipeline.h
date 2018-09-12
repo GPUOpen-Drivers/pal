@@ -103,16 +103,20 @@ public:
     const ComputePipelineSignature& Signature() const { return m_signature; }
 
 protected:
-    virtual Result HwlInit(const AbiProcessor& abiProcessor) override;
+    virtual Result HwlInit(
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        Util::MsgPackReader*      pMetadataReader) override;
 
 private:
     uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
 
     void BuildPm4Headers();
-    void UpdateRingSizes(const AbiProcessor& abiProcessor);
+    void UpdateRingSizes(const CodeObjectMetadata& metadata);
 
     void SetupSignatureFromElf(
-        const AbiProcessor& abiProcessor);
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers);
 
     Device*const  m_pDevice;
 
