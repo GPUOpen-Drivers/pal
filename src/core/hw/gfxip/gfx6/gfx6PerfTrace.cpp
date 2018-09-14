@@ -154,7 +154,6 @@ uint32* SpmTrace::WriteEndCommands(
     grbmGfxIndex.bits.SH_BROADCAST_WRITES       = 1;
 
     uint32 muxselAddrReg = mmRLC_SPM_SE_MUXSEL_ADDR__CI__VI;
-    const uint32 NumShaderEngines = m_device.Parent()->ChipProperties().gfx6.numShaderEngines;
 
     // Reset the muxsel addr register.
     for (uint32 seIndex = 0; seIndex < static_cast<uint32>(SpmDataSegmentType::Count); ++seIndex)
@@ -221,8 +220,6 @@ uint32* SpmTrace::WriteSetupCommands(
     }
 
     // (2) Write muxsel ram.
-    const uint32 NumShaderEngines = m_device.Parent()->ChipProperties().gfx6.numShaderEngines;
-
     for (uint32 seIndex = 0; seIndex < static_cast<uint32>(SpmDataSegmentType::Count); ++seIndex)
     {
         const uint32 muxselRamDwords = GetMuxselRamDwords(seIndex);
