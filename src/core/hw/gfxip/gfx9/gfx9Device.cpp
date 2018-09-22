@@ -131,7 +131,6 @@ Result CreateDevice(
 static uint32 GetFrameCountRegister(
     const Pal::Device*  pDevice)
 {
-    const auto*  pSettingsLoader    = pDevice->GetSettingsLoader();
     uint32       frameCountRegister = 0;
 
     //@todo:  different parts have different offsets for the frame-counter register.  Instead of hard-coding
@@ -217,7 +216,6 @@ Result Device::EarlyInit()
     // following the shader cache in memory, even if the shader cache ends up not being created.
     void*const pRpmPlacementAddr = (this + 1);
 
-    const GfxIpLevel gfxLevel = Parent()->ChipProperties().gfxLevel;
     if (IsGfx9(*m_pParent))
     {
         m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx9RsrcProcMgr(this);
@@ -315,7 +313,6 @@ void Device::FinalizeChipProperties(
 Result Device::Finalize()
 {
     const auto& settings     = Settings();
-    const auto  pPalSettings = m_pParent->GetPublicSettings();
 
     Result result = GfxDevice::Finalize();
 
@@ -1403,8 +1400,6 @@ static PAL_INLINE uint32 ComputeImageViewDepth(
     const ImageInfo&       imageInfo,
     const SubResourceInfo& subresInfo)
 {
-    constexpr uint32 NumCubemapFaces = 6;
-
     uint32 depth = 0;
 
     const ImageCreateInfo& imageCreateInfo = viewInfo.pImage->GetImageCreateInfo();
@@ -3561,14 +3556,12 @@ Result Device::P2pBltWaModifyRegionListImage(
     for (uint32 i = 0; ((i < regionCount) && (result == Result::Success)); i++)
     {
         const SubResourceInfo* pDstSubresInfo = dstImage.SubresourceInfo(pRegions[i].dstSubres);
-        const SubResourceInfo* pSrcSubresInfo = srcImage.SubresourceInfo(pRegions[i].srcSubres);
 
         const Image*const pDstGfx9Image = static_cast<const Image*>(dstImage.GetGfxImage());
         const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const  pAddrOutput = pDstGfx9Image->GetAddrOutput(pDstSubresInfo);
         const gpusize macroBlockOffset  = pAddrOutput->pMipInfo[pDstSubresInfo->subresId.mipLevel].macroBlockOffset;
 
         const SwizzledFormat dstViewFormat = pDstSubresInfo->format;
-        const SwizzledFormat srcViewFormat = pSrcSubresInfo->format;
         const uint32         bytesPerPixel = Formats::BytesPerPixel(dstViewFormat.format);
 
         const uint32 subResWidth        = pDstSubresInfo->extentElements.width;
@@ -3783,7 +3776,6 @@ Result Device::P2pBltWaModifyRegionListImage(
                 const uint32  blockDepth            = pAddrOutput->blockSlices; // For 3D-support only.
                 const uint32  mipChainPitch         = pAddrOutput->mipChainPitch;
                 const uint32  mipChainHeight        = pAddrOutput->mipChainHeight;
-                const uint32  mipChainSlice         = pAddrOutput->mipChainSlice;
                 const uint32  numBlocksSurfWidth    = mipChainPitch / blockWidth;
                 const uint32  numBlocksSurfHeight   = mipChainHeight / blockHeight;
                 const gpusize blockSize             = blockWidth * blockHeight * blockDepth * bytesPerPixel;
@@ -3796,12 +3788,10 @@ Result Device::P2pBltWaModifyRegionListImage(
                 const uint32 copyRegionPaddedHeightInBlocks =
                     (((pRegions[i].dstOffset.y) + transferHeight - 1) / blockHeight) -
                     pRegions[i].dstOffset.y / blockHeight + 1;
-                const uint32 copyRegionPaddedHeight         = copyRegionPaddedHeightInBlocks * blockHeight;
 
                 const uint32 copyRegionPaddedDepthInBlockLayers =
                     (((pRegions[i].dstOffset.z) + transferDepth - 1) / blockDepth) -
                     pRegions[i].dstOffset.z / blockDepth + 1;
-                const uint32 copyRegionPaddedDepth              = copyRegionPaddedDepthInBlockLayers * blockDepth;
 
                 // For simplicity, 1d/2d is based on a block row across the whole mipchain;
                 // 3d is based on a block layer of x,y coordinates covering the whole mipchain.
@@ -4152,7 +4142,6 @@ Result Device::P2pBltWaModifyRegionListImageToMemory(
         for (uint32 j = 0; ((j < pRegions[i].numSlices) && (result == Result::Success)); j++)
         {
             const gpusize rowPitchInBytes    = pRegions[i].gpuMemoryRowPitch;
-            const gpusize depthPitchInBytes  = pRegions[i].gpuMemoryDepthPitch;
             const gpusize regionPixelRowSize = transferWidth * bytesPerPixel;
             const gpusize vaSpanEntireRegion = rowPitchInBytes * transferHeight;
 
@@ -4615,7 +4604,6 @@ Result Device::P2pBltWaModifyRegionListMemoryToImage(
                                 uint32 yEnd;
                             };
                             Line dst = {};
-                            Line src = {};
 
                             if (m == 0)
                             {

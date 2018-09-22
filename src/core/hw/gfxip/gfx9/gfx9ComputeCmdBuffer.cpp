@@ -442,7 +442,6 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
     {
         auto*const       pPipelineState = PipelineState(pipelineBindPoint);
         const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
-        const auto*const pOldPalette    = static_cast<const BorderColorPalette*>(pPipelineState->pBorderColorPalette);
 
         if (pNewPalette != nullptr)
         {

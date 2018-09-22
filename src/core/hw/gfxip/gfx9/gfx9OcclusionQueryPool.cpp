@@ -148,7 +148,6 @@ void OcclusionQueryPool::NormalReset(
     uint32          queryCount
     ) const
 {
-    const auto& gfx9Settings = GetGfx9Settings(*(m_device.Parent()));
     gpusize     offset       = GetQueryOffset(startQuery);
 
     // This function must only be called by the DMA queue. It is missing a barrier call that is necessary to issue a
@@ -233,7 +232,6 @@ void OcclusionQueryPool::OptimizedReset(
     ) const
 {
     const auto& cmdUtil      = m_device.CmdUtil();
-    const auto& gfx9Settings = GetGfx9Settings(*(m_device.Parent()));
 
     // We'll need a pointer to the beginning of the reserve buffer later on.
     uint32*const pCmdSpaceBase = pCmdStream->ReserveCommands();

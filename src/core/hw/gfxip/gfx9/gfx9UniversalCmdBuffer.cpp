@@ -4416,10 +4416,6 @@ Extent2d UniversalCmdBuffer::GetDepthBinSize() const
     {
         const auto* pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
         const auto& imageCreateInfo    = pImage->Parent()->GetImageCreateInfo();
-        const bool  supportsDepth      = m_device.Parent()->SupportsDepth(imageCreateInfo.swizzledFormat.format,
-                                                                          imageCreateInfo.tiling);
-        const bool  supportsStencil    = m_device.Parent()->SupportsStencil(imageCreateInfo.swizzledFormat.format,
-                                                                            imageCreateInfo.tiling);
 
         const uint32 cPerDepthSample   = (pDepthStencilState->IsDepthEnabled() &&
                                           (pDepthTargetView->ReadOnlyDepth() == false)) ? 5 : 0;

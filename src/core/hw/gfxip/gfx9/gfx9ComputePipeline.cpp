@@ -84,8 +84,6 @@ void ComputePipeline::SetupSignatureFromElf(
 {
     uint16  entryToRegAddr[MaxUserDataEntries] = { };
 
-    const auto& chipProps = m_pDevice->Parent()->ChipProperties();
-
     m_signature.stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {

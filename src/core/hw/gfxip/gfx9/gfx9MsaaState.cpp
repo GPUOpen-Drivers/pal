@@ -78,7 +78,6 @@ void MsaaState::BuildPm4Headers()
     memset(&m_pm4Image, 0, sizeof(m_pm4Image));
 
     const CmdUtil& cmdUtil  = m_device.CmdUtil();
-    const auto&    settings = GetGfx9Settings(*m_device.Parent());
 
     // 1st PM4 packet
     m_pm4Image.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmDB_EQAA, &m_pm4Image.hdrDbEqaa);

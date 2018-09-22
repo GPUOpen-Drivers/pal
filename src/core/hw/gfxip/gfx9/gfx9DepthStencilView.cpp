@@ -166,7 +166,6 @@ void DepthStencilView::InitCommonImageView(
 {
     const CmdUtil&              cmdUtil              = m_device.CmdUtil();
     const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
-    const SubResourceInfo*const pBaseDepthSubResInfo = m_pImage->Parent()->SubresourceInfo(baseDepthSubResId);
     const SubResourceInfo*const pDepthSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
     const Gfx9PalSettings&      settings             = m_device.Settings();

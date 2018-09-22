@@ -504,8 +504,6 @@ Result Image::Finalize(
                             if ((m_createInfo.usageFlags.shaderWrite == 0) ||
                                 (mip < m_createInfo.usageFlags.firstShaderWritableMip))
                             {
-                                const auto&  mipInfo = m_pDcc->GetAddrMipInfo(mip);
-
                                 if (CanMipSupportMetaData(mip))
                                 {
                                     UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
@@ -785,7 +783,6 @@ bool Image::DoesImageSupportCopySrcCompression() const
 // when transitioning between different Image layouts.
 void Image::InitLayoutStateMasks()
 {
-    const Gfx9PalSettings&      settings        = GetGfx9Settings(m_device);
     const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
     const bool isComprFmaskShaderReadable       = IsComprFmaskShaderReadable(Parent()->GetBaseSubResource());
     const bool                  isMsaa          = (m_createInfo.samples > 1);
@@ -2060,7 +2057,6 @@ uint32* Image::UpdateDepthClearMetaData(
 // texture-compatible images as well.
 bool Image::ColorImageSupportsAllFastClears() const
 {
-    const Gfx9PalSettings& settings = GetGfx9Settings(m_device);
     bool allColorClearsSupported = false;
 
     PAL_ASSERT (m_pParent->IsDepthStencil() == false);
@@ -2139,7 +2135,6 @@ bool Image::SupportsMetaDataTextureFetch(
     const SubresId&  subResource
     ) const
 {
-    const auto&  settings          = GetGfx9Settings(m_device);
     bool         texFetchSupported = false;
 
     if (m_pImageInfo->internalCreateInfo.flags.useSharedMetadata)
@@ -2181,7 +2176,6 @@ bool Image::SupportsMetaDataTextureFetch(
 // function is more a heurestic then actual fact, so it should be used with care.
 bool Image::ColorImageSupportsMetaDataTextureFetch() const
 {
-    const auto&  settings        = GetGfx9Settings(m_device);
     bool         texFetchAllowed = false;  // Assume texture fetches won't be allowed
 
     // Does this image have DCC memory?  Note that we have yet to allocate DCC memory
@@ -2211,7 +2205,6 @@ bool Image::DepthMetaDataTexFetchIsZValid(
     ChNumFormat  format
     ) const
 {
-    const auto&   settings = GetGfx9Settings(m_device);
     const ZFormat zHwFmt   = m_gfxDevice.GetHwZFmt(format);
 
     bool  isZValid = false;
@@ -2235,7 +2228,6 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     const SubresId& subResource
     ) const
 {
-    const auto&  settings   = GetGfx9Settings(m_device);
     bool         isFmtLegal = true;
 
     if (m_pParent->IsAspectValid(ImageAspect::Stencil) &&
@@ -2514,8 +2506,6 @@ void Image::InitMetadataFill(
 {
     PAL_ASSERT(Parent()->IsFullSubResRange(range));
 
-    const auto*  pDevice   = Parent()->GetDevice();
-    const auto&  settings  = GetGfx9Settings(*pDevice);
     const auto&  gpuMemObj = *Parent()->GetBoundGpuMemory().Memory();
 
     // DMA has to use this path for all maskrams; other queue types have fall-backs.

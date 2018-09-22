@@ -608,7 +608,6 @@ uint32* GraphicsPipeline::RequestPrefetch(
 {
     const auto& gfx6PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
 
-    PrefetchType hwEsPrefetch = PrefetchVs;
     PrefetchType hwVsPrefetch = PrefetchVs;
 
     if (IsTessEnabled())
@@ -909,7 +908,6 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
     const RegisterVector& registers)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = { };
     registers.HasEntry(Gfx09::mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All);
@@ -1730,8 +1728,6 @@ void GraphicsPipeline::SetupSignatureFromElf(
 static uint8 Rop3(
     LogicOp logicOp)
 {
-    uint8 rop3 = 0xCC;
-
     constexpr uint8 Rop3Codes[] =
     {
         0xCC, // Copy (S)

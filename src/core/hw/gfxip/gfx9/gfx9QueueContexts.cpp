@@ -54,7 +54,6 @@ static void SetupCommonPreamble(
     memset(pCommonPreamble, 0, sizeof(CommonPreamblePm4Img));
 
     const CmdUtil& cmdUtil  = pDevice->CmdUtil();
-    const auto&    settings = pDevice->Settings();
 
     // First build the PM4 headers.
     if (pDevice->Parent()->EngineSupportsCompute(engineType))
@@ -682,7 +681,6 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
         // might contain invalid value. We don't need to load context register again because in the
         // InitializeContextRegisters() we will set the contexts that we can load.
-        const uint32 RegRangeDwordSize = sizeof(RegisterRange) / sizeof(uint32);
         gpusize     gpuVirtAddr        = m_shadowGpuMem.GpuVirtAddr();
         uint32      numEntries         = 0;
         const auto* pRegRange          = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
@@ -1019,7 +1017,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
     memset(&m_stateShadowPreamble, 0, sizeof(m_stateShadowPreamble));
 
     const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
-    const auto&    settings = m_pDevice->Settings();
 
     PM4PFP_CONTEXT_CONTROL contextControl = m_pDevice->GetContextControl();
 

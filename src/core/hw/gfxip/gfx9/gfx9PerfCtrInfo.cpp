@@ -779,7 +779,6 @@ void SetupGfx9Counters(
     constexpr uint32 DefaultShaderEngines =  1;
     constexpr uint32 DefaultShaderArrays  =  1;
     constexpr uint32 DefaultInstances     =  1;
-    constexpr uint32 DefaultGroups        =  1;
     constexpr uint32 TcaInstances         =  2;
     constexpr uint32 EaInstances          = 16;
 
@@ -797,7 +796,6 @@ void SetupGfx9Counters(
     const uint32 shaderEngines      = pProps->gfx9.numShaderEngines;
     const uint32 shaderArrays       = pProps->gfx9.numShaderArrays;
     const uint32 numCuPerSh         = pProps->gfx9.numCuPerSh;
-    const uint32 rbPerShaderArray   = (pProps->gfx9.maxNumRbPerSe / shaderArrays);
 
     SetupHwlCounters(pProps, DefaultShaderEngines, DefaultShaderArrays, DefaultInstances);
 

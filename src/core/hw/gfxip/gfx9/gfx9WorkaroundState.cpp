@@ -73,10 +73,8 @@ uint32* WorkaroundState::PreDraw(
     uint32*                 pCmdSpace)
 {
     const auto& dirtyFlags    = gfxState.dirtyFlags;
-    const auto& pipelineFlags = gfxState.pipelineState.dirtyFlags;
 
     const auto*const pBlendState      = static_cast<const ColorBlendState*>(gfxState.pColorBlendState);
-    const auto*const pDepthState      = static_cast<const DepthStencilState*>(gfxState.pDepthStencilState);
     const auto*const pMsaaState       = static_cast<const MsaaState*>(gfxState.pMsaaState);
     const auto*const pDepthTargetView =
         static_cast<const DepthStencilView*>(gfxState.bindTargets.depthTarget.pDepthStencilView);
