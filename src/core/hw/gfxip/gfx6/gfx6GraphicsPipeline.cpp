@@ -1710,8 +1710,6 @@ void GraphicsPipeline::SetupSignatureFromElf(
 static uint8 Rop3(
     LogicOp logicOp)
 {
-    uint8 rop3 = 0xCC;
-
     constexpr uint8 Rop3Codes[] =
     {
         0xCC, // Copy (S)

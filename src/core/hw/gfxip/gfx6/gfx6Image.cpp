@@ -285,7 +285,6 @@ Result Image::Finalize(
     gpusize*           pGpuMemSize,
     gpusize*           pGpuMemAlignment)
 {
-    const Gfx6PalSettings&         settings          = GetGfx6Settings(m_device);
     const auto*const               pPublicSettings   = m_device.GetPublicSettings();
     const SubResourceInfo*const    pBaseSubResInfo   = Parent()->SubresourceInfo(0);
     const AddrMgr1::TileInfo*const pBaseTileInfo     = AddrMgr1::GetTileInfo(Parent(), 0);
@@ -857,7 +856,6 @@ void Image::InitLayoutStateMasksOneMip(
     bool            allowComputeDecompress,
     const SubresId& subresId)
 {
-    const Gfx6PalSettings&      settings                   = GetGfx6Settings(m_device);
     const SubResourceInfo*const pSubResInfo                = Parent()->SubresourceInfo(subresId);
     const bool                  isMsaa                     = (m_createInfo.samples > 1);
     const bool                  isComprFmaskShaderReadable = IsComprFmaskShaderReadable(pSubResInfo);
@@ -1214,7 +1212,6 @@ uint32 Image::GetCmask256BAddr(
 {
     const gpusize cMaskBaseAddr = (m_pParent->GetGpuVirtualAddr() + GetCmask(subresource)->MemoryOffset());
 
-    const Gfx6PalSettings&      settings    = GetGfx6Settings(m_device);
     const SubResourceInfo*const pSubResInfo = m_pParent->SubresourceInfo(subresource);
 
     // The cMask address only includes a tile swizzle if the cMask is going to be texture
@@ -1768,7 +1765,6 @@ bool Image::DepthMetaDataTexFetchIsZValid(
     ) const
 {
     const ZFormat          zHwFmt   = HwZFmt(MergedChannelFmtInfoTbl(m_device.ChipProperties().gfxLevel), format);
-    const Gfx6PalSettings& settings = GetGfx6Settings(m_device);
 
     bool  isZValid = false;
 
@@ -1822,8 +1818,6 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     const SubresId& subResource
     ) const
 {
-    const Gfx6PalSettings& settings = GetGfx6Settings(m_device);
-
     bool isFmtLegal = true;
 
     if (m_pParent->IsAspectValid(ImageAspect::Stencil) &&

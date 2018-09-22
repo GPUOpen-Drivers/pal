@@ -2352,7 +2352,6 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
     {
         auto*const       pPipelineState = PipelineState(pipelineBindPoint);
         const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
-        const auto*const pOldPalette    = static_cast<const BorderColorPalette*>(pPipelineState->pBorderColorPalette);
 
         if (pNewPalette != nullptr)
         {
@@ -5631,8 +5630,6 @@ uint32* UniversalCmdBuffer::UploadStreamOutBufferStridesToCeRam(
 
     for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
     {
-       auto*const pBufferSrd = &m_streamOut.srd[idx];
-
         if (dirtyStrideMask & (1 << idx))
         {
                 // Root command buffers and nested command buffers which have changed the stream-output bindings

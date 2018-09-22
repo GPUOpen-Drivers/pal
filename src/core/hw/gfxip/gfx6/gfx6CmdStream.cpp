@@ -45,7 +45,6 @@ static PAL_INLINE uint32 GetChainSizeInDwords(
 {
     uint32 chainSize = CmdUtil::GetChainSizeInDwords();
 
-    const Gfx6PalSettings& settings = device.Settings();
     if (isNested && (device.WaCpIb2ChainingUnsupported() != false))
     {
         // Some GPU's do not support chaining between the chunks of an IB2. This means that we cannot use chaining

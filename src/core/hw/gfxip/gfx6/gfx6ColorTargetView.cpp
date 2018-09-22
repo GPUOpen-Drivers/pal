@@ -198,8 +198,6 @@ void ColorTargetView::InitRegisters(
     const ColorTargetViewCreateInfo&         createInfo,
     const ColorTargetViewInternalCreateInfo& internalInfo)
 {
-    const auto& settings = device.Settings();
-
     // By default, assume linear general tiling and no Fmask texture fetches.
     int32  baseTileIndex        = TileIndexLinearGeneral;
     uint32 baseBankHeight       = 0;

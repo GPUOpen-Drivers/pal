@@ -331,7 +331,6 @@ void SettingsLoader::ValidateSettings(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    const uint32 eRevId = m_pDevice->ChipProperties().eRevId;
     if (IsGfx6(*m_pDevice))
     {
         // Tahiti & Pitcairn workarounds:

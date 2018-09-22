@@ -313,7 +313,6 @@ void SetupGfx6Counters(
     constexpr uint32 DefaultShaderEngines = 1;
     constexpr uint32 DefaultShaderArrays  = 1;
     constexpr uint32 DefaultInstances     = 1;
-    constexpr uint32 DefaultGroups        = 1;
     constexpr uint32 TcaInstances         = 2;
     // Each SQ(inside a CU) counts for that CU, but you cannot see that count. There is one set of 16 master counters
     // inside SPI(really SQG) that aggregates the counts from each CU and presents 16 counters which represent all of
@@ -548,7 +547,6 @@ void SetupGfx7Counters(
     constexpr uint32 DefaultShaderEngines = 1;
     constexpr uint32 DefaultShaderArrays  = 1;
     constexpr uint32 DefaultInstances     = 1;
-    constexpr uint32 DefaultGroups        = 1;
     constexpr uint32 SdmaInstances        = 2;
     constexpr uint32 TcaInstances         = 2;
     // Each SQ(inside a CU) counts for that CU, but you cannot see that count. There is one set of 16 master counters
@@ -866,7 +864,6 @@ void SetupGfx8Counters(
     constexpr uint32 DefaultShaderEngines = 1;
     constexpr uint32 DefaultShaderArrays  = 1;
     constexpr uint32 DefaultInstances     = 1;
-    constexpr uint32 DefaultGroups        = 1;
     constexpr uint32 SdmaInstances        = 2;
     constexpr uint32 TcaInstances         = 2;
     // Each SQ(inside a CU) counts for that CU, but you cannot see that count. There is one set of 16 master counters
