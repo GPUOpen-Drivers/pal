@@ -210,7 +210,6 @@ Result PerfExperiment::CreateCounter(
             m_counterFlags.umcchCounters  |= (info.block == GpuBlock::Umcch);
 #endif
 
-            const auto& chipProps = m_device.Parent()->ChipProperties();
             if ((info.block == GpuBlock::Ta)  ||
                 (info.block == GpuBlock::Td)  ||
                 (info.block == GpuBlock::Tcp) ||

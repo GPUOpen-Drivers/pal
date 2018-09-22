@@ -115,7 +115,6 @@ void Gfx9MaskRam::CalcDataOffsetEquation(
     const Image& image)
 {
     const auto*            pParent        = image.Parent();
-    const auto*            pCreateInfo    = &pParent->GetImageCreateInfo();
     const AddrSwizzleMode  swizzleMode    = GetSwizzleMode(image);
     const uint32           blockSizeLog2  = Log2(AddrMgr2::GetBlockSize(swizzleMode));
     const uint32           bppLog2        = GetBytesPerPixelLog2(image);
@@ -282,10 +281,8 @@ void Gfx9MaskRam::CalcPipeEquation(
 {
 
     const Pal::Image*      pParent            = image.Parent();
-    const auto*            pCreateInfo        = &pParent->GetImageCreateInfo();
     const Pal::Device*     pDevice            = pParent->GetDevice();
     const Device*          pGfxDevice         = static_cast<const Device*>(pDevice->GetGfxDevice());
-    const bool             isThick            = IsThick(image);
     const int32            numSamplesLog2     = GetNumSamplesLog2(image);
     const AddrSwizzleMode  swizzleMode        = GetSwizzleMode(image);
     const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
@@ -833,7 +830,6 @@ uint32 Gfx9MaskRam::CapPipe(
     ) const
 {
     const auto*            pParent            = image.Parent();
-    const auto&            createInfo         = pParent->GetImageCreateInfo();
     const AddrSwizzleMode  swizzleMode        = GetSwizzleMode(image);
     const uint32           blockSizeLog2      = Log2(AddrMgr2::GetBlockSize(swizzleMode));
     const auto*            pDevice            = pParent->GetDevice();
@@ -1042,8 +1038,6 @@ void Gfx9MaskRam::MergePipeAndRbEq(
 uint32 Gfx9MaskRam::RemoveSmallRbBits(
     const Pal::Device*  pDevice)
 {
-    const Gfx9PalSettings&  settings = GetGfx9Settings(*pDevice);
-
     uint32  rbBitsLeft = 0;
 
     for (uint32  rbAddrBit = 0; rbAddrBit < m_rb.GetNumValidBits(); rbAddrBit++)
@@ -1131,7 +1125,6 @@ bool Gfx9MaskRam::SupportFastColorClear(
     const Pal::Image*const pParent    = image.Parent();
     const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
     const Gfx9PalSettings& settings   = GetGfx9Settings(device);
-    const GfxIpLevel       gfxLevel   = pParent->GetDevice()->ChipProperties().gfxLevel;
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
     const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
@@ -1799,7 +1792,6 @@ Result Gfx9Dcc::ComputeDccInfo(
 {
     const Pal::Image*const      pParent         = image.Parent();
     const Pal::Device*const     pDevice         = pParent->GetDevice();
-    const Pal::ImageInfo&       imageInfo       = pParent->GetImageInfo();
     const Pal::ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
     const auto*const            pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 
@@ -1875,7 +1867,6 @@ void Gfx9Dcc::SetControlReg(
     const Pal::Device*      pDevice     = pParent->GetDevice();
     const GfxIpLevel        gfxLevel    = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&  createInfo  = pParent->GetImageCreateInfo();
-    const auto&             settings    = GetGfx9Settings(*image.Parent()->GetDevice());
 
     // Setup DCC control registers with suggested value from spec
     m_dccControl.bits.KEY_CLEAR_ENABLE = 0; // not supported on VI
@@ -2637,7 +2628,6 @@ static ADDR2_META_FLAGS GetMetaFlags(
     const Pal::Image*const  pParent         = image.Parent();
     const Pal::Device*      pDevice         = pParent->GetDevice();
     const Device*           pGfxDevice      = static_cast<Device*>(pDevice->GetGfxDevice());
-    const ImageCreateInfo&  imageCreateInfo = pParent->GetImageCreateInfo();
 
     ADDR2_META_FLAGS  metaFlags = {};
 

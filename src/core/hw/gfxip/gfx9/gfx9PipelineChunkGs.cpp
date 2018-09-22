@@ -129,8 +129,6 @@ void PipelineChunkGs::Init(
     m_pm4ImageContext.esGsRingItemSize.u32All   = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
     m_pm4ImageContext.vgtGsOutPrimType.u32All   = registers.At(mmVGT_GS_OUT_PRIM_TYPE);
 
-    uint32 esGsLdsSizeBytes = 0;
-
     if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
         m_pm4ImageGsLds.gsUserDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;

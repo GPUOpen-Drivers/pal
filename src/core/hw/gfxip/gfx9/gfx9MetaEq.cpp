@@ -648,7 +648,6 @@ void MetaDataAddrEquation::GenerateMetaEqParamConst(
 {
     const Pal::Image*      pParent     = image.Parent();
     const Pal::Device*     pDevice     = pParent->GetDevice();
-    const auto*            pCreateInfo = &pParent->GetImageCreateInfo();
     const Gfx9PalSettings& settings    = GetGfx9Settings(*pDevice);
 
     const bool optimizedFastClearDepth = ((pParent->IsDepthStencil()) &&

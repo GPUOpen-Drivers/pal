@@ -603,8 +603,6 @@ uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
     uint32     sqttTokenMask
 ) const
 {
-    const auto& regInfo = m_device.CmdUtil().GetRegInfo();
-
     // Set GRBM_GFX_INDEX to isolate the SE/SH this trace is associated with.
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
 
