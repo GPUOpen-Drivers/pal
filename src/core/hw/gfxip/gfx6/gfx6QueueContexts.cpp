@@ -1220,7 +1220,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
     memset(&m_stateShadowPreamble,   0, sizeof(m_stateShadowPreamble));
 
     const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
-    const auto&    settings = m_pDevice->Settings();
 
     m_universalPreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
 #if !PAL_COMPUTE_GDS_OPT

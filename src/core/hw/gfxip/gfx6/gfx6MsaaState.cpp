@@ -191,7 +191,6 @@ Result MsaaState::Init(
         m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT  = m_log2ShaderExportMaskSamples -
                                                            Log2(msaaState.sampleClusters);
 
-        const Gfx6PalSettings& settings = GetGfx6Settings(*m_device.Parent());
         if (m_device.WaDbOverRasterization() && UsesOverRasterization())
         {
             // Apply the "DB Over-Rasterization" workaround:

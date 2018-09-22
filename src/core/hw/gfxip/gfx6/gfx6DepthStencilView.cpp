@@ -170,7 +170,6 @@ void DepthStencilView::InitRegisters(
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-    const ImageInfo&       imageInfo       = m_pImage->Parent()->GetImageInfo();
     const ImageCreateInfo& imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
 
     const Gfx6PalSettings& settings = m_device.Settings();
@@ -509,7 +508,6 @@ uint32 DepthStencilView::CalcDecompressOnZPlanesValue(
 {
     const ImageCreateInfo&  createInfo = m_pImage->Parent()->GetImageCreateInfo();
     const ChNumFormat       format     = createInfo.swizzledFormat.format;
-    const Gfx6PalSettings&  settings   = m_device.Settings();
 
     uint32 decompressOnZPlanes = 0;
 
@@ -588,7 +586,6 @@ uint32* DepthStencilView::WriteTcCompatFlush(
     const DepthStencilView* pOldView, // Previous Depth Stencil View
     uint32*                 pCmdSpace)
 {
-    const auto& settings = device.Settings();
     if (device.WaDbTcCompatFlush() != Gfx8TcCompatDbFlushWaNever)
     {
         // Workaround bit only makes sense for Gfx8+ ASICs.

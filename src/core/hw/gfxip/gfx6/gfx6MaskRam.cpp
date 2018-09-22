@@ -1710,7 +1710,6 @@ Result Gfx6Dcc::ComputeDccInfo(
     Result result = Result::ErrorInitializationFailed;
 
     const SubResourceInfo*const    pSubResInfo     = image.Parent()->SubresourceInfo(subResource);
-    const ImageInfo&               imageInfo       = image.Parent()->GetImageInfo();
     const ImageCreateInfo&         imageCreateInfo = image.Parent()->GetImageCreateInfo();
     const AddrMgr1::TileInfo*const pTileInfo       = AddrMgr1::GetTileInfo(image.Parent(), subResource);
 

@@ -258,8 +258,6 @@ Result GraphicsPipeline::HwlInit(
     const CodeObjectMetadata&         metadata,
     MsgPackReader*                    pMetadataReader)
 {
-    const Gfx6PalSettings& settings = m_pDevice->Settings();
-
     RegisterVector registers(m_pDevice->GetPlatform());
     Result result = pMetadataReader->Unpack(&registers);
 
@@ -1610,8 +1608,6 @@ void GraphicsPipeline::SetupSignatureFromElf(
 static uint8 Rop3(
     LogicOp logicOp)
 {
-    uint8 rop3 = 0xCC;
-
     constexpr uint8 Rop3Codes[] =
     {
         0xCC, // Copy (S)
