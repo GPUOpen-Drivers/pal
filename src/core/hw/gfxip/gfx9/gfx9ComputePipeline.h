@@ -31,55 +31,14 @@
 namespace Pal
 {
 
-class CmdStream;
 class Platform;
 
 namespace Gfx9
 {
 
+class ComputePipelineUploader;
 class Device;
-
-// Represents an "image" of the PM4 commands necessary to write a GFX9 compute pipeline to hardware.  The required
-// register writes are grouped into sets based on sequential register addresses, so that we can minimize the amount of
-// PM4 space needed by setting several regs in each packet.
-struct ComputePipelinePm4Img
-{
-    PM4_ME_SET_SH_REG           hdrComputeNumThread;
-    regCOMPUTE_NUM_THREAD_X     computeNumThreadX;
-    regCOMPUTE_NUM_THREAD_Y     computeNumThreadY;
-    regCOMPUTE_NUM_THREAD_Z     computeNumThreadZ;
-
-    PM4_ME_SET_SH_REG           hdrComputePgm;
-    regCOMPUTE_PGM_LO           computePgmLo;
-    regCOMPUTE_PGM_HI           computePgmHi;
-
-    PM4_ME_SET_SH_REG           hdrComputePgmRsrc;
-    regCOMPUTE_PGM_RSRC1        computePgmRsrc1;
-    regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
-
-    PM4_ME_SET_SH_REG           hdrComputeUserData;
-    regCOMPUTE_USER_DATA_0      computeUserDataLo;
-
-    // Checksum register is optional, as not all GFX9+ hardware uses it.  This entry must remain last as
-    // it is not always present.
-    PM4_ME_SET_SH_REG           hdrComputeShaderChksum;
-    regCOMPUTE_SHADER_CHKSUM    computeShaderChksum;
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                      spaceNeeded;
-};
-
-// Represents an "image" of the PM4 commands used to dynamically set wave and CU enable limits.
-struct ComputePipelinePm4ImgDynamic
-{
-    PM4_ME_SET_SH_REG          hdrComputeResourceLimits;
-    regCOMPUTE_RESOURCE_LIMITS computeResourceLimits;
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-    // actual commands contained within.
-    size_t                     spaceNeeded;
-};
+class PrefetchMgr;
 
 // =====================================================================================================================
 // GFX9 compute pipeline class: implements GFX9 specific functionality for the ComputePipeline class.
@@ -111,7 +70,7 @@ protected:
 private:
     uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const;
 
-    void BuildPm4Headers();
+    void BuildPm4Headers(const ComputePipelineUploader& uploader);
     void UpdateRingSizes(const CodeObjectMetadata& metadata);
 
     void SetupSignatureFromElf(
@@ -120,12 +79,77 @@ private:
 
     Device*const  m_pDevice;
 
-    ComputePipelinePm4Img        m_pm4Commands;
-    ComputePipelinePm4ImgDynamic m_pm4CommandsDynamic;
-    ComputePipelineSignature     m_signature;
+    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
+    struct Pm4Commands
+    {
+        struct
+        {
+            PM4_ME_LOAD_SH_REG_INDEX  loadShRegIndex;
+        } loadIndex; // LOAD_INDEX path, used for universal command buffers.
+
+        struct
+        {
+            PM4_ME_SET_SH_REG  hdrComputePgm;
+            regCOMPUTE_PGM_LO  computePgmLo;
+            regCOMPUTE_PGM_HI  computePgmHi;
+
+            PM4_ME_SET_SH_REG       hdrComputeUserData;
+            regCOMPUTE_USER_DATA_0  computeUserDataLo;
+
+            PM4_ME_SET_SH_REG     hdrComputePgmRsrc1;
+            regCOMPUTE_PGM_RSRC1  computePgmRsrc1;
+
+            PM4_ME_SET_SH_REG        hdrComputeNumThread;
+            regCOMPUTE_NUM_THREAD_X  computeNumThreadX;
+            regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
+            regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
+
+            // Checksum register is optional, as not all GFX9+ hardware uses it.
+            PM4_ME_SET_SH_REG         hdrComputeShaderChksum;
+            regCOMPUTE_SHADER_CHKSUM  computeShaderChksum;
+
+            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
+            // w/ the actual commands contained above.
+            size_t  spaceNeeded;
+        } set; // SET path, used for compute command buffers.  The MEC doesn't support LOAD_SH_REG_INDEX.
+
+        struct
+        {
+            PM4_ME_SET_SH_REG     hdrComputePgmRsrc2;
+            regCOMPUTE_PGM_RSRC2  computePgmRsrc2;
+
+            PM4_ME_SET_SH_REG           hdrComputeResourceLimits;
+            regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
+        } dynamic; // Contains state which depends on bind-time parameters.
+    };
+
+    ComputePipelineSignature  m_signature;
+    Pm4Commands               m_commands;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);
+};
+
+// =====================================================================================================================
+// Extension of the PipelineUploader helper class for Gfx9+ compute pipelines.
+class ComputePipelineUploader : public Pal::PipelineUploader
+{
+public:
+    explicit ComputePipelineUploader(
+        uint32 shRegisterCount)
+        :
+        PipelineUploader(0, shRegisterCount)
+        { }
+    virtual ~ComputePipelineUploader() { }
+
+    // Add a SH register to GPU memory for use with LOAD_SH_REG_INDEX.
+    template <typename Register_t>
+    PAL_INLINE void AddShReg(uint16 address, Register_t reg)
+        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, reg.u32All); }
+
+private:
+    PAL_DISALLOW_DEFAULT_CTOR(ComputePipelineUploader);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipelineUploader);
 };
 
 } // Gfx9

@@ -49,7 +49,7 @@ public:
     // NOTE: Part of the public IFence interface.
     virtual Result GetStatus() const override { return Result::Success; }
 
-    virtual Result OpenHandle(const FenceOpenInfo& openInfo) { return Result::Unsupported; }
+    virtual Result OpenHandle(const FenceOpenInfo& openInfo) override { return Result::Unsupported; }
 
     virtual OsExternalHandle ExportExternalHandle(
         const FenceExportInfo& exportInfo) const override;

@@ -62,43 +62,6 @@ WorkaroundState::WorkaroundState(
 }
 
 // =====================================================================================================================
-uint32* WorkaroundState::SwitchToNggPipeline(
-    bool        isFirstDraw,
-    bool        prevPipeIsNgg,
-    bool        prevPipeUsesTess,
-    bool        prevPipeUsesGs,
-    bool        usesOffchipPc,
-    CmdStream*  pDeCmdStream,
-    uint32*     pCmdSpace
-    ) const
-{
-    // When a transition from a legacy tessellation pipeline (GS disabled) to an NGG pipeline, the broadcast logic
-    // to update the VGTs can be triggered at different times. This, coupled with back pressure in the SPI, can cause
-    // delays in the RESET_TO_LOWEST_VGT and ENABLE_NGG_PIPELINE events from being seen. This will cause a hang.
-    // NOTE: For non-nested command buffers, there is the potential that we could chain multiple command buffers
-    //       together. In this scenario, we have no method of detecting what the previous command buffer's last bound
-    //       pipeline is, so we have to assume the worst and insert this event.
-    if (isFirstDraw || (prevPipeUsesTess && !prevPipeUsesGs))
-    {
-        // If we see hangs, this alert will draw our attention to this possible workaround.
-        PAL_ALERT_ALWAYS();
-
-        if (m_settings.waLegacyTessToNggVgtFlush)
-        {
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
-        }
-    }
-
-    // When we transition from a legacy pipeline to an NGG pipeline we need to send a VS_PARTIAL_FLUSH to avoid a hang.
-    if (m_settings.waLegacyToNggVsPartialFlush && !usesOffchipPc && (isFirstDraw || !prevPipeIsNgg))
-    {
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
 // Performs pre-draw validation specifically for hardware workarounds which must be evaluated at draw-time.
 // Returns the next unused DWORD in pCmdSpace.
 template <bool indirect, bool stateDirty, bool pm4OptImmediate>

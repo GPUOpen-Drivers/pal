@@ -145,7 +145,11 @@ private:
         uint32 crtcId,
         void*  pUserData);
 
-    static void EventPolling(void* pData);
+    static void EventPolling(
+        void* pData);
+
+    Result FindCrtc();
+
 private:
     DisplayWindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~DisplayWindowSystem();

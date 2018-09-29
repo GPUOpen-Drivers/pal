@@ -64,15 +64,6 @@ public:
         const ValidateDrawInfo& drawInfo,
         uint32*                 pCmdSpace);
 
-    uint32* SwitchToNggPipeline(
-        bool                    isFirstDraw,
-        bool                    prevPipelineIsNgg,
-        bool                    prevPipelineUsesTess,
-        bool                    prevPipelineUsesGs,
-        bool                    usesOffchipPc,
-        CmdStream*              pDeCmdStream,
-        uint32*                 pCmdSpace) const;
-
 private:
     const Device&                  m_device;
     const CmdUtil&                 m_cmdUtil;

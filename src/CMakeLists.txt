@@ -208,7 +208,9 @@ if(PAL_BUILD_CORE)
     # Also- should the generated files actually be added to be out of source (in the build directory)?
     # Pal settings must come before libInit or any of the other core files since there will be dependencies on the
     # generated files.
-    target_sources(pal PRIVATE core/g_palSettings.cpp)
+    target_sources(pal PRIVATE
+        core/g_palSettings.cpp
+        core/g_palPlatformSettings.cpp)
 endif()
 
 # CMAKE-TODO: Check if this is supposed to be added outside of core support....?
@@ -238,6 +240,7 @@ if(PAL_BUILD_CORE)
         core/perfExperiment.cpp
         core/perfTrace.cpp
         core/platform.cpp
+        core/platformSettingsLoader.cpp
         core/presentScheduler.cpp
         core/privateScreen.cpp
         core/queue.cpp
@@ -425,8 +428,7 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9PerfTrace.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkGs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineChunkHs.cpp
-                core/hw/gfxip/gfx9/gfx9PipelineChunkPs.cpp
-                core/hw/gfxip/gfx9/gfx9PipelineChunkVs.cpp
+                core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.cpp
                 core/hw/gfxip/gfx9/gfx9Pm4Optimizer.cpp
                 core/hw/gfxip/gfx9/gfx9PrefetchMgr.cpp
@@ -620,6 +622,7 @@ set(GEN_SETTINGS  ${GEN_TOOLS_DIR}/genSettingsCode.py)
 set(GEN_SETTINGS_FILES
     ${GEN_SETTINGS}
     ${GEN_TOOLS_DIR}/settingsCodeTemplates.py
+    ${GEN_TOOLS_DIR}/platformSettingsCodeTemplates.py
     ${GEN_TOOLS_DIR}/configParser.py
 )
 
@@ -635,6 +638,13 @@ if(PAL_BUILD_CORE)
     set(SETTINGS_CFG_DIR ${PROJECT_SOURCE_DIR}/src/core)
 
     add_custom_command(
+        OUTPUT ${SETTINGS_DIR}/g_palPlatformSettings.cpp ${SETTINGS_DIR}/g_palPlatformSettings.h
+        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${SETTINGS_CFG_DIR}/settings_platform.json --codeTemplateFile ${GEN_TOOLS_DIR}/platformSettingsCodeTemplates.py --outFilename g_palPlatformSettings --classNameOverride PlatformSettingsLoader --genRegistryCode
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_platform.json
+        COMMENT "Generating settings code from settings_platform.json"
+    )
+
+    add_custom_command(
         OUTPUT ${SETTINGS_DIR}/g_palSettings.cpp ${SETTINGS_DIR}/g_palSettings.h
         COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${SETTINGS_CFG_DIR}/settings_core.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_palSettings --genRegistryCode
         DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
@@ -643,7 +653,7 @@ if(PAL_BUILD_CORE)
 
     add_custom_target(
         RunSettingsGenerator
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
+        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json ${SETTINGS_CFG_DIR}/settings_platform.json
         COMMENT "Checking if re-generation is required for settings"
     )
 

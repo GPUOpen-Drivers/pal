@@ -376,8 +376,10 @@ void Device::ExpandColor(
     PAL_ASSERT(image.IsDepthStencil() == false);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    // If any mip level needs a Dcc decompress or Fmask decompress, we'll need to do a pre decompress flush.
-    if (TestAnyFlagSet(allBltOperations, ColorBlt::DccDecompress))
+    // If any mip level needs a Dcc decompress (Dcc FastClearEliminate) or Fmask decompress,
+    // we'll need to do a pre decompress flush.
+    if (TestAnyFlagSet(allBltOperations, ColorBlt::DccDecompress) ||
+        (TestAnyFlagSet(allBltOperations, ColorBlt::FastClearEliminate) && gfx6Image.HasDccData()))
     {
         if (earlyPhase && WaEnableDccCacheFlushAndInvalidate())
         {
@@ -599,11 +601,13 @@ uint32 Device::GetColorBltPerSubres(
             // the GPU side if the latest clear color was supported by the texture hardware (i.e., black or white).
             constexpr uint32 TcCompatReadFlags = LayoutShaderRead           |
                                                  LayoutShaderFmaskBasedRead |
-                                                 LayoutCopySrc              |
-                                                 LayoutResolveSrc;
+                                                 LayoutCopySrc;
 
-            // Mantle uses default compute engine to do resolve when create resource.  When newLayout.usages is
-            // LayoutResolveSrc and no dcc but has cmask fast clear, need FCE when do resolve using compute engine.
+            // LayoutResolveSrc is treated as a color compressed state and if any decompression is required at resolve
+            // time, @ref RsrcProcMgr::LateExpandResolveSrc will do the job.  So LayoutResolveSrc isn't added into
+            // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
+            // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
+            // really trigger an FCE operation.
             if (fastClearEliminateSupported                                                &&
                 TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags)   &&
                 ((gfx6Image.HasDccData() && pSubresInfo->flags.supportMetaDataTexFetch) ||

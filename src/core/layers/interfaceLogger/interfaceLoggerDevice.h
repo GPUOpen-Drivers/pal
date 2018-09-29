@@ -346,11 +346,7 @@ public:
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override;
 
-    const Pal::InterfaceLoggerConfig& InterfaceLoggerSettings() const { return m_interfaceLoggerSettings; }
-
 private:
-    Result UpdateSettings();
-
     virtual PrivateScreenDecorator* NewPrivateScreenDecorator(IPrivateScreen* pNextScreen, uint32 deviceIdx) override;
 
     static void PAL_STDCALL CreateTypedBufferViewSrds(
@@ -380,7 +376,6 @@ private:
         void*              pOut);
 
     const uint32 m_objectId;
-    Pal::InterfaceLoggerConfig m_interfaceLoggerSettings;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

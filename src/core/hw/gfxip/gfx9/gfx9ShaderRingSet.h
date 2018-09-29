@@ -64,11 +64,11 @@ enum class ShaderRingSrd : uint32
     GsVsRead,                          // GS/VS Ring Read Access
     TessFactorBuffer,                  // Tessellation Factor Buffer
     OffChipLdsBuffer,                  // Off-chip Tessellation LDS buffer
-    NggOffchipParamCache,              // NGG offchip parameter cache (PS inputs written by HW-GS)
+    Reserved3,                         // Reserved for future use.
     SamplePosBuffer,                   // Sample position buffer
-    NggPositionBuffer,                 // NGG offchip position ring buffer.
-    NggPrimitiveRingBuffer,            // NGG offchip primitive ring buffer.
-    NggControlSideband,                // NGG offchip control sideband buffer.
+    Reserved4,                         // Reserved for future use.
+    Reserved5,                         // Reserved for future use.
+    Reserved6,                         // Reserved for future use.
     NumUniversal,                      // Number of Ring SRD's in a RingSet associated with a universal Queue
     NumCompute = (SamplePosBuffer + 1), // Number of Ring SRD's in a RingSet associated with a compute Queue
 };

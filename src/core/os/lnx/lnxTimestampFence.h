@@ -50,12 +50,12 @@ public:
     virtual ~TimestampFence();
 
     virtual Result Init(
-        const FenceCreateInfo& createInfo);
+        const FenceCreateInfo& createInfo) override;
 
     // NOTE: Part of the public IFence interface.
     virtual Result GetStatus() const override;
 
-    virtual Result OpenHandle(const FenceOpenInfo& openInfo)
+    virtual Result OpenHandle(const FenceOpenInfo& openInfo) override
     {
         return Result::Unsupported;
     }

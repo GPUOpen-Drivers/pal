@@ -2148,7 +2148,7 @@ size_t CmdUtil::BuildLoadRegsMulti(
 // =====================================================================================================================
 // Helper method which builds a LOADDATA_INDEX PM4 packeet for loading a specific type of register from GPU memory
 // without updaing the register-shadowing address in the CP.
-template <IT_OpCodeType opCode, bool directAddress>
+template <IT_OpCodeType opCode, bool directAddress, uint32 dataFormat>
 size_t CmdUtil::BuildLoadRegsIndex(
     gpusize       gpuVirtAddrOrAddrOffset,
     uint32        startRegOffset,
@@ -2187,10 +2187,18 @@ size_t CmdUtil::BuildLoadRegsIndex(
         pPacket->addrLo.index = LOAD_DATA_INDEX_OFFSET;
         pPacket->addrOffset   = LowPart(gpuVirtAddrOrAddrOffset);
     }
-    pPacket->ordinal4       = 0;
-    pPacket->regOffset      = startRegOffset;
-    pPacket->dataFormat     = LOAD_DATA_FORMAT_OFFSET_AND_SIZE;
-    pPacket->numDwords      = count;
+    pPacket->ordinal4   = 0;
+    pPacket->dataFormat = dataFormat;
+    pPacket->numDwords  = count;
+
+    if (dataFormat == LOAD_DATA_FORMAT_OFFSET_AND_SIZE)
+    {
+        pPacket->regOffset = startRegOffset;
+    }
+    else // LOAD_DATA_FORMAT_OFFSET_AND_DATA
+    {
+        PAL_ASSERT(startRegOffset == 0);
+    }
 
     return PacketSize;
 }
@@ -2252,11 +2260,13 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
     ) const
 {
     PAL_ASSERT(IsContextReg(startRegAddr));
-    return BuildLoadRegsIndex<IT_LOAD_CONTEXT_REG_INDEX__VI, directAddress>(gpuVirtAddrOrAddrOffset,
-                                                                            (startRegAddr - CONTEXT_SPACE_START),
-                                                                            count,
-                                                                            ShaderGraphics,
-                                                                            pBuffer);
+    return BuildLoadRegsIndex<IT_LOAD_CONTEXT_REG_INDEX__VI,
+                              directAddress,
+                              LOAD_DATA_FORMAT_OFFSET_AND_SIZE>(gpuVirtAddrOrAddrOffset,
+                                                                (startRegAddr - CONTEXT_SPACE_START),
+                                                                count,
+                                                                ShaderGraphics,
+                                                                pBuffer);
 }
 
 template
@@ -2274,6 +2284,20 @@ size_t CmdUtil::BuildLoadContextRegsIndex<false>(
     uint32  count,
     void*   pBuffer
     ) const;
+
+// =====================================================================================================================
+// Builds a PM4 packet which issues a load_context_reg_index command to load a series of individual context registers
+// stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildLoadContextRegsIndex(
+    gpusize gpuVirtAddr,
+    uint32  count,
+    void*   pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    return BuildLoadRegsIndex<IT_LOAD_CONTEXT_REG_INDEX__VI,
+                              true,
+                              LOAD_DATA_FORMAT_OFFSET_AND_DATA>(gpuVirtAddr, 0, count, ShaderGraphics, pBuffer);
+}
 
 // =====================================================================================================================
 // Builds a PM4 packet which issues a load_sh_reg command to load a single group of consecutive persistent space
@@ -2321,11 +2345,28 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     ) const
 {
     PAL_ASSERT(IsShReg(startRegAddr));
-    return BuildLoadRegsIndex<IT_LOAD_SH_REG_INDEX__VI, false>(addrOffset,
-                                                               (startRegAddr - PERSISTENT_SPACE_START),
-                                                               count,
-                                                               shaderType,
-                                                               pBuffer);
+    return BuildLoadRegsIndex<IT_LOAD_SH_REG_INDEX__VI,
+                              false,
+                              LOAD_DATA_FORMAT_OFFSET_AND_SIZE>(addrOffset,
+                                                                (startRegAddr - PERSISTENT_SPACE_START),
+                                                                count,
+                                                                shaderType,
+                                                                pBuffer);
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet which issues a load_sh_reg_index command to load a series of individual persistent-state
+// registers stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildLoadShRegsIndex(
+    gpusize       gpuVirtAddr,
+    uint32        count,
+    PM4ShaderType shaderType,
+    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    return BuildLoadRegsIndex<IT_LOAD_SH_REG_INDEX__VI,
+                              true,
+                              LOAD_DATA_FORMAT_OFFSET_AND_DATA>(gpuVirtAddr, 0, count, shaderType, pBuffer);
 }
 
 // =====================================================================================================================

@@ -54,7 +54,8 @@ struct StreamoutStatsDataPair
 
 static constexpr gpusize StreamoutStatsQueryMemoryAlignment = 32;
 
-static constexpr uint64  StreamoutStatsResetMemValue32 = 0xFFFFFFFF;
+static constexpr uint64  StreamoutStatsResetMemValue32 = 0;
+static constexpr uint64  StreamoutStatsResultValidMask = 0x8000000000000000ull;
 
 // =====================================================================================================================
 StreamoutStatsQueryPool::StreamoutStatsQueryPool(
@@ -307,7 +308,7 @@ size_t StreamoutStatsQueryPool::GetResultSizeForOneSlot(
     // Currently this function seems to be just referenced in QueryPool::GetResults so it doesn't
     // even need to be implemented at this point but just put two lines of code as simple enough
 
-    PAL_ASSERT(flags == (QueryResult64Bit | QueryResultWait));
+    PAL_ASSERT((flags == (QueryResult64Bit | QueryResultWait)) || (flags == QueryResult64Bit));
 
     // primStorageNeeded and primCountWritten
     return sizeof(StreamoutStatsData);
@@ -327,16 +328,32 @@ bool StreamoutStatsQueryPool::ComputeResults(
     const StreamoutStatsDataPair* pDataPair = static_cast<const StreamoutStatsDataPair*>(pGpuData);
     StreamoutStatsData* pQueryData = static_cast<StreamoutStatsData*>(pData);
 
+    bool queryReady = true;
     for (uint32 i = 0; i < queryCount; i++)
     {
-        const uint64 primCountWritten  = pDataPair[i].end.primCountWritten - pDataPair[i].begin.primCountWritten;
-        const uint64 primStorageNeeded = pDataPair[i].end.primStorageNeeded - pDataPair[i].begin.primStorageNeeded;
+        bool countersReady = false;
+        do
+        {
+            // AND all 4 counters together and check whether the 63rd bit is 1 or not
+            countersReady = ((pDataPair[i].end.primCountWritten   &
+                pDataPair[i].begin.primCountWritten &
+                pDataPair[i].end.primStorageNeeded  &
+                pDataPair[i].begin.primStorageNeeded) & StreamoutStatsResultValidMask) != 0;
+        } while ((countersReady == false) && TestAnyFlagSet(flags, QueryResultWait));
 
-        pQueryData[i].primCountWritten  = primCountWritten;
-        pQueryData[i].primStorageNeeded = primStorageNeeded;
+        if (countersReady)
+        {
+            const uint64 primCountWritten = pDataPair[i].end.primCountWritten - pDataPair[i].begin.primCountWritten;
+            const uint64 primStorageNeeded = pDataPair[i].end.primStorageNeeded - pDataPair[i].begin.primStorageNeeded;
+
+            pQueryData[i].primCountWritten = primCountWritten;
+            pQueryData[i].primStorageNeeded = primStorageNeeded;
+        }
+        // The entire query will only be ready if all of its counters were ready.
+        queryReady = queryReady && countersReady;
     }
 
-    return true;
+    return queryReady;
 }
 
 } // Gfx9

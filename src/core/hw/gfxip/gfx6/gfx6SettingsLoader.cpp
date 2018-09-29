@@ -53,7 +53,8 @@ SettingsLoader::SettingsLoader(
                          static_cast<DriverSettings*>(&m_settings),
                          g_gfx6PalNumSettings),
     m_pDevice(pDevice),
-    m_settings()
+    m_settings(),
+    m_pComponentName("Gfx6_Pal")
 {
     memset(&m_settings, 0, sizeof(Gfx6PalSettings));
 }
@@ -160,6 +161,13 @@ void SettingsLoader::ValidateSettings(
     else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
+    }
+
+    // If the current microcode version doesn't support the "indexed" version of the LOADDATA PM4 packets, we cannot
+    // use the LOAD_INDEX path for binding pipelines and other state objects.
+    if (gfx6Props.supportLoadRegIndexPkt == false)
+    {
+        m_settings.enableLoadIndexForObjectBinds = false;
     }
 
     // The maximum GS LDS size must be aligned to the LDS granularity.
@@ -270,8 +278,7 @@ void SettingsLoader::ValidateSettings(
         m_settings.gfx8RbPlusEnable = false;
     }
 
-    if (pSettings->nonlocalDestGraphicsCopyRbs >=
-        static_cast<int32>(gfx6Props.numActiveRbs))
+    if (pSettings->nonlocalDestGraphicsCopyRbs >= static_cast<int32>(gfx6Props.numActiveRbs))
     {
         pSettings->nonlocalDestGraphicsCopyRbs = gfx6Props.numActiveRbs;
     }

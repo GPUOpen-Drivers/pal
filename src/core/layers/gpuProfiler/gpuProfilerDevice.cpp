@@ -116,12 +116,7 @@ Result Device::CommitSettingsAndInit()
 
     Result result = DeviceDecorator::CommitSettingsAndInit();
 
-    if (result == Result::Success)
-    {
-        result = UpdateSettings();
-    }
-
-    const Pal::GpuProfilerSettings& settings = ProfilerSettings();
+    const auto& settings = GetPlatform()->PlatformSettings();
 
     // Capture properties and settings needed elsewhere in the GpuProfiler layer.
     DeviceProperties info;
@@ -137,19 +132,25 @@ Result Device::CommitSettingsAndInit()
         m_bufferSrdDwords      = info.gfxipProperties.srdSizes.bufferView / sizeof(uint32);
         m_imageSrdDwords       = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
         m_timestampFreq        = info.timestampFrequency;
-        m_logPipeStats         = settings.profilerConfig.recordPipelineStats;
-        m_sqttCompilerHash     = settings.sqttConfig.pipelineHash;
-        m_seMask               = settings.sqttConfig.seMask & maxSeMask;
+        m_logPipeStats         = settings.gpuProfilerConfig.recordPipelineStats;
+        m_sqttCompilerHash     = settings.gpuProfilerSqttConfig.pipelineHash;
+        m_seMask               = settings.gpuProfilerSqttConfig.seMask & maxSeMask;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-        m_stallMode           = settings.sqttConfig.stallMode;
+        m_stallMode           = settings.gpuProfilerSqttConfig.stallBehavior;
 #endif
 
-        m_sqttVsHash = settings.sqttConfig.vsHash;
-        m_sqttHsHash = settings.sqttConfig.hsHash;
-        m_sqttDsHash = settings.sqttConfig.dsHash;
-        m_sqttGsHash = settings.sqttConfig.gsHash;
-        m_sqttPsHash = settings.sqttConfig.psHash;
-        m_sqttCsHash = settings.sqttConfig.csHash;
+        m_sqttVsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
+        m_sqttVsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;
+        m_sqttHsHash.upper = settings.gpuProfilerSqttConfig.hsHashHi;
+        m_sqttHsHash.lower = settings.gpuProfilerSqttConfig.hsHashLo;
+        m_sqttDsHash.upper = settings.gpuProfilerSqttConfig.dsHashHi;
+        m_sqttDsHash.lower = settings.gpuProfilerSqttConfig.dsHashLo;
+        m_sqttGsHash.upper = settings.gpuProfilerSqttConfig.gsHashHi;
+        m_sqttGsHash.lower = settings.gpuProfilerSqttConfig.gsHashLo;
+        m_sqttPsHash.upper = settings.gpuProfilerSqttConfig.psHashHi;
+        m_sqttPsHash.lower = settings.gpuProfilerSqttConfig.psHashLo;
+        m_sqttCsHash.upper = settings.gpuProfilerSqttConfig.csHashHi;
+        m_sqttCsHash.lower = settings.gpuProfilerSqttConfig.csHashLo;
 
         m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0)         ||
                                   ShaderHashIsNonzero(m_sqttVsHash) ||
@@ -159,13 +160,13 @@ Result Device::CommitSettingsAndInit()
                                   ShaderHashIsNonzero(m_sqttPsHash) ||
                                   ShaderHashIsNonzero(m_sqttCsHash));
 
-        m_profilerGranularity = settings.profilerConfig.granularity;
+        m_profilerGranularity = settings.gpuProfilerPerfCounterConfig.granularity;
 
-        m_maxDrawsForThreadTrace = settings.sqttConfig.maxDraws;
+        m_maxDrawsForThreadTrace = settings.gpuProfilerSqttConfig.maxDraws;
         m_curDrawsForThreadTrace = 0;
 
-        m_startFrame          = settings.profilerConfig.startFrame;
-        m_endFrame            = m_startFrame + settings.profilerConfig.frameCount;
+        m_startFrame          = settings.gpuProfilerConfig.startFrame;
+        m_endFrame            = m_startFrame + settings.gpuProfilerConfig.frameCount;
 
         for (uint32 i = 0; i < EngineTypeCount; i++)
         {
@@ -176,70 +177,25 @@ Result Device::CommitSettingsAndInit()
     if (result == Result::Success)
     {
         // Create directory for log files.
-        if (GetPlatform()->CreateLogDir(settings.profilerConfig.logDirectory) != Result::Success)
+        if (GetPlatform()->CreateLogDir(settings.gpuProfilerConfig.logDirectory) != Result::Success)
         {
-            PAL_DPWARN("Failed to create folder '%s'", settings.profilerConfig.logDirectory);
+            PAL_DPWARN("Failed to create folder '%s'", settings.gpuProfilerConfig.logDirectory);
         }
     }
 
-    if ((result == Result::Success) && (settings.perfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success) && (settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
     {
         result = InitGlobalPerfCounterState();
         PAL_ASSERT(result == Result::Success);
     }
 
-    if ((result == Result::Success) && (settings.spmConfig.spmPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success) && (settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile[0] != '\0'))
     {
         result = InitSpmTraceCounterState();
         PAL_ASSERT(result == Result::Success);
     }
 
     return result;
-}
-
-// =====================================================================================================================
-Result Device::UpdateSettings()
-{
-    // General settings
-    memset(m_profilerSettings.profilerConfig.logDirectory, 0, 512);
-    strncpy(m_profilerSettings.profilerConfig.logDirectory, "/tmp/amdpal/", 512);
-    m_profilerSettings.profilerConfig.startFrame = 0;
-    m_profilerSettings.profilerConfig.frameCount = 0;
-    m_profilerSettings.profilerConfig.recordPipelineStats = false;
-    m_profilerSettings.profilerConfig.breakSubmitBatches = false;
-    m_profilerSettings.profilerConfig.granularity = GpuProfilerGranularityDraw;
-
-    // Perf Counter config
-    memset(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, 0, 256);
-    strncpy(m_profilerSettings.perfCounterConfig.globalPerfCounterConfigFile, "", 256);
-    m_profilerSettings.perfCounterConfig.cacheFlushOnCounterCollection = false;
-
-    // SQTT config
-    m_profilerSettings.sqttConfig.tokenMask = 0xFFFF;
-    m_profilerSettings.sqttConfig.seMask = 0xF;
-    m_profilerSettings.sqttConfig.pipelineHash = 0;
-    m_profilerSettings.sqttConfig.vsHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.hsHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.dsHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.gsHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.psHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.csHash = ZeroShaderHash;
-    m_profilerSettings.sqttConfig.maxDraws = 0;
-    m_profilerSettings.sqttConfig.bufferSize = 1048576;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-    m_profilerSettings.sqttConfig.stallMode = GpuProfilerStallAlways;
-#endif
-
-    // Spm trace config.
-    memset(m_profilerSettings.spmConfig.spmPerfCounterConfigFile, 0, 256);
-    m_profilerSettings.spmConfig.spmTraceBufferSize = 1048576;
-    m_profilerSettings.spmConfig.spmTraceInterval   = 4096;
-
-    // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
-    const auto coreLayerSettings = GetGpuProfilerSettings();
-    m_profilerSettings = coreLayerSettings;
-
-    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -475,6 +431,7 @@ Result Device::ExtractPerfCounterInfo(
 {
     Result result = Result::Success;
     uint32 counterIdx = 0;
+    uint32 lineNum = 1;
     while ((counterIdx < numPerfCounter) && (result == Result::Success))
     {
         constexpr size_t BufSize = 512;
@@ -505,67 +462,93 @@ Result Device::ExtractPerfCounterInfo(
                                             &instanceName[0],
                                             &eventName[0]);
 
-                const GpuBlock block = StringToGpuBlock(&blockName[0]);
-                const uint32   blockIdx = static_cast<uint32>(block);
-
-                if (strcmp(instanceName, "EACH") == 0)
+                if (scanfRet == 4)
                 {
-                    const uint32 instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
-                    for (uint32 i = 0; i < instanceCount; i++)
+                    const GpuBlock block = StringToGpuBlock(&blockName[0]);
+                    const uint32   blockIdx = static_cast<uint32>(block);
+
+                    if (strcmp(instanceName, "EACH") == 0)
                     {
+                        const uint32 instanceCount = perfExpProps.blocks[blockIdx].instanceCount;
+                        for (uint32 i = 0; i < instanceCount; i++)
+                        {
+                            pPerfCounters[counterIdx].block         = block;
+                            pPerfCounters[counterIdx].eventId       = eventId;
+                            pPerfCounters[counterIdx].instanceId    = i;
+                            pPerfCounters[counterIdx].instanceCount = 1;
+                            Snprintf(
+                                &pPerfCounters[counterIdx].name[0],
+                                EventInstanceNameSize,
+                                "%s_INSTANCE_%d",
+                                &eventName[0],
+                                i);
+                            counterIdx++;
+                        }
+                    }
+                    else if (strcmp(instanceName, "ALL") == 0)
+                    {
+                        const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
                         pPerfCounters[counterIdx].block         = block;
                         pPerfCounters[counterIdx].eventId       = eventId;
-                        pPerfCounters[counterIdx].instanceId    = i;
-                        pPerfCounters[counterIdx].instanceCount = 1;
+                        pPerfCounters[counterIdx].instanceId    = 0;
+                        pPerfCounters[counterIdx].instanceCount = instanceCount;
                         Snprintf(
                             &pPerfCounters[counterIdx].name[0],
                             EventInstanceNameSize,
-                            "%s_INSTANCE_%d",
-                            &eventName[0],
-                            i);
+                            "%s_INSTANCE_ALL",
+                            &eventName[0]);
                         counterIdx++;
+                        if (instanceCount == 0)
+                        {
+                            PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
+                            result = Result::ErrorInitializationFailed;
+                        }
                     }
-                }
-                else if (strcmp(instanceName, "ALL") == 0)
-                {
-                    const uint32 instanceCount              = perfExpProps.blocks[blockIdx].instanceCount;
-                    pPerfCounters[counterIdx].block         = block;
-                    pPerfCounters[counterIdx].eventId       = eventId;
-                    pPerfCounters[counterIdx].instanceId    = 0;
-                    pPerfCounters[counterIdx].instanceCount = instanceCount;
-                    Snprintf(
-                        &pPerfCounters[counterIdx].name[0],
-                        EventInstanceNameSize,
-                        "%s_INSTANCE_ALL",
-                        &eventName[0]);
-                    counterIdx++;
-                    if (instanceCount == 0)
+                    else
                     {
-                        result = Result::ErrorInitializationFailed;
+                        char* endChar;
+                        uint32 instanceId = strtol(instanceName, &endChar, 10);
+                        if (endChar != instanceName)
+                        {
+                            // strtol succeeded
+                            pPerfCounters[counterIdx].block         = block;
+                            pPerfCounters[counterIdx].eventId       = eventId;
+                            pPerfCounters[counterIdx].instanceId    = instanceId;
+                            pPerfCounters[counterIdx].instanceCount = 1;
+                            Snprintf(
+                                &pPerfCounters[counterIdx].name[0],
+                                EventInstanceNameSize,
+                                "%s_INSTANCE_%s",
+                                &eventName[0],
+                                &instanceName[0]);
+                            counterIdx++;
+                        }
+                        else
+                        {
+                            // strtol failed
+                            PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is not a number, EACH, or ALL.",
+                                        lineNum, instanceName);
+                            result = Result::ErrorInitializationFailed;
+                        }
                     }
                 }
                 else
                 {
-                    pPerfCounters[counterIdx].block         = block;
-                    pPerfCounters[counterIdx].eventId       = eventId;
-                    pPerfCounters[counterIdx].instanceId    = atoi(instanceName);
-                    pPerfCounters[counterIdx].instanceCount = 1;
-                    Snprintf(
-                        &pPerfCounters[counterIdx].name[0],
-                        EventInstanceNameSize,
-                        "%s_INSTANCE_%s",
-                        &eventName[0],
-                        &instanceName[0]);
-                    counterIdx++;
+                    // sscanf failed
+                    PAL_DPERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
+                    result = Result::ErrorInitializationFailed;
                 }
             }
         }
         else
         {
+            // ReadLine() failed.
             // This probably means we hit the end of the file before finding the expected number of valid config
             // lines.  Probably indicates an invalid configuration file.
+            PAL_DPERROR("Bad perfcounter config (%d): Unexpected end-of-file", lineNum);
             result = Result::ErrorInitializationFailed;
         }
+        lineNum++;
     }
 
     if (result == Result::Success)
@@ -585,6 +568,10 @@ Result Device::ExtractPerfCounterInfo(
             {
                 // The block instance ID given in the config file is out of range.
                 // pPerfCounter of instance name ALL will always pass this test.
+                PAL_DPERROR("PerfCounter[%s]: instanceId out of range (got %d, max %d)",
+                            pPerfCounters[i].name,
+                            pPerfCounters[i].instanceId,
+                            blockInstanceCount);
                 result = Result::ErrorInitializationFailed;
                 continue;
             }
@@ -592,6 +579,10 @@ Result Device::ExtractPerfCounterInfo(
             if (pPerfCounters[i].eventId > perfExpProps.blocks[blockIdx].maxEventId)
             {
                 // Invalid event ID.
+                PAL_DPERROR("PerfCounter[%s]: eventId out of range (got %d, max %d)",
+                            pPerfCounters[i].name,
+                            pPerfCounters[i].eventId,
+                            perfExpProps.blocks[blockIdx].maxEventId);
                 result = Result::ErrorInitializationFailed;
                 continue;
             }
@@ -605,6 +596,7 @@ Result Device::ExtractPerfCounterInfo(
                 if (++count[blockIdx][instanceId] > maxCounters)
                 {
                     // Too many counters enabled for this block instance.
+                    PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block", pPerfCounters[i].name);
                     result = Result::ErrorInitializationFailed;
                 }
             }
@@ -620,7 +612,9 @@ Result Device::ExtractPerfCounterInfo(
 Result Device::InitGlobalPerfCounterState()
 {
     File configFile;
-    Result result = configFile.Open(ProfilerSettings().perfCounterConfig.globalPerfCounterConfigFile, FileAccessRead);
+    Result result = configFile.Open(
+        GetPlatform()->PlatformSettings().gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile,
+        FileAccessRead);
 
     // Get performance experiment properties from the device in order to validate the requested counters.
     PerfExperimentProperties perfExpProps;
@@ -663,6 +657,7 @@ Result Device::CountPerfCounters(
     constexpr size_t BufSize = 512;
     char buf[BufSize];
     size_t lineLength;
+    uint32 lineNum = 1;
 
     // Loop through the config file.  One counter will be enabled for every line in the file that is not blank or a
     // comment.
@@ -712,15 +707,18 @@ Result Device::CountPerfCounters(
                 else
                 {
                     // Unrecognized or unavailable block in the config file.
+                    PAL_DPERROR("Bad perfcounter config (%d): Block '%s' not recognized", lineNum, blockName);
                     result = Result::ErrorInitializationFailed;
                 }
             }
             else
             {
                 // Malformed line in the config file.
+                PAL_DPERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
                 result = Result::ErrorInitializationFailed;
             }
         }
+        lineNum++;
     }
 
     pFile->Rewind();
@@ -734,7 +732,8 @@ Result Device::InitSpmTraceCounterState()
     Result result = Result::Success;
 
     File configFile;
-    result = configFile.Open(ProfilerSettings().spmConfig.spmPerfCounterConfigFile, FileAccessRead);
+    result = configFile.Open(GetPlatform()->PlatformSettings().gpuProfilerSpmConfig.spmPerfCounterConfigFile,
+                             FileAccessRead);
 
     PerfExperimentProperties perfExpProps;
     if (result == Result::Success)

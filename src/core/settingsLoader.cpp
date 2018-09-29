@@ -52,7 +52,8 @@ SettingsLoader::SettingsLoader(
     :
     ISettingsLoader(pAllocator, static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
     m_pDevice(pDevice),
-    m_settings()
+    m_settings(),
+    m_pComponentName("Pal")
 {
     memset(&m_settings, 0, sizeof(PalSettings));
 }
@@ -71,80 +72,10 @@ SettingsLoader::~SettingsLoader()
     }
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-// =====================================================================================================================
-// Initialize debug print output mode and enables for each assert level.
-void SettingsLoader::InitDpLevelSettings()
-{
-    bool ret = true;
-
-    struct
-    {
-        const char*      pRegString;
-        DbgPrintCategory palCategory;
-    } dbgPrintSettingsTbl[] =
-    {
-        "Info",    DbgPrintCategory::DbgPrintCatInfoMsg,
-        "Warn",    DbgPrintCategory::DbgPrintCatWarnMsg,
-        "Error",   DbgPrintCategory::DbgPrintCatErrorMsg,
-        "ScMsg",   DbgPrintCategory::DbgPrintCatScMsg,
-        "Event",   DbgPrintCategory::DbgPrintCatEventPrintMsg,
-        "EventCb", DbgPrintCategory::DbgPrintCatEventPrintCallbackMsg,
-        nullptr, DbgPrintCategory::DbgPrintCatCount
-    };
-
-    for (uint32 dpTblIdx = 0; dbgPrintSettingsTbl[dpTblIdx].pRegString != nullptr; dpTblIdx++)
-    {
-        uint32 outputMode;
-
-        // read debug print output mode from registry or config file
-        ret = m_pDevice->ReadSetting(dbgPrintSettingsTbl[dpTblIdx].pRegString,
-                                     ValueType::Uint,
-                                     &outputMode,
-                                     InternalSettingScope::PrivatePalKey);
-
-        if (ret == true)
-        {
-            SetDbgPrintMode(dbgPrintSettingsTbl[dpTblIdx].palCategory,
-                            static_cast<DbgPrintMode>(outputMode));
-        }
-    }
-
-    struct
-    {
-        const char*    pRegString;
-        AssertCategory category;
-    } assertSettingsTbl[] =
-    {
-        "SoftAssert", AssertCategory::AssertCatAlert,
-        "HardAssert", AssertCategory::AssertCatAssert,
-        nullptr,      AssertCategory::AssertCatCount
-    };
-
-    // Read enables from the registry/config file for each AssertLevel...
-    for (uint32 idx = 0; assertSettingsTbl[idx].pRegString != nullptr; idx++)
-    {
-        bool enable;
-
-        ret = m_pDevice->ReadSetting(assertSettingsTbl[idx].pRegString,
-                                     ValueType::Boolean,
-                                     &enable,
-                                     InternalSettingScope::PrivatePalKey);
-        if (ret == true)
-        {
-            EnableAssertMode(assertSettingsTbl[idx].category, (enable == true));
-        }
-    }
-}
-#endif // #if PAL_ENABLE_PRINTS_ASSERTS
-
 // =====================================================================================================================
 // Initializes the environment settings to their default values
 Result SettingsLoader::Init()
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    InitDpLevelSettings();
-#endif
     Result ret = m_settingsInfoMap.Init();
 
     if (ret == Result::Success)
@@ -255,7 +186,7 @@ void SettingsLoader::ValidateSettings()
     // platform dependent. So we need to query the root path from device and then concatenate two strings (of the root
     // path and relative path of specific file) to the final usable absolute path
     const char* pRootPath = m_pDevice->GetDebugFilePath();
-
+    auto* pPlatformSettings = m_pDevice->GetPlatform()->PlatformSettingsPtr();
     if (pRootPath != nullptr)
     {
         char subDir[MaxPathStrLen];
@@ -269,24 +200,24 @@ void SettingsLoader::ValidateSettings()
                  sizeof(m_settings.pipelineLogConfig.pipelineLogDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, m_settings.overlayBenchmarkConfig.usageLogDirectory, sizeof(subDir));
-        Snprintf(m_settings.overlayBenchmarkConfig.usageLogDirectory,
-                 sizeof(m_settings.overlayBenchmarkConfig.usageLogDirectory),
+        Strncpy(subDir, pPlatformSettings->overlayBenchmarkConfig.usageLogDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->overlayBenchmarkConfig.usageLogDirectory,
+                 sizeof(pPlatformSettings->overlayBenchmarkConfig.usageLogDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, m_settings.overlayBenchmarkConfig.frameStatsLogDirectory, sizeof(subDir));
-        Snprintf(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory,
-                 sizeof(m_settings.overlayBenchmarkConfig.frameStatsLogDirectory),
+        Strncpy(subDir, pPlatformSettings->overlayBenchmarkConfig.frameStatsLogDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->overlayBenchmarkConfig.frameStatsLogDirectory,
+                 sizeof(pPlatformSettings->overlayBenchmarkConfig.frameStatsLogDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, m_settings.gpuProfilerConfig.logDirectory, sizeof(subDir));
-        Snprintf(m_settings.gpuProfilerConfig.logDirectory,
-                 sizeof(m_settings.gpuProfilerConfig.logDirectory),
+        Strncpy(subDir, pPlatformSettings->gpuProfilerConfig.logDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->gpuProfilerConfig.logDirectory,
+                 sizeof(pPlatformSettings->gpuProfilerConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, m_settings.interfaceLoggerConfig.logDirectory, sizeof(subDir));
-        Snprintf(m_settings.interfaceLoggerConfig.logDirectory,
-                 sizeof(m_settings.interfaceLoggerConfig.logDirectory),
+        Strncpy(subDir, pPlatformSettings->interfaceLoggerConfig.logDirectory, sizeof(subDir));
+        Snprintf(pPlatformSettings->interfaceLoggerConfig.logDirectory,
+                 sizeof(pPlatformSettings->interfaceLoggerConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
 
     }

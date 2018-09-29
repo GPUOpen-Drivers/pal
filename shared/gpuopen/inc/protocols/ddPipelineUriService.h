@@ -280,11 +280,11 @@ public:
         uint32                     postSizeLimit;                //< Post size limit for Uri requests
     };
 
-    explicit PipelineUriService(const AllocCb& allocCb);
+    PipelineUriService();
     virtual ~PipelineUriService();
 
-    // Initializes the service with the Driver callbacks.
-    // The service must be recreated to update the callbacks or user data.
+    // (Re)Initializes the service with the Driver callbacks.
+    // It is safe to call this function on an active service or to call it multiple times.
     Result Init(const DriverInfo& info);
 
     // Handles a request from a consumer.
@@ -301,11 +301,13 @@ public:
 
 private:
     DD_DISALLOW_COPY_AND_ASSIGN(PipelineUriService);
-    DD_DISALLOW_DEFAULT_CTOR(PipelineUriService);
 
-    AllocCb      m_allocCb;
-    IByteWriter* m_pWriter;
-    DriverInfo   m_driverInfo;
+    IByteWriter*            m_pWriter;
+    DriverInfo              m_driverInfo;
+
+    // This lock guards access to m_driverInfo, which can be updated asynchronously through
+    // Init(), even after the service has been registered.
+    Platform::AtomicLock    m_lock;
 };
 
 } // DevDriver

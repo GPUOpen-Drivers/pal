@@ -335,6 +335,7 @@ protected:
         const Image& image) const;
 
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
+    ColorBlendState*    m_pColorBlendState;                 // Blend state object with rt0 blending enabled.
     DepthStencilState*  m_pDepthDisableState;               // DS state object with all depth disabled.
     DepthStencilState*  m_pDepthClearState;                 // Ds state object for depth-only clears.
     DepthStencilState*  m_pStencilClearState;               // Ds state object for stencil-only clears.
@@ -356,13 +357,26 @@ private:
         const uint32*      pConvertedColor,
         const SubresRange& clearRange) const = 0;
 
-    virtual void HwlUpdateDstImageMetaData(
+    virtual void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         uint32                 flags) const = 0;
+
+    virtual bool HwlImageUsesCompressedWrites(
+        const uint32* pImageSrd) const = 0;
+
+    virtual void HwlUpdateDstImageStateMetaData(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      dstImage,
+        const SubresRange&     range) const = 0;
+
+    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
+        uint32                numSrds,
+        const ImageViewInfo*  pImageView,
+        void*                 pSrdTable) const = 0;
 
     virtual void HwlHtileCopyAndFixUp(
         GfxCmdBuffer*             pCmdBuffer,

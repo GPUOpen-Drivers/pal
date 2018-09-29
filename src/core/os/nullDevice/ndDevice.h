@@ -253,6 +253,11 @@ public:
     virtual Result FlglGetFrameCounterResetStatus(
         bool* pReset) const override { return Result::Success; }
 
+    virtual bool DidTurboSyncSettingsChange() override
+    {
+        return false;
+    }
+
     virtual Result DidChillSettingsChange(
         bool* pChangeDetected) override
     {
@@ -317,13 +322,6 @@ protected:
         const QueueCreateInfo& createInfo) const override;
 
 private:
-    virtual Result AddGpuMemoryReferences(
-        uint32              gpuMemRefCount,
-        const GpuMemoryRef* pGpuMemoryRefs,
-        IQueue*             pQueue,
-        uint32              flags
-        ) override;
-
     virtual Result EarlyInit(const HwIpLevels& ipLevels) override;
 
     virtual Result GetSwapChainInfo(
@@ -359,12 +357,6 @@ private:
         void*                pValue,
         InternalSettingScope settingType,
         size_t               bufferSz = 0) const override;
-
-    virtual Result RemoveGpuMemoryReferences(
-        uint32            gpuMemoryCount,
-        IGpuMemory*const* ppGpuMemory,
-        IQueue*           pQueue
-        ) override;
 
 #if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();

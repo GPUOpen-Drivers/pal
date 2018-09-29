@@ -27,7 +27,9 @@
 
 #include "palLib.h"
 #include "palPlatform.h"
+#include "platformSettingsLoader.h"
 #include "core/g_palSettings.h"
+#include "core/g_palPlatformSettings.h"
 #include "ver.h"
 
 // DevDriver forward declarations.
@@ -115,21 +117,11 @@ public:
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
     const char*  GetSettingsPath() const { return &m_settingsPath[0]; }
+    virtual const PalPlatformSettings& PlatformSettings() const override { return m_settingsLoader.GetSettings(); }
+    PalPlatformSettings* PlatformSettingsPtr() { return m_settingsLoader.GetSettingsPtr(); }
 
     const PlatformProperties& GetProperties() const { return m_properties; }
 
-#if PAL_BUILD_DBG_OVERLAY
-    bool IsDebugOverlayEnabled() const;
-#endif
-#if PAL_BUILD_GPU_PROFILER
-    GpuProfilerMode GpuProfilerMode() const;
-#endif
-#if PAL_BUILD_CMD_BUFFER_LOGGER
-    bool IsCmdBufferLoggerEnabled() const;
-#endif
-#if PAL_BUILD_INTERFACE_LOGGER
-    bool IsInterfaceLoggerEnabled() const;
-#endif
     virtual bool IsDtifEnabled()      const { return false; }
             bool IsEmulationEnabled() const { return IsDtifEnabled(); }
 
@@ -144,7 +136,9 @@ public:
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
     bool ShowDevDriverOverlay() const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
     PipelineDumpService* GetPipelineDumpService() { return m_pPipelineDumpService; }
+#endif
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     bool SvmModeEnabled()     const { return m_flags.enableSvmMode; }
@@ -198,6 +192,21 @@ protected:
     static constexpr uint32 MaxSettingsPathLength = 256;
     char m_settingsPath[MaxSettingsPathLength];
 
+    union
+    {
+        struct
+        {
+            uint32 disableGpuTimeout : 1;     // Disables GPU timeout detection
+            uint32 force32BitVaSpace : 1;     // Forces 32 bit VA space for the flat address in 32 bit ISA
+            uint32 createNullDevice : 1;     // If set, creates a NULL device based on the nullGpuId
+            uint32 enableSvmMode : 1;     // If set, SVM mode is enabled
+            uint32 requestShadowDescVaRange : 1;     // Requests that PAL provides support for the client to use
+                                                     // the @ref VaRange::ShadowDescriptorTable virtual-address range.
+            uint32 reserved : 27;
+        };
+        uint32 u32All;
+    } m_flags;
+
 private:
     // Empty callback for when no installed developer callback exists.
     static void PAL_STDCALL DefaultDeveloperCb(
@@ -217,7 +226,7 @@ private:
 
     // Developer Driver functionality.
     // Initialization + Destruction functions
-    void EarlyInitDevDriver();
+    Result EarlyInitDevDriver();
     void LateInitDevDriver();
     void DestroyDevDriver();
 
@@ -225,36 +234,23 @@ private:
     // driver functionality. The server object handles all developer driver protocol management internally and exposes
     // interfaces to each protocol through explicit objects which can be retrieved through the main interface.
     DevDriver::DevDriverServer* m_pDevDriverServer;
+    Util::IndirectAllocator  m_allocator;
+    PlatformSettingsLoader m_settingsLoader;
 
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer*         m_pRgpServer;
     DevDriver::LoggingProtocol::LoggingServer* m_pLoggingServer;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
     // Pipeline dump service exposed via the developer driver.
     PipelineDumpService* m_pPipelineDumpService;
+#endif
 
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;
     gpusize                m_svmRangeStart;
     gpusize                m_maxSvmSize;
     Util::LogCallbackInfo  m_logCb;
-
-    union
-    {
-        struct
-        {
-            uint32 usesDefaultAllocCb         :  1;     // We need to track this so that we can properly clean up the
-                                                        // default OS-specific allocation callbacks if they are in use.
-            uint32 disableGpuTimeout          :  1;     // Disables GPU timeout detection
-            uint32 force32BitVaSpace          :  1;     // Forces 32 bit VA space for the flat address in 32 bit ISA
-            uint32 createNullDevice           :  1;     // If set, creates a NULL device based on the nullGpuId
-            uint32 enableSvmMode              :  1;     // If set, SVM mode is enabled
-            uint32 requestShadowDescVaRange   :  1;     // Requests that PAL provides support for the client to use
-                                                        // the @ref VaRange::ShadowDescriptorTable virtual-address range.
-            uint32 reserved                   : 26;
-        };
-        uint32 u32All;
-    } m_flags;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);
 };

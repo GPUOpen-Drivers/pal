@@ -64,16 +64,6 @@ struct InternalSubmitInfo
     // Paging fence value associated with any internal allocations or command streams managed by the QueueContext.
     uint64  pagingFence;
 
-    union
-    {
-        struct
-        {
-            uint8 hasPrimShaderWorkload : 1;
-            uint8 reserved              : 7;
-        };
-        uint8 u8All;
-    } flags;
-
     MgpuSlsInfo mgpuSlsInfo;
 
     // The semaphore arrays are only used by Linux backend to better align with u/k interface

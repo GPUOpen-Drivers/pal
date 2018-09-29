@@ -1706,8 +1706,11 @@ void Gfx9Dcc::GetXyzInc(
     const ImageType       imageType   = image.GetOverrideImageType();
     const AddrSwizzleMode swizzleMode = GetSwizzleMode(image);
 
-    // Note that 3D displayable blocks use the normal 2D layout.
-    if ((imageType == ImageType::Tex2d) || AddrMgr2::IsDisplayableSwizzle(swizzleMode))
+    // There are instances where 3D images use the 2D layout.
+    bool  isEffective2d    = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
+    bool  useZswizzleFor3d = AddrMgr2::IsZSwizzle(swizzleMode);
+
+    if ((imageType == ImageType::Tex2d) || isEffective2d)
     {
         constexpr uint32 XyzIncSizes[][3]=
         {
@@ -1724,7 +1727,7 @@ void Gfx9Dcc::GetXyzInc(
     }
     else if (imageType == ImageType::Tex3d)
     {
-        if (AddrMgr2::IsZSwizzle(swizzleMode))
+        if (useZswizzleFor3d)
         {
             constexpr uint32 XyzIncSizes[][3]=
             {
@@ -1756,7 +1759,7 @@ void Gfx9Dcc::GetXyzInc(
         }
         else
         {
-            // 3D displayable surfaces should have been caught by the first if-statement above.
+            // 3D surfaces of other swizzle modes should have had isEffective2d set.
             PAL_ASSERT_ALWAYS();
         }
     }
@@ -1989,6 +1992,10 @@ bool Gfx9Dcc::UseDccForImage(
     {
         // DCC should be disabled if the client has indicated that they want to disable color compression on small
         // surfaces and this surface qualifies.
+        useDcc = false;
+    }
+    else if (settings.dccBitsPerPixelThreshold > BitsPerPixel(createInfo.swizzledFormat.format))
+    {
         useDcc = false;
     }
     else

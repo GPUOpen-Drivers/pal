@@ -356,10 +356,9 @@ struct NggState
                 struct
                 {
                     uint8 viewports           : 1;
-                    uint8 scissorRects        : 1;
                     uint8 triangleRasterState : 1;
                     uint8 inputAssemblyState  : 1;
-                    uint8 reserved            : 4;
+                    uint8 reserved            : 5;
                 };
                 uint8 u8All;
             } dirty;
@@ -683,7 +682,7 @@ public:
         uint32         targetIndex) override;
 
     void SetPrimShaderWorkload() { m_nggState.flags.state.hasPrimShaderWorkload = 1; }
-    virtual bool HasPrimShaderWorkload() const override { return m_nggState.flags.state.hasPrimShaderWorkload; }
+    bool HasPrimShaderWorkload() const { return m_nggState.flags.state.hasPrimShaderWorkload; }
 
     uint32 BuildScissorRectImage(
         bool               multipleViewports,
@@ -1088,7 +1087,6 @@ private:
             uint32 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
             uint32 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
             uint32 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
-            uint32 nggWdPageFaultWa           :  1; // True if the NGG Work Distributer pagefault workaround is enabled
             uint32 checkDfsmEqaaWa            :  1; // True if settings are such that the DFSM + EQAA workaround is on.
             uint32 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
             uint32 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
@@ -1097,7 +1095,7 @@ private:
                                                     // shaders.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
                                                     // reduce context rolls.
-            uint32 reserved                   :  9;
+            uint32 reserved                   : 10;
         };
         uint32 u32All;
     } m_cachedSettings;

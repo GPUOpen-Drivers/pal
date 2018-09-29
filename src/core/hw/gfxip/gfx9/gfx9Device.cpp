@@ -297,7 +297,7 @@ void Device::FinalizeChipProperties(
 
     GfxDevice::FinalizeChipProperties(pChipProperties);
 
-    if (settings.nggMode == Gfx9NggDisabled)
+    if (settings.nggEnableMode == NggPipelineTypeDisabled)
     {
         pChipProperties->gfx9.supportImplicitPrimitiveShader = 0;
     }
@@ -318,23 +318,6 @@ Result Device::Finalize()
     const auto  pPalSettings = m_pParent->GetPublicSettings();
 
     Result result = GfxDevice::Finalize();
-
-    // In order for NGG pipelines to work on Gfx9, GDS must be requested for various shader operations inside of the
-    // primitive shader.  If the client has not requested any GDS, we must at a minimum request some for the Universal
-    // engine.
-    if ((result == Result::Success)                                  &&
-        (m_pParent->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-        (settings.nggMode != Gfx9NggDisabled)                        &&
-        (m_pParent->GdsEngineSizes(EngineTypeUniversal) == 0)        &&
-        (m_pParent->GdsEngineSizes(EngineTypeCompute)   == 0))
-    {
-        const auto& engineProps = m_pParent->EngineProperties();
-
-        DeviceGdsAllocInfo allocInfo = { };
-        allocInfo.gdsSizes[EngineTypeUniversal][0] = engineProps.perEngine[EngineTypeUniversal].availableGdsSize;
-
-        result = m_pParent->AllocateGds(allocInfo);
-    }
 
     if (result == Result::Success)
     {

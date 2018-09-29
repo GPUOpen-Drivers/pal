@@ -27,6 +27,7 @@
 #include "core/os/lnx/drmLoader.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxScreen.h"
+#include "palSwapChain.h"
 #include "palVectorImpl.h"
 
 using namespace Util;
@@ -38,32 +39,30 @@ namespace Linux
 {
 // =====================================================================================================================
 Screen::Screen(
-        Device*      pDevice,
-        Extent2d     physicalDimension,
-        Extent2d     physicalResolution,
-        uint32       connectorId)
+    Device*  pDevice,
+    Extent2d physicalDimension,
+    Extent2d physicalResolution,
+    uint32   connectorId)
     :
     m_pDevice(pDevice),
     m_physicalDimension(physicalDimension),
-    m_physicalResolution(physicalResolution)
+    m_physicalResolution(physicalResolution),
+    m_connectorId(connectorId),
+    m_drmMasterFd(InvalidFd),
+    m_randrOutput(0)
 {
-    memset(&m_wsiScreenProp, 0, sizeof(m_wsiScreenProp));
 
-    m_wsiScreenProp.connectorId = connectorId;
-    m_wsiScreenProp.drmMasterFd = InvalidFd;
 }
 
 // =====================================================================================================================
 void Screen::Destroy()
 {
+
 }
 
 // =====================================================================================================================
 Result Screen::Init()
 {
-    // The displayName should be gotten from KMS, however there is no this kind of interface so far. Hard code it.
-    Util::Strncpy(m_wsiScreenProp.displayName, "monitor", sizeof(m_wsiScreenProp.displayName));
-
     return Result::Success;
 }
 
@@ -73,7 +72,7 @@ Result Screen::GetProperties(
     ) const
 {
     pInfo->hDisplay = nullptr;
-    pInfo->screen   = m_wsiScreenProp.connectorId;
+    pInfo->screen   = m_connectorId;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 402
     pInfo->physicalDimension.width  = m_physicalDimension.width;
@@ -95,9 +94,13 @@ Result Screen::GetProperties(
     // Linux don't have pn source id concept.
     pInfo->vidPnSourceId = 0;
 
-    pInfo->wsiScreenProp = m_wsiScreenProp;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 435
+    pInfo->wsiScreenProp.connectorId = m_connectorId;
+    pInfo->wsiScreenProp.drmMasterFd = m_drmMasterFd;
+    pInfo->wsiScreenProp.randrOutput = m_randrOutput;
+#endif
 
-    Util::Strncpy(pInfo->displayName, m_wsiScreenProp.displayName, sizeof(pInfo->displayName));
+    Util::Strncpy(pInfo->displayName, "monitor", sizeof(pInfo->displayName));
 
     return Result::Success;
 }
@@ -108,7 +111,7 @@ Result Screen::GetScreenModeList(
     ScreenMode* pScreenModeList
     ) const
 {
-    return static_cast<Device*>(m_pDevice)->QueryScreenModesForConnector(m_wsiScreenProp.connectorId,
+    return static_cast<Device*>(m_pDevice)->QueryScreenModesForConnector(m_connectorId,
                                                                          pScreenModeCount,
                                                                          pScreenModeList);
 }
@@ -118,96 +121,69 @@ Result Screen::AcquireScreenAccess(
     OsDisplayHandle hDisplay,
     WsiPlatform     wsiPlatform)
 {
-    Result ret = Result::ErrorPrivateScreenUsed;
+    Result result = Result::ErrorPrivateScreenUsed;
 
-    if (m_wsiScreenProp.drmMasterFd == InvalidFd)
+    if (m_drmMasterFd == InvalidFd)
     {
-        ret = WindowSystem::AcquireScreenAccess(m_pDevice,
-                                                hDisplay,
-                                                wsiPlatform,
-                                                m_wsiScreenProp.connectorId,
-                                                &m_wsiScreenProp.randrOutput,
-                                                &m_wsiScreenProp.drmMasterFd);
 
-        const DrmLoaderFuncs& drmLoader = m_pDevice->GetDrmLoaderFuncs();
-        // Get crtc id
-        uint32 crtcId = 0;
-        int32 fd = m_wsiScreenProp.drmMasterFd;
-        drmModeRes* pResources = drmLoader.pfnDrmModeGetResources(fd);
-
-        drmModeConnector* pDrmModeConnector = nullptr;
-        for (int i = 0; i < pResources->count_connectors; i++)
-        {
-            if (pResources->connectors[i] == m_wsiScreenProp.connectorId)
-            {
-                drmModeConnector* pConnector =
-                    drmLoader.pfnDrmModeGetConnector(fd, pResources->connectors[i]);
-
-                if ((pConnector->connection == DRM_MODE_CONNECTED) && (pConnector->count_modes > 0))
-                {
-                    pDrmModeConnector = pConnector;
-                    break;
-                }
-            }
-        }
-
-        // Get the CRTC which is connecting to the pDrmModeConnector.
-        if ((pDrmModeConnector != nullptr) && (pDrmModeConnector->encoder_id != 0))
-        {
-            drmModeEncoderPtr pEncoder = drmLoader.pfnDrmModeGetEncoder(fd, pDrmModeConnector->encoder_id);
-            if (pEncoder != nullptr)
-            {
-                crtcId = pEncoder->crtc_id;
-            }
-
-            drmLoader.pfnDrmModeFreeEncoder(pEncoder);
-            pEncoder = nullptr;
-        }
-
-        // Find an idle CRTC which is not connected to framebuffer.
-        if (crtcId == 0)
-        {
-            for (int c = 0; c < pResources->count_crtcs; c++)
-            {
-                drmModeCrtcPtr pCrtc = drmLoader.pfnDrmModeGetCrtc(fd, pResources->crtcs[c]);
-                if (pCrtc && (pCrtc->buffer_id == 0))
-                {
-                    crtcId = pCrtc->crtc_id;
-                }
-
-                drmLoader.pfnDrmModeFreeCrtc(pCrtc);
-            }
-        }
-
-        drmLoader.pfnDrmModeFreeConnector(pDrmModeConnector);
-        m_wsiScreenProp.crtcId = crtcId;
-
-        drmLoader.pfnDrmModeFreeResources(pResources);
+        result = WindowSystem::AcquireScreenAccess(m_pDevice,
+                                                   hDisplay,
+                                                   wsiPlatform,
+                                                   m_connectorId,
+                                                   &m_randrOutput,
+                                                   &m_drmMasterFd);
     }
 
-    return ret;
+    return result;
 }
 
 // =====================================================================================================================
 Result Screen::ReleaseScreenAccess()
 {
-    Result ret = Result::ErrorPrivateScreenNotEnabled;
+    Result result = Result::ErrorPrivateScreenNotEnabled;
 
-    if (m_wsiScreenProp.drmMasterFd != InvalidFd)
+    if (m_drmMasterFd != InvalidFd)
     {
-        close(m_wsiScreenProp.drmMasterFd);
-        m_wsiScreenProp.drmMasterFd = InvalidFd;
-        ret = Result::Success;
+        close(m_drmMasterFd);
+
+        m_drmMasterFd = InvalidFd;
+        result        = Result::Success;
     }
 
-    return ret;
+    return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
+// =====================================================================================================================
+Result Screen::GetRandrOutput(
+    OsDisplayHandle hDisplay,
+    uint32*         pRandrOutput)
+{
+    Result result = Result::ErrorUnknown;
+
+    if (m_randrOutput == 0)
+    {
+        result = WindowSystem::GetOutputFromConnector(hDisplay,
+                                                      m_pDevice,
+                                                      Pal::WsiPlatform::Xcb,
+                                                      m_connectorId,
+                                                      &m_randrOutput);
+    }
+
+    if (result == Result::Success)
+    {
+        *pRandrOutput = m_randrOutput;
+    }
+
+    return result;
+}
+#endif
 
 // =====================================================================================================================
 Result Screen::SetRandrOutput(
     uint32 randrOutput)
 {
-    m_wsiScreenProp.randrOutput = randrOutput;
+    m_randrOutput = randrOutput;
 
     return Result::Success;
 }

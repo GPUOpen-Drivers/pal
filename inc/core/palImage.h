@@ -235,8 +235,8 @@ struct ImageCreateInfo
     /// The following members must be set to zero unless the client is creating a @ref ImageTiling::Linear image and
     /// wishes to directly specify the image's row and depth pitches.  In that case, they must be integer multiples of
     /// the alignments given by @ref IDevice::GetLinearImageAlignments, called with an appropriate maxElementSize.
-    uint32             rowPitch;          ///< The image must have this row pitch for all subresources (in bytes).
-    uint32             depthPitch;        ///< The image must have this depth pitch for all subresources (in bytes).
+    uint32             rowPitch;          ///< The image must have this row pitch for the first mip level (in bytes).
+    uint32             depthPitch;        ///< The image must have this depth pitch for the first mip level (in bytes).
 
     Rational           stereoRefreshRate; ///< The expected refresh rate when presenting this stero image.
 

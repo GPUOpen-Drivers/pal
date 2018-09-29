@@ -107,8 +107,8 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      mmTD_PERFCOUNTER1_SELECT,            }, }, // td
     { Gfx9NumTcpCounters, 2, 3,    { mmTCP_PERFCOUNTER0_SELECT,
                                      mmTCP_PERFCOUNTER1_SELECT,
-                                     mmTCP_PERFCOUNTER2_SELECT,
-                                     mmTCP_PERFCOUNTER3_SELECT,           }, }, // tcp
+                                     Gfx09::mmTCP_PERFCOUNTER2_SELECT,
+                                     Gfx09::mmTCP_PERFCOUNTER3_SELECT,    }, }, // tcp
     { Gfx9NumTccCounters, 2, 4,    { Gfx09::mmTCC_PERFCOUNTER0_SELECT,
                                      Gfx09::mmTCC_PERFCOUNTER1_SELECT,
                                      Gfx09::mmTCC_PERFCOUNTER2_SELECT,

@@ -548,7 +548,7 @@ void ConvertClearColorToNativeFormat(
     // The clear color passed in from the app may have more bits than the format can hold. In this case we want to mask
     // off the the appropriate number of bits for the format to avoid the clear color being clamped to max value. This
     // matches the behavior of the compute path.
-    const auto& formatInfo = Formats::FormatInfoTable[static_cast<uint32>(baseFormat.format)];
+    const auto& formatInfo = Formats::FormatInfoTable[static_cast<uint32>(clearFormat.format)];
 
     for (uint32 rgbaIdx = 0; rgbaIdx < 4; ++rgbaIdx)
     {

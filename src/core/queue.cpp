@@ -319,7 +319,6 @@ Result Queue::SubmitInternal(
         // Command buffers that require building the commands at submission time should build them here.
         auto*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.ppCmdBuffers[idx]);
         result = pCmdBuffer->PreSubmit();
-        internalSubmitInfo.flags.hasPrimShaderWorkload |= pCmdBuffer->HasPrimShaderWorkload();
     }
 
     if (result == Result::Success)

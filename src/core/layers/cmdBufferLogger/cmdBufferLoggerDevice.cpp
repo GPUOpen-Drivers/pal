@@ -59,23 +59,7 @@ Result Device::CommitSettingsAndInit()
 
     m_pPublicSettings = GetNextLayer()->GetPublicSettings();
 
-    if (result == Result::Success)
-    {
-        result = UpdateSettings();
-    }
-
     return result;
-}
-
-// =====================================================================================================================
-Result Device::UpdateSettings()
-{
-    m_cmdBufferLoggerSettings.cmdBufferLoggerFlags = 0x000001FF;
-
-    // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
-    m_cmdBufferLoggerSettings = GetCmdBufferLoggerSettings();
-
-    return Result::Success;
 }
 
 // =====================================================================================================================

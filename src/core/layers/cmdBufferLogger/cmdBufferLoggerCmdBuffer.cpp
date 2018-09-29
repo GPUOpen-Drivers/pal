@@ -27,6 +27,7 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
+#include "core/g_palPlatformSettings.h"
 #include <cinttypes>
 
 // These includes are required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a
@@ -888,8 +889,7 @@ CmdBuffer::CmdBuffer(
     m_pDevice(pDevice),
     m_allocator(1 * 1024 * 1024)
 {
-    const auto& settings = pDevice->CmdBufferLoggerSettings();
-    m_flags.u32All = settings.cmdBufferLoggerFlags;
+    m_flags.u32All = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerFlags;
 
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;

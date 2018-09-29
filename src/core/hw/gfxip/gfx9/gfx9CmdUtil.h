@@ -378,6 +378,10 @@ public:
         uint32  startRegAddr,
         uint32  count,
         void*   pBuffer) const;
+    size_t BuildLoadContextRegsIndex(
+        gpusize gpuVirtAddr,
+        uint32  count,
+        void*   pBuffer) const;
 
     size_t BuildLoadConstRam(
         gpusize srcGpuAddr,
@@ -402,6 +406,11 @@ public:
     size_t BuildLoadShRegsIndex(
         gpusize       gpuVirtAddrOrAddrOffset,
         uint32        startRegAddr,
+        uint32        count,
+        Pm4ShaderType shaderType,
+        void*         pBuffer) const;
+    size_t BuildLoadShRegsIndex(
+        gpusize       gpuVirtAddr,
         uint32        count,
         Pm4ShaderType shaderType,
         void*         pBuffer) const;

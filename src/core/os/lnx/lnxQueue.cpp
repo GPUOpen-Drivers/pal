@@ -656,8 +656,6 @@ Result Queue::SubmitPm4(
     PAL_ASSERT(submitInfo.cmdBufferCount > 0);
     PAL_ASSERT((m_type == QueueTypeUniversal) || (m_type == QueueTypeCompute));
 
-    PAL_ASSERT(internalSubmitInfo.flags.hasPrimShaderWorkload == 0);
-
     // For linux platforms, there will exist at most 3 preamble + 2 postamble:
     // Preamble  CE IB (always)
     // Preamble  DE IB (always)

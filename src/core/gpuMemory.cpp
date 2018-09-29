@@ -931,4 +931,20 @@ bool GpuMemory::IsCpuVisible() const
     return isCpuVisible;
 }
 
+// =====================================================================================================================
+// Returns true if all of the heap types associated with this memory object will have 64kB contiguous pages.
+bool GpuMemory::IsBigPage() const
+{
+    // See what the client requested...  If they have a non-local heap, we can stop now.
+    bool  isBigPage = IsLocalOnly();
+
+    // See if there are post-client adjustments made by PAL.
+    for (uint32  idx = 0; isBigPage && (idx < m_heapCount); idx++)
+    {
+        isBigPage = ((m_heaps[idx] == GpuHeap::GpuHeapInvisible) || (m_heaps[idx] == GpuHeap::GpuHeapLocal));
+    }
+
+    return isBigPage;
+}
+
 } // Pal

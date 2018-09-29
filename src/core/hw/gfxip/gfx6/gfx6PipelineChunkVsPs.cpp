@@ -23,12 +23,12 @@
  *
  **********************************************************************************************************************/
 
+#include "core/platform.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
+#include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6PipelineChunkVsPs.h"
-#include "core/platform.h"
-#include "palPipeline.h"
 #include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
@@ -38,136 +38,136 @@ namespace Pal
 namespace Gfx6
 {
 
+// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
+static constexpr uint32 BaseLoadedShRegCount =
+    1 + // mmSPI_SHADER_PGM_LO_VS
+    1 + // mmSPI_SHADER_PGM_HI_VS
+    1 + // mmSPI_SHADER_PGM_RSRC1_VS
+    1 + // mmSPI_SHADER_PGM_RSRC2_VS
+    1 + // mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg
+    1 + // mmSPI_SHADER_PGM_LO_PS
+    1 + // mmSPI_SHADER_PGM_HI_PS
+    1 + // mmSPI_SHADER_PGM_RSRC1_PS
+    1 + // mmSPI_SHADER_PGM_RSRC2_PS
+    1;  // mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg
+
+// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
+static constexpr uint32 BaseLoadedCntxRegCount =
+    1 + // mmSPI_SHADER_POS_FORMAT
+    1 + // mmSPI_SHADER_Z_FORMAT
+    1 + // mmSPI_SHADER_COL_FORMAT
+    1 + // mmPA_CL_VS_OUT_CNTL
+    1 + // mmVGT_PRIMITIVEID_EN
+    1 + // mmSPI_BARYC_CNTL
+    1 + // mmSPI_PS_INPUT_ENA
+    1 + // mmSPI_PS_INPUT_ADDR
+    0 + // mmSPI_PS_INPUT_CNTL_0...31 are not included because the number of interpolants depends on the pipeline
+    1 + // mmVGT_STRMOUT_CONFIG
+    1;  // mmVGT_STRMOUT_BUFFER_CONFIG
+
+// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer when
+// stream-out is enabled for this pipeline.
+static constexpr uint32 BaseLoadedCntxRegCountStreamOut =
+    4;  // mmVGT_STRMOUT_VTX_STRIDE_[0...3]
+
+// Stream-out vertex stride register addresses.
+constexpr uint16 VgtStrmoutVtxStrideAddr[] =
+    { mmVGT_STRMOUT_VTX_STRIDE_0, mmVGT_STRMOUT_VTX_STRIDE_1, mmVGT_STRMOUT_VTX_STRIDE_2, mmVGT_STRMOUT_VTX_STRIDE_3, };
+
 // =====================================================================================================================
 PipelineChunkVsPs::PipelineChunkVsPs(
-    const Device& device)
+    const Device&       device,
+    const PerfDataInfo* pVsPerfDataInfo,
+    const PerfDataInfo* pPsPerfDataInfo)
     :
     m_device(device),
-    m_pVsPerfDataInfo(nullptr),
-    m_pPsPerfDataInfo(nullptr)
+    m_pVsPerfDataInfo(pVsPerfDataInfo),
+    m_pPsPerfDataInfo(pPsPerfDataInfo)
 {
-    memset(&m_pm4ImageSh,       0, sizeof(m_pm4ImageSh));
-    memset(&m_pm4ImageShDynamic, 0, sizeof(m_pm4ImageShDynamic));
-    memset(&m_pm4ImageContext,  0, sizeof(m_pm4ImageContext));
-    memset(&m_pm4ImageStrmout,  0, sizeof(m_pm4ImageStrmout));
-    memset(&m_stageInfoVs,      0, sizeof(m_stageInfoVs));
-    memset(&m_stageInfoPs,      0, sizeof(m_stageInfoPs));
+    m_spiPsInControl.u32All = 0;
+    m_spiVsOutConfig.u32All = 0;
+
+    memset(&m_commands,  0, sizeof(m_commands));
+    memset(&m_stageInfoVs, 0, sizeof(m_stageInfoVs));
+    memset(&m_stageInfoPs, 0, sizeof(m_stageInfoPs));
 
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
     m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
 }
 
 // =====================================================================================================================
-// Initializes this pipeline chunk using RelocatableShader objects representing the VS & PS hardware stages.
-void PipelineChunkVsPs::Init(
-    const AbiProcessor&       abiProcessor,
-    const CodeObjectMetadata& metadata,
+// Early initialization for this pipeline chunk.  Responsible for determining the number of SH and context registers to
+// be loaded using LOAD_CNTX_REG_INDEX and LOAD_SH_REG_INDEX, as well as determining the number of PS interpolators and
+// saving that information for LateInit to use.
+void PipelineChunkVsPs::EarlyInit(
     const RegisterVector&     registers,
-    const VsPsParams&         params)
+    GraphicsPipelineLoadInfo* pInfo)
 {
-    const Gfx6PalSettings&   settings = m_device.Settings();
-    const GpuChipProperties& chipInfo = m_device.Parent()->ChipProperties();
+    PAL_ASSERT(pInfo != nullptr);
 
-    m_pVsPerfDataInfo = params.pVsPerfDataInfo;
-    m_pPsPerfDataInfo = params.pPsPerfDataInfo;
+    // Determine if stream-out is enabled for this pipeline.
+    registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_commands.streamOut.vgtStrmoutConfig.u32All);
 
-    uint16 lastPsInterpolator = mmSPI_PS_INPUT_CNTL_0;
-    for (uint32 i = 0; i < MaxPsInputSemantics; ++i)
+    // Determine the number of PS interpolators and save them for LateInit to consume.
+    pInfo->interpolatorCount = 0;
+    for (uint16 i = 0; i < MaxPsInputSemantics; ++i)
     {
-        const uint16 offset = static_cast<uint16>(mmSPI_PS_INPUT_CNTL_0 + i);
-        if (registers.HasEntry(offset, &m_pm4ImageContext.spiPsInputCntl[i].u32All))
-        {
-            lastPsInterpolator = offset;
-        }
-        else
+        const uint16 offset = (mmSPI_PS_INPUT_CNTL_0 + i);
+        if (registers.HasEntry(offset, &m_commands.context.spiPsInputCntl[i].u32All) == false)
         {
             break;
         }
+
+        ++(pInfo->interpolatorCount);
     }
 
-    if (registers.HasEntry(mmVGT_STRMOUT_CONFIG, &m_pm4ImageStrmout.vgtStrmoutConfig.u32All) &&
-        (m_pm4ImageStrmout.vgtStrmoutConfig.u32All != 0))
+    PAL_ASSERT(pInfo->interpolatorCount >= 1);
+
+    const Gfx6PalSettings& settings = m_device.Settings();
+    if (settings.enableLoadIndexForObjectBinds != false)
     {
-        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+        pInfo->loadedCtxRegCount += (BaseLoadedCntxRegCount + pInfo->interpolatorCount);
+        pInfo->loadedShRegCount  +=  BaseLoadedShRegCount;
+
+        if (UsesStreamOut())
         {
-            m_pm4ImageStrmout.stride[i].vgtStrmoutVtxStride.u32All =
-                registers.At(mmVGT_STRMOUT_VTX_STRIDE_0 + i);
+            pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
         }
-
-        m_pm4ImageStrmout.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
     }
+}
 
-    BuildPm4Headers(lastPsInterpolator, (m_pm4ImageStrmout.vgtStrmoutConfig.u32All != 0));
+// =====================================================================================================================
+// Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
+// determining the values of other registers.  Also uploads register state into GPU memory.
+void PipelineChunkVsPs::LateInit(
+    const AbiProcessor&             abiProcessor,
+    const RegisterVector&           registers,
+    const GraphicsPipelineLoadInfo& loadInfo,
+    GraphicsPipelineUploader*       pUploader,
+    Util::MetroHash64*              pHasher)
+{
+    const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.u32All);
+    const Gfx6PalSettings&   settings  = m_device.Settings();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
-    // always use the setting PAL prefers.
-    m_pm4ImageSh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
+    BuildPm4Headers(useLoadIndexPath, loadInfo.interpolatorCount);
 
-    m_pm4ImageContext.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
-    m_pm4ImageContext.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
-    m_pm4ImageContext.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
-    m_spiVsOutConfig.u32All                     = registers.At(mmSPI_VS_OUT_CONFIG);
-
-    // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
-    // mind that the number of VS exports are represented by a -1 field in the HW register!
-    if ((m_spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
-    {
-        m_spiVsOutConfig.bits.VS_HALF_PACK = 1;
-    }
-
-    m_pm4ImageSh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.u32All);
-
-    // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
-    // always use the setting PAL prefers.
-    m_pm4ImageSh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
-
-    m_spiPsInControl.u32All                     = registers.At(mmSPI_PS_IN_CONTROL);
-    m_pm4ImageContext.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
-    m_pm4ImageContext.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
-    m_pm4ImageContext.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
-    m_pm4ImageContext.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
-    m_pm4ImageContext.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
-
-    if (chipInfo.gfxLevel >= GfxIpLevel::GfxIp7)
-    {
-        uint16 vsCuDisableMask = 0;
-        if (m_device.LateAllocVsLimit())
-        {
-            // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
-            vsCuDisableMask = 0x2;
-        }
-
-        m_pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.CU_EN =
-            m_device.GetCuEnableMask(vsCuDisableMask, settings.vsCuEnLimitMask);
-        m_pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
-    }
-
-    // Compute the checksum here because we don't want it to include the GPU virtual addresses!
-    params.pHasher->Update(m_pm4ImageContext);
-    params.pHasher->Update(m_pm4ImageStrmout);
-
-    Abi::PipelineSymbolEntry symbol = { };
+    Abi::PipelineSymbolEntry symbol = {};
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsMainEntry, &symbol))
     {
-        const gpusize programGpuVa = (symbol.value + params.codeGpuVirtAddr);
+        m_stageInfoVs.codeLength   = static_cast<size_t>(symbol.size);
+        const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
         PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
 
-        m_pm4ImageSh.spiShaderPgmLoVs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_pm4ImageSh.spiShaderPgmHiVs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
-
-        m_stageInfoVs.codeLength = static_cast<size_t>(symbol.size);
+        m_commands.sh.spiShaderPgmLoVs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_commands.sh.spiShaderPgmHiVs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsShdrIntrlTblPtr, &symbol))
     {
-        const gpusize srdTableGpuVa = (symbol.value + params.dataGpuVirtAddr);
-        m_pm4ImageSh.spiShaderUserDataLoVs.bits.DATA = LowPart(srdTableGpuVa);
+        const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
+        m_commands.sh.spiShaderUserDataLoVs.bits.DATA = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::VsDisassembly, &symbol))
@@ -177,24 +177,125 @@ void PipelineChunkVsPs::Init(
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::PsMainEntry, &symbol))
     {
-        const gpusize programGpuVa = (symbol.value + params.codeGpuVirtAddr);
+        m_stageInfoPs.codeLength   = static_cast<size_t>(symbol.size);
+        const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
         PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
 
-        m_pm4ImageSh.spiShaderPgmLoPs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_pm4ImageSh.spiShaderPgmHiPs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
-
-        m_stageInfoPs.codeLength = static_cast<size_t>(symbol.size);
+        m_commands.sh.spiShaderPgmLoPs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_commands.sh.spiShaderPgmHiPs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol))
     {
-        const gpusize srdTableGpuVa = (symbol.value + params.dataGpuVirtAddr);
-        m_pm4ImageSh.spiShaderUserDataLoPs.bits.DATA = LowPart(srdTableGpuVa);
+        const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
+        m_commands.sh.spiShaderUserDataLoPs.bits.DATA = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::PsDisassembly, &symbol))
     {
         m_stageInfoPs.disassemblyLength = static_cast<size_t>(symbol.size);
+    }
+
+    m_commands.sh.spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
+    m_commands.sh.spiShaderPgmRsrc2Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_VS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI, &m_commands.dynamic.spiShaderPgmRsrc3Vs.u32All);
+
+    // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
+    // always use the setting PAL prefers.
+    m_commands.sh.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
+
+    m_commands.sh.spiShaderPgmRsrc1Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_PS);
+    m_commands.sh.spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI, &m_commands.dynamic.spiShaderPgmRsrc3Ps.u32All);
+
+    // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
+    // always use the setting PAL prefers.
+    m_commands.sh.spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.psCuGroupEnabled ? 0 : 1);
+
+    m_commands.context.paClVsOutCntl.u32All      = registers.At(mmPA_CL_VS_OUT_CNTL);
+    m_commands.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+    m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
+
+    // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
+    // mind that the number of VS exports are represented by a -1 field in the HW register!
+    m_spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
+    if ((m_spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
+    {
+        m_spiVsOutConfig.bits.VS_HALF_PACK = 1;
+    }
+
+    m_spiPsInControl.u32All                      = registers.At(mmSPI_PS_IN_CONTROL);
+    m_commands.context.spiBarycCntl.u32All       = registers.At(mmSPI_BARYC_CNTL);
+    m_commands.context.spiPsInputAddr.u32All     = registers.At(mmSPI_PS_INPUT_ADDR);
+    m_commands.context.spiPsInputEna.u32All      = registers.At(mmSPI_PS_INPUT_ENA);
+    m_commands.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+    m_commands.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
+
+    if (UsesStreamOut())
+    {
+        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+        {
+            m_commands.streamOut.stride[i].vgtStrmoutVtxStride.u32All = registers.At(VgtStrmoutVtxStrideAddr[i]);
+        }
+
+        m_commands.streamOut.vgtStrmoutBufferConfig.u32All = registers.At(mmVGT_STRMOUT_BUFFER_CONFIG);
+    }
+
+    pHasher->Update(m_commands.context);
+    pHasher->Update(m_commands.streamOut);
+
+    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp7)
+    {
+        uint16 vsCuDisableMask = 0;
+        if (m_device.LateAllocVsLimit())
+        {
+            // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
+            vsCuDisableMask = 0x2;
+        }
+
+        m_commands.dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN = m_device.GetCuEnableMask(vsCuDisableMask,
+                                                                                     settings.vsCuEnLimitMask);
+        m_commands.dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN = m_device.GetCuEnableMask(0, settings.psCuEnLimitMask);
+    }
+
+    if (useLoadIndexPath)
+    {
+        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_VS, m_commands.sh.spiShaderPgmLoVs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_VS, m_commands.sh.spiShaderPgmHiVs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_LO_PS, m_commands.sh.spiShaderPgmLoPs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_HI_PS, m_commands.sh.spiShaderPgmHiPs);
+
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_VS, m_commands.sh.spiShaderPgmRsrc1Vs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_VS, m_commands.sh.spiShaderPgmRsrc2Vs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_PS, m_commands.sh.spiShaderPgmRsrc1Ps);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_PS, m_commands.sh.spiShaderPgmRsrc2Ps);
+
+        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoVs);
+        pUploader->AddShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoPs);
+
+        pUploader->AddCtxReg(mmSPI_SHADER_POS_FORMAT,     m_commands.context.spiShaderPosFormat);
+        pUploader->AddCtxReg(mmSPI_SHADER_Z_FORMAT,       m_commands.context.spiShaderZFormat);
+        pUploader->AddCtxReg(mmSPI_SHADER_COL_FORMAT,     m_commands.context.spiShaderColFormat);
+        pUploader->AddCtxReg(mmPA_CL_VS_OUT_CNTL,         m_commands.context.paClVsOutCntl);
+        pUploader->AddCtxReg(mmVGT_PRIMITIVEID_EN,        m_commands.context.vgtPrimitiveIdEn);
+        pUploader->AddCtxReg(mmSPI_BARYC_CNTL,            m_commands.context.spiBarycCntl);
+        pUploader->AddCtxReg(mmSPI_PS_INPUT_ENA,          m_commands.context.spiPsInputEna);
+        pUploader->AddCtxReg(mmSPI_PS_INPUT_ADDR,         m_commands.context.spiPsInputAddr);
+        pUploader->AddCtxReg(mmVGT_STRMOUT_CONFIG,        m_commands.streamOut.vgtStrmoutConfig);
+        pUploader->AddCtxReg(mmVGT_STRMOUT_BUFFER_CONFIG, m_commands.streamOut.vgtStrmoutBufferConfig);
+
+        for (uint16 i = 0; i < loadInfo.interpolatorCount; ++i)
+        {
+            pUploader->AddCtxReg(mmSPI_PS_INPUT_CNTL_0 + i, m_commands.context.spiPsInputCntl[i]);
+        }
+
+        if (UsesStreamOut())
+        {
+            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+            {
+                pUploader->AddCtxReg(VgtStrmoutVtxStrideAddr[i], m_commands.streamOut.stride[i].vgtStrmoutVtxStride);
+            }
+        }
     }
 }
 
@@ -202,40 +303,46 @@ void PipelineChunkVsPs::Init(
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
 uint32* PipelineChunkVsPs::WriteShCommands(
-
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
     const DynamicStageInfo& vsStageInfo,
     const DynamicStageInfo& psStageInfo
     ) const
 {
-    pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageSh.spaceNeeded, &m_pm4ImageSh, pCmdSpace);
-
-    if (m_pm4ImageShDynamic.spaceNeeded > 0)
+    // NOTE: The SH register PM4 image headers will be zero if the GPU doesn't support these registers.
+    if (m_commands.sh.hdrSpiShaderPgmVs.header.u32All != 0)
     {
-        Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
+        constexpr uint32 SpaceNeededSh = sizeof(m_commands.sh) / sizeof(uint32);
+        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSh, &m_commands.sh, pCmdSpace);
+    }
+
+    // NOTE: The dynamic register PM4 image headers will be zero if the GPU doesn't support these registers.
+    if (m_commands.dynamic.hdrPgmRsrc3Vs.header.u32All != 0)
+    {
+        auto dynamicCmds = m_commands.dynamic;
 
         if (vsStageInfo.wavesPerSh > 0)
         {
-            pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
+            dynamicCmds.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
         }
 
         if (psStageInfo.wavesPerSh > 0)
         {
-            pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
+            dynamicCmds.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
         }
 
         if (vsStageInfo.cuEnableMask != 0)
         {
-            pm4ImageShDynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
+            dynamicCmds.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
         }
 
         if (psStageInfo.cuEnableMask != 0)
         {
-            pm4ImageShDynamic.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
+            dynamicCmds.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
         }
 
-        pCmdSpace = pCmdStream->WritePm4Image(pm4ImageShDynamic.spaceNeeded, &pm4ImageShDynamic, pCmdSpace);
+        constexpr uint32 SpaceNeededDynamic = sizeof(m_commands.dynamic) / sizeof(uint32);
+        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededDynamic, &dynamicCmds, pCmdSpace);
     }
 
     if (m_pVsPerfDataInfo->regOffset != UserDataNotMapped)
@@ -263,107 +370,91 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageContext.spaceNeeded, &m_pm4ImageContext, pCmdSpace);
-    pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageStrmout.spaceNeeded, &m_pm4ImageStrmout, pCmdSpace);
+    // NOTE: The context and stream-out PM4 image sizes will be zero if the LOAD_INDEX path is enabled.  It is only
+    // expected that this will be called if the pipeline is using the SET path.
+    PAL_ASSERT(m_commands.context.spaceNeeded > 0);
+    PAL_ASSERT(m_commands.streamOut.spaceNeeded > 0);
 
-    return pCmdSpace;
+    pCmdSpace = pCmdStream->WritePm4Image(m_commands.context.spaceNeeded, &m_commands.context, pCmdSpace);
+    return pCmdStream->WritePm4Image(m_commands.streamOut.spaceNeeded, &m_commands.streamOut, pCmdSpace);
 }
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this pipeline chunk.
 void PipelineChunkVsPs::BuildPm4Headers(
-    uint32 lastPsInterpolator,
-    bool   useStreamOutput)
+    bool   enableLoadIndexPath,
+    uint32 interpolatorCount)
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-    // Sets the following SH registers: SPI_SHADER_PGM_LO_VS, SPI_SHADER_PGM_HI_VS,
-    // SPI_SHADER_PGM_RSRC1_VS, SPI_SHADER_PGM_RSRC2_VS.
-    m_pm4ImageSh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                                                         mmSPI_SHADER_PGM_RSRC2_VS,
-                                                         ShaderGraphics,
-                                                         &m_pm4ImageSh.hdrPgmVs);
+    // NOTE: The context, stream-out and SH PM4 images should have zero size when the LOAD_INDEX path is enabled.  There
+    // is no need to build the PM4 headers when running in that mode.
+    if (!enableLoadIndexPath)
+    {
+        cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
+                                  mmSPI_SHADER_PGM_RSRC2_VS,
+                                  ShaderGraphics,
+                                  &m_commands.sh.hdrSpiShaderPgmVs);
 
-    // Sets the following SH register: SPI_SHADER_USER_DATA_VS_1.
-    m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                                                         ShaderGraphics,
-                                                         &m_pm4ImageSh.hdrUserDataVs);
+        cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+                                 ShaderGraphics,
+                                 &m_commands.sh.hdrSpiShaderUserDataVs);
 
-    // Sets the following SH registers: SPI_SHADER_PGM_LO_PS, SPI_SHADER_PGM_HI_PS,
-    // SPI_SHADER_PGM_RSRC1_PS, SPI_SHADER_PGM_RSRC2_PS.
-    m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
-                                                          mmSPI_SHADER_PGM_RSRC2_PS,
-                                                          ShaderGraphics,
-                                                          &m_pm4ImageSh.hdrPgmPs);
+        cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
+                                  mmSPI_SHADER_PGM_RSRC2_PS,
+                                  ShaderGraphics,
+                                  &m_commands.sh.hdrSpiSHaderPgmPs);
 
-    // Sets the following SH register: SPI_SHADER_USER_DATA_PS_1.
-    m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                                                         ShaderGraphics,
-                                                         &m_pm4ImageSh.hdrUserDataPs);
+        cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                                 ShaderGraphics,
+                                 &m_commands.sh.hdrSpiShaderUserDataPs);
+
+        m_commands.context.spaceNeeded =  cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                                         mmSPI_SHADER_COL_FORMAT,
+                                                                         &m_commands.context.hdrOutFormat);
+
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
+                                                                        &m_commands.context.hdrVsOutCntl);
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
+                                                                        &m_commands.context.hdrPrimId);
+
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_BARYC_CNTL,
+                                                                        &m_commands.context.hdrBarycCntl);
+
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
+                                                                         mmSPI_PS_INPUT_ADDR,
+                                                                         &m_commands.context.hdrPsIn);
+
+        PAL_ASSERT(interpolatorCount <= MaxPsInputSemantics);
+        m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                                                        (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
+                                                                        &m_commands.context.hdrPsInputs);
+
+        m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
+                                                                          mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                                          &m_commands.streamOut.hdrStrmoutCfg);
+        if (UsesStreamOut())
+        {
+            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+            {
+                m_commands.streamOut.spaceNeeded += cmdUtil.BuildSetOneContextReg(
+                    VgtStrmoutVtxStrideAddr[i],
+                    &m_commands.streamOut.stride[i].hdrVgtStrmoutVtxStride);
+            }
+        }
+    }
 
     if (m_device.Parent()->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp7)
     {
-        // Sets the following SH register: SPI_SHADER_PGM_RSRC3_VS.
-        // We must use the SET_SH_REG_INDEX packet to support the real-time compute feature.
-        m_pm4ImageShDynamic.spaceNeeded = cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI,
-                                                                        ShaderGraphics,
-                                                                        SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                                                        &m_pm4ImageShDynamic.hdrPgmRsrc3Vs);
+        cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI,
+                                      ShaderGraphics,
+                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                      &m_commands.dynamic.hdrPgmRsrc3Vs);
 
-        // Sets the following SH register: SPI_SHADER_PGM_RSRC3_PS.
-        // We must use the SET_SH_REG_INDEX packet to support the real-time compute feature.
-        m_pm4ImageShDynamic.spaceNeeded += cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI,
-                                                                         ShaderGraphics,
-                                                                         SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
-                                                                         &m_pm4ImageShDynamic.hdrPgmRsrc3Ps);
-    }
-
-    // Sets the following context registers:
-    // SPI_SHADER_POS_FORMAT, SPI_SHADER_Z_FORMAT, SPI_SHADER_COL_FORMAT.
-    m_pm4ImageContext.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                                   mmSPI_SHADER_COL_FORMAT,
-                                                                   &m_pm4ImageContext.hdrOutFormat);
-
-    // Sets the following context register: PA_CL_VS_OUT_CNTL.
-    m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
-                                                                   &m_pm4ImageContext.hdrVsOutCntl);
-
-    // Sets the following context register: VGT_PRIMITIVEID_EN.
-    m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
-                                                                   &m_pm4ImageContext.hdrPrimId);
-
-    // Sets the following context register: SPI_BARYC_CNTL.
-    m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_BARYC_CNTL, &m_pm4ImageContext.hdrBarycCntl);
-
-    // Sets the following context registers: SPI_PS_INPUT_ENA, SPI_PS_INPUT_ADDR.
-    m_pm4ImageContext.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
-                                                                    mmSPI_PS_INPUT_ADDR,
-                                                                    &m_pm4ImageContext.hdrPsIn);
-
-    // Sets the following context registers: SPI_PS_INPUT_CNTL_0 - SPI_PS_INPUT_CNTL_X.  The number of registers
-    // written by this packet depends on the pixel shader & hardware VS.
-    PAL_ASSERT((lastPsInterpolator >= mmSPI_PS_INPUT_CNTL_0) && (lastPsInterpolator <= mmSPI_PS_INPUT_CNTL_31));
-    m_pm4ImageContext.spaceNeeded += m_device.CmdUtil().BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                                                               lastPsInterpolator,
-                                                                               &m_pm4ImageContext.hdrPsInputs);
-
-    // Sets the following context registers: VGT_STRMOUT_CONFIG and VGT_STRMOUT_BUFFER_CONFIG.
-    m_pm4ImageStrmout.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
-                                                                   mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                                   &m_pm4ImageStrmout.hdrStrmoutCfg);
-    if (useStreamOutput)
-    {
-        // Sets the following context registers: VGT_STRMOUT_VTX_STRIDE_*
-        // NOTE: These register writes are unnecessary if stream-out is not active.
-        constexpr uint16 VgtStrmoutVtxStride[] = { mmVGT_STRMOUT_VTX_STRIDE_0, mmVGT_STRMOUT_VTX_STRIDE_1,
-                                                   mmVGT_STRMOUT_VTX_STRIDE_2, mmVGT_STRMOUT_VTX_STRIDE_3, };
-
-        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-        {
-            m_pm4ImageStrmout.spaceNeeded +=
-                cmdUtil.BuildSetOneContextReg(VgtStrmoutVtxStride[i],
-                                              &m_pm4ImageStrmout.stride[i].hdrVgtStrmoutVtxStride);
-        }
+        cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS__CI__VI,
+                                      ShaderGraphics,
+                                      SET_SH_REG_INDEX_CP_MODIFY_CU_MASK,
+                                      &m_commands.dynamic.hdrPgmRsrc3Ps);
     }
 }
 

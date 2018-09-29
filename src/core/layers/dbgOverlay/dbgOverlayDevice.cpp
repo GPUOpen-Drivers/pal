@@ -59,54 +59,6 @@ Device::Device(
 }
 
 // =====================================================================================================================
-Result Device::CommitSettingsAndInit()
-{
-    Result result = DeviceDecorator::CommitSettingsAndInit();
-
-    if (result == Result::Success)
-    {
-        result = UpdateSettings();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-Result Device::UpdateSettings()
-{
-    m_overlaySettings.debugOverlayConfig.visualConfirmEnabled = true;
-    m_overlaySettings.debugOverlayConfig.timeGraphEnabled = false;
-    m_overlaySettings.debugOverlayConfig.overlayLocation = DebugOverlayLowerLeft;
-    m_overlaySettings.timeGraphConfig.gridLineColor = RedColor;
-    m_overlaySettings.timeGraphConfig.cpuLineColor = YellowColor;
-    m_overlaySettings.timeGraphConfig.gpuLineColor = GreenColor;
-    m_overlaySettings.overlayBenchmarkConfig.maxBenchmarkTime = 0;
-    m_overlaySettings.overlayBenchmarkConfig.usageLogEnable = false;
-    memset(m_overlaySettings.overlayBenchmarkConfig.usageLogDirectory, 0, 512);
-    strncpy(m_overlaySettings.overlayBenchmarkConfig.usageLogDirectory, "/tmp/amdpal/", 512);
-    memset(m_overlaySettings.overlayBenchmarkConfig.usageLogFilename, 0, 512);
-    strncpy(m_overlaySettings.overlayBenchmarkConfig.usageLogFilename, "PalUsageLog.txt", 512);
-    m_overlaySettings.overlayBenchmarkConfig.logFrameStats = false;
-    memset(m_overlaySettings.overlayBenchmarkConfig.frameStatsLogDirectory, 0, 512);
-    strncpy(m_overlaySettings.overlayBenchmarkConfig.frameStatsLogDirectory, "/tmp/amdpal/", 512);
-    m_overlaySettings.overlayBenchmarkConfig.maxLoggedFrames = 65536;
-    m_overlaySettings.overlayMemoryInfoConfig.combineNonLocal = true;
-    m_overlaySettings.overlayMemoryInfoConfig.reportCmdAllocator = true;
-    m_overlaySettings.overlayMemoryInfoConfig.reportExternal = true;
-    m_overlaySettings.overlayMemoryInfoConfig.reportInternal = true;
-    memset(m_overlaySettings.debugOverlayConfig.renderedByString, 0, 61);
-    strncpy(m_overlaySettings.debugOverlayConfig.renderedByString, "", 61);
-    memset(m_overlaySettings.debugOverlayConfig.miscellaneousDebugString, 0, 61);
-    strncpy(m_overlaySettings.debugOverlayConfig.miscellaneousDebugString, "", 61);
-    m_overlaySettings.debugOverlayConfig.printFrameNumber = false;
-
-    // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
-    m_overlaySettings = GetDbgOverlaySettings();
-
-    return Result::Success;
-}
-
-// =====================================================================================================================
 Result Device::Finalize(
     const DeviceFinalizeInfo& finalizeInfo)
 {

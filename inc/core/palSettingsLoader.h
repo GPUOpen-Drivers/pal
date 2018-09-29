@@ -104,6 +104,18 @@ protected:
         return ((m_state  == SettingsLoaderState::EarlyInit) || (m_state == SettingsLoaderState::LateInit));
     }
 
+    // This function is called in the static SetValue implementation, it is used to perform any complex processing
+    // related to setting the value of a particular setting. If this function returns NotReady it indicates the
+    // SetValue request was NOT handled and the default memcpy of the setting value will be performed.  Success
+    // indicates the value was successfully updated, other error codes describe failures e.g. invalid parameters.
+    virtual DevDriver::Result PerformSetValue(
+        SettingNameHash     hash,
+        const SettingValue& settingValue)
+    {
+        // Default implementation assumes no action needed, simply returns NotReady
+        return DevDriver::Result::NotReady;
+    }
+
     static DevDriver::Result GetValue(
         SettingNameHash hash,
         SettingValue*   pSettingValue,

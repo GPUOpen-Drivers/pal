@@ -253,6 +253,8 @@ public:
     void SetRemoteSdiMarkerIndex(gpusize index) { m_remoteSdiMarkerIndex = index; }
     void SetBusAddrMarkerVa(gpusize markerVa) { m_markerVirtualAddr = markerVa; }
 
+    bool IsBigPage() const;
+
     bool IsByteRangeValid(gpusize startOffset, gpusize size) const
     {
         return ((startOffset + size) <= m_desc.size);

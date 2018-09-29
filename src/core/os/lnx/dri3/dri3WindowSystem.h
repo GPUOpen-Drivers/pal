@@ -130,6 +130,12 @@ public:
         uint32*         pRandrOutput,
         int32*          pDrmMasterFd);
 
+    static Result GetOutputFromConnector(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        uint32          connector,
+        uint32*         pOutput);
+
     virtual Result CreatePresentableImage(
         Image*              pImage,
         int32               sharedBufferFd) override;
@@ -164,12 +170,6 @@ private:
         Device*         pDevice,
         uint32          randrOutput,
         uint32*         pRootWindow);
-
-    static Result GetOutputFromConnector(
-        OsDisplayHandle hDisplay,
-        Device*         pDevice,
-        uint32          connector,
-        uint32*         pOutput);
 
     const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;

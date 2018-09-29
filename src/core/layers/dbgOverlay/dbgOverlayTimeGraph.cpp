@@ -75,7 +75,7 @@ void TimeGraph::DrawVisualConfirm(
     ) const
 {
     auto*const       pFpsMgr           = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
-    const auto&      settings          = m_pDevice->OverlaySettings();
+    const auto&      settings          = m_pDevice->GetPlatform()->PlatformSettings();
     const auto&      gpuProps          = m_pDevice->GpuProps();
     const auto*const pCreateInfo       = dstImage.GetCreateInfo();
     const bool       combinedNonLocal  = (settings.overlayMemoryInfoConfig.combineNonLocal);

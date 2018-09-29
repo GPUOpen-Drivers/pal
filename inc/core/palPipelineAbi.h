@@ -256,7 +256,7 @@ static const char* PipelineMetadataNameStrings[] =
 /// The pipeline ABI note types.
 enum class PipelineAbiNoteType : uint32
 {
-    PalMetadata = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+    PalMetadata     = 13, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
 
     /// The following legacy note types are deprecated.
 

@@ -142,13 +142,26 @@ private:
         const uint32*      pConvertedColor,
         const SubresRange& clearRange) const override;
 
-    virtual void HwlUpdateDstImageMetaData(
+    virtual void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         uint32                 flags) const override;
+
+    virtual bool HwlImageUsesCompressedWrites(
+        const uint32* pImageSrd) const override { return false; }
+
+    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
+        uint32                numSrds,
+        const ImageViewInfo*  pImageView,
+        void*                 pSrdTable) const override;
+
+    virtual void HwlUpdateDstImageStateMetaData(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      dstImage,
+        const SubresRange&     range) const override {}
 
     virtual void HwlHtileCopyAndFixUp(
         GfxCmdBuffer*             pCmdBuffer,

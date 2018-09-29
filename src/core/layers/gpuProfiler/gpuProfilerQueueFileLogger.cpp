@@ -133,7 +133,7 @@ void Queue::OutputLogItemsToFile(
 void Queue::OpenLogFile(
     uint32 frameId)
 {
-    const auto& settings = m_pDevice->ProfilerSettings();
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
     m_logFile.Close();
 
@@ -181,7 +181,7 @@ void Queue::OpenLogFile(
     m_logFile.Write(&tempString[0], strlen(&tempString[0]));
 
     // Add some additional column headers based on enabled profiling features.
-    if (settings.profilerConfig.recordPipelineStats)
+    if (settings.gpuProfilerConfig.recordPipelineStats)
     {
         const char* pCsvPipelineStatsHeader = "IaVertices,IaPrimitives,VsInvocations,GsInvocations,"
                                               "GsPrimitives,CInvocations,CPrimitives,PsInvocations,"
@@ -359,7 +359,7 @@ void Queue::OutputQueueCallToFile(
 
     m_logFile.Printf("%s,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
 
-    if (m_pDevice->ProfilerSettings().profilerConfig.recordPipelineStats)
+    if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {
         m_logFile.Printf(",,,,,,,,,,,");
     }
@@ -452,8 +452,6 @@ void Queue::OutputCmdBufCallToFile(
 void Queue::OutputFrameToFile(
     const LogItem& logItem)
 {
-    const auto& settings = m_pDevice->ProfilerSettings();
-
     if (m_logFile.IsOpen() == false)
     {
         // Build a file name for this frame's log file.
@@ -515,9 +513,10 @@ void Queue::OutputTimestampsToFile(
         m_logFile.Printf("%llu,%llu,", pResult[0], pResult[1]);
 
         bool hideElapsedTime =
-            (m_pDevice->ProfilerSettings().profilerConfig.granularity == GpuProfilerGranularityDraw) &&
-                               (logItem.type == LogItemType::CmdBufferCall) &&
-                               (logItem.cmdBufCall.callId == CmdBufCallId::Begin);
+            (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerPerfCounterConfig.granularity ==
+                GpuProfilerGranularityDraw) &&
+            (logItem.type == LogItemType::CmdBufferCall) &&
+            (logItem.cmdBufCall.callId == CmdBufCallId::Begin);
 
         // Print the elapsed time for this call if pre-call/post-call timestamps were inserted.
         if (!hideElapsedTime)
@@ -560,7 +559,7 @@ void Queue::OutputPipelineStatsToFile(
                          pipelineStats[1], pipelineStats[2], pipelineStats[3], pipelineStats[4], pipelineStats[5],
                          pipelineStats[6], pipelineStats[7], pipelineStats[8], pipelineStats[9], pipelineStats[10]);
     }
-    else if (m_pDevice->ProfilerSettings().profilerConfig.recordPipelineStats)
+    else if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {
         m_logFile.Printf(",,,,,,,,,,,");
     }
@@ -571,7 +570,6 @@ void Queue::OutputPipelineStatsToFile(
 void Queue::OutputGlobalPerfCountersToFile(
     const LogItem& logItem)
 {
-    const auto&        settings              = m_pDevice->ProfilerSettings();
     const PerfCounter* pGlobalPerfCounters   = m_pDevice->GlobalPerfCounters();
     const uint32       numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
 
@@ -645,7 +643,7 @@ void Queue::OutputGlobalPerfCountersToFile(
 void Queue::OutputTraceDataToFile(
     const LogItem& logItem)
 {
-    const auto& settings = m_pDevice->ProfilerSettings();
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
     if ((m_pDevice->GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
         (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
@@ -654,7 +652,8 @@ void Queue::OutputTraceDataToFile(
         // Output trace data in RGP format.
         if ((m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledRgp))
         {
-            if (settings.profilerConfig.granularity == GpuProfilerGranularity::GpuProfilerGranularityFrame)
+            if (settings.gpuProfilerPerfCounterConfig.granularity ==
+                GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
                 m_logFile.Printf("%u,", m_curLogFrame);

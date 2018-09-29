@@ -61,6 +61,8 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Oland:
     case AsicRevision::Hainan:
     case AsicRevision::Bonaire:
+    case AsicRevision::Kalindi:
+    case AsicRevision::Godavari:
     case AsicRevision::Spectre:
     case AsicRevision::Spooky:
         pTable = rpmGfxBinaryTableOland;
@@ -70,22 +72,14 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableHawaii;
         break;
 
-    case AsicRevision::Kalindi:
-    case AsicRevision::Godavari:
-        pTable = rpmGfxBinaryTableKalindi;
-        break;
-
     case AsicRevision::Carrizo:
     case AsicRevision::Bristol:
+    case AsicRevision::Stoney:
     case AsicRevision::Fiji:
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
         pTable = rpmGfxBinaryTableCarrizo;
-        break;
-
-    case AsicRevision::Stoney:
-        pTable = rpmGfxBinaryTableStoney;
         break;
 
     case AsicRevision::Iceland:

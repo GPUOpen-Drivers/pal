@@ -82,6 +82,7 @@ struct DeviceConstructorParams
     amdgpu_device_handle        hDevice;
     uint32                      drmMajorVer;
     uint32                      drmMinorVer;
+    size_t                      deviceSize;
     uint32                      deviceIndex;
     uint32                      deviceNodeIndex;
     uint32                      attachedScreenCount;
@@ -338,6 +339,12 @@ public:
     {
        PAL_NOT_IMPLEMENTED();
        return Result::ErrorUnavailable;
+    }
+
+    virtual bool DidTurboSyncSettingsChange() override
+    {
+       PAL_NOT_IMPLEMENTED();
+       return false;
     }
 
     virtual Result DidChillSettingsChange(
@@ -636,6 +643,8 @@ public:
     Platform* GetPlatform() const { return reinterpret_cast<Linux::Platform*>(m_pPlatform); }
 
     int32 GetFileDescriptor() const { return m_fileDescriptor; }
+
+    int32 GetPrimaryFileDescriptor() const { return m_primaryFileDescriptor; }
 
     bool GetPresentSupport(QueueType type) const { return m_supportsPresent[type]; }
 

@@ -270,6 +270,8 @@ GpaSession::GpaSession(
     m_busyLocalInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
     m_registeredPipelines(512, m_pPlatform),
+    m_codeObjectRecordsCache(m_pPlatform),
+    m_curCodeObjectRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -286,33 +288,72 @@ GpaSession::GpaSession(
 }
 
 // =====================================================================================================================
+// Helper function to destroy the GpuMemoryInfo object
+void GpaSession::DestroyGpuMemoryInfo(
+    GpuMemoryInfo* pGpuMemoryInfo)
+{
+    // Unmap if it's mapped
+    if (pGpuMemoryInfo->pCpuAddr != nullptr)
+    {
+        pGpuMemoryInfo->pGpuMemory->Unmap();
+        pGpuMemoryInfo->pCpuAddr = nullptr;
+    }
+
+    PAL_ASSERT(pGpuMemoryInfo->pGpuMemory != nullptr);
+
+    pGpuMemoryInfo->pGpuMemory->Destroy();
+    PAL_SAFE_FREE(pGpuMemoryInfo->pGpuMemory, m_pPlatform);
+}
+
+// =====================================================================================================================
 GpaSession::~GpaSession()
 {
-    // Destroy Gart gpu memory allocations
-    RecycleGartGpuMem();
+    // Destroy active Gart GPU memory chunk
+    if (m_curGartGpuMem.pGpuMemory != nullptr)
+    {
+        DestroyGpuMemoryInfo(&m_curGartGpuMem);
+    }
+
+    // Destroy busy Gart Gpu memory chunks
+    while (m_busyGartGpuMem.NumElements() > 0)
+    {
+        GpuMemoryInfo info = {};
+
+        m_busyGartGpuMem.PopFront(&info);
+        DestroyGpuMemoryInfo(&info);
+    }
+
+    // Destroy other available Gart gpu memory chunks
     while (m_availableGartGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
+
         m_availableGartGpuMem.PopFront(&info);
-
-        PAL_ASSERT(info.pGpuMemory != nullptr);
-
-        info.pGpuMemory->Unmap();
-        info.pGpuMemory->Destroy();
-        PAL_SAFE_FREE(info.pGpuMemory, m_pPlatform);
+        DestroyGpuMemoryInfo(&info);
     }
 
-    // Destroy invisible gpu memory allocation
-    RecycleLocalInvisGpuMem();
+    // Destroy active invisible GPU memory chunk
+    if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
+    {
+        DestroyGpuMemoryInfo(&m_curLocalInvisGpuMem);
+    }
+
+    // Destroy busy invisible GPU memory chunks
+    while (m_busyLocalInvisGpuMem.NumElements() > 0)
+    {
+        GpuMemoryInfo info = {};
+
+        m_busyLocalInvisGpuMem.PopFront(&info);
+        DestroyGpuMemoryInfo(&info);
+    }
+
+    // Destroy other available invisible gpu memory chunks
     while (m_availableLocalInvisGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
+
         m_availableLocalInvisGpuMem.PopFront(&info);
-
-        PAL_ASSERT(info.pGpuMemory != nullptr);
-
-        info.pGpuMemory->Destroy();
-        PAL_SAFE_FREE(info.pGpuMemory, m_pPlatform);
+        DestroyGpuMemoryInfo(&info);
     }
 
     for (uint32 queueStateIndex = 0; queueStateIndex < m_timedQueuesArray.NumElements(); ++queueStateIndex)
@@ -336,6 +377,16 @@ GpaSession::~GpaSession()
     {
         m_pGpuEvent->Destroy();
         PAL_SAFE_FREE(m_pGpuEvent, m_pPlatform);
+    }
+
+    // Clear the code object records cache.
+    while (m_codeObjectRecordsCache.NumElements() > 0)
+    {
+        SqttCodeObjectDatabaseRecord* pRecord = nullptr;
+        m_codeObjectRecordsCache.PopFront(&pRecord);
+        PAL_ASSERT(pRecord != nullptr);
+
+        PAL_SAFE_FREE(pRecord, m_pPlatform);
     }
 
     // Clear the shader records cache.
@@ -373,6 +424,8 @@ GpaSession::GpaSession(
     m_busyLocalInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
     m_registeredPipelines(512, m_pPlatform),
+    m_codeObjectRecordsCache(m_pPlatform),
+    m_curCodeObjectRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -507,12 +560,16 @@ Result GpaSession::Init()
         // Import SampleItem array and shader ISA database.
         if ((result == Result::Success) && (m_pSrcSession != nullptr))
         {
+            // Copy code object database from srcSession
+            for (auto iter = m_pSrcSession->m_codeObjectRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                m_codeObjectRecordsCache.PushBack(*iter.Get());
+            }
+
             // Copy shader ISA database from srcSession
-            auto iter = m_pSrcSession->m_shaderRecordsCache.Begin();
-            while (iter.Get())
+            for (auto iter = m_pSrcSession->m_shaderRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
             {
                 m_shaderRecordsCache.PushBack(*iter.Get());
-                iter.Next();
             }
 
             // Import each SampleItem
@@ -1268,15 +1325,19 @@ Result GpaSession::End(
             m_curLocalInvisGpuMem = { nullptr, nullptr };
         }
 
-        // Copy all entries in the shader record cache into the current shader records list.
+        // Copy all entries in the code object cache into the current code object records list.
         // Make sure to acquire the pipeline registration lock while we perform this operation to prevent new pipelines
         // from being added to the cache.
         m_registerPipelineLock.LockForWrite();
-        auto iter = m_shaderRecordsCache.Begin();
-        while (iter.Get())
+        for (auto iter = m_codeObjectRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            m_curCodeObjectRecords.PushBack(*iter.Get());
+        }
+
+        // Copy all entries in the shader record cache into the current shader records list.
+        for (auto iter = m_shaderRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
         {
             m_curShaderRecords.PushBack(*iter.Get());
-            iter.Next();
         }
         m_registerPipelineLock.UnlockForWrite();
     }
@@ -1701,6 +1762,13 @@ Result GpaSession::Reset()
 
     if (result == Pal::Result::Success)
     {
+        // Clear the current code object records.
+        while (m_curCodeObjectRecords.NumElements() > 0)
+        {
+            SqttCodeObjectDatabaseRecord* codeObjectRecord = nullptr;
+            m_curCodeObjectRecords.PopFront(&codeObjectRecord);
+        }
+
         // Clear the current shader records.
         while (m_curShaderRecords.NumElements() > 0)
         {
@@ -2120,7 +2188,7 @@ void GpaSession::DestroyTimedQueueState(
 }
 
 // =====================================================================================================================
-// Registers a pipeline with the GpaSession. Returns ErrorInvalidPointer on duplicate pipeline.
+// Registers a pipeline with the GpaSession. Returns AlreadyExists on duplicate pipeline.
 Result GpaSession::RegisterPipeline(
     const IPipeline* pPipeline)
 {
@@ -2145,6 +2213,42 @@ Result GpaSession::RegisterPipeline(
 
     if (result == Result::Success)
     {
+        // Cache the pipeline binary in GpaSession-owned memory.
+        SqttCodeObjectDatabaseRecord record = {};
+
+        void* pCodeObjectRecord = nullptr;
+
+        result = pPipeline->GetPipelineElf(&record.recordSize, nullptr);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(record.recordSize != 0);
+
+            // Allocate space to store all the information for one record.
+            pCodeObjectRecord = PAL_MALLOC((sizeof(SqttCodeObjectDatabaseRecord) + record.recordSize),
+                                           m_pPlatform,
+                                           Util::SystemAllocType::AllocInternal);
+
+            if (pCodeObjectRecord != nullptr)
+            {
+                // Write the record header.
+                memcpy(pCodeObjectRecord, &record, sizeof(record));
+
+                // Write the pipeline binary.
+                result = pPipeline->GetPipelineElf(&record.recordSize, Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
+
+                if (result != Result::Success)
+                {
+                    // Deallocate if some error occurred.
+                    PAL_SAFE_FREE(pCodeObjectRecord, m_pPlatform)
+                }
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
         // Local copy of shader data that will later be copied into the shaderRecords list under lock.
         ShaderRecord pShaderRecords[NumShaderTypes];
         uint32 numShaders = 0;
@@ -2166,7 +2270,9 @@ Result GpaSession::RegisterPipeline(
         {
             m_registerPipelineLock.LockForWrite();
 
-            for (uint32 i = 0; i < numShaders; ++i)
+            m_codeObjectRecordsCache.PushBack(static_cast<SqttCodeObjectDatabaseRecord*>(pCodeObjectRecord));
+
+            for (uint32 i = 0; ((result == Result::Success) && (i < numShaders)); ++i)
             {
                 result = m_shaderRecordsCache.PushBack(pShaderRecords[i]);
             }
@@ -2191,8 +2297,8 @@ Result GpaSession::ImportSampleItem(
     {
         // Create instance for map entry
         pSampleItem = static_cast<SampleItem*>(PAL_CALLOC(sizeof(SampleItem),
-                                                            m_pPlatform,
-                                                            Util::SystemAllocType::AllocObject));
+                                                          m_pPlatform,
+                                                          Util::SystemAllocType::AllocObject));
         if (pSampleItem == nullptr)
         {
             result = Result::ErrorOutOfMemory;
@@ -2230,10 +2336,10 @@ Result GpaSession::ImportSampleItem(
                 // copies the sample data from the src session to the copy session.
                 if (pSampleItem->sampleConfig.type == GpaSampleType::Cumulative)
                 {
-                    CounterSample* pCounterSample = PAL_NEW (CounterSample,
-                                                                m_pPlatform,
-                                                                Util::SystemAllocType::AllocObject)
-                                                                (m_pDevice, nullptr, m_pPlatform);
+                    CounterSample* pCounterSample = PAL_NEW(CounterSample,
+                                                            m_pPlatform,
+                                                            Util::SystemAllocType::AllocObject)
+                                                            (m_pDevice, nullptr, m_pPlatform);
                     if (pCounterSample != nullptr)
                     {
                         pSampleItem->pPerfSample      = pCounterSample;
@@ -2257,10 +2363,10 @@ Result GpaSession::ImportSampleItem(
                 }
                 else if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
                 {
-                    TraceSample* pSample = PAL_NEW (TraceSample,
-                                                    m_pPlatform,
-                                                    Util::SystemAllocType::AllocObject)
-                                                    (m_pDevice, nullptr, m_pPlatform);
+                    TraceSample* pSample = PAL_NEW(TraceSample,
+                                                   m_pPlatform,
+                                                   Util::SystemAllocType::AllocObject)
+                                                   (m_pDevice, nullptr, m_pPlatform);
                     if (pSample != nullptr)
                     {
                         pSampleItem->pPerfSample    = pSample;
@@ -2305,10 +2411,10 @@ Result GpaSession::ImportSampleItem(
             {
                 PAL_ASSERT(gpuMemInfo.pGpuMemory != nullptr);
 
-                TimingSample* pTimingSample = PAL_NEW (TimingSample,
-                                                        m_pPlatform,
-                                                        Util::SystemAllocType::AllocObject)
-                                                        (m_pDevice, nullptr, m_pPlatform);
+                TimingSample* pTimingSample = PAL_NEW(TimingSample,
+                                                      m_pPlatform,
+                                                      Util::SystemAllocType::AllocObject)
+                                                      (m_pDevice, nullptr, m_pPlatform);
                 if (pTimingSample != nullptr)
                 {
                     pSampleItem->pPerfSample = pTimingSample;
@@ -3002,6 +3108,75 @@ Result GpaSession::DumpRgpData(
             curFileOffset += sqttBytesWritten;
         }
 
+        // Write Code Object Database to the RGP file.
+        if (result == Result::Success)
+        {
+            if (pRgpOutput != nullptr)
+            {
+                if (static_cast<size_t>(curFileOffset + sizeof(SqttFileChunkCodeObjectDatabase)) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    SqttFileChunkCodeObjectDatabase codeObjectDb   = {};
+                    codeObjectDb.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE;
+                    codeObjectDb.header.chunkIdentifier.chunkIndex = 0;
+                    codeObjectDb.header.majorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE].majorVersion;
+                    codeObjectDb.header.minorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE].minorVersion;
+                    codeObjectDb.recordCount = static_cast<uint32>(m_curCodeObjectRecords.NumElements());
+
+                    int32 codeObjectDatabaseSize = sizeof(SqttFileChunkCodeObjectDatabase);
+                    for (auto iter = m_curCodeObjectRecords.Begin(); iter.Get() != nullptr; iter.Next())
+                    {
+                        codeObjectDatabaseSize += (sizeof(SqttCodeObjectDatabaseRecord) + (*iter.Get())->recordSize);
+                    }
+
+                    // The sizes must be updated by adding the size of the rest of the chunk later.
+                    codeObjectDb.header.sizeInBytes                = codeObjectDatabaseSize;
+                    // TODO: Duplicate - will have to remove later once RGP spec is updated.
+                    codeObjectDb.size                              = codeObjectDatabaseSize;
+
+                    // The code object database starts from the beginning of the chunk.
+                    codeObjectDb.offset                            = static_cast<int32>(curFileOffset);
+
+                    // There are no flags for this chunk in the specification as of yet.
+                    codeObjectDb.flags                             = 0;
+
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &codeObjectDb,
+                           sizeof(SqttFileChunkCodeObjectDatabase));
+                }
+            }
+
+            curFileOffset += sizeof(SqttFileChunkCodeObjectDatabase);
+
+            for (auto iter = m_curCodeObjectRecords.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                SqttCodeObjectDatabaseRecord* pCodeObjectRecord = *iter.Get();
+                const size_t recordTotalSize = (sizeof(SqttCodeObjectDatabaseRecord) + pCodeObjectRecord->recordSize);
+
+                if ((result == Result::Success) && (pRgpOutput != nullptr))
+                {
+                    if (static_cast<size_t>(curFileOffset + recordTotalSize) > *pTraceSize)
+                    {
+                        result = Result::ErrorInvalidMemorySize;
+                    }
+                    else
+                    {
+                        // Copy one record to the buffer provided.
+                        memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                               pCodeObjectRecord,
+                               recordTotalSize);
+                    }
+                }
+
+                curFileOffset += recordTotalSize;
+            }
+        }
+
         // Write Shader ISA Database to the RGP file.
         if (result == Result::Success)
         {
@@ -3024,11 +3199,9 @@ Result GpaSession::DumpRgpData(
                     shaderIsaDb.recordCount = static_cast<uint32>(m_curShaderRecords.NumElements());
 
                     int32 shaderDatabaseSize = sizeof(SqttFileChunkIsaDatabase);
-                    auto iter = m_curShaderRecords.Begin();
-                    while (iter.Get())
+                    for (auto iter = m_curShaderRecords.Begin(); iter.Get() != nullptr; iter.Next())
                     {
                         shaderDatabaseSize += (*iter.Get()).recordSize;
-                        iter.Next();
                     }
 
                     // The sizes must be updated by adding the size of the rest of the chunk later.
@@ -3047,13 +3220,11 @@ Result GpaSession::DumpRgpData(
 
             curFileOffset += sizeof(SqttFileChunkIsaDatabase);
 
-            auto iter = m_curShaderRecords.Begin();
-
-            while (iter.Get())
+            for (auto iter = m_curShaderRecords.Begin(); iter.Get() != nullptr; iter.Next())
             {
                 ShaderRecord* pShaderRecord = iter.Get();
 
-                if (pRgpOutput != nullptr)
+                if ((result == Result::Success) && (pRgpOutput != nullptr))
                 {
                     if (static_cast<size_t>(curFileOffset + pShaderRecord->recordSize) > *pTraceSize)
                     {
@@ -3069,7 +3240,6 @@ Result GpaSession::DumpRgpData(
                 }
 
                 curFileOffset += pShaderRecord->recordSize;
-                iter.Next();
             }
         }
     }
@@ -3495,4 +3665,5 @@ Result GpaSession::CreateShaderRecord(
 
     return result;
 }
+
 } //GpuUtil

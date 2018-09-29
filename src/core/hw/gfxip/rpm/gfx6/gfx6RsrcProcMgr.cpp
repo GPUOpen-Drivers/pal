@@ -1028,7 +1028,7 @@ void RsrcProcMgr::HwlFastColorClear(
 // On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
 // the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
 // dest color data is no longer dcc compressed after copy.
-void RsrcProcMgr::HwlUpdateDstImageMetaData(
+void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
     GfxCmdBuffer*          pCmdBuffer,
     const Pal::Image&      srcImage,
     const Pal::Image&      dstImage,
@@ -1088,6 +1088,17 @@ void RsrcProcMgr::HwlUpdateDstImageMetaData(
             pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
         }
     }
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
+    uint32                numSrds,
+    const ImageViewInfo*  pImageView,
+    void*                 pSrdTable
+    ) const
+{
+    const auto&  device = *m_pDevice->Parent();
+    device.CreateImageViewSrds(numSrds, pImageView, pSrdTable);
 }
 
 // =====================================================================================================================

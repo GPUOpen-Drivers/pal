@@ -60,6 +60,8 @@ namespace Pal
 }
 struct SqttFileChunkCpuInfo;
 struct SqttFileChunkAsicInfo;
+struct SqttCodeObjectDatabaseRecord;
+struct GpuMemoryInfo;
 
 namespace GpuUtil
 {
@@ -124,7 +126,7 @@ union GpaSessionFlags
         Pal::uint32 useInternalQueueSemaphoreTiming : 1;
 
         /// Reserved for future use.
-        Pal::uint32 reserved                 : 30;
+        Pal::uint32 reserved                 : 29;
     };
 
     /// Flags packed as 32-bit uint.
@@ -561,6 +563,12 @@ private:
     // Unique pipelines registered with this GpaSession.
     Util::HashSet<Pal::uint64, GpaAllocator> m_registeredPipelines;
 
+    // List of cached pipeline code object records that will be copied to the final database at the end of a trace
+    Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_codeObjectRecordsCache;
+
+    // List of pipeline code object records that were registered during a trace
+    Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_curCodeObjectRecords;
+
     // List of cached shader isa records that will be copied to the final shader records database at the end of a trace
     Util::Deque<ShaderRecord, GpaAllocator>  m_shaderRecordsCache;
 
@@ -725,6 +733,9 @@ private:
 
     // Destroy and free the m_sampleItemArray and associated memory allocation
     void FreeSampleItemArray();
+
+    // Helper function to destroy the GpuMemoryInfo object
+    void DestroyGpuMemoryInfo(GpuMemoryInfo* pGpuMemoryInfo);
 
     Pal::Result CreateShaderRecord(
         Pal::ShaderType       shaderType,

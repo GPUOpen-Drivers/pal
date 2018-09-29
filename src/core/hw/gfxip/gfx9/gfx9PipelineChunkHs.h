@@ -37,18 +37,10 @@ class Platform;
 namespace Gfx9
 {
 
-class CmdStream;
-class Device;
-class PrefetchMgr;
-
-// Initialization parameters.
-struct HsParams
-{
-    gpusize             codeGpuVirtAddr;
-    gpusize             dataGpuVirtAddr;
-    const PerfDataInfo* pHsPerfDataInfo;
-    Util::MetroHash64*  pHasher;
-};
+class  CmdStream;
+class  Device;
+class  GraphicsPipelineUploader;
+struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
 // Represents the chunk of a graphics pipeline object which contains all of the registers which setup the hardware LS
@@ -59,14 +51,19 @@ struct HsParams
 class PipelineChunkHs
 {
 public:
-    explicit PipelineChunkHs(const Device& device);
+    PipelineChunkHs(
+        const Device&       device,
+        const PerfDataInfo* pPerfDataInfo);
     ~PipelineChunkHs() { }
 
-    void Init(
+    void EarlyInit(
+        GraphicsPipelineLoadInfo* pInfo);
+
+    void LateInit(
         const AbiProcessor&       abiProcessor,
-        const CodeObjectMetadata& metadata,
         const RegisterVector&     registers,
-        const HsParams&           params);
+        GraphicsPipelineUploader* pUploader,
+        Util::MetroHash64*        pHasher);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
@@ -78,63 +75,58 @@ public:
 
     gpusize LsProgramGpuVa() const
     {
-        return GetOriginalAddress(m_pm4ImageSh.spiShaderPgmLoLs.bits.MEM_BASE,
-                                  m_pm4ImageSh.spiShaderPgmHiLs.bits.MEM_BASE);
+        return GetOriginalAddress(m_commands.sh.spiShaderPgmLoLs.bits.MEM_BASE,
+                                  m_commands.sh.spiShaderPgmHiLs.bits.MEM_BASE);
     }
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
 private:
-    void BuildPm4Headers();
+    void BuildPm4Headers(bool enableLoadIndexPath);
 
-    struct Pm4ImageSh
+    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
+    struct Pm4Commands
     {
-        PM4_ME_SET_SH_REG             hdrSpiShaderUserData;
-        regSPI_SHADER_USER_DATA_LS_1  spiShaderUserDataLoHs;
+        struct
+        {
+            PM4_ME_SET_SH_REG        hdrSpiShaderPgmHs;
+            regSPI_SHADER_PGM_LO_LS  spiShaderPgmLoLs;
+            regSPI_SHADER_PGM_HI_LS  spiShaderPgmHiLs;
 
-        PM4_ME_SET_SH_REG             hdrSpiShaderPgm;
-        regSPI_SHADER_PGM_RSRC1_HS    spiShaderPgmRsrc1Hs;
-        regSPI_SHADER_PGM_RSRC2_HS    spiShaderPgmRsrc2Hs;
+            PM4_ME_SET_SH_REG           hdrSpiShaderPgmRsrcHs;
+            regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
+            regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
 
-        PM4_ME_SET_SH_REG             hdrSpiShaderPgmLs;
-        regSPI_SHADER_PGM_LO_LS       spiShaderPgmLoLs;
-        regSPI_SHADER_PGM_HI_LS       spiShaderPgmHiLs;
+            PM4_ME_SET_SH_REG             hdrSpiShaderUserDataHs;
+            regSPI_SHADER_USER_DATA_LS_1  spiShaderUserDataLoHs;
 
-        // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-        // actual commands contained within.
-        size_t                        spaceNeeded;
-    };
+            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
+            // w/ the actual commands contained above.
+            size_t  spaceNeeded;
+        } sh; // Writes SH registers when using the SET path.
 
-    // This is only for register writes determined during Pipeline Bind.
-    struct Pm4ImageShDynamic
-    {
-        PM4_ME_SET_SH_REG_INDEX            hdrPgmRsrc3Hs;
-        regSPI_SHADER_PGM_RSRC3_HS         spiShaderPgmRsrc3Hs;
+        struct
+        {
+            PM4_PFP_SET_CONTEXT_REG    hdrvVgtHosTessLevel;
+            regVGT_HOS_MAX_TESS_LEVEL  vgtHosMaxTessLevel;
+            regVGT_HOS_MIN_TESS_LEVEL  vgtHosMinTessLevel;
+        } context; // Writes context registers when using the SET path.
 
-        // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-        // actual commands contained within.
-        size_t spaceNeeded;
-    };
+        struct
+        {
+            PM4_ME_SET_SH_REG_INDEX     hdrPgmRsrc3Hs;
+            regSPI_SHADER_PGM_RSRC3_HS  spiShaderPgmRsrc3Hs;
 
-    struct Pm4ImageContext
-    {
-        PM4_PFP_SET_CONTEXT_REG      hdrvVgtHosTessLevel;
-        regVGT_HOS_MAX_TESS_LEVEL    vgtHosMaxTessLevel;
-        regVGT_HOS_MIN_TESS_LEVEL    vgtHosMinTessLevel;
-
-        // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-        // actual commands contained within.
-        size_t spaceNeeded;
+            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
+            // w/ the actual commands contained above.
+            size_t  spaceNeeded;
+        } dynamic; // Contains state which depends on bind-time parameters.
     };
 
     const Device&  m_device;
+    Pm4Commands    m_commands;
 
-    Pm4ImageSh        m_pm4ImageSh;        // HS sh commands to be written when the associated pipeline is bound.
-    Pm4ImageShDynamic m_pm4ImageShDynamic; // HS sh commands to be calculated and written when the associated pipeline
-                                           // is bound.
-    Pm4ImageContext   m_pm4ImageContext;   // HS context commands to be written when the associated pipeline is bound.
-
-    const PerfDataInfo* m_pHsPerfDataInfo;   // HS performance data information.
+    const PerfDataInfo*const  m_pHsPerfDataInfo;   // HS performance data information.
 
     ShaderStageInfo  m_stageInfo;
 

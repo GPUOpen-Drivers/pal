@@ -146,7 +146,7 @@ DisplayWindowSystem::DisplayWindowSystem(
     m_device(device),
     m_drmLoader(device.GetPlatform()->GetDrmLoader()),
     m_drmProcs(m_drmLoader.GetProcsTable()),
-    m_crtcId(createInfo.crtcId),
+    m_crtcId(0),
     m_drmMasterFd(createInfo.drmMasterFd),
     m_connectorId(createInfo.connectorId),
     m_waitMutex()
@@ -173,6 +173,11 @@ Result DisplayWindowSystem::Init()
         flags.semaphore         = true;
 
         result = m_exitThreadEvent.Init(flags);
+    }
+
+    if ((result == Result::Success) && (m_drmMasterFd == InvalidFd))
+    {
+        m_drmMasterFd = m_device.GetPrimaryFileDescriptor();
     }
 
     return result;
@@ -223,6 +228,7 @@ Result DisplayWindowSystem::CreatePresentableImage(
             pImage->SetFramebufferId(fbId);
             pImage->SetPresentImageHandle(bufferHandle[0]);
 
+            FindCrtc();
             ModeSet(pImage);
         }
     }
@@ -407,6 +413,149 @@ void DisplayWindowSystem::EventPolling(
             }
         }
     }
+}
+
+// =====================================================================================================================
+// Help function to find an idle Crtc to driver the display
+Result DisplayWindowSystem::FindCrtc()
+{
+    Result              result         = Result::Success;
+    drmModeRes*         pModeResources = nullptr;
+    drmModeConnectorPtr pConnector     = nullptr;
+
+    if (m_crtcId == 0)
+    {
+        pModeResources = m_drmProcs.pfnDrmModeGetResources(m_drmMasterFd);
+
+        if (pModeResources == nullptr)
+        {
+            result = Result::ErrorUnknown;
+        }
+    }
+
+    if ((m_crtcId == 0) && (result == Result::Success))
+    {
+        pConnector = m_drmProcs.pfnDrmModeGetConnectorCurrent(m_drmMasterFd, m_connectorId);
+
+        if (pConnector == nullptr)
+        {
+            result = Result::ErrorUnknown;
+        }
+    }
+
+    if ((m_crtcId == 0) && (result == Result::Success))
+    {
+        // Prefer the current Crtc which is driving the connector and not shared by others.
+        if (pConnector->encoder_id)
+        {
+            drmModeEncoderPtr pEncoder = m_drmProcs.pfnDrmModeGetEncoder(m_drmMasterFd, pConnector->encoder_id);
+
+            if (pEncoder)
+            {
+                uint32_t crtcId = pEncoder->crtc_id;
+
+                m_drmProcs.pfnDrmModeFreeEncoder(pEncoder);
+
+                if (crtcId)
+                {
+                    bool encoderIsShared = false;
+                    bool crtcIsShared    = false;
+
+                    // Check if the encoder is shared by other connectors
+                    for (int i = 0; i < pModeResources->count_connectors; i++)
+                    {
+                        uint32 connectorId = pModeResources->connectors[i];
+
+                        if (connectorId == m_connectorId)
+                        {
+                            continue;
+                        }
+
+                        drmModeConnectorPtr pModeConnector = m_drmProcs.pfnDrmModeGetConnector(m_drmMasterFd,
+                                                                                               connectorId);
+
+                        if (pModeConnector)
+                        {
+                            encoderIsShared = (pModeConnector->encoder_id == pConnector->encoder_id);
+                            m_drmProcs.pfnDrmModeFreeConnector(pModeConnector);
+
+                            if (encoderIsShared)
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check if the crtc is driving other connectors
+                    if (!encoderIsShared)
+                    {
+                        for (int i = 0; i < pModeResources->count_encoders; i++)
+                        {
+                            uint32 encoderId = pModeResources->encoders[i];
+
+                            if (encoderId == pConnector->encoder_id)
+                            {
+                                continue;
+                            }
+
+                            drmModeEncoderPtr pModeEncoder = m_drmProcs.pfnDrmModeGetEncoder(m_drmMasterFd, encoderId);
+
+                            if (pModeEncoder)
+                            {
+                                crtcIsShared = (pModeEncoder->crtc_id == crtcId);
+
+                                m_drmProcs.pfnDrmModeFreeEncoder(pModeEncoder);
+
+                                if (crtcIsShared)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!crtcIsShared && !encoderIsShared)
+                    {
+                        m_crtcId = crtcId;
+                    }
+                }
+            }
+        }
+    }
+
+    if ((m_crtcId == 0) && (result == Result::Success))
+    {
+        for (int i = 0; (m_crtcId == 0) && (i < pModeResources->count_crtcs); i++)
+        {
+            drmModeCrtcPtr pModeCrtc = m_drmProcs.pfnDrmModeGetCrtc(m_drmMasterFd, pModeResources->crtcs[i]);
+
+            if (pModeCrtc)
+            {
+                if (pModeCrtc->buffer_id == 0)
+                {
+                    m_crtcId = pModeCrtc->crtc_id;
+                }
+                m_drmProcs.pfnDrmModeFreeCrtc(pModeCrtc);
+            }
+        }
+    }
+
+    if (pModeResources != nullptr)
+    {
+        m_drmProcs.pfnDrmModeFreeResources(pModeResources);
+    }
+
+    if (pConnector != nullptr)
+    {
+        m_drmProcs.pfnDrmModeFreeConnector(pConnector);
+    }
+
+    if (m_crtcId == 0)
+    {
+        result = Result::ErrorUnknown;
+    }
+
+    return result;
 }
 
 }

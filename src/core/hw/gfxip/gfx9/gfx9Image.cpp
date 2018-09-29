@@ -1470,7 +1470,8 @@ bool Image::IsFastDepthStencilClearSupported(
 // Determines if this image supports being cleared or copied with format replacement.
 bool Image::IsFormatReplaceable(
     const SubresId& subresId,
-    ImageLayout     layout
+    ImageLayout     layout,
+    bool            isDst
     ) const
 {
     bool  isFormatReplaceable = false;
@@ -2701,15 +2702,14 @@ bool Image::IsInMetadataMipTail(
 }
 
 // =====================================================================================================================
-// Returns true if specified mip level can support metadata
+// Returns true if the HW supports meta-data on the specified mip level
 bool Image::CanMipSupportMetaData(
     uint32 mip
     ) const
 {
-    // If there is no restriction on meta-data usage, then this mip level is good, otherwise, check the specified
-    // mip level against where the mip-tail begins.
-    return ((m_gfxDevice.Settings().waRestrictMetaDataUseInMipTail == false) ||
-            (mip <= m_addrSurfOutput[0].firstMipIdInTail));
+    bool supportsMetaData = true;
+
+    return supportsMetaData;
 }
 
 // =====================================================================================================================

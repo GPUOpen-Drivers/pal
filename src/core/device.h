@@ -41,6 +41,7 @@
 
 #include "core/hw/amdgpu_asic.h"
 #include "palCmdAllocator.h"
+#include "palHashMap.h"
 
 typedef void* ADDR_HANDLE;
 
@@ -696,18 +697,6 @@ struct GpuChipProperties
                 uint32 reserved                                 :  7;
             };
 
-            struct
-            {
-                gpusize primitiveBufferVa;      // GPU Virtual Address for offchip primitive buffer.
-                gpusize primitiveBufferSize;    // Size of the offchip primitive buffer.
-                gpusize positionBufferVa;       // GPU Virtual Address for offchip position buffer.
-                gpusize positionBufferSize;     // Size of offchip position buffer.
-                gpusize controlSidebandVa;      // GPU Virtual Address for offchip control sideband buffer.
-                gpusize controlSidebandSize;    // Size of offchip control sideband buffer.
-                gpusize parameterCacheVa;       // GPU Virtual Address for offchip parameter cache buffer.
-                gpusize parameterCacheSize;     // Size of offchip parameter cache buffer.
-            } primShaderInfo;   // KMD allocated buffers for Next Generation Graphics pipelines.
-
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
 
         } gfx9;
@@ -742,6 +731,7 @@ struct GpuChipProperties
         const void* pNullSampler;
     } nullSrds;
 
+   uint32 pciDomainNumber;              // PCI domain number in the system for this GPU
    uint32 pciBusNumber;                 // PCI bus number in the system for this GPU
    uint32 pciDeviceNumber;              // PCI device number in the system for this GPU
    uint32 pciFunctionNumber;            // PCI function number in the system for this GPU
@@ -870,14 +860,6 @@ public:
         size_t               bufferSz = 0) const = 0;
 
     virtual PalPublicSettings* GetPublicSettings() override;
-    virtual const CmdBufferLoggerSettings& GetCmdBufferLoggerSettings() const override
-        { return m_cmdBufLoggerSettings; }
-    virtual const DebugOverlaySettings& GetDbgOverlaySettings() const override
-        { return m_dbgOverlaySettings; }
-    virtual const GpuProfilerSettings& GetGpuProfilerSettings() const override
-        { return m_gpuProfilerSettings; }
-    virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const override
-        { return m_interfaceLoggerSettings; }
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
 
@@ -1333,6 +1315,22 @@ public:
         return Result::Unsupported;
     }
 
+    virtual Result AddGpuMemoryReferences(
+        uint32              gpuMemRefCount,
+        const GpuMemoryRef* pGpuMemoryRefs,
+        IQueue*             pQueue,
+        uint32              flags
+        ) override;
+
+    virtual Result RemoveGpuMemoryReferences(
+        uint32            gpuMemoryCount,
+        IGpuMemory*const* ppGpuMemory,
+        IQueue*           pQueue
+        ) override;
+
+    virtual void GetReferencedMemoryTotals(
+        gpusize  referencedGpuMemTotal[GpuHeapCount]) const override;
+
     Result ValidateBindObjectMemoryInput(
         const IGpuMemory* pMemObject,
         gpusize           offset,
@@ -1729,10 +1727,6 @@ protected:
     bool m_localInvDropCpuWrites;
 
     PalPublicSettings       m_publicSettings;
-    CmdBufferLoggerSettings m_cmdBufLoggerSettings;
-    DebugOverlaySettings    m_dbgOverlaySettings;
-    GpuProfilerSettings     m_gpuProfilerSettings;
-    InterfaceLoggerConfig  m_interfaceLoggerSettings;
 
     // Get*FilePath need to return a persistent storage
     char m_cacheFilePath[MaxPathStrLen];
@@ -1746,11 +1740,15 @@ private:
 
     Result CreateEngines(const DeviceFinalizeInfo& finalizeInfo);
 
-    uint64  GetTimeoutValueInNs(uint64  appTimeoutInNs) const;
+    uint64 GetTimeoutValueInNs(uint64  appTimeoutInNs) const;
 
     Result SetupPublicSettingDefaults();
 
-    void CopyLayerSettings();
+    typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform>  MemoryRefMap;
+
+    MemoryRefMap  m_referencedGpuMem;
+    Util::Mutex   m_referencedGpuMemLock;
+    gpusize       m_referencedGpuMemBytes[GpuHeapCount];
 
     AddrMgr*                 m_pAddrMgr;
     CmdAllocator*            m_pTrackedCmdAllocator;

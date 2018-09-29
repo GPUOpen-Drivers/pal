@@ -30,6 +30,7 @@
 #include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "core/layers/dbgOverlay/dbgOverlayTextWriter.h"
 #include "core/layers/dbgOverlay/dbgOverlayTimeGraph.h"
+#include "core/g_palPlatformSettings.h"
 
 namespace Pal
 {

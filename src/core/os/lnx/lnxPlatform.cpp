@@ -26,6 +26,7 @@
 #include "core/os/lnx/lnxPlatform.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxScreen.h"
+#include "palSysMemory.h"
 #include "palSysUtil.h"
 #include "palFile.h"
 #include "core/hw/amdgpu_asic.h"

@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 433
+#define PAL_INTERFACE_MAJOR_VERSION 439
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -285,95 +285,6 @@ Result PAL_STDCALL EnumerateNullDevices(
  * When the client is asked to destroy a device it may call IDevice::Cleanup() to explicitly clean up the device. Some
  * clients will find it necessary to call Cleanup(), for example, if their devices have OS handles that become invalid.
  * Note that Cleanup() doesn't destroy the device; it will return to its initial state, as if it was newly enumerated.
- ***********************************************************************************************************************
- */
-/**
- ***********************************************************************************************************************
- * @page Build Building PAL
- *
- * Client-Integrated Builds
- * ------------------------
- * PAL is a _source deliverable_.  Clients will periodically promote PAL's source from //depot/stg/pal_prm into their
- * own tree and build a static pal.lib as part of their build process.  This process matches what is done for other
- * shared components in our driver stack such as SC, AddrLib, and VAM.
- *
- * PAL's main makefile is in .../pal/src/make/Makefile.pal.  The client is responsible for including this makefile while
- * specifying its own defs/rules to build the PAL lib in the right spot with the right options.  Here is a bare-bones
- * example of how Mantle builds PAL:
- *
- *     include $(ICD_DEPTH)/make/icddefs
- *
- *     LIB_TARGET = icdimportedpal
- *
- *     PAL_OS_BUILD      = $(ICD_OS_BUILD)
- *     PAL_SC_DIR        = SC_DIR  # Typically $(ICD_DEPTH)/imported/sc, but controlled via build variable.
- *     PAL_CLIENT_MANTLE = 1
- *
- *     include $(ICD_DEPTH)/make/Makefile.$(ICD_PLATFORM).icd
- *     include $(PAL_DEPTH)/src/make/Makefile.pal
- *
- *     include $(ICD_DEPTH)/make/icdrules
- *
- * ### Internal Pipeline Compiler Component
- *
- *  PAL is delivered alongside a module which can compile pipeline binaries in ELF format.  This module, named SCPC, is
- *  based on the AMD proprietary shader compiler (SC).  The following build options in PAL are used to control how SCPC
- *  is included in the PAL build.
- *
- *      __PAL_BUILD_SCPC__: Defaults to 1.  Controls whether or not the SCPC component is built as part of the PAL
- *      build.  Clients should only change this to zero if they are using something besides SCPC for compiling their
- *      pipeline binaries.
- *
- * ### External Shader Compiler
- * PAL must be linked with an SC library built by the client.  The client must specify the location of the SC interface
- * header files with this build parameter:
- *
- * + __PAL_SC_DIR__: Root of SC source (PAL will include headers from both the Interface and IL/inc subdirectories).
- *
- * The client is responsible for providing a version of the SC library that is compatible with PAL.  PAL will fail to
- * build if SC's major interface version isn't supported.  Since PAL handles all interaction with SC, PAL is responsible
- * for defining the SC_CLIENT_MAJOR_INTERFACE_VERSION variable on behalf of the client.  In order to facilitate this,
- * clients must include the following PAL makefile before including SC's Makefile.sc:
- *
- *     .../pal/src/make/palSpecifiedScDefs
- *
- * ### Build Options
- * The following build options control PAL's behavior, and can be set as desired by the client:
- *
- * + __Required__:
- *     - __PAL_OS_BUILD__: Set to the OS target string.  Supported targets are wNow, wNow64a, wNxt, wNxt64a, lnx, and
- *       lnx64a.
- *     - __PAL_SC_DIR__: As described above.
- * + __Optional__:
- *     - __PAL_CLOSED_SOURCE__: Defaults to 1.  Set to 0 to build only open source-able code.
- *     - __PAL_BUILD_CORE__: Defaults to 1.  Set to 0 to build only the PAL utility companion functionality (only the
- *       Util namespace will be usable).
- *     - The following build options allow specific IP support to be explicitly included or excluded:
- *         + __PAL_BUILD_GFX6__: Defaults to 1.  Set to 0 to exclude support for GFXIP 6-8.
- *         + __PAL_BUILD_OSS1__: Defaults to 1.  Set to 0 to exclude support for OSSIP 1 (i.e., DRMDMA on SI chips).
- *         + __PAL_BUILD_OSS2__: Defaults to 1.  Set to 0 to exclude support for OSSIP 2 (i.e., SDMA on CI chips).
- *         + __PAL_BUILD_OSS2_4__: Defaults to 1.  Set to 0 to exclude support for OSSIP 2.4 (i.e., SDMA on VI chips).
- *     - __PAL_BUILD_LAYERS__: Defaults to 1.  If 0, PAL will not build support for any interface shim layers.
- *       Individual layers can be either built or excluded with the following variables:
- *         + __PAL_BUILD_DBG_OVERLAY__: Defaults to 1.  The debug overlay can be enabled via a setting, and will
- *           output useful performance and debug related information on the screen while the application runs.  If 0,
- *           this support will be built out of the driver, and the setting won't do anything.
- *         + __PAL_BUILD_GPU_PROFILER__: Defaults to 1. The GpuProfiler can be enabled via a setting, and will
- *           output useful performance and debug related information to a CSV file for offline analysis. If 0, this
- *           support will be built out of the driver and the setting won't do anything.
- *     - __PAL_ENABLE_PRINTS_ASSERTS__: Enables debug printing and assertions.  Even if enabled at build time, debug
- *       prints and asserts can be filtered based on category/severity via runtime setting.  Defaults to 1 on debug
- *       builds.
- *     - __PAL_MEMTRACK__: Enables memory leak and buffer overrun tracking.  Defaults to 1 on debug builds if debug
- *       prints are also enabled.  A report of leaked memory will be printed during IPlatform::Destroy().
- *     - __PAL_DEVELOPER_BUILD__: Defaults to 0. If 1, enables developer-specific interfaces for development purposes.
- *
- * @note Some Util functionality is inline/macro based, and therefore the appropriate defines must be set when building
- *       client files that include PAL headers.  In particular, PAL_MEMTRACK and PAL_ENABLE_PRINTS_ASSERTS are used in
- *       palAssert.h and palSysMemory.h, and must match the setting used when building PAL even when included outside
- *       of the PAL library.
- *
- * Next: @ref UtilOverview
  ***********************************************************************************************************************
  */
 

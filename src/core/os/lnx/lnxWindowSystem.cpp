@@ -357,5 +357,36 @@ Result WindowSystem::AcquireScreenAccess(
     return result;
 }
 
+// =====================================================================================================================
+Result WindowSystem::GetOutputFromConnector(
+    OsDisplayHandle hDisplay,
+    Device*         pDevice,
+    WsiPlatform     wsiPlatform,
+    uint32          connector,
+    uint32*         pOutput)
+{
+    Result result = Result::ErrorUnavailable;
+
+    if (SupportedPlatformMask & wsiPlatform)
+    {
+        switch (wsiPlatform)
+        {
+        case WsiPlatform::Xcb:
+        case WsiPlatform::Xlib:
+            result = Dri3WindowSystem::GetOutputFromConnector(hDisplay, pDevice, connector, pOutput);
+            break;
+        default:
+            PAL_NOT_IMPLEMENTED();
+            break;
+        }
+    }
+    else
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
+
+    return result;
+}
+
 }
 }

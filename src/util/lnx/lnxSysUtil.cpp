@@ -618,6 +618,92 @@ Result MkDirRecursively(
     return result;
 }
 
+// =====================================================================================================================
+// Lists the contents of the specified directory in an array of strings
+Result ListDir(
+    const char*  pDirName,
+    uint32*      pFileCount,
+    const char** ppFileNames,
+    size_t*      pBufferSize,
+    const void*  pBuffer)
+{
+    DIR* pDir;
+    struct dirent* pEntry;
+
+    Result result = Result::Success;
+
+    if (pDirName == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+
+    if (result == Result::Success)
+    {
+        pDir = opendir(pDirName);
+
+        if (pDir == nullptr)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        pEntry = readdir(pDir);
+        if ((ppFileNames == nullptr) ||
+            (pBuffer == nullptr))
+        {
+            // Obtain file count and buffer size
+            uint32 fileCount  = 0;
+            size_t bufferSize = 0;
+
+            while (pEntry != nullptr)
+            {
+                fileCount++;
+                bufferSize += strlen(pEntry->d_name);
+
+                pEntry = readdir(pDir);
+            }
+
+            *pFileCount  = fileCount;
+            *pBufferSize = bufferSize;
+        }
+        else
+        {
+            // Populate ppFileNames and pBuffer
+            size_t fileNameSize;
+            char*  fileName        = (char*)pBuffer;
+            uint32 fileIndex       = 0;
+            uint32 fileCount       = *pFileCount;
+            size_t bufferPopulated = 0;
+            size_t bufferSize      = *pBufferSize;
+
+            while ((pEntry != nullptr) &&
+                   (fileIndex < fileCount))
+            {
+                fileNameSize = strlen(pEntry->d_name) + 1;
+                bufferPopulated += fileNameSize;
+
+                if (bufferPopulated > bufferSize)
+                {
+                    break;
+                }
+
+                strcpy(fileName, pEntry->d_name);
+                ppFileNames[fileIndex] = fileName;
+                fileIndex++;
+                fileName += fileNameSize;
+
+                pEntry = readdir(pDir);
+                fileIndex++;
+            }
+        }
+        closedir(pDir);
+    }
+
+    return result;
+}
+
 /// Get the Process ID of the current process
 uint32 GetIdOfCurrentProcess()
 {

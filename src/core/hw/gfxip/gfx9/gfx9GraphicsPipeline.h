@@ -29,8 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkGs.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkHs.h"
-#include "core/hw/gfxip/gfx9/gfx9PipelineChunkPs.h"
-#include "core/hw/gfxip/gfx9/gfx9PipelineChunkVs.h"
+#include "core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.h"
 #include "palPipelineAbiProcessor.h"
 
 namespace Pal
@@ -41,103 +40,27 @@ class Platform;
 namespace Gfx9
 {
 
-class ColorBlendState;
-class DepthStencilState;
-class DepthStencilView;
-
+class  ColorBlendState;
+class  DepthStencilState;
+class  DepthStencilView;
+class  GraphicsPipelineUploader;
 struct RbPlusPm4Img;
 
-// Represents an "image" of the PM4 commands necessary to write a GFX9 graphics pipeline's non-shader render state to
-// hardware.  The required register writes are grouped into sets based on sequential register addresses, so that we can
-// minimize the amount of PM4 space needed by setting several registers in each packet.
-struct GfxPipelineStateCommonPm4ImgSh
+// Contains information about the pipeline which needs to be passed to the Init methods or between the multiple Init
+// phases.
+struct GraphicsPipelineLoadInfo
 {
-    union
-    {
-        struct
-        {
-            PM4_ME_SET_SH_REG            hdrSpiShaderLateAllocVs;
-            regSPI_SHADER_LATE_ALLOC_VS  spiShaderLateAllocVs;
-        } gfx9;
+    bool    enableNgg;          // Set if the pipeline is using NGG mode.
+    bool    usesOnChipGs;       // Set if the pipeline has a GS and uses on-chip GS.
+    uint16  esGsLdsSizeRegGs;   // User-SGPR where the ES/GS ring size in LDS is passed to the GS stage
+    uint16  esGsLdsSizeRegVs;   // User-SGPR where the ES/GS ring size in LDS is passed to the VS stage
+    uint16  interpolatorCount;  // Number of PS interpolators
 
-    } lateAlloc;
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                              spaceNeeded;
+    uint32  loadedShRegCount;   // Number of SH registers to load using LOAD_SH_REG_INDEX.  If zero, the LOAD_INDEX
+                                // path for pipeline binds is not supported.
+    uint32  loadedCtxRegCount;  // Number of constext registers to load using LOAD_CONTEXT_REG_INDEX.  If zero, the
+                                // LOAD_INDEX path for pipeline binds is not supported.
 };
-
-// Represents an "image" of the PM4 commands necessary to write a GFX9 graphics pipeline's non-shader render state to
-// hardware.  The required register writes are grouped into sets based on sequential register addresses, so that we can
-// minimize the amount of PM4 space needed by setting several registers in each packet.
-struct GfxPipelineStateCommonPm4ImgContext
-{
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtShaderStagesEn;
-    regVGT_SHADER_STAGES_EN             vgtShaderStagesEn;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtGsMode;
-    regVGT_GS_MODE                      vgtGsMode;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtReuseOff;
-    regVGT_REUSE_OFF                    vgtReuseOff;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtTfParam;
-    regVGT_TF_PARAM                     vgtTfParam;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrCbColorControl;
-    regCB_COLOR_CONTROL                 cbColorControl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrCbShaderTargetMask;
-    regCB_TARGET_MASK                   cbTargetMask;
-    regCB_SHADER_MASK                   cbShaderMask;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrPaClClipCntl;
-    regPA_CL_CLIP_CNTL                  paClClipCntl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrPaSuVtxCntl;
-    regPA_SU_VTX_CNTL                   paSuVtxCntl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrPaClVteCntl;
-    regPA_CL_VTE_CNTL                   paClVteCntl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrPaScLineCntl;
-    regPA_SC_LINE_CNTL                  paScLineCntl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrPaStereoCntl;
-    regPA_STEREO_CNTL                   paStereoCntl;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrSpiInterpControl0;
-    regSPI_INTERP_CONTROL_0             spiInterpControl0;
-
-    PM4_ME_CONTEXT_REG_RMW              dbRenderOverrideRmw;
-
-    PM4_PFP_SET_CONTEXT_REG             hdrVgtVertexReuseBlockCntl;
-    regVGT_VERTEX_REUSE_BLOCK_CNTL      vgtVertexReuseBlockCntl;
-
-    PM4ME_NON_SAMPLE_EVENT_WRITE        flushDfsm;
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the actual
-    // commands contained within.
-    size_t                              spaceNeeded;
-};
-
-// Represents an "image" of PM4 commands necessary to write streamout information.
-struct Pm4ImageStrmout
-{
-    PM4_PFP_SET_CONTEXT_REG      headerStrmoutCfg;
-    regVGT_STRMOUT_CONFIG        vgtStrmoutConfig;
-    regVGT_STRMOUT_BUFFER_CONFIG vgtStrmoutBufferConfig;
-
-    struct
-    {
-        PM4_PFP_SET_CONTEXT_REG      header;
-        regVGT_STRMOUT_VTX_STRIDE_0  vgtStrmoutVtxStride;
-    } stride[MaxStreamOutTargets];
-
-    // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere w/ the
-    // actual commands contained within.
-    size_t                       spaceNeeded;
-};
-
 // Contains graphics stage information calculated at pipeline bind time.
 struct DynamicStageInfos
 {
@@ -195,20 +118,18 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
-    regPA_SC_SHADER_CONTROL  PaScShaderControl(uint32  numIndices) const
-        { return m_chunkPs.PaScShaderControl(numIndices); }
-    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_streamoutPm4Cmds.vgtStrmoutConfig; }
-    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_streamoutPm4Cmds.vgtStrmoutBufferConfig; }
-    regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
-        { return m_streamoutPm4Cmds.stride[idx].vgtStrmoutVtxStride; }
+    regPA_SC_SHADER_CONTROL PaScShaderControl(uint32 numIndices) const
+        { return m_chunkVsPs.PaScShaderControl(numIndices); }
+    regVGT_STRMOUT_CONFIG VgtStrmoutConfig() const { return m_chunkVsPs.VgtStrmoutConfig(); }
+    regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
+    regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
 
-    uint32 EsGsRingItemSize() const { return m_chunkGs.EsGsRingItemSize(); }
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_chunkGs.VgtGsOnchipCntl(); }
 
-    bool IsNgg() const { return (m_statePm4CmdsContext.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
+    bool IsNgg() const { return (m_commands.set.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool IsNggFastLaunch() const;
 
-    bool UsesInnerCoverage() const { return m_chunkPs.UsesInnerCoverage(); }
+    bool UsesInnerCoverage() const { return m_chunkVsPs.UsesInnerCoverage(); }
     bool UsesOffchipParamCache() const { return (m_spiPsInControl.bits.OFFCHIP_PARAM_EN != 0); }
     bool HwStereoRenderingEnabled() const;
     bool HwStereoRenderingUsesMultipleViewports() const;
@@ -222,7 +143,7 @@ public:
 
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint64 GetContextPm4ImgHash() const { return m_contextPm4ImgHash; }
+    uint64 GetContextPm4ImgHash() const { return m_contextRegHash; }
 
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat           swizzledFormat,
@@ -245,6 +166,11 @@ protected:
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
 private:
+    void EarlyInit(
+        const CodeObjectMetadata& metadata,
+        const RegisterVector&     registers,
+        GraphicsPipelineLoadInfo* pInfo);
+
     uint32 CalcMaxWavesPerSh(
         uint32 maxWavesPerCu1,
         uint32 maxWavesPerCu2) const;
@@ -273,11 +199,17 @@ private:
         const RegisterVector&     registers,
         HwShaderStage             stage);
 
-    // Helper methods used to initialize portions of the pipeline register state:
-    void BuildPm4Headers(bool useStreamOutput);
-    void InitCommonStateRegisters(
+    void BuildPm4Headers(
+        const GraphicsPipelineUploader& uploader);
+
+    void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers);
+        const RegisterVector&             registers,
+        GraphicsPipelineUploader*         pUploader);
+    void SetupNonShaderRegisters(
+        const GraphicsPipelineCreateInfo& createInfo,
+        const RegisterVector&             registers,
+        GraphicsPipelineUploader*         pUploader);
     void SetupStereoRegisters();
 
     void SetupIaMultiVgtParam(
@@ -286,11 +218,10 @@ private:
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
 
-    void SetupNonShaderRegisters(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers);
     void SetupLateAllocVs(
-        const RegisterVector& registers);
+        const RegisterVector&     registers,
+        GraphicsPipelineUploader* pUploader);
+
     void SetupRbPlusRegistersForSlot(
         uint32                   slot,
         uint8                    writeMask,
@@ -299,15 +230,92 @@ private:
         regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
+    // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
+    struct Pm4Commands
+    {
+        struct
+        {
+            PM4_ME_CONTEXT_REG_RMW        dbRenderOverride;
+            PM4ME_NON_SAMPLE_EVENT_WRITE  flushDfsm;
+
+            // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
+            // w/ the actual commands contained above.
+            size_t  spaceNeeded;
+        } common; // Packets which are common to both the SET and LOAD_INDEX paths (such as read-modify-writes).
+
+        struct
+        {
+            struct
+            {
+                PM4_ME_LOAD_SH_REG_INDEX  loadShRegIndex;
+            } sh;
+
+            struct
+            {
+                PM4_ME_LOAD_CONTEXT_REG_INDEX  loadCtxRegIndex;
+            } context;
+        } loadIndex; // LOAD_INDEX path, used for GPU's which support the updated microcode.
+
+        struct
+        {
+            struct
+            {
+                PM4_ME_SET_SH_REG            hdrSpiShaderLateAllocVs;
+                regSPI_SHADER_LATE_ALLOC_VS  spiShaderLateAllocVs;
+            } sh;
+
+            struct
+            {
+                PM4_PFP_SET_CONTEXT_REG             hdrVgtShaderStagesEn;
+                regVGT_SHADER_STAGES_EN             vgtShaderStagesEn;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtGsMode;
+                regVGT_GS_MODE           vgtGsMode;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtReuseOff;
+                regVGT_REUSE_OFF         vgtReuseOff;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtTfParam;
+                regVGT_TF_PARAM          vgtTfParam;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrCbColorControl;
+                regCB_COLOR_CONTROL      cbColorControl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrCbShaderTargetMask;
+                regCB_TARGET_MASK        cbTargetMask;
+                regCB_SHADER_MASK        cbShaderMask;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrPaClClipCntl;
+                regPA_CL_CLIP_CNTL       paClClipCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrPaSuVtxCntl;
+                regPA_SU_VTX_CNTL        paSuVtxCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrPaClVteCntl;
+                regPA_CL_VTE_CNTL        paClVteCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrPaScLineCntl;
+                regPA_SC_LINE_CNTL       paScLineCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrPaStereoCntl;
+                regPA_STEREO_CNTL        paStereoCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrSpiInterpControl0;
+                regSPI_INTERP_CONTROL_0  spiInterpControl0;
+
+                PM4_PFP_SET_CONTEXT_REG         hdrVgtVertexReuseBlockCntl;
+                regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
+
+                // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
+                // w/ the actual commands contained above.
+                size_t  spaceNeeded;
+            } context;
+        } set; // SET path, used for GPU's which don't support the updated microcode.
+    };
+
     const GfxIpLevel  m_gfxLevel;
     Device*const      m_pDevice;
-
-    // Images of PM4 commands needed to write this pipeline to hardware: This class contains the images needed for all
-    // graphics pipelines: render state, MSAA state.
-    GfxPipelineStateCommonPm4ImgSh      m_statePm4CmdsSh;
-    GfxPipelineStateCommonPm4ImgContext m_statePm4CmdsContext;
-    Pm4ImageStrmout                     m_streamoutPm4Cmds;
-    uint64                              m_contextPm4ImgHash;
+    uint64            m_contextRegHash;
 
     // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
     // WD_SWITCH_ON_EOP is required.
@@ -324,32 +332,12 @@ private:
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will
     // actually end up needing them.
-    PipelineChunkHs  m_chunkHs;
-    PipelineChunkGs  m_chunkGs;
-    PipelineChunkVs  m_chunkVs;
-    PipelineChunkPs  m_chunkPs;
+    PipelineChunkHs    m_chunkHs;
+    PipelineChunkGs    m_chunkGs;
+    PipelineChunkVsPs  m_chunkVsPs;
 
     GraphicsPipelineSignature  m_signature;
-
-    // Private structure used to store/load a graphics pipeline object. Does not include the data from the shader.
-    // Should correspond to the data members in Pal::Gfx9::GraphicsPipeline.
-    struct SerializedData
-    {
-        GfxPipelineStateCommonPm4ImgSh      renderStatePm4ImgSh;
-        GfxPipelineStateCommonPm4ImgContext renderStatePm4ImgContext;
-        Pm4ImageStrmout                     streamoutPm4Img;
-        uint32                              scratchSize;
-        GraphicsPipelineSignature           signature;
-        regIA_MULTI_VGT_PARAM               iaMultiVgtParam[NumIaMultiVgtParam];
-        regSX_PS_DOWNCONVERT                sxPsDownconvert;
-        regSX_BLEND_OPT_EPSILON             sxBlendOptEpsilon;
-        regSX_BLEND_OPT_CONTROL             sxBlendOptControl;
-        regVGT_LS_HS_CONFIG                 vgtLsHsConfig;
-        regSPI_PS_IN_CONTROL                spiPsInControl;
-        regSPI_VS_OUT_CONFIG                spiVsOutConfig;
-        regPA_SC_MODE_CNTL_1                paScModeCntl1;
-        uint64                              contextPm4ImgHash;
-    };
+    Pm4Commands                m_commands;
 
     // Used to index into the IA_MULTI_VGT_PARAM array based on dynamic state. This just constructs a flat index
     // directly from the integer representations of the bool inputs (1/0).
@@ -359,11 +347,43 @@ private:
     uint8 GetTargetMask(uint32 target) const
     {
         PAL_ASSERT(target < MaxColorTargets);
-        return ((m_statePm4CmdsContext.cbTargetMask.u32All >> (target * 4)) & 0xF);
+        return ((m_commands.set.context.cbTargetMask.u32All >> (target * 4)) & 0xF);
     }
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipeline);
+};
+
+// =====================================================================================================================
+// Extension of the PipelineUploader helper class for Gfx9+ graphics pipelines.
+class GraphicsPipelineUploader : public Pal::PipelineUploader
+{
+public:
+    explicit GraphicsPipelineUploader(
+        uint32 ctxRegisterCount,
+        uint32 shRegisterCount)
+        :
+        PipelineUploader(ctxRegisterCount, shRegisterCount)
+        { }
+    virtual ~GraphicsPipelineUploader() { }
+
+    // Add a context register to GPU memory for use with LOAD_CONTEXT_REG_INDEX.
+    PAL_INLINE void AddCtxReg(uint16 address, uint32 value)
+        { Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, value); }
+    template <typename Register_t>
+    PAL_INLINE void AddCtxReg(uint16 address, Register_t reg)
+        { Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, reg.u32All); }
+
+    // Add a SH register to GPU memory for use with LOAD_SH_REG_INDEX.
+    PAL_INLINE void AddShReg(uint16 address, uint32 value)
+        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, value); }
+    template <typename Register_t>
+    PAL_INLINE void AddShReg(uint16 address, Register_t reg)
+        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, reg.u32All); }
+
+private:
+    PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipelineUploader);
+    PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipelineUploader);
 };
 
 } // Gfx9

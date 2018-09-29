@@ -28,6 +28,7 @@
 #include "core/layers/shaderDbg/shaderDbgPipeline.h"
 #include "core/layers/shaderDbg/shaderDbgPlatform.h"
 #include "core/layers/shaderDbg/shaderDbgQueue.h"
+#include "core/g_palPlatformSettings.h"
 #include "palListImpl.h"
 #include "palSysUtil.h"
 
@@ -64,11 +65,6 @@ Result Device::CommitSettingsAndInit()
     Result result = DeviceDecorator::CommitSettingsAndInit();
 
     m_pPublicSettings = GetNextLayer()->GetPublicSettings();
-
-    if (result == Result::Success)
-    {
-        m_shaderDbgSettings = GetShaderDbgSettings();
-    }
 
     return result;
 }
@@ -314,7 +310,7 @@ Result Device::GetMemoryChunk(
     if (pGpuMemory == nullptr)
     {
         GpuMemoryCreateInfo createInfo = {};
-        createInfo.size           = m_shaderDbgSettings.gpuMemChunkSize;
+        createInfo.size           = GetPlatform()->PlatformSettings().shaderDbgConfig.shaderDbgChunkSize;
         createInfo.alignment      = m_deviceProperties.gpuMemoryProperties.realMemAllocGranularity;
         createInfo.vaRange        = VaRange::Default;
         createInfo.heaps[0]       = GpuHeapLocal;

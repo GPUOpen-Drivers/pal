@@ -144,6 +144,7 @@ struct ScreenColorConfig
     ColorGamut          userDefinedColorGamut;  ///< Color gamut to Present used with ScreenColorSpace::CS_userDefined
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 435
 /// Specifies window system screen properties for use with IScreen::GetProperties()
 struct WsiScreenProperties
 {
@@ -161,6 +162,7 @@ struct WsiScreenProperties
 
     char    displayName[MaxDisplayName]; ///< The display name of the screen.
 };
+#endif
 
 /// Reports properties of a screen (typically corresponds to one monitor attached to the desktop).  Output structure of
 /// IScreen::GetProperties().
@@ -206,7 +208,9 @@ struct ScreenProperties
     Extent2d        physicalDimension; ///< The physical dimension of screen in millimeters
     Extent2d        physicalResolution;///< The preferred or native resolution of screen
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 435
     WsiScreenProperties wsiScreenProp; ///< Window system screen properties.
+#endif
 };
 
 /// Reports properties of a particular screen mode including resolution, pixel format, and other capabilities.  Output
@@ -425,6 +429,18 @@ public:
     ///
     /// @returns Success if the call succeeded.
     virtual Result ReleaseScreenAccess() = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
+    /// Get RandR output of the screen.
+    ///
+    /// @param [in]  hDisplay     OS-native handle to the display.
+    /// @param [out] randrOutput  RandR output returned.
+    ///
+    /// @returns Success if the call succeeded.
+    virtual Result GetRandrOutput(
+        OsDisplayHandle hDisplay,
+        uint32*         pRandrOutput) = 0;
+#endif
 
     /// Set RandR output object, which will be used to lease resources from XServer.
     ///

@@ -271,6 +271,11 @@ public:
         return m_pNextLayer->GetDevDriverServer();
     }
 
+    virtual const PalPlatformSettings& PlatformSettings() const override
+    {
+        return m_pNextLayer->PlatformSettings();
+    }
+
     virtual void LogMessage(
         LogLevel        level,
         LogCategoryMask categoryMask,
@@ -388,6 +393,13 @@ public:
     virtual Result ReleaseScreenAccess() override
         { return m_pNextLayer->ReleaseScreenAccess(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
+    virtual Result GetRandrOutput(
+        OsDisplayHandle hDisplay,
+        uint32* pRandrOutput) override
+        { return m_pNextLayer->GetRandrOutput(hDisplay, pRandrOutput); }
+#endif
+
     virtual Result SetRandrOutput(
         uint32 randrOutput) override
         { return m_pNextLayer->SetRandrOutput(randrOutput); }
@@ -426,18 +438,6 @@ public:
 
     virtual PalPublicSettings* GetPublicSettings() override
         { return m_pNextLayer->GetPublicSettings(); }
-
-    virtual const CmdBufferLoggerSettings& GetCmdBufferLoggerSettings() const override
-        { return m_pNextLayer->GetCmdBufferLoggerSettings(); }
-
-    virtual const DebugOverlaySettings& GetDbgOverlaySettings() const override
-        { return m_pNextLayer->GetDbgOverlaySettings(); }
-
-    virtual const GpuProfilerSettings& GetGpuProfilerSettings() const override
-        { return m_pNextLayer->GetGpuProfilerSettings(); }
-
-    virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const override
-        { return m_pNextLayer->GetInterfaceLoggerSettings(); }
 
     virtual Result CommitSettingsAndInit() override
         { return m_pNextLayer->CommitSettingsAndInit(); }
@@ -499,6 +499,12 @@ public:
         IGpuMemory*const* ppGpuMemory,
         IQueue*           pQueue
         ) override;
+
+    virtual void GetReferencedMemoryTotals(
+        gpusize  referencedGpuMemTotal[GpuHeapCount]) const override
+    {
+        m_pNextLayer->GetReferencedMemoryTotals(&referencedGpuMemTotal[0]);
+    }
 
     virtual Result SetMaxQueuedFrames(
         uint32 maxFrames) override
@@ -982,6 +988,9 @@ public:
         FlipStatusFlags* pFlipFlags,
         bool*            pIsFlipOwner) const override
         { return m_pNextLayer->GetFlipStatus(vidPnSrcId, pFlipFlags, pIsFlipOwner); }
+
+    virtual bool DidTurboSyncSettingsChange() override
+        { return m_pNextLayer->DidTurboSyncSettingsChange(); }
 
     virtual Result DidChillSettingsChange(
         bool* pChangeDetected) override
@@ -2481,6 +2490,9 @@ public:
 
     virtual Result GetShaderCode(ShaderType shaderType, size_t* pSize, void* pBuffer) const override
         { return m_pNextLayer->GetShaderCode(shaderType, pSize, pBuffer); }
+
+    virtual Result GetPipelineElf(uint32* pSize, void* pBuffer) const override
+        { return m_pNextLayer->GetPipelineElf(pSize, pBuffer); }
 
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }

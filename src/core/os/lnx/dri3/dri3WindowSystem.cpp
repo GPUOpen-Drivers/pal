@@ -1005,7 +1005,7 @@ Result Dri3WindowSystem::GetRootWindowFromOutput(
 
             for (int i = 0; i < pScrResReply->num_outputs; i++)
             {
-                if (randrOutput == *pRandrOutput)
+                if (randrOutput == pRandrOutput[i])
                 {
                     *pRootWindow = iter.data->root;
 

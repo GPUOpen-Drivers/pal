@@ -232,7 +232,7 @@ public:
 
     static constexpr ClearMethod DefaultSlowClearMethod = ClearMethod::NormalGraphics;
     static constexpr bool PreferGraphicsCopy = true;
-    static constexpr bool PreferGraphicsScaledCopy = false;
+    static constexpr bool PreferGraphicsScaledCopy = true;
     static constexpr bool ForceExpandHiZRangeForResummarize = false;
     static constexpr bool UseCpPacketOcclusionQuery = true;
 

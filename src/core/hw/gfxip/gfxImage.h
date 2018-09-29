@@ -127,7 +127,7 @@ public:
                                                   uint8              stencil,
                                                   const SubresRange& range) const = 0;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout) const = 0;
+    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const = 0;
     virtual bool IsSubResourceLinear(const SubresId& subresource) const = 0;
 
     virtual void OverrideGpuMemHeaps(GpuMemoryRequirements* pMemReqs) const { }

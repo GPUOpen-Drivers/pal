@@ -63,9 +63,9 @@ public:
         const VirtAddrAssignInfo& vaInfo,
         gpusize*                  pGpuVirtAddr) override;
 
-    virtual void FreeVirtualAddress(
+    virtual Result FreeVirtualAddress(
         Pal::Device*const     pDevice,
-        const Pal::GpuMemory& gpuMemory) override;
+        const Pal::GpuMemory* pGpuMemory) override;
 
     virtual bool IsVamPartition(
         VaPartition           vaPartition) const override;

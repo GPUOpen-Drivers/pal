@@ -213,6 +213,28 @@ extern Result MkDir(
 extern Result MkDirRecursively(
     const char* pPathName);
 
+/// Lists the contents of the specified directory in an array of strings
+///
+/// @param [in]     pDirName    String specifying the directory
+/// @param [in,out] pFileCount  Should never be null. If either ppFileNames or pBuffer is null, pFileCount will output
+///                             the number of files found within the directory. If both ppFileNames and pBuffer are
+///                             non-null, pFileCount will specify the maximum number of file names to be written into
+///                             ppFileNames.
+/// @param [in,out] ppFileNames If non-null and pBuffer is nun-null, ppFileNames will specify an array where pointers
+///                             the file names will be written.
+/// @param [in,out] pBufferSize Should never be null. If either ppFileNames or pBuffer is null, pBufferSize will output
+///                             the minimum buffer size (in bytes) necessary to store all file names found. If both
+///                             ppFileNames and pBuffer are null, pBufferSize will specify the maximum number of bytes
+///                             to be written into pBuffer.
+/// @param [in,out] pBuffer     If non-null and pBuffer is non-null, pBuffer will point to memory where the file names
+///                             can be stored.
+extern Result ListDir(
+    const char*  pDirName,
+    uint32*      pFileCount,
+    const char** ppFileNames,
+    size_t*      pBufferSize,
+    const void*  pBuffer);
+
 /// Get the Process ID of the current process
 ///
 /// @returns The Process ID of the current process

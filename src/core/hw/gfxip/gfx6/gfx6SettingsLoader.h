@@ -69,7 +69,7 @@ private:
     virtual void InitSettingsInfo() override;
     virtual void DevDriverRegister() override;
 
-    const char* m_pComponentName = "Gfx6_Pal";
+    const char* m_pComponentName;
 };
 
 } // Gfx6

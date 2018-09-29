@@ -175,7 +175,7 @@ Result PAL_STDCALL CreatePlatform(
 
         result = CmdBufferLogger::Platform::Create(allocCb,
                                                    pCurPlatform,
-                                                   pCorePlatform->IsCmdBufferLoggerEnabled(),
+                                                   pCorePlatform->PlatformSettings().cmdBufferLoggerEnabled,
                                                    pPlacementAddr,
                                                    &pCurPlatform);
     }
@@ -190,7 +190,7 @@ Result PAL_STDCALL CreatePlatform(
         result = GpuProfiler::Platform::Create(createInfo,
                                                allocCb,
                                                pCurPlatform,
-                                               pCorePlatform->GpuProfilerMode(),
+                                               pCorePlatform->PlatformSettings().gpuProfilerMode,
                                                pPlacementAddr,
                                                &pCurPlatform);
     }
@@ -204,7 +204,7 @@ Result PAL_STDCALL CreatePlatform(
 
         result = DbgOverlay::Platform::Create(allocCb,
                                               pCurPlatform,
-                                              pCorePlatform->IsDebugOverlayEnabled(),
+                                              pCorePlatform->PlatformSettings().debugOverlayEnabled,
                                               pPlacementAddr,
                                               &pCurPlatform);
     }
@@ -219,7 +219,7 @@ Result PAL_STDCALL CreatePlatform(
         result = InterfaceLogger::Platform::Create(createInfo,
                                                    allocCb,
                                                    pCurPlatform,
-                                                   pCorePlatform->IsInterfaceLoggerEnabled(),
+                                                   pCorePlatform->PlatformSettings().interfaceLoggerEnabled,
                                                    pPlacementAddr,
                                                    &pCurPlatform);
     }

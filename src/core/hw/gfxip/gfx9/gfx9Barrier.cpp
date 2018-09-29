@@ -406,9 +406,13 @@ void Device::ExpandColor(
             // the GPU side if the latest clear color was supported by the texture hardware (i.e., black or white).
             constexpr uint32 TcCompatReadFlags = LayoutShaderRead           |
                                                  LayoutShaderFmaskBasedRead |
-                                                 LayoutCopySrc              |
-                                                 LayoutResolveSrc;
+                                                 LayoutCopySrc;
 
+            // LayoutResolveSrc is treated as a color compressed state and if any decompression is required at resolve
+            // time, @ref RsrcProcMgr::LateExpandResolveSrc will do the job.  So LayoutResolveSrc isn't added into
+            // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
+            // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
+            // really trigger an FCE operation.
             if (fastClearEliminateSupported                                              &&
                 TestAnyFlagSet(transition.imageInfo.newLayout.usages, TcCompatReadFlags) &&
                 (gfx9Image.HasDccData()                                                  &&
@@ -501,6 +505,13 @@ void Device::ExpandColor(
         }
         else if (fastClearEliminate)
         {
+            if (earlyPhase && WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
+            {
+                uint32* pCmdSpace = pCmdStream->ReserveCommands();
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                pCmdStream->CommitCommands(pCmdSpace);
+            }
+
             pOperations->layoutTransitions.fastClearEliminate = 1;
             DescribeBarrier(pCmdBuf, &transition, pOperations);
 

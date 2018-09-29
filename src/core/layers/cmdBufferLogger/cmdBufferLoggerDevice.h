@@ -103,16 +103,11 @@ public:
     const PalPublicSettings* PublicSettings() const { return m_pPublicSettings; }
     const DeviceProperties&  DeviceProps() const { return m_deviceProperties; }
 
-    const CmdBufferLoggerSettings& CmdBufferLoggerSettings() const { return m_cmdBufferLoggerSettings; }
-
 private:
     virtual ~Device();
-    Result UpdateSettings();
 
     const PalPublicSettings* m_pPublicSettings;
     DeviceProperties         m_deviceProperties;
-
-    Pal::CmdBufferLoggerSettings m_cmdBufferLoggerSettings;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

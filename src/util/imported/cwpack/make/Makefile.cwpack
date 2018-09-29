@@ -41,7 +41,7 @@ LCDEFS += -DCOMPILE_FOR_LITTLE_ENDIAN=1
 # WA - We currently do not propagate default calling convention build
 #      flag from LCXXOPTS to LCOPTS, partly because it breaks jemalloc.
 #      Using a define to make cwpack use the correct calling convention.
-ifeq ($(PAL_OS_BUILD), wNow)
+ifneq ($(filter wNow wNxt, $(PAL_OS_BUILD)),)
     ifneq ($(filter /Gr, $(LCXXOPTS)),)
         LCDEFS += -DCWP_CALL=__fastcall
     else

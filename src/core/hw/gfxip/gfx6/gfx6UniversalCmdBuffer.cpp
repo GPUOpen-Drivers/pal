@@ -40,6 +40,7 @@
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
+#include "core/g_palPlatformSettings.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
@@ -220,9 +221,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_workaroundState(&device, IsNested()),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
-    const PalSettings&     coreSettings    = m_device.CoreSettings();
-    const Gfx6PalSettings& settings        = m_device.Settings();
-    const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
+    const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
+    const PalSettings&         coreSettings    = m_device.CoreSettings();
+    const Gfx6PalSettings&     settings        = m_device.Settings();
+    const auto*const           pPublicSettings = m_device.Parent()->GetPublicSettings();
 
     memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
     memset(&m_spillTable,              0, sizeof(m_spillTable));
@@ -262,8 +264,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
     }
 
-    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (Util::TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             (Util::TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
 
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
                                             m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());

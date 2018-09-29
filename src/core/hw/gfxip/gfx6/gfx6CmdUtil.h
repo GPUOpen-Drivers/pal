@@ -344,6 +344,10 @@ public:
         uint32  startRegAddr,
         uint32  count,
         void*   pBuffer) const;
+    size_t BuildLoadContextRegsIndex(
+        gpusize gpuVirtAddr,
+        uint32  count,
+        void*   pBuffer) const;
 
     size_t BuildLoadShRegs(
         gpusize              gpuVirtAddr,
@@ -360,6 +364,11 @@ public:
     size_t BuildLoadShRegsIndex(
         uint32        addrOffset,
         uint32        startRegAddr,
+        uint32        count,
+        PM4ShaderType shaderType,
+        void*         pBuffer) const;
+    size_t BuildLoadShRegsIndex(
+        gpusize       gpuVirtAddr,
         uint32        count,
         PM4ShaderType shaderType,
         void*         pBuffer) const;
@@ -529,7 +538,7 @@ private:
         PM4ShaderType        shaderType,
         void*                pBuffer) const;
 
-    template <IT_OpCodeType opCode, bool directAddress>
+    template <IT_OpCodeType opCode, bool directAddress, uint32 dataFormat>
     PAL_INLINE size_t BuildLoadRegsIndex(
         gpusize       gpuVirtAddrOrAddrOffset,
         uint32        startRegOffset,

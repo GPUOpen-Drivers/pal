@@ -97,13 +97,13 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_SQTT_DESC,                    /*!< Description of the SQTT data. */
     SQTT_FILE_CHUNK_TYPE_SQTT_DATA,                    /*!< SQTT data for a single shader engine. */
     SQTT_FILE_CHUNK_TYPE_API_INFO,                     /*!< Description of the API on which the trace was made. */
-    SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,                 /*!< Shader ISA code. */
+    SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,                 /*!< Shader ISA code. Deprecated by CODE_OBJECT_DATABASE. */
     SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,          /*!< Timings for queue events that occurred during trace. */
     SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,            /*!< Information required to correlate between clock domains. */
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
     SQTT_FILE_CHUNK_TYPE_SPM_DB,                       /*!< SPM trace data. */
-    SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
-    SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS,
+    SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,         /*!< Pipeline code object database. */
+    SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS,      /*!< Pipeline API-level load event data. */
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
 
@@ -322,7 +322,56 @@ typedef struct SqttFileChunkSqttData
     int32_t                     size;                       /*!< The size (in bytes) of the SQTT data. */
 } SqttFileChunkSqttData;
 
-/** An enumeration of the hardware shader stage that the shader will run on. Bitfield of shader stages.
+/**  A structure encapsulating information about the code object database.
+ */
+typedef struct SqttFileChunkCodeObjectDatabase
+{
+    SqttFileChunkHeader header;
+    uint32_t            offset;
+    uint32_t            flags;
+    uint32_t            size;
+    uint32_t            recordCount;
+} SqttFileChunkCodeObjectDatabase;
+
+/**  A structure encapsulating information about each record in the code object database.
+ */
+typedef struct SqttCodeObjectDatabaseRecord
+{
+    uint32_t  recordSize;  /*!< The size of the code object in bytes. */
+} SqttCodeObjectDatabaseRecord;
+
+/**  A structure encapsulating information about the load and unload of API level code objects.
+ */
+typedef struct SqttFileChunkApiLevelLoaderEvents
+{
+    SqttFileChunkHeader header;
+    uint32_t            offset;
+    uint32_t            recordSize;                         /*!< Size of a single SqttApiLevelLoaderEventRecord. */
+    uint32_t            recordCount;
+} SqttFileChunkApiLevelLoaderEvents;
+
+/** An enumeration of the API level loader event types.
+*/
+typedef enum SqttApiLevelLoaderEventType
+{
+    SQTT_API_LEVEL_OBJECT_LOAD   = 0x00000000,
+    SQTT_API_LEVEL_OBJECT_UNLOAD = 0x00000001
+} SqttApiLevelLoaderEventType;
+
+/**  A structure encapsulating information about each record in the load events chunk.
+ */
+typedef struct SqttApiLevelLoaderEventRecord
+{
+    SqttApiLevelLoaderEventType eventType;                  /*!< The type of loader event. */
+    uint64_t                    baseAddress;                /*!< The base address where the code object has been loaded. */
+    uint64_t                    codeObjectHash;             /*!< Code object's compiler hash. */
+    uint64_t                    apiHash;                    /*!< Code object hash including runtime API information. */
+    uint64_t                    shaderCodeHash;             /*!< Hash of the shader code. */
+    char                        apiObjectName[64];          /*!< API-level object name as a null-terminated string. */
+    uint64_t                    timestamp;                  /*!< Timestamp. Always set to 0 for now. */
+} SqttApiLevelLoaderEventRecord;
+
+/** An enumeration of the hardware shader stage that the shader will run on. Bitfield of shader stages. Deprecated.
 */
 typedef enum SqttShaderType
 {
@@ -336,7 +385,7 @@ typedef enum SqttShaderType
     SQTT_SHADER_TYPE_RESERVED = 0x00000080                  /*!< Reserved. */
 } SqttShaderType;
 
-/** An enumeration of the shader operations.
+/** An enumeration of the shader operations. Deprecated.
 */
 typedef enum SqttShaderFlags
 {
@@ -345,7 +394,7 @@ typedef enum SqttShaderFlags
     SQTT_SHADER_STREAM_OUT_ENABLED = 0x4
 } SqttShaderFlags;
 
-/**  A structure encapsulating a 128-bit shader hash
+/**  A structure encapsulating a 128-bit shader hash. Deprecated.
 */
 typedef struct SqttShaderHash
 {
@@ -353,7 +402,7 @@ typedef struct SqttShaderHash
     uint64_t upper;   ///< Upper 64-bits of hash
 } ShaderHash;
 
-/**  A structure encapsulating information about each ISA blob in each record of the shader ISA database.
+/**  A structure encapsulating information about each ISA blob in each record of the shader ISA database. Deprecated.
  */
 typedef struct SqttShaderIsaBlobHeader
 {
@@ -368,7 +417,7 @@ typedef struct SqttShaderIsaBlobHeader
     uint64_t        baseAddress;                       /*!< Base address of first instruction in chunk. */
 } SqttShaderIsaBlobHeader;
 
-/**  A structure encapsulating information about each record in the shader ISA database.
+/**  A structure encapsulating information about each record in the shader ISA database. Deprecated.
  */
 typedef struct SqttIsaDatabaseRecord
 {
@@ -380,7 +429,7 @@ typedef struct SqttIsaDatabaseRecord
     uint32_t         recordSize;                             /*!< The size of record (including all blobs) in bytes */
 } SqttIsaDbRecord;
 
-/**  A structure encapsulating information about the shader ISA database.
+/**  A structure encapsulating information about the shader ISA database. Deprecated.
  */
 typedef struct SqttFileChunkIsaDatabase
 {
@@ -414,7 +463,7 @@ typedef enum SqttQueueType
     SQTT_QUEUE_TYPE_UNKNOWN   = 0x0,
     SQTT_QUEUE_TYPE_UNIVERSAL = 0x1,
     SQTT_QUEUE_TYPE_COMPUTE   = 0x2,
-    SQTT_QUEUE_TYPE_DMA       = 0x3
+    SQTT_QUEUE_TYPE_DMA       = 0x3,
 } SqttQueueType;
 
 /** An enumeration of all valid engine types.
@@ -425,7 +474,7 @@ typedef enum SqttEngineType
     SQTT_ENGINE_TYPE_UNIVERSAL         = 0x1,
     SQTT_ENGINE_TYPE_COMPUTE           = 0x2,
     SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE = 0x3,
-    SQTT_ENGINE_TYPE_DMA               = 0x4
+    SQTT_ENGINE_TYPE_DMA               = 0x4,
 } SqttEngineType;
 
 /** A structure encapsulating hardware information about a queue.

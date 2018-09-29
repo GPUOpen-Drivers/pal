@@ -48,7 +48,6 @@ public:
     Device(PlatformDecorator* pPlatform, IDevice* pNextDevice);
     virtual ~Device() {}
 
-    virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
 
     virtual Result Cleanup() override;
@@ -160,8 +159,6 @@ public:
     static bool DetermineDbgOverlaySupport(QueueType queueType)
         { return (queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute); }
 
-    const DebugOverlaySettings& OverlaySettings() const { return m_overlaySettings; }
-
 private:
     Result UpdateSettings();
 
@@ -172,7 +169,6 @@ private:
     DeviceProperties          m_gpuProps;
     uint32                    m_maxSrdSize;
     GpuMemoryHeapProperties   m_memHeapProps[GpuHeapCount];
-    DebugOverlaySettings m_overlaySettings;
 
     // Tracks the total bytes of video memory currently allocated via the external client.
     PAL_ALIGN_CACHE_LINE volatile gpusize m_vidMemTotals[AllocTypeCount][GpuHeapCount];

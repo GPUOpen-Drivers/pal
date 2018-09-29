@@ -209,7 +209,7 @@ public:
                                                   uint8              stencil,
                                                   const SubresRange& range) const override;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout) const override;
+    virtual bool IsFormatReplaceable(const SubresId& subresId, ImageLayout layout, bool isDst) const override;
 
     virtual bool IsSubResourceLinear(const SubresId& subresource) const override;
 

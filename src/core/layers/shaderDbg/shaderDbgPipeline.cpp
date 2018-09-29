@@ -26,6 +26,7 @@
 #include "core/layers/shaderDbg/shaderDbgDevice.h"
 #include "core/layers/shaderDbg/shaderDbgPipeline.h"
 #include "core/layers/shaderDbg/shaderDbgPlatform.h"
+#include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palFile.h"
 #include "palPipelineAbiProcessorImpl.h"
@@ -81,7 +82,7 @@ bool Pipeline::OpenUniqueDumpFile(
     const char* pDispatchString = "DISPATCH";
 
     // This will create the log directory the first time it is called.
-    Result result = m_pPlatform->CreateLogDir(m_pDevice->GetShaderDbgSettings().shaderDbgDirectory);
+    Result result = m_pPlatform->CreateLogDir(m_pPlatform->PlatformSettings().shaderDbgConfig.shaderDbgDirectory);
 
     if (result == Result::Success)
     {

@@ -1377,8 +1377,8 @@ void RsrcProcMgr::HwlFastColorClear(
 
 // =====================================================================================================================
 // An optimized copy does a memcpy of the source fmask and cmask data to the destination image after it is finished.
-// See the HwlUpdateDstImageMetaData function.  For this to work, the layout needs to be exactly the same between the
-// two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
+// See the HwlUpdateDstImageFmaskMetaData function.  For this to work, the layout needs to be exactly the same between
+// the two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
 bool RsrcProcMgr::HwlUseOptimizedImageCopy(
     const Pal::Image&  srcImage,
     const Pal::Image&  dstImage
@@ -1421,7 +1421,7 @@ bool RsrcProcMgr::HwlUseOptimizedImageCopy(
 // On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
 // the data from src to dest, which means dst needs to have fmask of src.  Note that updates to this function need to
 // be reflected in HwlUseOptimizedImageCopy as well.
-void RsrcProcMgr::HwlUpdateDstImageMetaData(
+void RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
     GfxCmdBuffer*          pCmdBuffer,
     const Pal::Image&      srcImage,
     const Pal::Image&      dstImage,
@@ -2426,7 +2426,7 @@ bool RsrcProcMgr::ClearDcc(
 }
 
 // =====================================================================================================================
-void RsrcProcMgr::CreateDccDecompressSafeImageViewSrds(
+void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
     uint32                numSrds,
     const ImageViewInfo*  pImageView,
     void*                 pSrdTable
@@ -2509,7 +2509,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
             RpmUtil::BuildImageViewInfo(
                 &imageView[1], parentImg, viewRange, createInfo.swizzledFormat, true, device.TexOptLevel());  // dst
 
-            CreateDccDecompressSafeImageViewSrds(2, &imageView[0], pSrdTable);
+            HwlCreateDecompressResolveSafeImageViewSrds(2, &imageView[0], pSrdTable);
 
             pSrdTable += 2 * SrdDwordAlignment();
             memcpy(pSrdTable, constData, sizeof(constData));
@@ -4935,7 +4935,7 @@ void Gfx9RsrcProcMgr::InitCmask(
 // On fmask msaa copy through compute shader we do an optimization where we preserve fmask fragmentation while copying
 // the data from src to dest, which means dst needs to have fmask of src and dcc needs to be set to uncompressed since
 // dest color data is no longer dcc compressed after copy.
-void Gfx9RsrcProcMgr::HwlUpdateDstImageMetaData(
+void Gfx9RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(
     GfxCmdBuffer*          pCmdBuffer,
     const Pal::Image&      srcImage,
     const Pal::Image&      dstImage,
@@ -4970,7 +4970,7 @@ void Gfx9RsrcProcMgr::HwlUpdateDstImageMetaData(
     }
 
     // Fmask and cmask data still need fixing as well.
-    RsrcProcMgr::HwlUpdateDstImageMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+    RsrcProcMgr::HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
 }
 
 } // Gfx9

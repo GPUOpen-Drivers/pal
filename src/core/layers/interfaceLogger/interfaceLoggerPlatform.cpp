@@ -26,6 +26,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
+#include "core/g_palPlatformSettings.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include <ctime>
@@ -462,13 +463,12 @@ Result Platform::CommitLoggingSettings()
     if (m_flags.settingsCommitted == 0)
     {
         // Save a copy of the logging presets.
-        const auto settings =
-            static_cast<const InterfaceLogger::Device*const>(m_pDevices[0])->GetInterfaceLoggerSettings();
-        m_loggingPresets[0] = settings.basePreset;
-        m_loggingPresets[1] = settings.elevatedPreset;
+        const auto& settings = PlatformSettings();
+        m_loggingPresets[0] = settings.interfaceLoggerConfig.basePreset;
+        m_loggingPresets[1] = settings.interfaceLoggerConfig.elevatedPreset;
 
         // Try to create the root log directory.
-        result = CreateLogDir(settings.logDirectory);
+        result = CreateLogDir(settings.interfaceLoggerConfig.logDirectory);
 
         if (result == Result::Success)
         {
@@ -481,7 +481,7 @@ Result Platform::CommitLoggingSettings()
 
         // If multithreaded logging is enabled, we need to go back over our previously allocated ThreadData and give
         // them a context.
-        if ((result == Result::Success) && settings.multithreaded)
+        if ((result == Result::Success) && settings.interfaceLoggerConfig.multithreaded)
         {
             m_flags.multithreaded = 1;
 

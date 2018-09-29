@@ -30,7 +30,7 @@
 #include "util/queue.h"
 
 #define RGP_SERVER_MIN_MAJOR_VERSION 2
-#define RGP_SERVER_MAX_MAJOR_VERSION 7
+#define RGP_SERVER_MAX_MAJOR_VERSION 8
 
 namespace DevDriver
 {
@@ -162,7 +162,7 @@ namespace DevDriver
                                             m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
                                             m_traceParameters.flags.u32All = traceParameters.flags.u32All;
                                         }
-                                        else if (pSession->GetVersion() >= RGP_TRIGGER_MARKERS_VERSION)
+                                        else if (pSession->GetVersion() == RGP_TRIGGER_MARKERS_VERSION)
                                         {
                                             const TraceParametersV4& traceParameters = pSessionData->payload.executeTraceRequestV4.parameters;
                                             m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
@@ -181,6 +181,37 @@ namespace DevDriver
                                             Platform::Strncpy(m_traceParameters.endMarker,
                                                               traceParameters.endMarker,
                                                               sizeof(m_traceParameters.endMarker));
+                                        }
+                                        else if (pSession->GetVersion() >= RGP_FRAME_CAPTURE_VERSION)
+                                        {
+                                            const TraceParametersV5& traceParameters = pSessionData->payload.executeTraceRequestV5.parameters;
+
+                                            m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
+                                            m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
+                                            m_traceParameters.captureMode = traceParameters.captureMode;
+                                            m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+
+                                            if (traceParameters.captureMode == CaptureTriggerMode::Index)
+                                            {
+                                                m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
+                                                m_traceParameters.captureStopIndex  = traceParameters.captureStopIndex;
+                                            }
+                                            else if (traceParameters.captureMode == CaptureTriggerMode::Markers)
+                                            {
+                                                m_traceParameters.beginTag =
+                                                    ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) | traceParameters.beginTagLow);
+                                                m_traceParameters.endTag =
+                                                    ((static_cast<uint64>(traceParameters.endTagHigh) << 32) | traceParameters.endTagLow);
+
+                                                Platform::Strncpy(m_traceParameters.beginMarker,
+                                                                  traceParameters.beginMarker,
+                                                                  sizeof(m_traceParameters.beginMarker));
+
+                                                Platform::Strncpy(m_traceParameters.endMarker,
+                                                                  traceParameters.endMarker,
+                                                                  sizeof(m_traceParameters.endMarker));
+                                            }
+                                            // No further processing needed for CaptureTriggerMode::Present
                                         }
                                         else
                                         {

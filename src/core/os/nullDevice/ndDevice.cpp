@@ -77,25 +77,25 @@ constexpr  NullIdLookup  NullIdLookupTable[]=
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 {
-    "TAHITI",
-    "HAINAN",
-    "BONAIRE",
-    "HAWAII",
-    "KALINDI",
-    "GODAVARI",
-    "ICELAND",
-    "CARRIZO",
-    "TONGA",
-    "FIJI",
-    "STONEY",
+    "TAHITI:gfx600",
+    "HAINAN:gfx601",
+    "BONAIRE:gfx700",
+    "HAWAII:gfx701:gfx702",
+    "KALINDI:gfx703",
+    "GODAVARI:gfx703",
+    "ICELAND:gfx800",
+    "CARRIZO:gfx801",
+    "TONGA:gfx802",
+    "FIJI:gfx803:gfx804",
+    "STONEY:gfx810",
 #if PAL_BUILD_GFX9
-    "VEGA10",
+    "VEGA10:gfx900",
 #else
     nullptr,
 #endif
-    "RAVEN",
+    "RAVEN:gfx902",
 #if PAL_BUILD_GFX9
-    "VEGA12",
+    "VEGA12:gfx904",
 #else
     nullptr,
 #endif
@@ -195,18 +195,6 @@ Result Device::AddEmulatedPrivateScreen(
     const PrivateScreenCreateInfo& createInfo,
     uint32*                        pTargetId)
 {
-    return Result::Success;
-}
-
-// =====================================================================================================================
-Result Device::AddGpuMemoryReferences(
-    uint32              gpuMemRefCount,
-    const GpuMemoryRef* pGpuMemoryRefs,
-    IQueue*             pQueue,
-    uint32              flags
-    )
-{
-    // We're not going to be submitting anything, so there's no need to add memory references
     return Result::Success;
 }
 
@@ -1151,18 +1139,6 @@ Result Device::PollFullScreenFrameMetadataControl(
 Result Device::QueryWorkStationCaps(
     WorkStationCaps* pCaps
     ) const
-{
-    return Result::Success;
-}
-
-// =====================================================================================================================
-// We're not ever submitting anything, so we never added gpu memory references, which implies we don't need to remove
-// them either.  :-)
-Result Device::RemoveGpuMemoryReferences(
-    uint32            gpuMemoryCount,
-    IGpuMemory*const* ppGpuMemory,
-    IQueue*           pQueue
-    )
 {
     return Result::Success;
 }

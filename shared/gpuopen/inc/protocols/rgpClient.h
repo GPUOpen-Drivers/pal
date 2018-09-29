@@ -53,6 +53,9 @@ namespace DevDriver
         {
             uint32 gpuMemoryLimitInMb;
             uint32 numPreparationFrames;
+            uint32 captureStartIndex;
+            uint32 captureStopIndex;
+            CaptureTriggerMode captureMode;
 
             union
             {
@@ -60,7 +63,8 @@ namespace DevDriver
                 {
                     uint32 enableInstructionTokens : 1;
                     uint32 allowComputePresents : 1;
-                    uint32 reserved : 30;
+                    uint32 captureDriverCodeObjects : 1;
+                    uint32 reserved : 29;
                 };
                 uint32 u32All;
             } flags;

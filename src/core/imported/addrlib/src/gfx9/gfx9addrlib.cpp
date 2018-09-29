@@ -3135,6 +3135,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
 
     AddrResourceType rsrcType    = pIn->resourceType;
     BOOL_32          tex3d       = IsTex3d(rsrcType);
+    BOOL_32          thin3d      = tex3d && flags.view3dAs2dArray;
     AddrSwizzleMode  swizzle     = pIn->swizzleMode;
     BOOL_32          linear      = IsLinear(swizzle);
     BOOL_32          blk256B     = IsBlock256b(swizzle);
@@ -3185,7 +3186,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
         if (linear)
         {
             invalid = ((ADDR_RSRC_TEX_1D != rsrcType) && prt) ||
-                      zbuffer || msaa || (pIn->bpp == 0) || ((pIn->bpp % 8) != 0);
+                      zbuffer || msaa || (pIn->bpp == 0) || ((pIn->bpp % 8) != 0) || thin3d;
         }
         else
         {
@@ -3202,11 +3203,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
             {
                 if (IsZOrderSwizzle(swizzle))
                 {
-                    invalid = color && msaa;
+                    invalid = (color && msaa) || thin3d;
                 }
                 else if (IsStandardSwizzle(rsrcType, swizzle))
                 {
-                    invalid = zbuffer;
+                    invalid = zbuffer || thin3d;
                 }
                 else if (IsDisplaySwizzle(rsrcType, swizzle))
                 {
@@ -3452,6 +3453,13 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
                 {
                     addrValidSwSet.value |= AddrSwSetS;
                 }
+            }
+
+            if (pIn->flags.view3dAs2dArray)
+            {
+                ADDR_ASSERT(addrValidSwSet.sw_D);
+                addrPreferredSwSet.value  = AddrSwSetD;
+                addrValidSwSet.value     &= AddrSwSetD;
             }
         }
         else
@@ -4992,6 +5000,7 @@ ADDR_E_RETURNCODE Gfx9Lib::ComputeSurfaceLinearPadding(
     {
         UINT_32 mipChainHeight = 0;
         UINT_32 mipHeight      = pIn->height;
+        UINT_32 mipDepth       = (pIn->resourceType == ADDR_RSRC_TEX_3D) ? pIn->numSlices : 1;
 
         for (UINT_32 i = 0; i < pIn->numMipLevels; i++)
         {
@@ -5000,7 +5009,7 @@ ADDR_E_RETURNCODE Gfx9Lib::ComputeSurfaceLinearPadding(
                 pMipInfo[i].offset = mipChainWidth * mipChainHeight * elementBytes;
                 pMipInfo[i].pitch  = mipChainWidth;
                 pMipInfo[i].height = mipHeight;
-                pMipInfo[i].depth  = 1;
+                pMipInfo[i].depth  = mipDepth;
             }
 
             mipChainHeight += mipHeight;

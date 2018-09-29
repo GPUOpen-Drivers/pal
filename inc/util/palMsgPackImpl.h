@@ -40,7 +40,7 @@ namespace Util
 
 // =====================================================================================================================
 PAL_INLINE Result TranslateCwpReturnCode(
-    uint32 returnCode)
+    int32 returnCode)
 {
     Result result = Result::ErrorUnknown;
 

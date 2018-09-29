@@ -2104,6 +2104,36 @@ size_t CmdUtil::BuildLoadContextRegsIndex<false>(
     ) const;
 
 // =====================================================================================================================
+// Builds a PM4 packet which issues a load_context_reg_index command to load a series of individual context registers
+// stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildLoadContextRegsIndex(
+    gpusize gpuVirtAddr,
+    uint32  count,
+    void*   pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_CONTEXT_REG_INDEX) / sizeof(uint32));
+    auto*const       pPacket    = static_cast<PM4PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
+
+    pPacket->header.u32All = Type3Header(IT_LOAD_CONTEXT_REG_INDEX, PacketSize);
+
+    pPacket->ordinal2               = 0;
+    pPacket->bitfields2.index       = index__pfp_load_context_reg_index__direct_addr;
+    pPacket->bitfields2.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
+    pPacket->mem_addr_hi            = HighPart(gpuVirtAddr);
+    // Only the low 16 bits are honored for the high portion of the GPU virtual address!
+    PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
+
+    pPacket->ordinal4               = 0;
+    pPacket->bitfields4.data_format = data_format__pfp_load_context_reg_index__offset_and_data;
+
+    pPacket->ordinal5               = 0;
+    pPacket->bitfields5.num_dwords  = count;
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
 // Builds a PM4 packet which issues a load_sh_reg command to load a single group of consecutive persistent-state
 // registers from video memory.  Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildLoadShRegs(
@@ -2197,8 +2227,8 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_SH_REG_INDEX) / sizeof(uint32));
     auto*const       pPacket    = static_cast<PM4PFP_LOAD_SH_REG_INDEX*>(pBuffer);
 
-    pPacket->header.u32All          = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize);
-    pPacket->ordinal2               = 0;
+    pPacket->header.u32All = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType);
+    pPacket->ordinal2      = 0;
     if (directAddress)
     {
         pPacket->bitfields2.index       = index__pfp_load_sh_reg_index__direct_addr;
@@ -2238,6 +2268,37 @@ size_t CmdUtil::BuildLoadShRegsIndex<false>(
     Pm4ShaderType shaderType,
     void*         pBuffer
     ) const;
+
+// =====================================================================================================================
+// Builds a PM4 packet which issues a load_sh_reg_index command to load a series of individual persistent-state
+// registers stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildLoadShRegsIndex(
+    gpusize       gpuVirtAddr,
+    uint32        count,
+    Pm4ShaderType shaderType,
+    void*         pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    constexpr uint32 PacketSize = (sizeof(PM4PFP_LOAD_SH_REG_INDEX) / sizeof(uint32));
+    auto*const       pPacket    = static_cast<PM4PFP_LOAD_SH_REG_INDEX*>(pBuffer);
+
+    pPacket->header.u32All = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType);
+
+    pPacket->ordinal2               = 0;
+    pPacket->bitfields2.index       = index__pfp_load_sh_reg_index__direct_addr;
+    pPacket->bitfields2.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
+    pPacket->mem_addr_hi            = HighPart(gpuVirtAddr);
+    // Only the low 16 bits are honored for the high portion of the GPU virtual address!
+    PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
+
+    pPacket->ordinal4               = 0;
+    pPacket->bitfields4.data_format = data_format__pfp_load_sh_reg_index__offset_and_data;
+
+    pPacket->ordinal5               = 0;
+    pPacket->bitfields5.num_dwords  = count;
+
+    return PacketSize;
+}
 
 // =====================================================================================================================
 // Builds a PM4 packet which issues a load_uconfig_reg command to load multiple groups of consecutive user-config
@@ -2632,8 +2693,6 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
             //    SW needs to change from using the IT_SET_UCONFIG_REG to IT_SET_UCONFIG_REG_INDEX when using the
             //    "index" field to access the mmVGT_INDEX_TYPE and mmVGT_NUM_INSTANCE registers.
             //
-            //    Only [values] (2, 3) [need the new packet]. The VGT has changed their design so that [values] (1, 4)
-            //    are no longer programmed on GFX10
             opCode = IT_SET_UCONFIG_REG_INDEX;
         }
         else

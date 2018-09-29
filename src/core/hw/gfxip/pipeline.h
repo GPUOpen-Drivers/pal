@@ -39,6 +39,7 @@ namespace Pal
 {
 
 class CmdStream;
+class PipelineUploader;
 class PrefetchMgr;
 
 // Represents information about shader operations stored obtained as shader metadata flags during processing of shader
@@ -122,6 +123,10 @@ public:
         size_t*    pSize,
         void*      pBuffer) const override;
 
+    virtual Result GetPipelineElf(
+        uint32*  pSize,
+        void*    pBuffer) const override;
+
     virtual Result GetPerformanceData(
         Util::Abi::HardwareStage hardwareStage,
         size_t*                  pSize,
@@ -138,8 +143,7 @@ protected:
     Result PerformRelocationsAndUploadToGpuMemory(
         const AbiProcessor&       abiProcessor,
         const CodeObjectMetadata& metadata,
-        gpusize*                  pCodeGpuVirtAddr,
-        gpusize*                  pDataGpuVirtAddr);
+        PipelineUploader*         pUploader);
 
     void ExtractPipelineInfo(
         const CodeObjectMetadata& metadata,
@@ -190,6 +194,80 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(Pipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(Pipeline);
+};
+
+// =====================================================================================================================
+// Helper class used for uploading pipeline data from an ELF binary into GPU memory for later execution.
+class PipelineUploader
+{
+public:
+    PipelineUploader(
+        uint32 ctxRegisterCount,
+        uint32 shRegisterCount);
+    virtual ~PipelineUploader();
+
+    Result Begin(
+        Device*                   pDevice,
+        const AbiProcessor&       abiProcessor,
+        const CodeObjectMetadata& metadata,
+        PerfDataInfo*             pPerfDataInfoList);
+
+    void End();
+
+    uint32 ShRegisterCount() const { return m_shRegisterCount; }
+    uint32 CtxRegisterCount() const { return m_ctxRegisterCount; }
+
+    bool EnableLoadIndexPath() const { return ((CtxRegisterCount() + ShRegisterCount()) != 0); }
+
+    GpuMemory* GpuMem() const { return m_pGpuMemory; }
+    gpusize GpuMemSize() const { return m_gpuMemSize; }
+    gpusize GpuMemOffset() const { return m_baseOffset; }
+
+    gpusize CodeGpuVirtAddr() const { return m_codeGpuVirtAddr; }
+    gpusize DataGpuVirtAddr() const { return m_dataGpuVirtAddr; }
+    gpusize CtxRegGpuVirtAddr() const { return m_ctxRegGpuVirtAddr; }
+    gpusize ShRegGpuVirtAddr() const { return m_shRegGpuVirtAddr; }
+
+protected:
+    // Writes a context register offset and value to the mapped region where registers are stored in GPU memory.
+    PAL_INLINE void AddCtxRegister(uint16 offset, uint32 value)
+    {
+        m_pCtxRegWritePtr[0] = offset;
+        m_pCtxRegWritePtr[1] = value;
+        m_pCtxRegWritePtr   += 2;
+    }
+
+    // Writes an SH register offset and value to the mapped region where registers are stored in GPU memory.
+    PAL_INLINE void AddShRegister(uint16 offset, uint32 value)
+    {
+        m_pShRegWritePtr[0] = offset;
+        m_pShRegWritePtr[1] = value;
+        m_pShRegWritePtr   += 2;
+    }
+
+private:
+    GpuMemory*  m_pGpuMemory;
+    gpusize     m_baseOffset;
+    gpusize     m_gpuMemSize;
+
+    gpusize  m_codeGpuVirtAddr;
+    gpusize  m_dataGpuVirtAddr;
+    gpusize  m_ctxRegGpuVirtAddr;
+    gpusize  m_shRegGpuVirtAddr;
+
+    const uint32  m_shRegisterCount;
+    const uint32  m_ctxRegisterCount;
+
+    void*    m_pMappedPtr;
+    uint32*  m_pCtxRegWritePtr;
+    uint32*  m_pShRegWritePtr;
+#if PAL_ENABLE_PRINTS_ASSERTS
+    uint32*  m_pCtxRegWritePtrStart;
+    uint32*  m_pShRegWritePtrStart;
+#endif
+
+    PAL_DISALLOW_DEFAULT_CTOR(PipelineUploader);
+    PAL_DISALLOW_COPY_AND_ASSIGN(PipelineUploader);
 };
 
 } // Pal

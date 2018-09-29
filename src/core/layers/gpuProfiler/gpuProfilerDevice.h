@@ -27,6 +27,7 @@
 
 #include "core/layers/decorators.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
+#include "core/g_palPlatformSettings.h"
 #include "palMutex.h"
 
 namespace Util { class File; }
@@ -125,15 +126,14 @@ public:
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) override;
 
-    const Pal::GpuProfilerSettings& ProfilerSettings() const { return m_profilerSettings; }
-
     GpuProfilerMode GetProfilerMode() const { return static_cast<Platform*>(GetPlatform())->GetProfilerMode(); }
 
     // Returns true if the settings config has successfully requested for SQ thread trace.
     bool IsThreadTraceEnabled() const
     {
         return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly)
-                && (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSqtt))
+                && (Util::TestAnyFlagSet(GetPlatform()->PlatformSettings().gpuProfilerConfig.traceModeMask,
+                                         GpuProfilerTraceSqtt))
                 && (GetSeMask() > 0));
     }
 
@@ -141,13 +141,12 @@ public:
     bool IsSpmTraceEnabled() const
     {
         return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
-                (Util::TestAnyFlagSet(m_profilerSettings.profilerConfig.traceModeMask, GpuProfilerTraceSpm)));
+                (Util::TestAnyFlagSet(GetPlatform()->PlatformSettings().gpuProfilerConfig.traceModeMask,
+                                      GpuProfilerTraceSpm)));
     }
 
 private:
     virtual ~Device();
-
-    Result UpdateSettings();
 
     Result InitGlobalPerfCounterState();
     Result CountPerfCounters(
@@ -202,8 +201,6 @@ private:
     // Useful for reporting purposes.
     static constexpr uint32 MaxEngineCount = 8;
     uint32 m_queueIds[EngineTypeCount][MaxEngineCount];
-
-    Pal::GpuProfilerSettings m_profilerSettings;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

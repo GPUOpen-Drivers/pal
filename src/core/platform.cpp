@@ -27,6 +27,8 @@
 #include "core/platform.h"
 #include "core/settingsLoader.h"
 #include "core/os/nullDevice/ndPlatform.h"
+#include "palAssert.h"
+#include "palDbgPrint.h"
 #include "palSysMemory.h"
 
 #if PAL_BUILD_LAYERS
@@ -89,9 +91,13 @@ Platform::Platform(
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
     m_pDevDriverServer(nullptr),
+    m_allocator(this),
+    m_settingsLoader(&m_allocator, this),
     m_pRgpServer(nullptr),
     m_pLoggingServer(nullptr),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
     m_pPipelineDumpService(nullptr),
+#endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -102,7 +108,6 @@ Platform::Platform(
     memset(&m_properties, 0, sizeof(m_properties));
 
     m_flags.u32All = 0;
-    m_flags.usesDefaultAllocCb         = (createInfo.pAllocCb == nullptr);
     m_flags.disableGpuTimeout          = createInfo.flags.disableGpuTimeout;
     m_flags.force32BitVaSpace          = createInfo.flags.force32BitVaSpace;
     m_flags.createNullDevice           = createInfo.flags.createNullDevice;
@@ -128,11 +133,6 @@ Platform::~Platform()
     Util::DbgPrintCallback dbgPrintCallback = {};
     Util::SetDbgPrintCallback(dbgPrintCallback);
 #endif
-
-    if (m_flags.usesDefaultAllocCb)
-    {
-        OsDestroyDefaultAllocCallbacks();
-    }
 }
 
 // =====================================================================================================================
@@ -168,6 +168,10 @@ Result Platform::Create(
     if (result == Result::Success)
     {
         (*ppPlatform) = pPlatform;
+    }
+    else if (pPlatform != nullptr)
+    {
+        pPlatform->Destroy();
     }
 
     return result;
@@ -311,7 +315,7 @@ Result Platform::Init()
     // Perform early initialization of the developer driver after the platform is available.
     if (result == Result::Success)
     {
-        EarlyInitDevDriver();
+        result = EarlyInitDevDriver();
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -349,7 +353,7 @@ Result Platform::Init()
 // =====================================================================================================================
 // Initializes a connection with the developer driver message bus if it's currently enabled on the system.
 // This function should be called before device enumeration.
-void Platform::EarlyInitDevDriver()
+Result Platform::EarlyInitDevDriver()
 {
     bool isConnectionAvailable = false;
 
@@ -380,7 +384,7 @@ void Platform::EarlyInitDevDriver()
     }
 #endif
 #endif
-
+    DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
     {
         static const char* pClientStr = "AMD Vulkan Driver";
@@ -437,9 +441,11 @@ void Platform::EarlyInitDevDriver()
 #endif
         if (m_pDevDriverServer != nullptr)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
             bool pipelineDumpsEnabled = false;
+#endif
 
-            DevDriver::Result devDriverResult = m_pDevDriverServer->Initialize();
+            devDriverResult = m_pDevDriverServer->Initialize();
 
             if (devDriverResult == DevDriver::Result::Success)
             {
@@ -459,6 +465,7 @@ void Platform::EarlyInitDevDriver()
                                                                DevDriver::kFindClientTimeout,
                                                                &filter);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
                 // Destroy the developer driver server if developer mode is not enabled.
                 if (devDriverResult != DevDriver::Result::Success)
                 {
@@ -471,6 +478,7 @@ void Platform::EarlyInitDevDriver()
                         static_cast<DevDriver::StatusFlags>(DevDriver::ClientStatusFlags::PipelineDumpsEnabled);
                     pipelineDumpsEnabled = TestAnyFlagSet(filter.status, dumpFlag);
                 }
+#endif
             }
             else
             {
@@ -495,6 +503,7 @@ void Platform::EarlyInitDevDriver()
                 // Initialize the logging subsystem if we successfully started the dev driver server.
                 m_pLoggingServer->AddCategoryTable(0, static_cast<uint32>(LogCategory::Count), LogCategoryTable);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
                 // Only create the pipeline dump service if pipeline dumps are enabled by the associated tool.
                 if (pipelineDumpsEnabled)
                 {
@@ -514,6 +523,7 @@ void Platform::EarlyInitDevDriver()
                         }
                     }
                 }
+#endif
             }
         }
         else
@@ -522,6 +532,16 @@ void Platform::EarlyInitDevDriver()
             PAL_ASSERT_ALWAYS();
         }
     }
+
+    // Initialize Platform settings
+    Result ret = m_settingsLoader.Init();
+
+    if (m_pDevDriverServer != nullptr)
+    {
+        m_pDevDriverServer->StartDeviceInit();
+    }
+
+    return ret;
 }
 
 // =====================================================================================================================
@@ -552,6 +572,18 @@ void Platform::LateInitDevDriver()
         // Set up the device clock callbacks.
         pDriverControlServer->SetDeviceClockCallback(deviceClockCallbackInfo);
     }
+
+    // Now that we have some valid devices we can look for settings overrides in the registry/settings file.
+    // Note, we don't really care if this is the device that will actually be used for rendering, we just
+    // need a device object for the OS specific ReadSetting function.
+    if (m_deviceCount >= 1)
+    {
+        m_settingsLoader.ReadSettings(m_pDevice[0]);
+    }
+
+    // And then before finishing init we have an opportunity to override the settings default values based on
+    // runtime info
+    m_settingsLoader.OverrideDefaults();
 }
 
 // =====================================================================================================================
@@ -564,10 +596,12 @@ void Platform::DestroyDevDriver()
         m_pRgpServer = nullptr;
         m_pLoggingServer = nullptr;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 437
         if (m_pPipelineDumpService != nullptr)
         {
             PAL_SAFE_DELETE(m_pPipelineDumpService, this);
         }
+#endif
 
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
@@ -604,38 +638,6 @@ Result Platform::ReEnumerateDevices()
     }
     return result;
 }
-
-#if PAL_BUILD_DBG_OVERLAY
-// =====================================================================================================================
-bool Platform::IsDebugOverlayEnabled() const
-{
-    return (m_deviceCount > 0) ? m_pDevice[0]->Settings().debugOverlayEnabled : false;
-}
-#endif
-
-#if PAL_BUILD_GPU_PROFILER
-// =====================================================================================================================
-GpuProfilerMode Platform::GpuProfilerMode() const
-{
-    return (m_deviceCount > 0) ? m_pDevice[0]->Settings().gpuProfilerMode : GpuProfilerDisabled;
-}
-#endif
-
-#if PAL_BUILD_CMD_BUFFER_LOGGER
-// =====================================================================================================================
-bool Platform::IsCmdBufferLoggerEnabled() const
-{
-    return (m_deviceCount > 0) ? m_pDevice[0]->Settings().cmdBufferLoggerEnabled : false;
-}
-#endif
-
-#if PAL_BUILD_INTERFACE_LOGGER
-// =====================================================================================================================
-bool Platform::IsInterfaceLoggerEnabled() const
-{
-    return (m_deviceCount > 0) ? m_pDevice[0]->Settings().interfaceLoggerEnabled : false;
-}
-#endif
 
 // =====================================================================================================================
 bool Platform::IsDevDriverProfilingEnabled() const

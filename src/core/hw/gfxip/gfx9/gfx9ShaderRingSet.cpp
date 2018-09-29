@@ -360,53 +360,6 @@ Result UniversalRingSet::Init()
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
         m_pm4Commands.vgtHsOffchipParam.bits.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
-
-        // Let's set up the SRDs for the offchip NGG buffers.
-        if (m_pDevice->Settings().nggMode != Gfx9NggDisabled)
-        {
-            const     Pal::Device* pParent         = m_pDevice->Parent();
-            const     auto&        primShaderInfo  = m_pDevice->Parent()->ChipProperties().gfx9.primShaderInfo;
-
-            BufferViewInfo srdCreateInfo[4] = {};
-            // Offchip Parameter Cache
-            if (primShaderInfo.parameterCacheVa != 0)
-            {
-                srdCreateInfo[0].swizzledFormat = UndefinedSwizzledFormat;
-                srdCreateInfo[0].gpuAddr        = primShaderInfo.parameterCacheVa;
-                srdCreateInfo[0].range          = primShaderInfo.parameterCacheSize;
-                srdCreateInfo[0].stride         = 4 * sizeof(uint32);
-            }
-            // Offchip Position Buffer
-            if (primShaderInfo.positionBufferVa != 0)
-            {
-                srdCreateInfo[1].swizzledFormat = UndefinedSwizzledFormat;
-                srdCreateInfo[1].gpuAddr        = primShaderInfo.positionBufferVa;
-                srdCreateInfo[1].range          = primShaderInfo.positionBufferSize;
-                srdCreateInfo[1].stride         = 4 * sizeof(uint32);
-            }
-            // Offchip Primitive Ring Buffer
-            if (primShaderInfo.primitiveBufferVa != 0)
-            {
-                srdCreateInfo[2].swizzledFormat = UndefinedSwizzledFormat;
-                srdCreateInfo[2].gpuAddr        = primShaderInfo.primitiveBufferVa;
-                srdCreateInfo[2].range          = primShaderInfo.primitiveBufferSize;
-                srdCreateInfo[2].stride         = sizeof(uint32);
-            }
-            // Offchip Control Sideband Buffer
-            if (primShaderInfo.controlSidebandVa != 0)
-            {
-                srdCreateInfo[3].swizzledFormat = UndefinedSwizzledFormat;
-                srdCreateInfo[3].gpuAddr        = primShaderInfo.controlSidebandVa;
-                srdCreateInfo[3].range          = primShaderInfo.controlSidebandSize;
-                srdCreateInfo[3].stride         = 1;
-            }
-
-            BufferSrd* pOffchipParamCache     = &m_pSrdTable[static_cast<uint32>(ShaderRingSrd::NggOffchipParamCache)];
-            BufferSrd* pOffchipPositionBuffer = &m_pSrdTable[static_cast<uint32>(ShaderRingSrd::NggPositionBuffer)];
-
-            pParent->CreateUntypedBufferViewSrds(1, &srdCreateInfo[0], pOffchipParamCache);
-            pParent->CreateUntypedBufferViewSrds(3, &srdCreateInfo[1], pOffchipPositionBuffer);
-        }
     }
 
     if (result == Result::Success)

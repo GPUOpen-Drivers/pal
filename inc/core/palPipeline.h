@@ -453,6 +453,19 @@ public:
         size_t*                    pNumEntries,
         GpuMemSubAllocInfo* const  pAllocInfoList) = 0;
 
+    /// Obtains the binary code object for this pipeline.
+    ///
+    /// @param [in, out] pSize  Represents the size of the shader ISA code.
+    ///
+    /// @param [out] pBuffer    If non-null, the pipeline ELF is written in the buffer. If null, the size required
+    ///                         for the pipeline ELF is given out in the location pSize.
+    ///
+    /// @returns Success if the pipeline binary was fetched successfully.
+    ///          +ErrorUnavailable if the pipeline binary was not fetched successfully.
+    virtual Result GetPipelineElf(
+        uint32*  pSize,
+        void*    pBuffer) const = 0;
+
     /// Obtains the shader pre and post compilation stats/params for the specified shader stage.
     ///
     /// @param [in]  shaderType The shader stage for which the stats are requested.
@@ -500,8 +513,6 @@ public:
         void*                    pBuffer) = 0;
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
-    ///
-    /// @note This is temporary until the SCPC separation is finalized.
     ///
     /// @returns The appropriate mapping for this pipeline.
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const = 0;

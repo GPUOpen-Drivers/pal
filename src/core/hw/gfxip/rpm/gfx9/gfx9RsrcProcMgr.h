@@ -153,10 +153,10 @@ protected:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}
 
-    virtual void CreateDccDecompressSafeImageViewSrds(
+    virtual void HwlCreateDecompressResolveSafeImageViewSrds(
         uint32                numSrds,
         const ImageViewInfo*  pImageView,
-        void*                 pSrdTable) const;
+        void*                 pSrdTable) const override;
 
     virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,
@@ -211,13 +211,21 @@ protected:
         const Pal::Image&  srcImage,
         const Pal::Image&  dstImage) const override;
 
-    virtual void HwlUpdateDstImageMetaData(
+    virtual void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         uint32                 flags) const override;
+
+    virtual bool HwlImageUsesCompressedWrites(
+        const uint32* pImageSrd) const override { return false; }
+
+    virtual void HwlUpdateDstImageStateMetaData(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      dstImage,
+        const SubresRange&     range) const override {}
 
     static void MetaDataDispatch(
         GfxCmdBuffer*       pCmdBuffer,
@@ -484,7 +492,7 @@ private:
         uint32                    regionCount,
         const ImageResolveRegion* pRegions) const override;
 
-    void HwlUpdateDstImageMetaData(
+    void HwlUpdateDstImageFmaskMetaData(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,

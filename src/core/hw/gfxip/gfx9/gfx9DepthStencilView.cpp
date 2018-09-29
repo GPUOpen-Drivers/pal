@@ -61,10 +61,12 @@ DepthStencilView::DepthStencilView(
     PAL_ASSERT(createInfo.pImage != nullptr);
     const auto& imageInfo = m_pImage->Parent()->GetImageCreateInfo();
     const auto& parent    = *m_device.Parent();
+    const auto& settings  = GetGfx9Settings(*(pDevice->Parent()));
 
-    m_flags.u32All          = 0;
+    m_flags.u32All = 0;
 
-    if (m_pImage->CanMipSupportMetaData(createInfo.mipLevel))
+    if ((settings.waRestrictMetaDataUseInMipTail == false) ||
+        m_pImage->CanMipSupportMetaData(createInfo.mipLevel))
     {
         m_flags.hTile = m_pImage->HasHtileData();
     }

@@ -151,31 +151,40 @@ Result VamMgr::AssignVirtualAddress(
 // allocations are destroyed.
 //
 // On Linux, since we don't use an unmap-info buffer, we ask VAM to free the unmapped address immediately.
-void VamMgr::FreeVirtualAddress(
+Result VamMgr::FreeVirtualAddress(
     Pal::Device*const     pDevice,
-    const Pal::GpuMemory& gpuMemory)
+    const Pal::GpuMemory* pGpuMemory)
 {
     VAM_FREE_INPUT vamFreeIn = { };
 
-    vamFreeIn.virtualAddress = gpuMemory.Desc().gpuVirtAddr;
-    vamFreeIn.actualSize     = gpuMemory.Desc().size;
+    Result result = Result::ErrorInvalidPointer;
 
-    for (uint32 i = 0; i < static_cast<uint32>(VaPartition::Count); ++i)
+    if (pGpuMemory != nullptr)
     {
-        const auto& vaRange = pDevice->MemoryProperties().vaRange[i];
+        vamFreeIn.virtualAddress = pGpuMemory->Desc().gpuVirtAddr;
+        vamFreeIn.actualSize     = pGpuMemory->Desc().size;
 
-        if ((vaRange.baseVirtAddr <= vamFreeIn.virtualAddress) &&
-            ((vaRange.baseVirtAddr + vaRange.size) >= (vamFreeIn.virtualAddress + vamFreeIn.actualSize)))
+        for (uint32 i = 0; i < static_cast<uint32>(VaPartition::Count); ++i)
         {
-            vamFreeIn.hSection = m_hSection[i];
-            break;
+            const auto& vaRange = pDevice->MemoryProperties().vaRange[i];
+
+            if ((vaRange.baseVirtAddr <= vamFreeIn.virtualAddress) &&
+                ((vaRange.baseVirtAddr + vaRange.size) >= (vamFreeIn.virtualAddress + vamFreeIn.actualSize)))
+            {
+                vamFreeIn.hSection = m_hSection[i];
+                break;
+            }
         }
+
+        if (VAMFree(m_hVamInstance, &vamFreeIn) != VAM_OK)
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        result = Result::Success;
     }
 
-    if (VAMFree(m_hVamInstance, &vamFreeIn) != VAM_OK)
-    {
-        PAL_ASSERT_ALWAYS();
-    }
+    return result;
 }
 
 // =====================================================================================================================
@@ -500,7 +509,7 @@ void VamMgrSingleton::FreeVirtualAddress(
 
     if (pVamMgrInfo != nullptr)
     {
-        pVamMgrInfo->pVamMgr->FreeVirtualAddress(pDevice, gpuMemory);
+        pVamMgrInfo->pVamMgr->FreeVirtualAddress(pDevice, &gpuMemory);
     }
 }
 

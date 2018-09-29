@@ -112,9 +112,10 @@ Result Platform::ReQueryDevices()
         PAL_ASSERT(m_nullGpuId == NullGpuId::Max);
     }
 
-    nullGpuCount = Util::Min(nullGpuCount, MaxDevices);
+    // Only create the last MaxDevices null devices if we are in NullGpuId::All mode.
+    const uint32 firstNullGpu = (nullGpuCount > MaxDevices) ? (nullGpuCount - MaxDevices) : 0;
 
-    for (uint32 nullGpu = 0; nullGpu < nullGpuCount; nullGpu++)
+    for (uint32 nullGpu = firstNullGpu; nullGpu < nullGpuCount; nullGpu++)
     {
         NullDevice::Device* pDevice = nullptr;
 

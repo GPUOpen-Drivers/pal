@@ -84,11 +84,6 @@ Result Device::CommitSettingsAndInit()
 
     if (result == Result::Success)
     {
-        result = UpdateSettings();
-    }
-
-    if (result == Result::Success)
-    {
         // We must initialize logging here, now that we finally have our settings.
         result = pPlatform->CommitLoggingSettings();
     }
@@ -104,22 +99,6 @@ Result Device::CommitSettingsAndInit()
     }
 
     return result;
-}
-
-// =====================================================================================================================
-Result Device::UpdateSettings()
-{
-    memset(m_interfaceLoggerSettings.logDirectory, 0, 512);
-    strncpy(m_interfaceLoggerSettings.logDirectory, "~/.amdpal/", 512);
-    m_interfaceLoggerSettings.multithreaded = false;
-    m_interfaceLoggerSettings.basePreset = 0x7;
-    m_interfaceLoggerSettings.elevatedPreset = 0x1F;
-
-    // Temporarily override the hard coded setting with the copy of the layer settings the core layer has initialized.
-    const auto coreLayerSettings = GetInterfaceLoggerSettings();
-    m_interfaceLoggerSettings = coreLayerSettings;
-
-    return Result::Success;
 }
 
 // =====================================================================================================================

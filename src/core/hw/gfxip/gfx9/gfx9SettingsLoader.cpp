@@ -56,7 +56,8 @@ SettingsLoader::SettingsLoader(
                          g_gfx9PalNumSettings),
     m_pDevice(pDevice),
     m_settings(),
-    m_gfxLevel(pDevice->ChipProperties().gfxLevel)
+    m_gfxLevel(pDevice->ChipProperties().gfxLevel),
+    m_pComponentName("Gfx9_Pal")
 {
     memset(&m_settings, 0, sizeof(Gfx9PalSettings));
 }
@@ -215,7 +216,7 @@ void SettingsLoader::ValidateSettings(
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        m_settings.nggMode = Gfx9NggDisabled;
+        m_settings.nggEnableMode = NggPipelineTypeDisabled;
     }
 
     m_state = SettingsLoaderState::Final;
@@ -232,26 +233,13 @@ void SettingsLoader::OverrideDefaults(
     // Enable workarounds which are common to all Gfx9/Gfx9+ hardware.
     if (IsGfx9(*m_pDevice))
     {
-        m_settings.nggMode = Gfx9NggDisabled;
+        m_settings.nggEnableMode = NggPipelineTypeDisabled;
 
         m_settings.waColorCacheControllerInvalidEviction = true;
 
         m_settings.waDisableHtilePrefetch = true;
 
         m_settings.waOverwriteCombinerTargetMaskOnly = true;
-
-        // There is a bug where the WD will page fault when it writes VGT_EVENTs into the NGG offchip control sideband
-        // (CSB) because there is no page table mapped for the VMID that was left in an NGG pipeline state.
-        // Since page tables are allocated by the kernel driver per-process, when the process is terminated the page
-        // table mapping will be invalidated-and-erased. This will leave no page tables mapped for the current VMID, and
-        // the WD request for a virtual memory address translation of the CSB buffer will consequently fail.
-        // NOTE: This is not an issue for mid-command buffer preemption nor when another process immediately follows
-        //       this one with rendering work, as the kernel performs an invalidate-and-swap with the page tables,
-        //       instead of invalidate-and-erase. Since the NGG buffers are mapped into every page table, these cases
-        //       will not cause the same page fault.
-        m_settings.waNggWdPageFault = true;
-
-        m_settings.waLegacyToNggVsPartialFlush = true;
 
         m_settings.waDummyZpassDoneBeforeTs = true;
 

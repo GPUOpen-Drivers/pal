@@ -122,12 +122,12 @@ void PipelineRecordsIterator::Next()
     }
 }
 
-PipelineUriService::PipelineUriService(const AllocCb& allocCb)
+PipelineUriService::PipelineUriService()
     :
     DevDriver::IService(),
-    m_allocCb(allocCb),
     m_pWriter(nullptr),
-    m_driverInfo({})
+    m_driverInfo({}),
+    m_lock()
 {}
 
 PipelineUriService::~PipelineUriService()
@@ -135,6 +135,8 @@ PipelineUriService::~PipelineUriService()
 
 Result PipelineUriService::Init(const DriverInfo& driverInfo)
 {
+    Platform::LockGuard<Platform::AtomicLock> guard(m_lock);
+
     m_driverInfo = driverInfo;
 
     // The `QueryPostSizeLimit()` is only called when the post data is not inline.
@@ -168,6 +170,8 @@ Result PipelineUriService::Init(const DriverInfo& driverInfo)
 DevDriver::Result PipelineUriService::HandleRequest(DevDriver::IURIRequestContext* pContext)
 {
     DD_ASSERT(m_pWriter == nullptr);
+
+    Platform::LockGuard<Platform::AtomicLock> guard(m_lock);
     Result result = Result::UriInvalidParameters;
 
     const char* const pArgDelim = " ";

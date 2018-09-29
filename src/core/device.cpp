@@ -40,10 +40,12 @@
 #include "core/addrMgr/addrMgr.h"
 #include "core/svmMgr.h"
 #include "palFormatInfo.h"
+#include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
 #include "palPipeline.h"
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
+
 #include <limits.h>
 
 // Dev Driver includes
@@ -189,6 +191,9 @@ bool Device::DetermineGpuIpLevels(
             (pIpLevels->vcn != VcnIpLevel::None));
 }
 
+// Initial HashMap element size for referenced GPU memory allocations.
+constexpr uint32 ReferencedMemoryMapElements = 2048;
+
 // =====================================================================================================================
 Device::Device(
     Platform*              pPlatform,
@@ -218,6 +223,8 @@ Device::Device(
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
     m_disableSwapChainAcquireBeforeSignaling(false),
     m_localInvDropCpuWrites(false),
+    m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
+    m_referencedGpuMemLock(),
     m_pAddrMgr(nullptr),
     m_pTrackedCmdAllocator(nullptr),
     m_pUntrackedCmdAllocator(nullptr),
@@ -257,6 +264,7 @@ Device::Device(
     memset(&m_virtualDisplayCaps, 0, sizeof(m_virtualDisplayCaps));
     memset(&m_cacheFilePath,      0, sizeof(m_cacheFilePath));
     memset(&m_debugFilePath,      0, sizeof(m_debugFilePath));
+    memset(&m_referencedGpuMemBytes[0], 0, sizeof(m_referencedGpuMemBytes));
 }
 
 // =====================================================================================================================
@@ -407,6 +415,16 @@ Result Device::EarlyInit(
     // NOTE: The memory manager MUST be initialized before any other child object which may attempt to allocate
     // video memory!
     Result result = m_memMgr.Init();
+
+    if (result == Result::Success)
+    {
+        m_referencedGpuMemLock.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        m_referencedGpuMem.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -1119,136 +1137,11 @@ Result Device::CommitSettingsAndInit()
     }
 #endif
 
-    // The layer settings have been temporarily duplicated in the pal core settings struct to allow them to still be
-    // modified while the settings are refactored.  We need to copy the duplicated settings into the appropriate
-    // structures here so the layer can access them.
-    CopyLayerSettings();
-
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted = true;
 #endif
 
     return LateInit();
-}
-
-// =====================================================================================================================
-void Device::CopyLayerSettings()
-{
-    const auto settings = Settings();
-
-    // Command Buffer Logger Layer
-    m_cmdBufLoggerSettings.cmdBufferLoggerFlags = settings.cmdBufferLoggerFlags;
-
-    // Debug Overlay Layer
-    DebugOverlayConfig* pOverlayCfg = &m_dbgOverlaySettings.debugOverlayConfig;
-    pOverlayCfg->visualConfirmEnabled = settings.debugOverlayConfig.visualConfirmEnabled;
-    pOverlayCfg->timeGraphEnabled     = settings.debugOverlayConfig.timeGraphEnabled;
-    pOverlayCfg->overlayLocation      = settings.debugOverlayConfig.overlayLocation;
-    pOverlayCfg->printFrameNumber     = settings.debugOverlayConfig.printFrameNumber;
-
-    OverlayBenchmarkConfig* pBenchmarkCfg = &m_dbgOverlaySettings.overlayBenchmarkConfig;
-    pBenchmarkCfg->maxBenchmarkTime = settings.overlayBenchmarkConfig.maxBenchmarkTime;
-    pBenchmarkCfg->usageLogEnable   = settings.overlayBenchmarkConfig.usageLogEnable;
-    pBenchmarkCfg->logFrameStats    = settings.overlayBenchmarkConfig.logFrameStats;
-    pBenchmarkCfg->maxLoggedFrames  = settings.overlayBenchmarkConfig.maxLoggedFrames;
-
-    TimeGraphConfig* pTimeGraphCfg = &m_dbgOverlaySettings.timeGraphConfig;
-    pTimeGraphCfg->gridLineColor = settings.timeGraphConfig.gridLineColor;
-    pTimeGraphCfg->cpuLineColor  = settings.timeGraphConfig.cpuLineColor;
-    pTimeGraphCfg->gpuLineColor  = settings.timeGraphConfig.gpuLineColor;
-
-    OverlayMemoryInfoConfig* pMemCfg = &m_dbgOverlaySettings.overlayMemoryInfoConfig;
-    pMemCfg->combineNonLocal    = settings.overlayMemoryInfoConfig.combineNonLocal;
-    pMemCfg->reportCmdAllocator = settings.overlayMemoryInfoConfig.reportCmdAllocator;
-    pMemCfg->reportExternal     = settings.overlayMemoryInfoConfig.reportExternal;
-    pMemCfg->reportInternal     = settings.overlayMemoryInfoConfig.reportInternal;
-
-    Strncpy(pBenchmarkCfg->usageLogDirectory, settings.overlayBenchmarkConfig.usageLogDirectory, MaxPathStrLen);
-    Strncpy(pBenchmarkCfg->usageLogFilename, settings.overlayBenchmarkConfig.usageLogFilename, MaxPathStrLen);
-    Strncpy(pBenchmarkCfg->frameStatsLogDirectory,
-            settings.overlayBenchmarkConfig.frameStatsLogDirectory,
-            MaxPathStrLen);
-
-    Strncpy(pOverlayCfg->renderedByString, settings.debugOverlayConfig.renderedByString, MaxMiscStrLen);
-    Strncpy(pOverlayCfg->miscellaneousDebugString, settings.debugOverlayConfig.miscellaneousDebugString, MaxMiscStrLen);
-
-    // GPU Profiler Layer
-    GpuProfilerConfig* pProfilerCfg = &m_gpuProfilerSettings.profilerConfig;
-    pProfilerCfg->startFrame          = settings.gpuProfilerConfig.startFrame;
-    pProfilerCfg->frameCount          = settings.gpuProfilerConfig.frameCount;
-    pProfilerCfg->recordPipelineStats = settings.gpuProfilerConfig.recordPipelineStats;
-    pProfilerCfg->breakSubmitBatches  = settings.gpuProfilerConfig.breakSubmitBatches;
-    pProfilerCfg->traceModeMask       = settings.gpuProfilerConfig.traceModeMask;
-    pProfilerCfg->granularity         = settings.gpuProfilerConfig.granularity;
-
-    GpuProfilerPerfCounterConfig* pPerfCounterCfg = &m_gpuProfilerSettings.perfCounterConfig;
-    pPerfCounterCfg->cacheFlushOnCounterCollection =
-        settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
-
-    GpuProfilerSqttConfig* pSqttCfg = &m_gpuProfilerSettings.sqttConfig;
-    pSqttCfg->tokenMask    = settings.gpuProfilerSqttConfig.tokenMask;
-    pSqttCfg->seMask       = settings.gpuProfilerSqttConfig.seMask;
-    pSqttCfg->pipelineHash = settings.gpuProfilerSqttConfig.pipelineHash;
-    pSqttCfg->vsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;
-    pSqttCfg->vsHash.lower = settings.gpuProfilerSqttConfig.vsHashLo;
-    pSqttCfg->hsHash.upper = settings.gpuProfilerSqttConfig.hsHashHi;
-    pSqttCfg->hsHash.lower = settings.gpuProfilerSqttConfig.hsHashLo;
-    pSqttCfg->dsHash.upper = settings.gpuProfilerSqttConfig.dsHashHi;
-    pSqttCfg->dsHash.lower = settings.gpuProfilerSqttConfig.dsHashLo;
-    pSqttCfg->gsHash.upper = settings.gpuProfilerSqttConfig.gsHashHi;
-    pSqttCfg->gsHash.lower = settings.gpuProfilerSqttConfig.gsHashLo;
-    pSqttCfg->psHash.upper = settings.gpuProfilerSqttConfig.psHashHi;
-    pSqttCfg->psHash.lower = settings.gpuProfilerSqttConfig.psHashLo;
-    pSqttCfg->csHash.upper = settings.gpuProfilerSqttConfig.csHashHi;
-    pSqttCfg->csHash.lower = settings.gpuProfilerSqttConfig.csHashLo;
-    pSqttCfg->maxDraws     = settings.gpuProfilerSqttConfig.maxDraws;
-    pSqttCfg->bufferSize   = settings.gpuProfilerSqttConfig.bufferSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-    pSqttCfg->stallMode    = static_cast<GpuProfilerStallMode>(settings.gpuProfilerSqttConfig.stallBehavior);
-#endif
-
-    Strncpy(pProfilerCfg->logDirectory, settings.gpuProfilerConfig.logDirectory, MaxPathStrLen);
-    Strncpy(pPerfCounterCfg->globalPerfCounterConfigFile,
-            settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile,
-            MaxFileNameStrLen);
-
-    // GpuProfiler Spm trace config settings.
-    GpuProfilerSpmConfig* pSpmCfg = &m_gpuProfilerSettings.spmConfig;
-    pSpmCfg->spmTraceBufferSize = settings.gpuProfilerSpmConfig.spmBufferSize;
-    pSpmCfg->spmTraceInterval   = settings.gpuProfilerSpmConfig.spmTraceInterval;
-
-    Strncpy(pSpmCfg->spmPerfCounterConfigFile,
-            settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile,
-            MaxFileNameStrLen);
-
-    // Interface Logger Layer
-    m_interfaceLoggerSettings.basePreset = settings.interfaceLoggerConfig.basePreset;
-    m_interfaceLoggerSettings.elevatedPreset = settings.interfaceLoggerConfig.elevatedPreset;
-    m_interfaceLoggerSettings.multithreaded = settings.interfaceLoggerConfig.multithreaded;
-    Strncpy(m_interfaceLoggerSettings.logDirectory, settings.interfaceLoggerConfig.logDirectory, MaxPathStrLen);
-
-}
-
-// =====================================================================================================================
-// Memory allocation callback function for SCPC.
-static void* PAL_STDCALL ScpcAllocFunc(
-    void*           pClientData,
-    size_t          size,
-    size_t          alignment,
-    SystemAllocType allocType)
-{
-    auto*const pDevice = static_cast<Device*>(pClientData);
-    return PAL_MALLOC_ALIGNED(size, alignment, pDevice->GetPlatform(), allocType);
-}
-
-// =====================================================================================================================
-// Memory free callback function for SCPC.
-static void PAL_STDCALL ScpcFreeFunc(
-    void* pClientData,
-    void* pMem)
-{
-    auto*const pDevice = static_cast<Device*>(pClientData);
-    PAL_FREE(pMem, pDevice->GetPlatform());
 }
 
 // =====================================================================================================================
@@ -1303,14 +1196,13 @@ void Device::InitPageFaultDebugSrd()
         GpuMemoryInternalCreateInfo internalCreateInfo = {};
         internalCreateInfo.flags.alwaysResident    = 1;
         internalCreateInfo.flags.pageFaultDebugSrd = 1;
-        internalCreateInfo.baseVirtAddr            = baseVirtAddr;
 
         Result result = ReserveGpuVirtualAddress(VaPartition::DescriptorTable,
-                                                 internalCreateInfo.baseVirtAddr,
+                                                 baseVirtAddr,
                                                  vaSize,
                                                  true,
                                                  VirtualGpuMemAccessMode::Undefined,
-                                                 nullptr);
+                                                 &internalCreateInfo.baseVirtAddr);
 
         GpuMemory* pGpuMem = nullptr;
         gpusize memOffset = 0;
@@ -1829,6 +1721,7 @@ Result Device::GetProperties(
             pInfo->imageProperties.tilingSupported[idx] = m_chipProperties.imageProperties.tilingSupported[idx];
         }
 
+        pInfo->pciProperties.domainNumber                     = m_chipProperties.pciDomainNumber;
         pInfo->pciProperties.busNumber                        = m_chipProperties.pciBusNumber;
         pInfo->pciProperties.deviceNumber                     = m_chipProperties.pciDeviceNumber;
         pInfo->pciProperties.functionNumber                   = m_chipProperties.pciFunctionNumber;
@@ -1927,11 +1820,6 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.vgprAllocGranularity = gfx9Props.vgprAllocGranularity;
             pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx9Props.gsPrimBufferDepth;
             pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx9Props.gsVgtTableDepth;
-
-            pInfo->gfxipProperties.shaderCore.primitiveBufferSize  = gfx9Props.primShaderInfo.primitiveBufferSize;
-            pInfo->gfxipProperties.shaderCore.positionBufferSize   = gfx9Props.primShaderInfo.positionBufferSize;
-            pInfo->gfxipProperties.shaderCore.controlSidebandSize  = gfx9Props.primShaderInfo.controlSidebandSize;
-            pInfo->gfxipProperties.shaderCore.parameterCacheSize   = gfx9Props.primShaderInfo.parameterCacheSize;
 
             // Tessellation distribution mode flags.
             pInfo->gfxipProperties.flags.supportPatchTessDistribution     =
@@ -3954,6 +3842,90 @@ Result Device::CreatePrivateScreenImage(
                                            pGpuMemoryPlacementAddr,
                                            ppImage,
                                            ppGpuMemory);
+}
+
+// =====================================================================================================================
+Result Device::AddGpuMemoryReferences(
+    uint32              gpuMemRefCount,
+    const GpuMemoryRef* pGpuMemoryRefs,
+    IQueue*             pQueue,
+    uint32              flags
+    )
+{
+    Result result = Result::Success;
+
+    MutexAuto lock(&m_referencedGpuMemLock);
+
+    for (uint32 i = 0; i < gpuMemRefCount; i++)
+    {
+        uint32* pValue        = nullptr;
+        bool    alreadyExists = false;
+
+        result = m_referencedGpuMem.FindAllocate(pGpuMemoryRefs[i].pGpuMemory, &alreadyExists, &pValue);
+        if (result != Result::Success)
+        {
+            // Not enough room or some other error, so just abort
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+        else
+        {
+            if (alreadyExists == false)
+            {
+                *pValue = 1;
+
+                const GpuMemoryDesc& desc = pGpuMemoryRefs[i].pGpuMemory->Desc();
+                m_referencedGpuMemBytes[desc.preferredHeap] += desc.size;
+            }
+            else
+            {
+                ++(*pValue);
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::RemoveGpuMemoryReferences(
+    uint32            gpuMemoryCount,
+    IGpuMemory*const* ppGpuMemory,
+    IQueue*           pQueue
+    )
+{
+
+    MutexAuto lock(&m_referencedGpuMemLock);
+
+    for (uint32 i = 0; i < gpuMemoryCount; i++)
+    {
+        uint32*const pValue  = m_referencedGpuMem.FindKey(ppGpuMemory[i]);
+        if (pValue != nullptr)
+        {
+            PAL_ASSERT(*pValue > 0);
+            if (--(*pValue) == 0)
+            {
+                m_referencedGpuMem.Erase(ppGpuMemory[i]);
+
+                const GpuMemoryDesc& desc = ppGpuMemory[i]->Desc();
+                PAL_ASSERT(m_referencedGpuMemBytes[desc.preferredHeap] >= desc.size);
+                m_referencedGpuMemBytes[desc.preferredHeap] -= desc.size;
+            }
+        }
+    }
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+void Device::GetReferencedMemoryTotals(
+    gpusize  referencedGpuMemTotal[GpuHeapCount]
+    ) const
+{
+    for (uint32 i = 0; i < GpuHeapCount; ++i)
+    {
+        referencedGpuMemTotal[i] = m_referencedGpuMemBytes[i];
+    }
 }
 
 // =====================================================================================================================

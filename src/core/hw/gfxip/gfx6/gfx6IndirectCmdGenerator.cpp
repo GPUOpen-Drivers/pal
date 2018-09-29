@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
+#include "core/g_palPlatformSettings.h"
 #include "palInlineFuncs.h"
 #include "palFormatInfo.h"
 
@@ -257,7 +258,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
                 size += ((CmdUtil::GetSetDataHeaderSize() + 1) * shaderStageCount);
             }
         }
-        const PalSettings& settings = m_device.Parent()->Settings();
+        const PalPlatformSettings& settings = m_device.Parent()->GetPlatform()->PlatformSettings();
         const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                                  (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
         const bool issueSqttMarkerEvent = (sqttEnabled ||

@@ -31,6 +31,7 @@
 #include "core/layers/dbgOverlay/dbgOverlayQueue.h"
 #include "core/layers/dbgOverlay/dbgOverlayTextWriter.h"
 #include "core/layers/dbgOverlay/dbgOverlayTimeGraph.h"
+#include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 
@@ -329,8 +330,6 @@ Result Queue::SubmitOverlayCmdBuffer(
     const Image& image,
     PresentMode  presentMode)
 {
-    const auto*const pSettings = m_pDevice->GetSettings();
-
     TrackedCmdBuffer* pTrackedCmdBuffer = nullptr;
     Result            result            = Result::Success;
 
@@ -384,7 +383,7 @@ Result Queue::SubmitOverlayCmdBuffer(
         barrier.transitionCount = 1;
         barrier.pTransitions    = &transition;
 
-        const auto& settings = m_pDevice->OverlaySettings();
+        const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
         if (settings.debugOverlayConfig.visualConfirmEnabled == true)
         {

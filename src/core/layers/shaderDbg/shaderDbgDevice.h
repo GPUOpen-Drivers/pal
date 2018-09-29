@@ -87,14 +87,11 @@ public:
     const PalPublicSettings* PublicSettings() const { return m_pPublicSettings; }
     const DeviceProperties&  DeviceProps() const { return m_deviceProperties; }
 
-    const ShaderDbgSettings& ShaderDbgSettings() const { return m_shaderDbgSettings; }
-
 private:
     virtual ~Device();
 
     const PalPublicSettings* m_pPublicSettings;
     DeviceProperties         m_deviceProperties;
-    Pal::ShaderDbgSettings   m_shaderDbgSettings;
 
     bool                                        m_initialized;
     Util::Mutex                                 m_gpuMemoryLock;

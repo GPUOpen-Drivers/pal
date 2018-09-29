@@ -593,11 +593,6 @@ extern Result VirtualRelease(void* pMem, size_t sizeInBytes);
 /// @returns Success if successful, otherwise an appropriate error code.
 extern Result OsInitDefaultAllocCallbacks(AllocCallbacks* pAllocCb);
 
-/// @internal
-///
-/// OS-specific implementation to cleanup any work done to support default callbacks.
-extern void OsDestroyDefaultAllocCallbacks();
-
 /// @internal Internal template implementation for calling a destructor from PAL_DELETE or PAL_DELETE_ARRAY.
 ///
 /// @param [in] p Object to be destructed.

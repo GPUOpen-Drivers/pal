@@ -99,7 +99,7 @@ void TextWriter::WriteVisualConfirm(
     ) const
 {
     auto*const  pFpsMgr   = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
-    const auto& settings  = m_pDevice->OverlaySettings();
+    const auto& settings  = m_pDevice->GetPlatform()->PlatformSettings();
     const auto& gpuProps  = m_pDevice->GpuProps();
 
     char overlayText[MaxTextLines][BufSize];

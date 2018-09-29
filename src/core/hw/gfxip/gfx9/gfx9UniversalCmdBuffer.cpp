@@ -38,6 +38,7 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
+#include "core/g_palPlatformSettings.h"
 #include "core/settingsLoader.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
@@ -266,9 +267,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_customBinSizeY(0),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform())
 {
-    const PalSettings&     coreSettings    = m_device.Parent()->Settings();
-    const Gfx9PalSettings& settings        = m_device.Settings();
-    const auto*const       pPublicSettings = m_device.Parent()->GetPublicSettings();
+    const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
+    const PalSettings&         coreSettings     = m_device.Parent()->Settings();
+    const Gfx9PalSettings&     settings         = m_device.Settings();
+    const auto*const           pPublicSettings  = m_device.Parent()->GetPublicSettings();
 
     memset(&m_indirectUserDataInfo[0],  0, sizeof(m_indirectUserDataInfo));
     memset(&m_spillTable,               0, sizeof(m_spillTable));
@@ -304,7 +306,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
-    m_cachedSettings.nggWdPageFaultWa           = settings.waNggWdPageFault;
     m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
     m_cachedSettings.checkDfsmEqaaWa =
                      (settings.waDisableDfsmWithEqaa                  &&   // Is the workaround enabled on this GPU?
@@ -323,8 +324,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
 
-    const bool sqttEnabled = (coreSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (TestAnyFlagSet(coreSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
+    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             (TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
 
     m_paScBinnerCntl0.u32All = 0;
@@ -379,7 +380,7 @@ Result UniversalCmdBuffer::Init(
         m_streamOut.state.ceRamOffset  = ceRamOffset;
         ceRamOffset += sizeof(m_streamOut.srd);
 
-        if (m_device.Settings().nggMode != Gfx9NggDisabled)
+        if (m_device.Settings().nggEnableMode != NggPipelineTypeDisabled)
         {
             const uint32 nggTableBytes = Pow2Align<uint32>(sizeof(Abi::PrimShaderCbLayout), 256);
 
@@ -700,7 +701,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         {
             // If scissor is never set, no need to rewrite scissor, this happens in D3D12 nested command list.
             m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
-            m_nggState.flags.dirty.scissorRects                    = 1;
         }
 
         m_graphicsState.enableMultiViewport    = usesMultiViewports;
@@ -723,14 +723,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         pCurrPipeline->UpdateNggPrimCb(&m_state.primShaderCbLayout.pipelineStateCb);
         SetPrimShaderWorkload();
 
-        pDeCmdSpace = m_workaroundState.SwitchToNggPipeline(isFirstDrawInCmdBuf,
-                                                            m_pipelineFlags.isNgg,
-                                                            m_pipelineFlags.usesTess,
-                                                            m_pipelineFlags.usesGs,
-                                                            pCurrPipeline->UsesOffchipParamCache(),
-                                                            &m_deCmdStream,
-                                                            pDeCmdSpace);
-
         if (m_nggState.startIndexReg != m_pSignatureGfx->startIndexRegAddr)
         {
             m_nggState.startIndexReg = m_pSignatureGfx->startIndexRegAddr;
@@ -750,15 +742,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         {
             m_drawTimeHwState.valid.drawIndex = 0;
         }
-    }
-
-    // On a legacy-to-NGG pipeline or vice versa, we need to make sure that VGT_DMA_INDEX_TYPE::PRIMGEN_EN is set
-    // appropriately if the client performs an indexed draw.
-    if ((m_gfxIpLevel == GfxIpLevel::GfxIp9) &&
-         (m_vgtDmaIndexType.gfx09.PRIMGEN_EN != static_cast<uint32>(isNgg)))
-    {
-        m_drawTimeHwState.dirty.indexType = 1;
-        m_vgtDmaIndexType.gfx09.PRIMGEN_EN = static_cast<uint32>(isNgg);
     }
 
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
@@ -820,7 +803,6 @@ void UniversalCmdBuffer::CmdSetViewports(
     // Also set scissor dirty flag here since we need cross-validation to handle the case of scissor regions
     // being greater than the viewport regions.
     m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
-    m_nggState.flags.dirty.scissorRects                    = 1;
 }
 
 // =====================================================================================================================
@@ -833,7 +815,6 @@ void UniversalCmdBuffer::CmdSetScissorRects(
     memcpy(&m_graphicsState.scissorRectState.scissors[0], &params.scissors[0], scissorSize);
 
     m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
-    m_nggState.flags.dirty.scissorRects                    = 1;
 }
 
 // =====================================================================================================================
@@ -2913,22 +2894,6 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-    if ((m_cachedSettings.nggWdPageFaultWa != 0) && (pPipeline != nullptr) && pPipeline->IsNgg())
-    {
-        // In order to force the hardware (specifically, the WD block) back into legacy mode we must perform a draw.
-        // We also need to make sure that all NGG state is disabled. This state is located in VGT_SHADER_STAGES_EN and
-        // VGT_INDEX_TYPE.
-
-        const regVGT_SHADER_STAGES_EN vgtShaderStagesEn = { };
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_SHADER_STAGES_EN,
-                                                          vgtShaderStagesEn.u32All,
-                                                          pDeCmdSpace);
-        const uint32 vgtIndexType = 0;
-        pDeCmdSpace += m_cmdUtil.BuildIndexType(vgtIndexType, pDeCmdSpace);
-        pDeCmdSpace += m_cmdUtil.BuildDrawIndexAuto(0, false, Pm4Predicate::PredDisable, pDeCmdSpace);
-    }
-
     if (m_gfxCmdBufState.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
@@ -3932,7 +3897,6 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
     // If nothing has changed, then there's no need to do anything...
     if (m_nggState.flags.dirty.triangleRasterState ||
         m_nggState.flags.dirty.viewports           ||
-        m_nggState.flags.dirty.scissorRects        ||
         m_nggState.flags.dirty.inputAssemblyState  ||
         m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
     {
@@ -3958,17 +3922,6 @@ uint32* UniversalCmdBuffer::UpdateNggRingData(
                 (offsetof(Abi::PrimShaderCbLayout, viewportStateCb) / sizeof(uint32)),
                 (sizeof(m_state.primShaderCbLayout.viewportStateCb) / sizeof(uint32)),
                 reinterpret_cast<const uint32*>(&m_state.primShaderCbLayout.viewportStateCb),
-                NggStateDwords,
-                pCeCmdSpace);
-        }
-
-        if (m_nggState.flags.dirty.scissorRects)
-        {
-            pCeCmdSpace = UploadToUserDataTable(
-                &m_nggTable.state,
-                (offsetof(Abi::PrimShaderCbLayout, scissorStateCb) / sizeof(uint32)),
-                (sizeof(m_state.primShaderCbLayout.scissorStateCb) / sizeof(uint32)),
-                reinterpret_cast<const uint32*>(&m_state.primShaderCbLayout.scissorStateCb),
                 NggStateDwords,
                 pCeCmdSpace);
         }
@@ -4199,7 +4152,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         // Has the current bound pipeline changed?
         const bool checkDfsmPsUav  = m_cachedSettings.disableDfsmPsUav && pipelineDirty;
 
-        // If we're in EQAA for the purposes of this JIRA then we have to kill DFSM.
+        // If we're in EQAA for the purposes of this workaround then we have to kill DFSM.
         // Remember that the register is programmed in terms of log2, while the create info struct is in terms of
         // actual samples.
         if (checkDfsmEqaaWa && (1u << m_log2NumSamples) != pDepthImage->Parent()->GetImageCreateInfo().samples)
@@ -5043,17 +4996,12 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 {
     ScissorRectPm4Img scissorRectImg[MaxViewports];
     const uint32 numScissorRectRegs = BuildScissorRectImage((m_graphicsState.enableMultiViewport != 0), scissorRectImg);
-    auto*        pNggScissorCntls   = &m_state.primShaderCbLayout.scissorStateCb.scissorControls[0];
 
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(
                                     mmPA_SC_VPORT_SCISSOR_0_TL,
                                     mmPA_SC_VPORT_SCISSOR_0_TL + numScissorRectRegs - 1,
                                     &scissorRectImg[0],
                                     pDeCmdSpace);
-
-    static_assert((sizeof(*pNggScissorCntls) == sizeof(ScissorRectPm4Img)),
-                  "NGG scissor structure doesn't match PAL internal structure!");
-    memcpy(pNggScissorCntls, &scissorRectImg[0], numScissorRectRegs * sizeof(uint32));
 
     return pDeCmdSpace;
 }
@@ -5722,6 +5670,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
         pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = m_state.flags.isPrecisionOn;
         pDbCountControl->bits.ZPASS_ENABLE            = 1;
         pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
+
     }
     else if (IsNested())
     {
@@ -6448,7 +6397,8 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
     // There is a lot of logic necessary to support NGG pipelines with indirect command generation that would cause
     // indirect command generation to suffer more of a performance hit.
-    PAL_ASSERT(static_cast<const GraphicsPipeline*>(PipelineState(bindPoint)->pPipeline)->IsNggFastLaunch() == false);
+    PAL_ASSERT((bindPoint == PipelineBindPoint::Compute) ||
+               (static_cast<const GraphicsPipeline*>(PipelineState(bindPoint)->pPipeline)->IsNggFastLaunch() == false));
 
     for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
     {

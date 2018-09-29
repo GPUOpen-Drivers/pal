@@ -30,6 +30,7 @@
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
+#include "core/g_palPlatformSettings.h"
 #include "palInlineFuncs.h"
 #include "palVectorImpl.h"
 
@@ -80,7 +81,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    const PalSettings& settings = m_device.Parent()->Settings();
+    const PalPlatformSettings& settings = m_device.Parent()->GetPlatform()->PlatformSettings();
     const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
     const bool issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());

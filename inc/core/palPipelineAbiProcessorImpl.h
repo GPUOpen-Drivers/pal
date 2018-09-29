@@ -1088,7 +1088,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
             switch (static_cast<PipelineAbiNoteType>(type))
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
             case PipelineAbiNoteType::PalMetadata:
             {
                 m_pMetadata    = pDesc;
@@ -1109,8 +1108,8 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
                     if (result == Result::Success)
                     {
-                        const uint32 keyHash = HashString(static_cast<const char*>(reader.Get().as.str.start),
-                                                          reader.Get().as.str.length);
+                        const auto&  str     = reader.Get().as.str;
+                        const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
                         if (keyHash == HashLiteralString(PalCodeObjectMetadataKey::Version))
                         {
                             result = reader.Next(CWP_ITEM_ARRAY);
@@ -1134,15 +1133,12 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
                 break;
             }
-#endif
+
             // Handle legacy note types:
             case PipelineAbiNoteType::HsaIsa:
             {
                 PAL_ASSERT(descSize >= AbiAmdGpuVersionNoteSize);
                 const auto*const pNote = static_cast<const AbiAmdGpuVersionNote*>(pDesc);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
-                m_gpuVersionNote = *pNote;
-#endif
                 SetGfxIpVersion(pNote->gfxipMajorVer, pNote->gfxipMinorVer, pNote->gfxipStepping);
                 break;
             }

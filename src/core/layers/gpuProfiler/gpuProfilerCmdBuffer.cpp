@@ -27,6 +27,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
+#include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
 

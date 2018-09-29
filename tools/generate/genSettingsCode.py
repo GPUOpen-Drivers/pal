@@ -38,6 +38,42 @@ trailComment = "  //< "
 comment = "// "
 newline = "\n"
 
+def loadJsonStr(jsonStr):
+    settingsData = json.loads(jsonStr)
+
+    visited = []
+    queue   = [ { "parent": None, "item": settingsData } ]
+
+    while len(queue) > 0:
+        data   = queue.pop()
+        parent = data['parent']
+        item   = data['item']
+
+        visited.append(item)
+
+        if isinstance(item, dict):
+            if "BuildTypes" in item:
+                # We'll want to remove the BuildTypes section from the final JSON.
+                item.pop("BuildTypes")
+            for key, value in item.items():
+                if value not in visited:
+                    queue.append({"parent": item, "item": value})
+        elif isinstance(item, list):
+            for value in item:
+                if value not in visited:
+                    queue.append({"parent": item, "item": value})
+
+    # It's possible that the Tag's array contains both objects and strings.
+    # We want to compress this array to just an array of strings.
+    if "Tags" in settingsData:
+        tags = settingsData["Tags"]
+        for i in range(0, len(tags)):
+            tag = tags[i]
+            if isinstance(tag, dict):
+                tags[i] = tag['Name']
+
+    return settingsData
+
 def getOsiSettingType(settingScope):
     ret = "OsiSettingPrivate"
     if settingScope == "PublicCatalystKey":
@@ -265,6 +301,9 @@ parser.add_argument('--outFilename', dest='outFilename', type=str,
 parser.add_argument('--outDir', dest='outDir', type=str,
                     help='Output directory where generated files will be saved. Defaults to the directory containing the settings JSON file.', default="")
 
+parser.add_argument('--classNameOverride', dest='className', type=str,
+                    help='Override for the settings loader class name.', default="SettingsLoader")
+
 parser.add_argument('--magicBuffer', dest='magicBufferFilename', type=str,
                     help='Magic buffer file used to encode JSON data in the generated file.', default="")
 
@@ -311,7 +350,7 @@ headerFile     = open(args.outDir+headerFileName, 'w')
 sourceFile     = open(args.outDir+sourceFileName, 'w')
 
 # Read/Parse the settings JSON data
-settingsData  = json.loads(settingsJsonStr)
+settingsData  = loadJsonStr(settingsJsonStr)
 
 enumCode = ""
 settingDefs = ""
@@ -622,8 +661,6 @@ settingStruct = settingStruct.replace("%SettingDefs%", settingDefs)
 ###################################################################################################################
 # Build the include file lists for header and source files
 ###################################################################################################################
-className = "SettingsLoader"
-
 includeFileList = codeTemplates.CppIncludes
 headerIncludeList = codeTemplates.HeaderIncludes
 
@@ -687,16 +724,16 @@ settingNumSettingsName = codeTemplates.SettingNumSettingsName.replace("%LowerCam
 # add one more line to SetupDefaults to initialize the numSettings field
 setDefaultsCode += "    m_settings.numSettings = " + settingNumSettingsName + ";"
 
-setupDefaults = codeTemplates.SetupDefaultsFunc.replace("%ClassName%", className)
+setupDefaults = codeTemplates.SetupDefaultsFunc.replace("%ClassName%", args.className)
 setupDefaults = setupDefaults.replace("%SettingStructName%", settingStructName)
 setupDefaults = setupDefaults.replace("%SetDefaultsCode%", setDefaultsCode)
 
 if args.genRegistryCode:
-    readSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", className)
+    readSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", args.className)
     readSettings = readSettings.replace("%SettingStructName%", settingStructName)
     readSettings = readSettings.replace("%ReadSettingsCode%", readSettingsCode)
 
-initSettingsInfo = codeTemplates.InitSettingsInfoFunc.replace("%ClassName%", className)
+initSettingsInfo = codeTemplates.InitSettingsInfoFunc.replace("%ClassName%", args.className)
 initSettingsInfo = initSettingsInfo.replace("%InitSettingInfoCode%", settingInfoCode)
 
 settingHashListCode = codeTemplates.SettingHashList.replace("%NumSettings%", str(numHashes))
@@ -704,7 +741,7 @@ settingHashListCode = settingHashListCode.replace("%SettingHashList%", settingHa
 settingHashListCode = settingHashListCode.replace("%SettingHashListName%", settingHashListName)
 settingHashListCode = settingHashListCode.replace("%SettingNumSettingsName%", settingNumSettingsName)
 
-devDriverRegister = codeTemplates.DevDriverRegisterFunc.replace("%ClassName%", className)
+devDriverRegister = codeTemplates.DevDriverRegisterFunc.replace("%ClassName%", args.className)
 devDriverRegister = devDriverRegister.replace("%SettingHashListName%", settingHashListName)
 devDriverRegister = devDriverRegister.replace("%SettingNumSettingsName%", settingNumSettingsName)
 devDriverRegister = devDriverRegister.replace("%JsonDataArrayName%", jsonArrayName)

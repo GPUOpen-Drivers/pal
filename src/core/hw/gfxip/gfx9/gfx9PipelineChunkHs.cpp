@@ -23,12 +23,12 @@
  *
  **********************************************************************************************************************/
 
+#include "core/platform.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkHs.h"
-#include "core/platform.h"
-#include "palPipeline.h"
 #include "palPipelineAbiProcessorImpl.h"
 
 using namespace Util;
@@ -38,60 +38,86 @@ namespace Pal
 namespace Gfx9
 {
 
+// Base count of SH registers which are loaded using LOAD_SH_REG_INDEX when binding to a command buffer.
+static constexpr uint32 BaseLoadedShRegCount =
+    1 + // mmSPI_SHADER_PGM_LO_LS
+    1 + // mmSPI_SHADER_PGM_HI_LS
+    1 + // SPI_SHADER_PGM_RSRC1_HS
+    1 + // SPI_SHADER_PGM_RSRC2_HS
+    1;  // SPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg
+
+// Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
+static constexpr uint32 BaseLoadedCntxRegCount =
+    1 + // VGT_HOS_MIN_TESS_LEVEL
+    1;  // VGT_HOS_MAX_TESS_LEVEL
+
 // =====================================================================================================================
 PipelineChunkHs::PipelineChunkHs(
-    const Device& device)
+    const Device&       device,
+    const PerfDataInfo* pPerfDataInfo)
     :
     m_device(device),
-    m_pHsPerfDataInfo(nullptr)
+    m_pHsPerfDataInfo(pPerfDataInfo)
 {
-    memset(&m_pm4ImageSh,        0, sizeof(m_pm4ImageSh));
-    memset(&m_pm4ImageShDynamic, 0, sizeof(m_pm4ImageShDynamic));
-    memset(&m_pm4ImageContext,   0, sizeof(m_pm4ImageContext));
-    memset(&m_stageInfo,         0, sizeof(m_stageInfo));
+    memset(&m_commands, 0, sizeof(m_commands));
+    memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Hs;
 }
 
 // =====================================================================================================================
-// Initializes this pipeline chunk for the scenario where the tessellation stages are active.
-void PipelineChunkHs::Init(
-    const AbiProcessor&       abiProcessor,
-    const CodeObjectMetadata& metadata,
-    const RegisterVector&     registers,
-    const HsParams&           params)
+// Early initialization for this pipeline chunk.  Responsible for determining the number of SH and context registers to
+// be loaded using LOAD_CNTX_REG_INDEX and LOAD_SH_REG_INDEX.
+void PipelineChunkHs::EarlyInit(
+    GraphicsPipelineLoadInfo* pInfo)
 {
-    m_pHsPerfDataInfo = params.pHsPerfDataInfo;
+    PAL_ASSERT(pInfo != nullptr);
 
-    BuildPm4Headers();
+    const Gfx9PalSettings&   settings  = m_device.Settings();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    m_pm4ImageSh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
-    m_pm4ImageSh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.u32All);
+    PAL_ASSERT(chipProps.gfx9.supportSpp == 0);
 
-    m_pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
+    if (settings.enableLoadIndexForObjectBinds != false)
+    {
+        pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
+        pInfo->loadedShRegCount  += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+    }
+}
 
-    m_pm4ImageContext.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
-    m_pm4ImageContext.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
+// =====================================================================================================================
+// Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
+// determining the values of other registers.  Also uploads register state into GPU memory.
+void PipelineChunkHs::LateInit(
+    const AbiProcessor&       abiProcessor,
+    const RegisterVector&     registers,
+    GraphicsPipelineUploader* pUploader,
+    Util::MetroHash64*        pHasher)
+{
+    const bool useLoadIndexPath = pUploader->EnableLoadIndexPath();
 
-    // Compute the checksum here because we don't want it to include the GPU virtual addresses!
-    params.pHasher->Update(m_pm4ImageContext);
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    const uint16 baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
+    const uint16 mmSpiShaderPgmLoLs = m_device.CmdUtil().GetRegInfo().mmSpiShaderPgmLoLs;
+
+    BuildPm4Headers(useLoadIndexPath);
 
     Abi::PipelineSymbolEntry symbol = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsMainEntry, &symbol))
     {
-        const gpusize programGpuVa = (symbol.value + params.codeGpuVirtAddr);
-        PAL_ASSERT(programGpuVa == Pow2Align(programGpuVa, 256));
+        m_stageInfo.codeLength     = static_cast<size_t>(symbol.size);
+        const gpusize programGpuVa = (pUploader->CodeGpuVirtAddr() + symbol.value);
+        PAL_ASSERT(IsPow2Aligned(programGpuVa, 256));
 
-        m_pm4ImageSh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
-        m_pm4ImageSh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
-
-        m_stageInfo.codeLength = static_cast<size_t>(symbol.size);
+        m_commands.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(programGpuVa);
+        m_commands.sh.spiShaderPgmHiLs.bits.MEM_BASE = Get256BAddrHi(programGpuVa);
     }
 
+    regSPI_SHADER_USER_DATA_LS_0 spiShaderUserDataLoHs = { };
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsShdrIntrlTblPtr, &symbol))
     {
-        const gpusize srdTableGpuVa = (symbol.value + params.dataGpuVirtAddr);
-        m_pm4ImageSh.spiShaderUserDataLoHs.bits.DATA = LowPart(srdTableGpuVa);
+        const gpusize srdTableGpuVa = (pUploader->DataGpuVirtAddr() + symbol.value);
+        m_commands.sh.spiShaderUserDataLoHs.bits.DATA = LowPart(srdTableGpuVa);
     }
 
     if (abiProcessor.HasPipelineSymbolEntry(Abi::PipelineSymbolType::HsDisassembly, &symbol))
@@ -99,6 +125,31 @@ void PipelineChunkHs::Init(
         m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
     }
 
+    m_commands.sh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
+    m_commands.sh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
+    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_commands.dynamic.spiShaderPgmRsrc3Hs.u32All);
+
+    // NOTE: The Pipeline ABI doesn't specify CU enable masks for each shader stage, so it should be safe to
+    // always use the ones PAL prefers.
+    m_commands.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
+
+    m_commands.context.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
+    m_commands.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
+
+    pHasher->Update(m_commands.context);
+
+    if (useLoadIndexPath)
+    {
+        pUploader->AddShReg(mmSpiShaderPgmLoLs,        m_commands.sh.spiShaderPgmLoLs);
+        pUploader->AddShReg(mmSpiShaderPgmLoLs + 1,    m_commands.sh.spiShaderPgmHiLs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC1_HS, m_commands.sh.spiShaderPgmRsrc1Hs);
+        pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_commands.sh.spiShaderPgmRsrc2Hs);
+
+        pUploader->AddShReg(baseUserDataHs + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoHs);
+
+        pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_commands.context.vgtHosMinTessLevel);
+        pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_commands.context.vgtHosMaxTessLevel);
+    }
 }
 
 // =====================================================================================================================
@@ -110,20 +161,26 @@ uint32* PipelineChunkHs::WriteShCommands(
     const DynamicStageInfo& hsStageInfo
     ) const
 {
-    Pm4ImageShDynamic pm4ImageShDynamic = m_pm4ImageShDynamic;
+    // NOTE: The SH register PM4 size will be zero if the pipeline isn't using the SET path.
+    if (m_commands.sh.spaceNeeded != 0)
+    {
+        pCmdSpace = pCmdStream->WritePm4Image(m_commands.sh.spaceNeeded, &m_commands.sh, pCmdSpace);
+    }
+
+    auto dynamicCmds = m_commands.dynamic;
 
     if (hsStageInfo.wavesPerSh > 0)
     {
-        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
+        dynamicCmds.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
     }
 
     if (hsStageInfo.cuEnableMask != 0)
     {
-        pm4ImageShDynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
+        dynamicCmds.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
     }
 
-    pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageSh.spaceNeeded, &m_pm4ImageSh, pCmdSpace);
-    pCmdSpace = pCmdStream->WritePm4Image(pm4ImageShDynamic.spaceNeeded, &pm4ImageShDynamic, pCmdSpace);
+    PAL_ASSERT(m_commands.dynamic.spaceNeeded != 0);
+    pCmdSpace = pCmdStream->WritePm4Image(m_commands.dynamic.spaceNeeded, &dynamicCmds, pCmdSpace);
 
     if (m_pHsPerfDataInfo->regOffset != UserDataNotMapped)
     {
@@ -143,46 +200,51 @@ uint32* PipelineChunkHs::WriteContextCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WritePm4Image(m_pm4ImageContext.spaceNeeded, &m_pm4ImageContext, pCmdSpace);
-    return pCmdSpace;
+    // NOTE: The context register PM4 headers will be zero if the pipeline isn't using the SET path.  It is only
+    // expected that this will be called if the pipeline *is* using the SET path.
+    PAL_ASSERT(m_commands.context.hdrvVgtHosTessLevel.header.u32All != 0);
+
+    constexpr uint32 SpaceNeeded = sizeof(m_commands.context) / sizeof(uint32);
+    return pCmdStream->WritePm4Image(SpaceNeeded, &m_commands.context, pCmdSpace);
 }
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this Pipeline chunk.
-void PipelineChunkHs::BuildPm4Headers()
+void PipelineChunkHs::BuildPm4Headers(
+    bool enableLoadIndexPath)
 {
-    const CmdUtil& cmdUtil            = m_device.CmdUtil();
-    const uint16   baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
-    const uint32   mmSpiShaderPgmLoLs = cmdUtil.GetRegInfo().mmSpiShaderPgmLoLs;
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const CmdUtil&           cmdUtil   = m_device.CmdUtil();
 
-    // Sets the following SH register: SPI_SHADER_USER_DATA_LS_1.
-    m_pm4ImageSh.spaceNeeded = cmdUtil.BuildSetOneShReg(baseUserDataHs + ConstBufTblStartReg,
-                                                        ShaderGraphics,
-                                                        &m_pm4ImageSh.hdrSpiShaderUserData);
+    const uint16 baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
+    const uint32 mmSpiShaderPgmLoLs = cmdUtil.GetRegInfo().mmSpiShaderPgmLoLs;
 
-    // Sets the following SH registers: SPI_SHADER_PGM_RSRC1_HS, SPI_SHADER_PGM_RSRC2_HS.
-    m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
-                                                          mmSPI_SHADER_PGM_RSRC2_HS,
-                                                          ShaderGraphics,
-                                                          &m_pm4ImageSh.hdrSpiShaderPgm);
+    if (!enableLoadIndexPath)
+    {
+        m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSpiShaderPgmLoLs,
+                                                              mmSpiShaderPgmLoLs + 1,
+                                                              ShaderGraphics,
+                                                              &m_commands.sh.hdrSpiShaderPgmHs);
 
-    // Sets the following SH registers: SPI_SHADER_PGM_LO_LS, SPI_SHADER_PGM_HI_LS.
-    m_pm4ImageSh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSpiShaderPgmLoLs,
-                                                          mmSpiShaderPgmLoLs + 1,
-                                                          ShaderGraphics,
-                                                          &m_pm4ImageSh.hdrSpiShaderPgmLs);
+        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(baseUserDataHs + ConstBufTblStartReg,
+                                                              ShaderGraphics,
+                                                              &m_commands.sh.hdrSpiShaderUserDataHs);
 
-    // Sets the following SH register: SPI_SHADER_PGM_RSRC3_HS.
-    // We must use the SET_SH_REG_INDEX packet to support the real-time compute feature.
-    m_pm4ImageShDynamic.spaceNeeded = cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
-                                                                    ShaderGraphics,
-                                                                    index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                                    &m_pm4ImageShDynamic.hdrPgmRsrc3Hs);
+        m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
+                                                               mmSPI_SHADER_PGM_RSRC2_HS,
+                                                               ShaderGraphics,
+                                                               &m_commands.sh.hdrSpiShaderPgmRsrcHs);
 
-    // Sets the following context registers: VGT_HOS_MAX_TESS_LEVEL, VGT_HOS_MIN_TESS_LEVEL.
-    m_pm4ImageContext.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
-                                                                   mmVGT_HOS_MIN_TESS_LEVEL,
-                                                                   &m_pm4ImageContext.hdrvVgtHosTessLevel);
+        cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
+                                       mmVGT_HOS_MIN_TESS_LEVEL,
+                                       &m_commands.context.hdrvVgtHosTessLevel);
+    }
+
+    // NOTE: Supporting real-time compute requires use of SET_SH_REG_INDEX for this register.
+    m_commands.dynamic.spaceNeeded = cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
+                                                                   ShaderGraphics,
+                                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                                   &m_commands.dynamic.hdrPgmRsrc3Hs);
 
 }
 

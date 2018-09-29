@@ -60,6 +60,8 @@ ColorTargetView::ColorTargetView(
     m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr),
     m_arraySize(0)
 {
+    const auto&  settings = GetGfx9Settings(*(pDevice->Parent()));
+
     memset(&m_subresource, 0, sizeof(m_subresource));
 
     m_flags.u32All = 0;
@@ -80,7 +82,8 @@ ColorTargetView::ColorTargetView(
         m_subresource = createInfo.imageInfo.baseSubRes;
         m_arraySize   = createInfo.imageInfo.arraySize;
 
-        if (m_pImage->CanMipSupportMetaData(m_subresource.mipLevel))
+        if ((settings.waRestrictMetaDataUseInMipTail == false) ||
+            m_pImage->CanMipSupportMetaData(m_subresource.mipLevel))
         {
             m_flags.hasDcc              = m_pImage->HasDccData();
             m_flags.hasDccStateMetaData = m_pImage->HasDccStateMetaData();
@@ -544,7 +547,8 @@ void Gfx9ColorTargetView::InitRegisters(
         // The view should be in terms of texels except when we're operating in terms of elements. This will only happen
         // when we're copying to an "expanded" format (e.g., R32G32B32). In this case we can't do native format writes
         // so we're going to write each element independently. The trigger for this case is a mismatched bpp.
-        if (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(createInfo.swizzledFormat.format))
+        if ((pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(createInfo.swizzledFormat.format)) &&
+            (modifiedYuvExtent == false))
         {
             baseExtent = pBaseSubResInfo->extentElements;
             extent     = pSubResInfo->extentElements;

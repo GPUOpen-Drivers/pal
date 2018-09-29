@@ -761,8 +761,6 @@ public:
         m_status = Result::ErrorOutOfMemory;
     }
 
-    virtual bool HasPrimShaderWorkload() const { return false; }
-
     // Called once before initiating a copy that will target a peer memory object where the P2P BLT BAR workaround
     // is required.  It should not be called if the workaround is not requied.
     virtual void P2pBltWaCopyBegin(const GpuMemory* pDstMemory, uint32 regionCount, const gpusize* pChunkAddrs);

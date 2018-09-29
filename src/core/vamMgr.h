@@ -87,9 +87,9 @@ public:
         const VirtAddrAssignInfo& vaInfo,
         gpusize*                  pGpuVirtAddr) = 0;
 
-    virtual void FreeVirtualAddress(
+    virtual Result FreeVirtualAddress(
         Device*          pDevice,
-        const GpuMemory& gpuMemory) = 0;
+        const GpuMemory* pGpuMemory) = 0;
 
     static constexpr uint32 MinVamAllocAlignment = 0;
 

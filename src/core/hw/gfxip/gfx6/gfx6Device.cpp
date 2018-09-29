@@ -208,8 +208,8 @@ Result Device::EarlyInit()
     if (chipProperties.gfxLevel >= GfxIpLevel::GfxIp7)
     {
         // DXX discovered a potential hang situation on Kalindi and Godavari with the VS "late alloc" feature enabled.
-        // DXX's solution is to disable the feature on these parts. It should be noted that since these parts have so few
-        // CU's, the feature would likely not improve performance for them.
+        // DXX's solution is to disable the feature on these parts. It should be noted that since these parts have so
+        // few CU's, the feature would likely not improve performance for them.
         if (IsKalindi(*m_pParent) || IsGodavari(*m_pParent))
         {
             m_lateAllocVsLimit = 0;
@@ -218,12 +218,17 @@ Result Device::EarlyInit()
         {
             if (m_useFixedLateAllocVsLimit)
             {
-                m_lateAllocVsLimit = (chipProperties.gfx6.numCuPerSh > 2) ? ((chipProperties.gfx6.numCuPerSh - 1) << 2) : 0;
+                m_lateAllocVsLimit = (chipProperties.gfx6.numCuPerSh > 2)
+                                      ? ((chipProperties.gfx6.numCuPerSh - 1) << 2)
+                                      : 0;
             }
             else
             {
-                // Follow DXX to enable Late Alloc VS feature for all CI and VI asics that have over 2 CUs per shader array (SH)
-                m_lateAllocVsLimit = (chipProperties.gfx6.numCuPerSh > 2) ? ((chipProperties.gfx6.numCuPerSh - 2) << 2) : 0;
+                // Follow DXX to enable Late Alloc VS feature for all CI and VI asics that have over 2 CUs per
+                // shader array (SH)
+                m_lateAllocVsLimit = (chipProperties.gfx6.numCuPerSh > 2)
+                                      ? ((chipProperties.gfx6.numCuPerSh - 2) << 2)
+                                      : 0;
             }
         }
     }
@@ -282,23 +287,27 @@ void Device::SetupWorkarounds()
                 m_supportFlags.waShaderSpiBarrierMgmt = 1;
             }
             m_supportFlags.waShaderSpiWriteShaderPgmRsrc2Ls = 1;
+            m_supportFlags.waCbNoLt16BitIntClamp = 1;
         }
         else if (IsSpectre(*m_pParent) || IsSpooky(*m_pParent))
         {
             m_supportFlags.waShaderSpiWriteShaderPgmRsrc2Ls = 1;
             m_supportFlags.waForceToWriteNonRlcRestoredRegs = 1;
+            m_supportFlags.waCbNoLt16BitIntClamp = 1;
         }
         else if (IsGodavari(*m_pParent))
         {
             m_supportFlags.waShaderSpiBarrierMgmt = 1;
             m_supportFlags.waShaderSpiWriteShaderPgmRsrc2Ls = 1;
             m_supportFlags.waForceToWriteNonRlcRestoredRegs = 1;
+            m_supportFlags.waCbNoLt16BitIntClamp = 1;
         }
         else if (IsKalindi(*m_pParent))
         {
             m_supportFlags.waShaderSpiBarrierMgmt = 1;
             m_supportFlags.waShaderSpiWriteShaderPgmRsrc2Ls = 1;
             m_supportFlags.waForceToWriteNonRlcRestoredRegs = 1;
+            m_supportFlags.waCbNoLt16BitIntClamp = 1;
         }
     }
     else if (IsGfx8(*m_pParent))

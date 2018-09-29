@@ -60,7 +60,6 @@ struct WindowSystemCreateInfo
         /// Properties of DirectDisplay platform.
         struct
         {
-            uint32          crtcId;
             int32           drmMasterFd;
             uint32          connectorId;
         };
@@ -154,6 +153,13 @@ public:
         uint32          connector,
         uint32*         pRandrOutput,
         int32*          pDrmMasterFd);
+
+    static Result GetOutputFromConnector(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice,
+        WsiPlatform     wsiPlatform,
+        uint32          connector,
+        uint32*         pOutput);
 
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.
     virtual Result CreatePresentableImage(

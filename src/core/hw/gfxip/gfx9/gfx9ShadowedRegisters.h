@@ -103,8 +103,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (mmPA_SC_TILE_STEERING_OVERRIDE - mmPA_SC_EDGERULE + 1),
     },
     {
-        (mmPA_SC_RIGHT_VERT_GRID - CONTEXT_SPACE_START),                        // 0xA0E8 - 0xA0EC
-        (mmPA_SC_FOV_WINDOW_TB - mmPA_SC_RIGHT_VERT_GRID + 1),
+        (Gfx09::mmPA_SC_RIGHT_VERT_GRID - CONTEXT_SPACE_START),                 // 0xA0E8 - 0xA0EC
+        (Gfx09::mmPA_SC_FOV_WINDOW_TB - Gfx09::mmPA_SC_RIGHT_VERT_GRID + 1),
     },
     {
         (mmVGT_MULTI_PRIM_IB_RESET_INDX - CONTEXT_SPACE_START),                 // 0xA103
@@ -401,7 +401,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
     },
     {
         mmTCP_PERFCOUNTER0_SELECT,
-        mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
+        Gfx09::mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
     },
     {
         Gfx09::mmTCC_PERFCOUNTER0_SELECT,
@@ -636,7 +636,7 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     },
     {
         mmTCP_PERFCOUNTER0_SELECT,
-        mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
+        Gfx09::mmTCP_PERFCOUNTER3_SELECT - mmTCP_PERFCOUNTER0_SELECT + 1,
     },
     {
         Gfx09::mmTCC_PERFCOUNTER0_SELECT,

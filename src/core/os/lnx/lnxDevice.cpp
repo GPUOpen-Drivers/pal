@@ -212,6 +212,7 @@ Result Device::Create(
                 .hDevice               = hDevice,
                 .drmMajorVer           = drmMajorVer,
                 .drmMinorVer           = drmMinorVer,
+                .deviceSize            = sizeof(Device),
                 .deviceIndex           = deviceIndex,
                 .deviceNodeIndex       = deviceNodeIndex,
                 .attachedScreenCount   = attachedScreenCount,
@@ -336,7 +337,7 @@ Device::Device(
     Pal::Device(constructorParams.pPlatform,
                 constructorParams.deviceIndex,
                 constructorParams.attachedScreenCount,
-                sizeof(Device),
+                constructorParams.deviceSize,
                 constructorParams.hwDeviceSizes,
                 MaxSemaphoreCount),
     m_fileDescriptor(constructorParams.fileDescriptor),
@@ -370,6 +371,7 @@ Device::Device(
 
     memcpy(&m_gpuInfo, &constructorParams.gpuInfo, sizeof(constructorParams.gpuInfo));
 
+    m_chipProperties.pciDomainNumber            = constructorParams.pciBusInfo.domain;
     m_chipProperties.pciBusNumber               = constructorParams.pciBusInfo.bus;
     m_chipProperties.pciDeviceNumber            = constructorParams.pciBusInfo.dev;
     m_chipProperties.pciFunctionNumber          = constructorParams.pciBusInfo.func;
@@ -1023,15 +1025,6 @@ void Device::InitGfx9ChipProperties()
     Gfx9::FinalizeGpuChipProperties(GetPlatform(), &m_chipProperties);
 
     pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
-
-    pChipInfo->primShaderInfo.primitiveBufferVa   = deviceInfo.prim_buf_gpu_addr;
-    pChipInfo->primShaderInfo.primitiveBufferSize = deviceInfo.prim_buf_size;
-    pChipInfo->primShaderInfo.positionBufferVa    = deviceInfo.pos_buf_gpu_addr;
-    pChipInfo->primShaderInfo.positionBufferSize  = deviceInfo.pos_buf_size;
-    pChipInfo->primShaderInfo.controlSidebandVa   = deviceInfo.cntl_sb_buf_gpu_addr;
-    pChipInfo->primShaderInfo.controlSidebandSize = deviceInfo.cntl_sb_buf_size;
-    pChipInfo->primShaderInfo.parameterCacheVa    = deviceInfo.param_buf_gpu_addr;
-    pChipInfo->primShaderInfo.parameterCacheSize  = deviceInfo.param_buf_size;
 
     Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
 
@@ -3545,27 +3538,30 @@ Result Device::AddGpuMemoryReferences(
     IQueue*             pQueue,
     uint32              flags)
 {
-    Result result = Result::Success;
+    Result result = Pal::Device::AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags);
 
-    if (pQueue == nullptr)
+    if (result == Result::Success)
     {
+        if (pQueue == nullptr)
         {
-            // Queue-list operations need to be protected.
-            MutexAuto lock(&m_queueLock);
-
-            for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
             {
-                Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
-                result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
-            }
-        }
+                // Queue-list operations need to be protected.
+                MutexAuto lock(&m_queueLock);
 
-        AddToGlobalList(gpuMemRefCount, pGpuMemoryRefs);
-    }
-    else
-    {
-        Queue* pLinuxQueue = static_cast<Queue*>(pQueue);
-        result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
+                for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
+                {
+                    Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
+                    result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
+                }
+            }
+
+            AddToGlobalList(gpuMemRefCount, pGpuMemoryRefs);
+        }
+        else
+        {
+            Queue* pLinuxQueue = static_cast<Queue*>(pQueue);
+            result = pLinuxQueue->AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs);
+        }
     }
 
     return result;
@@ -3578,28 +3574,33 @@ Result Device::RemoveGpuMemoryReferences(
     IGpuMemory*const* ppGpuMemory,
     IQueue*           pQueue)
 {
-    if (pQueue == nullptr)
+    Result result = Pal::Device::RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory, pQueue);
+
+    if (result == Result::Success)
     {
+        if (pQueue == nullptr)
         {
-            // Queue-list operations need to be protected.
-            MutexAuto lock(&m_queueLock);
-
-            for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
             {
-                Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
-                pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
+                // Queue-list operations need to be protected.
+                MutexAuto lock(&m_queueLock);
+
+                for (auto iter = m_queues.Begin(); iter.IsValid(); iter.Next())
+                {
+                    Queue*const pLinuxQueue = static_cast<Queue*>(iter.Get());
+                    pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
+                }
             }
+
+            RemoveFromGlobalList(gpuMemoryCount, ppGpuMemory);
         }
-
-        RemoveFromGlobalList(gpuMemoryCount, ppGpuMemory);
-    }
-    else
-    {
-        Queue* pLinuxQueue = static_cast<Queue*>(pQueue);
-        pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
+        else
+        {
+            Queue* pLinuxQueue = static_cast<Queue*>(pQueue);
+            pLinuxQueue->RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory);
+        }
     }
 
-    return Result::Success;
+    return result;
 }
 
 // =====================================================================================================================
@@ -4026,7 +4027,8 @@ Result Device::SetClockMode(
     int        ioRet                      = 0;
     const bool needUpdatePerformanceLevel = (DeviceClockMode::Query          != setClockModeInput.clockMode) &&
                                             (DeviceClockMode::QueryProfiling != setClockModeInput.clockMode) &&
-                                            (DeviceClockMode::QueryPeak      != setClockModeInput.clockMode);
+                                            (DeviceClockMode::QueryPeak      != setClockModeInput.clockMode) &&
+                                            (Settings().neverChangeClockMode == false);
     char       writeBuf[MaxClockSysFsEntryNameLen];
 
     const char* pStrKMDInterface[]    =

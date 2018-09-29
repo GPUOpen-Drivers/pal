@@ -506,170 +506,12 @@ struct PalPublicSettings
     bool disableSkipFceOptimization;
 };
 
-/// Command Buffer Logger layer runtime settings
-struct CmdBufferLoggerSettings
-{
-    uint32 cmdBufferLoggerFlags;
-};
-
-/// Location enum for Debug Overlay layer
-enum DebugOverlayLocation : uint32
-{
-    DebugOverlayUpperLeft = 0,
-    DebugOverlayUpperRight = 1,
-    DebugOverlayLowerRight = 2,
-    DebugOverlayLowerLeft = 3,
-    DebugOverlayCount = 4,
-};
-
-/// Enum defining supported colors for Debug Overlay timegraph
-enum TimeGraphColor : uint32
-{
-    BlackColor = 0,
-    RedColor = 1,
-    GreenColor = 2,
-    BlueColor = 3,
-    YellowColor = 4,
-    CyanColor = 5,
-    MagentaColor = 6,
-    WhiteColor = 7,
-};
-
-/// Config struct that controls what information is displayed on the Debug Overlay
-struct DebugOverlayConfig
-{
-    bool                    visualConfirmEnabled;
-    bool                    timeGraphEnabled;
-    DebugOverlayLocation overlayLocation;
-    char                 renderedByString[61];
-    char                 miscellaneousDebugString[61];
-    bool                 printFrameNumber;
-};
-
-/// Time Graph display configuration
-struct TimeGraphConfig
-{
-    uint32 gridLineColor;
-    uint32 cpuLineColor;
-    uint32 gpuLineColor;
-};
-
-/// Debug Overlay Benchmark configuration.
-struct OverlayBenchmarkConfig
-{
-    uint32                  maxBenchmarkTime;
-    bool   usageLogEnable;
-    char   usageLogDirectory[MaxPathStrLen];
-    char   usageLogFilename[MaxPathStrLen];
-    bool                    logFrameStats;
-    char                    frameStatsLogDirectory[MaxPathStrLen];
-    uint32                  maxLoggedFrames;
-};
-
-/// Configures the memory usage display on the Debug Overlay.
-struct OverlayMemoryInfoConfig
-{
-    bool combineNonLocal;
-    bool reportCmdAllocator;
-    bool reportExternal;
-    bool reportInternal;
-};
-
-/// Debug overlay layer runtime settings
-struct DebugOverlaySettings
-{
-    DebugOverlayConfig      debugOverlayConfig;
-    TimeGraphConfig         timeGraphConfig;
-    OverlayBenchmarkConfig  overlayBenchmarkConfig;
-    OverlayMemoryInfoConfig overlayMemoryInfoConfig;
-};
-
-/// Enum describing the supported granularity for the GPU profiler layer
-enum GpuProfilerGranularity : uint32
-{
-    GpuProfilerGranularityDraw   = 0,
-    GpuProfilerGranularityCmdBuf = 1,
-    GpuProfilerGranularityFrame  = 2,
-};
-
-/// Enum describing trace modes available in Gpu Profiler layer.
-enum GpuProfilerTraceModeFlags : uint32
-{
-    GpuProfilerTraceDisabled =  0x0, ///< All tracing is disabled.
-    GpuProfilerTraceSpm      =  0x1, ///< Streaming performance counter trace flag.
-    GpuProfilerTraceSqtt     =  0x2  ///< SQ thread trace flag.
-};
-
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
 enum GpuProfilerStallMode : uint32
 {
-    GpuProfilerStallAlways     = 0, ///< Always stall to get accurate trace data
+    GpuProfilerStallAlways = 0, ///< Always stall to get accurate trace data
     GpuProfilerStallLoseDetail = 1, ///< Lose register-level detail if under pressure to avoid stalls
-    GpuProfilerStallNever      = 2, ///< Never stall, miss trace packets
-};
-
-/// Configuration options for the PAL GPU Profiler layer.
-struct GpuProfilerConfig
-{
-    char                   logDirectory[MaxPathStrLen];
-    uint32                 startFrame;
-    uint32                 frameCount;
-    bool                   recordPipelineStats;
-    bool                   breakSubmitBatches;
-    uint32                 traceModeMask;
-    GpuProfilerGranularity granularity;
-};
-
-/// Configuration options for performance counter collection through the Profiler Layer.
-struct GpuProfilerPerfCounterConfig{
-    char                   globalPerfCounterConfigFile[MaxFileNameStrLen];
-    bool                   cacheFlushOnCounterCollection;
-};
-
-struct GpuProfilerSqttConfig
-{
-    uint32               tokenMask;
-    uint32               seMask;
-    uint32               pipelineHashHi;
-    uint32               pipelineHashLo;
-    uint64               pipelineHash;
-    ShaderHash           vsHash;
-    ShaderHash           hsHash;
-    ShaderHash           dsHash;
-    ShaderHash           gsHash;
-    ShaderHash           psHash;
-    ShaderHash           csHash;
-    uint32               maxDraws;
-    size_t               bufferSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
-    GpuProfilerStallMode stallMode;
-#endif
-};
-
-///Configuration options for capturing Streaming Performance Monitors through the Profiler layer.
-struct GpuProfilerSpmConfig
-{
-    char   spmPerfCounterConfigFile[MaxFileNameStrLen];
-    uint32 spmTraceInterval;
-    size_t spmTraceBufferSize;
-};
-
-/// GPU profiler layer runtime settings
-struct GpuProfilerSettings
-{
-    GpuProfilerConfig            profilerConfig;
-    GpuProfilerPerfCounterConfig perfCounterConfig;
-    GpuProfilerSqttConfig        sqttConfig;
-    GpuProfilerSpmConfig         spmConfig;
-};
-
-/// Configuration options for the Interface Logger layer.
-struct InterfaceLoggerConfig
-{
-    char    logDirectory[MaxPathStrLen];
-    bool    multithreaded;
-    uint32  basePreset;
-    uint32  elevatedPreset;
+    GpuProfilerStallNever = 2, ///< Never stall, miss trace packets
 };
 
 /// Describes the equations needed to interpret the raw memory of a tiled texture.
@@ -1185,15 +1027,6 @@ struct DeviceProperties
             uint32 maxLateAllocVsLimit;     ///< Maximum number of VS waves that can be in flight without
                                             ///  having param cache and position buffer space.
 
-            gpusize primitiveBufferSize;    ///< Size of the offchip primitive buffer.  Zero indicates that no offchip
-                                            ///  buffer is present.
-            gpusize positionBufferSize;     ///< Size of offchip position buffer.  Zero indicates that no offchip buffer
-                                            ///  is present.
-            gpusize controlSidebandSize;    ///< Size of offchip control sideband buffer.  Zero indicates that no
-                                            ///  offchip control sideband is present.
-            gpusize parameterCacheSize;     ///< Size of offchip parameter cache buffer.  Zero indicates that no offchip
-                                            ///  parameter cache is present.
-
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;
@@ -1229,6 +1062,7 @@ struct DeviceProperties
 
     struct
     {
+        uint32 domainNumber;                ///< PCI bus number.
         uint32 busNumber;                   ///< PCI bus number.
         uint32 deviceNumber;                ///< PCI device number.
         uint32 functionNumber;              ///< PCI function number.
@@ -2282,26 +2116,6 @@ public:
     /// @returns Pointer to this devices public settings for examination and/or modification by the client.
     virtual PalPublicSettings* GetPublicSettings() = 0;
 
-    /// Returns this devices Command Buffer Logger layer settings structure initialized with appropriate defaults.
-    ///
-    /// @returns Pointer to this devices Command Buffer Logger layer settings.
-    virtual const CmdBufferLoggerSettings& GetCmdBufferLoggerSettings() const = 0;
-
-    /// Returns this devices Debug Overlay layer settings structure initialized with appropriate defaults.
-    ///
-    /// @returns Pointer to this devices Debug Overlay layer settings.
-    virtual const DebugOverlaySettings& GetDbgOverlaySettings() const = 0;
-
-    /// Returns this devices GPU Profiler layer settings structure initialized with appropriate defaults.
-    ///
-    /// @returns Pointer to this devices GPU Profiler layer settings.
-    virtual const GpuProfilerSettings& GetGpuProfilerSettings() const = 0;
-
-    /// Returns this devices Interface Logger layer settings structure initialized with appropriate defaults.
-    ///
-    /// @returns Pointer to this devices Interface Logger layer settings.
-        virtual const InterfaceLoggerConfig& GetInterfaceLoggerSettings() const = 0;
-
     /// Reads a specific setting from the operating system specific source (e.g. registry or config file).
     ///
     /// @param [in]  pSettingName Name of the setting. Must be null-terminated.
@@ -2521,6 +2335,18 @@ public:
         IGpuMemory*const* ppGpuMemory,
         IQueue*           pQueue
         ) = 0;
+
+    /// Queries the Device for the total amount of referenced GPU memory for each heap type.  These totals include all
+    /// memory added to the Device or any Queue using @ref AddGpuMemoryReferences and not yet removed using @ref
+    /// RemoveGpuMemoryReferences.  Internal PAL allocations are included in these totals, but memory referenced using
+    /// the per-submit list in @ref IQueue::Submit is not included in these amounts.
+    ///
+    /// The intended use for this interface is for clients to be able to manage budgeting of resident GPU memory.
+    ///
+    /// @param [out] referencedGpuMemTotal Array containing the total amount of referenced GPU memory for each GPU
+    ///              memory heap.
+    virtual void GetReferencedMemoryTotals(
+        gpusize  referencedGpuMemTotal[GpuHeapCount]) const = 0;
 
     /// Get primary surface MGPU support information based upon primary surface create info and input flags provided
     /// by client.
@@ -4358,6 +4184,14 @@ public:
     /// @returns Success if the call succeeded.
     virtual Result UpdateChillStatus(
         uint64 lastChillActiveTimeStampUs) = 0;
+
+    /// Checks if TurboSync settings have changed since the last time the function was called.
+    /// This is intended to be a lightweight function that can be called once a frame. If the function returns true,
+    /// then the user changed some TurboSync related settings in the UI, the Pal client should re-read the TurboSync
+    /// application profile settings.
+    ///
+    /// @returns true if TurboSync settings have been changed, otherwise false.
+    virtual bool DidTurboSyncSettingsChange() = 0;
 
     /// Make the Bus Addressable allocations available to be accessed by remote device.
     /// Exposes the surface and marker bus addresses for each allocation. These bus addresses can be accessed by

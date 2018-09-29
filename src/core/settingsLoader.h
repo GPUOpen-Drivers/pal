@@ -76,7 +76,7 @@ private:
     virtual void InitSettingsInfo() override;
     virtual void DevDriverRegister() override;
 
-    const char*const m_pComponentName = "Pal";
+    const char*const m_pComponentName;
 };
 
 } // Pal

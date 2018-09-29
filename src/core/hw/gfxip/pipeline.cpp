@@ -120,108 +120,15 @@ void Pipeline::DestroyInternal()
 Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
     const AbiProcessor&       abiProcessor,
     const CodeObjectMetadata& metadata,
-    gpusize*                  pCodeGpuVirtAddr,
-    gpusize*                  pDataGpuVirtAddr)
+    PipelineUploader*         pUploader)
 {
-    PAL_ASSERT((pCodeGpuVirtAddr != nullptr) && (pDataGpuVirtAddr != nullptr));
+    PAL_ASSERT(pUploader != nullptr);
 
-    constexpr size_t GpuMemByteAlign = 256;
-
-    GpuMemoryCreateInfo createInfo = { };
-    createInfo.alignment = GpuMemByteAlign;
-    createInfo.vaRange   = VaRange::DescriptorTable;
-    createInfo.heaps[0]  = GpuHeapLocal;
-    createInfo.heaps[1]  = GpuHeapGartUswc;
-    createInfo.heapCount = 2;
-    createInfo.priority  = GpuMemPriority::High;
-
-    GpuMemoryInternalCreateInfo internalInfo = { };
-    internalInfo.flags.alwaysResident = 1;
-
-    const void* pCodeBuffer = nullptr;
-    size_t      codeLength  = 0;
-    abiProcessor.GetPipelineCode(&pCodeBuffer, &codeLength);
-
-    createInfo.size = codeLength;
-
-    const void* pDataBuffer   = nullptr;
-    size_t      dataLength    = 0;
-    gpusize     dataAlignment = 0;
-
-    abiProcessor.GetData(&pDataBuffer, &dataLength, &dataAlignment);
-
-    if (dataLength > 0)
-    {
-        createInfo.size += Pow2Align(dataLength, dataAlignment);
-    }
-
-    const gpusize perfDataOffset = createInfo.size;
-    createInfo.size += PerformanceDataSize(metadata);
-
-    GpuMemory* pGpuMem = nullptr;
-    gpusize    offset  = 0;
-    Result result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &pGpuMem, &offset);
+    Result result = pUploader->Begin(m_pDevice, abiProcessor, metadata, &m_perfDataInfo[0]);
     if (result == Result::Success)
     {
-        m_gpuMemSize = createInfo.size;
-        m_gpuMem.Update(pGpuMem, offset);
-
-        void* pMappedPtr = nullptr;
-        result = m_gpuMem.Map(&pMappedPtr);
-        if (result == Result::Success)
-        {
-            (*pCodeGpuVirtAddr) = m_gpuMem.GpuVirtAddr();
-            memcpy(pMappedPtr, pCodeBuffer, codeLength);
-
-            if (dataLength > 0)
-            {
-                void* pDataPtr = VoidPtrAlign(VoidPtrInc(pMappedPtr, codeLength), static_cast<size_t>(dataAlignment));
-
-                (*pDataGpuVirtAddr) = ((*pCodeGpuVirtAddr) + Pow2Align(codeLength, dataAlignment));
-                memcpy(pDataPtr, pDataBuffer, dataLength);
-
-                // The for loop which follows is entirely non-standard behavior for an ELF loader, but is intended to
-                // only be temporary code.
-                for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
-                {
-                    const Abi::PipelineSymbolType symbolType =
-                        Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderIntrlTblPtr,
-                                               static_cast<Abi::HardwareStage>(s));
-
-                    Abi::PipelineSymbolEntry symbol = { };
-                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol) &&
-                        (symbol.sectionType == Abi::AbiSectionType::Data))
-                    {
-                        m_pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
-                            VoidPtrInc(pDataPtr,    static_cast<size_t>(symbol.value)), // Dst
-                            VoidPtrInc(pDataBuffer, static_cast<size_t>(symbol.value)), // Src
-                            static_cast<size_t>(symbol.size),
-                            (*pDataGpuVirtAddr));
-                    }
-                } // for each hardware stage
-                // End temporary code
-            } // if dataLength > 0
-
-            gpusize perfGpuAddr   = m_gpuMem.GpuVirtAddr() + perfDataOffset;
-            size_t  currentOffset = static_cast<size_t>(perfDataOffset);
-            for (uint32 i = 0; i < static_cast<uint32>(Abi::HardwareStage::Count); i++)
-            {
-                uint32 perfDataSize = 0;
-
-                if (metadata.pipeline.hardwareStage[i].hasEntry.perfDataBufferSize)
-                {
-                    m_perfDataInfo[i].sizeInBytes = metadata.pipeline.hardwareStage[i].perfDataBufferSize;
-                    m_perfDataInfo[i].cpuOffset   = currentOffset;
-                    m_perfDataInfo[i].gpuVirtAddr = LowPart(perfGpuAddr);
-                    memset(VoidPtrInc(pMappedPtr, m_perfDataInfo[i].cpuOffset), 0, perfDataSize);
-
-                    perfGpuAddr   += perfDataSize;
-                    currentOffset += perfDataSize;
-                }
-            }
-
-            m_gpuMem.Unmap();
-        }
+        m_gpuMemSize = pUploader->GpuMemSize();
+        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
     }
 
     return result;
@@ -272,6 +179,43 @@ Result Pipeline::QueryAllocationInfo(
         }
 
         result = Result::Success;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Extracts the pipeline's code object ELF binary.
+Result Pipeline::GetPipelineElf(
+    uint32*    pSize,
+    void*      pBuffer
+    ) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pSize != nullptr)
+    {
+        if ((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0))
+        {
+            if (pBuffer == nullptr)
+            {
+                (*pSize) = static_cast<uint32>(m_pipelineBinaryLen);
+                result = Result::Success;
+            }
+            else if ((*pSize) >= static_cast<uint32>(m_pipelineBinaryLen))
+            {
+                memcpy(pBuffer, m_pPipelineBinary, m_pipelineBinaryLen);
+                result = Result::Success;
+            }
+            else
+            {
+                result = Result::ErrorInvalidMemorySize;
+            }
+        }
+        else
+        {
+            result = Result::ErrorUnavailable;
+        }
     }
 
     return result;
@@ -479,12 +423,223 @@ void Pipeline::DumpPipelineElf(
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 438
     PipelineDumpService* pDumpService = m_pDevice->GetPlatform()->GetPipelineDumpService();
     if (pDumpService != nullptr)
     {
         pDumpService->RegisterPipeline(m_pPipelineBinary,
                                        static_cast<uint32>(m_pipelineBinaryLen),
                                        m_info.compilerHash);
+    }
+#endif
+}
+
+// =====================================================================================================================
+PipelineUploader::PipelineUploader(
+    uint32 ctxRegisterCount,
+    uint32 shRegisterCount)
+    :
+    m_pGpuMemory(nullptr),
+    m_baseOffset(0),
+    m_gpuMemSize(0),
+    m_codeGpuVirtAddr(0),
+    m_dataGpuVirtAddr(0),
+    m_ctxRegGpuVirtAddr(0),
+    m_shRegGpuVirtAddr(0),
+    m_shRegisterCount(shRegisterCount),
+    m_ctxRegisterCount(ctxRegisterCount),
+    m_pMappedPtr(nullptr),
+    m_pCtxRegWritePtr(nullptr),
+    m_pShRegWritePtr(nullptr)
+#if PAL_ENABLE_PRINTS_ASSERTS
+    , m_pCtxRegWritePtrStart(nullptr),
+    m_pShRegWritePtrStart(nullptr)
+#endif
+{
+}
+
+// =====================================================================================================================
+PipelineUploader::~PipelineUploader()
+{
+    PAL_ASSERT(m_pMappedPtr == nullptr); // If this fires, the caller forgot to call End()!
+}
+
+// =====================================================================================================================
+// Allocates GPU memory for the current pipeline.  Also, maps the memory for CPU access and uploads the pipeline code
+// and data.  The GPU virtual addresses for the code, data, and register segments are also computed.  The caller is
+// responsible for calling End() which unmaps the GPU memory.
+Result PipelineUploader::Begin(
+    Device*                   pDevice,
+    const AbiProcessor&       abiProcessor,
+    const CodeObjectMetadata& metadata,
+    PerfDataInfo*             pPerfDataInfoList)
+{
+    PAL_ASSERT(pPerfDataInfoList != nullptr);
+
+    constexpr size_t GpuMemByteAlign = 256;
+
+    GpuMemoryCreateInfo createInfo = { };
+    createInfo.alignment = GpuMemByteAlign;
+    createInfo.vaRange   = VaRange::DescriptorTable;
+    createInfo.heaps[0]  = GpuHeapLocal;
+    createInfo.heaps[1]  = GpuHeapGartUswc;
+    createInfo.heapCount = 2;
+    createInfo.priority  = GpuMemPriority::High;
+
+    GpuMemoryInternalCreateInfo internalInfo = { };
+    internalInfo.flags.alwaysResident = 1;
+
+    const void* pCodeBuffer = nullptr;
+    size_t      codeLength  = 0;
+    abiProcessor.GetPipelineCode(&pCodeBuffer, &codeLength);
+
+    createInfo.size = codeLength;
+
+    const void* pDataBuffer   = nullptr;
+    size_t      dataLength    = 0;
+    gpusize     dataAlignment = 0;
+    abiProcessor.GetData(&pDataBuffer, &dataLength, &dataAlignment);
+
+    if (dataLength > 0)
+    {
+        createInfo.size = (Pow2Align(createInfo.size, dataAlignment) + dataLength);
+    }
+
+    const uint32 totalRegisters = (m_ctxRegisterCount + m_shRegisterCount);
+    if (totalRegisters > 0)
+    {
+        constexpr uint32 RegisterEntryBytes = (sizeof(uint32) << 1);
+        createInfo.size = (Pow2Align(createInfo.size, sizeof(uint32)) + (RegisterEntryBytes * totalRegisters));
+    }
+
+    // Compute the total size of all shader stages' performance data buffers.
+    gpusize performanceDataOffset = createInfo.size;
+    for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+    {
+        const uint32 performanceDataBytes = metadata.pipeline.hardwareStage[s].perfDataBufferSize;
+        if (performanceDataBytes != 0)
+        {
+            pPerfDataInfoList[s].sizeInBytes = performanceDataBytes;
+            pPerfDataInfoList[s].cpuOffset   = static_cast<size_t>(performanceDataOffset);
+
+            createInfo.size       += performanceDataBytes;
+            performanceDataOffset += performanceDataBytes;
+        }
+    } // for each hardware stage
+
+    Result result = pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
+    if (result == Result::Success)
+    {
+        result = m_pGpuMemory->Map(&m_pMappedPtr);
+        if (result == Result::Success)
+        {
+            m_gpuMemSize = createInfo.size;
+            m_pMappedPtr = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(m_baseOffset));
+
+            gpusize gpuVirtAddr = (m_pGpuMemory->Desc().gpuVirtAddr + m_baseOffset);
+            void*   pMappedPtr  = m_pMappedPtr;
+
+            m_codeGpuVirtAddr = gpuVirtAddr;
+            memcpy(pMappedPtr, pCodeBuffer, codeLength);
+
+            pMappedPtr   = VoidPtrInc(pMappedPtr, codeLength);
+            gpuVirtAddr += codeLength;
+
+            if (dataLength > 0)
+            {
+                pMappedPtr  = VoidPtrAlign(pMappedPtr, static_cast<size_t>(dataAlignment));
+                gpuVirtAddr = Pow2Align(gpuVirtAddr, dataAlignment);
+
+                m_dataGpuVirtAddr = gpuVirtAddr;
+                memcpy(pMappedPtr, pDataBuffer, dataLength);
+
+                // The for loop which follows is entirely non-standard behavior for an ELF loader, but is intended to
+                // only be temporary code.
+                for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+                {
+                    const Abi::PipelineSymbolType symbolType =
+                        Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderIntrlTblPtr,
+                                               static_cast<Abi::HardwareStage>(s));
+
+                    Abi::PipelineSymbolEntry symbol = { };
+                    if (abiProcessor.HasPipelineSymbolEntry(symbolType, &symbol) &&
+                        (symbol.sectionType == Abi::AbiSectionType::Data))
+                    {
+                        pDevice->GetGfxDevice()->PatchPipelineInternalSrdTable(
+                            VoidPtrInc(pMappedPtr,  static_cast<size_t>(symbol.value)), // Dst
+                            VoidPtrInc(pDataBuffer, static_cast<size_t>(symbol.value)), // Src
+                            static_cast<size_t>(symbol.size),
+                            m_dataGpuVirtAddr);
+                    }
+                } // for each hardware stage
+                // End temporary code
+
+                pMappedPtr   = VoidPtrInc(pMappedPtr, dataLength);
+                gpuVirtAddr += dataLength;
+            } // if dataLength > 0
+
+            if (totalRegisters > 0)
+            {
+                gpusize regGpuVirtAddr = Pow2Align(gpuVirtAddr, sizeof(uint32));
+                uint32* pRegWritePtr   = static_cast<uint32*>(VoidPtrAlign(pMappedPtr, sizeof(uint32)));
+
+                if (m_ctxRegisterCount > 0)
+                {
+                    m_ctxRegGpuVirtAddr = regGpuVirtAddr;
+                    m_pCtxRegWritePtr   = pRegWritePtr;
+
+                    regGpuVirtAddr += (m_ctxRegisterCount * (sizeof(uint32) * 2));
+                    pRegWritePtr   += (m_ctxRegisterCount * 2);
+                }
+
+                if (m_shRegisterCount > 0)
+                {
+                    m_shRegGpuVirtAddr = regGpuVirtAddr;
+                    m_pShRegWritePtr   = pRegWritePtr;
+                }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+                m_pCtxRegWritePtrStart = m_pCtxRegWritePtr;
+                m_pShRegWritePtrStart  = m_pShRegWritePtr;
+#endif
+            }
+
+            // Initialize the performance data buffer for each shader stage and finalize its GPU virtual address.
+            for (uint32 s = 0; s < static_cast<uint32>(Abi::HardwareStage::Count); ++s)
+            {
+                if (pPerfDataInfoList[s].sizeInBytes != 0)
+                {
+                    const size_t offset = pPerfDataInfoList[s].cpuOffset;
+                    pPerfDataInfoList[s].gpuVirtAddr = LowPart(gpuVirtAddr + offset);
+                    memset(VoidPtrInc(m_pMappedPtr, offset), 0, pPerfDataInfoList[s].sizeInBytes);
+                }
+            } // for each hardware stage
+
+        } // if Map() succeeded
+    } // if AllocateGpuMem() succeeded
+
+    return result;
+}
+
+// =====================================================================================================================
+// "Finishes" uploading a pipeline to GPU memory by unmapping the GPU allocation.
+void PipelineUploader::End()
+{
+    if ((m_pGpuMemory != nullptr) && (m_pMappedPtr != nullptr))
+    {
+        // Sanity check to make sure we allocated the correct amount of memory for any loaded SH or context registers.
+#if PAL_ENABLE_PRINTS_ASSERTS
+        PAL_ASSERT(m_pCtxRegWritePtr == (m_pCtxRegWritePtrStart + (m_ctxRegisterCount * 2)));
+        PAL_ASSERT(m_pShRegWritePtr  == (m_pShRegWritePtrStart  + (m_shRegisterCount  * 2)));
+
+        m_pCtxRegWritePtrStart = nullptr;
+        m_pShRegWritePtrStart  = nullptr;
+#endif
+        m_pCtxRegWritePtr = nullptr;
+        m_pShRegWritePtr  = nullptr;
+        m_pMappedPtr      = nullptr;
+
+        m_pGpuMemory->Unmap();
     }
 }
 

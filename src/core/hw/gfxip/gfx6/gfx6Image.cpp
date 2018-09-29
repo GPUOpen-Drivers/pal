@@ -2033,7 +2033,8 @@ bool Image::IsFastDepthStencilClearSupported(
 // Determines if this image supports being cleared or copied with format replacement.
 bool Image::IsFormatReplaceable(
     const SubresId& subresId,
-    ImageLayout     layout
+    ImageLayout     layout,
+    bool            isDst
     ) const
 {
     bool  isFormatReplaceable = false;

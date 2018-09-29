@@ -68,19 +68,28 @@ public:
         OsDisplayHandle hDisplay,
         WsiPlatform     wsiPlatform) override;
     virtual Result ReleaseScreenAccess() override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 435
+    virtual Result GetRandrOutput(
+        OsDisplayHandle hDisplay,
+        uint32*         pRandrOutput) override;
+#endif
     virtual Result SetRandrOutput(
         uint32 randrOutput) override;
 
     Result Init();
 
-    void SetMode(const ScreenMode& mode) { m_currentMode = mode; }
+    uint32 GetConnectorId() const { return m_connectorId; }
+    int32  GetDrmMasterFd() const { return m_drmMasterFd; }
+
 private:
     Device*const  m_pDevice;
 
     Extent2d   m_physicalDimension;
     Extent2d   m_physicalResolution;
-    ScreenMode m_currentMode;
-    WsiScreenProperties m_wsiScreenProp;
+
+    uint32     m_connectorId;
+    int32      m_drmMasterFd;
+    uint32     m_randrOutput;
 
     PAL_DISALLOW_DEFAULT_CTOR(Screen);
     PAL_DISALLOW_COPY_AND_ASSIGN(Screen);

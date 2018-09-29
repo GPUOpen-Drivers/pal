@@ -73,7 +73,7 @@ private:
     virtual void InitSettingsInfo() override;
     virtual void DevDriverRegister() override;
 
-    const char* m_pComponentName = "Gfx9_Pal";
+    const char* m_pComponentName;
 };
 
 } // Gfx9

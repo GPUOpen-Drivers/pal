@@ -47,8 +47,9 @@ namespace Pal
 {
 
 // Forward declarations.
-class IDevice;
-class IScreen;
+class  IDevice;
+class  IScreen;
+struct PalPlatformSettings;
 
 /// Maximum number of Devices possibly attached to a system.
 constexpr uint32 MaxDevices = 16;
@@ -381,6 +382,11 @@ public:
     /// @returns A valid DevDriver::DevDriverServer pointer if developer mode is enabled. If developer mode is not
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
+
+    /// Returns a pointer to the Platform settings structure
+    ///
+    /// @returns A reference to a PalPlatformSettings structure.
+    virtual const PalPlatformSettings& PlatformSettings() const = 0;
 
     /// Get primary surface layout based upon VidPnSource provided by client.
     ///

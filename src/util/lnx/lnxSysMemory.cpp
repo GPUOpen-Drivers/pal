@@ -74,12 +74,6 @@ Result OsInitDefaultAllocCallbacks(
 }
 
 // =====================================================================================================================
-// Cleans up work done in OsInitDefaultAllocCallbacks().  Nothing to do for Linux.
-void OsDestroyDefaultAllocCallbacks()
-{
-}
-
-// =====================================================================================================================
 // Returns the Windows-specific page size.
 size_t VirtualPageSize()
 {

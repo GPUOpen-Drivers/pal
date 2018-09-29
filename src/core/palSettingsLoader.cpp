@@ -88,14 +88,23 @@ DevDriver::Result ISettingsLoader::SetValue(
         {
             if (pInfo->type == settingValue.type)
             {
-                if (pInfo->valueSize >= settingValue.valueSize)
+                // Give the derived class a chance to update the value in case they need to do something more
+                // complex than a simple memcpy
+                ret = pSettingsLoader->PerformSetValue(hash, settingValue);
+
+                // Unavailable indicates that PerformSetValue did not handle the SetValue request, so fall back to the
+                // simple memcpy
+                if (ret == DevDriver::Result::NotReady)
                 {
-                    memcpy(pInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
-                    ret = DevDriver::Result::Success;
-                }
-                else
-                {
-                    ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;
+                    if (pInfo->valueSize >= settingValue.valueSize)
+                    {
+                        memcpy(pInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
+                        ret = DevDriver::Result::Success;
+                    }
+                    else
+                    {
+                        ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;
+                    }
                 }
             }
             else

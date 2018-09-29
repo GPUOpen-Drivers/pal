@@ -43,7 +43,7 @@
 namespace Util
 {
 
-Result TranslateCwpReturnCode(uint32 returnCode);
+Result TranslateCwpReturnCode(int32 returnCode);
 
 /**
  ***********************************************************************************************************************

@@ -25,6 +25,7 @@
 
 #include "core/cmdStream.h"
 #include "core/platform.h"
+#include "core/g_palPlatformSettings.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
@@ -63,6 +64,7 @@ RsrcProcMgr::RsrcProcMgr(
     GfxDevice* pDevice)
     :
     m_pBlendDisableState(nullptr),
+    m_pColorBlendState(nullptr),
     m_pDepthDisableState(nullptr),
     m_pDepthClearState(nullptr),
     m_pStencilClearState(nullptr),
@@ -103,6 +105,7 @@ RsrcProcMgr::~RsrcProcMgr()
     }
 
     PAL_ASSERT(m_pBlendDisableState      == nullptr);
+    PAL_ASSERT(m_pColorBlendState        == nullptr);
     PAL_ASSERT(m_pDepthDisableState      == nullptr);
     PAL_ASSERT(m_pDepthClearState        == nullptr);
     PAL_ASSERT(m_pStencilClearState      == nullptr);
@@ -144,6 +147,12 @@ void RsrcProcMgr::Cleanup()
     {
         m_pBlendDisableState->DestroyInternal();
         m_pBlendDisableState = nullptr;
+    }
+
+    if (m_pColorBlendState != nullptr)
+    {
+        m_pColorBlendState->DestroyInternal();
+        m_pColorBlendState = nullptr;
     }
 
     DepthStencilState**const ppDepthStates[] =
@@ -978,7 +987,7 @@ void RsrcProcMgr::CopyImageCompute(
             PAL_NOT_IMPLEMENTED();
         }
 
-        // Optimized image copies require a call to HwlUpdateDstImageMetaData...
+        // Optimized image copies require a call to HwlUpdateDstImageFmaskMetaData...
         // Verify that any "update" operation performed is legal for the source and dest images.
         if (HwlUseOptimizedImageCopy(srcImage, dstImage))
         {
@@ -1191,6 +1200,17 @@ void RsrcProcMgr::CopyImageCompute(
 
         // Turn our image views into HW SRDs here
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
+
+        // Destination image is at the beginning of pUserData.
+        if (HwlImageUsesCompressedWrites(pUserData))
+        {
+            SubresRange range = {};
+            range.startSubres = copyRegion.dstSubres;
+            range.numMips     = 1;
+            range.numSlices   = copyRegion.numSlices;
+            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, range);
+        }
+
         pUserData += SrdDwordAlignment() * 2;
 
         if (isFmaskCopy)
@@ -1224,7 +1244,7 @@ void RsrcProcMgr::CopyImageCompute(
     if (isFmaskCopyOptimized)
     {
         // If this is MSAA copy optimized we might have to update destination image meta data
-        HwlUpdateDstImageMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+        HwlUpdateDstImageFmaskMetaData(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
     }
 }
 
@@ -1272,9 +1292,9 @@ void RsrcProcMgr::GetCopyImageFormats(
     {
         // Eventhough we're supposed to do a conversion copy, it will be faster if we can get away with a raw copy.
         // It will be safe to do a raw copy if the formats match and the target subresources support format replacement.
-        if (formatsMatch                                                &&
-            srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout) &&
-            dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout))
+        if (formatsMatch                                                                             &&
+            srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout, false) &&
+            dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
         {
             srcFormat = RpmUtil::GetRawFormat(srcFormat.format, pTexelScale);
             dstFormat = srcFormat;
@@ -1300,9 +1320,9 @@ void RsrcProcMgr::GetCopyImageFormats(
         // Due to hardware-specific compression modes, some image subresources might not support format replacement.
         // Note that the code above can force sRGB to UNORM even if format replacement is not supported because sRGB
         // values use the same bit representation as UNORM values, they just use a different color space.
-        if (srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout))
+        if (srcImage.GetGfxImage()->IsFormatReplaceable(copyRegion.srcSubres, srcImageLayout, false))
         {
-            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout))
+            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
             {
                 // We should do a raw copy that respects channel swizzling if the flag is set and the channel formats
                 // don't match. The process is simple: keep the channel formats and try to find a single numeric format
@@ -1365,7 +1385,7 @@ void RsrcProcMgr::GetCopyImageFormats(
         }
         else
         {
-            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout))
+            if (dstImage.GetGfxImage()->IsFormatReplaceable(copyRegion.dstSubres, dstImageLayout, true))
             {
                 // We can replace the destination format but not the source format. This means that we must interpret
                 // the destination subresource using the source numeric format. We should keep the original destination
@@ -1627,9 +1647,11 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         }
 
         // It will be faster to use a raw format, but we must stick with the base format if replacement isn't an option.
-        SwizzledFormat viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
+        SwizzledFormat    viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
+        const ImageTiling srcTiling  = (isImageDst) ? ImageTiling::Linear : imgCreateInfo.tiling;
 
-        if (image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout))
+        if (image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst) ||
+            (m_pDevice->Parent()->SupportsMemoryViewRead(viewFormat.format, srcTiling) == false))
         {
             uint32 texelScale = 1;
             uint32 pixelsPerBlock = 1;
@@ -1713,6 +1735,14 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
         imageView.flags.includePadding = includePadding;
 
         device.CreateImageViewSrds(1, &imageView, pUserData);
+
+        // Destination image is at the beginning of pUserData.
+        if (isImageDst && HwlImageUsesCompressedWrites(pUserData))
+        {
+            const SubresRange range = { copyRegion.imageSubres, 1, copyRegion.numSlices, };
+            HwlUpdateDstImageStateMetaData(pCmdBuffer, image, range);
+        }
+
         pUserData += SrdDwordAlignment();
 
         // Copy the copy data into the embedded user data memory.
@@ -1904,8 +1934,6 @@ void RsrcProcMgr::CmdScaledCopyImage(
                                    (isDepth == false)                                    &&
                                    ((isSrgb == false) || srcInfo.flags.copyFormatsMatch) &&
                                    (p2pBltWa == false)                                   &&
-                                   (copyInfo.flags.dstColorKey == false)                 &&
-                                   (copyInfo.flags.srcAlpha == false)                    &&
                                    (enableGammaConversion == false)                      &&
                                    (copyInfo.rotation == Pal::ImageRotation::Ccw0)));
 
@@ -1979,13 +2007,21 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
     // Save current command buffer state.
     pCmdBuffer->PushGraphicsState();
-    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetDepthBiasState(depthBias);
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetPointLineRasterState(pointLineRasterState);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    if (copyInfo.flags.srcAlpha)
+    {
+        pCmdBuffer->CmdBindColorBlendState(m_pColorBlendState);
+    }
+    else
+    {
+        pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    }
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
     RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
@@ -2004,6 +2040,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     if (copyInfo.flags.srcColorKey)
     {
         colorKeyEnableMask = 1;
+    }
+    else if (copyInfo.flags.dstColorKey)
+    {
+        colorKeyEnableMask = 2;
     }
 
     if (colorKeyEnableMask > 0)
@@ -2152,28 +2192,38 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         };
 
         // Create an embedded SRD table and bind it to user data 1. We need image views and
-        // a sampler for the src subresource, as well as some inline constants for src and dest
-        // color key
-        const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
+        // a sampler for the src and dest subresource, as well as some inline constants for src and dest
+        // color key for 2d texture copy. Only need image view and a sampler for the src subresource
+        // as not support color key for 3d texture copy.
+        const uint32 DataDwords   = NumBytesToNumDwords(sizeof(copyData));
+        const uint32 sizeInDwords = isTex3d ? (SrdDwordAlignment() * 2) : (SrdDwordAlignment() * 3 + DataDwords);
         uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   SrdDwordAlignment() * 2 + DataDwords,
+                                                                   sizeInDwords,
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
                                                                    1);
 
         // We'll setup both 2D and 3D src images as a 2D view.
-        ImageViewInfo imageView = {};
-        SubresRange   viewRange = { copyRegion.srcSubres, 1, copyRegion.numSlices };
-        RpmUtil::BuildImageViewInfo(&imageView, *pSrcImage, viewRange, srcFormat, false, device.TexOptLevel());
+        ImageViewInfo imageView[2] = {};
+        SubresRange   viewRange    = { copyRegion.srcSubres, 1, copyRegion.numSlices };
+
+        RpmUtil::BuildImageViewInfo(
+            &imageView[0], *pSrcImage, viewRange, srcFormat, false, device.TexOptLevel());
+        viewRange.startSubres = copyRegion.dstSubres;
+        RpmUtil::BuildImageViewInfo(
+            &imageView[1], *pDstImage, viewRange, dstFormat, true, device.TexOptLevel());
 
         if (isTex3d == false)
         {
-            imageView.viewType = ImageViewType::Tex2d;
+            imageView[0].viewType = ImageViewType::Tex2d;
+            imageView[1].viewType = ImageViewType::Tex2d;
         }
 
-        // Populate the table with an image view of the source image.
-        device.CreateImageViewSrds(1, &imageView, pSrdTable);
-        pSrdTable += SrdDwordAlignment();
+        // Populate the table with image views of the source and dest image for 2d texture.
+        // Only populate the table with an image view of the source image for 3d texutre.
+        const uint32 imageCount = isTex3d ? 1 : 2;
+        device.CreateImageViewSrds(imageCount, &imageView[0], pSrdTable);
+        pSrdTable += SrdDwordAlignment() * imageCount;
 
         SamplerInfo samplerInfo = {};
         samplerInfo.filter      = copyInfo.filter;
@@ -2184,8 +2234,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
         pSrdTable += SrdDwordAlignment();
 
-        // Copy the copy parameters into the embedded user-data space
-        memcpy(pSrdTable, &copyData[0], sizeof(copyData));
+        // Copy the copy parameters into the embedded user-data space for 2d texture copy.
+        if (isTex3d == false)
+        {
+            memcpy(pSrdTable, &copyData[0], sizeof(copyData));
+        }
 
         // Give the gfxip layer a chance to optimize the hardware before we start copying.
         const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
@@ -2528,7 +2581,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // subresources, a sampler for the src subresource, as well as some inline constants for the copy offsets
             // and extents.
             const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
-            const uint8 numSlots = isFmaskCopy ? 4 : 3;
+            const uint8  numSlots   = isFmaskCopy ? 4 : 3;
             uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(
                                                     pCmdBuffer,
                                                     SrdDwordAlignment() * numSlots + DataDwords,
@@ -2566,6 +2619,14 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             }
 
             device.CreateImageViewSrds(2, &imageView[0], pUserData);
+
+            // Destination image is at the beginning of pUserData.
+            if (HwlImageUsesCompressedWrites(pUserData))
+            {
+                const SubresRange range = { copyRegion.dstSubres, 1, copyRegion.numSlices };
+                HwlUpdateDstImageStateMetaData(pCmdBuffer, *pDstImage, range);
+            }
+
             pUserData += SrdDwordAlignment() * 2;
 
             if (isFmaskCopy)
@@ -2770,6 +2831,14 @@ void RsrcProcMgr::ConvertYuvToRgb(
                                                                    0);
 
         device.CreateImageViewSrds(viewCount, &viewInfo[0], pUserData);
+
+        // Destination image is at the beginning of pUserData.
+        if (HwlImageUsesCompressedWrites(pUserData))
+        {
+            const SubresRange range = { region.rgbSubres, 1, region.sliceCount };
+            HwlUpdateDstImageStateMetaData(pCmdBuffer, dstImage, range);
+        }
+
         pUserData += (SrdDwordAlignment() * MaxImageSrds);
 
         device.CreateSamplerSrds(1, &sampler, pUserData);
@@ -3519,12 +3588,20 @@ void RsrcProcMgr::SlowClearGraphics(
 
     // Get some useful information about the image.
     const auto& createInfo = dstImage.GetImageCreateInfo();
-    const bool  rawFmtOk   = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout);
+    bool        rawFmtOk   = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true);
 
     // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
     // set the caller has allowed us to use a slightly more efficient raw format.
     const SwizzledFormat baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-    const SwizzledFormat viewFormat = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr) : baseFormat);
+    SwizzledFormat       viewFormat = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr) : baseFormat);
+
+    // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
+    if (viewFormat.format == ChNumFormat::X16_Uint && Formats::IsYuvPacked(baseFormat.format))
+    {
+        viewFormat.format  = ChNumFormat::X32_Uint;
+        viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+        rawFmtOk           = false;
+    }
 
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
@@ -3811,7 +3888,7 @@ void RsrcProcMgr::SlowClearCompute(
     ) const
 {
     // If the image isn't in a layout that allows format replacement this clear path won't work.
-    PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout));
+    PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
     // Get some useful information about the image.
     const auto&          createInfo = dstImage.GetImageCreateInfo();
@@ -4382,7 +4459,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     memcpy(pTableMem, &countGpuAddr, sizeof(countGpuAddr));
     pTableMem += 2;
 
-    const PalSettings& settings = m_pDevice->Parent()->Settings();
+    const auto& settings = m_pDevice->Parent()->GetPlatform()->PlatformSettings();
 
     const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
@@ -4723,10 +4800,10 @@ void RsrcProcMgr::ResolveImageCompute(
             // If the specified format exactly matches the image formats the resolve will always work. Otherwise, the
             // images must support format replacement.
             PAL_ASSERT(Formats::HaveSameNumFmt(srcFormat.format, pRegions[idx].swizzledFormat.format) ||
-                       srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout));
+                       srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout, false));
 
             PAL_ASSERT(Formats::HaveSameNumFmt(dstFormat.format, pRegions[idx].swizzledFormat.format) ||
-                       dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout));
+                       dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
 
             srcFormat.format = pRegions[idx].swizzledFormat.format;
             dstFormat.format = pRegions[idx].swizzledFormat.format;
@@ -4783,7 +4860,13 @@ void RsrcProcMgr::ResolveImageCompute(
         SubresRange   viewRange = { dstSubres, 1, pRegions[idx].numSlices };
 
         RpmUtil::BuildImageViewInfo(&imageView, dstImage, viewRange, dstFormat, true, device.TexOptLevel());
-        device.CreateImageViewSrds(1, &imageView, pUserData);
+        HwlCreateDecompressResolveSafeImageViewSrds(1, &imageView, pUserData);
+
+        // Destination image is at the beginning of pUserData.
+        // It is expected that if the destination image contains any metadata, that metadata should be decompressed.
+        // We want to make sure the image SRD does not support compressed writes to the destination image.
+        PAL_ASSERT(HwlImageUsesCompressedWrites(pUserData) == false);
+
         pUserData += SrdDwordAlignment();
 
         viewRange.startSubres = srcSubres;
@@ -5679,11 +5762,11 @@ void RsrcProcMgr::ResolveImageFixedFunc(
             // images must support format replacement.
             PAL_ASSERT(Formats::HaveSameNumFmt(srcColorViewInfo.swizzledFormat.format,
                                                pRegions[idx].swizzledFormat.format) ||
-                       srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout));
+                       srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout, false));
 
             PAL_ASSERT(Formats::HaveSameNumFmt(dstColorViewInfo.swizzledFormat.format,
                                                pRegions[idx].swizzledFormat.format) ||
-                       dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout));
+                       dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
 
             srcColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
             dstColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
@@ -6219,6 +6302,21 @@ Result RsrcProcMgr::CreateCommonStateObjects()
         }
 
         result = m_pDevice->CreateColorBlendStateInternal(blendInfo, &m_pBlendDisableState, AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        // Set up a color blend state which enable rt0 blending.
+        ColorBlendStateCreateInfo blendInfo = { };
+        blendInfo.targets[0].blendEnable    = 1;
+        blendInfo.targets[0].srcBlendColor  = Blend::SrcColor;
+        blendInfo.targets[0].srcBlendAlpha  = Blend::SrcAlpha;
+        blendInfo.targets[0].dstBlendColor  = Blend::DstColor;
+        blendInfo.targets[0].dstBlendAlpha  = Blend::OneMinusSrcAlpha;
+        blendInfo.targets[0].blendFuncColor = BlendFunc::Add;
+        blendInfo.targets[0].blendFuncAlpha = BlendFunc::Add;
+
+        result = m_pDevice->CreateColorBlendStateInternal(blendInfo, &m_pColorBlendState, AllocInternal);
     }
 
     // Create all MSAA state objects.

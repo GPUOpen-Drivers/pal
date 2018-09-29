@@ -2349,7 +2349,8 @@ typedef union _ADDR2_SURFACE_FLAGS
         UINT_32 noMetadata        :  1; ///< This resource has no metadata
         UINT_32 metaRbUnaligned   :  1; ///< This resource has rb unaligned metadata
         UINT_32 metaPipeUnaligned :  1; ///< This resource has pipe unaligned metadata
-        UINT_32 reserved          : 14; ///< Reserved bits
+        UINT_32 view3dAs2dArray   :  1; ///< This resource is a 3D resource viewed as 2D array
+        UINT_32 reserved          : 13; ///< Reserved bits
     };
 
     UINT_32 value;

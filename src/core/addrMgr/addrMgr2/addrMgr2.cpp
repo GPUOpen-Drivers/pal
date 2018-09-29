@@ -164,7 +164,7 @@ Result AddrMgr2::InitSubresourcesForImage(
     Result result = Result::Success;
 
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
-    const ImageInfo&       imageInfo = pImage->GetImageInfo();
+    const ImageInfo&       imageInfo  = pImage->GetImageInfo();
 
     const uint32 subResourcesPerPlane = (createInfo.mipLevels * createInfo.arraySize);
     for (uint32 plane = 0; plane < imageInfo.numPlanes; ++plane)
@@ -569,7 +569,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, aspect);
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
-    surfSettingInput.noXor           = 0;
+    surfSettingInput.noXor           = GetDevice()->Settings().addr2DisableXorTileMode;
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
@@ -748,8 +748,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
 
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))
     {
-        PAL_ASSERT((createInfo.rowPitch   % bytesPerElement) == 0);
-        PAL_ASSERT((createInfo.depthPitch % createInfo.rowPitch) == 0);
+        PAL_ASSERT((createInfo.rowPitch % bytesPerElement) == 0);
 
         surfInfoIn.pitchInElement = createInfo.rowPitch / bytesPerElement;
 
@@ -989,20 +988,23 @@ Result AddrMgr2::InitSubresourceInfo(
             pSubResInfo->swizzleEqIndex = static_cast<uint8>(eqIdx);
         }
 
-        // Fail if we didn't satisfy the client's requested row and depth pitches.
-        if ((createInfo.rowPitch != 0) && (pSubResInfo->rowPitch != createInfo.rowPitch))
+        if (pSubResInfo->subresId.mipLevel == 0)
         {
-            result = Result::ErrorMismatchedImageRowPitch;
-        }
-        else if (createInfo.depthPitch != 0)
-        {
-            const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
-            // For YUV image, imageCreateInfo.depthPitch includes both the Y and UV planes, while the
-            // pSubResInfo->depthPitch is only covering either the Y or UV planes.
-            if (((isYuvPlanar == true)  && (pSubResInfo->depthPitch >= createInfo.depthPitch)) ||
-                ((isYuvPlanar == false) && (pSubResInfo->depthPitch != createInfo.depthPitch)))
+            // Fail if we didn't satisfy the client's requested row and depth pitches.
+            if ((createInfo.rowPitch != 0) && (pSubResInfo->rowPitch != createInfo.rowPitch))
             {
-                result = Result::ErrorMismatchedImageDepthPitch;
+                result = Result::ErrorMismatchedImageRowPitch;
+            }
+            else if (createInfo.depthPitch != 0)
+            {
+                const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+                // For YUV image, imageCreateInfo.depthPitch includes both the Y and UV planes, while the
+                // pSubResInfo->depthPitch is only covering either the Y or UV planes.
+                if (((isYuvPlanar == true)  && (pSubResInfo->depthPitch >= createInfo.depthPitch)) ||
+                    ((isYuvPlanar == false) && (pSubResInfo->depthPitch != createInfo.depthPitch)))
+                {
+                    result = Result::ErrorMismatchedImageDepthPitch;
+                }
             }
         }
     }
