@@ -305,7 +305,7 @@ if(PAL_BUILD_CORE)
         if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland support")
             target_sources(pal PRIVATE
-            core/os/lnx/wayland/waylandWindowSystem.cpp
+            core/os/lnx/wayland/waylandWindowSystemWsa.cpp
             )
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
         endif()

@@ -115,6 +115,7 @@ Image::Image(
     m_gpuMemLayout.metadataHeaderAlignment = 1;
     m_gpuMemLayout.swizzleEqIndices[0]     = InvalidSwizzleEqIndex;
     m_gpuMemLayout.swizzleEqIndices[1]     = InvalidSwizzleEqIndex;
+
 }
 static_assert(ADDR_TM_LINEAR_GENERAL == 0,
               "If ADDR_TM_LINEAR_GENERAL does not equal 0, the default in internalCreateInfo must be set to it.");
@@ -331,6 +332,19 @@ Result Image::ValidateCreateInfo(
             ret = Result::ErrorInvalidValue;
         }
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+    // view3dAs2dArray is only valid for 3d images.
+    if (ret == Result::Success)
+    {
+        if ((imageInfo.flags.view3dAs2dArray != 0) && (imageInfo.imageType != ImageType::Tex3d))
+        {
+            // If it's a 2D image, the app can't use the view 3d as 2d array feature.
+            ret = Result::ErrorInvalidFlags;
+            PAL_ASSERT_ALWAYS();
+        }
+    }
+#endif
 
     return ret;
 }
@@ -644,7 +658,6 @@ void Image::Destroy()
     {
         m_pPrivateScreen->ReturnImageId(m_privateScreenImageId);
     }
-
     this->~Image();
 }
 

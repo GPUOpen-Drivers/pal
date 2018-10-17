@@ -73,6 +73,15 @@ typedef Vector<PipelineMetadataEntry, 1, Allocator>         PipelineMetadataVect
 typedef VectorIterator<PipelineSymbolEntry, 8, Allocator> PipelineSymbolVectorIter;
 typedef Vector<PipelineSymbolEntry, 8, Allocator>         PipelineSymbolVector;
 
+typedef HashMap<const char*,
+                GenericSymbolEntry,
+                Allocator,
+                StringJenkinsHashFunc,
+                StringEqualFunc,
+                HashAllocator<Allocator>,
+                PAL_CACHE_LINE_BYTES * 2>   GenericSymbolMap;
+typedef typename GenericSymbolMap::Iterator GenericSymbolIter;
+
 public:
     explicit PipelineAbiProcessor(Allocator* const pAllocator);
     ~PipelineAbiProcessor()
@@ -114,6 +123,16 @@ public:
     ///
     /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
     Result AddPipelineSymbolEntry(PipelineSymbolEntry entry);
+
+    /// Adds a generic symbol to the pipeline binary.  These symbols don't match any of the predetermined symbol
+    /// types @ref PipelineSymbolType.
+    ///
+    /// @param [in] entry The GenericSymbolEntry to add.  This function does not make a memory copy of the pName
+    ///                   string for the symbol, so it is up to the caller to make sure that the string memory has
+    ///                   at least as long a lifetime as this object has.
+    ///
+    /// @returns Success if successful, otherwise ErrorOutOfMemory if memory allocation fails.
+    Result AddGenericSymbolEntry(GenericSymbolEntry entry);
 
     /// Set the GFXIP version.
     ///
@@ -307,6 +326,14 @@ public:
         PAL_ASSERT(m_pipelineSymbolIndices[static_cast<uint32>(pipelineSymbolType)] >= 0);
         return m_pipelineSymbolsVector.At(m_pipelineSymbolIndices[static_cast<uint32>(pipelineSymbolType)]);
     }
+
+    /// Check if a GenericSymbolEntry exists and return it through an output parameter.
+    ///
+    /// @param [in]  pName                ELF name of the symbol to search for
+    /// @param [out] pGenericSymbolEntry  The symbol entry, if it exists.
+    ///
+    /// @returns If the symbol with the given name exists in the ELF.
+    bool HasGenericSymbolEntry(const char* pName, GenericSymbolEntry* pGenericSymbolEntry) const;
 
     /// Get the Pipeline Metadata as a deserialized struct using the given MsgPackReader instance. If successful,
     /// the reader's position will then be moved to either the start of the registers map, or to EOF if there are
@@ -539,6 +566,7 @@ private:
     int32 m_pipelineMetadataIndices[static_cast<uint32>(PipelineMetadataType::Count)];
 #endif
 
+    GenericSymbolMap       m_genericSymbolsMap;      // Map of generic symbols
     PipelineSymbolVector   m_pipelineSymbolsVector;  // Pipeline symbols
     int32 m_pipelineSymbolIndices[static_cast<uint32>(PipelineSymbolType::Count)];
 
@@ -549,5 +577,5 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineAbiProcessor<Allocator>);
 };
 
-} //Abi
-} //Pal
+} // Abi
+} // Pal

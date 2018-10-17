@@ -1501,10 +1501,11 @@ void Image::OverrideGpuMemHeaps(
     GpuMemoryRequirements* pMemReqs     // [in,out] returns with populated 'heap' info
     ) const
 {
+    const auto&  settings = GetGfx9Settings(m_device);
+
     // If this surface has meta-data and the equations are being processed via the CPU, then make sure that this
     // surface is in a mappable heap.
-    if (((HasColorMetaData() || HasHtileData()) &&
-         GetGfx9Settings(m_device).processMetaEquationViaCpu))
+    if (((HasColorMetaData() || HasHtileData()) && settings.processMetaEquationViaCpu))
     {
         uint32  heapIdx = 0;
 
@@ -2135,7 +2136,7 @@ bool Image::SupportsMetaDataTextureFetch(
     const SubresId&  subResource
     ) const
 {
-    bool         texFetchSupported = false;
+    bool texFetchSupported = false;
 
     if (m_pImageInfo->internalCreateInfo.flags.useSharedMetadata)
     {

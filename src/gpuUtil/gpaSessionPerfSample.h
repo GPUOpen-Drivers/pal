@@ -61,6 +61,7 @@ struct GpaSession::SampleItem
 {
     GpaSampleConfig       sampleConfig;
     Pal::IPerfExperiment* pPerfExperiment;
+    PerfExperimentMemory  perfMemInfo;
     PerfSample*           pPerfSample;
 };
 

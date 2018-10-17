@@ -102,16 +102,13 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::AsicRevision::Capeverde:
     case Pal::AsicRevision::Oland:
     case Pal::AsicRevision::Hainan:
-        pTable = mlaaComputeBinaryTableTahiti;
-        break;
-
     case Pal::AsicRevision::Bonaire:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Kalindi:
     case Pal::AsicRevision::Godavari:
     case Pal::AsicRevision::Spectre:
     case Pal::AsicRevision::Spooky:
-        pTable = mlaaComputeBinaryTableBonaire;
+        pTable = mlaaComputeBinaryTableTahiti;
         break;
 
     case Pal::AsicRevision::Carrizo:

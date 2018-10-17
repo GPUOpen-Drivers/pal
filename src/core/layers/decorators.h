@@ -354,6 +354,12 @@ public:
         OsWindowHandle hWindow) override
         { return m_pNextLayer->RegisterWindow(hWindow); }
 
+    virtual Result IsImplicitFullscreenOwnershipSafe(
+        OsDisplayHandle hDisplay,
+        OsWindowHandle  hWindow,
+        Extent2d        imageExtent) const override
+        { return m_pNextLayer->IsImplicitFullscreenOwnershipSafe(hDisplay, hWindow, imageExtent); }
+
     virtual Result TakeFullscreenOwnership(
         const IImage& image) override
         { return m_pNextLayer->TakeFullscreenOwnership(*NextImage(&image)); }
@@ -2497,7 +2503,7 @@ public:
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
 
-    virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) override
+    virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }
 
     virtual const PipelineInfo& GetInfo() const override { return m_pNextLayer->GetInfo(); }

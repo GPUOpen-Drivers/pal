@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 439
+#define PAL_INTERFACE_MAJOR_VERSION 443
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -87,29 +87,40 @@ namespace Pal
 // Forward declarations
 class      IPlatform;
 
-/// This is a list of GPU's that the NULL OS layer can compile shaders to in off-line mode.
+/// This is a list of GPUs that the NULL OS layer can compile shaders to in offline mode.
 enum class NullGpuId : uint32
 {
-    Tahiti     = 0x0,
-    Hainan     = 0x1,
-    Bonaire    = 0x2,
-    Hawaii     = 0x3,
-    Kalindi    = 0x4,
-    Godavari   = 0x5,
-    Iceland    = 0x6,
-    Carrizo    = 0x7,
-    Tonga      = 0x8,
-    Fiji       = 0x9,
-    Stoney     = 0xA,
+    Tahiti     = 0x00,
+    Pitcairn   = 0x01,
+    Capeverde  = 0x02,
+    Oland      = 0x03,
+    Hainan     = 0x04,
+
+    Spectre    = 0x05,
+    Spooky     = 0x06,
+    Hawaii     = 0x08,
+    Kalindi    = 0x09,
+    Godavari   = 0x0A,
+    Bonaire    = 0x0B,
+
+    Carrizo    = 0x0C,
+    Bristol    = 0x0D,
+    Iceland    = 0x0E,
+    Tonga      = 0x0F,
+    Fiji       = 0x10,
+    Polaris10  = 0x11,
+    Polaris11  = 0x12,
+    Polaris12  = 0x13,
+    Stoney     = 0x15,
+
 #if PAL_BUILD_GFX9
-    Vega10     = 0xB,
+    Vega10     = 0x16,
+    Raven      = 0x17,
+    Vega12     = 0x18,
 #endif
-    Raven      = 0xC,
-#if PAL_BUILD_GFX9
-    Vega12     = 0xD,
-#endif
-    Max        = 0x10,
-    All        = 0x11
+
+    Max        = 0x1E,
+    All        = 0x1F,
 };
 
 /// Maps a null GPU ID to its associated text name.

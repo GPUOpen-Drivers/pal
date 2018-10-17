@@ -1932,10 +1932,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
                                    (isCompressed == false)                               &&
                                    (isYuv == false)                                      &&
                                    (isDepth == false)                                    &&
-                                   ((isSrgb == false) || srcInfo.flags.copyFormatsMatch) &&
-                                   (p2pBltWa == false)                                   &&
-                                   (enableGammaConversion == false)                      &&
-                                   (copyInfo.rotation == Pal::ImageRotation::Ccw0)));
+                                   (p2pBltWa == false)));
 
     if (useGraphicsCopy)
     {
@@ -2125,16 +2122,42 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                        (srcRight  >= 0.0f)   && (srcRight  <= 1.0f) &&
                        (srcBottom >= 0.0f)   && (srcBottom <= 1.0f));
 
-            const uint32 userData[4] =
+            // RotationParams contains the parameters to rotate 2d texture cooridnates.
+            // Given 2d texture coordinates (u, v), we use following equations to compute rotated coordinates (u', v'):
+            // u' = RotationParams[0] * u + RotationParams[1] * v + RotationParams[4]
+            // v' = RotationParams[2] * u + RotationParams[3] * v + RotationParams[5]
+            constexpr float RotationParams[static_cast<uint32>(ImageRotation::Count)][6] =
+            {
+                { 1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f},
+                { 0.0f, -1.0f,  1.0f,  0.0f, 1.0f, 0.0f},
+                {-1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f},
+                { 0.0f,  1.0f, -1.0f,  0.0f, 0.0f, 1.0f},
+            };
+
+            const uint32 rotationIndex = static_cast<const uint32>(copyInfo.rotation);
+
+            const uint32 userData[10] =
             {
                 reinterpret_cast<const uint32&>(srcLeft),
                 reinterpret_cast<const uint32&>(srcTop),
                 reinterpret_cast<const uint32&>(srcRight),
-                reinterpret_cast<const uint32&>(srcBottom)
+                reinterpret_cast<const uint32&>(srcBottom),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][0]),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][1]),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][2]),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][3]),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][4]),
+                reinterpret_cast<const uint32&>(RotationParams[rotationIndex][5]),
             };
 
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
-
+            if (isTex3d == true)
+            {
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 4, &userData[0]);
+            }
+            else
+            {
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 10, &userData[0]);
+            }
         }
 
         // Determine which image formats to use for the copy.
@@ -2202,6 +2225,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
                                                                    1);
+        // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
+        // when copying from SRGB -> XX.
+        if (flags.srcSrgbAsUnorm)
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+        }
 
         // We'll setup both 2D and 3D src images as a 2D view.
         ImageViewInfo imageView[2] = {};
@@ -2292,7 +2321,14 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 srcSlice
             };
 
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 1, &userData[0]);
+            if (isTex3d == true)
+            {
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 1, &userData[0]);
+            }
+            else
+            {
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 12, 1, &userData[0]);
+            }
 
             colorViewInfo.imageInfo.baseSubRes = copyRegion.dstSubres;
 

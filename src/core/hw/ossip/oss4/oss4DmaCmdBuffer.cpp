@@ -43,7 +43,9 @@ DmaCmdBuffer::DmaCmdBuffer(
     Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(pDevice->Parent(), createInfo, true)
+    Pal::DmaCmdBuffer(pDevice->Parent(),
+                      createInfo,
+                      ((1 << static_cast<uint32>(ImageType::Count)) - 1))
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   While SDMA 4.0 may execute sequences of small copies/writes asynchronously, the hardware should

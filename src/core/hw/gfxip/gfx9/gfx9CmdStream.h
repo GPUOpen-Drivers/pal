@@ -79,9 +79,9 @@ public:
     uint32* WriteSetOneContextRegNoOpt(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
     uint32* WriteSetOnePerfCtrReg(
-        uint32  regAddr,
-        uint32  value,
-        uint32* pCmdSpace);
+        uint32     regAddr,
+        uint32     value,
+        uint32*    pCmdSpace);
     uint32* WriteSetOnePrivilegedConfigReg(
         uint32     regAddr,
         uint32     value,

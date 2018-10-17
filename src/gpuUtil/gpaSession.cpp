@@ -249,7 +249,8 @@ GpaSession::GpaSession(
     uint16               apiMajorVer,
     uint16               apiMinorVer,
     uint16               rgpInstrumentationSpecVer,
-    uint16               rgpInstrumentationApiVer)
+    uint16               rgpInstrumentationApiVer,
+    PerfExpMemDeque*     pAvailablePerfExpMem)
     :
     m_pDevice(pDevice),
     m_timestampAlignment(0),
@@ -269,9 +270,12 @@ GpaSession::GpaSession(
     m_availableLocalInvisGpuMem(m_pPlatform),
     m_busyLocalInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
+    m_pAvailablePerfExpMem(pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
+    m_codeObjectLoadEventRecordsCache(m_pPlatform),
+    m_curCodeObjectLoadEventRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -292,6 +296,8 @@ GpaSession::GpaSession(
 void GpaSession::DestroyGpuMemoryInfo(
     GpuMemoryInfo* pGpuMemoryInfo)
 {
+    PAL_ASSERT(pGpuMemoryInfo->pGpuMemory != nullptr);
+
     // Unmap if it's mapped
     if (pGpuMemoryInfo->pCpuAddr != nullptr)
     {
@@ -299,7 +305,9 @@ void GpaSession::DestroyGpuMemoryInfo(
         pGpuMemoryInfo->pCpuAddr = nullptr;
     }
 
-    PAL_ASSERT(pGpuMemoryInfo->pGpuMemory != nullptr);
+    IGpuMemory *memRef = pGpuMemoryInfo->pGpuMemory;
+    Result result = m_pDevice->RemoveGpuMemoryReferences(1, &memRef, nullptr);
+    PAL_ASSERT(result == Result::Success);
 
     pGpuMemoryInfo->pGpuMemory->Destroy();
     PAL_SAFE_FREE(pGpuMemoryInfo->pGpuMemory, m_pPlatform);
@@ -423,9 +431,12 @@ GpaSession::GpaSession(
     m_availableLocalInvisGpuMem(m_pPlatform),
     m_busyLocalInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
+    m_pAvailablePerfExpMem(src.m_pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
+    m_codeObjectLoadEventRecordsCache(m_pPlatform),
+    m_curCodeObjectLoadEventRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -470,7 +481,7 @@ Result GpaSession::Init()
 
         if (result == Result::Success)
         {
-            void* pMemory = PAL_CALLOC(eventSize,
+            void* pMemory = PAL_MALLOC(eventSize,
                                        m_pPlatform,
                                        Util::SystemAllocType::AllocObject);
             if (pMemory == nullptr)
@@ -508,7 +519,7 @@ Result GpaSession::Init()
         const size_t cmdAllocatorSize = m_pDevice->GetCmdAllocatorSize(createInfo, &result);
         if (result == Result::Success)
         {
-            void* pMemory = PAL_CALLOC(cmdAllocatorSize,
+            void* pMemory = PAL_MALLOC(cmdAllocatorSize,
                                        m_pPlatform,
                                        Util::AllocObject);
             if (pMemory == nullptr)
@@ -564,6 +575,12 @@ Result GpaSession::Init()
             for (auto iter = m_pSrcSession->m_codeObjectRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
             {
                 m_codeObjectRecordsCache.PushBack(*iter.Get());
+            }
+
+            // Copy code object load event database from srcSession
+            for (auto iter = m_pSrcSession->m_codeObjectLoadEventRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                m_codeObjectLoadEventRecordsCache.PushBack(*iter.Get());
             }
 
             // Copy shader ISA database from srcSession
@@ -1270,7 +1287,7 @@ Result GpaSession::End(
     if (result == Result::Success)
     {
         // Copy all SQTT results to CPU accessible memory
-        const uint32 numEntries = m_sampleItemArray.NumElements();
+        const uint32 numEntries = m_sampleCount;
         bool needsPostTraceIdle = true;
         for (uint32 i = 0; i < numEntries; i++)
         {
@@ -1334,6 +1351,11 @@ Result GpaSession::End(
             m_curCodeObjectRecords.PushBack(*iter.Get());
         }
 
+        for (auto iter = m_codeObjectLoadEventRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            m_curCodeObjectLoadEventRecords.PushBack(*iter.Get());
+        }
+
         // Copy all entries in the shader record cache into the current shader records list.
         for (auto iter = m_shaderRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
         {
@@ -1368,25 +1390,34 @@ uint32 GpaSession::BeginSample(
         result = Result::Unsupported;
     }
 
+    // We can save allocations made if we instead reuse sample items when we reset.
+    const bool sampleExists = (m_sampleCount < m_sampleItemArray.NumElements());
+
     if (result == Result::Success)
     {
-        // Create instance for map entry
-        pSampleItem = static_cast<SampleItem*>(PAL_CALLOC(sizeof(SampleItem),
-                                                          m_pPlatform,
-                                                          Util::SystemAllocType::AllocObject));
-        if (pSampleItem != nullptr)
+        if (sampleExists)
         {
-            // Save a copy of the sample config struct
-            pSampleItem->sampleConfig = sampleConfig;
+            pSampleItem = m_sampleItemArray.At(m_sampleCount);
+            PAL_ASSERT(pSampleItem != nullptr);
         }
         else
         {
-            result = Result::ErrorOutOfMemory;
+            // Create instance for map entry
+            pSampleItem = static_cast<SampleItem*>(PAL_CALLOC(sizeof(SampleItem),
+                                                              m_pPlatform,
+                                                              Util::SystemAllocType::AllocObject));
+            if (pSampleItem == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
         }
     }
 
     if (result == Result::Success)
     {
+        // Save a copy of the sample config struct
+        pSampleItem->sampleConfig = sampleConfig;
+
         // Cumulative/Trace mode branch
         if ((pSampleItem->sampleConfig.type == GpaSampleType::Cumulative) ||
             (pSampleItem->sampleConfig.type == GpaSampleType::Trace))
@@ -1399,7 +1430,8 @@ uint32 GpaSession::BeginSample(
 
             // Get an idle performance experiment from the queue's pool.
             IPerfExperiment* pPerfExperiment = nullptr;
-            result = AcquirePerfExperiment(sampleConfig,
+            result = AcquirePerfExperiment(pSampleItem,
+                                           sampleConfig,
                                            &primaryGpuMemInfo,
                                            &primaryOffset,
                                            &secondaryGpuMemInfo,
@@ -1541,10 +1573,14 @@ uint32 GpaSession::BeginSample(
     if (result == Result::Success)
     {
         // Finally add <sampleId,SampleItem> pair to the Map
-        m_sampleItemArray.PushBack(pSampleItem);
-
+        if (sampleExists == false)
+        {
+            m_sampleItemArray.PushBack(pSampleItem);
+        }
         m_sampleCount++;
-        PAL_ASSERT(m_sampleCount == m_sampleItemArray.NumElements());
+
+        // m_sampleCount is the current number of active samples in the session.
+        PAL_ASSERT(m_sampleCount <= m_sampleItemArray.NumElements());
     }
     else
     {
@@ -1788,8 +1824,8 @@ Result GpaSession::Reset()
         m_curLocalInvisGpuMem.pCpuAddr   = nullptr;
         m_curLocalInvisGpuMemOffset      = 0;
 
-        // Free each sampleItem
-        FreeSampleItemArray();
+        // Recycle each sampleItem
+        RecycleSampleItemArray();
 
         // Reset counter of session-owned samples
         m_sampleCount = 0;
@@ -1840,7 +1876,7 @@ void GpaSession::CopyResults(
         pCmdBuf->CmdBarrier(barrierInfo);
 
         // copy each perfExperiment result from source session to this copy session
-        for (uint32 i = 0; i < m_sampleItemArray.NumElements(); i++)
+        for (uint32 i = 0; i < m_sampleCount; i++)
         {
             SampleItem* pSampleItem = m_sampleItemArray.At(i);
 
@@ -2028,7 +2064,7 @@ Pal::Result GpaSession::CreateCmdBufferForQueue(
         const size_t cmdBufferSize = m_pDevice->GetCmdBufferSize(createInfo, &result);
         if (result == Pal::Result::Success)
         {
-            void* pMemory = PAL_CALLOC(cmdBufferSize,
+            void* pMemory = PAL_MALLOC(cmdBufferSize,
                                        m_pPlatform,
                                        Util::AllocObject);
             if (pMemory == nullptr)
@@ -2192,24 +2228,22 @@ void GpaSession::DestroyTimedQueueState(
 Result GpaSession::RegisterPipeline(
     const IPipeline* pPipeline)
 {
-    Result result = Result::Success;
-
-    // Save IPipeline* to the data-structure.
     PAL_ASSERT(pPipeline != nullptr);
+
+    // Even if the pipeline was already previously encountered, we still want to record every time it gets loaded.
+    Result result = AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::Load);
 
     PipelineInfo pipeInfo = pPipeline->GetInfo();
 
-    m_registerPipelineLock.LockForWrite();
+    if (result == Result::Success)
+    {
+        m_registerPipelineLock.LockForWrite();
 
-    if (m_registeredPipelines.Contains(pipeInfo.pipelineHash) == false)
-    {
-        m_registeredPipelines.Insert(pipeInfo.pipelineHash);
+        result = m_registeredPipelines.Contains(pipeInfo.pipelineHash) ? Result::AlreadyExists :
+                 m_registeredPipelines.Insert(pipeInfo.pipelineHash);
+
+        m_registerPipelineLock.UnlockForWrite();
     }
-    else
-    {
-        result = Result::AlreadyExists;
-    }
-    m_registerPipelineLock.UnlockForWrite();
 
     if (result == Result::Success)
     {
@@ -2279,6 +2313,52 @@ Result GpaSession::RegisterPipeline(
 
             m_registerPipelineLock.UnlockForWrite();
         }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Unregisters a pipeline with the GpaSession.
+Result GpaSession::UnregisterPipeline(
+    const IPipeline* pPipeline)
+{
+    return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::Unload);
+}
+
+// =====================================================================================================================
+// Helper function to add a new code object load event record.
+Result GpaSession::AddCodeObjectLoadEvent(
+    const IPipeline*         pPipeline,
+    CodeObjectLoadEventType  eventType)
+{
+    PAL_ASSERT(pPipeline != nullptr);
+
+    const auto& info = pPipeline->GetInfo();
+
+    size_t numGpuAllocations = 0;
+    GpuMemSubAllocInfo gpuSubAlloc = { };
+
+    Result result = pPipeline->QueryAllocationInfo(&numGpuAllocations, nullptr);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(numGpuAllocations == 1);
+        result = pPipeline->QueryAllocationInfo(&numGpuAllocations, &gpuSubAlloc);
+    }
+
+    if (result == Result::Success)
+    {
+        CodeObjectLoadEventRecord record = { };
+        record.eventType      = eventType;
+        record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
+        record.codeObjectHash = info.compilerHash;
+        record.apiHash        = info.pipelineHash;
+        record.timestamp      = 0; // Always set to 0 for now.
+
+        m_registerPipelineLock.LockForWrite();
+        result = m_codeObjectLoadEventRecordsCache.PushBack(record);
+        m_registerPipelineLock.UnlockForWrite();
     }
 
     return result;
@@ -2547,7 +2627,7 @@ Result GpaSession::AcquireGpuMem(
             createInfo.heaps[0]  = heapType;
             createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
 
-            void* pMemory = PAL_CALLOC(m_pDevice->GetGpuMemorySize(createInfo, nullptr),
+            void* pMemory = PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, nullptr),
                                        m_pPlatform,
                                        Util::SystemAllocType::AllocObject);
             if (pMemory == nullptr)
@@ -2607,15 +2687,18 @@ Result GpaSession::AcquireGpuMem(
 // =====================================================================================================================
 // Acquires a GpaSession-owned performance experiment based on the device's active perf counter requests.
 Result GpaSession::AcquirePerfExperiment(
-    const GpaSampleConfig& sampleConfig,
-    GpuMemoryInfo*         pGpuMem,
-    gpusize*               pOffset,
-    GpuMemoryInfo*         pSecondaryGpuMem,
-    gpusize*               pSecondaryOffset,
-    gpusize*               pHeapSize,
-    IPerfExperiment**      ppExperiment
+    GpaSession::SampleItem* pSampleItem,
+    const GpaSampleConfig&  sampleConfig,
+    GpuMemoryInfo*          pGpuMem,
+    gpusize*                pOffset,
+    GpuMemoryInfo*          pSecondaryGpuMem,
+    gpusize*                pSecondaryOffset,
+    gpusize*                pHeapSize,
+    IPerfExperiment**       ppExperiment
     )
 {
+    PAL_ASSERT(pSampleItem != nullptr);
+
     // No experiments are currently idle (or possibly none exist at all) - allocate a new one.
     PerfExperimentCreateInfo createInfo                   = {};
 
@@ -2627,19 +2710,41 @@ Result GpaSession::AcquirePerfExperiment(
     createInfo.optionFlags.sqShaderMask                   = sampleConfig.flags.sqShaderMask;
     createInfo.optionValues.sqShaderMask                  = sampleConfig.sqShaderMask;
 
-    void* pMemory = PAL_CALLOC(m_pDevice->GetPerfExperimentSize(createInfo, nullptr),
-                               m_pPlatform,
-                               Util::SystemAllocType::AllocObject);
+    const size_t perfExperimentSize = m_pDevice->GetPerfExperimentSize(createInfo, nullptr);
+    const bool   memoryExists       = ((m_pAvailablePerfExpMem != nullptr) &&
+                                       (m_pAvailablePerfExpMem->NumElements() > 0));
+
+    if (memoryExists)
+    {
+        m_pAvailablePerfExpMem->PopFront(&pSampleItem->perfMemInfo);
+        PAL_ASSERT(pSampleItem->perfMemInfo.pMemory != nullptr);
+        PAL_ASSERT(pSampleItem->perfMemInfo.memorySize >= perfExperimentSize);
+    }
+    else
+    {
+        pSampleItem->perfMemInfo.pMemory    = PAL_MALLOC(perfExperimentSize,
+                                                         m_pPlatform,
+                                                         Util::SystemAllocType::AllocObject);
+        pSampleItem->perfMemInfo.memorySize = perfExperimentSize;
+    }
 
     Result result = Result::ErrorOutOfMemory;
 
-    if (pMemory != nullptr)
+    if (pSampleItem->perfMemInfo.pMemory != nullptr)
     {
-        result = m_pDevice->CreatePerfExperiment(createInfo, pMemory, ppExperiment);
+        result = m_pDevice->CreatePerfExperiment(createInfo, pSampleItem->perfMemInfo.pMemory, ppExperiment);
 
         if (result != Result::Success)
         {
-            PAL_SAFE_FREE(pMemory, m_pPlatform);
+            if (m_pAvailablePerfExpMem != nullptr)
+            {
+                m_pAvailablePerfExpMem->PushBack(pSampleItem->perfMemInfo);
+            }
+            else
+            {
+                PAL_SAFE_FREE(pSampleItem->perfMemInfo.pMemory, m_pPlatform);
+            }
+            pSampleItem->perfMemInfo = {};
         }
     }
 
@@ -2842,7 +2947,6 @@ Result GpaSession::AcquirePerfExperiment(
             // We weren't able to get memory for this perf experiment. Let's not accidentally bind a perf
             // experiment with no backing memory. Clean up this perf experiment.
             (*ppExperiment)->Destroy();
-            PAL_SAFE_FREE((*ppExperiment), m_pPlatform);
         }
     }
 
@@ -2863,7 +2967,7 @@ Result GpaSession::AcquirePipeStatsQuery(
     createInfo.numSlots            = 1;
     createInfo.enabledStats        = QueryPipelineStatsAll;
 
-    void* pMemory = PAL_CALLOC(m_pDevice->GetQueryPoolSize(createInfo, nullptr),
+    void* pMemory = PAL_MALLOC(m_pDevice->GetQueryPoolSize(createInfo, nullptr),
                                m_pPlatform,
                                Util::SystemAllocType::AllocObject);
 
@@ -3108,7 +3212,7 @@ Result GpaSession::DumpRgpData(
             curFileOffset += sqttBytesWritten;
         }
 
-        // Write Code Object Database to the RGP file.
+        // Write code object database to the RGP file.
         if (result == Result::Success)
         {
             if (pRgpOutput != nullptr)
@@ -3128,7 +3232,7 @@ Result GpaSession::DumpRgpData(
                         RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE].minorVersion;
                     codeObjectDb.recordCount = static_cast<uint32>(m_curCodeObjectRecords.NumElements());
 
-                    int32 codeObjectDatabaseSize = sizeof(SqttFileChunkCodeObjectDatabase);
+                    uint32 codeObjectDatabaseSize = sizeof(SqttFileChunkCodeObjectDatabase);
                     for (auto iter = m_curCodeObjectRecords.Begin(); iter.Get() != nullptr; iter.Next())
                     {
                         codeObjectDatabaseSize += (sizeof(SqttCodeObjectDatabaseRecord) + (*iter.Get())->recordSize);
@@ -3140,7 +3244,7 @@ Result GpaSession::DumpRgpData(
                     codeObjectDb.size                              = codeObjectDatabaseSize;
 
                     // The code object database starts from the beginning of the chunk.
-                    codeObjectDb.offset                            = static_cast<int32>(curFileOffset);
+                    codeObjectDb.offset                            = static_cast<uint32>(curFileOffset);
 
                     // There are no flags for this chunk in the specification as of yet.
                     codeObjectDb.flags                             = 0;
@@ -3177,7 +3281,78 @@ Result GpaSession::DumpRgpData(
             }
         }
 
-        // Write Shader ISA Database to the RGP file.
+        // Write API code object loader events to the RGP file.
+        if (result == Result::Success)
+        {
+            const size_t chunkTotalSize = (sizeof(SqttFileChunkApiLevelLoaderEvents) +
+                (sizeof(SqttApiLevelLoaderEventRecord) * m_curCodeObjectLoadEventRecords.NumElements()));
+
+            if (pRgpOutput != nullptr)
+            {
+                if (static_cast<size_t>(curFileOffset + chunkTotalSize) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    SqttFileChunkApiLevelLoaderEvents loaderEvents = {};
+                    loaderEvents.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS;
+                    loaderEvents.header.chunkIdentifier.chunkIndex = 0;
+                    loaderEvents.header.majorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS].majorVersion;
+                    loaderEvents.header.minorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS].minorVersion;
+                    loaderEvents.recordCount         = static_cast<uint32>(m_curCodeObjectLoadEventRecords.NumElements());
+                    loaderEvents.recordSize          = sizeof(SqttApiLevelLoaderEventRecord);
+
+                    loaderEvents.header.sizeInBytes  = static_cast<int32>(chunkTotalSize);
+
+                    // The loader events starts from the beginning of the chunk.
+                    loaderEvents.offset              = static_cast<uint32>(curFileOffset);
+
+                    // There are no flags for this chunk in the specification as of yet.
+                    loaderEvents.flags               = 0;
+
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &loaderEvents,
+                           sizeof(SqttFileChunkApiLevelLoaderEvents));
+                }
+            }
+
+            curFileOffset += sizeof(SqttFileChunkApiLevelLoaderEvents);
+
+            constexpr SqttApiLevelLoaderEventType PalToSqttLoadEvent[] =
+            {
+                SQTT_API_LEVEL_OBJECT_LOAD,   // CodeObjectLoadEventType::Load
+                SQTT_API_LEVEL_OBJECT_UNLOAD, // CodeObjectLoadEventType::Unload
+            };
+
+            for (auto iter = m_curCodeObjectLoadEventRecords.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                const CodeObjectLoadEventRecord& srcRecord = *iter.Get();
+
+                if ((result == Result::Success) && (pRgpOutput != nullptr))
+                {
+                    SqttApiLevelLoaderEventRecord sqttRecord = {};
+                    sqttRecord.eventType      =
+                        PalToSqttLoadEvent[static_cast<uint32>(srcRecord.eventType)];
+                    sqttRecord.baseAddress    = srcRecord.baseAddress;
+                    sqttRecord.codeObjectHash = srcRecord.codeObjectHash;
+                    sqttRecord.shaderCodeHash = 0;
+                    sqttRecord.apiHash        = srcRecord.apiHash;
+                    sqttRecord.timestamp      = srcRecord.timestamp;
+
+                    // Copy one record to the buffer provided.
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &sqttRecord,
+                           sizeof(SqttApiLevelLoaderEventRecord));
+                }
+
+                curFileOffset += sizeof(SqttApiLevelLoaderEventRecord);
+            }
+        }
+
+        // Write shader ISA database to the RGP file.
         if (result == Result::Success)
         {
             // Shader ISA database header.
@@ -3210,7 +3385,7 @@ Result GpaSession::DumpRgpData(
                     shaderIsaDb.size                              = shaderDatabaseSize;
 
                     // The ISA database starts from the beginning of the chunk.
-                    shaderIsaDb.offset                            = static_cast<int32>(curFileOffset);
+                    shaderIsaDb.offset                            = static_cast<uint32>(curFileOffset);
 
                     memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
                            &shaderIsaDb,
@@ -3557,19 +3732,65 @@ void GpaSession::FreeSampleItemArray()
         if (pSampleItem->pPerfExperiment != nullptr)
         {
             pSampleItem->pPerfExperiment->Destroy();
-            PAL_SAFE_FREE(pSampleItem->pPerfExperiment, m_pPlatform);
+            pSampleItem->pPerfExperiment = nullptr;
         }
 
-        PerfSample* pSample = pSampleItem->pPerfSample;
-
-        if (pSample != nullptr)
+        if (pSampleItem->pPerfSample != nullptr)
         {
-            PAL_SAFE_DELETE(pSample, m_pPlatform);
+            PAL_SAFE_DELETE(pSampleItem->pPerfSample, m_pPlatform);
+        }
+
+        if (pSampleItem->perfMemInfo.pMemory != nullptr)
+        {
+            if (m_pAvailablePerfExpMem != nullptr)
+            {
+                m_pAvailablePerfExpMem->PushBack(pSampleItem->perfMemInfo);
+            }
+            else
+            {
+                PAL_SAFE_FREE(pSampleItem->perfMemInfo.pMemory, m_pPlatform);
+            }
         }
 
         PAL_SAFE_FREE(pSampleItem, m_pPlatform);
     }
     m_sampleItemArray.Clear();
+}
+
+// =====================================================================================================================
+// Destroy the sub-objects in the m_sampleItemArray without destroying the IPerfExperiment memory.
+void GpaSession::RecycleSampleItemArray()
+{
+    const uint32 numEntries = m_sampleCount;
+    for (uint32 i = 0; i < numEntries; i++)
+    {
+        SampleItem* pSampleItem = m_sampleItemArray.At(i);
+        PAL_ASSERT(pSampleItem != nullptr);
+
+        if (pSampleItem->pPerfExperiment != nullptr)
+        {
+            pSampleItem->pPerfExperiment->Destroy();
+            pSampleItem->pPerfExperiment = nullptr;
+        }
+
+        if (pSampleItem->perfMemInfo.pMemory != nullptr)
+        {
+            if (m_pAvailablePerfExpMem != nullptr)
+            {
+                m_pAvailablePerfExpMem->PushBack(pSampleItem->perfMemInfo);
+            }
+            else
+            {
+                PAL_SAFE_FREE(pSampleItem->perfMemInfo.pMemory, m_pPlatform);
+            }
+            pSampleItem->perfMemInfo = {};
+        }
+
+        if (pSampleItem->pPerfSample != nullptr)
+        {
+            PAL_SAFE_DELETE(pSampleItem->pPerfSample, m_pPlatform);
+        }
+    }
 }
 
 // =====================================================================================================================

@@ -225,8 +225,10 @@ Result DisplayWindowSystem::CreatePresentableImage(
 
         if (ret == 0)
         {
+            WindowSystemImageHandle imageHandle = { .hBuffer = bufferHandle[0] };
+
             pImage->SetFramebufferId(fbId);
-            pImage->SetPresentImageHandle(bufferHandle[0]);
+            pImage->SetPresentImageHandle(imageHandle);
 
             FindCrtc();
             ModeSet(pImage);
@@ -263,10 +265,12 @@ Result DisplayWindowSystem::ModeSet(
 
 // =====================================================================================================================
 void DisplayWindowSystem::DestroyPresentableImage(
-    uint32              image)
+    WindowSystemImageHandle hImage)
 {
     drm_mode_destroy_dumb dreq = {};
-    dreq.handle = image;
+
+    dreq.handle = hImage.hBuffer;
+
     m_drmProcs.pfnDrmIoctl(m_drmMasterFd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 }
 

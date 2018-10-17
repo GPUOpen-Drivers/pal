@@ -152,9 +152,11 @@ private:
 
     Device*                             m_pDevice;
     Platform*                           m_pPlatform;
+    const size_t                        m_maxNumTracedDraws;
     const Pipeline*                     m_pCurrentPipeline;
     uint32                              m_currentDraw;
     uint32                              m_currentDispatch;
+    uint32                              m_numTracedDraws;
     Util::Deque<TraceData, Platform>    m_traceData;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);

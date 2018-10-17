@@ -645,7 +645,7 @@ void Queue::OutputTraceDataToFile(
 {
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
-    if ((m_pDevice->GetProfilerMode() > GpuProfilerCounterAndTimingOnly) &&
+    if ((m_pDevice->NumGlobalPerfCounters() == 0) &&
         (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
         (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace)))
     {

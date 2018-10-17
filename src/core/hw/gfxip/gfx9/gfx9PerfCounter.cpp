@@ -335,9 +335,9 @@ uint32* PerfCounter::WriteGrbmGfxIndex(
             grbmGfxIndex.gfx09.SH_INDEX      = shIndex;
         }
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                     grbmGfxIndex.u32All,
-                                                     pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                      grbmGfxIndex.u32All,
+                                                      pCmdSpace);
     }
 
     return pCmdSpace;
@@ -365,9 +365,9 @@ uint32* PerfCounter::WriteGrbmGfxBroadcastSe(
         grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
         grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                     grbmGfxIndex.u32All,
-                                                     pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                      grbmGfxIndex.u32All,
+                                                      pCmdSpace);
     }
 
     return pCmdSpace;
@@ -704,9 +704,9 @@ uint32* Gfx9StreamingPerfCounter::WriteSetupCommands(
         grbmGfxIndex.bits.INSTANCE_INDEX = PerfCounter::InstanceIdToInstance(numInstances, m_instance);
         grbmGfxIndex.gfx09.SH_INDEX      = shIndex;
 
-        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                        grbmGfxIndex.u32All,
-                                                        pCmdSpace);
+        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                         grbmGfxIndex.u32All,
+                                                         pCmdSpace);
     }
 
     // Write the PERFCOUNTERx_SELECT register corresponding to valid eventIds.

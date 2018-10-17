@@ -618,7 +618,9 @@ Result Dri3WindowSystem::CreatePresentableImage(
     }
     if (result == Result::Success)
     {
-        pImage->SetPresentImageHandle(pixmap);
+        WindowSystemImageHandle imageHandle = { .hPixmap = pixmap };
+
+        pImage->SetPresentImageHandle(imageHandle);
     }
 
     return result;
@@ -628,9 +630,9 @@ Result Dri3WindowSystem::CreatePresentableImage(
 // Destroy the present image.
 // the present image is pixmap in dri3 platform.
 void Dri3WindowSystem::DestroyPresentableImage(
-    uint32 image)
+    WindowSystemImageHandle hImage)
 {
-    const xcb_void_cookie_t   cookie = m_dri3Procs.pfnXcbFreePixmapChecked(m_pConnection, image);
+    const xcb_void_cookie_t   cookie = m_dri3Procs.pfnXcbFreePixmapChecked(m_pConnection, hImage.hPixmap);
 #if PAL_ENABLE_PRINTS_ASSERTS
     xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
 
@@ -657,7 +659,7 @@ Result Dri3WindowSystem::Present(
     const xcb_sync_fence_t waitSyncFence  = (pDri3WaitFence != nullptr) ? pDri3WaitFence->SyncFence() : 0;
     const xcb_sync_fence_t idleSyncFence  = (pDri3IdleFence != nullptr) ? pDri3IdleFence->SyncFence() : 0;
     const Image&           srcImage       = static_cast<Image&>(*presentInfo.pSrcImage);
-    uint32                 pixmap         = srcImage.GetPresentImageHandle();
+    uint32                 pixmap         = srcImage.GetPresentImageHandle().hPixmap;
     PresentMode            presentMode    = presentInfo.presentMode;
     PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
 

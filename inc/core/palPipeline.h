@@ -206,6 +206,15 @@ struct ViewInstancingDescriptor
     bool           enableMasking;                               ///< Indicate whether instance masking is enabled.
 };
 
+/// Specifies properties about an indirect function belonging to a compute @ref IPipelne object.  Part of the input
+/// structure to IDevice::CreateComputePipeline().
+struct ComputePipelineIndirectFuncInfo
+{
+    const char*  pSymbolName; ///< ELF Symbol name for the associated function.  Must not be null.
+    gpusize      gpuVirtAddr; ///< [out] GPU virtual address of the function.  This is compute by PAL during
+                              ///  pipeline creation.
+};
+
 /// Specifies properties for creation of a compute @ref IPipeline object.  Input structure to
 /// IDevice::CreateComputePipeline().
 struct ComputePipelineCreateInfo
@@ -216,6 +225,15 @@ struct ComputePipelineCreateInfo
                                                  ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                  ///  register values, and additional metadata.
     size_t              pipelineBinarySize;      ///< Size of Pipeline ELF binary in bytes.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
+    /// Optional.  Specifies a set of indirect functions for PAL to compute virtual addresses for during pipeline
+    /// creation.  These GPU addresses can then be passed as shader arguments for a later dispatch operation to
+    /// allow the pipeline's shaders to jump to that function.  Similar to a function pointer on the GPU.
+    ComputePipelineIndirectFuncInfo*  pIndirectFuncList;
+    uint32                            indirectFuncCount; ///< Number of entries in the pIndirectFuncList array.  Must
+                                                         ///  be zero if pIndirectFuncList is null.
+#endif
 };
 
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
@@ -451,7 +469,7 @@ public:
     ///          + ErrorInvalidPointer if pNumEntries is nullptr.
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
-        GpuMemSubAllocInfo* const  pAllocInfoList) = 0;
+        GpuMemSubAllocInfo* const  pAllocInfoList) const = 0;
 
     /// Obtains the binary code object for this pipeline.
     ///

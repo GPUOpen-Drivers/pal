@@ -1856,7 +1856,8 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pImgViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
-    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(pGfxDevice->Parent()->ChipProperties().gfxLevel);
+    const auto&      chipProp   = pGfxDevice->Parent()->ChipProperties();
+    const auto*const pFmtInfo   = MergedChannelFmtInfoTbl(chipProp.gfxLevel);
 
     ImageSrd* pSrds = static_cast<ImageSrd*>(pOut);
 
@@ -2124,7 +2125,22 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         srd.word3.bits.DST_SEL_Y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.word3.bits.DST_SEL_Z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.word3.bits.DST_SEL_W = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-        srd.word3.bits.SW_MODE   = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+        // We need to use D swizzle mode for writing an image with view3dAs2dArray feature enabled.
+        // But when reading from it, we need to use S mode.
+        // In AddrSwizzleMode, S mode is always right before D mode, so we simply do a "-1" here.
+        if ((viewInfo.viewType == ImageViewType::Tex2d) && (imageCreateInfo.flags.view3dAs2dArray))
+        {
+            const AddrSwizzleMode view3dAs2dReadSwizzleMode = static_cast<AddrSwizzleMode>(surfSetting.swizzleMode - 1);
+            PAL_ASSERT(AddrMgr2::IsStandardSwzzle(view3dAs2dReadSwizzleMode));
+
+            srd.word3.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(view3dAs2dReadSwizzleMode);
+        }
+        else
+#endif
+        {
+            srd.word3.bits.SW_MODE = AddrMgr2::GetHwSwizzleMode(surfSetting.swizzleMode);
+        }
 
         const bool isMultiSampled = (imageCreateInfo.samples > 1);
 
@@ -2208,12 +2224,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
-            // For the single component FORMAT cases, ALPHA_IS_ON_MSB (AIOM)=0 indicates the component is color.
-            // ALPHA_IS_ON_MSB (AIOM)=1 indicates the component is alpha.
-            // ALPHA_IS_ON_MSB should be only set to 1 for all one-component formats only if swap is SWAP_ALT_REV
-            const uint32 numComponents = Formats::NumComponents(viewInfo.swizzledFormat.format);
-            if (((numComponents == 1) && (surfSwap == SWAP_ALT_REV)) ||
-                ((numComponents != 1) && (surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV)))
+            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB = 1;
             }
@@ -2818,6 +2829,9 @@ void FinalizeGpuChipProperties(
 {
     // Setup some GPU properties which can be derived from other properties:
 
+    // Total number of physical CU's (before harvesting)
+    pInfo->gfx9.numPhysicalCus = (pInfo->gfx9.numShaderEngines * pInfo->gfx9.numShaderArrays * pInfo->gfx9.maxNumCuPerSh);
+
     // GPU__GC__NUM_SE * GPU__GC__NUM_RB_PER_SE
     pInfo->gfx9.numTotalRbs = (pInfo->gfx9.numShaderEngines * pInfo->gfx9.maxNumRbPerSe);
 
@@ -2831,23 +2845,33 @@ void FinalizeGpuChipProperties(
     // GPU__GC__NUM_SE
     pInfo->primsPerClock = pInfo->gfx9.numShaderEngines;
 
-    // Loop over each shader array and shader engine to determine the actual number of active CU's per SA/SE.
+    // Loop over each shader array and shader engine to determine actual number of active CU's (total and per SA/SE).
+    uint32 numActiveCus   = 0;
+    uint32 numAlwaysOnCus = 0;
     for (uint32 sa = 0; sa < pInfo->gfx9.numShaderArrays; ++sa)
     {
         for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
         {
-            const uint32 cuMask = pInfo->gfx9.activeCuMask[sa][se];
-            const uint32 cuCount = CountSetBits(cuMask);
+            const uint32 cuActiveMask    = pInfo->gfx9.activeCuMask[sa][se];
+            const uint32 cuActiveCount   = CountSetBits(cuActiveMask);
+            numActiveCus += cuActiveCount;
+
+            const uint32 cuAlwaysOnMask  = pInfo->gfx9.alwaysOnCuMask[sa][se];
+            const uint32 cuAlwaysOnCount = CountSetBits(cuAlwaysOnMask);
+            numAlwaysOnCus += cuAlwaysOnCount;
 
             // For gfx9 it is expected that all SA's/SE's have the same number of CU's.
             PAL_ASSERT((pInfo->gfxLevel != GfxIpLevel::GfxIp9) ||
                        (pInfo->gfx9.numCuPerSh == 0)           ||
-                       (pInfo->gfx9.numCuPerSh == cuCount));
-            pInfo->gfx9.numCuPerSh = Max(pInfo->gfx9.numCuPerSh, cuCount);
+                       (pInfo->gfx9.numCuPerSh == cuActiveCount));
+            pInfo->gfx9.numCuPerSh = Max(pInfo->gfx9.numCuPerSh, cuActiveCount);
         }
     }
-
     PAL_ASSERT((pInfo->gfx9.numCuPerSh > 0) && (pInfo->gfx9.numCuPerSh <= pInfo->gfx9.maxNumCuPerSh));
+    pInfo->gfx9.numActiveCus   = numActiveCus;
+    pInfo->gfx9.numAlwaysOnCus = numAlwaysOnCus;
+    PAL_ASSERT((pInfo->gfx9.numActiveCus > 0) && (pInfo->gfx9.numActiveCus <= pInfo->gfx9.numPhysicalCus));
+    PAL_ASSERT((pInfo->gfx9.numAlwaysOnCus > 0) && (pInfo->gfx9.numAlwaysOnCus <= pInfo->gfx9.numPhysicalCus));
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx9 structure is "good to go".

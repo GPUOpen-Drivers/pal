@@ -55,6 +55,10 @@ public:
             ScreenMode* pScreenModeList) const override;
 
     virtual Result RegisterWindow(Pal::OsWindowHandle) override { return Result::Unsupported; }
+    virtual Result IsImplicitFullscreenOwnershipSafe(
+        OsDisplayHandle hDisplay,
+        OsWindowHandle  hWindow,
+        Extent2d        imageExtent) const override { return Result::Unsupported; }
     virtual Result TakeFullscreenOwnership(const Pal::IImage&) override { return Result::Unsupported; }
     virtual Result ReleaseFullscreenOwnership() override { return Result::Unsupported; }
     virtual Result SetGammaRamp(const Pal::GammaRamp&) override { return Result::Unsupported; }

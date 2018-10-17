@@ -80,6 +80,7 @@ PipelineAbiProcessor<Allocator>::PipelineAbiProcessor(
     m_pipelineMetadataVector(pAllocator),
     m_pipelineMetadataIndices(),
 #endif
+    m_genericSymbolsMap(16u, pAllocator),
     m_pipelineSymbolsVector(pAllocator),
     m_pipelineSymbolIndices(),
     m_elfProcessor(pAllocator),
@@ -110,6 +111,11 @@ Result PipelineAbiProcessor<Allocator>::Init()
         result = m_registerMap.Init();
     }
 #endif
+
+    if (result == Result::Success)
+    {
+        result = m_genericSymbolsMap.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -153,9 +159,21 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
         break;
 #if PAL_BUILD_GFX9
     case 9:
-        PAL_ASSERT((gfxIpStepping & 1) == 0);
-        m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx900) +
-                              (gfxIpStepping / 2));
+        switch (gfxIpStepping)
+        {
+        case 0:
+            m_flags.machineType = AmdGpuMachineType::Gfx900;
+            break;
+        case 2:
+            m_flags.machineType = AmdGpuMachineType::Gfx902;
+            break;
+        case 4:
+            m_flags.machineType = AmdGpuMachineType::Gfx904;
+            break;
+        case 6:
+            m_flags.machineType = AmdGpuMachineType::Gfx906;
+            break;
+        }
         break;
 #endif
     default:
@@ -440,6 +458,15 @@ Result PipelineAbiProcessor<Allocator>::AddPipelineSymbolEntry(
     return result;
 }
 
+// =====================================================================================================================
+template <typename Allocator>
+Result PipelineAbiProcessor<Allocator>::AddGenericSymbolEntry(
+    GenericSymbolEntry entry)
+{
+    PAL_ASSERT(entry.pName != nullptr);
+    return m_genericSymbolsMap.Insert(entry.pName, entry);
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
 // =====================================================================================================================
 template <typename Allocator>
@@ -583,6 +610,24 @@ bool PipelineAbiProcessor<Allocator>::HasPipelineSymbolEntry(
     }
 
     return pipelineSymbolEntryExists;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
+bool PipelineAbiProcessor<Allocator>::HasGenericSymbolEntry(
+    const char*         pName,
+    GenericSymbolEntry* pGenericSymbolEntry
+    ) const
+{
+    PAL_ASSERT(pName != nullptr);
+
+    GenericSymbolEntry*const pEntry = m_genericSymbolsMap.FindKey(pName);
+    if (pEntry != nullptr)
+    {
+        (*pGenericSymbolEntry) = (*pEntry);
+    }
+
+    return (pEntry != nullptr);
 }
 
 // =====================================================================================================================
@@ -803,10 +848,7 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
         Elf::StringProcessor<Allocator> symbolStringProcessor(m_pSymbolStrTabSection, m_pAllocator);
         Elf::SymbolProcessor<Allocator> symbolProcessor(m_pSymbolSection, &symbolStringProcessor, m_pAllocator);
 
-        PipelineSymbolVectorIter iter = PipelineSymbolsBegin();
-        // There should at least be one symbol pointing to a shader load address!
-        PAL_ASSERT(iter.IsValid());
-        do
+        for (auto iter = PipelineSymbolsBegin(); iter.IsValid(); iter.Next())
         {
             Abi::PipelineSymbolEntry pipeSymb = iter.Get();
 
@@ -839,9 +881,42 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
                 result = Result::ErrorOutOfMemory;
                 break;
             }
+        } // for each pipeline symbol
 
-            iter.Next();
-        } while (iter.IsValid());
+        for (auto iter = m_genericSymbolsMap.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            Abi::GenericSymbolEntry symbol = iter.Get()->value;
+
+            uint32 sectionIndex = 0;
+            switch (symbol.sectionType)
+            {
+            case AbiSectionType::Undefined:
+                break;
+            case AbiSectionType::Code:
+                sectionIndex = m_pTextSection->GetIndex();
+                break;
+            case AbiSectionType::Data:
+                sectionIndex = m_pDataSection->GetIndex();
+                break;
+            case AbiSectionType::Disassembly:
+                sectionIndex = m_pDisasmSection->GetIndex();
+                break;
+            default:
+                PAL_NEVER_CALLED();
+                break;
+            }
+
+            if (symbolProcessor.Add(symbol.pName,
+                                    Elf::SymbolTableEntryBinding::Local,
+                                    symbol.entryType,
+                                    static_cast<uint16>(sectionIndex),
+                                    symbol.value,
+                                    symbol.size) == UINT_MAX)
+            {
+                result = Result::ErrorOutOfMemory;
+                break;
+            }
+        } // for each generic symbol
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 432
         // NOTE: This is a bit of a hack.  We're adding the human-readable name for this pipeline (if one exists) to
@@ -1019,6 +1094,11 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
          result = m_registerMap.Init();
     }
 #endif
+
+    if (result == Result::Success)
+    {
+         result = m_genericSymbolsMap.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -1263,8 +1343,6 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
             symbolProcessor.Get(i, &pName, &binding, &type, &sectionIndex, &value, &size);
 
-            PipelineSymbolType pipelineSymbolType = GetSymbolTypeFromName(pName);
-
             AbiSectionType sectionType = AbiSectionType::Undefined;
 
             if (sectionIndex == m_pTextSection->GetIndex())
@@ -1284,9 +1362,14 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                 PAL_ASSERT_ALWAYS();
             }
 
+            const PipelineSymbolType pipelineSymbolType = GetSymbolTypeFromName(pName);
             if (pipelineSymbolType != PipelineSymbolType::Unknown)
             {
                 result = AddPipelineSymbolEntry({pipelineSymbolType, type, sectionType, value, size});
+            }
+            else
+            {
+                result = AddGenericSymbolEntry({pName, type, sectionType, value, size});
             }
         }
     }

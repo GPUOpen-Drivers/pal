@@ -250,7 +250,7 @@ Result Queue::DumpShaderDbgData(
 
         if (fileOpened)
         {
-            const gpusize traceSize = pTraceData->pTraceMemory->Desc().size;
+            const size_t traceSize = static_cast<size_t>(pTraceData->pTraceMemory->Desc().size);
 
             void* pData = nullptr;
             result      = pTraceData->pTraceMemory->Map(&pData);

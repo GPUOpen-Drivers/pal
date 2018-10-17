@@ -291,6 +291,7 @@ enum class InterfaceFunc : uint32
     QueueSetExecutionPriority,
     QueueDestroy,
     QueueSemaphoreDestroy,
+    ScreenIsImplicitFullscreenOwnershipSafe,
     ScreenTakeFullscreenOwnership,
     ScreenReleaseFullscreenOwnership,
     ScreenSetGammaRamp,

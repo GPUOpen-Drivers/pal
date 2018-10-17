@@ -56,9 +56,19 @@ protected:
         { return (shaderType == ShaderType::Compute) ? &m_stageInfo : nullptr; }
 
     virtual Result HwlInit(
-        const AbiProcessor&       abiProcessor,
-        const CodeObjectMetadata& metadata,
-        Util::MsgPackReader*      pMetadataReader) = 0;
+        const AbiProcessor&              abiProcessor,
+        const CodeObjectMetadata&        metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
+        ComputePipelineIndirectFuncInfo* pIndirectFuncList,
+        uint32                           indirectFuncCount,
+#endif
+        Util::MsgPackReader*             pMetadataReader) = 0;
+
+    void GetFunctionGpuVirtAddrs(
+        const AbiProcessor&              abiProcessor,
+        const PipelineUploader&          uploader,
+        ComputePipelineIndirectFuncInfo* pFuncInfoList,
+        uint32                           funcCount);
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     uint32  m_threadsPerTgX;
@@ -68,7 +78,8 @@ protected:
     ShaderStageInfo  m_stageInfo;
 
 private:
-    Result InitFromPipelineBinary();
+    Result InitFromPipelineBinary(
+        const ComputePipelineCreateInfo& createInfo);
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);
 };

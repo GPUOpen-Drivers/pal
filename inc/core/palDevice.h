@@ -994,24 +994,24 @@ struct DeviceProperties
 
         struct
         {
-            uint32  numShaderEngines;       ///< Number of shader engines.
-            uint32  numShaderArrays;        ///< Number of shader arrays.
-            uint32  numCusPerShaderArray;   ///< Number of CUs per shader array that are actually usable.
-            uint32  maxCusPerShaderArray;   ///< Maximum number of CUs per shader array. Count of physical CUs prior to
+            uint32 numShaderEngines;        ///< Number of shader engines.
+            uint32 numShaderArrays;         ///< Number of shader arrays.
+            uint32 numCusPerShaderArray;    ///< Number of CUs per shader array that are actually usable.
+            uint32 maxCusPerShaderArray;    ///< Maximum number of CUs per shader array. Count of physical CUs prior to
                                             ///< harvesting CUs for yield in certain variants of ASICs (ex: Fiji PRO).
-            uint32  numSimdsPerCu;          ///< Number of SIMDs per compute unit.
-            uint32  numWavefrontsPerSimd;   ///< Number of wavefront slots in each SIMD.
-            uint32  wavefrontSize;          ///< Wavefront size.
-            uint32  numAvailableSgprs;      ///< Number of available SGPRs.
-            uint32  sgprsPerSimd;           ///< Number of physical SGPRs per SIMD.
-            uint32  minSgprAlloc;           ///< Minimum number of SGPRs that can be allocated by a wave.
-            uint32  sgprAllocGranularity;   ///< SGPRs are allocated in groups of this size.  Meaning, if your shader
+            uint32 numSimdsPerCu;           ///< Number of SIMDs per compute unit.
+            uint32 numWavefrontsPerSimd;    ///< Number of wavefront slots in each SIMD.
+            uint32 wavefrontSize;           ///< Wavefront size.
+            uint32 numAvailableSgprs;       ///< Number of available SGPRs.
+            uint32 sgprsPerSimd;            ///< Number of physical SGPRs per SIMD.
+            uint32 minSgprAlloc;            ///< Minimum number of SGPRs that can be allocated by a wave.
+            uint32 sgprAllocGranularity;    ///< SGPRs are allocated in groups of this size.  Meaning, if your shader
                                             ///  only uses 1 SGPR, you will still end up reserving this number of
                                             ///  SGPRs.
-            uint32  numAvailableVgprs;      ///< Number of available VGPRs.
-            uint32  vgprsPerSimd;           ///< Number of physical VGPRs per SIMD.
-            uint32  minVgprAlloc;           ///< Minimum number of VGPRs that can be allocated by a wave.
-            uint32  vgprAllocGranularity;   ///< VGPRs are allocated in groups of this size.  Meaning, if your shader
+            uint32 numAvailableVgprs;       ///< Number of available VGPRs.
+            uint32 vgprsPerSimd;            ///< Number of physical VGPRs per SIMD.
+            uint32 minVgprAlloc;            ///< Minimum number of VGPRs that can be allocated by a wave.
+            uint32 vgprAllocGranularity;    ///< VGPRs are allocated in groups of this size.  Meaning, if your shader
                                             ///  only uses 1 VGPR, you will still end up reserving this number of
                                             ///  VGPRs.
             uint32 ldsSizePerCu;            ///< Local Data Store size available in bytes per CU.
@@ -1026,7 +1026,10 @@ struct DeviceProperties
             uint32 tcpSizeInBytes;          ///< Size of one L1 TCP cache in bytes. There is one TCP per CU.
             uint32 maxLateAllocVsLimit;     ///< Maximum number of VS waves that can be in flight without
                                             ///  having param cache and position buffer space.
-
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
+            uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
+            uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
+#endif
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;

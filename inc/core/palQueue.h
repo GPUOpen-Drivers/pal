@@ -252,7 +252,12 @@ struct PresentSwapChainInfo
         struct
         {
             uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
+            uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
+            uint32 reserved             : 30;   ///< Reserved for future use.
+#else
             uint32 reserved             : 31;   ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.

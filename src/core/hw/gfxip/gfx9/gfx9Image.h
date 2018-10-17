@@ -290,8 +290,10 @@ public:
     const  Gfx9Fmask* GetFmask() const { return m_pFmask; }
     gpusize GetMaskRamBaseAddr(const MaskRam*  pMaskRam) const;
 
-    bool IsRbAligned() const    { return (HasColorMetaData() ? Gfx9MaskRam::IsRbAligned(this)   : false); }
-    bool IsPipeAligned() const  { return (HasColorMetaData() ? Gfx9MaskRam::IsPipeAligned(this) : false); }
+    bool IsRbAligned() const
+        { return (HasColorMetaData() || HasHtileData()) ? Gfx9MaskRam::IsRbAligned(this) : false; }
+    bool IsPipeAligned() const
+        { return (HasColorMetaData() || HasHtileData()) ? Gfx9MaskRam::IsPipeAligned(this) : false; }
 
     const ColorLayoutToState& LayoutToColorCompressionState() const { return m_layoutToState.color; }
     const DepthStencilLayoutToState& LayoutToDepthCompressionState(const SubresId& subresId) const;

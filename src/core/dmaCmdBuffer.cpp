@@ -50,7 +50,7 @@ static void PAL_STDCALL DummyCmdSetUserData(
 DmaCmdBuffer::DmaCmdBuffer(
     Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo,
-    bool                       copyOverlapHazardSyncs)
+    uint32                     copyOverlapHazardSyncs)
     :
     CmdBuffer(*pDevice, createInfo),
     m_pDevice(pDevice),
@@ -234,23 +234,11 @@ void DmaCmdBuffer::CmdBarrier(
 {
     CmdBuffer::CmdBarrier(barrier);
 
-    // Wait for the provided GPU events to be set.
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    // For certain versions of SDMA, some copy/write execution happens asynchronously and the driver is responsible
-    // for synchronizing hazards when such copies overlap by inserting a NOP packet, which acts as a fence command.
-    if (m_copyOverlapHazardSyncs && (barrier.pipePointWaitCount > 0))
+    bool imageTypeRequiresCopyOverlapHazardSyncs = false;
+    if (m_copyOverlapHazardSyncs == ((1 << static_cast<uint32>(ImageType::Count)) - 1))
     {
-        pCmdSpace = WriteNops(pCmdSpace, 1);
+        imageTypeRequiresCopyOverlapHazardSyncs = true;
     }
-
-    for (uint32 i = 0; i < barrier.gpuEventWaitCount; i++)
-    {
-        PAL_ASSERT(barrier.ppGpuEvents[i] != nullptr);
-        pCmdSpace = WriteWaitEventSet(static_cast<const GpuEvent&>(*barrier.ppGpuEvents[i]), pCmdSpace);
-    }
-
-    m_cmdStream.CommitCommands(pCmdSpace);
 
     bool initRequested = false;
 
@@ -268,7 +256,12 @@ void DmaCmdBuffer::CmdBarrier(
 
             PAL_ASSERT(((imageInfo.oldLayout.usages == LayoutUninitializedTarget) ||
                         (imageInfo.oldLayout.engines != 0)) &&
-                       (imageInfo.newLayout.engines != 0));
+                        (imageInfo.newLayout.engines != 0));
+
+            const auto& createInfo = imageInfo.pImage->GetImageCreateInfo();
+            imageTypeRequiresCopyOverlapHazardSyncs |= (TestAnyFlagSet(
+                m_copyOverlapHazardSyncs,
+                (1 << static_cast<uint32>(createInfo.imageType))));
 
             // DMA supports metadata initialization transitions via GfxImage's InitMetadataFill function.
             if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
@@ -280,7 +273,6 @@ void DmaCmdBuffer::CmdBarrier(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
                 const auto& engineProps  = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
-                const auto& createInfo   = imageInfo.pImage->GetImageCreateInfo();
                 const bool  isWholeImage = pImage->IsFullSubResRange(imageInfo.subresRange);
 
                 // DMA must support this barrier transition.
@@ -303,8 +295,26 @@ void DmaCmdBuffer::CmdBarrier(
         }
     }
 
+    // Wait for the provided GPU events to be set.
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+    // For certain versions of SDMA, some copy/write execution happens asynchronously and the driver is responsible
+    // for synchronizing hazards when such copies overlap by inserting a NOP packet, which acts as a fence command.
+    if (imageTypeRequiresCopyOverlapHazardSyncs && (barrier.pipePointWaitCount > 0))
+    {
+        pCmdSpace = WriteNops(pCmdSpace, 1);
+    }
+
+    for (uint32 i = 0; i < barrier.gpuEventWaitCount; i++)
+    {
+        PAL_ASSERT(barrier.ppGpuEvents[i] != nullptr);
+        pCmdSpace = WriteWaitEventSet(static_cast<const GpuEvent&>(*barrier.ppGpuEvents[i]), pCmdSpace);
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace);
+
     // If an initialization BLT occurred, an additional fence command is necessary to synchronize read/write hazards.
-    if (m_copyOverlapHazardSyncs && initRequested)
+    if (imageTypeRequiresCopyOverlapHazardSyncs && initRequested)
     {
         pCmdSpace = m_cmdStream.ReserveCommands();
         pCmdSpace = WriteNops(pCmdSpace, 1);

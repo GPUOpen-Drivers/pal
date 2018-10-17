@@ -2154,12 +2154,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
             const SurfaceSwap surfSwap = Formats::Gfx6::ColorCompSwap(viewInfo.swizzledFormat);
 
-            // For the single component FORMAT cases, ALPHA_IS_ON_MSB (AIOM)=0 indicates the component is color.
-            // ALPHA_IS_ON_MSB (AIOM)=1 indicates the component is alpha.
-            // ALPHA_IS_ON_MSB should be only set to 1 for all one-component formats only if swap is SWAP_ALT_REV
-            const uint32 numComponents = Formats::NumComponents(viewInfo.swizzledFormat.format);
-            if (((numComponents == 1) && (surfSwap == SWAP_ALT_REV)) ||
-                ((numComponents != 1) && (surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV)))
+            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB__VI = 1;
             }
@@ -2773,7 +2768,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles      = 2;
             pInfo->gfx6.numTccBlocks     = 4;
             pInfo->revision              = AsicRevision::Bonaire;
-            pInfo->gfxStepping           = 0;
+            pInfo->gfxStepping           = 4;
             pInfo->gfxip.tccSizeInBytes  = 512 * 1024;
         }
         else if (ASICREV_IS_HAWAII_P(pInfo->eRevId))
@@ -2784,7 +2779,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles      = 8;
             pInfo->gfx6.numTccBlocks     = 16;
             pInfo->revision              = AsicRevision::Hawaii;
-            pInfo->gfxStepping           = 1;
+            pInfo->gfxStepping           = 2;
             pInfo->gfxip.tccSizeInBytes  = 1024 * 1024;
 
             // Support for IT_SET_SH_REG_INDEX added from CP feature version 29 onwards.
@@ -2903,7 +2898,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.maxGsWavesPerVgt      = 16;
             pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailableWithSpiBug;
             pInfo->revision                   = AsicRevision::Iceland;
-            pInfo->gfxStepping                = 0;
+            pInfo->gfxStepping                = 2;
             pInfo->gfxip.tccSizeInBytes       = 256 * 1024;
         }
         else if (ASICREV_IS_TONGA_P(pInfo->eRevId))

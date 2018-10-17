@@ -37,6 +37,7 @@
 #include "core/swapChain.h"
 #include "core/hw/ossip/ossDevice.h"
 #include "palDequeImpl.h"
+#include "palSysUtil.h"
 
 using namespace Util;
 
@@ -404,6 +405,8 @@ void Queue::DumpCmdToFile(
         (cmdBufDumpEnabled))
     {
         const char* pLogDir = &settings.cmdBufDumpDirectory[0];
+        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+        MkDir(pLogDir);
 
         // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
         constexpr uint32 MaxFilenameLength = 512;
@@ -436,12 +439,15 @@ void Queue::DumpCmdToFile(
 
         if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
         {
-            logFile.Open(&filename[0], FileAccessMode::FileAccessWrite);
+            PAL_ALERT_MSG(logFile.Open(&filename[0], FileAccessMode::FileAccessWrite) != Result::Success,
+                          "Failed to open CmdBuf dump file '%s'", filename);
         }
         else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
                  (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
         {
-            logFile.Open(&filename[0], FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary);
+            const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
+            PAL_ALERT_MSG(logFile.Open(&filename[0], fileMode) != Result::Success,
+                          "Failed to open CmdBuf dump file '%s'", filename);
 
             if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
             {
@@ -800,13 +806,15 @@ Result Queue::PresentSwapChain(
     {
         result = Result::ErrorInvalidValue;
     }
-    else
+    else if (Queue::SupportsDevOverlay(m_type) && m_pDevice->GetPlatform()->ShowDevDriverOverlay())
     {
-        if (Queue::SupportsDevOverlay(m_type) && m_pDevice->GetPlatform()->ShowDevDriverOverlay())
-        {
-            result = SubmitDevOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage));
-        }
+        result = SubmitDevOverlayCmdBuffer(static_cast<const Image&>(*presentInfo.pSrcImage));
+    }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
+    if (presentInfo.flags.notifyOnly == 0)
+#endif
+    {
         if (result == Result::Success)
         {
             // Always execute the Present immediately, even if we are stalled. We should (and can) do this because:
@@ -815,9 +823,9 @@ Result Queue::PresentSwapChain(
             // - We must release the given swap chain image index before this function returns.
             result = pSwapChain->Present(presentInfo, this);
         }
-    }
 
-    IncFrameCount();
+        IncFrameCount();
+    }
 
     return result;
 }

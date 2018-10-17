@@ -471,7 +471,7 @@ Result Device::SetupPublicSettingDefaults()
 #endif
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
     m_publicSettings.forceHighClocks = false;
-    m_publicSettings.numScratchWavesPerCu = 4;
+    m_publicSettings.numScratchWavesPerCu = 16;
     m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
     m_publicSettings.cmdAllocResidency = 0xF;
     m_publicSettings.presentableImageNumberThreshold = 16;
@@ -1757,6 +1757,14 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx6Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx6Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx6Props.maxNumCuPerSh;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
+            pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx6Props.numShaderEngines *
+                                                                     gfx6Props.numShaderArrays *
+                                                                     gfx6Props.numCuPerSh;
+            pInfo->gfxipProperties.shaderCore.numTotalCus          = gfx6Props.numShaderEngines *
+                                                                     gfx6Props.numShaderArrays *
+                                                                     gfx6Props.maxNumCuPerSh;
+#endif
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
             pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx6Props.wavefrontSize;
@@ -1807,6 +1815,10 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx9Props.maxNumCuPerSh;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
+            pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx9Props.numActiveCus;
+            pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx9Props.numPhysicalCus;
+#endif
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx9Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx9Props.numWavesPerSimd;
             pInfo->gfxipProperties.shaderCore.wavefrontSize        = gfx9Props.wavefrontSize;

@@ -275,6 +275,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::QueueSetExecutionPriority,                     (QueueOps)            },
     { InterfaceFunc::QueueDestroy,                                  (CrtDstry | QueueOps) },
     { InterfaceFunc::QueueSemaphoreDestroy,                         (CrtDstry | QueueOps) },
+    { InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe,       (GenCalls)            },
     { InterfaceFunc::ScreenTakeFullscreenOwnership,                 (GenCalls)            },
     { InterfaceFunc::ScreenReleaseFullscreenOwnership,              (GenCalls)            },
     { InterfaceFunc::ScreenSetGammaRamp,                            (GenCalls)            },

@@ -681,6 +681,17 @@ struct PipelineSymbolEntry
     uint64                    size;
 };
 
+/// Contains only the relevant info for a pipeline symbol.  E.g., a symbol whose name doesn't match any of the
+/// predefined types in @ref PipelineSymbolType.
+struct GenericSymbolEntry
+{
+    const char*               pName;
+    Elf::SymbolTableEntryType entryType;
+    AbiSectionType            sectionType;
+    uint64                    value;
+    uint64                    size;
+};
+
 /// The structure of the AMDGPU ELF e_flags header field.
 union AmdGpuElfFlags
 {

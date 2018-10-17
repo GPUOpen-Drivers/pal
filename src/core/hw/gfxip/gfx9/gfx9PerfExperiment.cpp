@@ -43,6 +43,9 @@ namespace Pal
 namespace Gfx9
 {
 
+constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
+                                               (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
+
 // =====================================================================================================================
 PerfExperiment::PerfExperiment(
     const Device*                   pDevice,
@@ -242,6 +245,11 @@ Result PerfExperiment::CreateCounter(
                 m_sqPerfCounterCtrl.bits.HS_EN |= ((ShaderMask() & PerfShaderMaskHs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.LS_EN |= ((ShaderMask() & PerfShaderMaskLs) ? 1 : 0);
                 m_sqPerfCounterCtrl.bits.CS_EN |= ((ShaderMask() & PerfShaderMaskCs) ? 1 : 0);
+
+                //  Yes, DISABLE_FLUSH needs to be set for SQ and SQC perf counters only.
+                //  That includes the counters from LDS and SP blocks as well,
+                //  since those values are sent via SQC and SQ respectively.
+                //  But it should not affect the other blocks like TA, TD, GL*, etc.
 
                 SetCntrRate(SqDefaultCounterRate);
 
@@ -465,24 +473,23 @@ void PerfExperiment::IssueBegin(
     // Wait for GFX engine to become idle before freezing or sampling counters.
     pCmdSpace = WriteWaitIdleClean(pCmdStream, CacheFlushOnPerfCounter(), engineType, pCmdSpace);
 
-    // Enable perfmon clocks for all blocks. This register controls medium grain clock gating.
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
-    }
-
-    if (chipProps.gfx9.sqgEventsEnabled == false)
+    if (HasThreadTraces() || HasSqCounters())
     {
         // Both SQ performance counters and traces need the SQG events enabled. Force them on
         // ourselves if KMD doesn't have them active by default.
+        // On some ASICs we have to WaitIdle before writing this register. We do this already, so there isn't a need
+        // to do it again.
         regSPI_CONFIG_CNTL spiConfigCntl = {};
         spiConfigCntl.u32All                     = m_spiConfigCntlDefault;
         spiConfigCntl.bits.ENABLE_SQG_TOP_EVENTS = 1;
         spiConfigCntl.bits.ENABLE_SQG_BOP_EVENTS = 1;
 
-        // On some ASICs we have to WaitIdle before writing this register. We do this already, so there isn't a need
-        // to do it again.
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
+        // Enable perfmon clocks for all blocks. This register controls medium grain clock gating.
+        if (m_gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 1, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
+        }
     }
 
     if (HasThreadTraces())
@@ -540,9 +547,9 @@ void PerfExperiment::IssueBegin(
 
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                         m_sqPerfCounterCtrl.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
+                                                          m_sqPerfCounterCtrl.u32All,
+                                                          pCmdSpace);
         }
 
         pCmdSpace = m_pSpmTrace->WriteStartCommands(pPalCmdStream, pCmdSpace);
@@ -643,6 +650,7 @@ void PerfExperiment::IssueEnd(
     {
         // Issue a VGT event to stop thread traces.
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_STOP, engineType, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_FINISH, engineType, pCmdSpace);
 
         // Stop recording each active thread trace. No more than four thread traces can be active at once so it should
         // be safe to use the same reserve buffer.
@@ -666,9 +674,9 @@ void PerfExperiment::IssueEnd(
 
         // Enable sampling. This writes samples the counter values and writes in *_PERFCOUNTER*_LO/HI registers.
         cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
-        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL,
-                                                        cpPerfmonCntl.u32All,
-                                                        pCmdSpace);
+        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmCP_PERFMON_CNTL,
+                                                         cpPerfmonCntl.u32All,
+                                                         pCmdSpace);
 
         pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
 
@@ -677,9 +685,9 @@ void PerfExperiment::IssueEnd(
         cpPerfmonCntl.bits.PERFMON_STATE     = PerfmonStopCounting;
         cpPerfmonCntl.bits.SPM_PERFMON_STATE = PerfmonStopCounting;
 
-        pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL,
-                                                        cpPerfmonCntl.u32All,
-                                                        pCmdSpace);
+        pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(mmCP_PERFMON_CNTL,
+                                                         cpPerfmonCntl.u32All,
+                                                         pCmdSpace);
 
         pCmdSpace += m_device.CmdUtil().BuildNonSampleEventWrite(PERFCOUNTER_STOP, engineType, pCmdSpace);
 
@@ -689,31 +697,32 @@ void PerfExperiment::IssueEnd(
 
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
-                                                         0,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmSqPerfCounterCtrl,
+                                                          0,
+                                                          pCmdSpace);
         }
 
         pCmdSpace = m_pSpmTrace->WriteEndCommands(pCmdStream, pCmdSpace);
     }
 
-    if (m_device.Parent()->ChipProperties().gfx9.sqgEventsEnabled == false)
+    if (HasThreadTraces() || HasSqCounters())
     {
-        pCmdSpace = WriteWaitIdleClean(pCmdStream, false, engineType, pCmdSpace);
-
         // Reset the default value of SPI_CONFIG_CNTL if we overrode it in HwlIssueBegin().
         regSPI_CONFIG_CNTL spiConfigCntl = {};
-        spiConfigCntl.u32All = m_spiConfigCntlDefault;
+        spiConfigCntl.u32All             = m_spiConfigCntlDefault;
 
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
-    }
-
-    if (HasSqCounters())
-    {
-        // SQ tests require RLC_PERFMON_CLK_CNTL set to work
         if (m_gfxLevel == GfxIpLevel::GfxIp9)
         {
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 0, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSpiConfigCntl, spiConfigCntl.u32All, pCmdSpace);
+        }
+
+        if (HasSqCounters())
+        {
+            // SQ tests require RLC_PERFMON_CLK_CNTL set to work
+            if (m_gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_PERFMON_CLK_CNTL, 0, pCmdSpace);
+            }
         }
     }
 
@@ -930,9 +939,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
             regGCEA_PERFCOUNTER_RSLT_CNTL  gceaPerfCntrResultCntl = {};
             gceaPerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmEaPerfResultCntl,
-                                                                   gceaPerfCntrResultCntl.u32All,
-                                                                   pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmEaPerfResultCntl,
+                                                          gceaPerfCntrResultCntl.u32All,
+                                                          pCmdSpace);
         }
 
         if (HasAtcCounters())
@@ -941,9 +950,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
             regATC_PERFCOUNTER_RSLT_CNTL  atcPerfCntrResultCntl = {};
             atcPerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcPerfResultCntl,
-                                                                   atcPerfCntrResultCntl.u32All,
-                                                                   pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcPerfResultCntl,
+                                                          atcPerfCntrResultCntl.u32All,
+                                                          pCmdSpace);
         }
 
         if (HasAtcL2Counters())
@@ -952,9 +961,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
             regATC_L2_PERFCOUNTER_RSLT_CNTL  atcL2PerfCntrResultCntl = {};
             atcL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcL2PerfResultCntl,
-                                                                   atcL2PerfCntrResultCntl.u32All,
-                                                                   pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcL2PerfResultCntl,
+                                                          atcL2PerfCntrResultCntl.u32All,
+                                                          pCmdSpace);
         }
 
         if (HasMcVmL2Counters())
@@ -963,9 +972,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
             regMC_VM_L2_PERFCOUNTER_RSLT_CNTL  mcVmL2PerfCntrResultCntl = {};
             mcVmL2PerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmMcVmL2PerfResultCntl,
-                                                                   mcVmL2PerfCntrResultCntl.u32All,
-                                                                   pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmMcVmL2PerfResultCntl,
+                                                          mcVmL2PerfCntrResultCntl.u32All,
+                                                          pCmdSpace);
         }
 
         if (HasRpbCounters())
@@ -974,15 +983,15 @@ uint32* PerfExperiment::WriteStartPerfCounters(
             regRPB_PERFCOUNTER_RSLT_CNTL  rpbPerfCntrResultCntl = {};
             rpbPerfCntrResultCntl.bits.ENABLE_ANY = 1;
 
-            pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmRpbPerfResultCntl,
-                                                                   rpbPerfCntrResultCntl.u32All,
-                                                                   pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmRpbPerfResultCntl,
+                                                          rpbPerfCntrResultCntl.u32All,
+                                                          pCmdSpace);
         }
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl,
-                                                         m_sqPerfCounterCtrl.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqPerfCounterCtrl,
+                                                          m_sqPerfCounterCtrl.u32All,
+                                                          pCmdSpace);
         }
     }
 
@@ -1018,9 +1027,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
         {
             rmiPerfCounterCntl.bits.PERF_SOFT_RESET = 1;
         }
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmRMI_PERF_COUNTER_CNTL,
-                                                     rmiPerfCounterCntl.u32All,
-                                                     pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL,
+                                                      rmiPerfCounterCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (engineType == EngineTypeCompute)
@@ -1046,9 +1055,9 @@ uint32* PerfExperiment::WriteStartPerfCounters(
     }
 
     // TODO: Add support for issuing the start for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmCpPerfmonCntl,
-                                                 cpPerfmonCntl.u32All,
-                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
+                                                  cpPerfmonCntl.u32All,
+                                                  pCmdSpace);
 
     return pCmdSpace;
 }
@@ -1077,9 +1086,9 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     }
 
     // TODO: Add support for issuing the stop for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmCpPerfmonCntl,
-                                                 cpPerfmonCntl.u32All,
-                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
+                                                  cpPerfmonCntl.u32All,
+                                                  pCmdSpace);
 
     if (HasRlcCounters())
     {
@@ -1129,7 +1138,7 @@ uint32* PerfExperiment::WriteStopPerfCounters(
     {
         if (m_sqPerfCounterCtrl.u32All != 0)
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmSqPerfCounterCtrl, 0, pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmSqPerfCounterCtrl, 0, pCmdSpace);
         }
 
         // Setup the reset for the memory blocks.
@@ -1142,37 +1151,37 @@ uint32* PerfExperiment::WriteStopPerfCounters(
 
     if (HasEaCounters())
     {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmEaPerfResultCntl,
-                                                               gceaPerfCntrResultCntl.u32All,
-                                                               pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmEaPerfResultCntl,
+                                                      gceaPerfCntrResultCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasAtcCounters())
     {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcPerfResultCntl,
-                                                               atcPerfCntrResultCntl.u32All,
-                                                               pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcPerfResultCntl,
+                                                      atcPerfCntrResultCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasAtcL2Counters())
     {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmAtcL2PerfResultCntl,
-                                                               atcL2PerfCntrResultCntl.u32All,
-                                                               pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmAtcL2PerfResultCntl,
+                                                      atcL2PerfCntrResultCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasMcVmL2Counters())
     {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmMcVmL2PerfResultCntl,
-                                                               mcVmL2PerfCntrResultCntl.u32All,
-                                                               pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmMcVmL2PerfResultCntl,
+                                                      mcVmL2PerfCntrResultCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasRpbCounters())
     {
-        pCmdSpace = pCmdStream->WriteSetOnePrivilegedConfigReg(regInfo.mmRpbPerfResultCntl,
-                                                               rpbPerfCntrResultCntl.u32All,
-                                                               pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmRpbPerfResultCntl,
+                                                      rpbPerfCntrResultCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasRmiCounters())
@@ -1183,9 +1192,9 @@ uint32* PerfExperiment::WriteStopPerfCounters(
         rmiPerfCounterCntl.bits.TRANS_BASED_PERF_EN_SEL = RmiEnSelOff;
         rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL = RmiEnSelOff;
         rmiPerfCounterCntl.bits.TC_PERF_EN_SEL          = RmiEnSelOff;
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmRMI_PERF_COUNTER_CNTL,
-                                                     rmiPerfCounterCntl.u32All,
-                                                     pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL,
+                                                      rmiPerfCounterCntl.u32All,
+                                                      pCmdSpace);
     }
 
     if (HasUmcchCounters())
@@ -1270,9 +1279,9 @@ uint32* PerfExperiment::WriteSamplePerfCounters(
     cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
 
     // TODO: Add support for issuing the sample for SPM counters.
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(regInfo.mmCpPerfmonCntl,
-                                                 cpPerfmonCntl.u32All,
-                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regInfo.mmCpPerfmonCntl,
+                                                  cpPerfmonCntl.u32All,
+                                                  pCmdSpace);
 
     if (HasRlcCounters())
     {
@@ -1342,9 +1351,9 @@ uint32* PerfExperiment::WriteComputePerfCountEnable(
     regCOMPUTE_PERFCOUNT_ENABLE  computePerfCountEnable = {};
     computePerfCountEnable.bits.PERFCOUNT_ENABLE = (enable ? 1 : 0);
 
-    return pCmdStream->WriteSetOnePrivilegedConfigReg(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                      computePerfCountEnable.u32All,
-                                                      pCmdSpace);
+    return pCmdStream->WriteSetOnePerfCtrReg(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                             computePerfCountEnable.u32All,
+                                             pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -1367,9 +1376,9 @@ uint32* PerfExperiment::WriteResetGrbmGfxIndex(
     grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-    return pCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                            grbmGfxIndex.u32All,
-                                            pCmdSpace);
+    return pCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                             grbmGfxIndex.u32All,
+                                             pCmdSpace);
 }
 
 // =====================================================================================================================

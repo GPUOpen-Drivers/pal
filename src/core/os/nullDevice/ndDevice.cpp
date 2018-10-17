@@ -43,62 +43,103 @@ namespace Pal
 namespace NullDevice
 {
 
+enum GfxEngine : uint32
+{
+    GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND,
+#if PAL_BUILD_GFX9
+    GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND,
+#endif
+};
+
 #define PAL_UNDEFINED_NULL_DEVICE  FAMILY_UNKNOWN, 0, 0, CIASICIDGFXENGINE_UNKNOWN, 0
 
 // Identification table for all the GPUs that are supported in NULL device mode
-constexpr  NullIdLookup  NullIdLookupTable[]=
+constexpr  NullIdLookup  NullIdLookupTable[] =
 {
-    { FAMILY_SI,      SI_TAHITI_P_A21,   PRID_SI_TAHITI,            CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_SI_TAHITI_P_6780  },
-    { FAMILY_SI,      SI_HAINAN_V_A0,    PRID_SI_HAINAN_EXO_81,     CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_SI_HAINAN_V_6660  },
-    { FAMILY_CI,      CI_BONAIRE_M_A0,   PRID_CI_BONAIRE_TOBAGO_81, CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_BONAIRE_M_6640 },
-    { FAMILY_CI,      CI_HAWAII_P_A0,    PRID_CI_HAWAII_80,         CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CI_HAWAII_P_67BE  },
-    { FAMILY_KV,      KV_KALINDI_A0,     PRID_KV_KALINDI_00,        CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_KALINDI__9830     },
-    { FAMILY_KV,      KV_GODAVARI_A0,    PRID_GODAVARI_MULLINS_01,  CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_KV_GODAVARI__9850 },
-    { FAMILY_VI,      VI_ICELAND_M_A0,   PRID_VI_ICELAND_MESO_81,   CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_ICELAND_M_6900 },
-    { FAMILY_CZ,      CZ_CARRIZO_A0,     PRID_CZ_CARRIZO_C4,        CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_CZ_CARRIZO_9870   },
-    { FAMILY_VI,      VI_TONGA_P_A1,     PRID_VI_TONGA_00,          CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_TONGA_P_6920   },
-    { FAMILY_VI,      VI_FIJI_P_A0,      PRID_VI_FIJI_CC,           CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_VI_FIJI_P_7300    },
-    { FAMILY_CZ,      CZ_STONEY_A0,      PRID_ST_80,                CIASICIDGFXENGINE_SOUTHERNISLAND, DEVICE_ID_ST_98E4           },
+    { FAMILY_SI,  SI_TAHITI_P_A21,      PRID_SI_TAHITI,               GfxEngineGfx6,  DEVICE_ID_SI_TAHITI_P_6780     },
+    { FAMILY_SI,  SI_PITCAIRN_PM_A12,   PRID_SI_PITCAIRN,             GfxEngineGfx6,  DEVICE_ID_SI_PITCAIRN_PM_6818  },
+    { FAMILY_SI,  SI_CAPEVERDE_M_A12,   PRID_SI_CAPEVERDE,            GfxEngineGfx6,  DEVICE_ID_SI_CAPEVERDE_M_683D  },
+    { FAMILY_SI,  SI_OLAND_M_A0,        PRID_SI_OLAND_87,             GfxEngineGfx6,  DEVICE_ID_SI_OLAND_M_6611      },
+    { FAMILY_SI,  SI_HAINAN_V_A0,       PRID_SI_HAINAN_EXO_81,        GfxEngineGfx6,  DEVICE_ID_SI_HAINAN_V_6660     },
+
+    { FAMILY_KV,  KV_SPECTRE_A0,        PRID_KV_SPECTRE_GODAVARI_D4,  GfxEngineGfx6,  DEVICE_ID_SPECTRE_DESKTOP_130F },
+    { FAMILY_KV,  KV_SPOOKY_A0,         PRID_KV_SPOOKY,               GfxEngineGfx6,  DEVICE_ID_SPOOKY_DESKTOP_1316  },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_80,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67BE     },
+    { FAMILY_KV,  KV_KALINDI_A0,        PRID_KV_KALINDI_00,           GfxEngineGfx6,  DEVICE_ID_KALINDI__9830        },
+    { FAMILY_KV,  KV_GODAVARI_A0,       PRID_GODAVARI_MULLINS_01,     GfxEngineGfx6,  DEVICE_ID_KV_GODAVARI__9850    },
+    { FAMILY_CI,  CI_BONAIRE_M_A0,      PRID_CI_BONAIRE_TOBAGO_81,    GfxEngineGfx6,  DEVICE_ID_CI_BONAIRE_M_6640    },
+
+    { FAMILY_CZ,  CZ_CARRIZO_A0,        PRID_CZ_CARRIZO_C4,           GfxEngineGfx6,  DEVICE_ID_CZ_CARRIZO_9870      },
+    { FAMILY_CZ,  CZ_BISTROL_A0,        PRID_CZ_BRISTOL_E1,           GfxEngineGfx6,  DEVICE_ID_CZ_BRISTOL_9874      },
+    { FAMILY_VI,  VI_ICELAND_M_A0,      PRID_VI_ICELAND_MESO_81,      GfxEngineGfx6,  DEVICE_ID_VI_ICELAND_M_6900    },
+    { FAMILY_VI,  VI_TONGA_P_A1,        PRID_VI_TONGA_00,             GfxEngineGfx6,  DEVICE_ID_VI_TONGA_P_6920      },
+    { FAMILY_VI,  VI_FIJI_P_A0,         PRID_VI_FIJI_CC,              GfxEngineGfx6,  DEVICE_ID_VI_FIJI_P_7300       },
+    { FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF  },
+    { FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF  },
+    { FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F  },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { FAMILY_CZ,  CZ_STONEY_A0,         PRID_ST_80,                   GfxEngineGfx6,  DEVICE_ID_ST_98E4              },
+
 #if PAL_BUILD_GFX9
-    { FAMILY_AI,      AI_VEGA10_P_A0,    PRID_AI_VEGA10_C3,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA10_P_6860  },
+    { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860     },
+    { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD              },
+    { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0     },
 #else
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
 #endif
-    { FAMILY_RV,      RAVEN_A0,          PRID_RV_81,                CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_RV_15DD           },
-#if PAL_BUILD_GFX9
-    { FAMILY_AI,      AI_VEGA12_P_A0,    PRID_AI_VEGA12_00,         CIASICIDGFXENGINE_ARCTICISLAND,   DEVICE_ID_AI_VEGA12_P_69A0  },
-#else
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
-#endif
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                                   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
 };
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 {
     "TAHITI:gfx600",
+    "PITCAIRN:gfx601",
+    "CAPEVERDE:gfx601",
+    "OLAND:gfx601",
     "HAINAN:gfx601",
-    "BONAIRE:gfx700",
-    "HAWAII:gfx701:gfx702",
+
+    "SPECTRE:gfx700",
+    "SPOOKY:gfx700",
+    nullptr,
+    "HAWAII:gfx702",
     "KALINDI:gfx703",
     "GODAVARI:gfx703",
-    "ICELAND:gfx800",
+    "BONAIRE:gfx704",
+
     "CARRIZO:gfx801",
+    "BRISTOL:gfx801",
+    "ICELAND:gfx802",
     "TONGA:gfx802",
-    "FIJI:gfx803:gfx804",
+    "FIJI:gfx803",
+    "POLARIS10:gfx803",
+    "POLARIS11:gfx803",
+    "POLARIS12:gfx803",
+    nullptr,
     "STONEY:gfx810",
+
 #if PAL_BUILD_GFX9
     "VEGA10:gfx900",
-#else
-    nullptr,
-#endif
     "RAVEN:gfx902",
-#if PAL_BUILD_GFX9
     "VEGA12:gfx904",
 #else
     nullptr,
+    nullptr,
+    nullptr,
 #endif
+    nullptr,
+    nullptr,
+
+    nullptr,
     nullptr,
     nullptr,
 };
@@ -394,9 +435,9 @@ void Device::InitGfx6ChipProperties()
     if (AMDGPU_IS_TAHITI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02011003;
-        pChipInfo->paScRasterCfg           = 0x0D0D0DCD;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
         pChipInfo->paScRasterCfg1          = 0x0000000D;
         pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
@@ -409,13 +450,67 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // tahiti__GPU__VGT__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_PITCAIRN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_CAPEVERDE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    2; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_OLAND(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    6; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   16; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else if (AMDGPU_IS_HAINAN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02010001;
-        pChipInfo->paScRasterCfg           = 0x0D0D0DCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
@@ -427,31 +522,49 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_BONAIRE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_SPECTRE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02011002;
-        pChipInfo->paScRasterCfg           = 0x0D0D0DCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
-        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02011002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
         pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->numCuPerSh              =    7; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+        pChipInfo->gsVgtTableDepth         =   16; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_SPOOKY(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02011002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   16; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
     else if (AMDGPU_IS_HAWAII(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02011003;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
@@ -466,10 +579,10 @@ void Device::InitGfx6ChipProperties()
     else if (AMDGPU_IS_GODAVARI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02010001;
-        pChipInfo->paScRasterCfg           = 0x0D0D0DCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
@@ -484,10 +597,10 @@ void Device::InitGfx6ChipProperties()
     else if (AMDGPU_IS_KALINDI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x02010001;
-        pChipInfo->paScRasterCfg           = 0x0D0D0DCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
@@ -499,31 +612,32 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  256; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_ICELAND(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_BONAIRE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x22010001;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
-        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x02011002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0D0DCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
         pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->numCuPerSh              =    6; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   16; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
+        pChipInfo->numCuPerSh              =    7; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_CARRIZO(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_CARRIZO(m_nullIdLookup.familyId, m_nullIdLookup.eRevId) ||
+             AMDGPU_IS_BRISTOL(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x22011003;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
@@ -535,13 +649,31 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_ICELAND(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    6; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   16; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else if (AMDGPU_IS_TONGA(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x22011003;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
@@ -556,10 +688,10 @@ void Device::InitGfx6ChipProperties()
     else if (AMDGPU_IS_FIJI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x22011003;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
@@ -571,13 +703,67 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_POLARIS10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011003; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    9; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_POLARIS11(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    8; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_POLARIS12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22011002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
+        pChipInfo->numShaderEngines        =    2; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    5; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else if (AMDGPU_IS_STONEY(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->mcArbRamcfg             = 0x00007001;
-        pChipInfo->gbAddrConfig            = 0x22010001;
-        pChipInfo->paScRasterCfg           = 0x0D0DCDCD;
-        pChipInfo->paScRasterCfg1          = 0x0000000D;
+        pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
+        pChipInfo->gbAddrConfig            = 0x22010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg           = 0x0D0DCDCD; // PA_SC_RASTER_CONFIG_DEFAULT;
+        pChipInfo->paScRasterCfg1          = 0x0000000D; // PA_SC_RASTER_CONFIG_1_DEFAULT;
         pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
@@ -642,7 +828,7 @@ void Device::InitGfx9ChipProperties()
         // NOTE: KMD only gives us a flag indicating whether the Off-chip LDS buffers are "large" or not. The HWL will
         // need to determine the actual LDS buffer size based on this flag.
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x2A110002;
+        pChipInfo->gbAddrConfig            = 0x2A110002; // GB_ADDR_CONFIG_DEFAULT;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
@@ -657,7 +843,7 @@ void Device::InitGfx9ChipProperties()
     else if (AMDGPU_IS_VEGA12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26110001;
+        pChipInfo->gbAddrConfig            = 0x26110001; // GB_ADDR_CONFIG_DEFAULT;
         pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
@@ -672,8 +858,8 @@ void Device::InitGfx9ChipProperties()
     else if (AMDGPU_IS_RAVEN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26010001;
-        pChipInfo->numShaderEngines        =    1;  // GPU__GC__NUM_SE;
+        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
         pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
         pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
         pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
@@ -1153,6 +1339,7 @@ Result Device::QueryApplicationProfile(
 {
     return Result::Unsupported;
 }
+
 // =====================================================================================================================
 // Application profiles?  Null devices?  I don't think so.
 Result Device::QueryRawApplicationProfile(
@@ -1164,6 +1351,7 @@ Result Device::QueryRawApplicationProfile(
 {
     return Result::Unsupported;
 }
+
 // =====================================================================================================================
 Result Device::QueryDisplayConnectors(
     uint32*                     pConnectorCount,

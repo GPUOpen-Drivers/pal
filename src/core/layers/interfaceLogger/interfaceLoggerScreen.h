@@ -44,6 +44,10 @@ public:
     uint32 ObjectId() const { return m_objectId; }
 
     // Public IScreen interface methods:
+    virtual Result IsImplicitFullscreenOwnershipSafe(
+        OsDisplayHandle hDisplay,
+        OsWindowHandle  hWindow,
+        Extent2d        imageExtent) const override;
     virtual Result TakeFullscreenOwnership(
         const IImage& image) override;
     virtual Result ReleaseFullscreenOwnership() override;

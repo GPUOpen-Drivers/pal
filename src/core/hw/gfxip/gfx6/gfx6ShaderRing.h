@@ -88,10 +88,11 @@ public:
     ScratchRing(Device* pDevice, BufferSrd* pSrdTable, PM4ShaderType shaderType);
     virtual ~ScratchRing() {}
 
-    size_t GetNumWaves() const { return m_numMaxWaves; }
+    size_t CalculateWaves() const;
     size_t CalculateWaveSize() const;
 
 protected:
+    virtual gpusize ComputeAllocationSize() const override;
     virtual void UpdateSrds() const override;
 
 private:

@@ -113,7 +113,7 @@ public:
         int32               sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
-        uint32              image) override;
+        WindowSystemImageHandle hImage) override;
 
     virtual Result Present(
         const PresentSwapChainInfo& presentInfo,

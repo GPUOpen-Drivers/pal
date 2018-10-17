@@ -1099,9 +1099,12 @@ void DumpColorTargetViewInfo(
                 if ((imageCreateInfo.imageType == ImageType::Tex3d) &&
                     viewCreateInfo.flags.zRangeValid)
                 {
-                    // If this trips, the reported start subres and numSlice is inaccurate.  It should really reflect
-                    // the parameters in the "zRange" portion of the viewCreateInfo structure.
-                    PAL_NOT_IMPLEMENTED();
+                    Snprintf(&string[0],
+                             StringLength,
+                             "\t\t\t\t{ zRange: start:  %d, count: %d }",
+                             viewCreateInfo.zRange.offset,
+                             viewCreateInfo.zRange.extent);
+                    pNextCmdBuffer->CmdCommentString(&string[0]);
                 }
             }
         }

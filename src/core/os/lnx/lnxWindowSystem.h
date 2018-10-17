@@ -42,6 +42,15 @@ class Device;
 class Image;
 class WindowSystem;
 
+union WindowSystemImageHandle
+{
+    void*  pBuffer;  // Native buffer handle in Wayland is a pointer.
+    uint32 hPixmap;  // Native pixmap handle in X is a 32-bit integer.
+    uint32 hBuffer;  // Native buffer handle in drm is a 32-bit integer.
+};
+
+constexpr WindowSystemImageHandle NullImageHandle = { 0 }; // Value representing a null or invalid image handle.
+
 struct WindowSystemCreateInfo
 {
     WsiPlatform     platform;
@@ -167,7 +176,7 @@ public:
         int32               sharedBufferFd) = 0;
 
     virtual void DestroyPresentableImage(
-        uint32              image) = 0;
+        WindowSystemImageHandle hImage) = 0;
 
     // Ask window system to present. For Dri3, the pixmap will be presented. For Dri2, pixmap is useless and only a
     // swap buffer request will be sent to X Server.

@@ -802,7 +802,7 @@ void SetupGfx9Counters(
     // PA block
     SetupBlockInfo(pProps,
                    GpuBlock::Pa,
-                   DefaultShaderEngines,
+                   shaderEngines,
                    DefaultShaderArrays,
                    DefaultInstances,
                    mmPA_SU_PERFCOUNTER0_LO,

@@ -109,9 +109,9 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
             grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
             grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-            pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                grbmGfxIndex.u32All,
-                                                pCmdSpace);
+            pHwlCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                 grbmGfxIndex.u32All,
+                                                 pCmdSpace);
         }
 
         pCmdSpace = pStreamingCounter->WriteSetupCommands(pCmdStream, pCmdSpace);
@@ -133,9 +133,9 @@ uint32* Gfx9SpmTrace::WriteSetupCommands(
                 grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
                 grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
-                pCmdSpace = pHwlCmdStream->WriteSetOneConfigReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
-                                                                grbmGfxIndex.u32All,
-                                                                pCmdSpace);
+                pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(m_device.CmdUtil().GetRegInfo().mmGrbmGfxIndex,
+                                                                 grbmGfxIndex.u32All,
+                                                                 pCmdSpace);
 
                 pCmdSpace = pHwlCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR,
                                                                  0,
@@ -601,7 +601,7 @@ uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace,
     uint32     sqttTokenMask
-) const
+    ) const
 {
     // Set GRBM_GFX_INDEX to isolate the SE/SH this trace is associated with.
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);

@@ -809,22 +809,22 @@ size_t CmdUtil::BuildCopyDataInternal(
                     static_cast<uint32>(wr_confirm__me_copy_data__wait_for_confirmation))),
                    "CopyData wrConfirm enum is different between ME and MEC!");
 
-    constexpr uint32 PacketSize     = (sizeof(PM4ME_COPY_DATA) / sizeof(uint32));
-    auto*const       pPacketGfx     = static_cast<PM4ME_COPY_DATA*>(pBuffer);
-    auto*const       pPacketCompute = static_cast<PM4MEC_COPY_DATA*>(pBuffer);
-    const bool       gfxSupported   = Pal::Device::EngineSupportsGraphics(engineType);
-    const bool       isCompute      = (engineType == EngineTypeCompute);
+    constexpr uint32  PacketSize     = (sizeof(PM4ME_COPY_DATA) / sizeof(uint32));
+    PM4ME_COPY_DATA   packetGfx;
+    PM4MEC_COPY_DATA* pPacketCompute = reinterpret_cast<PM4MEC_COPY_DATA*>(&packetGfx);
+    const bool        gfxSupported   = Pal::Device::EngineSupportsGraphics(engineType);
+    const bool        isCompute      = (engineType == EngineTypeCompute);
 
-    pPacketGfx->header.u32All = Type3Header(IT_COPY_DATA, PacketSize);
-    pPacketGfx->ordinal2      = 0;
-    pPacketGfx->ordinal3      = 0;
-    pPacketGfx->ordinal4      = 0;
-    pPacketGfx->ordinal5      = 0;
+    packetGfx.header.u32All = Type3Header(IT_COPY_DATA, PacketSize);
+    packetGfx.ordinal2      = 0;
+    packetGfx.ordinal3      = 0;
+    packetGfx.ordinal4      = 0;
+    packetGfx.ordinal5      = 0;
 
-    pPacketGfx->bitfields2.src_sel    = static_cast<ME_COPY_DATA_src_sel_enum>(srcSel);
-    pPacketGfx->bitfields2.dst_sel    = static_cast<ME_COPY_DATA_dst_sel_enum>(dstSel);
-    pPacketGfx->bitfields2.count_sel  = static_cast<ME_COPY_DATA_count_sel_enum>(countSel);
-    pPacketGfx->bitfields2.wr_confirm = static_cast<ME_COPY_DATA_wr_confirm_enum>(wrConfirm);
+    packetGfx.bitfields2.src_sel    = static_cast<ME_COPY_DATA_src_sel_enum>(srcSel);
+    packetGfx.bitfields2.dst_sel    = static_cast<ME_COPY_DATA_dst_sel_enum>(dstSel);
+    packetGfx.bitfields2.count_sel  = static_cast<ME_COPY_DATA_count_sel_enum>(countSel);
+    packetGfx.bitfields2.wr_confirm = static_cast<ME_COPY_DATA_wr_confirm_enum>(wrConfirm);
 
     if (isCompute)
     {
@@ -840,43 +840,43 @@ size_t CmdUtil::BuildCopyDataInternal(
 
         // Set these to their "zero" equivalents...  Enumerating these here explicitly to provide reminders that these
         // fields do exist.
-        pPacketGfx->bitfields2.src_cache_policy = src_cache_policy__me_copy_data__lru;
-        pPacketGfx->bitfields2.dst_cache_policy = dst_cache_policy__me_copy_data__lru;
-        pPacketGfx->bitfields2.engine_sel       = static_cast<ME_COPY_DATA_engine_sel_enum>(engineSel);
+        packetGfx.bitfields2.src_cache_policy = src_cache_policy__me_copy_data__lru;
+        packetGfx.bitfields2.dst_cache_policy = dst_cache_policy__me_copy_data__lru;
+        packetGfx.bitfields2.engine_sel       = static_cast<ME_COPY_DATA_engine_sel_enum>(engineSel);
     }
 
     switch (srcSel)
     {
     case src_sel__me_copy_data__perfcounters:
     case src_sel__me_copy_data__mem_mapped_register:
-        pPacketGfx->ordinal3 = LowPart(srcAddr);
+        packetGfx.ordinal3 = LowPart(srcAddr);
 
         // Make sure we didn't get an illegal register offset
-        PAL_ASSERT ((gfxSupported && (pPacketGfx->bitfields3a.reserved1 == 0)) ||
+        PAL_ASSERT ((gfxSupported && (packetGfx.bitfields3a.reserved1 == 0)) ||
                     (isCompute    && (pPacketCompute->bitfields3a.reserved1 == 0)));
         PAL_ASSERT (HighPart(srcAddr) == 0);
         break;
 
     case src_sel__me_copy_data__immediate_data:
-        pPacketGfx->imm_data     = LowPart(srcAddr);
+        packetGfx.imm_data     = LowPart(srcAddr);
 
         // Really only meaningful if countSel==count_sel__me_copy_data__64_bits_of_data, but shouldn't hurt to
         // write it regardless.
-        pPacketGfx->src_imm_data = HighPart(srcAddr);
+        packetGfx.src_imm_data = HighPart(srcAddr);
         break;
 
     case src_sel__me_copy_data__memory__GFX09:
     case src_sel__me_copy_data__tc_l2:
-        pPacketGfx->ordinal3          = LowPart(srcAddr);
-        pPacketGfx->src_memtc_addr_hi = HighPart(srcAddr);
+        packetGfx.ordinal3          = LowPart(srcAddr);
+        packetGfx.src_memtc_addr_hi = HighPart(srcAddr);
 
         // Make sure our srcAddr is properly aligned.  The alignment differs based on how much data is being written
         PAL_ASSERT (((countSel == count_sel__mec_copy_data__64_bits_of_data) &&
                      ((isCompute    && (pPacketCompute->bitfields3c.reserved1 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields3c.reserved1 == 0)))) ||
+                      (gfxSupported && (packetGfx.bitfields3c.reserved1 == 0)))) ||
                     ((countSel == count_sel__mec_copy_data__32_bits_of_data) &&
                      ((isCompute    && (pPacketCompute->bitfields3b.reserved1 == 0))  ||
-                      (gfxSupported && (pPacketGfx->bitfields3b.reserved1 == 0)))));
+                      (gfxSupported && (packetGfx.bitfields3b.reserved1 == 0)))));
         break;
 
     case src_sel__me_copy_data__gpu_clock_count:
@@ -893,9 +893,9 @@ size_t CmdUtil::BuildCopyDataInternal(
     {
     case dst_sel__me_copy_data__perfcounters:
     case dst_sel__me_copy_data__mem_mapped_register:
-        pPacketGfx->ordinal5 = LowPart(dstAddr);
+        packetGfx.ordinal5 = LowPart(dstAddr);
         PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5a.reserved1 == 0)) ||
-                    (gfxSupported && (pPacketGfx->bitfields5a.reserved1 == 0)));
+                    (gfxSupported && (packetGfx.bitfields5a.reserved1 == 0)));
         break;
 
     case dst_sel__me_copy_data__memory_sync_across_grbm:
@@ -905,22 +905,22 @@ size_t CmdUtil::BuildCopyDataInternal(
 
     case dst_sel__me_copy_data__memory__GFX09:
     case dst_sel__me_copy_data__tc_l2:
-        pPacketGfx->ordinal5    = LowPart(dstAddr);
-        pPacketGfx->dst_addr_hi = HighPart(dstAddr);
+        packetGfx.ordinal5    = LowPart(dstAddr);
+        packetGfx.dst_addr_hi = HighPart(dstAddr);
 
         // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
         PAL_ASSERT (((countSel == count_sel__mec_copy_data__64_bits_of_data) &&
                      ((isCompute    && (pPacketCompute->bitfields3c.reserved1 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields3c.reserved1 == 0)))) ||
+                      (gfxSupported && (packetGfx.bitfields3c.reserved1 == 0)))) ||
                     ((countSel == count_sel__mec_copy_data__32_bits_of_data) &&
                      ((isCompute    && (pPacketCompute->bitfields5b.reserved1 == 0)) ||
-                      (gfxSupported && (pPacketGfx->bitfields5b.reserved1 == 0)))));
+                      (gfxSupported && (packetGfx.bitfields5b.reserved1 == 0)))));
         break;
 
     case dst_sel__me_copy_data__gds:
-        pPacketGfx->ordinal5 = LowPart(dstAddr);
+        packetGfx.ordinal5 = LowPart(dstAddr);
         PAL_ASSERT ((isCompute    && (pPacketCompute->bitfields5d.reserved1 == 0)) ||
-                    (gfxSupported && (pPacketGfx->bitfields5d.reserved1 == 0)));
+                    (gfxSupported && (packetGfx.bitfields5d.reserved1 == 0)));
         break;
 
     default:
@@ -929,6 +929,7 @@ size_t CmdUtil::BuildCopyDataInternal(
         break;
     }
 
+    memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
     return PacketSize;
 }
 
@@ -1473,10 +1474,10 @@ size_t CmdUtil::BuildNonSampleEventWrite(
     // Don't use sizeof(PM4ME_EVENT_WRITE) here!  The official packet definition contains extra dwords
     // for functionality that is only required for "sample" type events.
     constexpr uint32 PacketSize = (sizeof(PM4ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
-    auto*const   pPacket        = static_cast<PM4ME_EVENT_WRITE*>(pBuffer);
+    PM4ME_EVENT_WRITE packet;
 
-    pPacket->header.u32All      = Type3Header(IT_EVENT_WRITE, PacketSize);
-    pPacket->ordinal2           = 0;
+    packet.header.u32All      = Type3Header(IT_EVENT_WRITE, PacketSize);
+    packet.ordinal2           = 0;
 
     // CS_PARTIAL_FLUSH is only allowed on engines that support compute operations
     PAL_ASSERT((vgtEvent != CS_PARTIAL_FLUSH) || Pal::Device::EngineSupportsCompute(engineType));
@@ -1484,14 +1485,15 @@ size_t CmdUtil::BuildNonSampleEventWrite(
     // Enable offload compute queue until EOP queue goes empty to increase multi-queue concurrency
     if ((engineType == EngineTypeCompute) && (vgtEvent == CS_PARTIAL_FLUSH))
     {
-        auto*const   pPacketMec = static_cast<PM4MEC_EVENT_WRITE*>(pBuffer);
+        auto*const pPacketMec = reinterpret_cast<PM4MEC_EVENT_WRITE*>(&packet);
 
         pPacketMec->bitfields2.offload_enable = 1;
     }
 
-    pPacket->bitfields2.event_type  = vgtEvent;
-    pPacket->bitfields2.event_index = VgtEventIndex[vgtEvent];
+    packet.bitfields2.event_type  = vgtEvent;
+    packet.bitfields2.event_index = VgtEventIndex[vgtEvent];
 
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
 }
 
@@ -1915,9 +1917,9 @@ size_t CmdUtil::BuildContextRegRmw(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which reads a config register, masks off a portion of it, then writes the provided data to the
-// masked off fields. The register mask applies to the fields being written to, as follows:
-//      newRegVal = (oldRegVal & ~regMask) | (regData & regMask)
+// Builds a PM4 packet which reads a config register, and performs immediate mode AND and OR operations on the regVal
+// using the masks provided as follows:
+//     newRegVal = (oldRegVal & andMask) | (orMask)
 // Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildRegRmw(
     uint32 regAddr,
@@ -1926,9 +1928,7 @@ size_t CmdUtil::BuildRegRmw(
     void*  pBuffer  // [out] Build the PM4 packet in this buffer.
     ) const
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    CheckShadowedContextReg(regAddr);
-#endif
+    PAL_ASSERT((IsPrivilegedConfigReg(regAddr) == false) && (IsContextReg(regAddr) == false));
 
     constexpr size_t PacketSize = RegRmwSizeDwords;
     auto*const       pPacket    = static_cast<PM4_ME_REG_RMW*>(pBuffer);
@@ -2394,7 +2394,6 @@ size_t CmdUtil::BuildReleaseMemInternal(
 {
     constexpr uint32 PacketSize = (sizeof(ReleaseMemPacketType) / sizeof(uint32));
 
-    memset(pPacket, 0, sizeof(ReleaseMemPacketType));
     pPacket->header.u32All = Type3Header(IT_RELEASE_MEM, PacketSize);
 
     // If the asserts in this switch statement trip, you will almost certainly hang the GPU
@@ -2505,56 +2504,59 @@ size_t CmdUtil::BuildReleaseMem(
     {
         // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
         // versions are identical.
-        auto*const pPacket = static_cast<PM4MEC_RELEASE_MEM__GFX09*>(VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
-
-        totalSize += BuildReleaseMemInternal(releaseMemInfo, pPacket, gdsAddr, gdsSize);
+        PM4MEC_RELEASE_MEM__GFX09 packet = {};
+        void* pReleaseMemPacket = VoidPtrInc(pBuffer, sizeof(uint32) * totalSize);
+        const size_t packetSize = BuildReleaseMemInternal(releaseMemInfo, &packet, gdsAddr, gdsSize);
 
         switch(releaseMemInfo.tcCacheOp)
         {
         case TcCacheOp::WbInvL1L2:
-            pPacket->bitfields2.tc_action_ena       = 1;
-            pPacket->bitfields2.tc_wb_action_ena    = 1;
+            packet.bitfields2.tc_action_ena       = 1;
+            packet.bitfields2.tc_wb_action_ena    = 1;
             break;
 
         case TcCacheOp::WbInvL2Nc:
-            pPacket->bitfields2.tc_action_ena       = 1;
-            pPacket->bitfields2.tc_wb_action_ena    = 1;
-            pPacket->bitfields2.tc_nc_action_ena    = 1;
+            packet.bitfields2.tc_action_ena       = 1;
+            packet.bitfields2.tc_wb_action_ena    = 1;
+            packet.bitfields2.tc_nc_action_ena    = 1;
             break;
 
         case TcCacheOp::WbL2Nc:
-            pPacket->bitfields2.tc_wb_action_ena    = 1;
-            pPacket->bitfields2.tc_nc_action_ena    = 1;
+            packet.bitfields2.tc_wb_action_ena    = 1;
+            packet.bitfields2.tc_nc_action_ena    = 1;
             break;
 
         case TcCacheOp::WbL2Wc:
-            pPacket->bitfields2.tc_wb_action_ena    = 1;
-            pPacket->bitfields2.tc_wc_action_ena    = 1;
+            packet.bitfields2.tc_wb_action_ena    = 1;
+            packet.bitfields2.tc_wc_action_ena    = 1;
             break;
 
         case TcCacheOp::InvL2Nc:
-            pPacket->bitfields2.tc_action_ena       = 1;
-            pPacket->bitfields2.tc_nc_action_ena    = 1;
+            packet.bitfields2.tc_action_ena       = 1;
+            packet.bitfields2.tc_nc_action_ena    = 1;
             break;
 
         case TcCacheOp::InvL2Md:
-            pPacket->bitfields2.tc_action_ena       = 1;
-            pPacket->bitfields2.tc_md_action_ena    = 1;
+            packet.bitfields2.tc_action_ena       = 1;
+            packet.bitfields2.tc_md_action_ena    = 1;
             break;
 
         case TcCacheOp::InvL1:
-            pPacket->bitfields2.tcl1_action_ena     = 1;
+            packet.bitfields2.tcl1_action_ena     = 1;
             break;
 
         case TcCacheOp::InvL1Vol:
-            pPacket->bitfields2.tcl1_action_ena     = 1;
-            pPacket->bitfields2.tcl1_vol_action_ena = 1;
+            packet.bitfields2.tcl1_action_ena     = 1;
+            packet.bitfields2.tcl1_vol_action_ena = 1;
             break;
 
         default:
             PAL_ASSERT(releaseMemInfo.tcCacheOp == TcCacheOp::Nop);
             break;
         }
+
+        memcpy(pReleaseMemPacket, &packet, packetSize * sizeof(uint32));
+        totalSize += packetSize;
     }
 
     return totalSize;
@@ -2651,7 +2653,7 @@ size_t CmdUtil::BuildSetOneConfigReg(
                  ((regAddr != Gfx09::mmIA_MULTI_VGT_PARAM) ||
                   (index == index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09))));
 
-    return BuildSetSeqConfigRegs(regAddr, regAddr, pBuffer, index);
+    return BuildSetSeqConfigRegs<resetFilterCam>(regAddr, regAddr, pBuffer, index);
 }
 
 template

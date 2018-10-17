@@ -522,6 +522,10 @@ void UniversalCmdBuffer::SetGraphicsState(
     }
 
     m_graphicsState.gfxUserDataEntries = newGraphicsState.gfxUserDataEntries;
+    for (uint32 i = 0; i < NumUserDataFlagsParts; ++i)
+    {
+        m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
+    }
 }
 
 // =====================================================================================================================

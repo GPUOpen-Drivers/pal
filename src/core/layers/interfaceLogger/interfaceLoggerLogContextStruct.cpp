@@ -2017,6 +2017,12 @@ void LogContext::Struct(
     {
         Value("turboSyncEnabled");
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
+    if (value.flags.notifyOnly)
+    {
+        Value("notifyOnly");
+    }
+#endif
 
     EndList();
     EndMap();

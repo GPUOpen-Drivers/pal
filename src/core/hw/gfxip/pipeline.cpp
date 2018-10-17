@@ -163,7 +163,8 @@ void Pipeline::ExtractPipelineInfo(
 // Query this pipeline's Bound GPU Memory.
 Result Pipeline::QueryAllocationInfo(
     size_t*                   pNumEntries,
-    GpuMemSubAllocInfo* const pGpuMemList)
+    GpuMemSubAllocInfo* const pGpuMemList
+    ) const
 {
     Result result = Result::ErrorInvalidPointer;
 

@@ -41,7 +41,7 @@ DmaCmdBuffer::DmaCmdBuffer(
     Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(pDevice->Parent(), createInfo, false)
+    Pal::DmaCmdBuffer(pDevice->Parent(), createInfo, 0)
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   DMA (OSS 1.0) does not by default enable overlapped copies (DMA[1]_FIFO_CNTL.[COPY_OVERLAP_ENABLE|

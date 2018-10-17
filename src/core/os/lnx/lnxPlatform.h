@@ -29,6 +29,10 @@
 #include "core/os/lnx/dri3/dri3Loader.h"
 #include "core/os/lnx/drmLoader.h"
 #include "core/os/lnx/lnxHeaders.h"
+
+#if PAL_HAVE_WAYLAND_PLATFORM
+#endif
+
 namespace Pal
 {
 
@@ -53,8 +57,10 @@ public:
 
     virtual size_t GetScreenObjectSize() const override;
 
-    const Dri3Loader& GetDri3Loader();
-    const DrmLoader&  GetDrmLoader();
+    const Dri3Loader&    GetDri3Loader();
+    const DrmLoader&     GetDrmLoader();
+#if PAL_HAVE_WAYLAND_PLATFORM
+#endif
 
     virtual Result GetPrimaryLayout(
         uint32 vidPnSourceId,
@@ -83,8 +89,11 @@ protected:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
 
-    Dri3Loader   m_dri3Loader;
-    DrmLoader    m_drmLoader;
+    Dri3Loader    m_dri3Loader;
+    DrmLoader     m_drmLoader;
+#if PAL_HAVE_WAYLAND_PLATFORM
+#endif
+
 #if defined(PAL_DEBUG_PRINTS)
     static constexpr size_t LogPathLength = 256;
     char         m_logPath[LogPathLength];

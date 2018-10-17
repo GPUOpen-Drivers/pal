@@ -74,15 +74,35 @@ Result ComputePipeline::Init(
     if (result == Result::Success)
     {
         PAL_ASSERT(m_pPipelineBinary != nullptr);
-        result = InitFromPipelineBinary();
+        result = InitFromPipelineBinary(createInfo);
     }
 
     return result;
 }
 
 // =====================================================================================================================
+// Computes the GPU virtual address of each of the indirect functions specified by the client.
+void ComputePipeline::GetFunctionGpuVirtAddrs(
+    const AbiProcessor&              abiProcessor,
+    const PipelineUploader&          uploader,
+    ComputePipelineIndirectFuncInfo* pFuncInfoList,
+    uint32                           funcCount)
+{
+    const gpusize codeGpuVirtAddr = uploader.CodeGpuVirtAddr();
+    for (uint32 i = 0; i < funcCount; ++i)
+    {
+        Abi::GenericSymbolEntry symbol = { };
+        if (abiProcessor.HasGenericSymbolEntry(pFuncInfoList[i].pSymbolName, &symbol))
+        {
+            pFuncInfoList[i].gpuVirtAddr = (codeGpuVirtAddr + symbol.value);
+        }
+    }
+}
+
+// =====================================================================================================================
 // Initializes this pipeline from the pipeline binary data stored in this object.
-Result ComputePipeline::InitFromPipelineBinary()
+Result ComputePipeline::InitFromPipelineBinary(
+    const ComputePipelineCreateInfo& createInfo)
 {
     PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
 
@@ -115,7 +135,13 @@ Result ComputePipeline::InitFromPipelineBinary()
             m_stageInfo.disassemblyLength = static_cast<size_t>(symbol.size);
         }
 
-        result = HwlInit(abiProcessor, metadata, &metadataReader);
+        result = HwlInit(abiProcessor,
+                         metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
+                         createInfo.pIndirectFuncList,
+                         createInfo.indirectFuncCount,
+#endif
+                         &metadataReader);
     }
 
     return result;

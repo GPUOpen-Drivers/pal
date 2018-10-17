@@ -87,6 +87,7 @@ struct DmaTypedBufferCopyInfo
     DmaTypedBufferRegion dst;
     DmaCopyFlags         flags;
 };
+
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to OSSIP DMA command buffers.
 class DmaCmdBuffer : public CmdBuffer
@@ -210,7 +211,7 @@ protected:
         DwordUnaligned
     };
 
-    DmaCmdBuffer(Device* pDevice, const CmdBufferCreateInfo& createInfo, bool copyOverlapHazardSyncs);
+    DmaCmdBuffer(Device* pDevice, const CmdBufferCreateInfo& createInfo, uint32 copyOverlapHazardSyncs);
     virtual ~DmaCmdBuffer() {}
 
     virtual void SetupDmaInfoExtent(DmaImageInfo*  pImageInfo) const;
@@ -309,7 +310,8 @@ protected:
     Device*const m_pDevice;
     CmdStream    m_cmdStream;
     bool         m_predMemEnabled;           // Memory predication is enabled.
-    const bool   m_copyOverlapHazardSyncs;   // Driver needs to handle overlapping copy syncing during CmdBarrier
+    const uint32 m_copyOverlapHazardSyncs;   // Bitmask that depons on image type (1D, 2D or 3D). The bit is set to 1
+                                             // if we need to handle overlapping copy syncing during CmdBarrier.
     gpusize      m_predMemAddress;           // Memory predication will reference this address.
 
 private:

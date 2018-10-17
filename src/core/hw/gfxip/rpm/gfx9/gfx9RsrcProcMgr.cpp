@@ -2276,6 +2276,20 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     PAL_ASSERT((boxCnt == 0) || ((pBox != nullptr) && (range.numMips == 1)));
     uint32 scissorCnt = (boxCnt > 0) ? boxCnt : 1;
 
+    // The DB assumes the driver won't change surface state registers once it binds a depth target. We must flush
+    // the DB caches if we wish to change surface state. In PAL, we only change surface state if we switch fast clear
+    // values or z range precision values. We can't know the previous surface state values so we must always flush the
+    // DB caches when we do a graphics fast clear.
+    if (fastClear)
+    {
+        auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+        PAL_ASSERT(pCmdStream != nullptr);
+        const EngineType engineType = pCmdBuffer->GetEngineType();
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(DB_CACHE_FLUSH_AND_INV, engineType, pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
     // Each mipmap level has to be fast-cleared individually because a depth target view can only be tied to a
     // single mipmap level of the destination Image.
     const uint32 lastMip = (range.startSubres.mipLevel + range.numMips - 1);

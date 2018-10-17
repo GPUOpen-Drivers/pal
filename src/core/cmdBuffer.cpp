@@ -30,6 +30,7 @@
 #include "core/queue.h"
 #include "palAutoBuffer.h"
 #include "palLinearAllocator.h"
+#include "palSysUtil.h"
 #include "palVectorImpl.h"
 
 using namespace Util;
@@ -875,6 +876,9 @@ void CmdBuffer::OpenCmdBufDumpFile(
 
     const char* pLogDir = &settings.cmdBufDumpDirectory[0];
 
+    // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+    MkDir(pLogDir);
+
     // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
     constexpr uint32 MaxFilenameLength = 512;
 
@@ -890,12 +894,15 @@ void CmdBuffer::OpenCmdBufDumpFile(
 
     if (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
     {
-        m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite);
+        PAL_ALERT_MSG(m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite) != Result::Success,
+                      "Failed to open CmdBuf dump file '%s'", fullFilename);
     }
     else if ((settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
              (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
     {
-        m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary);
+        const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
+        PAL_ALERT_MSG(m_file.Open(&fullFilename[0], fileMode) != Result::Success,
+                      "Failed to open CmdBuf dump file '%s'", fullFilename);
     }
     else
     {

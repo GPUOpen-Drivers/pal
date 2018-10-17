@@ -22,7 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-#include "core/os/lnx/wayland/waylandWindowSystem.h"
+#include "core/os/lnx/wayland/waylandWindowSystemWsa.h"
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxImage.h"
 #include "core/os/lnx/lnxPlatform.h"
@@ -289,7 +289,10 @@ Result WaylandWindowSystem::CreatePresentableImage(
         WsaError ret = s_pWsaInterface->pfnCreateImage(
                                m_hWsa, sharedBufferFd, width, height, format,
                                stride, reinterpret_cast<int32*>(&presentImage));
-        pImage->SetPresentImageHandle(presentImage);
+
+        const WindowSystemImageHandle imageHandle = { .hPixmap = presentImage }; // It's a pixmap for WSA
+
+        pImage->SetPresentImageHandle(imageHandle);
 
         if (ret != Success)
         {
@@ -303,11 +306,11 @@ Result WaylandWindowSystem::CreatePresentableImage(
 // =====================================================================================================================
 // Destroy the present image.
 void WaylandWindowSystem::DestroyPresentableImage(
-    uint32 image)
+    WindowSystemImageHandle hImage)
 {
     PAL_ASSERT(s_pWsaInterface != nullptr);
 
-    s_pWsaInterface->pfnDestroyImage(image);
+    s_pWsaInterface->pfnDestroyImage(hImage.hPixmap);
 }
 
 // =====================================================================================================================
@@ -319,7 +322,7 @@ Result WaylandWindowSystem::Present(
 {
     PAL_ASSERT(s_pWsaInterface != nullptr);
     const Image&       srcImage = static_cast<Image&>(*presentInfo.pSrcImage);
-    uint32             pixmap   = srcImage.GetPresentImageHandle();
+    uint32             pixmap   = srcImage.GetPresentImageHandle().hPixmap;
 
     WaylandPresentFence*const pWaylandIdleFence = static_cast<WaylandPresentFence*>(pIdleFence);
 

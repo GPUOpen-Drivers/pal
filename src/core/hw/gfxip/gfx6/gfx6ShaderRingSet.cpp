@@ -390,14 +390,14 @@ Result UniversalRingSet::Init()
         const ScratchRing*const pScratchRingGfx =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::GfxScratch)]);
 
-        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->GetNumWaves();
+        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->CalculateWaves();
         m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
 
         // Set up the COMPUTE_TMPRING_SIZE for the compute shader scratch ring.
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->GetNumWaves();
+        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
@@ -433,7 +433,10 @@ Result UniversalRingSet::Validate(
         const ShaderRing*const  pOffchipLds     = m_ppRings[static_cast<size_t>(ShaderRingType::OffChipLds)];
 
         // Scratch rings:
+        m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
         m_pm4NonRlcRestoredCommands.gfxScratchRingSize.bits.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
+
+        m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         m_pm4NonRlcRestoredCommands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
 
         const auto& chipProps = m_pDevice->Parent()->ChipProperties();
@@ -542,7 +545,7 @@ Result ComputeRingSet::Init()
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        m_pm4Commands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->GetNumWaves();
+        m_pm4Commands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         m_pm4Commands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
     }
 
@@ -565,6 +568,7 @@ Result ComputeRingSet::Validate(
         const ScratchRing*const pScratchRingCs =
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
+        m_pm4Commands.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
         m_pm4Commands.computeScratchRingSize.bits.WAVESIZE = pScratchRingCs->CalculateWaveSize();
     }
 

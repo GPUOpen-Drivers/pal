@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/image.h"
+#include "core/os/lnx/lnxWindowSystem.h"
 
 namespace Pal
 {
@@ -79,8 +80,8 @@ public:
         IImage**                      ppImage,
         IGpuMemory**                  ppGpuMemory);
 
-    uint32 GetPresentImageHandle() const { return m_presentImageHandle; }
-    void SetPresentImageHandle(uint32 handle) { m_presentImageHandle = handle; }
+    WindowSystemImageHandle GetPresentImageHandle() const { return m_presentImageHandle; }
+    void SetPresentImageHandle(WindowSystemImageHandle handle) { m_presentImageHandle = handle; }
 
     static Result UpdateExternalImageInfo(
         Device*                             pDevice,
@@ -114,11 +115,11 @@ protected:
 
 private:
 
-    // For window system (X11 or Wayland) it's a pixmap handle of the shared buffer used for presentation.
+    // For X Window system it's a pixmap handle of the shared buffer used for presentation.
     // For direct rendering display, it's a handle of dma-buf.
-    uint32        m_presentImageHandle;
-    WindowSystem* m_pWindowSystem;       // The window system that created the above handle.
-    uint32        m_framebufferId;       // Framebuffer ID of the framebuffer to be presented.
+    WindowSystemImageHandle m_presentImageHandle;
+    WindowSystem*           m_pWindowSystem;       // The window system that created the above handle.
+    uint32                  m_framebufferId;       // Framebuffer ID of the framebuffer to be presented.
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

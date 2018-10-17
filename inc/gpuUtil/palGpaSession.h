@@ -248,6 +248,13 @@ struct GpuClocksSample
     Pal::uint32 gpuMemoryClockSpeed; // Current speed of the gpu memory clock in MHz
 };
 
+/// Struct for storing CPU-side allocations of Pal::IPerfExperiment's.
+struct PerfExperimentMemory
+{
+    void*  pMemory;	    // Memory allocated for an IPerfExperiment.
+    size_t memorySize;  // Size of the memory allocated in pMemory.
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -287,6 +294,8 @@ class GpaSession
 {
     typedef Pal::IPlatform             GpaAllocator;
 public:
+    typedef Util::Deque<PerfExperimentMemory, GpaAllocator> PerfExpMemDeque;
+
     /// Constructor.
     GpaSession(
         Pal::IPlatform*      pPlatform,
@@ -294,7 +303,8 @@ public:
         Pal::uint16          apiMajorVer,
         Pal::uint16          apiMinorVer,
         Pal::uint16          rgpInstrumentationSpecVer = 0,
-        Pal::uint16          rgpInstrumentationApiVer  = 0);
+        Pal::uint16          rgpInstrumentationApiVer  = 0,
+        PerfExpMemDeque*     pAvailablePerfExpMem      = nullptr);
 
     ~GpaSession();
 
@@ -496,13 +506,21 @@ public:
     /// @param pCmdBuf Command buffer where the session copy should be performed.
     void CopyResults(Pal::ICmdBuffer* pCmdBuf);
 
-    /// Register pipeline with GpaSession for obtaining shader dumps in the RGP file.
+    /// Register pipeline with GpaSession for obtaining shader dumps and load events in the RGP file.
     ///
-    /// @param [in] pPipeLine The PAL pipeline to be tracked.
+    /// @param [in] pPipeline The PAL pipeline to be tracked.
     ///
     /// @returns Success if the pipeline has been registered with GpaSession successfully.
     ///          + AlreadyExists if a duplicate pipeline is provided.
     Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline);
+
+    /// Unregister pipeline with GpaSession for obtaining unload events in the RGP file.
+    /// This should be called immediately before destroying the PAL pipeline object.
+    ///
+    /// @param [in] pPipeline The PAL pipeline to be tracked.
+    ///
+    /// @returns Success if the pipeline has been unregistered with GpaSession successfully.
+    Pal::Result UnregisterPipeline(const Pal::IPipeline* pPipeline);
 
 private:
     // Tracking structure for a single IGpuMemory allocation owned by a GpaSession::GpaSession. In particular, it
@@ -518,6 +536,23 @@ private:
     {
         Pal::uint32 recordSize;
         void*       pRecord;
+    };
+
+    // Event type for code object load events
+    enum class CodeObjectLoadEventType
+    {
+        Load   = 0,
+        Unload
+    };
+
+    // Represents all information to be contained in one SqttApiLevelLoaderEventRecord
+    struct CodeObjectLoadEventRecord
+    {
+        CodeObjectLoadEventType eventType;
+        Pal::uint64             baseAddress;
+        Pal::uint64             codeObjectHash;
+        Pal::uint64             apiHash;
+        Pal::uint64             timestamp;
     };
 
     Pal::IDevice*const            m_pDevice;                    // Device associated with this GpaSession.
@@ -540,7 +575,7 @@ private:
     GpuMemoryInfo                 m_curLocalInvisGpuMem;
     Pal::gpusize                  m_curLocalInvisGpuMemOffset;
 
-    // counts number of samples that has been spawned since begin of this GpaSession for sampleId creation ONLY
+    // Counts number of samples that are active in this GpaSession.
     Pal::uint32                   m_sampleCount;
 
     Pal::IPlatform*const          m_pPlatform;                  // Platform associated with this GpaSesion.
@@ -559,6 +594,7 @@ private:
     class QuerySample;
 
     Util::Vector<SampleItem*, 16, GpaAllocator> m_sampleItemArray;
+    PerfExpMemDeque* m_pAvailablePerfExpMem;
 
     // Unique pipelines registered with this GpaSession.
     Util::HashSet<Pal::uint64, GpaAllocator> m_registeredPipelines;
@@ -568,6 +604,12 @@ private:
 
     // List of pipeline code object records that were registered during a trace
     Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_curCodeObjectRecords;
+
+    // List of cached code object load event records that will be copied to the final database at the end of a trace
+    Util::Deque<CodeObjectLoadEventRecord, GpaAllocator>  m_codeObjectLoadEventRecordsCache;
+
+    // List of code object load event records that were registered during a trace
+    Util::Deque<CodeObjectLoadEventRecord, GpaAllocator>  m_curCodeObjectLoadEventRecords;
 
     // List of cached shader isa records that will be copied to the final shader records database at the end of a trace
     Util::Deque<ShaderRecord, GpaAllocator>  m_shaderRecordsCache;
@@ -701,6 +743,7 @@ private:
 
     // Acquires a GpaSession-owned performance experiment based on the device's active perf counter requests.
     Pal::Result AcquirePerfExperiment(
+        GpaSession::SampleItem* pSampleItem,
         const GpaSampleConfig&  sampleConfig,
         GpuMemoryInfo*          pGpuMem,
         Pal::gpusize*           pOffset,
@@ -725,6 +768,8 @@ private:
                                    void*         pData,
                                    Pal::gpusize* pSizeInBytes) const;
 
+    Pal::Result AddCodeObjectLoadEvent(const Pal::IPipeline* pPipeline, CodeObjectLoadEventType eventType);
+
     // recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();
 
@@ -733,6 +778,9 @@ private:
 
     // Destroy and free the m_sampleItemArray and associated memory allocation
     void FreeSampleItemArray();
+
+    // Destroy the sub-items in m_sampleItemArray but keep associated memory allocations.
+    void RecycleSampleItemArray();
 
     // Helper function to destroy the GpuMemoryInfo object
     void DestroyGpuMemoryInfo(GpuMemoryInfo* pGpuMemoryInfo);

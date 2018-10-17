@@ -49,7 +49,7 @@ Image::Image(
                VoidPtrInc((this + 1), pDevice->GetGfxDevice()->GetImageSize(createInfo)),
                createInfo,
                internalCreateInfo),
-    m_presentImageHandle(0),
+    m_presentImageHandle(NullImageHandle),
     m_pWindowSystem(nullptr),
     m_framebufferId(0)
 {
@@ -58,7 +58,7 @@ Image::Image(
 // =====================================================================================================================
 Image::~Image()
 {
-    if (m_presentImageHandle != 0)
+    if (m_presentImageHandle.pBuffer != NullImageHandle.pBuffer)
     {
         m_pWindowSystem->DestroyPresentableImage(m_presentImageHandle);
     }

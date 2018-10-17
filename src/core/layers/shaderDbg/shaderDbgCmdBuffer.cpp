@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/g_palPlatformSettings.h"
 #include "core/layers/shaderDbg/shaderDbgCmdBuffer.h"
 #include "core/layers/shaderDbg/shaderDbgDevice.h"
 #include "core/layers/shaderDbg/shaderDbgPipeline.h"
@@ -85,9 +86,11 @@ CmdBuffer::CmdBuffer(
     CmdBufferFwdDecorator(pNextCmdBuffer, static_cast<DeviceDecorator*>(pDevice->GetNextLayer())),
     m_pDevice(pDevice),
     m_pPlatform(static_cast<Platform*>(pDevice->GetPlatform())),
+    m_maxNumTracedDraws(m_pDevice->GetPlatform()->PlatformSettings().shaderDbgConfig.shaderDbgNumDrawsPerCmdBuffer),
     m_pCurrentPipeline(nullptr),
     m_currentDraw(0),
     m_currentDispatch(0),
+    m_numTracedDraws(0),
     m_traceData(static_cast<Platform*>(pDevice->GetPlatform()))
 {
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
@@ -157,6 +160,10 @@ Result CmdBuffer::ResetState()
 
         result = m_pDevice->ReleaseMemoryChunk(traceData.pTraceMemory);
     }
+
+    m_currentDraw     = 0;
+    m_currentDispatch = 0;
+    m_numTracedDraws  = 0;
 
     return result;
 }
@@ -361,80 +368,84 @@ void CmdBuffer::AllocateHwShaderDbg(
     bool   isDraw,
     uint32 uniqueId)
 {
-    PAL_ASSERT(m_pCurrentPipeline != nullptr);
-    uint64 compilerHash = m_pCurrentPipeline->GetInfo().compilerHash;
-    uint32 hwShaderDbgMask = m_pCurrentPipeline->HwShaderDbgMask();
+    gpusize traceAddrs[static_cast<uint32>(Abi::HardwareStage::Count)] = {};
 
-    const uint32 numShaders = Util::CountSetBits(hwShaderDbgMask);
-    AutoBuffer<IGpuMemory*,
-               static_cast<uint32>(Abi::HardwareStage::Count),
-               Platform> allocations(numShaders, m_pPlatform);
-
-    Result result = (allocations.Capacity() >= static_cast<uint32>(Abi::HardwareStage::Count)) ?
-                    Result::Success :
-                    Result::ErrorOutOfMemory;
-
-    for (uint32 i = 0; ((i < numShaders) && (result == Result::Success)); i++)
+    if ((m_maxNumTracedDraws == 0) || (m_numTracedDraws < m_maxNumTracedDraws))
     {
-        result = m_pDevice->GetMemoryChunk(&allocations[i]);
-    }
+        PAL_ASSERT(m_pCurrentPipeline != nullptr);
+        uint64 compilerHash = m_pCurrentPipeline->GetInfo().compilerHash;
+        uint32 hwShaderDbgMask = m_pCurrentPipeline->HwShaderDbgMask();
 
-    if (result == Result::Success)
-    {
-        const Sdl_GfxIpLevel gfxIpLevel = PalToSdlGfxIpLevel(m_pDevice->DeviceProps().gfxLevel);
+        const uint32 numShaders = Util::CountSetBits(hwShaderDbgMask);
+        AutoBuffer<IGpuMemory*,
+                   static_cast<uint32>(Abi::HardwareStage::Count),
+                   Platform> allocations(numShaders, m_pPlatform);
 
-        gpusize traceAddrs[static_cast<uint32>(Abi::HardwareStage::Count)] = {};
+        Result result = (allocations.Capacity() >= static_cast<uint32>(Abi::HardwareStage::Count)) ?
+                        Result::Success :
+                        Result::ErrorOutOfMemory;
 
-        uint32 currentIdx = 0;
-        uint32 lowSetBit  = 0;
-        while ((BitMaskScanForward(&lowSetBit, hwShaderDbgMask)) && (result == Result::Success))
+        for (uint32 i = 0; ((i < numShaders) && (result == Result::Success)); i++)
         {
-            const Sdl_HwShaderStage hwStage = AbiToSdlHwStage[lowSetBit];
-            PAL_ASSERT(hwStage != Sdl_HwShaderStage_Count);
-
-            IGpuMemory* pGpuMemory = allocations[currentIdx];
-            void*       pData      = nullptr;
-
-            result = pGpuMemory->Map(&pData);
-
-            if (result == Result::Success)
-            {
-                memset(pData, 0, pGpuMemory->Desc().size);
-
-                Sdl_DumpHeader header   = {};
-                header.dumpType         = Sdl_DumpTypeHeader;
-                header.majorVersion     = SHADERDBG_MAJOR_VERSION;
-                header.minorVersion     = SHADERDBG_MINOR_VERSION;
-                header.uniqueId         = uniqueId;
-                header.gfxIpLevel       = gfxIpLevel;
-                header.pipelineHash     = compilerHash;
-                header.hwShaderStage    = hwStage;
-                header.bufferSize       = static_cast<uint32>(pGpuMemory->Desc().size);
-
-                memcpy(pData, &header, sizeof(Sdl_DumpHeader));
-
-                result = pGpuMemory->Unmap();
-            }
-
-            if (result == Result::Success)
-            {
-                hwShaderDbgMask &= ~(1 << lowSetBit);
-                traceAddrs[lowSetBit] = allocations[currentIdx]->Desc().gpuVirtAddr;
-
-                TraceData traceData = {};
-                traceData.pPipeline    = m_pCurrentPipeline;
-                traceData.pTraceMemory = allocations[currentIdx];
-                traceData.hwStage      = hwStage;
-                traceData.isDraw       = isDraw;
-                traceData.uniqueId     = uniqueId;
-                result = m_traceData.PushBack(traceData);
-
-                currentIdx++;
-            }
+            result = m_pDevice->GetMemoryChunk(&allocations[i]);
         }
 
-        m_pNextLayer->CmdSetShaderDbgData(traceAddrs);
+        if (result == Result::Success)
+        {
+            const Sdl_GfxIpLevel gfxIpLevel = PalToSdlGfxIpLevel(m_pDevice->DeviceProps().gfxLevel);
+
+            uint32 currentIdx = 0;
+            uint32 lowSetBit  = 0;
+            while ((BitMaskScanForward(&lowSetBit, hwShaderDbgMask)) && (result == Result::Success))
+            {
+                const Sdl_HwShaderStage hwStage = AbiToSdlHwStage[lowSetBit];
+                PAL_ASSERT(hwStage != Sdl_HwShaderStage_Count);
+
+                IGpuMemory* pGpuMemory = allocations[currentIdx];
+                void*       pData      = nullptr;
+
+                result = pGpuMemory->Map(&pData);
+
+                if (result == Result::Success)
+                {
+                    memset(pData, 0, static_cast<size_t>(pGpuMemory->Desc().size));
+
+                    Sdl_DumpHeader header   = {};
+                    header.dumpType         = Sdl_DumpTypeHeader;
+                    header.majorVersion     = SHADERDBG_MAJOR_VERSION;
+                    header.minorVersion     = SHADERDBG_MINOR_VERSION;
+                    header.uniqueId         = uniqueId;
+                    header.gfxIpLevel       = gfxIpLevel;
+                    header.pipelineHash     = compilerHash;
+                    header.hwShaderStage    = hwStage;
+                    header.bufferSize       = static_cast<uint32>(pGpuMemory->Desc().size);
+
+                    memcpy(pData, &header, sizeof(Sdl_DumpHeader));
+
+                    result = pGpuMemory->Unmap();
+                }
+
+                if (result == Result::Success)
+                {
+                    hwShaderDbgMask &= ~(1 << lowSetBit);
+                    traceAddrs[lowSetBit] = allocations[currentIdx]->Desc().gpuVirtAddr;
+
+                    TraceData traceData = {};
+                    traceData.pPipeline    = m_pCurrentPipeline;
+                    traceData.pTraceMemory = allocations[currentIdx];
+                    traceData.hwStage      = hwStage;
+                    traceData.isDraw       = isDraw;
+                    traceData.uniqueId     = uniqueId;
+                    result = m_traceData.PushBack(traceData);
+
+                    currentIdx++;
+                }
+            }
+
+            m_numTracedDraws++;
+        }
     }
+    m_pNextLayer->CmdSetShaderDbgData(traceAddrs);
 }
 
 // =====================================================================================================================

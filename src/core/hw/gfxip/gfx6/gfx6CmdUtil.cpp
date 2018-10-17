@@ -819,9 +819,9 @@ size_t CmdUtil::BuildContextRegRmw(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which reads a config register, masks off a portion of it, then writes the provided data to the
-// masked off fields. The register mask applies to the fields being written to, as follows:
-//      newRegVal = (oldRegVal & ~regMask) | (regData & regMask)
+// Builds a PM4 packet which reads a config register, and performs immediate mode AND and OR operations on the regVal
+// using the masks provided as follows:
+//     newRegVal = (oldRegVal & andMask) | (orMask)
 // Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildRegRmw(
     uint32 regAddr,

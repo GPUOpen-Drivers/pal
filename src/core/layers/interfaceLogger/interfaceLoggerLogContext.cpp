@@ -316,6 +316,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::QueueSetExecutionPriority,                                 InterfaceObject::Queue,                "SetExecutionPriority"                    },
     { InterfaceFunc::QueueDestroy,                                              InterfaceObject::Queue,                "Destroy"                                 },
     { InterfaceFunc::QueueSemaphoreDestroy,                                     InterfaceObject::QueueSemaphore,       "Destroy"                                 },
+    { InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe,                   InterfaceObject::Screen,               "IsImplicitFullscreenOwnershipSafe"       },
     { InterfaceFunc::ScreenTakeFullscreenOwnership,                             InterfaceObject::Screen,               "TakeFullscreenOwnership"                 },
     { InterfaceFunc::ScreenReleaseFullscreenOwnership,                          InterfaceObject::Screen,               "ReleaseFullscreenOwnership"              },
     { InterfaceFunc::ScreenSetGammaRamp,                                        InterfaceObject::Screen,               "SetGammaRamp"                            },

@@ -311,6 +311,28 @@ public:
     virtual Result RegisterWindow(
         OsWindowHandle hWindow) = 0;
 
+    /// Evaluates the compatibility of the window and display for implicitly taking exclusive access of the screen
+    /// without the user being (more or less) able to tell the difference.  The compatibility may not be accurate,
+    /// i.e. success does not guarantee a subsequent TakeFullscreenOwnership will succeed, but polling this first
+    /// to detect user changes to the window properties incurs much less overhead.
+    ///
+    /// This is not necessary for explicit fullscreen mode, which is safe by definition.
+    ///
+    /// @param [in] hDisplay        display handle of the local display system
+    /// @param [in] hWindow         window handle of local display system
+    /// @param [in] imageExtent     dimensions of the presentable images
+    ///
+    /// @returns Success if implicity taking fullscreen ownership meets the various requirements.  Otherwise, one of the
+    ///          following errors may be returned:
+    ///          + ErrorFullscreenUnavailable if the current window isn't in the foreground
+    ///          + ErrorScreenRemoved if the window is no longer associated with the screen display handle
+    ///          + ErrorInvalidResolution if the presentable image extents don't match the screen dimensions
+    ///          + ErrorIncompatibleWindowSize if the presentable window extents don't match the screen dimensions
+    virtual Result IsImplicitFullscreenOwnershipSafe(
+        OsDisplayHandle hDisplay,
+        OsWindowHandle  hWindow,
+        Extent2d        imageExtent) const = 0;
+
     /// Takes fullscreen ownership of this screen.  Application enters exclusive fullscreen mode.
     ///
     /// This function must be called before fullscreen presents (i.e., flip presents) can be performed on this screen.

@@ -651,6 +651,9 @@ struct GpuChipProperties
             uint32 vgprAllocGranularity;
             uint32 numCuPerSh;
             uint32 maxNumCuPerSh;
+            uint32 numActiveCus;
+            uint32 numAlwaysOnCus;
+            uint32 numPhysicalCus;
             uint32 numTccBlocks;
             uint32 numSimdPerCu;
             uint32 numWavesPerSimd;
@@ -677,7 +680,6 @@ struct GpuChipProperties
                 uint32 rbPlus                                   :  1;
                 uint32 supportConservativeRasterization         :  1;
                 uint32 supportPrtBlendZeroMode                  :  1;
-                uint32 sqgEventsEnabled                         :  1;
                 uint32 supports2BitSignedValues                 :  1;
                 uint32 supportPrimitiveOrderedPs                :  1;
                 uint32 lbpwEnabled                              :  1; // Indicates Load Balance Per Watt is enabled
@@ -694,7 +696,7 @@ struct GpuChipProperties
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 placeholder2                             :  1; // Placeholder. Do not use.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint32 reserved                                 :  7;
+                uint32 reserved                                 :  8;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

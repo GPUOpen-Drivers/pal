@@ -939,7 +939,9 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
     else
     {
         // Non-protected register: use a normal SET_DATA command.
-        pReturnVal = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
+        {
+            pReturnVal = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
+        }
     }
 
     return pReturnVal;

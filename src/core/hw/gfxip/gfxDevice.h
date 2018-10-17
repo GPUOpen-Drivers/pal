@@ -525,6 +525,16 @@ public:
         uint32                      instanceOffsetUserDataIdx,
         uint32                      drawIndexUserDataIdx) const;
 
+#if DEBUG
+    virtual uint32* TemporarilyHangTheGpu(
+        uint32 number,
+        uint32* pCmdSpace) const
+    {
+        PAL_NEVER_CALLED();
+        return nullptr;
+    }
+#endif
+
     virtual Result P2pBltWaModifyRegionListMemory(
         const IGpuMemory&       dstGpuMemory,
         uint32                  regionCount,

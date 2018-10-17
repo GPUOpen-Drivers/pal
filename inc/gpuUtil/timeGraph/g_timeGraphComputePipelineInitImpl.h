@@ -66,7 +66,7 @@ Pal::Result CreateTimeGraphComputePipelines(
     case Pal::AsicRevision::Godavari:
     case Pal::AsicRevision::Spectre:
     case Pal::AsicRevision::Spooky:
-        pTable = timeGraphComputeBinaryTableBonaire;
+        pTable = timeGraphComputeBinaryTableSpectre;
         break;
 
     case Pal::AsicRevision::Carrizo:

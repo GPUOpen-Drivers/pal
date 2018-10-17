@@ -116,7 +116,7 @@ public:
 
     virtual Result QueryAllocationInfo(
         size_t*                    pNumEntries,
-        GpuMemSubAllocInfo* const  pAllocInfoList) override;
+        GpuMemSubAllocInfo* const  pAllocInfoList) const override;
 
     virtual Result GetShaderCode(
         ShaderType shaderType,

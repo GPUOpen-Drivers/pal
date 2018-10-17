@@ -340,12 +340,13 @@ typedef struct SqttCodeObjectDatabaseRecord
     uint32_t  recordSize;  /*!< The size of the code object in bytes. */
 } SqttCodeObjectDatabaseRecord;
 
-/**  A structure encapsulating information about the load and unload of API level code objects.
+/**  A structure encapsulating information for a timeline of API-level code object load and unload events.
  */
 typedef struct SqttFileChunkApiLevelLoaderEvents
 {
     SqttFileChunkHeader header;
     uint32_t            offset;
+    uint32_t            flags;
     uint32_t            recordSize;                         /*!< Size of a single SqttApiLevelLoaderEventRecord. */
     uint32_t            recordCount;
 } SqttFileChunkApiLevelLoaderEvents;
@@ -358,11 +359,12 @@ typedef enum SqttApiLevelLoaderEventType
     SQTT_API_LEVEL_OBJECT_UNLOAD = 0x00000001
 } SqttApiLevelLoaderEventType;
 
-/**  A structure encapsulating information about each record in the load events chunk.
+/**  A structure encapsulating information about each record in the loader events chunk.
  */
 typedef struct SqttApiLevelLoaderEventRecord
 {
     SqttApiLevelLoaderEventType eventType;                  /*!< The type of loader event. */
+    uint32_t                    reserved;                   /*!< Reserved. */
     uint64_t                    baseAddress;                /*!< The base address where the code object has been loaded. */
     uint64_t                    codeObjectHash;             /*!< Code object's compiler hash. */
     uint64_t                    apiHash;                    /*!< Code object hash including runtime API information. */

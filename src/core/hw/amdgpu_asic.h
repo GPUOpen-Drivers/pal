@@ -172,56 +172,92 @@
 
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780      0x6780
+#define DEVICE_ID_SI_PITCAIRN_PM_6818   0x6818
+#define DEVICE_ID_SI_CAPEVERDE_M_683D   0x683D
+#define DEVICE_ID_SI_OLAND_M_6611       0x6611
 #define DEVICE_ID_SI_HAINAN_V_6660      0x6660
+
 #define DEVICE_ID_CI_BONAIRE_M_6640     0x6640
 #define DEVICE_ID_CI_HAWAII_P_67BE      0x67BE
+#define DEVICE_ID_SPECTRE_DESKTOP_130F  0x130F
+#define DEVICE_ID_SPOOKY_DESKTOP_1316   0x1316
 #define DEVICE_ID_KALINDI__9830         0x9830
 #define DEVICE_ID_KV_GODAVARI__9850     0x9850
+
 #define DEVICE_ID_VI_ICELAND_M_6900     0x6900
 #define DEVICE_ID_CZ_CARRIZO_9870       0x9870
+#define DEVICE_ID_CZ_BRISTOL_9874       0x9874
 #define DEVICE_ID_VI_TONGA_P_6920       0x6920
 #define DEVICE_ID_VI_FIJI_P_7300        0x7300
+#define DEVICE_ID_VI_POLARIS10_P_67DF   0x67DF
+#define DEVICE_ID_VI_POLARIS11_M_67EF   0x67EF
+#define DEVICE_ID_VI_POLARIS12_V_699F   0x699F
 #define DEVICE_ID_ST_98E4               0x98E4
+
 #if PAL_BUILD_GFX9
 #define DEVICE_ID_AI_VEGA10_P_6860      0x6860
+#define DEVICE_ID_RV_15DD               0x15DD
 #define DEVICE_ID_AI_VEGA12_P_69A0      0x69A0
 #endif
-#define DEVICE_ID_RV_15DD               0x15DD
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
+#define SI_PITCAIRN_PM_A12          21
+#define SI_CAPEVERDE_M_A12          41
+#define SI_OLAND_M_A0               60
 #define SI_HAINAN_V_A0              70
+
 #define CI_BONAIRE_M_A0             20
 #define CI_HAWAII_P_A0              40
+#define KV_SPECTRE_A0             0x01
+#define KV_SPOOKY_A0              0x41
 #define KV_KALINDI_A0             0x81
 #define KV_GODAVARI_A0            0xa1
+
 #define VI_ICELAND_M_A0              1
 #define CZ_CARRIZO_A0                1
+#define CZ_BISTROL_A0             0x10
 #define VI_TONGA_P_A1               21
 #define VI_FIJI_P_A0                60
+#define VI_POLARIS10_P_A0           80
+#define VI_POLARIS11_M_A0           90
+#define VI_POLARIS12_V_A0          100
 #define CZ_STONEY_A0              0x61
+
 #if PAL_BUILD_GFX9
 #define AI_VEGA10_P_A0               1
+#define RAVEN_A0                     1
 #define AI_VEGA12_P_A0              20
 #endif
-#define RAVEN_A0                     1
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
+#define PRID_SI_PITCAIRN            0x00
+#define PRID_SI_CAPEVERDE           0x00
+#define PRID_SI_OLAND_87            0x87
 #define PRID_SI_HAINAN_EXO_81       0x81
+
 #define PRID_CI_BONAIRE_TOBAGO_81   0x81
 #define PRID_CI_HAWAII_80           0x80
+#define PRID_KV_SPECTRE_GODAVARI_D4 0xD4
+#define PRID_KV_SPOOKY              0x00
 #define PRID_KV_KALINDI_00          0x00
 #define PRID_GODAVARI_MULLINS_01    0x01
+
 #define PRID_VI_ICELAND_MESO_81     0x81
 #define PRID_CZ_CARRIZO_C4          0xC4
+#define PRID_CZ_BRISTOL_E1          0xE1
 #define PRID_VI_TONGA_00            0x00
 #define PRID_VI_FIJI_CC             0xCC
+#define PRID_VI_POLARIS10_C7        0xC7
+#define PRID_VI_POLARIS11_CF        0xCF
+#define PRID_VI_POLARIS12_C7        0xC7
 #define PRID_ST_80                  0x80
+
 #if PAL_BUILD_GFX9
 #define PRID_AI_VEGA10_C3           0xC3
+#define PRID_RV_81                  0x81
 #define PRID_AI_VEGA12_00           0x00
 #endif
-#define PRID_RV_81                  0x81
 
 #endif // _AMDGPU_ASIC_H

@@ -47,6 +47,39 @@ Screen::Screen(
 }
 
 // =====================================================================================================================
+Result Screen::IsImplicitFullscreenOwnershipSafe(
+    OsDisplayHandle hDisplay,
+    OsWindowHandle  hWindow,
+    Extent2d        imageExtent
+    ) const
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const Result result   = ScreenDecorator::IsImplicitFullscreenOwnershipSafe(hDisplay, hWindow, imageExtent);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("hDisplay", hDisplay);
+        pLogContext->KeyAndValue("hWindow", *reinterpret_cast<uint64*>(&hWindow));
+        pLogContext->KeyAndStruct("imageExtent", imageExtent);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Screen::TakeFullscreenOwnership(
     const IImage& image)
 {

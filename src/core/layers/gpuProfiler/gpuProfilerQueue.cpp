@@ -63,6 +63,7 @@ Queue::Queue(
     m_busyNestedCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
     m_availableGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
+    m_availPerfExpMem(static_cast<Platform*>(pDevice->GetPlatform())),
     m_numReportedPerfCounters(0),
     m_availableFences(static_cast<Platform*>(pDevice->GetPlatform())),
     m_pendingSubmits(static_cast<Platform*>(pDevice->GetPlatform())),
@@ -131,6 +132,13 @@ Queue::~Queue()
         m_availableGpaSessions.PopFront(&pGpaSession);
 
         PAL_SAFE_DELETE(pGpaSession, m_pDevice->GetPlatform());
+    }
+
+    while (m_availPerfExpMem.NumElements() > 0)
+    {
+        GpuUtil::PerfExperimentMemory memory;
+        m_availPerfExpMem.PopFront(&memory);
+        PAL_SAFE_FREE(memory.pMemory, m_pDevice->GetPlatform());
     }
 
     while (m_availableFences.NumElements() > 0)
@@ -774,7 +782,8 @@ Result Queue::AcquireGpaSession(
                                        m_pDevice,
                                        platform.ApiMajorVer(),
                                        platform.ApiMinorVer(),
-                                       0);
+                                       0, 0,
+                                       &m_availPerfExpMem);
         if (*ppGpaSession != nullptr)
         {
             result = (*ppGpaSession)->Init();

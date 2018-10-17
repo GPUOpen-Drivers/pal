@@ -45,6 +45,9 @@ struct BarrierInfo;
 namespace Gfx9
 {
 
+// This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
+constexpr uint32 MsaaLevelCount = 5;
+
 // These types are used by CmdBarrier and its helpers to track which type of synchronization operations should be
 // issued during the next call to IssueSyncs().
 enum CacheSyncFlags : uint32
@@ -420,7 +423,7 @@ public:
     uint32 ComputeTessPrimGroupSize(uint32 numPatchesPerThreadGroup) const;
 
 #if DEBUG
-    uint32* TemporarilyHangTheGpu(uint32 number, uint32* pCmdSpace) const;
+    uint32* TemporarilyHangTheGpu(uint32 number, uint32* pCmdSpace) const override;
 #endif
 
     gpusize GetBaseAddress(const BufferSrd*  pBufferSrd) const;

@@ -414,6 +414,10 @@ enum class Result : int32
 
     /// The display mode is imcompatible with framebuffer or CRTC.
     ErrorIncompatibleDisplayMode            = -(0x00000061),
+
+    /// Implicit fullscreen exclusive mode is not safe because the specified window size doesn't match the
+    /// screen's current dimensions.
+    ErrorIncompatibleWindowSize             = -(0x00000062),
 };
 
 /// Length of date field used in BuildUniqueId

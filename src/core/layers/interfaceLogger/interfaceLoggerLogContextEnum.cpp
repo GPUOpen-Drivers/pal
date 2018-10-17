@@ -916,46 +916,57 @@ void LogContext::Enum(
     const char*const StringTable[] =
     {
         "Tahiti",
+        "Pitcairn",
+        "Capeverde",
+        "Oland",
         "Hainan",
-        "Bonaire",
+
+        "Spectre",
+        "Spooky",
+        nullptr,
         "Hawaii",
         "Kalindi",
         "Godavari",
-        "Iceland",
+        "Bonaire",
+
         "Carrizo",
+        "Bristol",
+        "Iceland",
         "Tonga",
         "Fiji",
+        "Polaris10",
+        "Polaris11",
+        "Polaris12",
+        nullptr,
         "Stoney",
+
 #if PAL_BUILD_GFX9
         "Vega10",
-#else
-        nullptr,
-#endif
         "Raven",
-#if PAL_BUILD_GFX9
         "Vega12",
 #else
         nullptr,
+        nullptr,
+        nullptr,
 #endif
         nullptr,
         nullptr,
+
+        nullptr,
+        nullptr,
+        nullptr,
+
         "Max",
+        "All",
     };
 
-    static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::Max) + 1,
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::All) + 1,
                   "The NullGpuId string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT((value < NullGpuId::Max) || (value == NullGpuId::All));
+    PAL_ASSERT((idx <= static_cast<uint32>(NullGpuId::All)) && (StringTable[idx] != nullptr));
 
-    if (value == NullGpuId::All)
-    {
-        Value("All");
-    }
-    else
-    {
-        Value(StringTable[idx]);
-    }
+    Value(StringTable[idx]);
 }
 
 // =====================================================================================================================

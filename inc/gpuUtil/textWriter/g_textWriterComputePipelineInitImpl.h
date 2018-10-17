@@ -63,7 +63,7 @@ Pal::Result CreateTextWriterComputePipelines(
     case Pal::AsicRevision::Bonaire:
     case Pal::AsicRevision::Kalindi:
     case Pal::AsicRevision::Godavari:
-        pTable = textWriterComputeBinaryTableBonaire;
+        pTable = textWriterComputeBinaryTableKalindi;
         break;
 
     case Pal::AsicRevision::Hawaii:

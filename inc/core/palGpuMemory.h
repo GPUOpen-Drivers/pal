@@ -287,9 +287,9 @@ struct GpuMemoryDesc
 /// shows where is the sub allocated memory.
 struct GpuMemSubAllocInfo
 {
-    IGpuMemory* pGpuMemory; ///< Handle to the GPU memory allocated.
-    gpusize     offset;     ///< Start address of the memory.
-    gpusize     size;       ///< Size of the memory.
+    const IGpuMemory* pGpuMemory; ///< Handle to the GPU memory allocated.
+    gpusize           offset;     ///< Start address of the memory.
+    gpusize           size;       ///< Size of the memory.
 };
 
 /// Specifies a GPU memory object and flags with more specific usage details.  An array of these structures is specified

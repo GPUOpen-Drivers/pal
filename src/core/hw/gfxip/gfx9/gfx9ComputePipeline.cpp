@@ -185,9 +185,13 @@ static PAL_INLINE uint32 LoadedShRegCount(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
-    const AbiProcessor&       abiProcessor,
-    const CodeObjectMetadata& metadata,
-    MsgPackReader*            pMetadataReader)
+    const AbiProcessor&              abiProcessor,
+    const CodeObjectMetadata&        metadata,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
+    ComputePipelineIndirectFuncInfo* pIndirectFuncList,
+    uint32                           indirectFuncCount,
+#endif
+    MsgPackReader*                   pMetadataReader)
 {
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
     const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
@@ -232,9 +236,9 @@ Result ComputePipeline::HwlInit(
         m_commands.set.computeNumThreadY.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Y);
         m_commands.set.computeNumThreadZ.u32All   = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
-        if (regInfo.mmComputeShaderChksum != 0)
+        if (chipProps.gfx9.supportSpp == 1)
         {
-            PAL_ASSERT(chipProps.gfx9.supportSpp);
+            PAL_ASSERT(regInfo.mmComputeShaderChksum != 0);
             registers.HasEntry(regInfo.mmComputeShaderChksum, &m_commands.set.computeShaderChksum.u32All);
         }
 
@@ -254,7 +258,7 @@ Result ComputePipeline::HwlInit(
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Y, m_commands.set.computeNumThreadY);
             uploader.AddShReg(mmCOMPUTE_NUM_THREAD_Z, m_commands.set.computeNumThreadZ);
 
-            if (regInfo.mmComputeShaderChksum != 0)
+            if (chipProps.gfx9.supportSpp == 1)
             {
                 uploader.AddShReg(regInfo.mmComputeShaderChksum, m_commands.set.computeShaderChksum);
             }
@@ -313,6 +317,10 @@ Result ComputePipeline::HwlInit(
 
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 440
+        GetFunctionGpuVirtAddrs(abiProcessor, uploader, pIndirectFuncList, indirectFuncCount);
+#endif
     }
 
     return result;
@@ -469,9 +477,8 @@ void ComputePipeline::BuildPm4Headers(
     m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
                                                            ShaderCompute,
                                                            &m_commands.set.hdrComputeUserData);
-    if (regInfo.mmComputeShaderChksum != 0)
+    if (chipProps.gfx9.supportSpp == 1)
     {
-        PAL_ASSERT(chipProps.gfx9.supportSpp != 0);
         m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(regInfo.mmComputeShaderChksum,
                                                                ShaderCompute,
                                                                &m_commands.set.hdrComputeShaderChksum);

@@ -55,6 +55,17 @@ static PAL_INLINE void AdjustRingDataFormat(
 }
 
 // =====================================================================================================================
+// Helper function to make sure the scratch wave size (in dwords) doesn't exceed the register's maximum value
+static PAL_INLINE size_t AdjustScratchWaveSize(
+    size_t scratchWaveSize)
+{
+    // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
+    // of number of waves below will not exceed what SPI can actually generate.
+    constexpr size_t MaxWaveSize = ((1 << 21) - 256);
+    return Min(MaxWaveSize, scratchWaveSize);
+}
+
+// =====================================================================================================================
 ShaderRing::ShaderRing(
     Device*    pDevice,
     BufferSrd* pSrdTable)
@@ -203,6 +214,7 @@ ScratchRing::ScratchRing(
         m_numMaxWaves = Max<size_t>(m_numMaxWaves, (chipProps.gfxip.maxThreadGroupSize / chipProps.gfx9.wavefrontSize));
     }
 
+    // The hardware can only support a limited number of scratch waves per CU so make sure we don't exceed that number.
     m_numMaxWaves = Min<size_t>(m_numMaxWaves, (MaxScratchWavesPerCu * m_numTotalCus));
     PAL_ASSERT(m_numMaxWaves <= 0xFFF); // Max bits allowed in reg field, should never hit this.
 
@@ -226,6 +238,29 @@ ScratchRing::ScratchRing(
 }
 
 // =====================================================================================================================
+// Calculates the maximum number of waves that can be in flight on the hardware when scratch is in use.
+size_t ScratchRing::CalculateWaves() const
+{
+    size_t numWaves = m_numMaxWaves;
+
+    // We should only restrict the number of scratch waves if we're actually using scratch.
+    if (m_itemSizeMax > 0)
+    {
+        const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+        const size_t waveSize              = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize);
+
+        // Attempt to allow as many waves in parallel as possible, but make sure we don't launch more waves than we
+        // can handle in the scratch ring.
+        numWaves = Min(static_cast<size_t>(m_allocSize) / (waveSize * sizeof(uint32)), m_numMaxWaves);
+    }
+
+    // Max bits allowed in reg field, should never hit this.
+    PAL_ASSERT(numWaves <= 0xFFF);
+
+    return numWaves;
+}
+
+// =====================================================================================================================
 // Calculates the the wave size for the PM4 packet which identifies the particular shader type of this ring. Returns the
 // amount of space used by each wave in DWORDs.
 size_t ScratchRing::CalculateWaveSize() const
@@ -233,7 +268,22 @@ size_t ScratchRing::CalculateWaveSize() const
     const     GpuChipProperties& chipProps                = m_pDevice->Parent()->ChipProperties();
     constexpr uint32             WaveSizeGranularityShift = 8;
 
-    return (m_itemSizeMax * chipProps.gfx9.wavefrontSize) >> WaveSizeGranularityShift;
+    return AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize) >> WaveSizeGranularityShift;
+}
+
+// =====================================================================================================================
+// Overrides the base class' method for computing the scratch buffer size.
+gpusize ScratchRing::ComputeAllocationSize() const
+{
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+    const PalSettings&       settings  = m_pDevice->Parent()->Settings();
+
+    // Compute the adjusted scratch size required by each wave.
+    const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx9.wavefrontSize);
+
+    // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
+    // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.
+    return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), settings.maxScratchRingSize);
 }
 
 // =====================================================================================================================

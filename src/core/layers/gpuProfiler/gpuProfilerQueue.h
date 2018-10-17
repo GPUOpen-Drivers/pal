@@ -272,6 +272,7 @@ private:
 
     Util::Deque<GpuUtil::GpaSession*, Platform> m_availableGpaSessions;
     Util::Deque<GpuUtil::GpaSession*, Platform> m_busyGpaSessions;
+    GpuUtil::GpaSession::PerfExpMemDeque        m_availPerfExpMem;
 
     // Create/delete the GpaSession-style config info based on Panel settings
     Result BuildGpaSessionSampleConfig();

@@ -318,6 +318,9 @@ const Dri3Loader& Platform::GetDri3Loader()
     return m_dri3Loader;
 }
 
+#if PAL_HAVE_WAYLAND_PLATFORM
+#endif
+
 // =====================================================================================================================
 bool Platform::CheckDtifStatus()
 {

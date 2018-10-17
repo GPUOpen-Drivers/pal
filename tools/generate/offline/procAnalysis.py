@@ -29,7 +29,7 @@ import os,sys
 FileHeaderCopyright = '/*\n\
  ***********************************************************************************************************************\n\
  *\n\
- *  Copyright (c) 2017 Advanced Micro Devices, Inc. All Rights Reserved.\n\
+ *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.\n\
  *\n\
  *  Permission is hereby granted, free of charge, to any person obtaining a copy\n\
  *  of this software and associated documentation files (the "Software"), to deal\n\
@@ -124,8 +124,19 @@ class EntryPoint:
                     paramType = param[0] + ' ' + param[1]
                     pm = Param(paramType, param[2])
                     self.params.append(pm)
+                elif len(param) == 4:
+                    # the param[0] is const, param[1] is struct and param[2] is the type of parameter
+                    # the param[3] is the name of parameter
+                    # for example, const struct wl_interface* interface
+                    paramType = param[0] + ' ' + param[1] + ' ' + param[2]
+                    pm = Param(paramType, param[3])
+                    self.params.append(pm)
                 elif len(param) == 1:
-                    param = ''
+                    if param[0] == '...':
+                        pm = Param(' ', param[0])
+                        self.params.append(pm)
+                    else:
+                        param = ''
                     # nothing need to be done here.
                 else:
                     print "not recognized format!"
