@@ -31,6 +31,7 @@ namespace Pal
 enum class PresentMode   : uint32;
 enum class SwapChainMode : uint32;
 enum       WsiPlatform   : uint32;
+
 struct ScreenInfo;
 struct PresentableImageCreateInfo;
 struct PresentSwapChainInfo;
@@ -41,6 +42,7 @@ namespace Linux
 class Device;
 class Image;
 class WindowSystem;
+class SwapChain;
 
 union WindowSystemImageHandle
 {
@@ -148,12 +150,14 @@ public:
         WsiPlatform         platform,
         int64               visualId);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     static Result GetConnectorIdFromOutput(
         Device*         pDevice,
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId);
+#endif
 
     static Result AcquireScreenAccess(
         Device*         pDevice,
@@ -172,8 +176,9 @@ public:
 
     // Create a presentable image or pixmap from a buffer. This function is only meaningful for Dri3.
     virtual Result CreatePresentableImage(
-        Image*              pImage,
-        int32               sharedBufferFd) = 0;
+        SwapChain* pSwapChain,
+        Image*     pImage,
+        int32      sharedBufferFd) = 0;
 
     virtual void DestroyPresentableImage(
         WindowSystemImageHandle hImage) = 0;

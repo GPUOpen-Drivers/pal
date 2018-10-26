@@ -469,14 +469,53 @@ namespace DevDriver
                     {
                         const Version sessionVersion = pSessionData->pSession->GetVersion();
 
-                        // Allocate a message and copy the message into the buffer of all sessions
-                        SizedPayloadContainer* pPayloadContainer = pSessionData->messages.AllocateBack();
-                        if (pPayloadContainer != nullptr)
+                        // Try to send out the log payload immediately if its message queue is empty
+                        if (pSessionData->messages.IsEmpty() == true)
                         {
+                            SizedPayloadContainer payload = {};
+
+                            // Write the log message payload
                             LogMessagePayload::WritePayload(message,
                                                             sessionVersion,
                                                             messageSize,
-                                                            pPayloadContainer);
+                                                            &payload);
+
+                            // Send the payload
+                            if (pSessionData->SendPayload(&payload, kNoWait) == Result::Success)
+                            {
+                                DD_PRINT(LogLevel::Debug, "Sent Logging Payload To Session %d!",
+                                         pSessionData->pSession->GetSessionId());
+                            }
+                            else
+                            {
+                                // Push the payload back to the queue if the sendPayload fails
+                                pSessionData->messages.PushBack(payload);
+                            }
+                        }
+                        else
+                        {
+                            // Allocate a message and copy the message into the buffer of all sessions
+                            SizedPayloadContainer* pPayloadContainer = pSessionData->messages.AllocateBack();
+
+                            if (pPayloadContainer != nullptr)
+                            {
+                                LogMessagePayload::WritePayload(message,
+                                                                sessionVersion,
+                                                                messageSize,
+                                                                pPayloadContainer);
+                            }
+
+                            DD_ASSERT(pSessionData->messages.PeekFront() != nullptr);
+
+                            // Only try to send one front payload rather than all payloads in the queue as we don't want the Log()
+                            // thread take up too much time here
+                            if (pSessionData->SendPayload(pSessionData->messages.PeekFront(), kNoWait) == Result::Success)
+                            {
+                                DD_PRINT(LogLevel::Debug, "Sent Logging Payload To Session %d!",
+                                         pSessionData->pSession->GetSessionId());
+                                // Pop the message off the queue since it was successfully sent.
+                                pSessionData->messages.PopFront();
+                            }
                         }
                     }
                 }

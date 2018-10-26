@@ -124,7 +124,6 @@ namespace DevDriver
     private:
         DD_STATIC_CONST uint32      kRegistrationTimeoutInMs = 1000;
         IMsgChannel*                m_pMsgChannel;
-
         Platform::AtomicLock        m_clientLock;
         Vector<IProtocolClient*, 8> m_pClients;
         Vector<IProtocolClient*, 8> m_pUnusedClients;

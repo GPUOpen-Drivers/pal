@@ -83,6 +83,7 @@ public:
     uint32 GetSqttMaxDraws() const { return m_maxDrawsForThreadTrace; }
     uint32 GetSqttCurDraws() const { return m_curDrawsForThreadTrace; }
     void   AddSqttCurDraws() { Util::AtomicIncrement(&m_curDrawsForThreadTrace); }
+    bool   GetSqttAddTtvHashes() const { return m_sqttAddTtvHashes; }
 
     bool LoggingEnabled(GpuProfilerGranularity granularity) const;
 
@@ -172,6 +173,7 @@ private:
     bool                   m_logPipeStats;
 
     bool                   m_sqttFilteringEnabled;
+    bool                   m_sqttAddTtvHashes;
     uint64                 m_sqttCompilerHash;
     ShaderHash             m_sqttVsHash;
     ShaderHash             m_sqttHsHash;

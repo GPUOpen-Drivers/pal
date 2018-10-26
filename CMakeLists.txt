@@ -107,6 +107,7 @@ if(PAL_BUILD_GFX9)
     set(ADDR_GFX9_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with GFX9 support." FORCE)
     set(ADDR_GFX9_CHIP_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip CACHE PATH "PAL override for ADDRLIB GFX9 register chip headers." FORCE)
     set(ADDR_VEGA12_BUILD ON CACHE BOOL "PAL override to build ADDRLIB with Vega12 support." FORCE)
+
 endif()
 
 # METROHASH

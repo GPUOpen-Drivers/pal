@@ -155,7 +155,7 @@ union ImageCreateFlags
 #else
         uint32 reserved0               :  1;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
         uint32 view3dAs2dArray         :  1; ///< If set, client can create 2D views of this 3D image, treating
                                              ///  depth as array slices.
 #else

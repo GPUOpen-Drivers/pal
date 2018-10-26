@@ -546,8 +546,9 @@ Result Dri3WindowSystem::SelectEvent()
 // Interface for the window system to do things related with creating presentable image. For XCB/Dri3 backend, it gets
 // a pixmap packaging memory the image binds from Xserver. Then this pixmap can be presented by Xserver.
 Result Dri3WindowSystem::CreatePresentableImage(
-    Image*         pImage,
-    int32          sharedBufferFd) // Xserver can use the shared buffer (created in client side) by sharedBufferFd
+    SwapChain* pSwapChain,
+    Image*     pImage,
+    int32      sharedBufferFd) // Xserver can use the shared buffer (created in client side) by sharedBufferFd
 {
     Result       result     = Result::Success;
     xcb_pixmap_t pixmap     = InvalidPixmapId;
@@ -911,6 +912,7 @@ Result Dri3WindowSystem::DeterminePresentationSupported(
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
 // =====================================================================================================================
 // Acquire connector Id from output object.
 Result Dri3WindowSystem::GetConnectorIdFromOutput(
@@ -975,6 +977,7 @@ Result Dri3WindowSystem::GetConnectorIdFromOutput(
 
     return ret;
 }
+#endif
 
 // =====================================================================================================================
 // Private help function to get the root window from output.

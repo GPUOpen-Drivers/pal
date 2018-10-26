@@ -261,8 +261,9 @@ Result WaylandWindowSystem::Init()
 // =====================================================================================================================
 // Interface for the window system to do things related with creating presentable image.
 Result WaylandWindowSystem::CreatePresentableImage(
-    Image*         pImage,
-    int32          sharedBufferFd)
+    SwapChain* pSwapChain,
+    Image*     pImage,
+    int32      sharedBufferFd)
 {
     PAL_ASSERT(s_pWsaInterface != nullptr);
 

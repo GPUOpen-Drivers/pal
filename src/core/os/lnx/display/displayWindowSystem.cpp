@@ -195,8 +195,9 @@ Result DisplayWindowSystem::DeterminePresentationSupported(
 
 // =====================================================================================================================
 Result DisplayWindowSystem::CreatePresentableImage(
-    Image*              pImage,
-    int32               sharedBufferFd)
+    SwapChain* pSwapChain,
+    Image*     pImage,
+    int32      sharedBufferFd)
 {
     uint32 bufferHandle[4];
 

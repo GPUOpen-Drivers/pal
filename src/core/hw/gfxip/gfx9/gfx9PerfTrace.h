@@ -86,12 +86,6 @@ public:
         uint32     sqttTokenMask) const = 0;
     virtual uint32* WriteStopCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
 
-    uint32* WriteInsertMarker(
-        PerfTraceMarkerType markerType,
-        uint32              data,
-        CmdStream*          pCmdStream,
-        uint32*             pCmdSpace) const;
-
     virtual Result Init() { return Result::Success; }
 
 protected:

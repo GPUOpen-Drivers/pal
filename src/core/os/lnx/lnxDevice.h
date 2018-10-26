@@ -401,11 +401,13 @@ public:
 
     virtual Result CheckExecutionState() const override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     virtual Result GetConnectorIdFromOutput(
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override;
+#endif
 
     bool IsVmAlwaysValidSupported() const { return m_supportVmAlwaysValid; }
 

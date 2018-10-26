@@ -2381,7 +2381,12 @@ void PAL_STDCALL Device::CreateSamplerSrds(
             pSrd->word2.bits.LOD_BIAS = Math::FloatToSFixed(pInfo->mipLodBias,
                                                             Gfx6SamplerLodBiasIntBits,
                                                             Gfx6SamplerLodBiasFracBits);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
             pSrd->word2.bits.MIP_POINT_PRECLAMP = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
+#else
+            pSrd->word2.bits.MIP_POINT_PRECLAMP = 0;
+#endif
 
             pSrd->word2.bits.DISABLE_LSB_CEIL   = (settings.samplerCeilingLogicEnabled == false);
             pSrd->word2.bits.FILTER_PREC_FIX    = settings.samplerPrecisionFixEnabled;

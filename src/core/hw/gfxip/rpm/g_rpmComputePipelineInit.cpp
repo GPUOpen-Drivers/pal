@@ -137,13 +137,31 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::ClearImage1dTexelScale, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::ClearImage2d, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::ClearImage2dTexelScale, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::ClearImage3d, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::ClearImage3dTexelScale, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)

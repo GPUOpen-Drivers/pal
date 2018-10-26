@@ -79,6 +79,7 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffset;
 
     memset(&m_flags,                0, sizeof(m_flags));
+    memset(&m_sampleFlags,          0, sizeof(m_sampleFlags));
     memset(&m_computePipelineInfo,  0, sizeof(m_computePipelineInfo));
     memset(&m_graphicsPipelineInfo, 0, sizeof(m_graphicsPipelineInfo));
     memset(&m_cmdBufLogItem,        0, sizeof(m_cmdBufLogItem));
@@ -186,6 +187,7 @@ void CmdBuffer::ReplayBegin(
                 enablePipeStats  = m_flags.logPipeStats;
             }
 
+            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && m_flags.enableSqThreadTrace);
             pTgtCmdBuffer->BeginSample(pQueue, &m_cmdBufLogItem, enablePipeStats, enablePerfExp);
         }
         else
@@ -215,6 +217,7 @@ void CmdBuffer::ReplayEnd(
     {
         if (m_flags.nested == false)
         {
+            m_sampleFlags.sqThreadTraceActive = false;
             pTgtCmdBuffer->EndSample(pQueue, &m_cmdBufLogItem);
         }
         pTgtCmdBuffer->EndGpaSession(&m_cmdBufLogItem);
@@ -3255,6 +3258,7 @@ void CmdBuffer::LogPreTimedCall(
                                          enableSqThreadTrace;
             const bool enablePipeStats = m_flags.logPipeStats;
 
+            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && enableSqThreadTrace);
             pTgtCmdBuffer->BeginSample(pQueue, pLogItem, enablePipeStats, enablePerfExp);
         }
     }
@@ -3271,6 +3275,8 @@ void CmdBuffer::LogPostTimedCall(
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) || m_forceDrawGranularityLogging)
     {
         pTgtCmdBuffer->EndSample(pQueue, pLogItem);
+
+        m_sampleFlags.u8All = 0;
 
         // Add this log item to the queue for processing once the corresponding submit is idle.
         pQueue->AddLogItem(*pLogItem);
@@ -3826,6 +3832,7 @@ void TargetCmdBuffer::BeginSample(
         if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
         {
             pLogItem->gpaSampleId = m_pGpaSession->BeginSample(this, config);
+
         }
         else
         {

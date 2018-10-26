@@ -75,7 +75,8 @@ namespace DevDriver
                     payload.executeTraceRequestV3.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;
                     payload.executeTraceRequestV3.parameters.flags.u32All = traceInfo.parameters.flags.u32All;
                 }
-                else if (GetSessionVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                else if ((GetSessionVersion() == RGP_TRIGGER_MARKERS_VERSION) ||
+                         (GetSessionVersion() == RGP_PENDING_ABORT_VERSION))
                 {
                     payload.executeTraceRequestV4.parameters.gpuMemoryLimitInMb = traceInfo.parameters.gpuMemoryLimitInMb;
                     payload.executeTraceRequestV4.parameters.numPreparationFrames = traceInfo.parameters.numPreparationFrames;

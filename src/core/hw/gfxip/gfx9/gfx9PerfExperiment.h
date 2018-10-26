@@ -104,8 +104,6 @@ public:
     void BeginInternalOps(CmdStream* pCmdStream) const;
     void EndInternalOps(CmdStream* pCmdStream) const;
 
-    void InsertTraceMarker(CmdStream* pCmdStream, PerfTraceMarkerType markerType, uint32 data) const;
-
 protected:
     virtual ~PerfExperiment() {}
 

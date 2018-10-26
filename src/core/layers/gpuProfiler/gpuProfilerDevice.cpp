@@ -52,6 +52,7 @@ Device::Device(
     m_timestampFreq(0),
     m_logPipeStats(false),
     m_sqttFilteringEnabled(false),
+    m_sqttAddTtvHashes(false),
     m_sqttCompilerHash(0),
     m_maxDrawsForThreadTrace(0),
     m_curDrawsForThreadTrace(0),
@@ -159,6 +160,7 @@ Result Device::CommitSettingsAndInit()
                                   ShaderHashIsNonzero(m_sqttGsHash) ||
                                   ShaderHashIsNonzero(m_sqttPsHash) ||
                                   ShaderHashIsNonzero(m_sqttCsHash));
+        m_sqttAddTtvHashes     = settings.gpuProfilerSqttConfig.addTtvHashes;
 
         m_profilerGranularity = settings.gpuProfilerPerfCounterConfig.granularity;
 

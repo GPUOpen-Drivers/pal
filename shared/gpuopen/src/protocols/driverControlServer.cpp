@@ -57,6 +57,7 @@ namespace DevDriver
             , m_deviceClockCallbackInfo()
             , m_numSessions(0)
             , m_stepCounter(0)
+            , m_initStepRequested(false)
         {
             DD_ASSERT(m_pMsgChannel != nullptr);
 
@@ -370,6 +371,11 @@ namespace DevDriver
                                 pSessionData->state = SessionState::StepDriver;
                                 ResumeDriver();
                             }
+                            else if ((m_driverStatus == DriverStatus::HaltedOnPlatformInit) || (m_driverStatus == DriverStatus::HaltedOnDeviceInit))
+                            {
+                                m_initStepRequested = true;
+                                ResumeDriver();
+                            }
                             else
                             {
                                 pSessionData->payload.command = DriverControlMessage::StepDriverResponse;
@@ -479,6 +485,12 @@ namespace DevDriver
             {
                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Driver initialization finished\n");
                 m_driverStatus = DriverStatus::Running;
+
+                if (m_initStepRequested)
+                {
+                    PauseDriver();
+                    WaitForDriverResume();
+                }
             }
         }
 
@@ -616,14 +628,24 @@ namespace DevDriver
 
             if (m_driverStatus == DriverStatus::EarlyDeviceInit)
             {
-                ClientMetadata filter = {};
-                filter.status |= static_cast<StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
-                if (m_pMsgChannel->FindFirstClient(filter, &clientId, kBroadcastIntervalInMs) == Result::Success)
+                if (m_initStepRequested)
                 {
-                    DD_ASSERT(clientId != kBroadcastClientId);
-                    DD_PRINT(LogLevel::Verbose,
-                        "[DriverControlServer] Found client requesting driver halt on Device init: %u", clientId);
+                    // If we've been asked to step from the previous state, then no need to look for a client status flag,
+                    // just halt here
+                    m_initStepRequested = false;
                     PauseDriver();
+                }
+                else
+                {
+                    ClientMetadata filter = {};
+                    filter.status |= static_cast<StatusFlags>(ClientStatusFlags::DeviceHaltOnConnect);
+                    if (m_pMsgChannel->FindFirstClient(filter, &clientId, kBroadcastIntervalInMs) == Result::Success)
+                    {
+                        DD_ASSERT(clientId != kBroadcastClientId);
+                        DD_PRINT(LogLevel::Verbose,
+                            "[DriverControlServer] Found client requesting driver halt on Device init: %u", clientId);
+                        PauseDriver();
+                    }
                 }
             }
 

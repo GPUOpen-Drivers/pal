@@ -117,11 +117,13 @@ public:
         OsDisplayHandle     hDisplay,
         int64               visualId);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     static Result GetConnectorIdFromOutput(
         Device*         pDevice,
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         uint32*         pConnectorId);
+#endif
 
     static Result AcquireScreenAccess(
         OsDisplayHandle hDisplay,
@@ -137,8 +139,9 @@ public:
         uint32*         pOutput);
 
     virtual Result CreatePresentableImage(
-        Image*              pImage,
-        int32               sharedBufferFd) override;
+        SwapChain* pSwapChain,
+        Image*     pImage,
+        int32      sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
         WindowSystemImageHandle hImage) override;

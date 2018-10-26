@@ -94,12 +94,6 @@ public:
     uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteStopCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
-    uint32* WriteInsertMarker(
-        PerfTraceMarkerType markerType,
-        uint32              data,
-        CmdStream*          pCmdStream,
-        uint32*             pCmdSpace) const;
-
 protected:
     void SetOptions(const ThreadTraceInfo& info);
 

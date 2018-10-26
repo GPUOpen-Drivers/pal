@@ -252,10 +252,6 @@ private:
 
     Util::VirtualLinearAllocator m_replayAllocator; // Used to allocate temporary memory during command buffer replay.
 
-    // These pointers track some helper heap allocations which are used to log perf counters and thread traces.
-    // They aren't that big (not worth a VirtualLinearAllocator) but we don't know their size at compile time.
-    uint64*                m_pGlobalPerfCounterValues;
-
     // Each replayed nested command buffer needs its own allocator which will be created from this create info.
     CmdAllocatorCreateInfo m_nestedAllocatorCreateInfo;
 

@@ -2371,10 +2371,14 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
     PerfTraceMarkerType markerType,
     uint32              markerData)
 {
-    PAL_ASSERT(m_pCurrentExperiment != nullptr);
+    const uint32 userDataAddr = (markerType == PerfTraceMarkerType::A) ?
+                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2 :
+                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3;
+    PAL_ASSERT(m_device.CmdUtil().IsPrivilegedConfigReg(userDataAddr) == false);
 
-    const PerfExperiment*const pExperiment = static_cast<const PerfExperiment*>(m_pCurrentExperiment);
-    pExperiment->InsertTraceMarker(&m_deCmdStream, markerType, markerData);
+    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(userDataAddr, markerData, pCmdSpace);
+    m_deCmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

@@ -102,8 +102,9 @@ public:
     static Result LoadWaylandWsa();
 
     virtual Result CreatePresentableImage(
-        Image*              pImage,
-        int32               sharedBufferFd) override;
+        SwapChain* pSwapChain,
+        Image*     pImage,
+        int32      sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
         WindowSystemImageHandle hImage) override;

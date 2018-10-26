@@ -3494,10 +3494,10 @@ void RsrcProcMgr::CmdClearColorImage(
 
     for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
     {
-        SubresRange minSlowClearRange = {};
-        const auto* pSlowClearRange   = &minSlowClearRange;
-        const auto& clearRange        = pRanges[rangeIdx];
-        ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
+        SubresRange  minSlowClearRange = {};
+        const auto*  pSlowClearRange   = &minSlowClearRange;
+        const auto&  clearRange        = pRanges[rangeIdx];
+        ClearMethod  slowClearMethod   = Image::DefaultSlowClearMethod;
 
         uint32 convertedColor[4] = { 0 };
         if (color.type == ClearColorType::Float)
@@ -3529,7 +3529,10 @@ void RsrcProcMgr::CmdClearColorImage(
 
             for (uint32 mipIdx = 0; mipIdx < clearRange.numMips; ++mipIdx)
             {
-                const SubresId subres = { clearRange.startSubres.aspect, clearRange.startSubres.mipLevel + mipIdx, 0 };
+                const SubresId    subres      = { clearRange.startSubres.aspect,
+                                                  clearRange.startSubres.mipLevel + mipIdx,
+                                                  0
+                                                };
                 const ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
 
                 if (clearMethod != ClearMethod::Fast)
@@ -3568,13 +3571,18 @@ void RsrcProcMgr::CmdClearColorImage(
         // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
         if (pSlowClearRange->numMips != 0)
         {
-            const bool is3dBoxClear = hasBoxes && (createInfo.imageType == ImageType::Tex3d);
+            const SwizzledFormat& baseFormat   = dstImage.SubresourceInfo(pSlowClearRange->startSubres)->format;
+            const bool            is3dBoxClear = hasBoxes && (createInfo.imageType == ImageType::Tex3d);
+            uint32                texelScale   = 1;
+            const SwizzledFormat  rawFormat    = RpmUtil::GetRawFormat(baseFormat.format, &texelScale);
 
             // Not surprisingly, a slow graphics clears requires a command buffer that supports graphics operations
             if (pCmdBuffer->IsGraphicsSupported() &&
+                // Force clears of scaled formats to the compute engine
+                (texelScale == 1)                 &&
                 (slowClearMethod == ClearMethod::NormalGraphics))
             {
-                SlowClearGraphics(pCmdBuffer, dstImage, dstImageLayout, &color, clearRange, boxCount, pBoxes);
+                SlowClearGraphics(pCmdBuffer, dstImage, dstImageLayout, &color, *pSlowClearRange, boxCount, pBoxes);
             }
             else
             {
@@ -3590,9 +3598,9 @@ void RsrcProcMgr::CmdClearColorImage(
                 SlowClearCompute(pCmdBuffer,
                                  dstImage,
                                  dstImageLayout,
-                                 pStartSubRes->format,
+                                 baseFormat,
                                  &color,
-                                 clearRange,
+                                 *pSlowClearRange,
                                  boxCount,
                                  pBoxes);
             }
@@ -3928,24 +3936,37 @@ void RsrcProcMgr::SlowClearCompute(
 
     // Get some useful information about the image.
     const auto&          createInfo = dstImage.GetImageCreateInfo();
-    const SwizzledFormat rawFormat  = RpmUtil::GetRawFormat(dstFormat.format, nullptr);
+    const  ImageType     imageType  = dstImage.GetGfxImage()->GetOverrideImageType();
+    uint32               texelScale = 1;
+    const SwizzledFormat rawFormat  = RpmUtil::GetRawFormat(dstFormat.format, &texelScale);
+
+    // These are the only two supported texel scales
+    PAL_ASSERT((texelScale == 1) || (texelScale == 3));
 
     // Get the appropriate pipeline.
-    const ComputePipeline* pPipeline = nullptr;
-    switch (createInfo.imageType)
+    enum RpmComputePipeline  pipelineEnum = RpmComputePipeline::Count;
+    switch (imageType)
     {
     case ImageType::Tex1d:
-        pPipeline = GetPipeline(RpmComputePipeline::ClearImage1d);
+        pipelineEnum = ((texelScale == 1)
+                        ? RpmComputePipeline::ClearImage1d
+                        : RpmComputePipeline::ClearImage1dTexelScale);
         break;
 
     case ImageType::Tex2d:
-        pPipeline = GetPipeline(RpmComputePipeline::ClearImage2d);
+        pipelineEnum = ((texelScale == 1)
+                        ? RpmComputePipeline::ClearImage2d
+                        : RpmComputePipeline::ClearImage2dTexelScale);
         break;
 
     default:
-        pPipeline = GetPipeline(RpmComputePipeline::ClearImage3d);
+        pipelineEnum = ((texelScale == 1)
+                        ? RpmComputePipeline::ClearImage3d
+                        : RpmComputePipeline::ClearImage3dTexelScale);
         break;
     }
+
+    const ComputePipeline*  pPipeline  = GetPipeline(pipelineEnum);
 
     // Get number of threads per group in each dimension.
     uint32 threadsPerGroup[3] = {0};
@@ -3984,7 +4005,9 @@ void RsrcProcMgr::SlowClearCompute(
     // Boxes are only meaningful if we're clearing a single mip.
     PAL_ASSERT((hasBoxes == false) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
 
-    // The user data will contain the 4 dwords of the clear color followed by up to 7 dwords of offset and extent
+    // The user data will contain:
+    //   [ 0 :  3] Clear color
+    //   [ 4 : 10] Offset and extent
     uint32 userData[11] =
     {
         packedColor[0],
@@ -3994,7 +4017,7 @@ void RsrcProcMgr::SlowClearCompute(
         0, 0, 0, 0, 0, 0, 0
     };
 
-    const auto& device = *m_pDevice->Parent();
+    const auto& device  = *m_pDevice->Parent();
 
     for (; singleMipRange.startSubres.mipLevel <= lastMipLevel; ++singleMipRange.startSubres.mipLevel)
     {
@@ -4032,23 +4055,26 @@ void RsrcProcMgr::SlowClearCompute(
             // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple samples and
             // 3D images cannot have multiple slices.
             uint32 minThreads[3] = { clearExtent.width, 1, 1, };
-            switch (createInfo.imageType)
+            switch (imageType)
             {
             case ImageType::Tex1d:
                 // For 1d the shader expects the x offset, an unused dword, then the clear width.
                 // ClearImage1D:dcl_num_thread_per_group 64, 1, 1, Y and Z direction threads are 1
                 userData[4] = clearOffset.x;
                 userData[6] = clearExtent.width;
+
+                // 1D images can only have a single-sample, but they can have multiple slices.
+                minThreads[2] = singleMipRange.numSlices;
                 break;
 
             case ImageType::Tex2d:
                 minThreads[1] = clearExtent.height;
                 minThreads[2] = singleMipRange.numSlices * createInfo.samples;
                 // For 2d the shader expects x offset, y offset, clear width then clear height.
-                userData[4] = clearOffset.x;
-                userData[5] = clearOffset.y;
-                userData[6] = clearExtent.width;
-                userData[7] = clearExtent.height;
+                userData[4]  = clearOffset.x;
+                userData[5]  = clearOffset.y;
+                userData[6]  = clearExtent.width;
+                userData[7]  = clearExtent.height;
                 break;
 
             default:

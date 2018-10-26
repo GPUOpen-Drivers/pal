@@ -296,11 +296,13 @@ public:
     virtual Result GetVirtualDisplayProperties(
         uint32                    screenTargetId,
         VirtualDisplayProperties* pProperties) override { return Result::Success; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     virtual Result GetConnectorIdFromOutput(
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override { return Result::Success; }
+#endif
 
 protected:
     Device(

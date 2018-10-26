@@ -333,7 +333,7 @@ Result Image::ValidateCreateInfo(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
     // view3dAs2dArray is only valid for 3d images.
     if (ret == Result::Success)
     {

@@ -1,77 +1,28 @@
 {
-  "ComponentName": "Gfx9_Pal",
-  "Enums": [
-    {
-      "Values": [
-        {
-          "Description": "Disabled.",
-          "Name": "NggPipelineTypeDisabled",
-          "Value": 0
-        },
-        {
-          "Description": "Enabled for all VsPs (VsPs) pipelines.",
-          "Name": "NggPipelineTypeVsPs",
-          "Value": 1
-        },
-        {
-          "Description": "Enabled for all VsGsPs (Gs) pipelines.",
-          "Name": "NggPipelineTypeVsGsPs",
-          "Value": 2
-        },
-        {
-          "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
-          "Name": "NggPipelineTypeVsHsDsPs",
-          "Value": 4
-        },
-        {
-          "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
-          "Name": "NggPipelineTypeVsHsDsGsPs",
-          "Value": 8
-        },
-        {
-          "Description": "Enabled for all pipeline types.",
-          "Name": "NggPipelineTypeAll",
-          "Value": 15
-        }
-      ],
-      "IsEnum": true,
-      "Name": "Gfx9NggPipelineType"
-    }
+  "DriverState": [
+    "HaltedOnDeviceInit"
   ],
+  "Hwl": "Gfx9",
   "Settings": [
     {
+      "Description": "Toggles whether or not LOAD_INDEX packets are used for binding objects to the command buffer in place of set packets.",
       "Name": "EnableLoadIndexForObjectBinds",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2416072074,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
       "Tags": [
         "General"
       ],
-      "Description": "Toggles whether or not LOAD_INDEX packets are used for binding objects to the command buffer in place of set packets.",
-      "Type": "bool",
-      "VariableName": "enableLoadIndexForObjectBinds"
+      "VariableName": "enableLoadIndexForObjectBinds",
+      "Type": "bool"
     },
     {
-      "Name": "DisableBorderColorPaletteBinds",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 3825276041,
-      "Defaults": {
-        "Default": false
-      },
-      "Tags": [
-        "General",
-        "Gfx9"
-      ],
       "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
-      "Type": "bool",
-      "VariableName": "disableBorderColorPaletteBinds"
-    },
-    {
-      "Name": "DrainPsOnOverlap",
+      "Name": "DisableBorderColorPaletteBinds",
+      "HashName": 3825276041,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2630919068,
       "Defaults": {
         "Default": false
       },
@@ -79,49 +30,64 @@
         "General",
         "Gfx9"
       ],
-      "Description": "Related to primitive ordered pixel shading.  If set, forces the PS to drain on anydetected overlapping wave",
-      "Type": "bool",
-      "VariableName": "drainPsOnOverlap"
+      "VariableName": "disableBorderColorPaletteBinds",
+      "Type": "bool"
     },
     {
-      "Name": "PrintMetaEquationInfo",
+      "Description": "Related to primitive ordered pixel shading.  If set, forces the PS to drain on anydetected overlapping wave",
+      "Name": "DrainPsOnOverlap",
+      "HashName": 2630919068,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "printMetaEquationInfo",
-      "HashName": 2137175839,
       "Defaults": {
-        "Default": 0
+        "Default": false
       },
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "VariableName": "drainPsOnOverlap",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls printing of meta-equation data.  Debug builds only.",
+      "Name": "PrintMetaEquationInfo",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Prints meta equations themselves.",
             "Name": "Gfx9PrintMetaEquationInfoEquations",
+            "Description": "Prints meta equations themselves.",
             "Value": 1
           },
           {
-            "Description": "Prints equation coordinates as they're processed.",
             "Name": "Gfx9PrintMetaEquationInfoProcessing",
+            "Description": "Prints equation coordinates as they're processed.",
             "Value": 2
           }
         ],
         "IsEnum": true,
         "Name": "Gfx9PrintMetaEquationInfo"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 2137175839,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
       },
       "Tags": [
         "General",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "printMetaEquationInfo",
+      "Type": "uint32",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
+      "Description": "If true, the meta-equations will be processed by the cpu instead of by a compute shader.Emulation, debug builds only.  Useful for pre-silicon development",
       "Name": "ProcessMetaEquationViaCpu",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3623936311,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -129,117 +95,117 @@
         "General",
         "Gfx9"
       ],
-      "Description": "If true, the meta-equations will be processed by the cpu instead of by a compute shader.Emulation, debug builds only.  Useful for pre-silicon development",
-      "Type": "bool",
-      "VariableName": "processMetaEquationViaCpu"
+      "VariableName": "processMetaEquationViaCpu",
+      "Type": "bool"
     },
     {
-      "Name": "OptimizedFastClear",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "optimizedFastClear",
-      "HashName": 1875719625,
-      "Defaults": {
-        "Default": 7
-      },
       "Description": "If enabled, the meta-equations will be processed by an optimized compute shader and algorithm.",
+      "Name": "OptimizedFastClear",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disable the Optimized Fast Clear Path.",
             "Name": "Gfx9OptimizedFastClearDisabled",
+            "Description": "Disable the Optimized Fast Clear Path.",
             "Value": 0
           },
           {
-            "Description": "Enable Optimized Fast Clear Path for color surfaces cmask metadata fastclear(msaa only).",
             "Name": "Gfx9OptimizedFastClearColorCmask",
+            "Description": "Enable Optimized Fast Clear Path for color surfaces cmask metadata fastclear(msaa only).",
             "Value": 1
           },
           {
-            "Description": "Enable Optimized Fast Clear Path for color surfaces dcc metadata fastclear.",
             "Name": "Gfx9OptimizedFastClearColorDcc",
+            "Description": "Enable Optimized Fast Clear Path for color surfaces dcc metadata fastclear.",
             "Value": 2
           },
           {
-            "Description": "Enable Optimized Fast Clear Path for depth surfaces htile metadata fastclear.",
             "Name": "Gfx9OptimizedFastClearDepth",
+            "Description": "Enable Optimized Fast Clear Path for depth surfaces htile metadata fastclear.",
             "Value": 4
           }
         ],
         "IsEnum": true,
         "Name": "Gfx9OptimizedFastClear"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 1875719625,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 7
       },
       "Tags": [
         "General",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "optimizedFastClear",
+      "Type": "uint32",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
-      "Name": "AlwaysDecompress",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "alwaysDecompress",
-      "HashName": 2887583419,
-      "Defaults": {
-        "Default": 0
-      },
       "Description": "Controls whether the specified decompress / expand / eliminate operations will always occur when requested.",
+      "Name": "AlwaysDecompress",
       "ValidValues": {
         "Values": [
           {
-            "Description": "DCC decompress.",
             "Name": "DecompressDcc",
+            "Description": "DCC decompress.",
             "Value": 1
           },
           {
-            "Description": "Depth expand.",
             "Name": "DecompressHtile",
+            "Description": "Depth expand.",
             "Value": 2
           },
           {
-            "Description": "FMask decompress.",
             "Name": "DecompressFmask",
+            "Description": "FMask decompress.",
             "Value": 4
           },
           {
-            "Description": "Fast clear eliminate.",
             "Name": "DecompressFastClear",
+            "Description": "Fast clear eliminate.",
             "Value": 8
           }
         ],
         "Name": "DecompressMask"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 2887583419,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
       },
       "Tags": [
         "General",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "alwaysDecompress",
+      "Type": "uint32",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
+      "Description": "True to override 1D images to be 2D instead.",
       "Name": "Treat1dAs2d",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 648332656,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
       "Tags": [
         "General"
       ],
-      "Description": "True to override 1D images to be 2D instead.",
-      "Type": "bool",
-      "VariableName": "treat1dAs2d"
+      "VariableName": "treat1dAs2d",
+      "Type": "bool"
     },
     {
+      "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
       "Name": "ForceGraphicsFillMemoryPath",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 451570688,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -247,14 +213,14 @@
         "General",
         "Gfx9"
       ],
-      "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
-      "Type": "bool",
-      "VariableName": "forceGraphicsFillMemoryPath"
+      "VariableName": "forceGraphicsFillMemoryPath",
+      "Type": "bool"
     },
     {
+      "Description": "Controls whether to wait after F/I when changing targets within a Metadata mip tail region. This can resolve corruptions related to metadata cache conflicts.",
       "Name": "WaitOnMetadataMipTail",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2328100940,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -262,29 +228,14 @@
         "Cache flush",
         "Gfx9"
       ],
-      "Description": "Controls whether to wait after F/I when changing targets within a Metadata mip tail region. This can resolve corruptions related to metadata cache conflicts.",
-      "Type": "bool",
-      "VariableName": "waitOnMetadataMipTail"
+      "VariableName": "waitOnMetadataMipTail",
+      "Type": "bool"
     },
     {
-      "Name": "BlendOptimizationEnable",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 3560979294,
-      "Defaults": {
-        "Default": true
-      },
-      "Tags": [
-        "Color Targets",
-        "Gfx9"
-      ],
       "Description": "If true, writes the COLOR_SRC_OPT and COLOR_DST_OPT bits of theSX_MRT#_BLEND_OPT for Blend States.",
-      "Type": "bool",
-      "VariableName": "blendOptimizationsEnable"
-    },
-    {
-      "Name": "FastColorClearEnable",
+      "Name": "BlendOptimizationEnable",
+      "HashName": 3560979294,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1938040824,
       "Defaults": {
         "Default": true
       },
@@ -292,14 +243,14 @@
         "Color Targets",
         "Gfx9"
       ],
+      "VariableName": "blendOptimizationsEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, DCC will be used to support fast color clears on singlesampled Color Target Images.",
-      "Type": "bool",
-      "VariableName": "fastColorClearEnable"
-    },
-    {
-      "Name": "FastColorClearOn3DEnable",
+      "Name": "FastColorClearEnable",
+      "HashName": 1938040824,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 655987862,
       "Defaults": {
         "Default": true
       },
@@ -307,29 +258,29 @@
         "Color Targets",
         "Gfx9"
       ],
+      "VariableName": "fastColorClearEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, DCC will be used to support fast color clears on singlesampled 3D Color Target Images.",
-      "Type": "bool",
-      "VariableName": "fastColorClearOn3dEnable"
-    },
-    {
-      "Name": "FmaskCompressDisable",
+      "Name": "FastColorClearOn3DEnable",
+      "HashName": 655987862,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2717822859,
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Tags": [
         "Color Targets",
         "Gfx9"
       ],
+      "VariableName": "fastColorClearOn3dEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls the setting of the CB_COLOR_INFO.FMASK_COMPRESSION_DISABLE bit.",
-      "Type": "bool",
-      "VariableName": "fmaskCompressDisable"
-    },
-    {
-      "Name": "FmaskAllowPipeBankXor",
+      "Name": "FmaskCompressDisable",
+      "HashName": 2717822859,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 4218731941,
       "Defaults": {
         "Default": false
       },
@@ -337,114 +288,129 @@
         "Color Targets",
         "Gfx9"
       ],
-      "Description": "If true, allows for non-zero fMask pipe-bank-xor.",
-      "Type": "bool",
-      "VariableName": "fmaskAllowPipeBankXor"
+      "VariableName": "fmaskCompressDisable",
+      "Type": "bool"
     },
     {
-      "Name": "DccOnComputeEnable",
+      "Description": "If true, allows for non-zero fMask pipe-bank-xor.",
+      "Name": "FmaskAllowPipeBankXor",
+      "HashName": 4218731941,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "dccOnComputeEnable",
-      "HashName": 950561670,
       "Defaults": {
-        "Default": 3
+        "Default": false
       },
+      "Tags": [
+        "Color Targets",
+        "Gfx9"
+      ],
+      "VariableName": "fmaskAllowPipeBankXor",
+      "Type": "bool"
+    },
+    {
       "Description": "Determines the situations on which a compute shader will be used for DCC access.",
+      "Name": "DccOnComputeEnable",
       "ValidValues": {
         "Values": [
           {
-            "Description": "One time init",
             "Name": "Gfx9DccOnComputeInit",
+            "Description": "One time init",
             "Value": 1
           },
           {
-            "Description": "Fast color clear.",
             "Name": "Gfx9DccOnComputeFastClear",
+            "Description": "Fast color clear.",
             "Value": 2
           }
         ],
         "IsEnum": true,
         "Name": "Gfx9DccOnCompute"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 950561670,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 3
       },
       "Tags": [
         "Color Targets",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "dccOnComputeEnable",
+      "Type": "uint32",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
-      "Name": "UseDcc",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "useDcc",
-      "HashName": 4029518654,
-      "Defaults": {
-        "Default": 511
-      },
       "Description": "Bitmask of cases where DCC (delta color compression) surfaces will be used",
+      "Name": "UseDcc",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Single sample render targets",
             "Name": "Gfx9UseDccSingleSample",
+            "Description": "Single sample render targets",
             "Value": 1
           },
           {
-            "Description": "SRGB numeric format images",
             "Name": "Gfx9UseDccSrgb",
+            "Description": "SRGB numeric format images",
             "Value": 2
           },
           {
-            "Description": "Non-TC compatible shader read",
             "Name": "Gfx9UseDccNonTcCompatShaderRead",
+            "Description": "Non-TC compatible shader read",
             "Value": 4
           },
           {
-            "Description": "Partially resident textures",
             "Name": "Gfx9UseDccPrt",
+            "Description": "Partially resident textures",
             "Value": 8
           },
           {
-            "Description": "2x multisample render targets",
             "Name": "Gfx9UseDccMultiSample2x",
+            "Description": "2x multisample render targets",
             "Value": 16
           },
           {
-            "Description": "4x multisample render targets",
             "Name": "Gfx9UseDccMultiSample4x",
+            "Description": "4x multisample render targets",
             "Value": 32
           },
           {
-            "Description": "8x multisample render targets",
             "Name": "Gfx9UseDccMultiSample8x",
+            "Description": "8x multisample render targets",
             "Value": 64
           },
           {
-            "Description": "EQAA render targets",
             "Name": "Gfx9UseDccEqaa",
+            "Description": "EQAA render targets",
             "Value": 128
           }
         ],
         "IsEnum": true,
         "Name": "Gfx9UseDcc"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 4029518654,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 511
       },
       "Tags": [
         "Color Targets",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "useDcc",
+      "Type": "uint32",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
+      "Description": "Sets the minimum BPP of surfaces which will have DCC enabled",
       "Name": "DccBitsPerPixelThreshold",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2664815996,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 0
       },
@@ -452,18 +418,12 @@
         "DCC",
         "Gfx9"
       ],
-      "Description": "Sets the minimum BPP of surfaces which will have DCC enabled",
-      "Type": "uint32",
-      "VariableName": "dccBitsPerPixelThreshold"
+      "VariableName": "dccBitsPerPixelThreshold",
+      "Type": "uint32"
     },
     {
+      "Description": "Controls the WAVES_PER_SH field in the COMPUTE_RESOURCE_LIMITS register; note that it is specified per-CU rather than per-SH for convenience.",
       "Name": "CsMaxWavesPerCu",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "csMaxWavesPerCu",
-      "HashName": 4216700794,
-      "Defaults": {
-        "Default": 0
-      },
       "ValidValues": {
         "Values": [
           {
@@ -471,27 +431,27 @@
             "Value": 0
           },
           {
-            "Description": "Limits the number of waves in flight in each compute unit.",
+            "LogicOp": "LessThanOrEqual",
             "Value": 40,
-            "LogicOp": "LessThanOrEqual"
+            "Description": "Limits the number of waves in flight in each compute unit."
           }
         ]
       },
-      "Description": "Controls the WAVES_PER_SH field in the COMPUTE_RESOURCE_LIMITS register; note that it is specified per-CU rather than per-SH for convenience.",
+      "HashName": 4216700794,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
+      },
       "Tags": [
         "Compute Pipelines",
         "Gfx9"
       ],
+      "VariableName": "csMaxWavesPerCu",
       "Type": "uint32"
     },
     {
+      "Description": "Controls the LOCK_THRESHOLD field in the COMPUTE_RESOURCE_LIMITS register. CS per-SH low threshold for locking.",
       "Name": "CsLockThreshold",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "csLockThreshold",
-      "HashName": 346110079,
-      "Defaults": {
-        "Default": 0
-      },
       "ValidValues": {
         "Values": [
           {
@@ -499,74 +459,64 @@
             "Value": 0
           },
           {
-            "Description": "CS per-SH low threshold for locking.",
+            "LogicOp": "MultipleOf",
             "Value": 4,
-            "LogicOp": "MultipleOf"
+            "Description": "CS per-SH low threshold for locking."
           }
         ]
       },
-      "Description": "Controls the LOCK_THRESHOLD field in the COMPUTE_RESOURCE_LIMITS register. CS per-SH low threshold for locking.",
+      "HashName": 346110079,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
+      },
       "Tags": [
         "Compute Pipelines",
         "Gfx9"
       ],
+      "VariableName": "csLockThreshold",
       "Type": "uint32"
     },
     {
+      "Description": "Controls the SIMD_DEST_CNTL field of the COMPUTE_RESOURCE_LIMITS register. By default, this flag is calulated based on the number of waves in the dispatch. If the number of waves is a multiple of 4, this flag is set, otherwise it is cleared.",
       "Name": "CsSimdDestCntl",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "csSimdDestCntl",
-      "HashName": 3574730191,
-      "Defaults": {
-        "Default": "CsSimdDestCntlDefault"
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "Keeps the default SIMD_DEST_CNTL behavior.",
             "Name": "CsSimdDestCntlDefault",
+            "Description": "Keeps the default SIMD_DEST_CNTL behavior.",
             "Value": 0
           },
           {
-            "Description": "Forces SIMD_DEST_CNTL to 1.",
             "Name": "CsSimdDestCntlForce1",
+            "Description": "Forces SIMD_DEST_CNTL to 1.",
             "Value": 1
           },
           {
-            "Description": "Forces SIMD_DEST_CNTL to 0.",
             "Name": "CsSimdDestCntlForce0",
+            "Description": "Forces SIMD_DEST_CNTL to 0.",
             "Value": 2
           }
         ],
         "Name": "CsSimdDestCntlMode"
       },
-      "Description": "Controls the SIMD_DEST_CNTL field of the COMPUTE_RESOURCE_LIMITS register. By default, this flag is calulated based on the number of waves in the dispatch. If the number of waves is a multiple of 4, this flag is set, otherwise it is cleared.",
+      "HashName": 3574730191,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "CsSimdDestCntlDefault"
+      },
       "Tags": [
         "Compute Pipelines",
         "Gfx9"
       ],
+      "VariableName": "csSimdDestCntl",
       "Type": "enum"
     },
     {
-      "Name": "HtileEnable",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 2379988876,
-      "Defaults": {
-        "Default": true
-      },
-      "Tags": [
-        "Depth/Stencil",
-        "Gfx9"
-      ],
       "Description": "If true, HTile will be enabled for depth/stencil images.",
-      "Type": "bool",
-      "VariableName": "htileEnable"
-    },
-    {
-      "Name": "DepthCompressEnable",
+      "Name": "HtileEnable",
+      "HashName": 2379988876,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "depthCompressEnable",
-      "HashName": 3404166969,
       "Defaults": {
         "Default": true
       },
@@ -574,7 +524,12 @@
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "htileEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, depth compression will be enabled.",
+      "Name": "DepthCompressEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -585,21 +540,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "StencilCompressEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "stencilCompressEnable",
-      "HashName": 3041432192,
       "Defaults": {
         "Default": true
       },
+      "HashName": 3404166969,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "depthCompressEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, stencil compression will be enabled.",
+      "Name": "StencilCompressEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -610,21 +565,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "DbPreloadEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "dbPreloadEnable",
-      "HashName": 2946289999,
       "Defaults": {
         "Default": true
       },
+      "HashName": 3041432192,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "stencilCompressEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, DB preloading will be enabled.",
+      "Name": "DbPreloadEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -635,21 +590,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "DbPreloadWinEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "dbPreloadWinEnable",
-      "HashName": 4030437501,
       "Defaults": {
-        "Default": false
+        "Default": true
       },
+      "HashName": 2946289999,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "dbPreloadEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, DB preload window dimensions will be used instead of the depth buffer's dimensions.",
+      "Name": "DbPreloadWinEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -660,21 +615,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "DbPerTileExpClearEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "dbPerTileExpClearEnable",
-      "HashName": 399713165,
       "Defaults": {
         "Default": false
       },
+      "HashName": 4030437501,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "dbPreloadWinEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, per-tile tracking of exp/clear will be enabled.",
+      "Name": "DbPerTileExpClearEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -685,21 +640,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "HiDepthEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "hiDepthEnable",
-      "HashName": 950148604,
       "Defaults": {
-        "Default": true
+        "Default": false
       },
+      "HashName": 399713165,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "dbPerTileExpClearEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, hierarchical depth testing will be enabled.",
+      "Name": "HiDepthEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -710,21 +665,21 @@
           }
         ]
       },
-      "Type": "bool"
-    },
-    {
-      "Name": "HiStencilEnable",
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "hiStencilEnable",
-      "HashName": 37862373,
       "Defaults": {
         "Default": true
       },
+      "HashName": 950148604,
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
+      "VariableName": "hiDepthEnable",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, hierarchical stencil testing will be enabled.",
+      "Name": "HiStencilEnable",
       "DependsOn": {
         "Settings": [
           {
@@ -735,19 +690,21 @@
           }
         ]
       },
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": true
+      },
+      "HashName": 37862373,
+      "Tags": [
+        "Depth/Stencil",
+        "Gfx9"
+      ],
+      "VariableName": "hiStencilEnable",
       "Type": "bool"
     },
     {
+      "Description": "Specifies the DB read request size.",
       "Name": "DbRequestSize",
-      "Flags": {
-        "IsHex": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "dbRequestSize",
-      "HashName": 2835145461,
-      "Defaults": {
-        "Default": 0
-      },
       "ValidValues": {
         "Values": [
           {
@@ -760,17 +717,26 @@
           }
         ]
       },
-      "Description": "Specifies the DB read request size.",
+      "HashName": 2835145461,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
+      },
       "Tags": [
         "Depth/Stencil",
         "Gfx9"
       ],
-      "Type": "uint32"
+      "VariableName": "dbRequestSize",
+      "Type": "uint32",
+      "Flags": {
+        "IsHex": true
+      }
     },
     {
+      "Description": "Controls the DB_RENDER_OVERRIDE2.DISABLE_COLOR_ON_VALIDATION register field",
       "Name": "DbDisableColorOnValidation",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 4057416918,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -778,14 +744,14 @@
         "Depth/Stencil",
         "Gfx9"
       ],
-      "Description": "Controls the DB_RENDER_OVERRIDE2.DISABLE_COLOR_ON_VALIDATION register field",
-      "Type": "bool",
-      "VariableName": "dbDisableColorOnValidation"
+      "VariableName": "dbDisableColorOnValidation",
+      "Type": "bool"
     },
     {
+      "Description": "If true, onchip GS will be used if possible.",
       "Name": "EnableOnchipGs",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 4034461831,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -793,83 +759,77 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, onchip GS will be used if possible.",
-      "Type": "bool",
-      "VariableName": "enableOnchipGs"
+      "VariableName": "enableOnchipGs",
+      "Type": "bool"
     },
     {
+      "Description": "Enable out-of-order primitive mode. Only available on parts that have more than one VGT.",
       "Name": "EnableOutOfOrderPrimitives",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "enableOutOfOrderPrimitives",
-      "HashName": 4194624623,
-      "Defaults": {
-        "Default": "OutOfOrderPrimSafe"
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "Always disable.",
             "Name": "OutOfOrderPrimDisable",
+            "Description": "Always disable.",
             "Value": 0
           },
           {
-            "Description": "Enable when known to not affect render output.",
             "Name": "OutOfOrderPrimSafe",
+            "Description": "Enable when known to not affect render output.",
             "Value": 1
           },
           {
-            "Description": "Enable when suspected to not affect render output.",
             "Name": "OutOfOrderPrimAggressive",
+            "Description": "Enable when suspected to not affect render output.",
             "Value": 2
           },
           {
-            "Description": "Always enable.",
             "Name": "OutOfOrderPrimAlways",
+            "Description": "Always enable.",
             "Value": 3
           }
         ],
-        "Name": "OutOfOrderPrimMode",
-        "IsExclusive": true
+        "IsExclusive": true,
+        "Name": "OutOfOrderPrimMode"
       },
-      "Description": "Enable out-of-order primitive mode. Only available on parts that have more than one VGT.",
+      "HashName": 4194624623,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "OutOfOrderPrimSafe"
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "enableOutOfOrderPrimitives",
       "Type": "enum"
     },
     {
+      "Description": "The watermark value for out-of-order primitives.",
       "Name": "OutOfOrderWatermark",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "outOfOrderWatermark",
-      "HashName": 2921949520,
-      "Defaults": {
-        "Default": 7
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "Values are log(2) of the watermark.",
+            "LogicOp": "LessThanOrEqual",
             "Value": 7,
-            "LogicOp": "LessThanOrEqual"
+            "Description": "Values are log(2) of the watermark."
           }
         ]
       },
-      "Description": "The watermark value for out-of-order primitives.",
+      "HashName": 2921949520,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 7
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "outOfOrderWatermark",
       "Type": "uint32"
     },
     {
+      "Description": "Controls the WAVE_LIMIT field in the SPI_SHADER_PGM_RSRC3_*S register; note that it is specified per-CU rather than per-SH for convenience.",
       "Name": "GfxMaxWavesPerCu",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "gfxMaxWavesPerCu",
-      "HashName": 4080017031,
-      "Defaults": {
-        "Default": 0
-      },
       "ValidValues": {
         "Values": [
           {
@@ -877,23 +837,29 @@
             "Value": 0
           },
           {
-            "Description": "Limits the number of waves in flight in each compute unit.",
+            "LogicOp": "LessThanOrEqual",
             "Value": 40,
-            "LogicOp": "LessThanOrEqual"
+            "Description": "Limits the number of waves in flight in each compute unit."
           }
         ]
       },
-      "Description": "Controls the WAVE_LIMIT field in the SPI_SHADER_PGM_RSRC3_*S register; note that it is specified per-CU rather than per-SH for convenience.",
+      "HashName": 4080017031,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "gfxMaxWavesPerCu",
       "Type": "uint32"
     },
     {
+      "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Name": "GsCuGroupEnabled",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2295262967,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -901,53 +867,38 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Type": "bool",
-      "VariableName": "gsCuGroupEnabled"
+      "VariableName": "gsCuGroupEnabled",
+      "Type": "bool"
     },
     {
+      "Description": "Maximum amount of LDS space to alloc for each on-chip GS subgroup, in DWORDs.",
       "Name": "GsMaxLdsSize",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "gsMaxLdsSize",
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "MultipleOf",
+            "Value": 128,
+            "Description": "Must be 128 dword aligned."
+          }
+        ]
+      },
       "HashName": 3033759533,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 8192
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Must be 128 dword aligned.",
-            "Value": 128,
-            "LogicOp": "MultipleOf"
-          }
-        ]
-      },
-      "Description": "Maximum amount of LDS space to alloc for each on-chip GS subgroup, in DWORDs.",
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "gsMaxLdsSize",
       "Type": "uint32"
     },
     {
-      "Name": "GsOffChipThreshold",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 1659075697,
-      "Defaults": {
-        "Default": 64
-      },
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
       "Description": "If the number of GS prims per subgroup * GS instance count is less than this threshold use off-chip GS. ",
-      "Type": "uint32",
-      "VariableName": "gsOffChipThreshold"
-    },
-    {
-      "Name": "GsPrimsPerSubGroup",
+      "Name": "GsOffChipThreshold",
+      "HashName": 1659075697,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 307437762,
       "Defaults": {
         "Default": 64
       },
@@ -955,37 +906,52 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Target number of GS prims per subgroup when running with on-chip GS. ",
-      "Type": "uint32",
-      "VariableName": "idealGsPrimsPerSubGroup"
+      "VariableName": "gsOffChipThreshold",
+      "Type": "uint32"
     },
     {
-      "Name": "LateAllocGs",
+      "Description": "Target number of GS prims per subgroup when running with on-chip GS. ",
+      "Name": "GsPrimsPerSubGroup",
+      "HashName": 307437762,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "lateAllocGs",
+      "Defaults": {
+        "Default": 64
+      },
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "VariableName": "idealGsPrimsPerSubGroup",
+      "Type": "uint32"
+    },
+    {
+      "Description": "Controls the value for late-alloc GS.",
+      "Name": "LateAllocGs",
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 127
+          }
+        ]
+      },
       "HashName": 1802508004,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 16
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Value": 127,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
-      "Description": "Controls the value for late-alloc GS.",
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "lateAllocGs",
       "Type": "uint32"
     },
     {
+      "Description": "Clamps the maximum tessellation factor.",
       "Name": "MaxTessFactor",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3272504111,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 64.0
       },
@@ -993,38 +959,38 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Clamps the maximum tessellation factor.",
-      "Type": "float",
-      "VariableName": "maxTessFactor"
+      "VariableName": "maxTessFactor",
+      "Type": "float"
     },
     {
+      "Description": "Controls the number of LDS buffers used for offchip tessellation: Gfx9: 1->508: Number of offchip tessellation buffers.",
       "Name": "NumOffchipLdsBuffers",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "numOffchipLdsBuffers",
-      "HashName": 4150915470,
-      "Defaults": {
-        "Default": 508
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "Number of offchip tessellation buffers.",
+            "LogicOp": "LessThanOrEqual",
             "Value": 508,
-            "LogicOp": "LessThanOrEqual"
+            "Description": "Number of offchip tessellation buffers."
           }
         ]
       },
-      "Description": "Controls the number of LDS buffers used for offchip tessellation: Gfx9: 1->508: Number of offchip tessellation buffers.",
+      "HashName": 4150915470,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 508
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "numOffchipLdsBuffers",
       "Type": "uint32"
     },
     {
+      "Description": "Controls the number of patches-per-thread-group to run when tessellationis enabled. This value is normally limited by hardware resources (LDS,TFBuffer, Threads). - Setting to 1 will always work, but is slowest. - Setting to 0 will allow the driver to choose the optimal value. - Any other value will be used (clamped based on HW resources). Offchip Tess rounds this to the nearest multiple of four.",
       "Name": "NumTessPatchesPerThreadGroup",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2699532302,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 0
       },
@@ -1032,55 +998,55 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Controls the number of patches-per-thread-group to run when tessellationis enabled. This value is normally limited by hardware resources (LDS,TFBuffer, Threads). - Setting to 1 will always work, but is slowest. - Setting to 0 will allow the driver to choose the optimal value. - Any other value will be used (clamped based on HW resources). Offchip Tess rounds this to the nearest multiple of four.",
-      "Type": "uint32",
-      "VariableName": "numTessPatchesPerTg"
+      "VariableName": "numTessPatchesPerTg",
+      "Type": "uint32"
     },
     {
+      "Description": "Controls the size of each offchip LDS Buffer.",
       "Name": "OffchipLdsBufferSize",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "offchipLdsBufferSize",
-      "HashName": 4262839798,
-      "Defaults": {
-        "Default": "OffchipLdsBufferSize8192"
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "8k DWORDs.",
             "Name": "OffchipLdsBufferSize8192",
+            "Description": "8k DWORDs.",
             "Value": 0
           },
           {
-            "Description": "4k DWORDs.",
             "Name": "OffchipLdsBufferSize4096",
+            "Description": "4k DWORDs.",
             "Value": 1
           },
           {
-            "Description": "2k DWORDs.",
             "Name": "OffchipLdsBufferSize2048",
+            "Description": "2k DWORDs.",
             "Value": 2
           },
           {
-            "Description": "1k DWORDs.",
             "Name": "OffchipLdsBufferSize1024",
+            "Description": "1k DWORDs.",
             "Value": 3
           }
         ],
-        "Name": "OffchipLdsBufferSize",
-        "IsExclusive": true
+        "IsExclusive": true,
+        "Name": "OffchipLdsBufferSize"
       },
-      "Description": "Controls the size of each offchip LDS Buffer.",
+      "HashName": 4262839798,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "OffchipLdsBufferSize8192"
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "offchipLdsBufferSize",
       "Type": "enum"
     },
     {
+      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
       "Name": "IsolineDistributionFactor",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 951961633,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 40
       },
@@ -1088,14 +1054,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
-      "Type": "uint32",
-      "VariableName": "isolineDistributionFactor"
+      "VariableName": "isolineDistributionFactor",
+      "Type": "uint32"
     },
     {
+      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT. Recommended to be higher than quad factor",
       "Name": "TriDistributionFactor",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2867566175,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 30
       },
@@ -1103,29 +1069,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT. Recommended to be higher than quad factor",
-      "Type": "uint32",
-      "VariableName": "triDistributionFactor"
+      "VariableName": "triDistributionFactor",
+      "Type": "uint32"
     },
     {
-      "Name": "QuadDistributionFactor",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 860015919,
-      "Defaults": {
-        "Default": 24
-      },
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
       "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
-      "Type": "uint32",
-      "VariableName": "quadDistributionFactor"
-    },
-    {
-      "Name": "DonutDistributionFactor",
+      "Name": "QuadDistributionFactor",
+      "HashName": 860015919,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 891881186,
       "Defaults": {
         "Default": 24
       },
@@ -1133,14 +1084,29 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
-      "Type": "uint32",
-      "VariableName": "donutDistributionFactor"
+      "VariableName": "quadDistributionFactor",
+      "Type": "uint32"
     },
     {
-      "Name": "TrapezoidDistributionFactor",
+      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
+      "Name": "DonutDistributionFactor",
+      "HashName": 891881186,
       "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 24
+      },
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "VariableName": "donutDistributionFactor",
+      "Type": "uint32"
+    },
+    {
+      "Description": "Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken into trapezoids.",
+      "Name": "TrapezoidDistributionFactor",
       "HashName": 674984646,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 6
       },
@@ -1148,14 +1114,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken into trapezoids.",
-      "Type": "uint32",
-      "VariableName": "trapezoidDistributionFactor"
+      "VariableName": "trapezoidDistributionFactor",
+      "Type": "uint32"
     },
     {
+      "Description": "Number of primitives sent to one VGT before switching to the next. Valid range is 1-65536, values larger than 256 are expected to hurtperformance. This setting only affects non-tessellation and non-NGG pipelines.",
       "Name": "PrimgroupSize",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3402504325,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 128
       },
@@ -1163,29 +1129,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Number of primitives sent to one VGT before switching to the next. Valid range is 1-65536, values larger than 256 are expected to hurtperformance. This setting only affects non-tessellation and non-NGG pipelines.",
-      "Type": "uint32",
-      "VariableName": "primGroupSize"
+      "VariableName": "primGroupSize",
+      "Type": "uint32"
     },
     {
-      "Name": "PsCuGroupEnabled",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 1924559864,
-      "Defaults": {
-        "Default": true
-      },
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
       "Description": "If true, the HW-PS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-PS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Type": "bool",
-      "VariableName": "psCuGroupEnabled"
-    },
-    {
-      "Name": "RbPlusEnable",
+      "Name": "PsCuGroupEnabled",
+      "HashName": 1924559864,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2122164302,
       "Defaults": {
         "Default": true
       },
@@ -1193,14 +1144,29 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, RbPlus will be enabled for ASIC of RbPlus capability.",
-      "Type": "bool",
-      "VariableName": "gfx9RbPlusEnable"
+      "VariableName": "psCuGroupEnabled",
+      "Type": "bool"
     },
     {
-      "Name": "SwitchVgtOnDraw",
+      "Description": "If true, RbPlus will be enabled for ASIC of RbPlus capability.",
+      "Name": "RbPlusEnable",
+      "HashName": 2122164302,
       "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": true
+      },
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "VariableName": "gfx9RbPlusEnable",
+      "Type": "bool"
+    },
+    {
+      "Description": "If true, the HW will alternate VGT's between draws rather than between sets of primitives within a draw. True is safer, but less performant.",
+      "Name": "SwitchVgtOnDraw",
       "HashName": 1102013901,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -1208,14 +1174,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, the HW will alternate VGT's between draws rather than between sets of primitives within a draw. True is safer, but less performant.",
-      "Type": "bool",
-      "VariableName": "switchVgtOnDraw"
+      "VariableName": "switchVgtOnDraw",
+      "Type": "bool"
     },
     {
+      "Description": "Controls the size of the tess-factor buffer. This size is per-SE, andmeasured in DWORDs.",
       "Name": "TessFactorBufferSizePerSe",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3112016659,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 8192
       },
@@ -1223,14 +1189,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Controls the size of the tess-factor buffer. This size is per-SE, andmeasured in DWORDs.",
-      "Type": "uint32",
-      "VariableName": "tessFactorBufferSizePerSe"
+      "VariableName": "tessFactorBufferSizePerSe",
+      "Type": "uint32"
     },
     {
+      "Description": "Vertex walking pattern for tessellation: 0: (default) Donut walking pattern for optimal reuse. 1: Single-ring walking pattern, has suboptimal reuse.",
       "Name": "TessWalkPattern",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2972449453,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 0
       },
@@ -1238,14 +1204,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Vertex walking pattern for tessellation: 0: (default) Donut walking pattern for optimal reuse. 1: Single-ring walking pattern, has suboptimal reuse.",
-      "Type": "uint32",
-      "VariableName": "disableTessDonutWalkPattern"
+      "VariableName": "disableTessDonutWalkPattern",
+      "Type": "uint32"
     },
     {
+      "Description": "If true, offchip tessellation will always use the maximum number ofLDS buffers possible (based on Chip ID).",
       "Name": "UseMaxOffchipLdsBuffers",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3365086421,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -1253,14 +1219,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, offchip tessellation will always use the maximum number ofLDS buffers possible (based on Chip ID).",
-      "Type": "bool",
-      "VariableName": "useMaxOffchipLdsBuffers"
+      "VariableName": "useMaxOffchipLdsBuffers",
+      "Type": "bool"
     },
     {
+      "Description": "If true, the HW-VS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-VS prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Name": "VsCuGroupEnabled",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 1712293842,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -1268,14 +1234,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, the HW-VS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-VS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Type": "bool",
-      "VariableName": "vsCuGroupEnabled"
+      "VariableName": "vsCuGroupEnabled",
+      "Type": "bool"
     },
     {
+      "Description": "Load half-packed VS waves, forcing them to use half as much space in the param cache at the expense of inefficient use of ALU resources, if the export count is >= this threshold. This can help performance in some cases.",
       "Name": "VsHalfPackThreshold",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 987247393,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 16
       },
@@ -1283,14 +1249,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Load half-packed VS waves, forcing them to use half as much space in the param cache at the expense of inefficient use of ALU resources, if the export count is >= this threshold. This can help performance in some cases.",
-      "Type": "uint32",
-      "VariableName": "vsHalfPackThreshold"
+      "VariableName": "vsHalfPackThreshold",
+      "Type": "uint32"
     },
     {
+      "Description": "If true, forces the VGT to issue a VS wave as soon as a primgroup isfinished.",
       "Name": "VsForcePartialWave",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 1946161867,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -1298,14 +1264,14 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "If true, forces the VGT to issue a VS wave as soon as a primgroup isfinished.",
-      "Type": "bool",
-      "VariableName": "vsForcePartialWave"
+      "VariableName": "vsForcePartialWave",
+      "Type": "bool"
     },
     {
+      "Description": "Current recommendation from the hardware team is to force PA_SC_CONSERVATIVE_RAST_CNTL.COVERAGE_AA_MASK = 0",
       "Name": "DisableCoverageAaMask",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 1829991091,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -1313,89 +1279,68 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "Current recommendation from the hardware team is to force PA_SC_CONSERVATIVE_RAST_CNTL.COVERAGE_AA_MASK = 0",
-      "Type": "bool",
-      "VariableName": "disableCoverageAaMask"
+      "VariableName": "disableCoverageAaMask",
+      "Type": "bool"
     },
     {
+      "Description": "Setting for controlling work distributor load balancing.",
       "Name": "WdLoadBalancingMode",
-      "Flags": {
-        "IsHex": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "wdLoadBalancingMode",
-      "HashName": 2657864074,
-      "Defaults": {
-        "Default": "Gfx9WdLoadBalancingAdvanced"
-      },
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disabled. Software load balancing.",
             "Name": "Gfx9WdLoadBalancingDisabled",
+            "Description": "Disabled. Software load balancing.",
             "Value": 0
           },
           {
-            "Description": "Basic. Enables small instance optimization.",
             "Name": "Gfx9WdLoadBalancingBasic",
+            "Description": "Basic. Enables small instance optimization.",
             "Value": 1
           },
           {
-            "Description": "Advanced. Enabled basic mode plus small instance unrolling draws optimization.",
             "Name": "Gfx9WdLoadBalancingAdvanced",
+            "Description": "Advanced. Enabled basic mode plus small instance unrolling draws optimization.",
             "Value": 2
           }
         ],
+        "IsExclusive": true,
         "IsEnum": true,
-        "Name": "Gfx9WdLoadBalancingMode",
-        "IsExclusive": true
+        "Name": "Gfx9WdLoadBalancingMode"
       },
-      "Description": "Setting for controlling work distributor load balancing.",
+      "HashName": 2657864074,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "Gfx9WdLoadBalancingAdvanced"
+      },
       "Tags": [
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Type": "enum"
+      "VariableName": "wdLoadBalancingMode",
+      "Type": "enum",
+      "Flags": {
+        "IsHex": true
+      }
     },
     {
+      "Description": "True forces a BATCH_BREAK event when a new pixel shader is bound. False by default.",
       "Name": "BatchBreakOnNewPixelShader",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3367458304,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Graphics Pipelines"
       ],
-      "Description": "True forces a BATCH_BREAK event when a new pixel shader is bound. False by default.",
-      "Type": "bool",
-      "VariableName": "batchBreakOnNewPixelShader"
+      "VariableName": "batchBreakOnNewPixelShader",
+      "Type": "bool"
     },
     {
-      "Name": "GsCuEnLimitMask",
-      "Flags": {
-        "IsHex": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 3021103171,
-      "Defaults": {
-        "Default": 4294967295
-      },
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
       "Description": "This mask is AND-ed with the driver-decided GS-specific CU_EN mask to further allow limiting of enabled CUs for GS waves. ",
-      "Type": "uint32",
-      "VariableName": "gsCuEnLimitMask"
-    },
-    {
-      "Name": "VsCuEnLimitMask",
-      "Flags": {
-        "IsHex": true
-      },
+      "Name": "GsCuEnLimitMask",
+      "HashName": 3021103171,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 989310036,
       "Defaults": {
         "Default": 4294967295
       },
@@ -1403,17 +1348,17 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
+      "VariableName": "gsCuEnLimitMask",
+      "Type": "uint32",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
       "Description": "This mask is AND-ed with the driver-decided VS-specific CU_EN mask to further allow limiting of enabled CUs for VS waves. ",
-      "Type": "uint32",
-      "VariableName": "vsCuEnLimitMask"
-    },
-    {
-      "Name": "PsCuEnLimitMask",
-      "Flags": {
-        "IsHex": true
-      },
+      "Name": "VsCuEnLimitMask",
+      "HashName": 989310036,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1509811598,
       "Defaults": {
         "Default": 4294967295
       },
@@ -1421,51 +1366,72 @@
         "Graphics Pipelines",
         "Gfx9"
       ],
-      "Description": "This mask is AND-ed with the driver-decided PS-specific CU_EN mask to further allow limiting of enabled CUs for PS waves. ",
+      "VariableName": "vsCuEnLimitMask",
       "Type": "uint32",
-      "VariableName": "psCuEnLimitMask"
+      "Flags": {
+        "IsHex": true
+      }
     },
     {
-      "Name": "OffChipHsCopyMethod",
+      "Description": "This mask is AND-ed with the driver-decided PS-specific CU_EN mask to further allow limiting of enabled CUs for PS waves. ",
+      "Name": "PsCuEnLimitMask",
+      "HashName": 1509811598,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "gfx9OffChipHsCopyMethod",
-      "HashName": 1882491753,
       "Defaults": {
-        "Default": "Gfx9OffChipHsCopyAllAtEnd"
+        "Default": 4294967295
       },
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "VariableName": "psCuEnLimitMask",
+      "Type": "uint32",
+      "Flags": {
+        "IsHex": true
+      }
+    },
+    {
+      "Description": "Specifies to SC how to copy HS outputs to off-chip memory.",
+      "Name": "OffChipHsCopyMethod",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Copy HS outputs directly to off-chip memory.",
             "Name": "Gfx9OffChipHsImmediate",
+            "Description": "Copy HS outputs directly to off-chip memory.",
             "Value": 0
           },
           {
-            "Description": "Write HS outputs to LDS, then at end of HS use multi-threaded loop to copy from LDS to off-chip memory.",
             "Name": "Gfx9OffChipHsCopyAllAtEnd",
+            "Description": "Write HS outputs to LDS, then at end of HS use multi-threaded loop to copy from LDS to off-chip memory.",
             "Value": 1
           },
           {
-            "Description": "Writes output control points and patch constants directly to off-chip and only copy theinput control point to memory at the end.",
             "Name": "Gfx9OffChipHsCopyMultiElements",
+            "Description": "Writes output control points and patch constants directly to off-chip and only copy theinput control point to memory at the end.",
             "Value": 2
           }
         ],
+        "IsExclusive": true,
         "IsEnum": true,
-        "Name": "Gfx9OffChipHsCopyMethod",
-        "IsExclusive": true
+        "Name": "Gfx9OffChipHsCopyMethod"
       },
-      "Description": "Specifies to SC how to copy HS outputs to off-chip memory.",
+      "HashName": 1882491753,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "Gfx9OffChipHsCopyAllAtEnd"
+      },
       "Tags": [
         "Shader Options",
         "Gfx9"
       ],
+      "VariableName": "gfx9OffChipHsCopyMethod",
       "Type": "enum"
     },
     {
+      "Description": "Enables SC optimization to skip copying data from HS for null patches ",
       "Name": "OffChipHsSkipDataCopyNullPatch",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 1952167388,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -1473,14 +1439,14 @@
         "Shader Options",
         "Gfx9"
       ],
-      "Description": "Enables SC optimization to skip copying data from HS for null patches ",
-      "Type": "bool",
-      "VariableName": "gfx9OffChipHsSkipDataCopyNullPatch"
+      "VariableName": "gfx9OffChipHsSkipDataCopyNullPatch",
+      "Type": "bool"
     },
     {
+      "Description": "Enables SC optimization for optimized DS data fetch. ",
       "Name": "OptimizeDsDataFetch",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2405308569,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -1488,68 +1454,68 @@
         "Shader Options",
         "Gfx9"
       ],
-      "Description": "Enables SC optimization for optimized DS data fetch. ",
-      "Type": "bool",
-      "VariableName": "gfx9OptimizeDsDataFetch"
+      "VariableName": "gfx9OptimizeDsDataFetch",
+      "Type": "bool"
     },
     {
-      "Name": "NggEnableMode",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "nggEnableMode",
-      "HashName": 1973955291,
-      "Defaults": {
-        "Default": "NggPipelineTypeAll"
-      },
       "Description": "Setting for the enablement of NGG on a per-pipeline type basis. For quality purposes only.",
+      "Name": "NggEnableMode",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disabled.",
             "Name": "NggPipelineTypeDisabled",
+            "Description": "Disabled.",
             "Value": 0
           },
           {
-            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Name": "NggPipelineTypeVsPs",
+            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Value": 1
           },
           {
-            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Name": "NggPipelineTypeVsGsPs",
+            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Value": 2
           },
           {
-            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsPs",
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Value": 4
           },
           {
-            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Value": 8
           },
           {
-            "Description": "Enabled for all pipeline types.",
             "Name": "NggPipelineTypeAll",
+            "Description": "Enabled for all pipeline types.",
             "Value": 15
           }
         ],
         "Name": "Gfx9NggPipelineType"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 1973955291,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "NggPipelineTypeAll"
       },
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "Type": "enum"
+      "VariableName": "nggEnableMode",
+      "Type": "enum",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
+      "Description": "Number of GS Prims Per Subgroup for regular launch NGG.",
       "Name": "NggRegLaunchGsPrimsPerSubgrp",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3995251135,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 0
       },
@@ -1557,14 +1523,14 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "Number of GS Prims Per Subgroup for regular launch NGG.",
-      "Type": "uint32",
-      "VariableName": "nggRegLaunchGsPrimsPerSubgrp"
+      "VariableName": "nggRegLaunchGsPrimsPerSubgrp",
+      "Type": "uint32"
     },
     {
+      "Description": "Target number of NGG waves per subgroup when running with fast launch NGG. Max of 4 waves per subgroup.",
       "Name": "NggFastLaunchWavesPerSubgrp",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2749143846,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 4
       },
@@ -1572,14 +1538,14 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "Target number of NGG waves per subgroup when running with fast launch NGG. Max of 4 waves per subgroup.",
-      "Type": "uint32",
-      "VariableName": "idealNggFastLaunchWavesPerSubgrp"
+      "VariableName": "idealNggFastLaunchWavesPerSubgrp",
+      "Type": "uint32"
     },
     {
+      "Description": "Controls the value for late-alloc GS for NGG pipelines. Can be no more than 127.",
       "Name": "NggLateAllocGs",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3217915194,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 127
       },
@@ -1587,176 +1553,176 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "Controls the value for late-alloc GS for NGG pipelines. Can be no more than 127.",
-      "Type": "uint32",
-      "VariableName": "nggLateAllocGs"
+      "VariableName": "nggLateAllocGs",
+      "Type": "uint32"
     },
     {
-      "Name": "EnableBackfaceCullMask",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "enableBackfaceCullMask",
-      "HashName": 1669167072,
-      "Defaults": {
-        "Default": "NggPipelineTypeDisabled"
-      },
       "Description": "Setting for the enablement of backface culling on a per-pipeline type basis. For quality purposes only.",
+      "Name": "EnableBackfaceCullMask",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disabled.",
             "Name": "NggPipelineTypeDisabled",
+            "Description": "Disabled.",
             "Value": 0
           },
           {
-            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Name": "NggPipelineTypeVsPs",
+            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Value": 1
           },
           {
-            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Name": "NggPipelineTypeVsGsPs",
+            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Value": 2
           },
           {
-            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsPs",
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Value": 4
           },
           {
-            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Value": 8
           },
           {
-            "Description": "Enabled for all pipeline types.",
             "Name": "NggPipelineTypeAll",
+            "Description": "Enabled for all pipeline types.",
             "Value": 15
           }
         ],
         "Name": "Gfx9NggPipelineType"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 1669167072,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "NggPipelineTypeDisabled"
       },
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "Type": "enum"
+      "VariableName": "enableBackfaceCullMask",
+      "Type": "enum",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
-      "Name": "EnableAccurateFrustumCullMask",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "enableAccurateFrustumCullMask",
-      "HashName": 1388275830,
-      "Defaults": {
-        "Default": "NggPipelineTypeDisabled"
-      },
       "Description": "Setting for the enablement of accurate frustum culling on a per-pipeline type basis. For quality purposes only.",
+      "Name": "EnableAccurateFrustumCullMask",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disabled.",
             "Name": "NggPipelineTypeDisabled",
+            "Description": "Disabled.",
             "Value": 0
           },
           {
-            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Name": "NggPipelineTypeVsPs",
+            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Value": 1
           },
           {
-            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Name": "NggPipelineTypeVsGsPs",
+            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Value": 2
           },
           {
-            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsPs",
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Value": 4
           },
           {
-            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Value": 8
           },
           {
-            "Description": "Enabled for all pipeline types.",
             "Name": "NggPipelineTypeAll",
+            "Description": "Enabled for all pipeline types.",
             "Value": 15
           }
         ],
         "Name": "Gfx9NggPipelineType"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
-      },
-      "Tags": [
-        "NGG Controls",
-        "Gfx9"
-      ],
-      "Type": "enum"
-    },
-    {
-      "Name": "EnableSmallPrimFilterMask",
+      "HashName": 1388275830,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "enableSmallPrimFilterMask",
-      "HashName": 2981395067,
       "Defaults": {
         "Default": "NggPipelineTypeDisabled"
       },
+      "Tags": [
+        "NGG Controls",
+        "Gfx9"
+      ],
+      "VariableName": "enableAccurateFrustumCullMask",
+      "Type": "enum",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
+    },
+    {
       "Description": "Setting for the enablement of small primitive filter culling on a per-pipeline type basis. For quality purposes only.",
+      "Name": "EnableSmallPrimFilterMask",
       "ValidValues": {
         "Values": [
           {
-            "Description": "Disabled.",
             "Name": "NggPipelineTypeDisabled",
+            "Description": "Disabled.",
             "Value": 0
           },
           {
-            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Name": "NggPipelineTypeVsPs",
+            "Description": "Enabled for all VsPs (VsPs) pipelines.",
             "Value": 1
           },
           {
-            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Name": "NggPipelineTypeVsGsPs",
+            "Description": "Enabled for all VsGsPs (Gs) pipelines.",
             "Value": 2
           },
           {
-            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsPs",
+            "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
             "Value": 4
           },
           {
-            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Name": "NggPipelineTypeVsHsDsGsPs",
+            "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
             "Value": 8
           },
           {
-            "Description": "Enabled for all pipeline types.",
             "Name": "NggPipelineTypeAll",
+            "Description": "Enabled for all pipeline types.",
             "Value": 15
           }
         ],
         "Name": "Gfx9NggPipelineType"
       },
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
+      "HashName": 2981395067,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "NggPipelineTypeDisabled"
       },
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
-      "Type": "enum"
+      "VariableName": "enableSmallPrimFilterMask",
+      "Type": "enum",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      }
     },
     {
+      "Description": "If true, enables faster launch rate for all NGG pipelines. For quality testing purposes only.",
       "Name": "NggEnableFasterLaunchRate",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2148773048,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": false
       },
@@ -1764,14 +1730,14 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "If true, enables faster launch rate for all NGG pipelines. For quality testing purposes only.",
-      "Type": "bool",
-      "VariableName": "nggEnableFasterLaunchRate"
+      "VariableName": "nggEnableFasterLaunchRate",
+      "Type": "bool"
     },
     {
+      "Description": "If true, enables VGT_SHADER_STAGES_EN::ORDERED_ID_MODE. Only applies to NGG piplines.",
       "Name": "EnableOrderedIdMode",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 2883144017,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -1779,14 +1745,14 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "If true, enables VGT_SHADER_STAGES_EN::ORDERED_ID_MODE. Only applies to NGG piplines.",
-      "Type": "bool",
-      "VariableName": "enableOrderedIdMode"
+      "VariableName": "enableOrderedIdMode",
+      "Type": "bool"
     },
     {
+      "Description": "Controls how many instances of the NGG shader-data tables will be contained in the ring buffer managed by Universal Command Buffers. At most, the constant engine will be able to get that many draws ahead of the draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires NGG will fail to compile because no SRD table is present.",
       "Name": "NggRingSize",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 3858230864,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 32
       },
@@ -1794,18 +1760,12 @@
         "NGG Controls",
         "Gfx9"
       ],
-      "Description": "Controls how many instances of the NGG shader-data tables will be contained in the ring buffer managed by Universal Command Buffers. At most, the constant engine will be able to get that many draws ahead of the draw engine. This must be either zero, or divisible by four. If zero, any pipeline which requires NGG will fail to compile because no SRD table is present.",
-      "Type": "uint32",
-      "VariableName": "nggRingSize"
+      "VariableName": "nggRingSize",
+      "Type": "uint32"
     },
     {
+      "Description": "Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin sizes 2 : Optimal ",
       "Name": "DeferredBatchBinMode",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "binningMode",
-      "HashName": 4130214844,
-      "Defaults": {
-        "Default": "Gfx9DeferredBatchBinAccurate"
-      },
       "ValidValues": {
         "Values": [
           {
@@ -1821,24 +1781,27 @@
             "Value": 2
           }
         ],
+        "IsExclusive": true,
         "IsEnum": true,
-        "Name": "Gfx9BinningMode",
-        "IsExclusive": true
+        "Name": "Gfx9BinningMode"
       },
-      "Description": "Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin sizes 2 : Optimal ",
+      "HashName": 4130214844,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "Gfx9DeferredBatchBinAccurate"
+      },
       "Tags": [
         "PBB and DFSM",
         "Gfx9"
       ],
+      "VariableName": "binningMode",
       "Type": "enum"
     },
     {
+      "Description": "Controls the custom batch bin size.  Only used when deferredBatchBinMode==1 High word is for x, low word is for y.  Default is 128x128.  Values must be power-of-two between 16 and 512",
       "Name": "CustomBatchBinSize",
-      "Flags": {
-        "IsHex": true
-      },
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 207210078,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 8388736
       },
@@ -1846,14 +1809,17 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "Controls the custom batch bin size.  Only used when deferredBatchBinMode==1 High word is for x, low word is for y.  Default is 128x128.  Values must be power-of-two between 16 and 512",
+      "VariableName": "customBatchBinSize",
       "Type": "uint32",
-      "VariableName": "customBatchBinSize"
+      "Flags": {
+        "IsHex": true
+      }
     },
     {
+      "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
       "Name": "DisableBinningPsKill",
-      "Scope": "PrivatePalGfx9Key",
       "HashName": 1197165395,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
@@ -1861,29 +1827,14 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
-      "Type": "bool",
-      "VariableName": "disableBinningPsKill"
+      "VariableName": "disableBinningPsKill",
+      "Type": "bool"
     },
     {
-      "Name": "DisableBinningNoDb",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 2139865571,
-      "Defaults": {
-        "Default": false
-      },
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
       "Description": "If true, binning is disabled if there is no depth buffer bound.",
-      "Type": "bool",
-      "VariableName": "disableBinningNoDb"
-    },
-    {
-      "Name": "DisableBinningBlendingOff",
+      "Name": "DisableBinningNoDb",
+      "HashName": 2139865571,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3568835784,
       "Defaults": {
         "Default": false
       },
@@ -1891,29 +1842,29 @@
         "PBB and DFSM",
         "Gfx9"
       ],
+      "VariableName": "disableBinningNoDb",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, binning is disabled if blending is disabled or blending does not require the destination color to be read.",
-      "Type": "bool",
-      "VariableName": "disableBinningBlendingOff"
-    },
-    {
-      "Name": "BinningMaxAllocCountLegacy",
+      "Name": "DisableBinningBlendingOff",
+      "HashName": 3568835784,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 681698893,
       "Defaults": {
-        "Default": 0
+        "Default": false
       },
       "Tags": [
         "PBB and DFSM",
         "Gfx9"
       ],
+      "VariableName": "disableBinningBlendingOff",
+      "Type": "bool"
+    },
+    {
       "Description": "Maximum amount of parameter storage per batch when not using NGG. Units are parameter cache lines divided by two. The maximum is value 128. Zero means calculate an optimal value based on the hardware configuration.",
-      "Type": "uint32",
-      "VariableName": "binningMaxAllocCountLegacy"
-    },
-    {
-      "Name": "BinningMaxAllocCountNggOnChip",
+      "Name": "BinningMaxAllocCountLegacy",
+      "HashName": 681698893,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2543003509,
       "Defaults": {
         "Default": 0
       },
@@ -1921,14 +1872,29 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. Units are parameter cache lines divided by two. Zero means calculate an optimal value based on the hardware configuration.",
-      "Type": "uint32",
-      "VariableName": "binningMaxAllocCountNggOnChip"
+      "VariableName": "binningMaxAllocCountLegacy",
+      "Type": "uint32"
     },
     {
-      "Name": "BinningMaxPrimPerBatch",
+      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. Units are parameter cache lines divided by two. Zero means calculate an optimal value based on the hardware configuration.",
+      "Name": "BinningMaxAllocCountNggOnChip",
+      "HashName": 2543003509,
       "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 0
+      },
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx9"
+      ],
+      "VariableName": "binningMaxAllocCountNggOnChip",
+      "Type": "uint32"
+    },
+    {
+      "Description": "Maximum number of primitives per batch. The maximum value is 1024.",
+      "Name": "BinningMaxPrimPerBatch",
       "HashName": 1317079767,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 1024
       },
@@ -1936,29 +1902,14 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "Maximum number of primitives per batch. The maximum value is 1024.",
-      "Type": "uint32",
-      "VariableName": "binningMaxPrimPerBatch"
+      "VariableName": "binningMaxPrimPerBatch",
+      "Type": "uint32"
     },
     {
-      "Name": "BinningContextStatesPerBin",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 1661639333,
-      "Defaults": {
-        "Default": 1
-      },
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
       "Description": "Maximum number of context rolls before breaking a batch. The maximum value is 6.",
-      "Type": "uint32",
-      "VariableName": "binningContextStatesPerBin"
-    },
-    {
-      "Name": "BinningPersistentStatesPerBin",
+      "Name": "BinningContextStatesPerBin",
+      "HashName": 1661639333,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 850748547,
       "Defaults": {
         "Default": 1
       },
@@ -1966,14 +1917,29 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "Maximum number of persistent states per batch. The maximum value is 31.",
-      "Type": "uint32",
-      "VariableName": "binningPersistentStatesPerBin"
+      "VariableName": "binningContextStatesPerBin",
+      "Type": "uint32"
     },
     {
-      "Name": "BinningFpovsPerBatch",
+      "Description": "Maximum number of persistent states per batch. The maximum value is 31.",
+      "Name": "BinningPersistentStatesPerBin",
+      "HashName": 850748547,
       "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": 1
+      },
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx9"
+      ],
+      "VariableName": "binningPersistentStatesPerBin",
+      "Type": "uint32"
+    },
+    {
+      "Description": "Maximum number of FPOV tokens allowed per batch. Zero means no limit.",
+      "Name": "BinningFpovsPerBatch",
       "HashName": 2093710317,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": 63
       },
@@ -1981,29 +1947,14 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "Maximum number of FPOV tokens allowed per batch. Zero means no limit.",
-      "Type": "uint32",
-      "VariableName": "binningFpovsPerBatch"
+      "VariableName": "binningFpovsPerBatch",
+      "Type": "uint32"
     },
     {
-      "Name": "BinningOptimalBinSelection",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 456360427,
-      "Defaults": {
-        "Default": true
-      },
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
       "Description": "Value for the PA_SC_BINNER_CNTL_1::OPTIMAL_BIN_SELECTION register field.",
-      "Type": "bool",
-      "VariableName": "binningOptimalBinSelection"
-    },
-    {
-      "Name": "BinningDisableBinningAppendConsume",
+      "Name": "BinningOptimalBinSelection",
+      "HashName": 456360427,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 380189375,
       "Defaults": {
         "Default": true
       },
@@ -2011,14 +1962,14 @@
         "PBB and DFSM",
         "Gfx9"
       ],
+      "VariableName": "binningOptimalBinSelection",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, disable Binning when the PS uses UAV append or consume",
-      "Type": "bool",
-      "VariableName": "disableBinningAppendConsume"
-    },
-    {
-      "Name": "DisableDfsm",
+      "Name": "BinningDisableBinningAppendConsume",
+      "HashName": 380189375,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2943779401,
       "Defaults": {
         "Default": true
       },
@@ -2026,14 +1977,14 @@
         "PBB and DFSM",
         "Gfx9"
       ],
+      "VariableName": "disableBinningAppendConsume",
+      "Type": "bool"
+    },
+    {
       "Description": "If true, DFSM is disabled.",
-      "Type": "bool",
-      "VariableName": "disableDfsm"
-    },
-    {
-      "Name": "DisableDfsmPsUav",
+      "Name": "DisableDfsm",
+      "HashName": 2943779401,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1592843420,
       "Defaults": {
         "Default": true
       },
@@ -2041,47 +1992,56 @@
         "PBB and DFSM",
         "Gfx9"
       ],
-      "Description": "If true, DFSM is disabled when the pixel shader uses UAVs or ROVs.",
-      "Type": "bool",
-      "VariableName": "disableDfsmPsUav"
+      "VariableName": "disableDfsm",
+      "Type": "bool"
     },
     {
-      "Name": "ShaderPrefetchMethod",
+      "Description": "If true, DFSM is disabled when the pixel shader uses UAVs or ROVs.",
+      "Name": "DisableDfsmPsUav",
+      "HashName": 1592843420,
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "shaderPrefetchMethod",
+      "Defaults": {
+        "Default": true
+      },
+      "Tags": [
+        "PBB and DFSM",
+        "Gfx9"
+      ],
+      "VariableName": "disableDfsmPsUav",
+      "Type": "bool"
+    },
+    {
+      "Description": "Select method of shader prefetching:  0: CP DMA (primes UTCL2 and TCC) 1: PRIME_UTCL2 (primes the UTCL2) ",
+      "Name": "ShaderPrefetchMethod",
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "PrefetchCpDma",
+            "Description": "CP DMA prefetching.",
+            "Value": 0
+          },
+          {
+            "Name": "PrefetchPrimeUtcL2",
+            "Description": "PRIME_UTCL2 (primes the UTCL2).",
+            "Value": 1
+          }
+        ],
+        "Name": "PrefetchMethod"
+      },
       "HashName": 3028994822,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": "PrefetchCpDma"
       },
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
-      "Description": "Select method of shader prefetching:  0: CP DMA (primes UTCL2 and TCC) 1: PRIME_UTCL2 (primes the UTCL2) ",
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "CP DMA prefetching.",
-            "Name": "PrefetchCpDma",
-            "Value": 0
-          },
-          {
-            "Description": "PRIME_UTCL2 (primes the UTCL2).",
-            "Name": "PrefetchPrimeUtcL2",
-            "Value": 1
-          }
-        ],
-        "Name": "PrefetchMethod"
-      },
+      "VariableName": "shaderPrefetchMethod",
       "Type": "enum"
     },
     {
+      "Description": "Controls whether CP command buffers are prefetched into the Gfx L2.",
       "Name": "PrefetchCommandBuffers",
-      "Scope": "PrivatePalGfx9Key",
-      "VariableName": "prefetchCommandBuffers",
-      "HashName": 3867574326,
-      "Defaults": {
-        "Default": "Gfx9PrefetchCommandsBuildInfo"
-      },
       "ValidValues": {
         "Values": [
           {
@@ -2104,32 +2064,23 @@
         "IsEnum": true,
         "Name": "Gfx9PrefetchCommands"
       },
-      "Description": "Controls whether CP command buffers are prefetched into the Gfx L2.",
+      "HashName": 3867574326,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": "Gfx9PrefetchCommandsBuildInfo"
+      },
       "Tags": [
         "Prefetching (L2 Cache Warming)",
         "Gfx9"
       ],
+      "VariableName": "prefetchCommandBuffers",
       "Type": "enum"
     },
     {
-      "Name": "AnisoFilterOptEnabled",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 958470227,
-      "Defaults": {
-        "Default": false
-      },
-      "Tags": [
-        "Texture Filtering",
-        "Gfx9"
-      ],
       "Description": "Controls whether anisotropic filtering optimizations are enabled.",
-      "Type": "bool",
-      "VariableName": "anisoFilterOptEnabled"
-    },
-    {
-      "Name": "CeilingLogicEnabled",
+      "Name": "AnisoFilterOptEnabled",
+      "HashName": 958470227,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2986992899,
       "Defaults": {
         "Default": false
       },
@@ -2137,44 +2088,44 @@
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "anisoFilterOptEnabled",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls whether the round-up logic for samplers is enabled.",
-      "Type": "bool",
-      "VariableName": "samplerCeilingLogicEnabled"
-    },
-    {
-      "Name": "PrecisionFixEnabled",
+      "Name": "CeilingLogicEnabled",
+      "HashName": 2986992899,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 286847775,
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Tags": [
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "samplerCeilingLogicEnabled",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls whether rounding of values coming out of the normalizer is enabled.",
-      "Type": "bool",
-      "VariableName": "samplerPrecisionFixEnabled"
-    },
-    {
-      "Name": "SamplerPerfMip",
+      "Name": "PrecisionFixEnabled",
+      "HashName": 286847775,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3696903510,
       "Defaults": {
-        "Default": 0
+        "Default": true
       },
       "Tags": [
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "samplerPrecisionFixEnabled",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls the value of the PERF_MIP field in Sampler SRD's.",
-      "Type": "uint32",
-      "VariableName": "samplerPerfMip"
-    },
-    {
-      "Name": "SamplerAnisoThreshold",
+      "Name": "SamplerPerfMip",
+      "HashName": 3696903510,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1521283108,
       "Defaults": {
         "Default": 0
       },
@@ -2182,14 +2133,14 @@
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "samplerPerfMip",
+      "Type": "uint32"
+    },
+    {
       "Description": "Controls the value of the anisotropy threshold for Sampler SRD's.",
-      "Type": "uint32",
-      "VariableName": "samplerAnisoThreshold"
-    },
-    {
-      "Name": "SamplerAnisoBias",
+      "Name": "SamplerAnisoThreshold",
+      "HashName": 1521283108,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 4085812096,
       "Defaults": {
         "Default": 0
       },
@@ -2197,14 +2148,14 @@
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "samplerAnisoThreshold",
+      "Type": "uint32"
+    },
+    {
       "Description": "Controls the value of the anisotropy bias for Sampler SRD's.",
-      "Type": "uint32",
-      "VariableName": "samplerAnisoBias"
-    },
-    {
-      "Name": "SamplerSecAnisoBias",
+      "Name": "SamplerAnisoBias",
+      "HashName": 4085812096,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2654965201,
       "Defaults": {
         "Default": 0
       },
@@ -2212,239 +2163,287 @@
         "Texture Filtering",
         "Gfx9"
       ],
+      "VariableName": "samplerAnisoBias",
+      "Type": "uint32"
+    },
+    {
       "Description": "Controls the value of the secondary anisotropy bias for Sampler SRD's.",
-      "Type": "uint32",
-      "VariableName": "samplerSecAnisoBias"
-    },
-    {
-      "Name": "WaRestrictMetaDataUseInMipTail",
+      "Name": "SamplerSecAnisoBias",
+      "HashName": 2654965201,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 599120928,
       "Defaults": {
-        "Default": false
+        "Default": 0
       },
       "Tags": [
-        "Hardware Workarounds"
+        "Texture Filtering",
+        "Gfx9"
       ],
+      "VariableName": "samplerSecAnisoBias",
+      "Type": "uint32"
+    },
+    {
       "Description": "If the workaround is enabled, then only those mips up to and including the first mip in the mip tail will be compressed.",
-      "Type": "bool",
-      "VariableName": "waRestrictMetaDataUseInMipTail"
-    },
-    {
-      "Name": "WaWrite1xAASampleLocationsToZero",
+      "Name": "WaRestrictMetaDataUseInMipTail",
+      "HashName": 599120928,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2042380720,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waRestrictMetaDataUseInMipTail",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
-      "Type": "bool",
-      "VariableName": "waWrite1xAASampleLocationsToZero"
-    },
-    {
-      "Name": "WaColorCacheControllerInvalidEviction",
+      "Name": "WaWrite1xAASampleLocationsToZero",
+      "HashName": 2042380720,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2330368444,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waWrite1xAASampleLocationsToZero",
+      "Type": "bool"
+    },
+    {
       "Description": "The overwrite combiner marks something as overwritten even if there are ensuingquads to the same sector that need dest",
-      "Type": "bool",
-      "VariableName": "waColorCacheControllerInvalidEviction"
-    },
-    {
-      "Name": "WaOverwriteCombinerTargetMaskOnly",
+      "Name": "WaColorCacheControllerInvalidEviction",
+      "HashName": 2330368444,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1670732044,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waColorCacheControllerInvalidEviction",
+      "Type": "bool"
+    },
+    {
       "Description": "The overwrite combiner takes only the target mask into consideration while decidingto overwrite combine whereas the other parts of the CB decide on shader mask andtarget mask. This discrepancy may lead to the overwrite combiner incorrectly signalinga read optimization when shader and target mask are different",
-      "Type": "bool",
-      "VariableName": "waOverwriteCombinerTargetMaskOnly"
-    },
-    {
-      "Name": "WaDisableHtilePrefetch",
+      "Name": "WaOverwriteCombinerTargetMaskOnly",
+      "HashName": 1670732044,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 4011209522,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waOverwriteCombinerTargetMaskOnly",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls if hTile prefetch is disbled.",
-      "Type": "bool",
-      "VariableName": "waDisableHtilePrefetch"
-    },
-    {
-      "Name": "WaMiscPopsMissedOverlap",
+      "Name": "WaDisableHtilePrefetch",
+      "HashName": 4011209522,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2170713611,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waDisableHtilePrefetch",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls if STALLED_POPS is used or not.",
-      "Type": "bool",
-      "VariableName": "waMiscPopsMissedOverlap"
-    },
-    {
-      "Name": "WaMiscScissorRegisterChange",
+      "Name": "WaMiscPopsMissedOverlap",
+      "HashName": 2170713611,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3580876344,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waMiscPopsMissedOverlap",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls if whenever a context roll is detected whether the scissor registers will be rewritten.",
-      "Type": "bool",
-      "VariableName": "waMiscScissorRegisterChange"
-    },
-    {
-      "Name": "WaMiscPsFlushScissorChange",
+      "Name": "WaMiscScissorRegisterChange",
+      "HashName": 3580876344,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 2611268564,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waMiscScissorRegisterChange",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls if a PS_PARTIAL_FLUSH is used whenever the scissor top-left or bottom-right registers change.",
-      "Type": "bool",
-      "VariableName": "waMiscPsFlushScissorChange"
-    },
-    {
-      "Name": "WaHtilePipeBankXorMustBeZero",
+      "Name": "WaMiscPsFlushScissorChange",
+      "HashName": 2611268564,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 264312760,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waMiscPsFlushScissorChange",
+      "Type": "bool"
+    },
+    {
       "Description": "If set, hTile buffers support non-zero pipe-bank xor values.",
-      "Type": "bool",
-      "VariableName": "waHtilePipeBankXorMustBeZero"
-    },
-    {
-      "Name": "WaDisableDfsmWithEqaa",
+      "Name": "WaHtilePipeBankXorMustBeZero",
+      "HashName": 264312760,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3435751213,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waHtilePipeBankXorMustBeZero",
+      "Type": "bool"
+    },
+    {
       "Description": "If set, DFSM will be disabled when EQAA surfaces are bound to the DB",
-      "Type": "bool",
-      "VariableName": "waDisableDfsmWithEqaa"
-    },
-    {
-      "Name": "WaDisable24BitHWFormatForTCCompatibleDepth",
+      "Name": "WaDisableDfsmWithEqaa",
+      "HashName": 3435751213,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 1925370123,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waDisableDfsmWithEqaa",
+      "Type": "bool"
+    },
+    {
       "Description": "If set PAL will not set 24_8 hw format for 24-32bit converted depth surfaces, this will fix fast clear expansion with TC compatible surfaces (but also return incorrect unclamped border color.)",
-      "Type": "bool",
-      "VariableName": "waDisable24BitHWFormatForTCCompatibleDepth"
-    },
-    {
-      "Name": "WaDummyZpassDoneBeforeTs",
+      "Name": "WaDisable24BitHWFormatForTCCompatibleDepth",
+      "HashName": 1925370123,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 814916412,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
-      "Description": "On Gfx9, the DB can delay tile write requests in such a way that its pending write ack counters can underflow while processing EOP timestamps. The workaround is to issue a ZPASS_DONE event before each timestamp event because it will add pending writes which are lower priority than the tile writes so they will fence the delayed writes. Defaults to TRUE for Gfx9, FALSE for others.",
-      "Type": "bool",
-      "VariableName": "waDummyZpassDoneBeforeTs"
+      "VariableName": "waDisable24BitHWFormatForTCCompatibleDepth",
+      "Type": "bool"
     },
     {
-      "Name": "WaMetaAliasingFixEnabled",
+      "Description": "On Gfx9, the DB can delay tile write requests in such a way that its pending write ack counters can underflow while processing EOP timestamps. The workaround is to issue a ZPASS_DONE event before each timestamp event because it will add pending writes which are lower priority than the tile writes so they will fence the delayed writes. Defaults to TRUE for Gfx9, FALSE for others.",
+      "Name": "WaDummyZpassDoneBeforeTs",
+      "HashName": 814916412,
       "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": false
+      },
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "VariableName": "waDummyZpassDoneBeforeTs",
+      "Type": "bool"
+    },
+    {
+      "Description": "On Gfx9, the meta-addressing equation can theoretically map multiple pixels to the same This fix prevents that from happening.  Meta-equation generated by driver must match the meta equation as generated by the silicon.  Products that do not have the fix have no HW configurations that expose the problem.",
+      "Name": "WaMetaAliasingFixEnabled",
       "HashName": 3182155668,
+      "Scope": "PrivatePalGfx9Key",
       "Defaults": {
         "Default": true
       },
       "Tags": [
         "Hardware Workarounds"
       ],
-      "Description": "On Gfx9, the meta-addressing equation can theoretically map multiple pixels to the same This fix prevents that from happening.  Meta-equation generated by driver must match the meta equation as generated by the silicon.  Products that do not have the fix have no HW configurations that expose the problem.",
-      "Type": "bool",
-      "VariableName": "waMetaAliasingFixEnabled"
+      "VariableName": "waMetaAliasingFixEnabled",
+      "Type": "bool"
     },
     {
-      "Name": "WaForce256bCbFetch",
-      "Scope": "PrivatePalGfx9Key",
-      "HashName": 2944333716,
-      "Defaults": {
-        "Default": false
-      },
-      "Tags": [
-        "Hardware Workarounds"
-      ],
       "Description": "If set PAL sets CB_COLOR_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX = 1 for mip levels in the tail that aren't the largest.",
-      "Type": "bool",
-      "VariableName": "waForce256bCbFetch"
-    },
-    {
-      "Name": "WaCmaskImageSyncs",
+      "Name": "WaForce256bCbFetch",
+      "HashName": 2944333716,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3002384369,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waForce256bCbFetch",
+      "Type": "bool"
+    },
+    {
       "Description": "If set, align image allocation size up to fragment size when Cmask is present, but continue to issue GCN ranged syncs operations using the original, unpadded size.",
-      "Type": "bool",
-      "VariableName": "waCmaskImageSyncs"
-    },
-    {
-      "Name": "WaDepthStencilTargetMetadataNeedsTccFlush",
+      "Name": "WaCmaskImageSyncs",
+      "HashName": 3002384369,
       "Scope": "PrivatePalGfx9Key",
-      "HashName": 3167089535,
       "Defaults": {
         "Default": false
       },
       "Tags": [
         "Hardware Workarounds"
       ],
+      "VariableName": "waCmaskImageSyncs",
+      "Type": "bool"
+    },
+    {
       "Description": "Controls whether to F/I TCC when working with depth/stencil targets that use HTile. This is required on Gfx9 by shader reads if the target is MSAA, has stencil, or has metadata in the mip tail region.",
-      "Type": "bool",
-      "VariableName": "waDepthStencilTargetMetadataNeedsTccFlush"
+      "Name": "WaDepthStencilTargetMetadataNeedsTccFlush",
+      "HashName": 3167089535,
+      "Scope": "PrivatePalGfx9Key",
+      "Defaults": {
+        "Default": false
+      },
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "VariableName": "waDepthStencilTargetMetadataNeedsTccFlush",
+      "Type": "bool"
     }
   ],
-  "DriverState": [
-    "HaltedOnDeviceInit"
+  "Enums": [
+    {
+      "Name": "Gfx9NggPipelineType",
+      "IsEnum": true,
+      "Values": [
+        {
+          "Name": "NggPipelineTypeDisabled",
+          "Description": "Disabled.",
+          "Value": 0
+        },
+        {
+          "Name": "NggPipelineTypeVsPs",
+          "Description": "Enabled for all VsPs (VsPs) pipelines.",
+          "Value": 1
+        },
+        {
+          "Name": "NggPipelineTypeVsGsPs",
+          "Description": "Enabled for all VsGsPs (Gs) pipelines.",
+          "Value": 2
+        },
+        {
+          "Name": "NggPipelineTypeVsHsDsPs",
+          "Description": "Enabled for all VsHsDsPs (Tess) pipelines.",
+          "Value": 4
+        },
+        {
+          "Name": "NggPipelineTypeVsHsDsGsPs",
+          "Description": "Enabled for all VsHsDsGsPs (GsTess) pipelines.",
+          "Value": 8
+        },
+        {
+          "Name": "NggPipelineTypeAll",
+          "Description": "Enabled for all pipeline types.",
+          "Value": 15
+        }
+      ]
+    }
   ],
-  "Hwl": "Gfx9",
   "Tags": [
     "General",
     "Cache flush",
@@ -2459,5 +2458,6 @@
     "Texture Filtering",
     "Hardware Workarounds",
     "Gfx9"
-  ]
+  ],
+  "ComponentName": "Gfx9_Pal"
 }

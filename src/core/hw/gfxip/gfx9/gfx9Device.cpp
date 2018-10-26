@@ -2125,7 +2125,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         srd.word3.bits.DST_SEL_Y = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.g);
         srd.word3.bits.DST_SEL_Z = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.b);
         srd.word3.bits.DST_SEL_W = Formats::Gfx9::HwSwizzle(viewInfo.swizzledFormat.swizzle.a);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414
+#if ((PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 414) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 446))
         // We need to use D swizzle mode for writing an image with view3dAs2dArray feature enabled.
         // But when reading from it, we need to use S mode.
         // In AddrSwizzleMode, S mode is always right before D mode, so we simply do a "-1" here.
@@ -2487,7 +2487,11 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
 
             pSrd->word2.bits.BLEND_ZERO_PRT     = pInfo->flags.prtBlendZeroMode;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
             pSrd->word2.bits.MIP_POINT_PRECLAMP = (pInfo->flags.dx9Mipclamping == 1) ? 0 : 1;
+#else
+            pSrd->word2.bits.MIP_POINT_PRECLAMP = 0;
+#endif
             pSrd->word2.bits.FILTER_PREC_FIX    = settings.samplerPrecisionFixEnabled;
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
@@ -2713,17 +2717,20 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
     }
 
-    pInfo->gfx9.numShaderArrays         = 1;
-    pInfo->gfx9.numSimdPerCu            = NumSimdPerCu;
-    pInfo->gfx9.numWavesPerSimd         = NumWavesPerSimd;
-    pInfo->gfx9.wavefrontSize           = 64;
-    pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
-    pInfo->gfx9.numPhysicalSgprs        = PhysicalSgprsPerSimd;
-    pInfo->gfx9.sgprAllocGranularity    = 16;
-    pInfo->gfx9.minSgprAlloc            = 16;
-    pInfo->gfx9.numPhysicalVgprs        = 256;
-    pInfo->gfx9.vgprAllocGranularity    = 4;
-    pInfo->gfx9.minVgprAlloc            = 4;
+    {
+        pInfo->gfx9.numShaderArrays         = 1;
+        pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;
+        pInfo->gfx9.numWavesPerSimd         = Gfx9NumWavesPerSimd;
+        pInfo->gfx9.wavefrontSize           = 64;
+        pInfo->gfx9.numShaderVisibleSgprs   = MaxSgprsAvailable;
+        pInfo->gfx9.numPhysicalSgprs        = Gfx9PhysicalSgprsPerSimd;
+        pInfo->gfx9.sgprAllocGranularity    = 16;
+        pInfo->gfx9.minSgprAlloc            = 16;
+        pInfo->gfx9.numPhysicalVgprs        = 256;
+        pInfo->gfx9.vgprAllocGranularity    = 4;
+        pInfo->gfx9.minVgprAlloc            = 4;
+    }
+
     pInfo->gfx9.gsVgtTableDepth         = 32;
     pInfo->gfx9.gsPrimBufferDepth       = 1792;
     pInfo->gfx9.doubleOffchipLdsBuffers = 1;

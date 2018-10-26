@@ -28,7 +28,7 @@ elseif(UNIX)
         # target_compile_options(metrohash PRIVATE -Wno-unused-parameter -Wno-shift-negative-value -Wno-type-limits)
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         #message(STATUS "Configured compiler options for Clang.")
         message(WARNING "Clang is untested.")
     else()

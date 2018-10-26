@@ -1848,6 +1848,7 @@ uint32 Device::GetSupportedSwapChainModes(
     return swapchainModes;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
 // =====================================================================================================================
 Result Device::GetConnectorIdFromOutput(
     OsDisplayHandle hDisplay,
@@ -1857,6 +1858,7 @@ Result Device::GetConnectorIdFromOutput(
 {
     return WindowSystem::GetConnectorIdFromOutput(this, hDisplay, randrOutput, wsiPlatform, pConnectorId);
 }
+#endif
 
 // =====================================================================================================================
 size_t Device::GetSwapChainSize(

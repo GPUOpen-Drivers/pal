@@ -109,8 +109,9 @@ public:
         int64               visualId);
 
     virtual Result CreatePresentableImage(
-        Image*              pImage,
-        int32               sharedBufferFd) override;
+        SwapChain* pSwapChain,
+        Image*     pImage,
+        int32      sharedBufferFd) override;
 
     virtual void DestroyPresentableImage(
         WindowSystemImageHandle hImage) override;

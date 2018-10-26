@@ -162,7 +162,8 @@ namespace DevDriver
                                             m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
                                             m_traceParameters.flags.u32All = traceParameters.flags.u32All;
                                         }
-                                        else if (pSession->GetVersion() == RGP_TRIGGER_MARKERS_VERSION)
+                                        else if ((pSession->GetVersion() == RGP_TRIGGER_MARKERS_VERSION) ||
+                                                 (pSession->GetVersion() == RGP_PENDING_ABORT_VERSION))
                                         {
                                             const TraceParametersV4& traceParameters = pSessionData->payload.executeTraceRequestV4.parameters;
                                             m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;

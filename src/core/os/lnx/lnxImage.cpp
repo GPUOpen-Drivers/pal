@@ -51,7 +51,8 @@ Image::Image(
                internalCreateInfo),
     m_presentImageHandle(NullImageHandle),
     m_pWindowSystem(nullptr),
-    m_framebufferId(0)
+    m_framebufferId(0),
+    m_idle(true)
 {
 }
 
@@ -216,7 +217,8 @@ Result Image::UpdateExternalImageInfo(
     Result result = Result::Success;
     auto*const pLnxImage        = static_cast<Image*>(pImage);
     auto*const pLnxGpuMemory    = static_cast<GpuMemory*>(pGpuMemory);
-    auto*const  pWindowSystem   = static_cast<SwapChain*>(createInfo.pSwapChain)->GetWindowSystem();
+    auto*const pSwapChain       = static_cast<SwapChain*>(createInfo.pSwapChain);
+    auto*const pWindowSystem    = pSwapChain->GetWindowSystem();
     Pal::GpuMemoryExportInfo exportInfo = {};
     const int32 sharedBufferFd  = static_cast<int32>(pLnxGpuMemory->ExportExternalHandle(exportInfo));
 
@@ -229,7 +231,8 @@ Result Image::UpdateExternalImageInfo(
         // can destroy this image handle later on.
         pLnxImage->m_pWindowSystem = pWindowSystem;
 
-        result = pWindowSystem->CreatePresentableImage(pLnxImage,
+        result = pWindowSystem->CreatePresentableImage(pSwapChain,
+                                                       pLnxImage,
                                                        sharedBufferFd);
     }
 

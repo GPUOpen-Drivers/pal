@@ -21,7 +21,7 @@ elseif(UNIX)
         target_compile_options(cwpack PRIVATE -pthread -fPIC)
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         message(WARNING "Clang is untested.")
         target_compile_options(cwpack PRIVATE -pthread -fPIC)
     else()

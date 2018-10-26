@@ -39,7 +39,7 @@ if(UNIX)
         target_compile_options(vam PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused -Wno-ignored-qualifiers -Wno-missing-field-initializers>)
 
         message(STATUS "Configured ${PROJECT_NAME} compiler options for GCC.")
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         #message(STATUS "Configured compiler options for Clang.")
         message(WARNING "Clang is untested.")
     else()

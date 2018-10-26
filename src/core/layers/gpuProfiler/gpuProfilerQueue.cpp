@@ -56,7 +56,6 @@ Queue::Queue(
     m_shaderEngineCount(0),
     m_pCmdAllocator(nullptr),
     m_replayAllocator(64 * 1024),
-    m_pGlobalPerfCounterValues(nullptr),
     m_availableCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
     m_availableNestedCmdBufs(static_cast<Platform*>(pDevice->GetPlatform())),
@@ -156,8 +155,6 @@ Queue::~Queue()
         PAL_SAFE_FREE(m_pCmdAllocator, m_pDevice->GetPlatform());
     }
 
-    PAL_SAFE_FREE(m_pGlobalPerfCounterValues, m_pDevice->GetPlatform());
-
     DestroyGpaSessionSampleConfig();
 }
 
@@ -211,23 +208,9 @@ Result Queue::Init()
     // Note that global perf counters are disabled if this value is zero.
     const uint32 numGlobalPerfCounters = m_pDevice->NumGlobalPerfCounters();
     const PerfCounter* pPerfCounters   = m_pDevice->GlobalPerfCounters();
-    if (numGlobalPerfCounters > 0)
+    if ((result == Result::Success) && (numGlobalPerfCounters > 0))
     {
-        if (result == Result::Success)
-        {
-            m_numReportedPerfCounters = numGlobalPerfCounters;
-
-            // Allocate enough space for one 64-bit counter per global perf counter.
-            const size_t size = sizeof(uint64) * m_numReportedPerfCounters;
-
-            m_pGlobalPerfCounterValues =
-                static_cast<uint64*>(PAL_MALLOC(size, m_pDevice->GetPlatform(), AllocInternal));
-
-            if (m_pGlobalPerfCounterValues == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
+        m_numReportedPerfCounters = numGlobalPerfCounters;
     }
 
     return result;

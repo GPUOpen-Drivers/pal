@@ -98,6 +98,7 @@ namespace DevDriver
             DeviceClockCallbackInfo m_deviceClockCallbackInfo;
             Platform::Atomic m_numSessions;
             Platform::Atomic m_stepCounter;
+            bool m_initStepRequested;
 
             DD_STATIC_CONST uint32 kBroadcastIntervalInMs = 100;
             DD_STATIC_CONST uint32 kDefaultDriverStartTimeoutMs = 1000;

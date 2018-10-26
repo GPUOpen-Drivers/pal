@@ -747,38 +747,5 @@ uint32* ThreadTrace::WriteStopCommands(
     return pCmdSpace;
 }
 
-// =====================================================================================================================
-// Issues the PM4 commands necessary to insert a thread trace marker. Returns the next unused DWORD in pCmdSpace.
-uint32* ThreadTrace::WriteInsertMarker(
-    PerfTraceMarkerType markerType, ///< Trace marker type
-    uint32              data,       ///< Trace marker data payload
-    CmdStream*          pCmdStream,
-    uint32*             pCmdSpace
-    ) const
-{
-
-    uint32 userDataRegAddr = 0;
-    switch (markerType)
-    {
-    case PerfTraceMarkerType::A:
-        userDataRegAddr = m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2;
-        break;
-
-    case PerfTraceMarkerType::B:
-        userDataRegAddr = m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3;
-        break;
-
-    default:
-        break;
-    }
-
-    // If this assert fires, we forgot to add a thread trace marker type to this method!
-    PAL_ASSERT(userDataRegAddr != 0);
-
-    // Writing the SQ_THREAD_TRACE_USERDATA_* register will cause the thread trace to insert
-    // a user-data event with value of the register.
-    return pCmdStream->WriteSetOnePerfCtrReg(userDataRegAddr, data, pCmdSpace);
-}
-
 } // Gfx6
 } // Pal

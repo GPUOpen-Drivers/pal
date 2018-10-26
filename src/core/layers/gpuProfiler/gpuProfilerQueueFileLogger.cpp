@@ -29,6 +29,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
 #include "gpuUtil/sqtt_file_format.h"
+#include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palGpaSession.h"
 
@@ -264,7 +265,7 @@ void Queue::OpenSqttFile(
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/frame%06uDev%uEng%s%u-%02u.SqttCmdBuf%uTrace%uSe%uCu%u%s.out",
+             "%s/frame%06uDev%uEng%s%u-%02u.SqttCmdBuf%uTrace%uSe%uCu%u%s.ttv",
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
@@ -277,7 +278,7 @@ void Queue::OpenSqttFile(
              computeUnitId,
              crcInfo);
 
-    Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
+    Result result = pFile->Open(&logFilePath[0], FileAccessWrite | FileAccessBinary);
     PAL_ASSERT(result == Result::Success);
 }
 
@@ -601,20 +602,21 @@ void Queue::OutputGlobalPerfCountersToFile(
 
         if (result == Result::Success)
         {
-            PAL_ASSERT(m_pGlobalPerfCounterValues != nullptr);
+            AutoBuffer<uint64, 128, PlatformDecorator> data(m_numReportedPerfCounters, m_pDevice->GetPlatform());
+            PAL_ASSERT(data.Capacity() >= m_numReportedPerfCounters);
 
             // Zero out the reported value for each counter.  The results from each instance of that counter will be
             // accumulated into this array.
-            memset(m_pGlobalPerfCounterValues, 0, sizeof(uint64) * m_numReportedPerfCounters);
 
             const PerfCounter* pPerfCounters = m_pDevice->GlobalPerfCounters();
             uint32 pidIndex = 0;
 
             for (uint32 i = 0; i < numGlobalPerfCounters; i++)
             {
+                data[i] = 0;
                 for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
                 {
-                    m_pGlobalPerfCounterValues[i] += static_cast<uint64*>(pResult)[pidIndex++];
+                    data[i] += static_cast<uint64*>(pResult)[pidIndex++];
                 }
             }
 
@@ -625,7 +627,7 @@ void Queue::OutputGlobalPerfCountersToFile(
             // Output into .csv file.
             for (uint32 i = 0; i < m_numReportedPerfCounters; i++)
             {
-                m_logFile.Printf("%llu,", m_pGlobalPerfCounterValues[i]);
+                m_logFile.Printf("%llu,", data[i]);
             }
         }
     }
@@ -728,37 +730,9 @@ void Queue::OutputTraceDataToFile(
                         const uint32 shaderEngine = pDesc->shaderEngineIndex;
                         const uint32 computeUnit = pDesc->v1.computeUnitIndex;
 
-                        // Output thread trace data.
                         OpenSqttFile(shaderEngine, computeUnit, m_curLogSqttIdx, &logFile, logItem);
-
-                        // The ThreadTraceView app expects the raw data to be dumped with one 16-bit hex per line.
-                        const uint32 tokenCount = pData->size / sizeof(uint16);
-
-                        constexpr uint32 LineLength = 5; // 4 hex digits + newline
-                        const uint32 outputBufSize  = tokenCount * LineLength;
-                        char* pOutputBuf            = static_cast<char*>(
-                            PAL_MALLOC(outputBufSize, m_pDevice->GetPlatform(), AllocInternalTemp));
-                        char* pCurLine              = pOutputBuf;
-
-                        uint16* pRawData = static_cast<uint16*>(pResult);
-
-                        // Equivalent to sprintf(curLine, "%04x\n", ...) but much faster since dumps can be huge
-                        // Looks up each half of a byte (nibble) here, then shifts 4 bits to next nibble
-                        constexpr char NibbleLut[] = "0123456789abcdef";
-                        for (uint32 j = 0; j < tokenCount; j++)
-                        {
-                            uint16 curData = *pRawData++;
-                            for (int8 k = LineLength - 2; k >= 0; k--)
-                            {
-                                pCurLine[k] = NibbleLut[curData & 0x0F];
-                                curData >>= 4;
-                            }
-                            pCurLine[LineLength - 1] = '\n';
-                            pCurLine += LineLength;
-                        }
-                        logFile.Write(pOutputBuf, outputBufSize);
+                        logFile.Write(pResult, pData->size);
                         logFile.Close();
-                        PAL_SAFE_FREE(pOutputBuf, m_pDevice->GetPlatform());
 
                         pResult = Util::VoidPtrInc(pResult, pData->size);
                         pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);

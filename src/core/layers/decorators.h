@@ -1034,12 +1034,14 @@ public:
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override
         { return m_pNextLayer->DetermineHwStereoRenderingSupported(viewInstancingInfo); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     virtual Result GetConnectorIdFromOutput(
         OsDisplayHandle hDisplay,
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) override
         { return m_pNextLayer->GetConnectorIdFromOutput(hDisplay, randrOutput, wsiPlatform, pConnectorId); }
+#endif
 
     virtual const char* GetCacheFilePath() const override
         { return m_pNextLayer->GetCacheFilePath(); }

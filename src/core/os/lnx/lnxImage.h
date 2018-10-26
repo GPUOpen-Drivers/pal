@@ -110,6 +110,10 @@ public:
 
     void SetFramebufferId(uint32 fbId) { m_framebufferId = fbId; }
     uint32 GetFrameBufferId() const { return m_framebufferId; }
+
+    void SetIdle(bool idle) { m_idle = idle; }
+    bool GetIdle(void) const { return m_idle; }
+
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 
@@ -118,8 +122,9 @@ private:
     // For X Window system it's a pixmap handle of the shared buffer used for presentation.
     // For direct rendering display, it's a handle of dma-buf.
     WindowSystemImageHandle m_presentImageHandle;
-    WindowSystem*           m_pWindowSystem;       // The window system that created the above handle.
-    uint32                  m_framebufferId;       // Framebuffer ID of the framebuffer to be presented.
+    WindowSystem*           m_pWindowSystem;    // The window system that created the above handle.
+    uint32                  m_framebufferId;    // Framebuffer ID of the framebuffer to be presented.
+    bool                    m_idle;             // True indicates the buffer is not owned by Window System, Wayland only
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

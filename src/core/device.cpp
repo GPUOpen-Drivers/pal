@@ -1761,7 +1761,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx6Props.numShaderEngines *
                                                                      gfx6Props.numShaderArrays *
                                                                      gfx6Props.numCuPerSh;
-            pInfo->gfxipProperties.shaderCore.numTotalCus          = gfx6Props.numShaderEngines *
+            pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx6Props.numShaderEngines *
                                                                      gfx6Props.numShaderArrays *
                                                                      gfx6Props.maxNumCuPerSh;
 #endif

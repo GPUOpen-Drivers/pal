@@ -133,14 +133,14 @@ using RegisterVector = Util::SparseVector<
 constexpr uint32 MaxSgprsAvailable = 104;
 
 // Number of SGPRs physically present per SIMD
-constexpr uint32 PhysicalSgprsPerSimd = 800;
+constexpr uint32 Gfx9PhysicalSgprsPerSimd = 800;
 
 // Number of SIMDs per Compute Unit
-constexpr uint32 NumSimdPerCu = 4;
+constexpr uint32 Gfx9NumSimdPerCu = 4;
 
 // The maximum number of waves per SIMD and Compute Unit.
-constexpr uint32 NumWavesPerSimd = 10;
-constexpr uint32 NumWavesPerCu   = NumWavesPerSimd * NumSimdPerCu;
+constexpr uint32 Gfx9NumWavesPerSimd = 10;
+constexpr uint32 Gfx9NumWavesPerCu   = Gfx9NumWavesPerSimd * Gfx9NumSimdPerCu;
 
 // Enumerates the possible hardware stages which a shader can run as.  GFX9 combines several shader stages:
 // 1) LS + HS have been combined into a HS stage.  Note that the registers that control this stage are still

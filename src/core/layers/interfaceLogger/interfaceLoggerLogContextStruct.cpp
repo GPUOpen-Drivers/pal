@@ -2360,10 +2360,12 @@ void LogContext::Struct(
         Value("prtBlendZeroMode");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
     if (value.flags.dx9Mipclamping)
     {
         Value("dx9Mipclamping");
     }
+#endif
 
     EndList();
     EndMap();

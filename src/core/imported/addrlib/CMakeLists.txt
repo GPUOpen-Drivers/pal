@@ -155,7 +155,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         endif()
     endif()
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
     # [Clang] Command Line Argument Reference
     #    https://clang.llvm.org/docs/ClangCommandLineReference.html

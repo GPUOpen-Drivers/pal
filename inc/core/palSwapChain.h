@@ -95,6 +95,24 @@ enum SurfaceTransformFlags : uint32
                                                     ///  window system commands.
 };
 
+/// Indicates the alpha compositing mode to use when the surface is composited on certain window systems
+enum class CompositeAlphaMode : uint32
+{
+    Opaque          = 0x1, ///< The alpha channel of the images is ignored.
+    PreMultiplied   = 0x2, ///< The alpha channel of the image is respected and the non-alpha
+                           ///  channels of the image are expected to already be multiplied
+                           ///  by the alpha channel by the application.
+    PostMultiplied  = 0x3, ///< The alpha channel of the image is respected and the non-alpha
+                           ///  channels of the image are expected to already be multiplied
+                           ///  by the alpha channel by the application; instead, the compositor
+                           ///  will multiply the non-alpha channels of the image by the alpha
+                           ///  channel during compositing
+    Inherit         = 0x4, ///< The way in which the presentation engine treats the alpha channel
+                           ///  in the images is unknown. Instead, the application is responsible
+                           ///  for setting the composite alpha blending mode using native window
+                           ///  system commands.
+};
+
 /// This structure specifies the information needed by client to create swap chain and to present an image. Surface
 /// here is an abstraction for a window and a physical output device.
 struct SwapChainProperties
@@ -139,6 +157,10 @@ struct SwapChainCreateInfo
     ImageUsageFlags       imageUsageFlags;     ///< Indicate how the presentation images will be used.
     SurfaceTransformFlags preTransform;        ///< The transform, relative to the device's natural orientation, applied
                                                ///  to the image content prior to presentation.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 445
+    CompositeAlphaMode    compositeAlpha;      ///< Indicate the alpha compositing mode to use when this surface is
+                                               ///  composited together with other surfaces on certain window systems.
+#endif
     uint32                imageArraySize;      ///< Determines the number of views for multiview/stereo presentation.
     SwapChainMode         swapChainMode;       ///< How to process and queue this swap chain's presentation requests.
     IScreen*              pScreen;             ///< The IScreen object associated with swap chain. It's needed only when

@@ -764,32 +764,6 @@ void PerfExperiment::IssueResume(
 }
 
 // =====================================================================================================================
-// Asks all active thread traces to insert a trace marker into their trace data streams.
-void PerfExperiment::InsertTraceMarker(
-    CmdStream*          pCmdStream,
-    PerfTraceMarkerType markerType,
-    uint32              data
-    ) const
-{
-    PAL_ASSERT(IsFinalized() && HasThreadTraces());
-
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
-
-    // Loop over all active thread traces and instruct them to insert a trace marker. No more than four thread traces
-    // can be active at once so it should be safe to use the same reserve buffer.
-    for (size_t idx = 0; idx < m_numThreadTrace; ++idx)
-    {
-        if (m_pThreadTrace[idx] != nullptr)
-        {
-            auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
-            pCmdSpace = pTrace->WriteInsertMarker(markerType, data, pCmdStream, pCmdSpace);
-        }
-    }
-
-    pCmdStream->CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
 // Optionally pause the recording of performance data if this Experiment does not record during internal operations
 // (e.g., blts, resource preparation, etc.).
 void PerfExperiment::BeginInternalOps(

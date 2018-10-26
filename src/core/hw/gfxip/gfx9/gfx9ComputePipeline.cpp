@@ -340,7 +340,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSh(
     if (maxWavesPerCu > 0)
     {
         const auto&  gfx9ChipProps        = m_pDevice->Parent()->ChipProperties().gfx9;
-        const uint32 numWavefrontsPerCu   = (NumSimdPerCu * gfx9ChipProps.numWavesPerSimd);
+        const uint32 numWavefrontsPerCu   = (gfx9ChipProps.numSimdPerCu * gfx9ChipProps.numWavesPerSimd);
         const uint32 maxWavesPerShCompute = numWavefrontsPerCu * gfx9ChipProps.numCuPerSh;
 
         // We assume no one is trying to use more than 100% of all waves.

@@ -712,6 +712,16 @@ private:
         uint32 reserved            : 28;
     } m_flags;
 
+    union
+    {
+        struct
+        {
+            uint8 sqThreadTraceActive : 1;
+            uint8 reserved            : 7;
+        };
+        uint8 u8All;
+    } m_sampleFlags;
+
     // Track current bound pipeline/shader state during replay.
     PipelineInfo m_computePipelineInfo;
     PipelineInfo m_graphicsPipelineInfo;

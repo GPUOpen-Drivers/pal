@@ -1348,7 +1348,7 @@ void GraphicsPipeline::SetupLateAllocVs(
         uint32 numCuForLateAllocVs = chipProps.gfx9.numCuPerSh;
 
         // Compute the maximum number of HW-VS wavefronts that can launch per SH, based on GPR usage.
-        const uint32 simdPerSh = (numCuForLateAllocVs * NumSimdPerCu);
+        const uint32 simdPerSh = (numCuForLateAllocVs * chipProps.gfx9.numSimdPerCu);
         const uint32 maxSgprVsWaves = (chipProps.gfx9.numPhysicalSgprs / vsNumSgpr) * simdPerSh;
         const uint32 maxVgprVsWaves = (chipProps.gfx9.numPhysicalVgprs / vsNumVgpr) * simdPerSh;
 

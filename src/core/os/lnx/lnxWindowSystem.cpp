@@ -292,6 +292,7 @@ Result WindowSystem::DeterminePresentationSupported(
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
 // =====================================================================================================================
 Result WindowSystem::GetConnectorIdFromOutput(
     Device*         pDevice,
@@ -321,6 +322,7 @@ Result WindowSystem::GetConnectorIdFromOutput(
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 Result WindowSystem::AcquireScreenAccess(

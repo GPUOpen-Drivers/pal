@@ -1624,11 +1624,17 @@ struct SamplerInfo
                                              ///  is written with all 0s when TFE == 0; if set to 1, Treat unmapped
                                              ///  texels as zeros and blend them with other mapped texels, write the
                                              ///  result of this sample instruction to the destination GPRs.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
             uint32 dx9Mipclamping      : 1;  ///< Specifies whether to follow dx9 spec to clamp mip id in hardware.
                                              ///  DX10+ requires a 0.5 offset before clamping, while DX9 does not.
+#endif
             uint32 useAnisoThreshold   : 1;  ///< If set, Hw will use the value assigned in anisoThreshold, but
                                              ///  only if preciseAniso is set to 0, also.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
             uint32 reserved            : 24; ///< Reserved for future use
+#else
+            uint32 reserved            : 25; ///< Reserved for future use
+#endif
         };
         uint32 u32All;                ///< Value of flags bitfield
     } flags;
@@ -4256,6 +4262,7 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 447
     /// Get connector ID from RandR output object.
     ///
     /// @param [in]   hDisplay        Display handle of the window system.
@@ -4270,6 +4277,7 @@ public:
         uint32          randrOutput,
         WsiPlatform     wsiPlatform,
         uint32*         pConnectorId) = 0;
+#endif
 
     /// Get file path used to put all files for cache purpose
     ///
