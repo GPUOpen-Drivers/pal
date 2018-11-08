@@ -321,6 +321,70 @@ uint32* Gfx9SpmTrace::WriteEndCommands(
 }
 
 // =====================================================================================================================
+// Converts the thread trace token config to the HW format for programming the SQTT_TOKEN_MASK register.
+void Gfx9ThreadTrace::GetHwTokenConfig(
+    const ThreadTraceTokenConfig& tokenConfig, // [in] The input token config.
+    SqttTokenMask*                pTokenMask,  // [out] The token mask in HW format.
+    SqttRegMask*                  pRegMask     // [out] The reg mask in HW format.
+    ) const
+{
+    const auto& configTokens  = tokenConfig.tokenMask;
+    const auto& configRegMask = tokenConfig.regMask;
+
+    PAL_ASSERT((pTokenMask != nullptr) && (pRegMask != nullptr));
+
+    if (configTokens == ThreadTraceTokenTypeFlags::All)
+    {
+        // Enable all token types except Perf.
+        pTokenMask->u16All = 0xBFFF;
+    }
+    else
+    {
+        // Perf counter gathering in thread trace is not supported currently.
+        PAL_ASSERT((configTokens & ThreadTraceTokenTypeFlags::Perf) == 0);
+
+        pTokenMask->misc         = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Misc         );
+        pTokenMask->timestamp    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Timestamp    );
+        pTokenMask->reg          = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Reg          );
+        pTokenMask->waveStart    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::WaveStart    );
+        pTokenMask->waveAlloc    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::WaveAlloc    );
+        pTokenMask->regCsPriv    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::RegCsPriv    );
+        pTokenMask->waveEnd      = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::WaveEnd      );
+        pTokenMask->event        = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Event        );
+        pTokenMask->eventCs      = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::EventCs      );
+        pTokenMask->eventGfx1    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::EventGfx1    );
+        pTokenMask->inst         = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Inst         );
+        pTokenMask->instPc       = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::InstPc       );
+        pTokenMask->instUserData = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::InstUserData );
+        pTokenMask->issue        = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Issue        );
+        pTokenMask->regCs        = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::RegCs        );
+    }
+
+    // There is no option to choose between register reads and writes in TT2.1, so we enable all register ops.
+    const bool allRegs = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::AllRegWrites) ||
+                         Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::AllRegReads)  ||
+                         Util::TestAllFlagsSet(configRegMask, ThreadTraceRegTypeFlags::AllReadsAndWrites);
+
+    if (allRegs)
+    {
+        //Note: According to the thread trace programming guide, the "other" bit must always be set to 0
+        pRegMask->u8All = 0x7F;
+    }
+    else
+    {
+        pRegMask->eventInitiator         = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::EventRegs);
+        pRegMask->drawInitiator          = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::DrawRegs);
+        pRegMask->dispatchInitiator      = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::DispatchRegs);
+        pRegMask->userData               = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::UserdataRegs);
+        pRegMask->gfxdec                 = Util::TestAnyFlagSet(configRegMask,
+                                                                ThreadTraceRegTypeFlags::GraphicsContextRegs);
+        pRegMask->shdec                  = Util::TestAnyFlagSet(configRegMask,
+                                                                ThreadTraceRegTypeFlags::ShaderLaunchStateRegs);
+        pRegMask->ttMarkerEventInitiator = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::MarkerRegs);
+    }
+}
+
+// =====================================================================================================================
 ThreadTrace::ThreadTrace(
     const Device*        pDevice,   ///< [retained] Associated Device object
     const ThreadTraceInfo& info)    ///< [in] Trace creation info
@@ -399,14 +463,24 @@ void Gfx9ThreadTrace::SetOptions()
     const auto& flags  = m_info.optionFlags;
     const auto& values = m_info.optionValues;
 
-    if (flags.threadTraceTokenMask)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
+    if (flags.threadTraceTokenConfig)
     {
-        m_sqThreadTraceTokenMask.gfx09.TOKEN_MASK = values.threadTraceTokenMask;
-    }
+#else
+    if (flags.threadTraceTokenMask || flags.threadTraceRegMask)
+    {
+        ThreadTraceTokenConfig tokenConfig = { values.threadTraceTokenMask, values.threadTraceRegMask };
+#endif
+        SqttTokenMask tokenMask = {};
+        SqttRegMask   regMask   = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
+        GetHwTokenConfig(values.threadTraceTokenConfig, &tokenMask, &regMask);
+#else
+        GetHwTokenConfig(tokenConfig, &tokenMask, &regMask);
+#endif
 
-    if (flags.threadTraceRegMask)
-    {
-        m_sqThreadTraceTokenMask.gfx09.REG_MASK = values.threadTraceRegMask;
+        m_sqThreadTraceTokenMask.gfx09.TOKEN_MASK = tokenMask.u16All;
+        m_sqThreadTraceTokenMask.gfx09.REG_MASK   = regMask.u8All;
     }
 
     if (flags.threadTraceTargetSh)
@@ -536,6 +610,13 @@ uint32* Gfx9ThreadTrace::WriteSetupCommands(
                                                   sqThreadTraceBase.u32All,
                                                   pCmdSpace);
 
+    // Clear translation errors
+    regSQ_THREAD_TRACE_STATUS sqThreadTraceStatus = {};
+    sqThreadTraceStatus.gfx09.UTC_ERROR = 0;
+    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_STATUS,
+                                                  sqThreadTraceStatus.u32All,
+                                                  pCmdSpace);
+
     // Write the perf counter registers which control the thread trace properties.
     pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_SIZE,
                                                   m_sqThreadTraceSize.u32All,
@@ -565,17 +646,23 @@ uint32* Gfx9ThreadTrace::WriteSetupCommands(
 // =====================================================================================================================
 // Writes the commands required to update the sqtt token mask.
 uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace,
-    uint32     sqttTokenMask
+    CmdStream*                    pCmdStream,
+    uint32*                       pCmdSpace,
+    const ThreadTraceTokenConfig& sqttTokenConfig
     ) const
 {
     // Set GRBM_GFX_INDEX to isolate the SE/SH this trace is associated with.
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
 
+    SqttTokenMask tokenMask = {};
+    SqttRegMask   regMask   = {};
+    GetHwTokenConfig(sqttTokenConfig, &tokenMask, &regMask);
+
     // Update the token mask register
     regSQ_THREAD_TRACE_TOKEN_MASK tokenMaskReg = m_sqThreadTraceTokenMask;
-    tokenMaskReg.gfx09.TOKEN_MASK = sqttTokenMask;
+    tokenMaskReg.gfx09.TOKEN_MASK = tokenMask.u16All;
+    tokenMaskReg.gfx09.REG_MASK   = regMask.u8All;
+
     pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx09::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                   tokenMaskReg.u32All,
                                                   pCmdSpace);
@@ -718,19 +805,21 @@ Result Gfx9ThreadTrace::Init()
         result = Result::ErrorInvalidValue;
     }
 
-    if ((result == Result::Success)  &&
-        (flags.threadTraceTokenMask) &&
-        ((values.threadTraceTokenMask & TokenMaskAll) != values.threadTraceTokenMask))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+    // Thread trace token mask must be specified when creating a thread trace.
+    if ((result == Result::Success) && (flags.threadTraceTokenMask) && (values.threadTraceTokenMask == 0))
     {
         result = Result::ErrorInvalidValue;
     }
-
-    if ((result == Result::Success) &&
-        (flags.threadTraceRegMask)  &&
-        ((values.threadTraceRegMask & RegMaskAll) != values.threadTraceRegMask))
+#else
+    if ((result == Result::Success)                    &&
+        (flags.threadTraceTokenConfig)                 &&
+        (values.threadTraceTokenConfig.tokenMask == 0) &&
+        (values.threadTraceTokenConfig.regMask == 0))
     {
         result = Result::ErrorInvalidValue;
     }
+#endif
 
     if ((result == Result::Success) &&
         (flags.threadTraceTargetSh) &&

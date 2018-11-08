@@ -562,6 +562,10 @@ Result Queue::CreateTrackedCmdBuffer(
         createInfo.queueType           = m_type;
         createInfo.engineType          = m_engineType;
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
+        createInfo.engineSubType = m_pDevice->EngineProperties().perEngine[m_engineType].engineSubType[m_engineId];
+#endif
+
         CmdBufferInternalCreateInfo internalInfo = {};
         internalInfo.flags.isInternal            = 1;
 

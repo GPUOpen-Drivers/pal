@@ -937,11 +937,11 @@ size_t CmdUtil::BuildCopyDataInternal(
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
 template <bool dimInThreads, bool forceStartAt000>
 size_t CmdUtil::BuildDispatchDirect(
-    uint32       xDim,      // Thread groups (or threads) to launch (X dimension).
-    uint32       yDim,      // Thread groups (or threads) to launch (Y dimension).
-    uint32       zDim,      // Thread groups (or threads) to launch (Z dimension).
-    Pm4Predicate predicate, // Predication enable control. Must be PredDisable on the Compute Engine.
-    void*        pBuffer    // [out] Build the PM4 packet in this buffer.
+    uint32          xDim,      // Thread groups (or threads) to launch (X dimension).
+    uint32          yDim,      // Thread groups (or threads) to launch (Y dimension).
+    uint32          zDim,      // Thread groups (or threads) to launch (Z dimension).
+    Pm4Predicate    predicate, // Predication enable control. Must be PredDisable on the Compute Engine.
+    void*           pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
     regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator;
@@ -972,25 +972,25 @@ size_t CmdUtil::BuildDispatchDirect(
 
 template
 size_t CmdUtil::BuildDispatchDirect<true, true>(
-    uint32       xDim,
-    uint32       yDim,
-    uint32       zDim,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
+    uint32          xDim,
+    uint32          yDim,
+    uint32          zDim,
+    Pm4Predicate    predicate,
+    void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, false>(
-    uint32       xDim,
-    uint32       yDim,
-    uint32       zDim,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
+    uint32          xDim,
+    uint32          yDim,
+    uint32          zDim,
+    Pm4Predicate    predicate,
+    void*           pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, true>(
-    uint32       xDim,
-    uint32       yDim,
-    uint32       zDim,
-    Pm4Predicate predicate,
-    void*        pBuffer) const;
+    uint32          xDim,
+    uint32          yDim,
+    uint32          zDim,
+    Pm4Predicate    predicate,
+    void*           pBuffer) const;
 
 // =====================================================================================================================
 // Builds a DISPATCH_INDIRECT packet for the GFX engine. Returns the size of the PM4 command assembled, in DWORDs.
@@ -1023,8 +1023,8 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
 // Builds a DISPATCH_INDIRECT packet for the MEC. Returns the size of the PM4 command assembled, in DWORDs.
 // This packet has different sizes between ME compute and ME gfx.
 size_t CmdUtil::BuildDispatchIndirectMec(
-    gpusize address,   // Address of the indirect args data.
-    void*   pBuffer    // [out] Build the PM4 packet in this buffer.
+    gpusize       address,   // Address of the indirect args data.
+    void*         pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
     // Address must be 32-bit aligned

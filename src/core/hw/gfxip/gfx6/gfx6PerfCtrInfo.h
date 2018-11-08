@@ -315,8 +315,8 @@ constexpr uint32 MaximumRandomSeed = 0xFFFF;
 
 /// Default thread trace SIMD mask: enable all four SIMD's.
 constexpr uint32 SimdMaskAll = 0xF;
-/// Default thread trace Token mask: enable all 16 token types.
-constexpr uint32 TokenMaskAll = 0xFFFF;
+/// Default thread trace Token mask: enable 15 out of the  16 token types (exclude perf token type).
+constexpr uint32 TokenMaskAll = 0xBFFF;
 /// Default thread trace register mask: enable all 8 register types.
 constexpr uint32 RegMaskAll = 0xFF;
 /// Default thread trace CU mask: enable all CU's in a shader array.

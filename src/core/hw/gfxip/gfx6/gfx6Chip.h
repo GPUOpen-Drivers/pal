@@ -621,10 +621,5 @@ extern const GraphicsPipelineSignature NullGfxSignature;
 // Special value indicating that a pipeline or shader does not need its user-data entries to be spilled.
 constexpr uint16 NoUserDataSpilling = static_cast<uint16>(0xFFFF);
 
-// CP microcode version numbers which supports the new INDEX_ATTRIBUTES_INDIRECT packet. This packet is completely
-// unsupported on Gfx6 hardware because it is only useful for Gfx7+ hardware.
-constexpr uint32 MicrocodeVersionIndexAttribIndirectGfx7 = 28;
-constexpr uint32 MicrocodeVersionIndexAttribIndirectGfx8 = 36;
-
 } // Gfx6
 } // Pal

@@ -31,6 +31,7 @@
 #include "core/os/lnx/lnxHeaders.h"
 
 #if PAL_HAVE_WAYLAND_PLATFORM
+#include "core/os/lnx/wayland/g_waylandLoader.h"
 #endif
 
 namespace Pal
@@ -60,6 +61,7 @@ public:
     const Dri3Loader&    GetDri3Loader();
     const DrmLoader&     GetDrmLoader();
 #if PAL_HAVE_WAYLAND_PLATFORM
+    const WaylandLoader& GetWaylandLoader();
 #endif
 
     virtual Result GetPrimaryLayout(
@@ -92,6 +94,7 @@ protected:
     Dri3Loader    m_dri3Loader;
     DrmLoader     m_drmLoader;
 #if PAL_HAVE_WAYLAND_PLATFORM
+    WaylandLoader m_waylandLoader;
 #endif
 
 #if defined(PAL_DEBUG_PRINTS)

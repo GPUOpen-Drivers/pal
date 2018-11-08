@@ -636,8 +636,19 @@ Result GpuMemory::Init(
 
     m_pPinnedMemory                  = createInfo.pSysMem;
     m_desc.size                      = createInfo.size;
-    m_desc.alignment                 =
-        m_pDevice->MemoryProperties().realMemAllocGranularity;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 450
+    if (createInfo.alignment != 0)
+    {
+        m_desc.alignment             = createInfo.alignment;
+    }
+    else
+#endif
+    {
+        m_desc.alignment             =
+            m_pDevice->MemoryProperties().realMemAllocGranularity;
+    }
+
     m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
 
     // Scan the list of available GPU heaps to determine which heap(s) this pinned allocation will end up in.

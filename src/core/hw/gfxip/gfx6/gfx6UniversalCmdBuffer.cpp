@@ -331,7 +331,6 @@ Result UniversalCmdBuffer::Init(
 
             ceRamOffset += (sizeof(uint32) * m_indirectUserDataInfo[id].state.sizeInDwords);
         }
-
     }
 
     return result;
@@ -393,6 +392,8 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
+    const auto& chipProps = m_device.Parent()->ChipProperties();
+
     Pal::UniversalCmdBuffer::ResetState();
 
     if (m_cachedSettings.issueSqttMarkerEvent)
@@ -430,7 +431,7 @@ void UniversalCmdBuffer::ResetState()
     m_streamOut.srd[0].word0.bits.BASE_ADDRESS = 1;
     for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
     {
-        m_streamOut.srd[i].word2.bits.NUM_RECORDS = StreamOutNumRecords(m_device.Parent()->ChipProperties(), 0);
+        m_streamOut.srd[i].word2.bits.NUM_RECORDS = StreamOutNumRecords(chipProps, 0);
     }
 
     ResetUserDataTable(&m_streamOut.state);
@@ -457,7 +458,7 @@ void UniversalCmdBuffer::ResetState()
         m_drawTimeHwState.valid.dbCountControl = 1;
     }
 
-    if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp6)
+    if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
     {
         m_drawTimeHwState.dbCountControl.bits.ZPASS_ENABLE__CI__VI      = 1;
         m_drawTimeHwState.dbCountControl.bits.SLICE_EVEN_ENABLE__CI__VI = 1;
@@ -2925,21 +2926,23 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     // are not changing will be handled through the normal "pipeline not changing" path.
     uint8 changedStageMask = 0; // Mask of all stages whose mappings are changing.
 
+    uint32* pDeCmdSpace = (*ppDeCmdSpace);
+
     if (TessEnabled)
     {
         if (m_pSignatureGfx->userDataHash[LsStageId] != pPrevSignature->userDataHash[LsStageId])
         {
             changedStageMask |= (1 << LsStageId);
-            (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[LsStageId],
-                                                                                 m_graphicsState.gfxUserDataEntries,
-                                                                                 (*ppDeCmdSpace));
+            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[LsStageId],
+                                                                             m_graphicsState.gfxUserDataEntries,
+                                                                             pDeCmdSpace);
         }
         if (m_pSignatureGfx->userDataHash[HsStageId] != pPrevSignature->userDataHash[HsStageId])
         {
             changedStageMask |= (1 << HsStageId);
-            (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[HsStageId],
-                                                                                 m_graphicsState.gfxUserDataEntries,
-                                                                                 (*ppDeCmdSpace));
+            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[HsStageId],
+                                                                             m_graphicsState.gfxUserDataEntries,
+                                                                             pDeCmdSpace);
         }
     }
     if (GsEnabled)
@@ -2947,32 +2950,34 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
         if (m_pSignatureGfx->userDataHash[EsStageId] != pPrevSignature->userDataHash[EsStageId])
         {
             changedStageMask |= (1 << EsStageId);
-            (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[EsStageId],
-                                                                                 m_graphicsState.gfxUserDataEntries,
-                                                                                 (*ppDeCmdSpace));
+            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[EsStageId],
+                                                                             m_graphicsState.gfxUserDataEntries,
+                                                                             pDeCmdSpace);
         }
         if (m_pSignatureGfx->userDataHash[GsStageId] != pPrevSignature->userDataHash[GsStageId])
         {
             changedStageMask |= (1 << GsStageId);
-            (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[GsStageId],
-                                                                                 m_graphicsState.gfxUserDataEntries,
-                                                                                 (*ppDeCmdSpace));
+            pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[GsStageId],
+                                                                             m_graphicsState.gfxUserDataEntries,
+                                                                             pDeCmdSpace);
         }
     }
     if (m_pSignatureGfx->userDataHash[VsStageId] != pPrevSignature->userDataHash[VsStageId])
     {
         changedStageMask |= (1 << VsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[VsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[VsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
     if (m_pSignatureGfx->userDataHash[PsStageId] != pPrevSignature->userDataHash[PsStageId])
     {
         changedStageMask |= (1 << PsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[PsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[PsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
+
+    (*ppDeCmdSpace) = pDeCmdSpace;
 
     return changedStageMask;
 }
@@ -5573,6 +5578,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxPm4Hash = cmdBuffer.m_pipelineCtxPm4Hash;
     m_spiPsInControl     = cmdBuffer.m_spiPsInControl;
     m_spiVsOutConfig     = cmdBuffer.m_spiVsOutConfig;
+
+    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
+    m_gfxCmdBufState.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.gfxBltActive;
+    m_gfxCmdBufState.csBltActive               = cmdBuffer.m_gfxCmdBufState.csBltActive;
+    m_gfxCmdBufState.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.gfxWriteCachesDirty;
+    m_gfxCmdBufState.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.csWriteCachesDirty;
+    m_gfxCmdBufState.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.cpWriteCachesDirty;
+    m_gfxCmdBufState.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.cpMemoryWriteL2CacheStale;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the

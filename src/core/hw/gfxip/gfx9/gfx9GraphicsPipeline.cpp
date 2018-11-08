@@ -66,7 +66,6 @@ const GraphicsPipelineSignature NullGfxSignature =
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
 static uint8 Rop3(LogicOp logicOp);
-static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format);
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
 
@@ -88,6 +87,7 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmPA_CL_VTE_CNTL
     1 + // mmPA_SC_LINE_CNTL
     0 + // mmPA_STEREO_CNTL is not included because it is not present on all HW
+    0 + // mmVGT_GS_ONCHIP_CNTL is not included because it is not required for all pipeline types.
     1 + // mmSPI_INTERP_CONTROL_0
     1;  // mmVGT_VERTEX_REUSE_BLOCK_CNTL
 
@@ -256,7 +256,8 @@ void GraphicsPipeline::EarlyInit(
         pInfo->loadedShRegCount = BaseLoadedShRegCount;
 
         pInfo->loadedCtxRegCount =
-            (regInfo.mmPaStereoCntl != 0)      + // mmPA_STEREO_CNTL
+            (regInfo.mmPaStereoCntl != 0)                          + // mmPA_STEREO_CNTL
+            (IsGsEnabled() || IsNgg() || IsTessEnabled())          + // mmVGT_GS_ONCHIP_CNTL
             BaseLoadedCntxRegCount;
     }
 
@@ -742,6 +743,18 @@ void GraphicsPipeline::BuildPm4Headers(
         m_commands.set.context.spaceNeeded +=
             cmdUtil.BuildSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
                                           &m_commands.set.context.hdrVgtVertexReuseBlockCntl);
+
+        if (IsGsEnabled() || IsNgg() || IsTessEnabled())
+        {
+            m_commands.set.context.spaceNeeded +=
+                cmdUtil.BuildSetOneContextReg(mmVGT_GS_ONCHIP_CNTL,
+                                              &m_commands.set.context.hdrVgtGsOnchipCntl);
+        }
+        else
+        {
+            m_commands.set.context.spaceNeeded +=
+                cmdUtil.BuildNop(CmdUtil::ContextRegSizeDwords + 1, &m_commands.set.context.hdrVgtGsOnchipCntl);
+        }
     } // if EnableLoadIndexPath == false
 }
 
@@ -786,10 +799,11 @@ void GraphicsPipeline::SetupCommonRegisters(
     const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
-    m_commands.set.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
-    m_commands.set.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
-    m_commands.set.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
-    m_paScModeCntl1.u32All                     = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_commands.set.context.paClClipCntl.u32All    = registers.At(mmPA_CL_CLIP_CNTL);
+    m_commands.set.context.paClVteCntl.u32All     = registers.At(mmPA_CL_VTE_CNTL);
+    m_commands.set.context.paSuVtxCntl.u32All     = registers.At(mmPA_SU_VTX_CNTL);
+    m_paScModeCntl1.u32All                        = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_commands.set.context.vgtGsOnchipCntl.u32All = registers.At(mmVGT_GS_ONCHIP_CNTL);
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.
@@ -1292,6 +1306,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         pUploader->AddCtxReg(mmCB_COLOR_CONTROL, m_commands.set.context.cbColorControl);
         pUploader->AddCtxReg(mmCB_SHADER_MASK,   m_commands.set.context.cbShaderMask);
         pUploader->AddCtxReg(mmCB_TARGET_MASK,   m_commands.set.context.cbTargetMask);
+        if (IsGsEnabled() || IsNgg() || IsTessEnabled())
+        {
+            pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL, m_commands.set.context.vgtGsOnchipCntl);
+        }
 
     }
 }
@@ -1303,6 +1321,7 @@ void GraphicsPipeline::SetupLateAllocVs(
     GraphicsPipelineUploader* pUploader)
 {
     const auto pPalSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto gfx9Settings = m_pDevice->Settings();
 
     regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
     spiShaderPgmRsrc1Vs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_VS);
@@ -1330,9 +1349,17 @@ void GraphicsPipeline::SetupLateAllocVs(
     const uint32 vsNumSgpr = (spiShaderPgmRsrc1Vs.bits.SGPRS * 8);
     const uint32 vsNumVgpr = (spiShaderPgmRsrc1Vs.bits.VGPRS * 4);
 
-    if (m_pDevice->UseFixedLateAllocVsLimit())
+    if (gfx9Settings.lateAllocVs == LateAllocVsBehaviorDisabled)
     {
-        lateAllocLimit = m_pDevice->LateAllocVsLimit();
+        // Disable late alloc vs entirely
+        lateAllocLimit = 0;
+    }
+    else if (m_pDevice->UseFixedLateAllocVsLimit())
+    {
+        // When using the fixed wave limit scheme, just accept the client or device specified target value.  The
+        // fixed scheme mandates that we are disabling a CU from running VS work, so any limit the client may
+        // have specified is safe.
+        lateAllocLimit = targetLateAllocLimit;
     }
     else if ((targetLateAllocLimit > 0) && (vsNumSgpr > 0) && (vsNumVgpr > 0))
     {
@@ -1372,11 +1399,11 @@ void GraphicsPipeline::SetupLateAllocVs(
         {
             lateAllocLimit = ((maxVsWaves > 1) ? (maxVsWaves - 1) : 1);
         }
-
-        // The late alloc setting is the number of wavefronts minus one.  On GFX7+ at least one VS wave always can
-        // launch with late alloc enabled.
-        lateAllocLimit -= 1;
     }
+
+    // The late alloc setting is the number of wavefronts minus one.  On GFX7+ at least one VS wave always can
+    // launch with late alloc enabled.
+    lateAllocLimit = (lateAllocLimit > 0) ? (lateAllocLimit - 1) : 0;
 
     const uint32 programmedLimit = Min(lateAllocLimit, maxLateAllocLimit);
     if (m_gfxLevel == GfxIpLevel::GfxIp9)
@@ -1754,8 +1781,9 @@ static uint8 Rop3(
 // =====================================================================================================================
 // Returns the SX "downconvert" format with respect to the channel format of the color buffer target.
 // This method is for the RbPlus feature which is identical to the gfx8.1 implementation.
-static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(
-    ChNumFormat format)
+SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
+    ChNumFormat format
+    ) const
 {
     SX_DOWNCONVERT_FORMAT sxDownConvertFormat = SX_RT_EXPORT_NO_CONVERSION;
 
@@ -2077,16 +2105,9 @@ void GraphicsPipeline::SetupStereoRegisters()
 bool GraphicsPipeline::IsNggFastLaunch() const
 {
     const auto&  device       = *(m_pDevice->Parent());
-    uint32       gsFastLaunch = 0;
-
-    if (IsVega10(device) || IsRaven(device))
-    {
-        gsFastLaunch = m_commands.set.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH;
-    }
-    else
-    {
-        gsFastLaunch = m_commands.set.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH;
-    }
+    const uint32 gsFastLaunch = (IsGfx091xPlus(device)
+                                 ? m_commands.set.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH
+                                 : m_commands.set.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH);
 
     return (gsFastLaunch != 0);
 }

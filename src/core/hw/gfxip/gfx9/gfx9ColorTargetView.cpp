@@ -348,6 +348,12 @@ void ColorTargetView::InitCommonImageView(
     if (m_flags.hasDcc != 0)
     {
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc()->GetControlReg();
+        if (internalInfo.flags.fastClearElim && IsGfx091xPlus(*(m_pDevice->Parent())))
+        {
+            // Without this, the CB will not expand the compress-to-register (0x20) keys.
+            dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+        }
+
         pPm4Img->cbColorDccControl = dccControl;
 
         pCbColorInfo->bits.DCC_ENABLE = 1;

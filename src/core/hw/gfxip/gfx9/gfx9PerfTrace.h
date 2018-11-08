@@ -81,9 +81,9 @@ public:
     virtual uint32* WriteSetupCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
     virtual uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
     virtual uint32* WriteUpdateSqttTokenMaskCommands(
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace,
-        uint32     sqttTokenMask) const = 0;
+        CmdStream*                    pCmdStream,
+        uint32*                       pCmdSpace,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
     virtual uint32* WriteStopCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
 
     virtual Result Init() { return Result::Success; }
@@ -121,9 +121,9 @@ public:
         uint32*    pCmdSpace) const override;
 
     virtual uint32* WriteUpdateSqttTokenMaskCommands(
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace,
-        uint32     sqttTokenMask) const override;
+        CmdStream*                    pCmdStream,
+        uint32*                       pCmdSpace,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const override;
 
     virtual uint32* WriteStopCommands(
         gpusize    baseGpuVirtAddr,
@@ -133,13 +133,57 @@ public:
     Result Init() override;
 
 private:
+    union SqttTokenMask
+    {
+        struct
+        {
+            uint16 misc         : 1;
+            uint16 timestamp    : 1;
+            uint16 reg          : 1;
+            uint16 waveStart    : 1;
+            uint16 waveAlloc    : 1;
+            uint16 regCsPriv    : 1;
+            uint16 waveEnd      : 1;
+            uint16 event        : 1;
+            uint16 eventCs      : 1;
+            uint16 eventGfx1    : 1;
+            uint16 inst         : 1;
+            uint16 instPc       : 1;
+            uint16 instUserData : 1;
+            uint16 issue        : 1;
+            uint16 perf         : 1;
+            uint16 regCs        : 1;
+        };
+
+        uint16 u16All;
+    };
+
+    union SqttRegMask
+    {
+        struct
+        {
+            uint8 eventInitiator         : 1;
+            uint8 drawInitiator          : 1;
+            uint8 dispatchInitiator      : 1;
+            uint8 userData               : 1;
+            uint8 ttMarkerEventInitiator : 1;
+            uint8 gfxdec                 : 1;
+            uint8 shdec                  : 1;
+            uint8 other                  : 1;
+        };
+        uint8 u8All;
+    };
+
     void    SetOptions();
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
+                          SqttTokenMask*                pTokenMask,
+                          SqttRegMask*                  pRegMask) const;
 
     /// Default thread trace SIMD mask: enable all four SIMD's.
     static constexpr uint32 SimdMaskAll = 0xF;
-    /// Default thread trace Token mask: enable all 16 token types.
-    static constexpr uint32 TokenMaskAll = 0xFFFF;
+    /// Default thread trace Token mask: enable 15 out of the 16 token types (excluding perf token type).
+    static constexpr uint32 TokenMaskAll = 0xBFFF;
     /// Default thread trace register mask: enable all 8 register types.
     static constexpr uint32 RegMaskAll = 0xFF;
     /// Default thread trace CU mask: enable all CU's in a shader array.

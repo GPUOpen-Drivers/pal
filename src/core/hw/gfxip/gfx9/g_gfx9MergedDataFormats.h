@@ -252,6 +252,10 @@ constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBMXP = static_cast<FormatFeatur
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBMXP = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP | Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIaIflTrTwTaCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBMXP |
                                                                                         FormatFeatureDepthTarget);
+constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmCBX     = static_cast<FormatFeatureFlags>(IrXsIwXdCBX |
+                                                                                        Ia |
+                                                                                        Ifl |
+                                                                                        Ifmm);
 constexpr FormatFeatureFlags IrXsIwXdIaIflIfmmTrTwTaCBDMX = static_cast<FormatFeatureFlags>(IrXsIwXdIaIflTrTwTaCBDMX | Ifmm);
 
 // Lookup table for GPU access capabilities for each format/tiling-type pairing in Gfx9.

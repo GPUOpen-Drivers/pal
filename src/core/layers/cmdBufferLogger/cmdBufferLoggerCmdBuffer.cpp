@@ -3716,8 +3716,8 @@ void CmdBuffer::CmdBeginPerfExperiment(
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
-    IPerfExperiment* pPerfExperiment,
-    uint32           sqttTokenMask)
+    IPerfExperiment*              pPerfExperiment,
+    const ThreadTraceTokenConfig& sqttTokenConfig)
 {
     if (m_flags.logMiscellaneous)
     {
@@ -3726,7 +3726,7 @@ void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenMask);
+    GetNextLayer()->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenConfig);
 }
 
 // =====================================================================================================================

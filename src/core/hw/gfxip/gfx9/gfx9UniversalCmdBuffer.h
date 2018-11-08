@@ -981,6 +981,8 @@ private:
 
     BinningMode GetDisableBinningSetting() const;
 
+    uint32 GetDccControl(uint32 bppMoreThan64) const;
+
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
 

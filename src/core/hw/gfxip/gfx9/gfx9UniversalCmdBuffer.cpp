@@ -62,9 +62,6 @@ namespace Gfx9
 // Microcode version for NGG Indexed Indirect Draw support.
 constexpr uint32 UcodeVersionNggIndexedIndirectDraw  = 34;
 
-// Microcode version for SET_SH_REG_OFFSET with 256B alignment.
-constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
-
 // Lookup table for converting between IndexType and VGT_INDEX_TYPE enums.
 constexpr uint32 VgtIndexTypeLookup[] =
 {
@@ -72,6 +69,9 @@ constexpr uint32 VgtIndexTypeLookup[] =
     VGT_INDEX_16,   // IndexType::Idx16
     VGT_INDEX_32    // IndexType::Idx32
 };
+
+// We got this value from HW's testing and perf lab test.
+constexpr uint32  MinBound64bppColorTargetsForOverwriteCombiner = 5;
 
 // Structure used to convert the "c" value (a combination of various states) to the appropriate deferred-batch
 // binning sizes for those states.  Two of these structs define one "range" of "c" values.
@@ -405,7 +405,6 @@ Result UniversalCmdBuffer::Init(
 
             ceRamOffset += (sizeof(uint32) * m_indirectUserDataInfo[id].state.sizeInDwords);
         }
-
     }
 
     return result;
@@ -1146,6 +1145,8 @@ uint32* UniversalCmdBuffer::BuildSetStencilRefMasks(
 void UniversalCmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
+    CmdBuffer::CmdBarrier(barrierInfo);
+
     // Barriers do not honor predication.
     const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
     m_gfxCmdBufState.packetPredicate = 0;
@@ -1238,6 +1239,8 @@ void UniversalCmdBuffer::CmdBindTargets(
     // Gfx9 requires TCC F/I with some depth/stencil targets before a shader can read the DB metadata.
     bool depthStencilNeedsEopFlushTcc = false;
 
+    uint32 bppMoreThan64 = 0;
+
     // Bind all color targets.
     const uint32 colorTargetLimit = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
     uint32 newColorTargetMask = 0;
@@ -1262,6 +1265,17 @@ void UniversalCmdBuffer::CmdBindTargets(
 
             // Set the bit means this color target slot is not bound to a NULL target.
             newColorTargetMask |= (1 << slot);
+
+            if (colorTargetLimit >= MinBound64bppColorTargetsForOverwriteCombiner)
+            {
+                const auto*  pImage = pNewView->GetImage();
+                const uint32 bpp    = BytesPerPixel(pImage->Parent()->GetImageCreateInfo().swizzledFormat.format);
+
+                if (bpp >= 64)
+                {
+                    bppMoreThan64++;
+                }
+            }
         }
 
         if ((pCurrentView != nullptr) && (pCurrentView != pNewView))  // view1->view2 or view->null
@@ -1274,6 +1288,10 @@ void UniversalCmdBuffer::CmdBindTargets(
     }
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL,
+                                                      GetDccControl(bppMoreThan64),
+                                                      pDeCmdSpace);
 
     // Bind NULL for all remaining color target slots. We must build the PM4 image on the stack because we must call
     // the command stream's WritePm4Image to keep the PM4 optimizer in the loop.
@@ -2206,7 +2224,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
         {
             if (TestAnyFlagSet(mask, 1))
             {
-                 pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+                pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
 
                 {
                     if ((isNggFastLaunch == false) ||
@@ -2280,6 +2298,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     pDeCmdSpace  = pThis->ValidateDispatch(0uLL, x, y, z, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
+
     pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
                                                                      pThis->PacketPredicate(),
                                                                      pDeCmdSpace);
@@ -2370,7 +2389,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
                                                          ShaderCompute,
                                                          starts,
                                                          pDeCmdSpace);
-
     // xDim, yDim, zDim are end positions instead of numbers of threadgroups to execute.
     xDim += xOffset;
     yDim += yOffset;
@@ -3183,34 +3201,38 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     // are not changing will be handled through the normal "pipeline not changing" path.
     uint8 changedStageMask = 0; // Mask of all stages whose mappings are changing.
 
+    uint32* pDeCmdSpace = (*ppDeCmdSpace);
+
     if (TessEnabled && (m_pSignatureGfx->userDataHash[HsStageId] != pPrevSignature->userDataHash[HsStageId]))
     {
         changedStageMask |= (1 << HsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[HsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[HsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
     if (GsEnabled && (m_pSignatureGfx->userDataHash[GsStageId] != pPrevSignature->userDataHash[GsStageId]))
     {
         changedStageMask |= (1 << GsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[GsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[GsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
     if (VsEnabled && (m_pSignatureGfx->userDataHash[VsStageId] != pPrevSignature->userDataHash[VsStageId]))
     {
         changedStageMask |= (1 << VsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[VsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[VsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
     if (m_pSignatureGfx->userDataHash[PsStageId] != pPrevSignature->userDataHash[PsStageId])
     {
         changedStageMask |= (1 << PsStageId);
-        (*ppDeCmdSpace) = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[PsStageId],
-                                                                             m_graphicsState.gfxUserDataEntries,
-                                                                             (*ppDeCmdSpace));
+        pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprsGfx<true>(m_pSignatureGfx->stage[PsStageId],
+                                                                         m_graphicsState.gfxUserDataEntries,
+                                                                         pDeCmdSpace);
     }
+
+    (*ppDeCmdSpace) = pDeCmdSpace;
 
     return changedStageMask;
 }
@@ -4616,6 +4638,15 @@ void UniversalCmdBuffer::SetPaScBinnerCntl0(
         }
     }
 
+    // Only really need to set this bit if we're transitioning from mode 0 or 1 to mode 2 or 3.
+    // PAL only ever uses modes 0 and 3.
+    if (IsGfx091xPlus(*(m_device.Parent())) &&
+        (static_cast<uint32>(m_binningMode) != m_paScBinnerCntl0.bits.BINNING_MODE))
+    {
+        m_paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
+
+        m_binningMode = static_cast<BinningMode>(m_paScBinnerCntl0.bits.BINNING_MODE);
+    }
 }
 
 // =====================================================================================================================
@@ -4992,7 +5023,7 @@ uint32 UniversalCmdBuffer::BuildScissorRectImage(
 // Writes the latest set of scissor-rects to HW. It is illegal to call this if the scissor-rects aren't dirty.
 template <bool pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateScissorRects(
-    uint32*    pDeCmdSpace)
+    uint32* pDeCmdSpace)
 {
     ScissorRectPm4Img scissorRectImg[MaxViewports];
     const uint32 numScissorRectRegs = BuildScissorRectImage((m_graphicsState.enableMultiViewport != 0), scissorRectImg);
@@ -5010,7 +5041,7 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 // Wrapper for the real ValidateScissorRects() for when the caller doesn't know if the immediate pm4 optimizer is
 // enabled.
 uint32* UniversalCmdBuffer::ValidateScissorRects(
-    uint32*    pDeCmdSpace)
+    uint32* pDeCmdSpace)
 {
     {
         if (m_deCmdStream.Pm4ImmediateOptimizerEnabled())
@@ -6694,6 +6725,14 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_nggState.flags.state.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.state.hasPrimShaderWorkload;
     m_nggState.flags.dirty.u8All                 |= cmdBuffer.m_nggState.flags.dirty.u8All;
 
+    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
+    m_gfxCmdBufState.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.gfxBltActive;
+    m_gfxCmdBufState.csBltActive               = cmdBuffer.m_gfxCmdBufState.csBltActive;
+    m_gfxCmdBufState.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.gfxWriteCachesDirty;
+    m_gfxCmdBufState.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.csWriteCachesDirty;
+    m_gfxCmdBufState.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.cpWriteCachesDirty;
+    m_gfxCmdBufState.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.cpMemoryWriteL2CacheStale;
+
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
     // current command buffer for this to work correctly.
@@ -7140,6 +7179,35 @@ void UniversalCmdBuffer::CpCopyMemory(
 
     SetGfxCmdBufCpBltState(true);
     SetGfxCmdBufCpBltWriteCacheState(true);
+}
+
+// =====================================================================================================================
+// Compute the dcc control register value.
+uint32 UniversalCmdBuffer::GetDccControl(
+    uint32 bppMoreThan64
+    ) const
+{
+    regCB_DCC_CONTROL dccControl = {};
+
+    // Default enable DCC overwrite combiner
+    dccControl.bits.OVERWRITE_COMBINER_DISABLE = 0;
+
+    // Set-and-forget DCC register:
+    if (IsGfx9(*m_device.Parent()))
+    {
+        dccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+    }
+
+    if (bppMoreThan64 >= MinBound64bppColorTargetsForOverwriteCombiner)
+    {
+        dccControl.bits.OVERWRITE_COMBINER_WATERMARK = 8;
+    }
+    else
+    {
+        dccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
+    }
+
+    return dccControl.u32All;
 }
 
 } // Gfx9

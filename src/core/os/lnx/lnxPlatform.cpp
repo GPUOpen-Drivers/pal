@@ -319,6 +319,28 @@ const Dri3Loader& Platform::GetDri3Loader()
 }
 
 #if PAL_HAVE_WAYLAND_PLATFORM
+// =====================================================================================================================
+const WaylandLoader& Platform::GetWaylandLoader()
+{
+    Result result = Result::Success;
+
+    if (m_waylandLoader.Initialized() == false)
+    {
+        result = m_waylandLoader.Init(nullptr);
+#if defined(PAL_DEBUG_PRINTS)
+        if (result == Result::Success)
+        {
+            m_waylandLoader.SetLogPath(m_logPath);
+        }
+#endif
+    }
+    // if waylandLoader cannot be initialized, it is a fatal error that we cannot recover from that gracefully.
+    // Some dependency must not be satisfied, and the following calls to functions from external libraries
+    // will segfault directly.
+    PAL_ASSERT(result == Result::Success);
+
+    return m_waylandLoader;
+}
 #endif
 
 // =====================================================================================================================

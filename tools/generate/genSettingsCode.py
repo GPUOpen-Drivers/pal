@@ -483,7 +483,7 @@ for setting in settingsData["Settings"]:
             fieldVarName = setting["VariableName"] + "." + field["VariableName"]
             defaultLine = genDefaultLine(fieldDefaults["Default"], fieldVarName, isFieldString, isFieldHex, size)
             if fieldHasWinDefault and fieldHasLnxDefault:
-                #if we have both Windows and Linux defaults we want to add an #if/#elif block
+                # If we have both Windows and Linux defaults we want to add an #if/#elif block
                 defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(fieldDefaults["WinDefault"], fieldVarName, isFieldString, isFieldHex, size)
                 defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(fieldDefaults["LnxDefault"], fieldVarName, isFieldString, isFieldHex, size)
                 defaultsCode += codeTemplates.EndIf

@@ -2497,7 +2497,11 @@ void PAL_STDCALL Device::CreateSamplerSrds(
                 // This allows the sampler to override anisotropic filtering when the resource view contains a single
                 // mipmap level. On SI/CI hardware, SC had to add extra shader instructions to accomplish the same
                 // functionality.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
+                pSrd->word2.bits.ANISO_OVERRIDE__VI = !pInfo->flags.disableSingleMipAnisoOverride;
+#else
                 pSrd->word2.bits.ANISO_OVERRIDE__VI = 1;
+#endif
             }
         }
 
@@ -2758,6 +2762,9 @@ void InitializeGpuChipProperties(
         pInfo->gfx6.minSgprAlloc            = 8;
         pInfo->gfx6.supportRgpTraces        = 0;
 
+        // Support for IT_INDEX_ATTRIB_INDIRECT pkt has been enabled from microcode feature version 28 onwards for Gfx7.
+        pInfo->gfx6.supportIndexAttribIndirectPkt = (cpUcodeVersion >= 28);
+
         pInfo->gfxip.vaRangeNumBits = 40;
 
         pInfo->gfxip.gdsSize = 65536;
@@ -2805,6 +2812,9 @@ void InitializeGpuChipProperties(
         pInfo->gfx6.sgprAllocGranularity    = 8;
         pInfo->gfx6.minSgprAlloc            = 8;
         pInfo->gfx6.supportRgpTraces        = 0;
+
+        // Support for IT_INDEX_ATTRIB_INDIRECT pkt has been enabled from microcode feature version 28 onwards for Gfx7.
+        pInfo->gfx6.supportIndexAttribIndirectPkt = (cpUcodeVersion >= 28);
 
         pInfo->imageProperties.prtFeatures = Gfx7PrtFeatures;
         pInfo->gfxip.tcpSizeInBytes        = 16384;
@@ -2866,8 +2876,10 @@ void InitializeGpuChipProperties(
         pInfo->gfx6.minSgprAlloc                   = 16;
         pInfo->gfx6.supportRgpTraces               = 1;
 
-        // Support for IT_SET_SH_REG_INDEX pkt has been enabled from microcode feature version 36 onwards for Gfx8.
-        pInfo->gfx6.supportSetShIndexPkt = (cpUcodeVersion >= 36);
+        // Support for IT_SET_SH_REG_INDEX and IT_INDEX_ATTRIB_INDIRECT pkts has been enabled from microcode feature
+        // version 36 onwards for Gfx8.
+        pInfo->gfx6.supportSetShIndexPkt          = (cpUcodeVersion >= 36);
+        pInfo->gfx6.supportIndexAttribIndirectPkt = (cpUcodeVersion >= 36);
 
         // Support for IT_LOAD_CONTEXT/SH_REG_INDEX has been enabled from microcode feature version 41 onwards for Gfx8.
         pInfo->gfx6.supportLoadRegIndexPkt = (cpUcodeVersion >= 41);
@@ -2980,17 +2992,20 @@ void InitializeGpuChipProperties(
     case FAMILY_CZ:
         pInfo->gpuType = GpuType::Integrated;
 
-        pInfo->gfx6.numShaderEngines               = 1;
-        pInfo->gfx6.numShaderArrays                = 1;
-        pInfo->gfx6.gsVgtTableDepth                = 16;
-        pInfo->gfx6.maxGsWavesPerVgt               = 16;
-        pInfo->gfx6.doubleOffchipLdsBuffers        = 1;
-        pInfo->gfx6.support8bitIndices             = 1;
-        pInfo->gfx6.support16BitInstructions       = 1;
-        pInfo->gfx6.numPhysicalSgprs               = 800;
-        pInfo->gfx6.sgprAllocGranularity           = 16;
-        pInfo->gfx6.minSgprAlloc                   = 16;
-        pInfo->gfx6.supportRgpTraces               = 1;
+        pInfo->gfx6.numShaderEngines         = 1;
+        pInfo->gfx6.numShaderArrays          = 1;
+        pInfo->gfx6.gsVgtTableDepth          = 16;
+        pInfo->gfx6.maxGsWavesPerVgt         = 16;
+        pInfo->gfx6.doubleOffchipLdsBuffers  = 1;
+        pInfo->gfx6.support8bitIndices       = 1;
+        pInfo->gfx6.support16BitInstructions = 1;
+        pInfo->gfx6.numPhysicalSgprs         = 800;
+        pInfo->gfx6.sgprAllocGranularity     = 16;
+        pInfo->gfx6.minSgprAlloc             = 16;
+        pInfo->gfx6.supportRgpTraces         = 1;
+
+        // Support for IT_INDEX_ATTRIB_INDIRECT pkt has been enabled from microcode feature version 36 onwards for Gfx8
+        pInfo->gfx6.supportIndexAttribIndirectPkt = (cpUcodeVersion >= 36);
 
         // Support for IT_SET_SH_REG_INDEX pkt has been enabled from microcode feature version 35 onwards for gfx-8.x
         pInfo->gfx6.supportSetShIndexPkt = (cpUcodeVersion >= 35);

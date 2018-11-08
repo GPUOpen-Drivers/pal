@@ -3727,10 +3727,14 @@ union CB_DEBUGBUS_17 {
         unsigned int FC_WR_PENDING                                                :  1;
         unsigned int FC_RD_PENDING                                                :  1;
         unsigned int EVICT_PENDING                                                :  1;
+        unsigned int                                                              : 22;
+    } apu09Plus;
+    struct {
+        unsigned int                                                              : 10;
         unsigned int LAST_RD_ARB_WINNER                                           :  1;
         unsigned int MU_STATE                                                     :  8;
         unsigned int                                                              : 13;
-    } apu09Plus;
+    } gfx09_0;
     struct {
         unsigned int TILE_INTFC_BUSY                                              :  1;
         unsigned int MU_BUSY                                                      :  1;
@@ -3742,9 +3746,7 @@ union CB_DEBUGBUS_17 {
         unsigned int FC_WR_PENDING                                                :  1;
         unsigned int FC_RD_PENDING                                                :  1;
         unsigned int EVICT_PENDING                                                :  1;
-        unsigned int LAST_RD_ARB_WINNER                                           :  1;
-        unsigned int MU_STATE                                                     :  8;
-        unsigned int                                                              : 13;
+        unsigned int                                                              : 22;
     } vg10;
 
     unsigned int u32All;
@@ -3838,20 +3840,7 @@ union CB_DEBUGBUS_19 {
 
 union CB_DEBUGBUS_20 {
     struct {
-        unsigned int MC_RDREQ_CREDITS                                             :  6;
-        unsigned int MC_WRREQ_CREDITS                                             :  6;
-        unsigned int CC_RDREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int FC_RDREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int CM_RDREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int                                                              :  1;
-        unsigned int CC_WRREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int FC_WRREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int CM_WRREQ_HAD_ITS_TURN                                        :  1;
-        unsigned int                                                              :  1;
-        unsigned int CC_WRREQ_FIFO_EMPTY                                          :  1;
-        unsigned int FC_WRREQ_FIFO_EMPTY                                          :  1;
-        unsigned int CM_WRREQ_FIFO_EMPTY                                          :  1;
-        unsigned int DCC_WRREQ_FIFO_EMPTY                                         :  1;
+        unsigned int                                                              : 24;
         unsigned int Reserved0                                                    :  8;
     } apu09Plus;
     struct {
@@ -3869,6 +3858,10 @@ union CB_DEBUGBUS_20 {
         unsigned int FC_WRREQ_FIFO_EMPTY                                          :  1;
         unsigned int CM_WRREQ_FIFO_EMPTY                                          :  1;
         unsigned int DCC_WRREQ_FIFO_EMPTY                                         :  1;
+        unsigned int                                                              :  8;
+    } gfx09_0;
+    struct {
+        unsigned int                                                              : 24;
         unsigned int Reserved0                                                    :  8;
     } vg10;
 
@@ -8070,7 +8063,7 @@ union CP_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
         unsigned int CMP_BUSY_INT_ENABLE                                          :  1;
         unsigned int CNTX_BUSY_INT_ENABLE                                         :  1;
         unsigned int CNTX_EMPTY_INT_ENABLE                                        :  1;
@@ -8086,11 +8079,6 @@ union CP_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8105,7 +8093,7 @@ union CP_INT_CNTL_RING0 {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
         unsigned int CMP_BUSY_INT_ENABLE                                          :  1;
         unsigned int CNTX_BUSY_INT_ENABLE                                         :  1;
         unsigned int CNTX_EMPTY_INT_ENABLE                                        :  1;
@@ -8121,11 +8109,6 @@ union CP_INT_CNTL_RING0 {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8140,7 +8123,7 @@ union CP_INT_CNTL_RING1 {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
         unsigned int CMP_BUSY_INT_ENABLE                                          :  1;
         unsigned int CNTX_BUSY_INT_ENABLE                                         :  1;
         unsigned int CNTX_EMPTY_INT_ENABLE                                        :  1;
@@ -8156,11 +8139,6 @@ union CP_INT_CNTL_RING1 {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8175,7 +8153,7 @@ union CP_INT_CNTL_RING2 {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
         unsigned int CMP_BUSY_INT_ENABLE                                          :  1;
         unsigned int CNTX_BUSY_INT_ENABLE                                         :  1;
         unsigned int CNTX_EMPTY_INT_ENABLE                                        :  1;
@@ -8191,11 +8169,6 @@ union CP_INT_CNTL_RING2 {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8210,7 +8183,7 @@ union CP_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STAT                                        :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_STAT                                                 :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
         unsigned int CMP_BUSY_INT_STAT                                            :  1;
         unsigned int CNTX_BUSY_INT_STAT                                           :  1;
         unsigned int CNTX_EMPTY_INT_STAT                                          :  1;
@@ -8226,11 +8199,6 @@ union CP_INT_STATUS {
         unsigned int GENERIC1_INT_STAT                                            :  1;
         unsigned int GENERIC0_INT_STAT                                            :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8245,7 +8213,7 @@ union CP_INT_STATUS_RING0 {
         unsigned int CP_ECC_ERROR_INT_STAT                                        :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_STAT                                                 :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
         unsigned int CMP_BUSY_INT_STAT                                            :  1;
         unsigned int GCNTX_BUSY_INT_STAT                                          :  1;
         unsigned int CNTX_EMPTY_INT_STAT                                          :  1;
@@ -8261,11 +8229,6 @@ union CP_INT_STATUS_RING0 {
         unsigned int GENERIC1_INT_STAT                                            :  1;
         unsigned int GENERIC0_INT_STAT                                            :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8280,7 +8243,7 @@ union CP_INT_STATUS_RING1 {
         unsigned int CP_ECC_ERROR_INT_STAT                                        :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_STAT                                                 :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
         unsigned int CMP_BUSY_INT_STAT                                            :  1;
         unsigned int CNTX_BUSY_INT_STAT                                           :  1;
         unsigned int CNTX_EMPTY_INT_STAT                                          :  1;
@@ -8296,11 +8259,6 @@ union CP_INT_STATUS_RING1 {
         unsigned int GENERIC1_INT_STAT                                            :  1;
         unsigned int GENERIC0_INT_STAT                                            :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8315,7 +8273,7 @@ union CP_INT_STATUS_RING2 {
         unsigned int CP_ECC_ERROR_INT_STAT                                        :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_STAT                                                 :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
         unsigned int CMP_BUSY_INT_STAT                                            :  1;
         unsigned int CNTX_BUSY_INT_STAT                                           :  1;
         unsigned int CNTX_EMPTY_INT_STAT                                          :  1;
@@ -8331,11 +8289,6 @@ union CP_INT_STATUS_RING2 {
         unsigned int GENERIC1_INT_STAT                                            :  1;
         unsigned int GENERIC0_INT_STAT                                            :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STAT                                    :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8350,7 +8303,7 @@ union CP_INT_STAT_DEBUG {
         unsigned int CP_ECC_ERROR_INT_ASSERTED                                    :  1;
         unsigned int                                                              :  1;
         unsigned int GPF_INT_ASSERTED                                             :  1;
-        unsigned int                                                              :  1;
+        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
         unsigned int CMP_BUSY_INT_ASSERTED                                        :  1;
         unsigned int CNTX_BUSY_INT_ASSERTED                                       :  1;
         unsigned int CNTX_EMPTY_INT_ASSERTED                                      :  1;
@@ -8366,11 +8319,6 @@ union CP_INT_STAT_DEBUG {
         unsigned int GENERIC1_INT_ASSERTED                                        :  1;
         unsigned int GENERIC0_INT_ASSERTED                                        :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8490,7 +8438,8 @@ union CP_ME1_INT_STAT_DEBUG {
         unsigned int CP_ECC_ERROR_INT_ASSERTED                                    :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_ASSERTED                                             :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ASSERTED                                        :  1;
         unsigned int OPCODE_ERROR_INT_ASSERTED                                    :  1;
         unsigned int                                                              :  1;
@@ -8501,11 +8450,6 @@ union CP_ME1_INT_STAT_DEBUG {
         unsigned int GENERIC1_INT_ASSERTED                                        :  1;
         unsigned int GENERIC0_INT_ASSERTED                                        :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8520,7 +8464,8 @@ union CP_ME1_PIPE0_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8531,11 +8476,6 @@ union CP_ME1_PIPE0_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8550,7 +8490,8 @@ union CP_ME1_PIPE0_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8561,11 +8502,6 @@ union CP_ME1_PIPE0_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8591,7 +8527,8 @@ union CP_ME1_PIPE1_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8602,11 +8539,6 @@ union CP_ME1_PIPE1_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8621,7 +8553,8 @@ union CP_ME1_PIPE1_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8632,11 +8565,6 @@ union CP_ME1_PIPE1_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8662,7 +8590,8 @@ union CP_ME1_PIPE2_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8673,11 +8602,6 @@ union CP_ME1_PIPE2_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8692,7 +8616,8 @@ union CP_ME1_PIPE2_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8703,11 +8628,6 @@ union CP_ME1_PIPE2_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8733,7 +8653,8 @@ union CP_ME1_PIPE3_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8744,11 +8665,6 @@ union CP_ME1_PIPE3_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8763,7 +8679,8 @@ union CP_ME1_PIPE3_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8774,11 +8691,6 @@ union CP_ME1_PIPE3_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8817,7 +8729,8 @@ union CP_ME2_INT_STAT_DEBUG {
         unsigned int CP_ECC_ERROR_INT_ASSERTED                                    :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_ASSERTED                                             :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ASSERTED                                        :  1;
         unsigned int OPCODE_ERROR_INT_ASSERTED                                    :  1;
         unsigned int                                                              :  1;
@@ -8828,11 +8741,6 @@ union CP_ME2_INT_STAT_DEBUG {
         unsigned int GENERIC1_INT_ASSERTED                                        :  1;
         unsigned int GENERIC0_INT_ASSERTED                                        :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ASSERTED                                :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8847,7 +8755,8 @@ union CP_ME2_PIPE0_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8858,11 +8767,6 @@ union CP_ME2_PIPE0_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8877,7 +8781,8 @@ union CP_ME2_PIPE0_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8888,11 +8793,6 @@ union CP_ME2_PIPE0_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8918,7 +8818,8 @@ union CP_ME2_PIPE1_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -8929,11 +8830,6 @@ union CP_ME2_PIPE1_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8948,7 +8844,8 @@ union CP_ME2_PIPE1_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -8959,11 +8856,6 @@ union CP_ME2_PIPE1_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8989,7 +8881,8 @@ union CP_ME2_PIPE2_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -9000,11 +8893,6 @@ union CP_ME2_PIPE2_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9019,7 +8907,8 @@ union CP_ME2_PIPE2_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -9030,11 +8919,6 @@ union CP_ME2_PIPE2_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9060,7 +8944,8 @@ union CP_ME2_PIPE3_INT_CNTL {
         unsigned int CP_ECC_ERROR_INT_ENABLE                                      :  1;
         unsigned int SUA_VIOLATION_INT_ENABLE                                     :  1;
         unsigned int GPF_INT_ENABLE                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_ENABLE                                          :  1;
         unsigned int OPCODE_ERROR_INT_ENABLE                                      :  1;
         unsigned int                                                              :  1;
@@ -9071,11 +8956,6 @@ union CP_ME2_PIPE3_INT_CNTL {
         unsigned int GENERIC1_INT_ENABLE                                          :  1;
         unsigned int GENERIC0_INT_ENABLE                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_ENABLE                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9090,7 +8970,8 @@ union CP_ME2_PIPE3_INT_STATUS {
         unsigned int CP_ECC_ERROR_INT_STATUS                                      :  1;
         unsigned int SUA_VIOLATION_INT_STATUS                                     :  1;
         unsigned int GPF_INT_STATUS                                               :  1;
-        unsigned int                                                              :  6;
+        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
+        unsigned int                                                              :  5;
         unsigned int PRIV_REG_INT_STATUS                                          :  1;
         unsigned int OPCODE_ERROR_INT_STATUS                                      :  1;
         unsigned int                                                              :  1;
@@ -9101,11 +8982,6 @@ union CP_ME2_PIPE3_INT_STATUS {
         unsigned int GENERIC1_INT_STATUS                                          :  1;
         unsigned int GENERIC0_INT_STATUS                                          :  1;
     } bits, bitfields;
-    struct {
-        unsigned int                                                              : 17;
-        unsigned int WRM_POLL_TIMEOUT_INT_STATUS                                  :  1;
-        unsigned int                                                              : 14;
-    } gfx09;
 
     unsigned int u32All;
     signed int   i32All;
@@ -11787,7 +11663,7 @@ union CP_VMID_STATUS {
 union CP_WAIT_REG_MEM_TIMEOUT {
     struct {
         unsigned int WAIT_REG_MEM_TIMEOUT                                         : 32;
-    } gfx09;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24973,14 +24849,17 @@ union PA_DEBUG32_0 {
 union PA_DEBUG33_0 {
     struct {
         unsigned int clipper_busy_debug_vgt_to_clips_fifo_write                   :  1;
-        unsigned int                                                              :  3;
-        unsigned int PA_SE3SC_freeze                                              :  1;
+        unsigned int                                                              :  4;
         unsigned int Reserved0                                                    : 27;
     } apu09Plus;
     struct {
-        unsigned int clipper_busy_debug_vgt_to_clips_fifo_write                   :  1;
-        unsigned int                                                              :  3;
+        unsigned int                                                              :  4;
         unsigned int PA_SE3SC_freeze                                              :  1;
+        unsigned int                                                              : 27;
+    } gfx09_0;
+    struct {
+        unsigned int clipper_busy_debug_vgt_to_clips_fifo_write                   :  1;
+        unsigned int                                                              :  4;
         unsigned int Reserved0                                                    : 27;
     } vg10;
 
@@ -25004,22 +24883,7 @@ union PA_DEBUG34_0 {
         unsigned int ngg_sideband_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_sideband_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_sideband_utc_driver_tag                                  :  8;
-        unsigned int ngg_sideband_utc_driver_client_send_reg_rtr_out              :  1;
-        unsigned int ngg_sideband_utc_driver_client_send_reg_rts_out              :  1;
-        unsigned int ngg_sideband_utc_driver_client_send_reg_rts_in               :  1;
-        unsigned int ngg_sideband_utc_driver_client_send_reg_rtr_in               :  1;
-        unsigned int ngg_sideband_utc_driver_client_send_reg_busy                 :  1;
-        unsigned int ngg_sideband_utc_driver_outcl1_send_valid                    :  1;
-        unsigned int ngg_sideband_utc_driver_iutcl1_send_ready                    :  1;
-        unsigned int ngg_sideband_utc_driver_iclient_send_valid                   :  1;
-        unsigned int ngg_sideband_utc_driver_oclient_send_ready                   :  1;
-        unsigned int ngg_sideband_utc_driver_outcl1_send_vmid                     :  4;
-        unsigned int ngg_sideband_utc_driver_outcl1_send_type                     :  2;
-        unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25029,10 +24893,7 @@ union PA_DEBUG34_0 {
 union PA_DEBUG34_1 {
     struct {
         unsigned int ngg_utcl1_debug00                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug00                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25054,22 +24915,7 @@ union PA_DEBUG35_0 {
         unsigned int ngg_index_utc_driver_outcl1_send_vmid                        :  4;
         unsigned int ngg_index_utc_driver_outcl1_send_type                        :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_index_utc_driver_tag                                     :  8;
-        unsigned int ngg_index_utc_driver_client_send_fifo_read                   :  1;
-        unsigned int ngg_index_utc_driver_client_send_fifo_empty                  :  1;
-        unsigned int ngg_index_utc_driver_client_send_fifo_write                  :  1;
-        unsigned int ngg_index_utc_driver_client_send_fifo_full                   :  1;
-        unsigned int ngg_index_utc_driver_client_send_fifo_busy                   :  1;
-        unsigned int ngg_index_utc_driver_outcl1_send_valid                       :  1;
-        unsigned int ngg_index_utc_driver_iutcl1_send_ready                       :  1;
-        unsigned int ngg_index_utc_driver_iclient_send_valid                      :  1;
-        unsigned int ngg_index_utc_driver_oclient_send_ready                      :  1;
-        unsigned int ngg_index_utc_driver_outcl1_send_vmid                        :  4;
-        unsigned int ngg_index_utc_driver_outcl1_send_type                        :  2;
-        unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25079,10 +24925,7 @@ union PA_DEBUG35_0 {
 union PA_DEBUG35_1 {
     struct {
         unsigned int ngg_utcl1_debug01                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug01                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25104,22 +24947,7 @@ union PA_DEBUG36_0 {
         unsigned int ngg_position_utc_driver_outcl1_send_vmid                     :  4;
         unsigned int ngg_position_utc_driver_outcl1_send_type                     :  2;
         unsigned int Reserved0                                                    :  9;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_position_utc_driver_tag                                  :  8;
-        unsigned int ngg_position_utc_driver_client_send_fifo_read                :  1;
-        unsigned int ngg_position_utc_driver_client_send_fifo_empty               :  1;
-        unsigned int ngg_position_utc_driver_client_send_fifo_write               :  1;
-        unsigned int ngg_position_utc_driver_client_send_fifo_full                :  1;
-        unsigned int ngg_position_utc_driver_client_send_fifo_busy                :  1;
-        unsigned int ngg_position_utc_driver_outcl1_send_valid                    :  1;
-        unsigned int ngg_position_utc_driver_iutcl1_send_ready                    :  1;
-        unsigned int ngg_position_utc_driver_iclient_send_valid                   :  1;
-        unsigned int ngg_position_utc_driver_oclient_send_ready                   :  1;
-        unsigned int ngg_position_utc_driver_outcl1_send_vmid                     :  4;
-        unsigned int ngg_position_utc_driver_outcl1_send_type                     :  2;
-        unsigned int Reserved0                                                    :  9;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25129,10 +24957,7 @@ union PA_DEBUG36_0 {
 union PA_DEBUG36_1 {
     struct {
         unsigned int ngg_utcl1_debug02                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug02                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25156,24 +24981,7 @@ union PA_DEBUG37_0 {
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_sideband_utc_receiver_busy                         :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_rtr_out           :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_rts_out           :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_rtr_in            :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_rts_in            :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_drop      :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_perf_cntr_en :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_space     :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_rd_tmz_encr :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_io        :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_snoop     :  1;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_mtype     :  3;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_vmid      :  4;
-        unsigned int ngg_debug_sideband_utc_receiver_output_reg_dataout_tag       :  8;
-        unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25183,10 +24991,7 @@ union PA_DEBUG37_0 {
 union PA_DEBUG37_1 {
     struct {
         unsigned int ngg_utcl1_debug03                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug03                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25210,24 +25015,7 @@ union PA_DEBUG38_0 {
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_vmid         :  4;
         unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_tag          :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_index_utc_receiver_busy                            :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_rtr_out              :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_rts_out              :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_rtr_in               :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_rts_in               :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_drop         :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_perf_cntr_en :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_space        :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_rd_tmz_encr  :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_io           :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_snoop        :  1;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_mtype        :  3;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_vmid         :  4;
-        unsigned int ngg_debug_index_utc_receiver_output_reg_dataout_tag          :  8;
-        unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25237,10 +25025,7 @@ union PA_DEBUG38_0 {
 union PA_DEBUG38_1 {
     struct {
         unsigned int ngg_utcl1_debug04                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug04                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25264,24 +25049,7 @@ union PA_DEBUG39_0 {
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_vmid      :  4;
         unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_tag       :  8;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_position_utc_receiver_busy                         :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_rtr_out           :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_rts_out           :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_rtr_in            :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_rts_in            :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_drop      :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_perf_cntr_en :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_space     :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_rd_tmz_encr :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_io        :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_snoop     :  1;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_mtype     :  3;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_vmid      :  4;
-        unsigned int ngg_debug_position_utc_receiver_output_reg_dataout_tag       :  8;
-        unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25291,10 +25059,7 @@ union PA_DEBUG39_0 {
 union PA_DEBUG39_1 {
     struct {
         unsigned int ngg_utcl1_debug05                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug05                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25308,14 +25073,7 @@ union PA_DEBUG40_0 {
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_tag             :  8;
         unsigned int ngg_debug_tc_request_arbiter_ostream0_client_rtr             :  1;
         unsigned int ngg_debug_tc_request_arbiter_istream0_client_rts             :  1;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_tc_request_arbiter_current_client_count            :  2;
-        unsigned int                                                              : 20;
-        unsigned int ngg_debug_tc_request_arbiter_istream0_client_tag             :  8;
-        unsigned int ngg_debug_tc_request_arbiter_ostream0_client_rtr             :  1;
-        unsigned int ngg_debug_tc_request_arbiter_istream0_client_rts             :  1;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25325,10 +25083,7 @@ union PA_DEBUG40_0 {
 union PA_DEBUG40_1 {
     struct {
         unsigned int ngg_utcl1_debug06                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug06                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25354,26 +25109,7 @@ union PA_DEBUG41_0 {
         unsigned int ngg_debug_tc_if_data_wr_ptr                                  :  1;
         unsigned int ngg_debug_tc_if_outstanding_tc_requests                      : 10;
         unsigned int Reserved0                                                    :  3;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_tc_if_credit_count_overflow                        :  1;
-        unsigned int ngg_debug_tc_if_credit_count_underflow                       :  1;
-        unsigned int ngg_debug_tc_if_credits                                      :  5;
-        unsigned int ngg_debug_tc_if_obusy                                        :  1;
-        unsigned int ngg_debug_tc_if_ooutstanding_tc_requests_exist               :  1;
-        unsigned int ngg_debug_tc_if_irdret_vld                                   :  1;
-        unsigned int ngg_debug_tc_if_irdreq_free                                  :  1;
-        unsigned int ngg_debug_tc_if_ordreq_send                                  :  1;
-        unsigned int ngg_debug_tc_if_ordreq_clken                                 :  1;
-        unsigned int ngg_debug_tc_if_ortr_in                                      :  1;
-        unsigned int ngg_debug_tc_if_irts_in                                      :  1;
-        unsigned int ngg_debug_tc_if_reg_valid1                                   :  1;
-        unsigned int ngg_debug_tc_if_reg_valid0                                   :  1;
-        unsigned int ngg_debug_tc_if_data_rd_ptr                                  :  1;
-        unsigned int ngg_debug_tc_if_data_wr_ptr                                  :  1;
-        unsigned int ngg_debug_tc_if_outstanding_tc_requests                      : 10;
-        unsigned int Reserved0                                                    :  3;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25383,10 +25119,7 @@ union PA_DEBUG41_0 {
 union PA_DEBUG41_1 {
     struct {
         unsigned int ngg_utcl1_debug07                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug07                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25409,23 +25142,7 @@ union PA_DEBUG42_0 {
         unsigned int ngg_debug_sideband_current_sideband_event_bit_set            :  1;
         unsigned int ngg_debug_sideband_have_available_sideband_tokens            :  1;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_sideband_sideband_tokens_not_max_value             :  1;
-        unsigned int ngg_debug_sideband_pending_subgroup_count_not_zero           :  1;
-        unsigned int ngg_debug_sideband_wait_counter_busy                         :  1;
-        unsigned int ngg_debug_sideband_current_state                             :  3;
-        unsigned int ngg_debug_sideband_sideband_tokens_underflow                 :  1;
-        unsigned int ngg_debug_sideband_sideband_tokens_overflow                  :  1;
-        unsigned int ngg_debug_sideband_current_dword_pointer                     :  4;
-        unsigned int ngg_debug_sideband_pending_subgroup_count_range              :  5;
-        unsigned int ngg_debug_sideband_valid_dword_count                         :  5;
-        unsigned int ngg_debug_sideband_itc_return_empty                          :  1;
-        unsigned int ngg_debug_sideband_current_sideband_is_object_id             :  1;
-        unsigned int ngg_debug_sideband_current_sideband_event_bit_set            :  1;
-        unsigned int ngg_debug_sideband_have_available_sideband_tokens            :  1;
-        unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25435,10 +25152,7 @@ union PA_DEBUG42_0 {
 union PA_DEBUG42_1 {
     struct {
         unsigned int ngg_utcl1_debug08                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug08                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25457,19 +25171,7 @@ union PA_DEBUG43_0 {
         unsigned int ngg_debug_sideband_wdif_current_state                        :  1;
         unsigned int ngg_debug_sideband_wdif_osideband_active                     :  1;
         unsigned int Reserved0                                                    : 20;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_sideband_wdif_ovmid                                :  4;
-        unsigned int ngg_debug_sideband_wdif_vmid_fifo_busy                       :  1;
-        unsigned int ngg_debug_sideband_wdif_vmid_fifo_empty                      :  1;
-        unsigned int ngg_debug_sideband_wdif_vmid_fifo_full                       :  1;
-        unsigned int ngg_debug_sideband_wdif_sideband_pop_bit_fifo_empty          :  1;
-        unsigned int ngg_debug_sideband_wdif_sideband_pop_bit_fifo_busy           :  1;
-        unsigned int ngg_debug_sideband_wdif_sideband_pop_bit_fifo_full           :  1;
-        unsigned int ngg_debug_sideband_wdif_current_state                        :  1;
-        unsigned int ngg_debug_sideband_wdif_osideband_active                     :  1;
-        unsigned int Reserved0                                                    : 20;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25479,10 +25181,7 @@ union PA_DEBUG43_0 {
 union PA_DEBUG43_1 {
     struct {
         unsigned int ngg_utcl1_debug09                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug09                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25498,16 +25197,7 @@ union PA_DEBUG44_0 {
         unsigned int ngg_debug_sideband_memory_contents0                          :  8;
         unsigned int ngg_debug_sideband_memory_contents1                          :  8;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_sideband_memory_contents1_underflow                :  1;
-        unsigned int ngg_debug_sideband_memory_contents1_overflow                 :  1;
-        unsigned int ngg_debug_sideband_memory_contents0_underflow                :  1;
-        unsigned int ngg_debug_sideband_memory_contents0_overflow                 :  1;
-        unsigned int ngg_debug_sideband_memory_contents0                          :  8;
-        unsigned int ngg_debug_sideband_memory_contents1                          :  8;
-        unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25517,10 +25207,7 @@ union PA_DEBUG44_0 {
 union PA_DEBUG44_1 {
     struct {
         unsigned int ngg_utcl1_debug10                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug10                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25547,27 +25234,7 @@ union PA_DEBUG45_0 {
         unsigned int ngg_debug_index_index_receive_fifo_full                      :  1;
         unsigned int ngg_debug_index_have_available_index_tokens                  :  1;
         unsigned int Reserved0                                                    :  2;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_index_index_tokens_underflow                       :  1;
-        unsigned int ngg_debug_index_index_tokens_overflow                        :  1;
-        unsigned int ngg_debug_index_index_tokens                                 :  6;
-        unsigned int ngg_debug_index_prim_indices_fifo_busy                       :  1;
-        unsigned int ngg_debug_index_index_receive_fifo_busy                      :  1;
-        unsigned int ngg_debug_index_current_receive_state                        :  1;
-        unsigned int ngg_debug_index_current_fetch_state                          :  1;
-        unsigned int ngg_debug_index_sideband_data_context_id_bits                :  3;
-        unsigned int ngg_debug_index_sideband_data_eop_bit                        :  1;
-        unsigned int ngg_debug_index_sideband_data_event_bit                      :  1;
-        unsigned int ngg_debug_index_final_receive_dword_of_subgroup              :  1;
-        unsigned int ngg_debug_index_final_receive_cacheline_this_subgroup        :  1;
-        unsigned int ngg_debug_index_current_receive_first_dword_pointer          :  4;
-        unsigned int ngg_debug_index_current_receive_finalt_dword_pointer         :  4;
-        unsigned int ngg_debug_index_index_receive_fifo_empty                     :  1;
-        unsigned int ngg_debug_index_index_receive_fifo_full                      :  1;
-        unsigned int ngg_debug_index_have_available_index_tokens                  :  1;
-        unsigned int Reserved0                                                    :  2;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25577,10 +25244,7 @@ union PA_DEBUG45_0 {
 union PA_DEBUG45_1 {
     struct {
         unsigned int ngg_utcl1_debug11                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug11                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25614,34 +25278,7 @@ union PA_DEBUG46_0 {
         unsigned int ngg_debug_position_request_start_prev_diff                   :  1;
         unsigned int ngg_debug_position_request_end_start_diff                    :  1;
         unsigned int Reserved0                                                    :  6;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_position_request_position_tokens_underflow         :  1;
-        unsigned int ngg_debug_position_request_position_tokens_overflow          :  1;
-        unsigned int ngg_debug_position_request_have_available_position_tokens    :  1;
-        unsigned int ngg_debug_position_request_reuse_busy                        :  1;
-        unsigned int ngg_debug_position_request_prev_select_end_cacheline_address :  1;
-        unsigned int ngg_debug_position_request_prev_pos_cacheline_valid          :  1;
-        unsigned int ngg_debug_position_request_active_pos_req_fosg               :  1;
-        unsigned int ngg_debug_position_request_reuse_miss_count                  :  2;
-        unsigned int ngg_debug_position_request_reuse_final_prim                  :  1;
-        unsigned int ngg_debug_position_request_reuse_first_prim                  :  1;
-        unsigned int ngg_debug_position_request_reuse_null_prim                   :  1;
-        unsigned int ngg_debug_position_request_reuse_prim_valid                  :  1;
-        unsigned int ngg_debug_position_request_packer_object_id_valid            :  1;
-        unsigned int ngg_debug_position_request_packer_sideband_valid             :  1;
-        unsigned int ngg_debug_position_request_current_state                     :  2;
-        unsigned int ngg_debug_position_request_ipa_to_wd_dealloc_index_full      :  1;
-        unsigned int ngg_debug_position_request_iposreq_to_posrtn_s_fifo_full     :  1;
-        unsigned int ngg_debug_position_request_iposreq_to_posrtn_v_fifo_full     :  1;
-        unsigned int ngg_debug_position_request_ifetch_to_primic_s_fifo_full      :  1;
-        unsigned int ngg_debug_position_request_ifetch_to_primic_p_fifo_full      :  1;
-        unsigned int ngg_debug_position_request_another_pos_fetch                 :  1;
-        unsigned int ngg_debug_position_request_end_prev_diff                     :  1;
-        unsigned int ngg_debug_position_request_start_prev_diff                   :  1;
-        unsigned int ngg_debug_position_request_end_start_diff                    :  1;
-        unsigned int Reserved0                                                    :  6;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25651,10 +25288,7 @@ union PA_DEBUG46_0 {
 union PA_DEBUG46_1 {
     struct {
         unsigned int ngg_utcl1_debug12                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug12                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25678,24 +25312,7 @@ union PA_DEBUG47_0 {
         unsigned int ngg_debug_position_reuse_input_sideband_dword_event_bit      :  1;
         unsigned int ngg_debug_position_reuse_input_sideband_dword_state_id       :  3;
         unsigned int Reserved0                                                    : 10;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_position_reuse_sideband_fifo_full                  :  1;
-        unsigned int ngg_debug_position_reuse_sideband_fifo_empty                 :  1;
-        unsigned int ngg_debug_position_reuse_sideband_fifo_busy                  :  1;
-        unsigned int ngg_debug_position_reuse_prim_fifo_full                      :  1;
-        unsigned int ngg_debug_position_reuse_output_prim_empty                   :  1;
-        unsigned int ngg_debug_position_reuse_prim_fifo_busy                      :  1;
-        unsigned int ngg_debug_position_reuse_current_state                       :  1;
-        unsigned int ngg_debug_position_reuse_iinput_sideband_valid               :  1;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_stream_id      :  2;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_eop_bit        :  1;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_event_id       :  6;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_event_second_cycle :  1;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_event_bit      :  1;
-        unsigned int ngg_debug_position_reuse_input_sideband_dword_state_id       :  3;
-        unsigned int Reserved0                                                    : 10;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25705,10 +25322,7 @@ union PA_DEBUG47_0 {
 union PA_DEBUG47_1 {
     struct {
         unsigned int ngg_utcl1_debug13                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug13                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25731,23 +25345,7 @@ union PA_DEBUG48_0 {
         unsigned int ngg_debug_position_return_active_pos_return_first_vert       :  1;
         unsigned int ngg_debug_position_return_active_pos_return_cache_pos_index  :  2;
         unsigned int Reserved0                                                    : 16;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_position_return_ifetch_to_sxif_fifo_full           :  1;
-        unsigned int ngg_debug_position_return_ipa_to_wd_dealloc_position_full    :  1;
-        unsigned int ngg_debug_position_return_itc_return_empty                   :  1;
-        unsigned int ngg_debug_position_return_oposreq_to_posrtn_v_fifo_full      :  1;
-        unsigned int ngg_debug_position_return_oposreq_to_posrtn_s_fifo_full      :  1;
-        unsigned int ngg_debug_position_return_posreq_to_posrtn_v_fifo_busy       :  1;
-        unsigned int ngg_debug_position_return_posreq_to_posrtn_s_fifo_busy       :  1;
-        unsigned int ngg_debug_position_return_posreq_to_posrtn_v_fifo_empty      :  1;
-        unsigned int ngg_debug_position_return_posreq_to_posrtn_s_fifo_empty      :  1;
-        unsigned int ngg_debug_position_return_active_pos_return_state            :  2;
-        unsigned int ngg_debug_position_return_cache_pos_index                    :  2;
-        unsigned int ngg_debug_position_return_active_pos_return_first_vert       :  1;
-        unsigned int ngg_debug_position_return_active_pos_return_cache_pos_index  :  2;
-        unsigned int Reserved0                                                    : 16;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25757,10 +25355,7 @@ union PA_DEBUG48_0 {
 union PA_DEBUG48_1 {
     struct {
         unsigned int ngg_utcl1_debug14                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug14                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25780,20 +25375,7 @@ union PA_DEBUG49_0 {
         unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream2     :  1;
         unsigned int ngg_debug_tc_return_if_crawler_busy                          :  1;
         unsigned int Reserved0                                                    : 22;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_tc_return_if_memreg0_busy                          :  1;
-        unsigned int ngg_debug_tc_return_if_oreturn_empty_stream0                 :  1;
-        unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream0     :  1;
-        unsigned int ngg_debug_tc_return_if_memreg1_busy                          :  1;
-        unsigned int ngg_debug_tc_return_if_oreturn_empty_stream1                 :  1;
-        unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream1     :  1;
-        unsigned int ngg_debug_tc_return_if_memreg2_busy                          :  1;
-        unsigned int ngg_debug_tc_return_if_oreturn_empty_stream2                 :  1;
-        unsigned int ngg_debug_tc_return_if_return_data_read_reg_full_stream2     :  1;
-        unsigned int ngg_debug_tc_return_if_crawler_busy                          :  1;
-        unsigned int Reserved0                                                    : 22;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25803,10 +25385,7 @@ union PA_DEBUG49_0 {
 union PA_DEBUG49_1 {
     struct {
         unsigned int ngg_utcl1_debug15                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug15                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25823,17 +25402,7 @@ union PA_DEBUG50_0 {
         unsigned int ngg_debug_return_crawler_memory_data_valid_stream2_count     :  8;
         unsigned int ngg_debug_return_crawler_obusy                               :  1;
         unsigned int Reserved0                                                    :  8;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_return_crawler_encountered_error_writing_to_busy_location_stream0 :  1;
-        unsigned int ngg_debug_return_crawler_encountered_error_writing_to_busy_location_stream1 :  1;
-        unsigned int ngg_debug_return_crawler_encountered_error_writing_to_busy_location_stream2 :  1;
-        unsigned int ngg_debug_return_crawler_memory_data_valid_stream0_count     :  6;
-        unsigned int ngg_debug_return_crawler_memory_data_valid_stream1_count     :  6;
-        unsigned int ngg_debug_return_crawler_memory_data_valid_stream2_count     :  8;
-        unsigned int ngg_debug_return_crawler_obusy                               :  1;
-        unsigned int Reserved0                                                    :  8;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25843,10 +25412,7 @@ union PA_DEBUG50_0 {
 union PA_DEBUG50_1 {
     struct {
         unsigned int ngg_utcl1_debug16                                            : 32;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_utcl1_debug16                                            : 32;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25864,18 +25430,7 @@ union PA_DEBUG51_0 {
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_state_var_index       :  3;
         unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_type                  :  1;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_wd_dealloc_pa_to_wd_dealloc_fifo_read              :  1;
-        unsigned int ngg_debug_wd_dealloc_pa_to_wd_dealloc_fifo_empty             :  1;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_position_full         :  1;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_index_full            :  1;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_fifo_busy             :  1;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_amount                : 11;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_state_var_index       :  3;
-        unsigned int ngg_debug_wd_dealloc_opa_to_wd_dealloc_type                  :  1;
-        unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25900,25 +25455,7 @@ union PA_DEBUG52_0 {
         unsigned int ngg_debug_shootdown_control_oclean                           :  1;
         unsigned int ngg_debug_shootdown_control_current_state                    :  3;
         unsigned int Reserved0                                                    : 12;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_shootdown_control_iutcl1_busy                      :  1;
-        unsigned int ngg_debug_shootdown_control_iposition_requester_idle         :  1;
-        unsigned int ngg_debug_shootdown_control_iindex_requester_idle            :  1;
-        unsigned int ngg_debug_shootdown_control_isideband_requester_idle         :  1;
-        unsigned int ngg_debug_shootdown_control_iposition_utcl1_return_busy      :  1;
-        unsigned int ngg_debug_shootdown_control_iindex_utcl1_return_busy         :  1;
-        unsigned int ngg_debug_shootdown_control_isideband_utcl1_return_busy      :  1;
-        unsigned int ngg_debug_shootdown_control_iposition_utcl1_send_busy        :  1;
-        unsigned int ngg_debug_shootdown_control_iindex_utcl1_send_busy           :  1;
-        unsigned int ngg_debug_shootdown_control_isideband_utcl1_send_busy        :  1;
-        unsigned int ngg_debug_shootdown_control_ioutstanding_tc_requests_exist   :  1;
-        unsigned int ngg_debug_shootdown_control_all_clean                        :  1;
-        unsigned int ngg_debug_shootdown_control_vmid_count                       :  4;
-        unsigned int ngg_debug_shootdown_control_oclean                           :  1;
-        unsigned int ngg_debug_shootdown_control_current_state                    :  3;
-        unsigned int Reserved0                                                    : 12;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25943,25 +25480,7 @@ union PA_DEBUG53_0 {
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream1 :  1;
         unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream2 :  1;
         unsigned int Reserved0                                                    : 17;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_fatal_events_status_fatal_tc_credit_count_overflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_tc_credit_count_underflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sideband_tokens_overflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sideband_tokens_underflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sbmem_contents0_overflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sbmem_contents0_underflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sbmem_contents1_overflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_sbmem_contents1_underflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_index_tokens_overflow    :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_index_tokens_underflow   :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_position_tokens_overflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_position_tokens_underflow :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream0 :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream1 :  1;
-        unsigned int ngg_debug_fatal_events_status_fatal_writing_to_busy_location_stream2 :  1;
-        unsigned int Reserved0                                                    : 17;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -25985,24 +25504,7 @@ union PA_DEBUG54_0 {
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_index_full  :  1;
         unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_position_full :  1;
         unsigned int Reserved0                                                    : 18;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_fifo_full_status_fifo_sideband_pop_bit_fifo_full   :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_vmid_fifo_full               :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_sbmem_full                   :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_index_receive_fifo_full      :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_prim_indices_fifo_full       :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_prim_fifo_full               :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_sideband_fifo_full           :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_posreq_to_posrtn_v_fifo_full :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_posreq_to_posrtn_s_fifo_full :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_return_data_full_stream0     :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_return_data_full_stream1     :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_return_data_full_stream2     :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_index_full  :  1;
-        unsigned int ngg_debug_fifo_full_status_fifo_pa_to_wd_dealloc_position_full :  1;
-        unsigned int Reserved0                                                    : 18;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;
@@ -26025,23 +25527,7 @@ union PA_DEBUG55_0 {
         unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream2   :  1;
         unsigned int ngg_debug_fifo_empty_status_fifo_pa_to_wd_dealloc_fifo_empty :  1;
         unsigned int Reserved0                                                    : 19;
-    } apu09Plus;
-    struct {
-        unsigned int ngg_debug_fifo_empty_status_fifo_sideband_pop_bit_fifo_empty :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_vmid_fifo_empty             :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_sbmem_empty                 :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_index_receive_fifo_empty    :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_prim_indices_fifo_empty     :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_prim_fifo_empty             :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_sideband_fifo_empty         :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_posreq_to_posrtn_v_fifo_empty :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_posreq_to_posrtn_s_fifo_empty :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream0   :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream1   :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_return_data_empty_stream2   :  1;
-        unsigned int ngg_debug_fifo_empty_status_fifo_pa_to_wd_dealloc_fifo_empty :  1;
-        unsigned int Reserved0                                                    : 19;
-    } vg10;
+    } gfx09_0;
 
     unsigned int u32All;
     signed int   i32All;

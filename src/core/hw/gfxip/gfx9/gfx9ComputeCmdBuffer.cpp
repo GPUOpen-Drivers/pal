@@ -108,19 +108,15 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
+    // The indirect user data tables immediately follow the command buffer object in memory.  The GfxIp-specific
+    // command buffer object's size must be used in order to ensure the location is correct.
+    SetupIndirectUserDataTables(reinterpret_cast<uint32*>(this + 1));
+
     Result result = Pal::ComputeCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
     {
         result = m_cmdStream.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        // The indirect user data tables immediately follow the command buffer object in memory. The GfxIp-specific
-        // command buffer object's size must be used in order to ensure the location is correct.
-        SetupIndirectUserDataTables(reinterpret_cast<uint32*>(this + 1));
-
     }
 
     return result;
@@ -143,6 +139,8 @@ void ComputeCmdBuffer::ResetState()
 void ComputeCmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
+    CmdBuffer::CmdBarrier(barrierInfo);
+
     // Barriers do not honor predication.
     const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
     m_gfxCmdBufState.packetPredicate = 0;
@@ -257,6 +255,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     pCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pCmdSpace);
+
     pCmdSpace = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                      mmCOMPUTE_START_Z,
                                                      ShaderCompute,
@@ -1352,6 +1351,7 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
         // All user-data entries have been uploaded into the GPU memory the callee expects to receive them in, so we
         // can safely "call" the nested command buffer's command stream.
         m_cmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
+        m_cmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
         m_cmdStream.TrackNestedCommands(pCallee->m_cmdStream);
         m_cmdStream.Call(pCallee->m_cmdStream, pCallee->IsExclusiveSubmit(), false);
 
@@ -1359,6 +1359,21 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
         // state back to the caller.
         LeakNestedCmdBufferState(*pCallee);
     }
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdInsertTraceMarker(
+    PerfTraceMarkerType markerType,
+    uint32              markerData)
+{
+    const uint32 userDataAddr = (markerType == PerfTraceMarkerType::A) ?
+                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData2 :
+                                m_device.CmdUtil().GetRegInfo().mmSqThreadTraceUserData3;
+    PAL_ASSERT(m_device.CmdUtil().IsPrivilegedConfigReg(userDataAddr) == false);
+
+    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    pCmdSpace = m_cmdStream.WriteSetOneConfigReg(userDataAddr, markerData, pCmdSpace);
+    m_cmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================

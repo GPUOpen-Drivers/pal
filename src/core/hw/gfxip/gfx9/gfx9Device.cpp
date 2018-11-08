@@ -74,6 +74,9 @@ static const SamplerSrd  NullSampler    = {};
 // Microcode version for CE dump offset support
 static constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 
+// Microcode version for SET_SH_REG_OFFSET with 256B alignment.
+constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
+
 static PAL_INLINE uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
     const ImageInfo&       imageInfo,
@@ -2598,7 +2601,11 @@ void PAL_STDCALL Device::Gfx9CreateSamplerSrds(
 
             // This allows the sampler to override anisotropic filtering when the resource view contains a single
             // mipmap level.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
+            pSrd->word2.bits.ANISO_OVERRIDE = !pInfo->flags.disableSingleMipAnisoOverride;
+#else
             pSrd->word2.bits.ANISO_OVERRIDE = 1;
+#endif
         }
 
         memcpy(pSrdOutput, &tempSamplerSrds[0], (currentSrdIdx * sizeof(SamplerSrd)));
@@ -2644,6 +2651,7 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
     case GfxIpLevel::GfxIp9:
         pTable = &Gfx9MergedFormatPropertiesTable;
         break;
+
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();
@@ -2718,6 +2726,9 @@ void InitializeGpuChipProperties(
     }
 
     {
+        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
+        pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
+
         pInfo->gfx9.numShaderArrays         = 1;
         pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;
         pInfo->gfx9.numWavesPerSimd         = Gfx9NumWavesPerSimd;
@@ -2837,7 +2848,9 @@ void FinalizeGpuChipProperties(
     // Setup some GPU properties which can be derived from other properties:
 
     // Total number of physical CU's (before harvesting)
-    pInfo->gfx9.numPhysicalCus = (pInfo->gfx9.numShaderEngines * pInfo->gfx9.numShaderArrays * pInfo->gfx9.maxNumCuPerSh);
+    pInfo->gfx9.numPhysicalCus = (pInfo->gfx9.numShaderEngines *
+                                  pInfo->gfx9.numShaderArrays  *
+                                  pInfo->gfx9.maxNumCuPerSh);
 
     // GPU__GC__NUM_SE * GPU__GC__NUM_RB_PER_SE
     pInfo->gfx9.numTotalRbs = (pInfo->gfx9.numShaderEngines * pInfo->gfx9.maxNumRbPerSe);

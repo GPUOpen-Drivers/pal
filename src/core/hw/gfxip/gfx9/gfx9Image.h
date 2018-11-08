@@ -363,6 +363,8 @@ public:
 
     gpusize GetGpuMemSyncSize() const { return m_gpuMemSyncSize; }
 
+    bool IsColorDataZeroOrOne(const uint32*  pColor, uint32 compIdx) const;
+
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
     static const uint32                      MaxNumPlanes = 3;

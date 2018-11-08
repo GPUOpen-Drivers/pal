@@ -124,7 +124,7 @@ public:
     regVGT_STRMOUT_BUFFER_CONFIG VgtStrmoutBufferConfig() const { return m_chunkVsPs.VgtStrmoutBufferConfig(); }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const { return m_chunkVsPs.VgtStrmoutVtxStride(idx); }
 
-    regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_chunkGs.VgtGsOnchipCntl(); }
+    regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_commands.set.context.vgtGsOnchipCntl; }
 
     bool IsNgg() const { return (m_commands.set.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     bool IsNggFastLaunch() const;
@@ -230,6 +230,8 @@ private:
         regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
+    SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
+
     // Pre-assembled "images" of the PM4 packets used for binding this pipeline to a command buffer.
     struct Pm4Commands
     {
@@ -305,6 +307,9 @@ private:
 
                 PM4_PFP_SET_CONTEXT_REG         hdrVgtVertexReuseBlockCntl;
                 regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
+
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtGsOnchipCntl;
+                regVGT_GS_ONCHIP_CNTL    vgtGsOnchipCntl;
 
                 // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
                 // w/ the actual commands contained above.

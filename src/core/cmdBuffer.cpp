@@ -108,6 +108,11 @@ CmdBuffer::CmdBuffer(
     :
     m_createInfo(createInfo),
     m_engineType(createInfo.engineType),
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
+    m_engineSubType(createInfo.engineSubType),
+#else
+    m_engineSubType(EngineSubType::_None),
+#endif
     m_pCmdAllocator(static_cast<CmdAllocator*>(createInfo.pCmdAllocator)),
     m_pMemAllocator(nullptr),
     m_pMemAllocatorStartPos(nullptr),

@@ -142,6 +142,13 @@ Result GfxCmdBuffer::Begin(
             InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
         }
 
+        // If this is a nested command buffer execution, this value should be set to 1
+        // pipePoint on nested command buffer cannot be optimized using the state from primary
+        if (IsNested() == true)
+        {
+            SetGfxCmdBufCpBltState(true);
+        }
+
         m_pPrefetchMgr->EnableShaderPrefetch(m_buildFlags.prefetchShaders != 0);
     }
 
@@ -965,13 +972,13 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
 // =====================================================================================================================
 // Updates the sqtt token mask on the specified Experiment object.
 void GfxCmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
-    IPerfExperiment* pPerfExperiment,
-    uint32           sqttTokenMask)
+    IPerfExperiment*              pPerfExperiment,
+    const ThreadTraceTokenConfig& sqttTokenConfig)
 {
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pExperiment != nullptr);
     CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
-    pExperiment->UpdateSqttTokenMask(pCmdStream, sqttTokenMask);
+    pExperiment->UpdateSqttTokenMask(pCmdStream, sqttTokenConfig);
 }
 
 // =====================================================================================================================

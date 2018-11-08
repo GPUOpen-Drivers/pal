@@ -1322,7 +1322,10 @@ void GraphicsPipeline::SetupLateAllocVs(
 
         if (m_pDevice->UseFixedLateAllocVsLimit())
         {
-            lateAllocLimit = m_pDevice->LateAllocVsLimit();
+            // When using the fixed wave limit scheme, just accept the client or device specified target value.  The
+            // fixed scheme mandates that we are disabling a CU from running VS work, so any limit the client may
+            // have specified is safe.
+            lateAllocLimit = targetLateAllocLimit;
         }
         else if ((targetLateAllocLimit > 0) && (vsNumSgpr > 0) && (vsNumVgpr > 0))
         {
@@ -1369,11 +1372,11 @@ void GraphicsPipeline::SetupLateAllocVs(
             {
                 lateAllocLimit = ((maxVsWaves > 1) ? (maxVsWaves - 1) : 1);
             }
-
-            // The late alloc setting is the number of wavefronts minus one.  On GFX7+ at least one VS wave always can
-            // launch with late alloc enabled.
-            lateAllocLimit -= 1;
         }
+
+        // The late alloc setting is the number of wavefronts minus one.  On GFX7+ at least one VS wave always can
+        // launch with late alloc enabled.
+        lateAllocLimit = (lateAllocLimit > 0) ? (lateAllocLimit - 1) : 0;
 
         m_commands.set.sh.spiShaderLateAllocVs.bits.LIMIT = Min(lateAllocLimit, maxLateAllocLimit);
 

@@ -404,8 +404,8 @@ public:
     virtual void CmdBeginPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
-        IPerfExperiment* pPerfExperiment,
-        uint32           sqttTokenMask) override;
+        IPerfExperiment*              pPerfExperiment,
+        const ThreadTraceTokenConfig& sqttTokenConfig) override;
     virtual void CmdEndPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdInsertTraceMarker(

@@ -1312,6 +1312,24 @@ bool Image::IsFastColorClearSupported(
 }
 
 // =====================================================================================================================
+// Returns true if the pColor[cmpIdx] is equivalent to 0.0f or 1.0f
+bool Image::IsColorDataZeroOrOne(
+    const uint32*  pColor,
+    uint32         cmpIdx
+    ) const
+{
+    bool  isZeroOrOne = false;
+
+    {
+        const uint32 one = TranslateClearCodeOneToNativeFmt(cmpIdx);
+
+        isZeroOrOne = ((pColor[cmpIdx] == 0) || (pColor[cmpIdx] == one));
+    }
+
+    return isZeroOrOne;
+}
+
+// =====================================================================================================================
 // Ok, this image is (potentially) going to be the target of a texture fetch.  However, the texture fetch block
 // only understands these four fast-clear colors:
 //      1) ARGB(0, 0, 0, 0)
@@ -1325,59 +1343,64 @@ bool Image::IsFastClearColorMetaFetchable(
     const uint32* pColor
     ) const
 {
-    const ChNumFormat     format        = m_createInfo.swizzledFormat.format;
-    const uint32          numComponents = NumComponents(format);
-    const ChannelSwizzle* pSwizzle      = &m_createInfo.swizzledFormat.swizzle.swizzle[0];
+    bool isMetaFetchable = true;
 
-    bool   rgbSeen          = false;
-    uint32 requiredRgbValue = 0; // not valid unless rgbSeen==true
-    bool   isMetaFetchable  = true;
-
-    for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && isMetaFetchable); cmpIdx++)
+    // If we're doing comp-to-single fast clears on this image, then there's no need to check for the clear color
+    // being one of the four magic codes.  If it is, great, if not, the image will still be meta-fetchable without
+    // requiring a fast-clear-eliminate step.
+    if (m_useCompToSingleForFastClears == false)
     {
-        // Get the value of 1 in terms of this component's bit-width / numeric-type
-        const uint32 one = TranslateClearCodeOneToNativeFmt(cmpIdx);
+        // Ok, not using comp-to-single, so we need to check for one of the four magic clear colors here.
+        const ChNumFormat     format        = m_createInfo.swizzledFormat.format;
+        const uint32          numComponents = NumComponents(format);
+        const ChannelSwizzle* pSwizzle      = &m_createInfo.swizzledFormat.swizzle.swizzle[0];
 
-        if ((pColor[cmpIdx] != 0) && (pColor[cmpIdx] != one))
+        bool   rgbSeen          = false;
+        uint32 requiredRgbValue = 0; // not valid unless rgbSeen==true
+
+        for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && isMetaFetchable); cmpIdx++)
         {
-            // This channel isn't zero or one, so we can't fast clear
-            isMetaFetchable = false;
-        }
-        else
-        {
-            switch (pSwizzle[cmpIdx])
+            if (IsColorDataZeroOrOne(pColor, cmpIdx) == false)
             {
-            case ChannelSwizzle::W:
-                // All we need here is a zero-or-one value, which we already verified above.
-                break;
-
-            case ChannelSwizzle::X:
-            case ChannelSwizzle::Y:
-            case ChannelSwizzle::Z:
-                if (rgbSeen == false)
+                // This channel isn't zero or one, so we can't fast clear
+                isMetaFetchable = false;
+            }
+            else
+            {
+                switch (pSwizzle[cmpIdx])
                 {
-                    // Don't go down this path again.
-                    rgbSeen = true;
+                case ChannelSwizzle::W:
+                    // All we need here is a zero-or-one value, which we already verified above.
+                    break;
 
-                    // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
-                    // All future RGB values need to match this one, so just record this value for comparison
-                    // purposes.
-                    requiredRgbValue = pColor[cmpIdx];
-                }
-                else if (pColor[cmpIdx] != requiredRgbValue)
-                {
-                    // Fast clear is a no-go.
-                    isMetaFetchable = false;
-                }
-                break;
+                case ChannelSwizzle::X:
+                case ChannelSwizzle::Y:
+                case ChannelSwizzle::Z:
+                    if (rgbSeen == false)
+                    {
+                        // Don't go down this path again.
+                        rgbSeen = true;
 
-            default:
-                // We don't really care about the non-RGBA channels.  It's either going to be zero or one, which
-                // suits our purposes just fine.  :-)
-                break;
-            } // end switch on the component select
-        }
-    } // end loop through all the components of this format
+                        // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
+                        // All future RGB values need to match this one, so just record this value for comparison
+                        // purposes.
+                        requiredRgbValue = pColor[cmpIdx];
+                    }
+                    else if (pColor[cmpIdx] != requiredRgbValue)
+                    {
+                        // Fast clear is a no-go.
+                        isMetaFetchable = false;
+                    }
+                    break;
+
+                default:
+                    // We don't really care about the non-RGBA channels.  It's either going to be zero or one, which
+                    // suits our purposes just fine.  :-)
+                    break;
+                } // end switch on the component select
+            }
+        } // end loop through all the components of this format
+    }
 
     return isMetaFetchable;
 }

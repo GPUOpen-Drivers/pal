@@ -103,18 +103,16 @@ public:
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
-    void InitMaskRam(
+    bool InitMaskRam(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
-        const SubresRange& range,
-        SyncReqs*          pSyncReqs) const;
+        const SubresRange& range) const;
 
     void BuildHtileLookupTable(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
-        const SubresRange& range,
-        SyncReqs*          pSyncReqs) const;
+        const SubresRange& range) const;
 
     virtual bool FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,

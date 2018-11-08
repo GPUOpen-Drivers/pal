@@ -956,7 +956,9 @@ struct DeviceProperties
                 uint32 placeholder3                             : 1; ///< Reserved for future hardware.
                 uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
                 uint32 placeholder4                             : 1; ///< Placeholder, do not use
-                uint32 reserved                                 : 10; ///< Reserved for future use.
+
+                uint32 placeholder5                             : 1;
+                uint32 reserved                                 : 9; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1630,7 +1632,15 @@ struct SamplerInfo
 #endif
             uint32 useAnisoThreshold   : 1;  ///< If set, Hw will use the value assigned in anisoThreshold, but
                                              ///  only if preciseAniso is set to 0, also.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448
+            /// This allows the sampler to turn off overriding anisotropic
+            ///  filtering when the resource view contains a single mipmap level.
+            ///  Not all graphics IP supports overriding anisotropic filtering,
+            ///  and this flag will be ignored for such GPUs.
+            uint32 disableSingleMipAnisoOverride : 1;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 444) || (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 448)
+
             uint32 reserved            : 24; ///< Reserved for future use
 #else
             uint32 reserved            : 25; ///< Reserved for future use

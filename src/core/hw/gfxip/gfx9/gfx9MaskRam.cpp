@@ -2126,9 +2126,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
         uint32  firstRgbColor       = 0; // only valid if rgbSeen=true
         for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && (fastClearElimRequired == false)); cmpIdx++)
         {
-            const uint32 one = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
-
-            if ((pConvertedColor[cmpIdx] == 0) || (pConvertedColor[cmpIdx] == one))
+            if (image.IsColorDataZeroOrOne(pConvertedColor, cmpIdx))
             {
                 switch (pSwizzle[cmpIdx])
                 {

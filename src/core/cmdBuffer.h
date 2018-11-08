@@ -614,8 +614,8 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
-        IPerfExperiment* pPerfExperiment,
-        uint32           sqttTokenMask) override
+        IPerfExperiment*              pPerfExperiment,
+        const ThreadTraceTokenConfig& sqttTokenConfig) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdEndPerfExperiment(IPerfExperiment* pPerfExperiment) override
@@ -739,8 +739,9 @@ public:
 
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
-    QueueType GetQueueType() const   { return m_createInfo.queueType; }
-    EngineType GetEngineType() const { return m_engineType; }
+    QueueType       GetQueueType()      const { return m_createInfo.queueType; }
+    EngineType      GetEngineType()     const { return m_engineType; }
+    EngineSubType   GetEngineSubType()  const { return m_engineSubType; }
 
     bool IsNested() const { return (m_createInfo.flags.nested != 0); }
     bool IsRealtimeComputeUnits() const { return (m_createInfo.flags.realtimeComputeUnits != 0); }
@@ -862,6 +863,8 @@ protected:
     CmdBufferInternalCreateInfo   m_internalInfo;
     CmdBufferBuildFlags           m_buildFlags;
     const EngineType              m_engineType;
+    const EngineSubType           m_engineSubType;
+
     CmdAllocator*                 m_pCmdAllocator;
 
     Util::VirtualLinearAllocator* m_pMemAllocator;

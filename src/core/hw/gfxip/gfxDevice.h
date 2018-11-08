@@ -586,12 +586,6 @@ public:
         return Result::Success;
     }
 
-    virtual bool UsesIndexedLoad() const
-    {
-        PAL_NEVER_CALLED();
-        return true;
-    }
-
     bool   UseFixedLateAllocVsLimit() const { return m_useFixedLateAllocVsLimit; }
     uint32 LateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
@@ -613,9 +607,9 @@ protected:
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
     virtual ~GfxDevice();
 
-    Device*const            m_pParent;
-    Pal::RsrcProcMgr*       m_pRsrcProcMgr;
-    FlglRegSeq              m_flglRegSeq[FlglRegSeqMax]; // Holder for FLGL sync register sequences
+    Device*const       m_pParent;
+    Pal::RsrcProcMgr*  m_pRsrcProcMgr;
+    FlglRegSeq         m_flglRegSeq[FlglRegSeqMax]; // Holder for FLGL sync register sequences
 
 #if DEBUG
     // Sometimes it is useful to temporarily hang the GPU during debugging to dump command buffers, etc.  This piece of

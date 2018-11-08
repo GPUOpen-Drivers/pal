@@ -481,6 +481,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     flags.interleaved = Formats::IsYuv(createInfo.swizzledFormat.format);
 
     flags.display = createInfo.flags.flippable | image.IsPrivateScreenPresent() | image.IsTurboSyncSurface();
+
     flags.prt     = createInfo.flags.prt;
 
     // Note: AddrLib does not compute the byte offset to nonzero mipmap levels for us. We need to do this manually,

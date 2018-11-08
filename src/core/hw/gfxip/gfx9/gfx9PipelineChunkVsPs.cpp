@@ -226,8 +226,18 @@ void PipelineChunkVsPs::LateInit(
         // always use the setting PAL prefers.
         m_commands.sh.vs.spiShaderPgmRsrc1Vs.bits.CU_GROUP_ENABLE = (settings.vsCuGroupEnabled ? 1 : 0);
 
+        bool disableCus = false;
+        if (settings.lateAllocVs == LateAllocVsBehaviorLegacy)
+        {
+            disableCus = (m_device.LateAllocVsLimit() != 0);
+        }
+        else if (settings.lateAllocVs == LateAllocVsBehaviorDynamicEnableAllCus)
+        {
+            disableCus = m_device.UseFixedLateAllocVsLimit();
+        }
+
         uint16 vsCuDisableMask = 0;
-        if (m_device.LateAllocVsLimit())
+        if (disableCus)
         {
             {
                 // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.

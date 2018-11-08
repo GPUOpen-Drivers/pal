@@ -100,8 +100,8 @@ public:
 
     virtual void IssueBegin(CmdStream* pCmdStream) const = 0;
     virtual void UpdateSqttTokenMask(
-        CmdStream* pCmdStream,
-        uint32     sqttTokenMask) const = 0;
+        CmdStream*                    pCmdStream,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const = 0;
     virtual void IssueEnd(CmdStream* pCmdStream) const = 0;
 
     virtual void Destroy() override;

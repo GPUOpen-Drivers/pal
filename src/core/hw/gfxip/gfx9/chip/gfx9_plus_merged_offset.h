@@ -599,6 +599,7 @@ constexpr unsigned int mmCP_VMID                                = 0xA0DA;
 constexpr unsigned int mmCP_VMID_PREEMPT                        = 0x30B6;
 constexpr unsigned int mmCP_VMID_RESET                          = 0x30B3;
 constexpr unsigned int mmCP_VMID_STATUS                         = 0x30BF;
+constexpr unsigned int mmCP_WAIT_REG_MEM_TIMEOUT                = 0xC074;
 constexpr unsigned int mmCP_WAIT_SEM_ADDR_HI                    = 0xC076;
 constexpr unsigned int mmCP_WAIT_SEM_ADDR_LO                    = 0xC075;
 constexpr unsigned int mmCS_COPY_STATE                          = 0xA1F3;
@@ -2039,7 +2040,6 @@ namespace Gfx09
     constexpr unsigned int mmCP_RB_DOORBELL_CONTROL_SCH_7           = 0x3187;
     constexpr unsigned int mmCP_RB_WPTR_POLL_ADDR_HI                = 0x3047;
     constexpr unsigned int mmCP_RB_WPTR_POLL_ADDR_LO                = 0x3046;
-    constexpr unsigned int mmCP_WAIT_REG_MEM_TIMEOUT                = 0xC074;
     constexpr unsigned int mmDB_DEPTH_SIZE                          = 0xA007;
     constexpr unsigned int mmDB_DFSM_CONTROL                        = 0xA018;
     constexpr unsigned int mmDB_DFSM_WATERMARK                      = 0x2631;

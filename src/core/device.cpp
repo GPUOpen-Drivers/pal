@@ -1392,6 +1392,11 @@ Result Device::Finalize(
 
             if (result == Result::Success)
             {
+                result = PerformOsInternalQueueInit();
+            }
+
+            if (result == Result::Success)
+            {
                 result = m_pGfxDevice->Finalize();
             }
         }

@@ -178,6 +178,10 @@ uint32 GfxImage::TranslateClearCodeOneToNativeFmt(
     const uint32*     pBitCounts        = ComponentBitCounts(format);
     const uint32      maxComponentValue = (1ull << pBitCounts[cmpIdx]) - 1;
 
+    // This is really a problem on the caller's end, as this function won't work for 9-9-9-5 format.
+    // The fractional 9-bit portion of 1.0f is zero...  the same as the fractional 9-bit portion of 0.0f.
+    PAL_ASSERT(format != ChNumFormat::X9Y9Z9E5_Float);
+
     uint32  maxColorValue = 0;
 
     switch (FormatInfoTable[static_cast<size_t>(format)].numericSupport)

@@ -1222,7 +1222,8 @@ Result ValidateThreadTraceOptions(
         result = Result::ErrorInvalidValue;
     }
 
-    if ((result == Result::Success) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+    if ((result == Result::Success)  &&
         (flags.threadTraceTokenMask) &&
         ((values.threadTraceTokenMask & TokenMaskAll) != values.threadTraceTokenMask))
     {
@@ -1230,11 +1231,21 @@ Result ValidateThreadTraceOptions(
     }
 
     if ((result == Result::Success) &&
-        (flags.threadTraceRegMask) &&
+        (flags.threadTraceRegMask)  &&
         ((values.threadTraceRegMask & RegMaskAll) != values.threadTraceRegMask))
     {
         result = Result::ErrorInvalidValue;
     }
+#else
+    if ((result == Result::Success)                    &&
+        (flags.threadTraceTokenConfig)                 &&
+        (values.threadTraceTokenConfig.tokenMask == 0) &&
+        (values.threadTraceTokenConfig.regMask == 0))
+    {
+        // Thread trace token mask or reg mask must be specified when creating a thread trace.
+        result = Result::ErrorInvalidValue;
+    }
+#endif
 
     if ((result == Result::Success) &&
         (flags.threadTraceTargetSh) &&

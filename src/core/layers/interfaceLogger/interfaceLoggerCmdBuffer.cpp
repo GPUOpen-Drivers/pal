@@ -2406,11 +2406,11 @@ void CmdBuffer::CmdBeginPerfExperiment(
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
-    IPerfExperiment* pPerfExperiment,
-    uint32           sqttTokenMask)
+    IPerfExperiment*              pPerfExperiment,
+    const ThreadTraceTokenConfig& sqttTokenConfig)
 {
     // This function is not logged because it should only be called by other debug tools.
-    GetNextLayer()->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenMask);
+    GetNextLayer()->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenConfig);
 }
 
 // =====================================================================================================================

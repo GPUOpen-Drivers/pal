@@ -114,9 +114,6 @@ constexpr size_t ReservedCeRamBytes =
      (31)) & ~31;
 constexpr size_t ReservedCeRamDwords = (ReservedCeRamBytes / sizeof(uint32));
 
-// Minimum microcode feature version required by gfx-9 hardware to support IT_LOAD_SH/CONTEXT_INDEX packets.
-constexpr uint32 MinUcodeFeatureVersionForLoadRegIndex = 29;
-
 // Forward decl
 static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
 
@@ -475,13 +472,6 @@ public:
         uint32*                      pNewRegionCount,
         MemoryImageCopyRegion*       pNewRegions,
         gpusize*                     pChunkAddrs) const override;
-
-    virtual bool UsesIndexedLoad() const override
-    {
-        // Indexed load should always be used unless we're on Gfx9 and have incompatible microcode.
-        return ((Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-                (Parent()->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionForLoadRegIndex)) ? false : true;
-    }
 
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,

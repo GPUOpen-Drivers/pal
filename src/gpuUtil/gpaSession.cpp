@@ -96,10 +96,52 @@ struct BlockEventId
                             // change between chips.
 };
 
-// SQTT token mask configurations
-static const uint32 SqttTokenMaskAll     = 0xFFFF; // Collect all tokens
-static const uint32 SqttTokenMaskNoInst  = 0xC3FF; // Collect all tokens except for instruction related tokens
-static const uint32 SqttTokenMaskMinimal = 0x81A7; // Collect a minimal set of tokens (timestamps + events)
+// SQTT token mask default configurations for all versions of Gfxip.
+using TokenType = ThreadTraceTokenTypeFlags;
+using RegType   = ThreadTraceRegTypeFlags;
+
+// Collect all tokens
+static constexpr ThreadTraceTokenConfig SqttTokenConfigAllTokens =
+{
+    TokenType::All,
+    RegType::AllRegWrites
+};
+
+// Collect all tokens except for instruction related tokens
+static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
+{
+    TokenType::Misc      |
+    TokenType::Timestamp |
+    TokenType::Reg       |
+    TokenType::WaveStart |
+    TokenType::WaveAlloc |
+    TokenType::RegCsPriv |
+    TokenType::WaveEnd   |
+    TokenType::Event     |
+    TokenType::EventCs   |
+    TokenType::EventGfx1 |
+    TokenType::RegCs
+    , RegType::AllRegWrites
+};
+
+// Collect a minimal set of tokens (timestamps + events)
+static constexpr ThreadTraceTokenConfig SqttTokenConfigMinimal =
+{
+    TokenType::Misc      |
+    TokenType::Timestamp |
+    TokenType::Reg       |
+    TokenType::RegCsPriv |
+    TokenType::Event     |
+    TokenType::EventCs   |
+    TokenType::RegCs,
+    RegType::AllRegWrites
+};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
+constexpr uint32 SqttTokenMaskAll      = SqttTokenConfigAllTokens.tokenMask;
+constexpr uint32 SqttTokenMaskNoInst   = SqttTokenConfigNoInst.tokenMask;
+constexpr uint32 SqttTokenMaskMinimal  = SqttTokenConfigMinimal.tokenMask;
+#endif
 
 // =====================================================================================================================
 // Helper function to fill in the SqttFileChunkCpuInfo struct based on the hardware in the current system.
@@ -1609,9 +1651,9 @@ Pal::Result GpaSession::UpdateSampleTraceParams(
         if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
         {
             const bool skipInstTokens = pSampleItem->sampleConfig.sqtt.flags.supressInstructionTokens;
-            const uint32 tokenMask    = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
-            pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment,
-                                                          tokenMask);
+            const ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst :
+                                                                        SqttTokenConfigAllTokens;
+            pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment, tokenConfig);
 
             result = Result::Success;
         }
@@ -2835,11 +2877,25 @@ Result GpaSession::AcquirePerfExperiment(
 
                 // Set up the thread trace token mask. Use the minimal mask if queue timing is enabled. The mask will be
                 // updated to a different value at a later time when sample updates are enabled.
-                const uint32 standardTokenMask             = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
-                sqttInfo.optionFlags.threadTraceTokenMask  = 1;
-                sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal
-                                                                                         : standardTokenMask;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
+                const ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst :
+                                                                            SqttTokenConfigAllTokens;
 
+                sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
+                sqttInfo.optionValues.threadTraceTokenConfig = m_flags.enableSampleUpdates ? SqttTokenConfigMinimal :
+                                                                                             tokenConfig;
+#else
+                const uint32 standardTokenMask = skipInstTokens ? SqttTokenMaskNoInst : SqttTokenMaskAll;
+
+                sqttInfo.optionFlags.threadTraceTokenMask = 1;
+                sqttInfo.optionFlags.threadTraceRegMask   = 1;
+
+                // Request for all registers in the thread trace. This is hardcoded for now.
+                sqttInfo.optionValues.threadTraceRegMask = 0xFF;
+
+                sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal :
+                                                                                           standardTokenMask;
+#endif
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 429

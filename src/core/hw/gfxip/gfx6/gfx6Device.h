@@ -356,11 +356,6 @@ public:
     int32 OverridedTileIndexForDepthStencilCopy(int32 tileIndex) const
         { return m_overridedTileIndexForDepthStencilCopy[tileIndex]; }
 
-    virtual bool UsesIndexedLoad() const override
-    {
-        return (Parent()->ChipProperties().gfx6.supportLoadRegIndexPkt == 0) ? false : true;
-    }
-
     static constexpr bool WaEnableDcc8bppWithMsaa = false;
 
     bool Support4VgtWithResetIdx()          const { return (m_supportFlags.support4VgtWithResetIdx == 1); }

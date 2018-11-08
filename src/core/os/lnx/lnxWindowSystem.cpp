@@ -26,7 +26,7 @@
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
 #include "core/os/lnx/display/displayWindowSystem.h"
 #if PAL_HAVE_WAYLAND_PLATFORM
-#include "core/os/lnx/wayland/waylandWindowSystemWsa.h"
+#include "core/os/lnx/wayland/waylandWindowSystem.h"
 #endif
 #include "core/os/lnx/lnxDevice.h"
 #include "core/os/lnx/lnxWindowSystem.h"

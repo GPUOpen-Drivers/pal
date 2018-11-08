@@ -56,7 +56,6 @@ static constexpr uint32 BaseLoadedCntxRegCount =
     1 + // mmVGT_GS_PER_VS
     1 + // mmVGT_GSVS_RING_ITEMSIZE
     1 + // mmVGT_ESGS_RING_ITEMSIZE
-    1 + // mmVGT_GS_ONCHIP_CNTL
     1;  // mmVGT_GS_MAX_PRIMS_PER_SUBGROUP
 
 // =====================================================================================================================
@@ -201,7 +200,6 @@ void PipelineChunkGs::LateInit(
     m_commands.context.vgtGsPerVs.u32All         = registers.At(mmVGT_GS_PER_VS);
     m_commands.context.gsVsRingItemSize.u32All   = registers.At(mmVGT_GSVS_RING_ITEMSIZE);
     m_commands.context.esGsRingItemSize.u32All   = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
-    m_commands.context.vgtGsOnchipCntl.u32All    = registers.At(mmVGT_GS_ONCHIP_CNTL);
     m_commands.context.vgtGsMaxVertOut.u32All    = registers.At(mmVGT_GS_MAX_VERT_OUT);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
@@ -242,7 +240,6 @@ void PipelineChunkGs::LateInit(
         pUploader->AddCtxReg(mmVGT_GS_PER_VS,          m_commands.context.vgtGsPerVs);
         pUploader->AddCtxReg(mmVGT_GSVS_RING_ITEMSIZE, m_commands.context.gsVsRingItemSize);
         pUploader->AddCtxReg(mmVGT_ESGS_RING_ITEMSIZE, m_commands.context.esGsRingItemSize);
-        pUploader->AddCtxReg(mmVGT_GS_ONCHIP_CNTL,     m_commands.context.vgtGsOnchipCntl);
         pUploader->AddCtxReg(mmVGT_GS_MAX_VERT_OUT,    m_commands.context.vgtGsMaxVertOut);
 
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
@@ -385,9 +382,6 @@ void PipelineChunkGs::BuildPm4Headers(
 
         m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVgtGsMaxPrimsPerSubGroup,
                                                                         &m_commands.context.hdrVgtMaxPrimsPerSubgrp);
-
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_GS_ONCHIP_CNTL,
-                                                                        &m_commands.context.hdrVgtGsOnchipCntl);
     } // if enableLoadIndexPath == false
 
     // NOTE: Supporting real-time compute requires use of SET_SH_REG_INDEX for this register.

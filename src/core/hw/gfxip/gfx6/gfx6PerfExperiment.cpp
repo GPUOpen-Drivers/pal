@@ -583,8 +583,8 @@ void PerfExperiment::IssueBegin(
 // =====================================================================================================================
 // Issues update commands into the specified command stream which instruct the HW to modify the sqtt token mask.
 void PerfExperiment::UpdateSqttTokenMask(
-    Pal::CmdStream* pPalCmdStream, ///< [in,out] Command stream to write PM4 commands into
-    uint32          sqttTokenMask  ///< [in] Updated SQTT token mask
+    Pal::CmdStream*               pPalCmdStream,  // [in,out] Command stream to write PM4 commands into.
+    const ThreadTraceTokenConfig& sqttTokenConfig // [in] Updated SQTT token mask and reg mask.
     ) const
 {
     PAL_ASSERT(IsFinalized());
@@ -606,7 +606,7 @@ void PerfExperiment::UpdateSqttTokenMask(
                 auto*const pTrace = static_cast<ThreadTrace*>(m_pThreadTrace[idx]);
                 pCmdSpace = pTrace->WriteUpdateSqttTokenMaskCommands(pCmdStream,
                                                                      pCmdSpace,
-                                                                     sqttTokenMask);
+                                                                     sqttTokenConfig);
             }
         }
 

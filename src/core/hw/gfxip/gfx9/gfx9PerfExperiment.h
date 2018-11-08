@@ -97,8 +97,8 @@ public:
 
     virtual void IssueBegin(Pal::CmdStream* pPalCmdStream) const override;
     virtual void UpdateSqttTokenMask(
-        Pal::CmdStream* pCmdStream,
-        uint32          sqttTokenMask) const override;
+        Pal::CmdStream*               pCmdStream,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const override;
     virtual void IssueEnd(Pal::CmdStream* pPalCmdStream) const override;
 
     void BeginInternalOps(CmdStream* pCmdStream) const;

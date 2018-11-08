@@ -210,6 +210,61 @@ struct GlobalCounterLayout
                                      ///  - 1) additional times.
 };
 
+/// Enumeration of SQ Thread trace token types. All versions of Thread Trace (TT) are represented. If an unsupported
+/// token is enabled, no error is reported.
+enum ThreadTraceTokenTypeFlags : Pal::uint32
+{
+    Misc         = 0x00000001, ///< A miscellaneous event has been sent. TT 2.3
+    Timestamp    = 0x00000002, ///< Timestamp tokens. TT 2.3
+    Reg          = 0x00000004, ///< Register activity token. TT 2.3
+    WaveStart    = 0x00000008, ///< A wavefront has started. TT 2.3
+    WaveAlloc    = 0x00000010, ///< Output space has been allocated for vertex position or color/Z. TT 2.3.
+    RegCsPriv    = 0x00000020, ///< There has been a compute pipeline private data, state or threadgroup update. TT 2.3.
+    WaveEnd      = 0x00000040, ///< Wavefront completion. TT 2.3
+    Event        = 0x00000080, ///< An event has reached the top of a shader stage. TT 2.3
+    EventCs      = 0x00000100, ///< An event has reached the top of a compute shader stage. TT 2.3
+    EventGfx1    = 0x00000200, ///< An event has reached the top of a shader stage for the second GFX pipe. TT 2.3
+    Inst         = 0x00000400, ///< The shader has executed an instruction. TT 2.3
+    InstPc       = 0x00000800, ///< The shader has explicitly written the PC value. TT 2.3
+    InstUserData = 0x00001000, ///< The shader has written user data into the thread trace buffer. TT 2.3
+    Issue        = 0x00002000, ///< Provides information about instruction scheduling. TT 2.3
+    Perf         = 0x00004000, ///< The performance counter delta has been updated. TT 2.3 and below only.
+    RegCs        = 0x00008000, ///< A compute  state update packet has been received by the SPI. TT 2.3
+    All          = 0xFFFFFFFF  ///< Enable all the above tokens.
+};
+
+/// Enumeration of register types whose reads/writes can be traced. Register reads are disabled by default as it can
+/// generate a lot of traffic and cause the GPU to hang.
+enum ThreadTraceRegTypeFlags : Pal::uint32
+{
+    EventRegs             = 0x00000001, ///< Event registers. TT 2.3.
+    DrawRegs              = 0x00000002, ///< Draw registers. TT 2.3.
+    DispatchRegs          = 0x00000004, ///< Dispatch registers. TT 2.3.
+    UserdataRegs          = 0x00000008, ///< UserData Registers. Must be explicitly requested in TT 2.3.
+    MarkerRegs            = 0x00000010, ///< Thread trace marker data regs. TT 2.3.
+    ShaderConfigRegs      = 0x00000020, ///< Shader configuration state. TT 3.0.
+    ShaderLaunchStateRegs = 0x00000040, ///< Shader program launch state. TT 3.0.
+    GraphicsPipeStateRegs = 0x00000080, ///< Graphics pipeline state. TT 3.0.
+    AsyncComputeRegs      = 0x00000100, ///< Async compute registers. TT 3.0.
+    GraphicsContextRegs   = 0x00000200, ///< Graphics context registers. TT 3.0.
+    OtherConfigRegs       = 0x00000400, ///< Other regs. TT 2.3.
+    AllRegWrites          = 0x00001FFF, ///< All reg writes other than OtherBusRegs.
+    AllRegReads           = 0x00002000, ///< Not encouraged to be enabled. This can cause a GPU hang.
+    AllReadsAndWrites     = 0xFFFFFFFF  ///< All reads and writes. Not encouraged. This can cause a GPU hang.
+};
+
+/// Represents thread trace token types and register types that can be enabled to be reported in the trace data. If
+/// a particular token type or reg type is unsupported, no error is returned and the thread trace is configured with
+/// the minimum supported tokens in the user provided config.
+struct ThreadTraceTokenConfig
+{
+    /// Mask of ThreadTraceTokenTypeFlags
+    uint32 tokenMask;
+
+    /// Mask of ThreadTraceRegTypeFlags
+    uint32 regMask;
+};
+
 /// Specifies properties for a perf trace being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddThreadTrace().
 struct ThreadTraceInfo
@@ -225,8 +280,10 @@ struct ThreadTraceInfo
             uint32 bufferSize                :  1;
 
             // Thread trace only options
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
             uint32 threadTraceTokenMask      :  1;
             uint32 threadTraceRegMask        :  1;
+#endif
             uint32 threadTraceTargetSh       :  1;
             uint32 threadTraceTargetCu       :  1;
             uint32 threadTraceSh0CounterMask :  1;
@@ -239,7 +296,12 @@ struct ThreadTraceInfo
             uint32 threadTraceWrapBuffer     :  1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
             uint32 threadTraceStallBehavior  :  1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERISON >= 451
+            uint32 threadTraceTokenConfig    :  1;
+            uint32 reserved                  : 19;
+#else
             uint32 reserved                  : 18;
+#endif
 #else
             uint32 reserved                  : 19;
 #endif
@@ -253,8 +315,12 @@ struct ThreadTraceInfo
         size_t                    bufferSize;
 
         // Thread trace only options
+#if PAL_CLIENT_INTERFACE_MAJOR_VERISON >= 451
+        ThreadTraceTokenConfig    threadTraceTokenConfig;
+#else
         uint32                    threadTraceTokenMask;
         uint32                    threadTraceRegMask;
+#endif
         uint32                    threadTraceTargetSh;
         uint32                    threadTraceTargetCu;
         uint32                    threadTraceSh0CounterMask;

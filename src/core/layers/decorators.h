@@ -1804,9 +1804,9 @@ public:
         { m_pNextLayer->CmdBeginPerfExperiment(NextPerfExperiment(pPerfExperiment)); }
 
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
-        IPerfExperiment* pPerfExperiment,
-        uint32           sqttTokenMask) override
-        { m_pNextLayer->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenMask); }
+        IPerfExperiment*              pPerfExperiment,
+        const ThreadTraceTokenConfig& sqttTokenConfig) override
+        { m_pNextLayer->CmdUpdatePerfExperimentSqttTokenMask(NextPerfExperiment(pPerfExperiment), sqttTokenConfig); }
 
     virtual void CmdEndPerfExperiment(
         IPerfExperiment* pPerfExperiment) override

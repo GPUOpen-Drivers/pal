@@ -1,0 +1,23 @@
+# the proc list that supposed to be hooked by the loader.
+# LibraryName       type    returnType            functionName       ParameterList
+# Please note:
+#   1- Always stick * to the type but not variable.
+#   2- Multiple line for each item is not supported.
+#   3- Don't forget to add the library enum to waylandLoader.py in case a new library is required.
+libwayland-client.so.0 @proc struct wl_event_queue* wl_display_create_queue (struct wl_display* display)
+libwayland-client.so.0 @proc int wl_display_dispatch_queue (struct wl_display* display, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc int wl_display_dispatch_queue_pending (struct wl_display* display, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc int wl_display_flush (struct wl_display* display)
+libwayland-client.so.0 @proc int wl_display_roundtrip_queue (struct wl_display* display, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc void wl_event_queue_destroy (struct wl_event_queue* queue)
+libwayland-client.so.0 @proc int wl_proxy_add_listener (struct wl_proxy* proxy, void (**implementation)(void), void* data)
+libwayland-client.so.0 @proc void* wl_proxy_create_wrapper (void* proxy)
+libwayland-client.so.0 @proc void wl_proxy_destroy (struct wl_proxy* proxy)
+libwayland-client.so.0 @proc void wl_proxy_marshal (struct wl_proxy* p, uint32_t opcode, ...)
+libwayland-client.so.0 @proc struct wl_proxy* wl_proxy_marshal_constructor (struct wl_proxy* proxy, uint32_t opcode, const struct wl_interface* interface, ...)
+libwayland-client.so.0 @proc struct wl_proxy* wl_proxy_marshal_constructor_versioned (struct wl_proxy* proxy, uint32_t opcode, const struct wl_interface* interface, uint32_t version, ...)
+libwayland-client.so.0 @proc void wl_proxy_set_queue (struct wl_proxy* proxy, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc void wl_proxy_wrapper_destroy (void* proxy_wrapper)
+libwayland-client.so.0 @var  struct wl_interface wl_registry_interface
+libwayland-client.so.0 @var  struct wl_interface wl_buffer_interface
+libwayland-client.so.0 @var  struct wl_interface wl_callback_interface

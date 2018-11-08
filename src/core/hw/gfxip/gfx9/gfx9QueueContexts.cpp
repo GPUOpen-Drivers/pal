@@ -1121,9 +1121,6 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
         cmdUtil.BuildSetOneContextReg(mmVGT_TESS_DISTRIBUTION, &m_universalPreamble.hdrVgtTessDistribution);
 
     m_universalPreamble.spaceNeeded +=
-        cmdUtil.BuildSetOneContextReg(mmCB_DCC_CONTROL, &m_universalPreamble.hdrDccControl);
-
-    m_universalPreamble.spaceNeeded +=
         cmdUtil.BuildSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL, &m_universalPreamble.hdrSmallPrimFilterCntl);
 
     m_universalPreamble.spaceNeeded +=
@@ -1135,7 +1132,8 @@ void UniversalQueueContext::BuildUniversalPreambleHeaders()
 void UniversalQueueContext::SetupUniversalPreambleRegisters()
 {
     const Gfx9PalSettings& settings = m_pDevice->Settings();
-    const GfxIpLevel       gfxLevel = m_pDevice->Parent()->ChipProperties().gfxLevel;
+    const auto&            device   = *(m_pDevice->Parent());
+    const GfxIpLevel       gfxLevel = device.ChipProperties().gfxLevel;
 
     BuildGdsRangeCompute(m_pDevice, EngineTypeUniversal, m_queueId, &m_universalPreamble.gdsRangeCompute);
 
@@ -1177,18 +1175,6 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
         m_universalPreamble.gfx9.vgtIndxOffset.bits.INDX_OFFSET = 0;
     }
 
-    // Set-and-forget DCC register:
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_universalPreamble.cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
-    }
-
-    //     Should default to 4 according to register spec
-    m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 4;
-
-    //     Default enable DCC overwrite combiner
-    m_universalPreamble.cbDccControl.bits.OVERWRITE_COMBINER_DISABLE = 0;
-
     // Small primitive filter control
     const uint32 smallPrimFilter = m_pDevice->GetSmallPrimFilter();
     if (smallPrimFilter != SmallPrimFilterDisable)
@@ -1210,6 +1196,12 @@ void UniversalQueueContext::SetupUniversalPreambleRegisters()
     else
     {
         m_universalPreamble.paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 0;
+    }
+
+    // Disable the SC compatability setting to support 1xMSAA sample locations.
+    if (IsGfx091xPlus(device))
+    {
+        m_universalPreamble.paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
     }
 }
 

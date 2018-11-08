@@ -88,9 +88,9 @@ public:
 
     uint32* WriteSetupCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteUpdateSqttTokenMaskCommands(
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace,
-        uint32     sqttTokenMask) const;
+        CmdStream*                    pCmdStream,
+        uint32*                       pCmdSpace,
+        const ThreadTraceTokenConfig& sqttTokenConfig) const;
     uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteStopCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
@@ -98,7 +98,53 @@ protected:
     void SetOptions(const ThreadTraceInfo& info);
 
 private:
+    // Represents the token mask register bit fields for gfx6+.
+    union SqttTokenMask
+    {
+        struct
+        {
+            uint16 misc         : 1;
+            uint16 timestamp    : 1;
+            uint16 reg          : 1;
+            uint16 waveStart    : 1;
+            uint16 waveAlloc    : 1;
+            uint16 regCsPriv    : 1;
+            uint16 waveEnd      : 1;
+            uint16 event        : 1;
+            uint16 eventCs      : 1;
+            uint16 eventGfx1    : 1;
+            uint16 inst         : 1;
+            uint16 instPc       : 1;
+            uint16 instUserData : 1;
+            uint16 issue        : 1;
+            uint16 perf         : 1;
+            uint16 regCs        : 1;
+        };
+
+        uint16 u16All;
+    };
+
+    // Represents the register mask bit field in the thread trace token mask register for gfxip 6+.
+    union SqttRegMask
+    {
+        struct
+        {
+            uint8 eventInitiator         : 1;
+            uint8 drawInitiator          : 1;
+            uint8 dispatchInitiator      : 1;
+            uint8 userData               : 1;
+            uint8 ttMarkerEventInitiator : 1;
+            uint8 gfxdec                 : 1;
+            uint8 shdec                  : 1;
+            uint8 other                  : 1;
+        };
+        uint8 u8All;
+    };
+
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
+                          SqttTokenMask*                pTokenMask,
+                          SqttRegMask*                  pRegMask) const;
 
     const Device& m_device;
 

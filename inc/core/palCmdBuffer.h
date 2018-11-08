@@ -313,6 +313,9 @@ struct CmdBufferCreateInfo
     QueueType                     queueType;     ///< Type of queue commands in this command buffer will target.
                                                  ///  This defines the set of allowed actions in the command buffer.
     EngineType                    engineType;    ///< Type of engine the queue commands will run on.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 449)
+    EngineSubType                 engineSubType; ///< Sub type of engine the queue commands will run on.
+#endif
 
     union
     {
@@ -2780,13 +2783,13 @@ public:
     /// Updates the sqtt token mask on the specified performance experiment.
     ///
     /// @param [in] pPerfExperiment Performance experiment to update.
-    /// @param [in] sqttTokenMask Updated token mask to apply.
+    /// @param [in] tokenConfig pdated token and reg mask to apply.
     ///
     /// @note: This function is only valid to call if pPerfExperiment is a thread trace experiment that is currently
     //         active.
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
-        IPerfExperiment* pPerfExperiment,
-        uint32           sqttTokenMask) = 0;
+        IPerfExperiment*              pPerfExperiment,
+        const ThreadTraceTokenConfig& tokenConfig) = 0;
 
     /// Ends the specified performance experiment.
     ///

@@ -77,7 +77,6 @@ public:
         uint32*    pCmdSpace) const;
 
     uint32 GsVsRingItemSize() const { return m_commands.context.gsVsRingItemSize.bits.ITEMSIZE; }
-    const regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_commands.context.vgtGsOnchipCntl; }
 
     gpusize EsProgramGpuVa() const
     {
@@ -161,9 +160,6 @@ private:
                 uint32                            u32All;
                 regVGT_GS_MAX_PRIMS_PER_SUBGROUP  gfx9;
             } maxPrimsPerSubgrp;
-
-            PM4_PFP_SET_CONTEXT_REG  hdrVgtGsOnchipCntl;
-            regVGT_GS_ONCHIP_CNTL    vgtGsOnchipCntl;
 
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.

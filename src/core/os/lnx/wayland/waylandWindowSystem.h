@@ -22,15 +22,15 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-
 #pragma once
 
 #include "pal.h"
 #include "palFile.h"
+#include "g_waylandLoader.h"
 #include "core/os/lnx/lnxWindowSystem.h"
-#include "wsa.h"
+#include "core/os/lnx/lnxDevice.h"
+#include "core/os/lnx/lnxImage.h"
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 392
 namespace Pal
 {
 namespace Linux
@@ -40,7 +40,10 @@ class Device;
 class WaylandWindowSystem;
 
 // =====================================================================================================================
-// The definition of Present fence for wayland platform.
+// The definition of present fence for Wayland platform.
+// There is no present fence on Wayland platform yet, a listener function registered will be called once the present
+// buffer is released by Wayland Server. Then the m_idle will be set true to indicate that the present fence
+// of the image is signaled.
 class WaylandPresentFence : public PresentFence
 {
 public:
@@ -52,33 +55,32 @@ public:
         void*                      pPlacementAddr,
         PresentFence**             ppPresentFence);
 
-    virtual void Reset() override;
-
-    virtual Result Trigger() override;
-
+    virtual void   Reset()                        override;
+    virtual Result Trigger()                      override;
     virtual Result WaitForCompletion(bool doWait) override;
 
-    void SetImage(int32 hImage) { m_hImage = hImage; }
+    void AssociateImage(Image* pImage) { m_pImage = pImage; }
 
 private:
     explicit WaylandPresentFence(const WaylandWindowSystem& windowSystem);
     virtual ~WaylandPresentFence();
 
-    Result Init(bool initiallySignaled);
+    Result Init(
+        bool initiallySignaled);
 
     const WaylandWindowSystem& m_windowSystem;
-    int32                      m_hImage;
+    const Image*               m_pImage;
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandPresentFence);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandPresentFence);
 };
 
 // =====================================================================================================================
-// Represent a window system with wayland extension.
+// WaylandWindowSystem is responsible for creating Wayland presentable image, presenting image to Wayland server,
+// waiting for Wayland server present done, etc.
 class WaylandWindowSystem : public WindowSystem
 {
 public:
-    // The WindowSystem class is designed to be placed into other PAL objects which requires the Create/Destroy pattern.
     static size_t GetSize() { return sizeof(WaylandWindowSystem); }
 
     static Result Create(
@@ -87,7 +89,6 @@ public:
         void*                         pPlacementAddr,
         WindowSystem**                ppWindowSystem);
 
-    // Helper functions to describe the properties of a window system we will create in the future.
     static Result GetWindowGeometry(
         Device*             pDevice,
         OsDisplayHandle     hDisplay,
@@ -98,8 +99,6 @@ public:
         Device*             pDevice,
         OsDisplayHandle     hDisplay,
         int64               visualId);
-
-    static Result LoadWaylandWsa();
 
     virtual Result CreatePresentableImage(
         SwapChain* pSwapChain,
@@ -116,26 +115,48 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
+    const WaylandLoader&      GetWaylandLoader() const                      { return m_waylandLoader; }
+    const WaylandLoaderFuncs& GetWaylandProcs()  const                      { return m_waylandProcs; }
+    wl_display*               GetDisplay() const                            { return m_pDisplay; }
+    wl_event_queue*           GetEventQueue() const                         { return m_pEventQueue; }
+    wl_surface*               GetSurfaceWrapper() const                     { return m_pSurfaceWrapper; }
+    bool                      GetFrameCompleted() const                     { return m_frameCompleted; }
+
+    void                      SetWaylandDrm(wl_drm* pWaylandDrm)            { m_pWaylandDrm = pWaylandDrm; }
+    void                      SetCapabilities(uint32 capibilities)          { m_capabilities = capibilities; }
+    void                      SetFrameCompleted()                           { m_frameCompleted = true; }
+    void                      SetFrameCallback(wl_callback* pFrameCallback) { m_pFrameCallback = pFrameCallback; }
+
 private:
     WaylandWindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~WaylandWindowSystem();
 
     Result Init();
 
-    const Device&        m_device;
-    void*                m_pDisplay;         // wayland display created by App
-    void*                m_pSurface;         // wayland surface created by App
-    int32                m_hWsa;
-    static WsaInterface* s_pWsaInterface;
+    const Device&             m_device;
+    wl_display*               m_pDisplay;
+    wl_surface*               m_pSurface;
+    wl_drm*                   m_pWaylandDrm;
+    const WaylandLoader&      m_waylandLoader;
+    const WaylandLoaderFuncs& m_waylandProcs;
 
-    friend WaylandPresentFence;
+    // PAL present buffers with multi-threads (two threads, one is main thread and another is present thread), in order
+    // to avoid dead lock with shared queue, two queues are introduced for buffer idle and frame complete respectively.
+    // m_pSurfaceEventQueue is for frame complete only, and other events, including buffer idle, will be dispatched to
+    // m_pEventQueue.
+    wl_event_queue*           m_pEventQueue;
+    wl_event_queue*           m_pSurfaceEventQueue;
+
+    wl_display*               m_pDisplayWrapper;
+    wl_surface*               m_pSurfaceWrapper;
+    wl_drm*                   m_pWaylandDrmWrapper;
+    wl_callback*              m_pFrameCallback;
+    bool                      m_frameCompleted;
+    uint32                    m_capabilities;
 
     PAL_DISALLOW_DEFAULT_CTOR(WaylandWindowSystem);
     PAL_DISALLOW_COPY_AND_ASSIGN(WaylandWindowSystem);
-
-    static constexpr int32 DefaultImageHandle = -1;
 };
 
 } // Linux
 } // Pal
-#endif

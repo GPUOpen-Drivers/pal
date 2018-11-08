@@ -196,6 +196,11 @@ void CmdBuffer::ReplayBegin(
         }
         pQueue->AddLogItem(m_cmdBufLogItem);
     }
+    else
+    {
+        m_sampleFlags.sqThreadTraceActive =
+            m_pDevice->LoggingEnabled(GpuProfilerGranularity::GpuProfilerGranularityFrame);
+    }
 }
 
 // =====================================================================================================================
@@ -212,12 +217,13 @@ void CmdBuffer::ReplayEnd(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
+    m_sampleFlags.sqThreadTraceActive = false;
+
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
     {
         if (m_flags.nested == false)
         {
-            m_sampleFlags.sqThreadTraceActive = false;
             pTgtCmdBuffer->EndSample(pQueue, &m_cmdBufLogItem);
         }
         pTgtCmdBuffer->EndGpaSession(&m_cmdBufLogItem);
@@ -2856,12 +2862,12 @@ void CmdBuffer::ReplayCmdBeginPerfExperiment(
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
-    IPerfExperiment* pPerfExperiment,
-    uint32           sqttTokenMask)
+    IPerfExperiment*              pPerfExperiment,
+    const ThreadTraceTokenConfig& sqttTokenConfig)
 {
     InsertToken(CmdBufCallId::CmdUpdatePerfExperimentSqttTokenMask);
     InsertToken(pPerfExperiment);
-    InsertToken(sqttTokenMask);
+    InsertToken(sqttTokenConfig);
 }
 
 // =====================================================================================================================
@@ -2869,7 +2875,8 @@ void CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    pTgtCmdBuffer->CmdUpdatePerfExperimentSqttTokenMask(ReadTokenVal<IPerfExperiment*>(), ReadTokenVal<uint32>());
+    pTgtCmdBuffer->CmdUpdatePerfExperimentSqttTokenMask(ReadTokenVal<IPerfExperiment*>(),
+                                                        ReadTokenVal<ThreadTraceTokenConfig>());
 }
 
 // =====================================================================================================================

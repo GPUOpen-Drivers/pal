@@ -121,6 +121,7 @@ if(ADDR_GFX9_BUILD)
     if(ADDR_RAVEN1_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_RAVEN1_BUILD)
     endif()
+
 endif()
 
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)

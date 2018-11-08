@@ -1308,7 +1308,26 @@ void Device::Barrier(
                                         &barrier.pTransitions[i],
                                         &barrierOps);
 
-                        RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange, &initSyncReqs);
+                        bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx9Image, subresRange);
+
+                        // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
+                        // finished, even if other Blts caused these operations to occur before any Blts were performed.
+                        // Using our knowledge of the code above (and praying it never changes) we need:
+                        // - A CS_PARTIAL_FLUSH, L1 invalidation and TCC's meta cache invalidation if a compute shader
+                        //   was used.
+                        // - A CP DMA sync to wait for all asynchronous CP DMAs which are used to upload our
+                        //   meta-equation. (GFX9 only)
+                        if (usedCompute)
+                        {
+                            initSyncReqs.csPartialFlush = 1;
+                            initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
+                            initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
+                        }
+
+                        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+                        {
+                            initSyncReqs.syncCpDma = 1;
+                        }
                     }
                 }
                 else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))

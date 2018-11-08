@@ -862,12 +862,12 @@ void RsrcProcMgr::MetaDataDispatch(
 
 // =====================================================================================================================
 // Issues a compute shader blt to initialize the Mask RAM allocatons for an Image.
-void RsrcProcMgr::InitMaskRam(
+// Returns "true" if the compute engine was used for the InitMaskRam operation.
+bool RsrcProcMgr::InitMaskRam(
     GfxCmdBuffer*      pCmdBuffer,
     Pal::CmdStream*    pCmdStream,
     const Image&       dstImage,
-    const SubresRange& range,
-    SyncReqs*          pSyncReqs
+    const SubresRange& range
     ) const
 {
     const auto&       settings   = GetGfx9Settings(*dstImage.Parent()->GetDevice());
@@ -975,23 +975,11 @@ void RsrcProcMgr::InitMaskRam(
     {
         // Htile lookup table will be built by cs blt, thus prompt to perform cs partial flush
         // since it could be followed by an immediate accessing.
-        BuildHtileLookupTable(pCmdBuffer, dstImage, range, pSyncReqs);
+        BuildHtileLookupTable(pCmdBuffer, dstImage, range);
         usedCompute = true;
     }
 
-    // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have finished, even if other
-    // Blts caused these operations to occur before any Blts were performed. Using our knowledge of the code above
-    // (and praying it never changes) we need:
-    // - A CS_PARTIAL_FLUSH, L1 invalidation and TCC's meta cache invalidation if a compute shader was used.
-    // - A CP DMA sync to wait for all asynchronous CP DMAs which are used to upload our meta-equation.
-    if (usedCompute)
-    {
-        pSyncReqs->csPartialFlush = 1;
-        pSyncReqs->cacheFlags    |= CacheSyncInvTcp;
-        pSyncReqs->cacheFlags    |= CacheSyncInvTccMd;
-    }
-
-    pSyncReqs->syncCpDma = 1;
+    return usedCompute;
 }
 
 // =====================================================================================================================
@@ -999,8 +987,7 @@ void RsrcProcMgr::InitMaskRam(
 void RsrcProcMgr::BuildHtileLookupTable(
     GfxCmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
-    const SubresRange& range,
-    SyncReqs*          pSyncReqs
+    const SubresRange& range
     ) const
 {
     const Pal::Image*      pParentImg = dstImage.Parent();

@@ -262,18 +262,18 @@ public:
         void*                          pBuffer) const;
     template <bool dimInThreads, bool forceStartAt000>
     size_t BuildDispatchDirect(
-        uint32       xDim,
-        uint32       yDim,
-        uint32       zDim,
-        Pm4Predicate predicate,
-        void*        pBuffer) const;
+        uint32          xDim,
+        uint32          yDim,
+        uint32          zDim,
+        Pm4Predicate    predicate,
+        void*           pBuffer) const;
     size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
         Pm4Predicate predicate,
         void*        pBuffer) const;
     size_t BuildDispatchIndirectMec(
-        gpusize address,
-        void*   pBuffer) const;
+        gpusize         address,
+        void*           pBuffer) const;
     size_t BuildDrawIndex2(
         uint32       indexCount,
         uint32       indexBufSize,

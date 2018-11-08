@@ -608,6 +608,7 @@ struct GpuChipProperties
                 uint32 sqgEventsEnabled                         :  1;
                 uint32 support8bitIndices                       :  1;
                 uint32 support16BitInstructions                 :  1;
+                uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
                 uint32 supportLoadRegIndexPkt                   :  1;  // Indicates support for LOAD_*_REG_INDEX packets
                 uint32 supportAddrOffsetDumpAndSetShPkt         :  1;  // Indicates support for DUMP_CONST_RAM_OFFSET
@@ -622,7 +623,7 @@ struct GpuChipProperties
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
 
-                uint32 reserved                                 : 16;
+                uint32 reserved                                 : 15;
 
             };
 
@@ -688,14 +689,16 @@ struct GpuChipProperties
                 uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
                 uint32 supportAddrOffsetDumpAndSetShPkt         :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
                                                                       // and SET_SH_REG_OFFSET indexed packet.
+                uint32 supportAddrOffsetSetSh256Pkt             :  1; // Indicates support for SET_SH_REG_OFFSET_256B
+                                                                      // indexed packet.
                 uint32 supportImplicitPrimitiveShader           :  1;
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
                 uint32 placeholder1                             :  4; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
-                uint32 placeholder2                             :  1; // Placeholder. Do not use.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint32 placeholder2                             :  1;
                 uint32 reserved                                 :  8;
             };
 
@@ -1638,6 +1641,10 @@ protected:
 
     virtual Result EnumPrivateScreensInfo(uint32* pNumScreens) = 0;
 
+    // Used to invoke OS device layers to init their internal queues after internal command allocators have been
+    // created.
+    virtual Result PerformOsInternalQueueInit() { return Result::Success; }
+
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
 
@@ -2062,5 +2069,11 @@ PAL_INLINE bool IsRaven(const Device& device)
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 #endif // PAL_BUILD_GFX9
+
+static bool IsGfx091xPlus(const Device& device)
+{
+    return (IsVega12(device)
+           );
+}
 
 } // Pal
