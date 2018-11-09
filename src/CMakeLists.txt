@@ -301,16 +301,13 @@ if(PAL_BUILD_CORE)
             core/os/lnx/lnxScreen.cpp
         )
 
-        # Check if enable wayland
-        find_package(Wayland)
-
-        if(WAYLAND_CLIENT_FOUND)
+        if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland enabled")
             target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/wayland)
             target_sources(pal PRIVATE
-            core/os/lnx/wayland/waylandWindowSystem.cpp
-            core/os/lnx/wayland/g_waylandLoader.cpp
-            core/os/lnx/wayland/mesa/wayland-drm-protocol.c
+                core/os/lnx/wayland/waylandWindowSystem.cpp
+                core/os/lnx/wayland/g_waylandLoader.cpp
+                core/os/lnx/wayland/mesa/wayland-drm-protocol.c
             )
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dwl_buffer_interface=pWlBufferInterface")
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
