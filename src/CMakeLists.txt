@@ -303,6 +303,7 @@ if(PAL_BUILD_CORE)
 
         if(PAL_BUILD_WAYLAND)
             message(STATUS "PAL build with Wayland enabled")
+            find_package(Wayland)
             target_include_directories(pal PRIVATE ${PROJECT_SOURCE_DIR}/src/core/os/lnx/wayland)
             target_sources(pal PRIVATE
                 core/os/lnx/wayland/waylandWindowSystem.cpp
