@@ -312,7 +312,7 @@ if(PAL_BUILD_CORE)
             )
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dwl_buffer_interface=pWlBufferInterface")
             target_compile_definitions(pal PRIVATE PAL_HAVE_WAYLAND_PLATFORM)
-            target_include_directories(pal PRIVATE WAYLAND_CLIENT_INCLUDE_DIR)
+            target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
         endif()
 
     endif()
