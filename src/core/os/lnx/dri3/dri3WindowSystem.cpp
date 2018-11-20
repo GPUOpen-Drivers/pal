@@ -1138,7 +1138,9 @@ Result Dri3WindowSystem::AcquireScreenAccess(
     uint32                 rootWindow  = 0;
 
 #if XCB_RANDR_SUPPORTS_LEASE
-    if (pDevice->GetPlatform()->IsRandRLeaseSupported())
+    if (dri3Procs.pfnXcbRandrCreateLeaseisValid()      &&
+        dri3Procs.pfnXcbRandrCreateLeaseReplyisValid() &&
+        dri3Procs.pfnXcbRandrCreateLeaseReplyFdsisValid())
     {
         result = Result::Success;
     }

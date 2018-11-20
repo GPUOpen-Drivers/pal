@@ -82,6 +82,39 @@ struct Dim3d
     UINT_32 d;
 };
 
+// Macro define resource block type
+enum AddrBlockType
+{
+    AddrBlockMicro     = 0, // Resource uses 256B block
+    AddrBlock4KB       = 1, // Resource uses 4KB block
+    AddrBlock64KB      = 2, // Resource uses 64KB block
+    AddrBlockVar       = 3, // Resource uses var block, only valid for GFX9
+    AddrBlockLinear    = 4, // Resource uses linear swizzle mode
+
+    AddrBlockMaxTiledType = AddrBlock64KB + 1,
+};
+
+enum AddrBlockSet
+{
+    AddrBlockSetMicro     = 1 << AddrBlockMicro,
+    AddrBlockSetMacro4KB  = 1 << AddrBlock4KB,
+    AddrBlockSetMacro64KB = 1 << AddrBlock64KB,
+    AddrBlockSetVar       = 1 << AddrBlockVar,
+    AddrBlockSetLinear    = 1 << AddrBlockLinear,
+
+    AddrBlockSetMacro   = AddrBlockSetMacro4KB | AddrBlockSetMacro64KB,
+};
+
+enum AddrSwSet
+{
+    AddrSwSetZ = 1 << ADDR_SW_Z,
+    AddrSwSetS = 1 << ADDR_SW_S,
+    AddrSwSetD = 1 << ADDR_SW_D,
+    AddrSwSetR = 1 << ADDR_SW_R,
+
+    AddrSwSetAll         = AddrSwSetZ | AddrSwSetS | AddrSwSetD | AddrSwSetR,
+};
+
 /**
 ************************************************************************************************************************
 * @brief This class contains asic independent address lib functionalities
@@ -229,6 +262,21 @@ protected:
         return m_swizzleModeTable[swizzleMode].isZ;
     }
 
+    BOOL_32 IsStandardSwizzle(AddrSwizzleMode swizzleMode) const
+    {
+        return m_swizzleModeTable[swizzleMode].isStd;
+    }
+
+    BOOL_32 IsDisplaySwizzle(AddrSwizzleMode swizzleMode) const
+    {
+        return m_swizzleModeTable[swizzleMode].isDisp;
+    }
+
+    BOOL_32 IsRotateSwizzle(AddrSwizzleMode swizzleMode) const
+    {
+        return m_swizzleModeTable[swizzleMode].isRot;
+    }
+
     BOOL_32 IsStandardSwizzle(AddrResourceType resourceType, AddrSwizzleMode swizzleMode) const
     {
         return HwlIsStandardSwizzle(resourceType, swizzleMode);
@@ -237,11 +285,6 @@ protected:
     BOOL_32 IsDisplaySwizzle(AddrResourceType resourceType, AddrSwizzleMode swizzleMode) const
     {
         return HwlIsDisplaySwizzle(resourceType, swizzleMode);
-    }
-
-    BOOL_32 IsRotateSwizzle(AddrSwizzleMode swizzleMode) const
-    {
-        return m_swizzleModeTable[swizzleMode].isRot;
     }
 
     BOOL_32 IsXor(AddrSwizzleMode swizzleMode) const

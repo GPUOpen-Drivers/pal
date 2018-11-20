@@ -171,6 +171,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdFillGds,                                       InterfaceObject::CmdBuffer,            "CmdFillGds"                              },
     { InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes,                         InterfaceObject::CmdBuffer,            "CmdLoadBufferFilledSizes"                },
     { InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes,                         InterfaceObject::CmdBuffer,            "CmdSaveBufferFilledSizes"                },
+    { InterfaceFunc::CmdBufferCmdSetBufferFilledSize,                           InterfaceObject::CmdBuffer,            "CmdSetBufferFilledSize"                  },
     { InterfaceFunc::CmdBufferCmdBindBorderColorPalette,                        InterfaceObject::CmdBuffer,            "CmdBindBorderColorPalette"               },
     { InterfaceFunc::CmdBufferCmdSetPredication,                                InterfaceObject::CmdBuffer,            "CmdSetPredication"                       },
     { InterfaceFunc::CmdBufferCmdIf,                                            InterfaceObject::CmdBuffer,            "CmdIf"                                   },

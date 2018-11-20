@@ -64,6 +64,9 @@ public:
     void SetPresentInfo(const PresentSwapChainInfo& presentInfo) { m_presentInfo = presentInfo; }
     const PresentSwapChainInfo& GetPresentInfo() const { return m_presentInfo; }
 
+    void SetQueue(IQueue* pQueue) { m_pQueue = pQueue; }
+    IQueue* GetQueue() const { return m_pQueue; }
+
 private:
     PresentSchedulerJob();
     ~PresentSchedulerJob();
@@ -71,6 +74,7 @@ private:
     Node                 m_node;            // The present scheduler maintains intrusive lists of jobs.
     PresentJobType       m_type;            // How to interpret this job (e.g., execute a present).
     PresentSwapChainInfo m_presentInfo;     // All of the information for a present.
+    IQueue*              m_pQueue;          // Internal queue of the same device as the original presentation queue.
 };
 
 // =====================================================================================================================
@@ -101,7 +105,7 @@ protected:
     PresentScheduler(Device* pDevice);
     virtual ~PresentScheduler();
 
-    virtual Result Init(void* pPlacementAddr);
+    virtual Result Init(IDevice*const pSlaveDevices[], void* pPlacementAddr);
     virtual Result PreparePresent(IQueue* pQueue, PresentSchedulerJob* pJob);
 
     // The OS-specific present scheduler classes must override these missing pieces of the scheduling algorithm.
@@ -113,11 +117,11 @@ protected:
 
     Device*const m_pDevice;
 
-    // These queues are created by the OS-specific subclasses. The present queue is not required if we can guarantee
+    // These queues are created by the OS-specific subclasses. The present queues are not required if we can guarantee
     // that the worker thread will never be used.
 
-    IQueue*      m_pSignalQueue;  // Used to signal swap chain acquire semaphores and fences.
-    IQueue*      m_pPresentQueue; // Used by the worker thread to execute presents asynchronously.
+    IQueue*      m_pSignalQueue;                   // Used to signal swap chain acquire semaphores and fences.
+    IQueue*      m_pPresentQueues[XdmaMaxDevices]; // Used by the worker thread to execute presents asynchronously.
 
 private:
     Result GetIdleJob(PresentSchedulerJob** ppJob);

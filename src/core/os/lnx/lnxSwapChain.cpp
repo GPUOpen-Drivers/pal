@@ -41,15 +41,23 @@ size_t SwapChain::GetSize(
     const SwapChainCreateInfo& createInfo,
     const Device&              device)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 454
+    IDevice* pSlaveDevices[XdmaMaxDevices - 1] = {};
+#endif
+
     // In addition to this object, the Linux swap chain has to reserve space for:
     // - A window system for the current platform.
     // - One PresentFence for each swap chain image.
     // - A Linux present scheduler for the parent class.
     // - Enough space for all of the OS-independent objects in the parent class.
-    return (sizeof(SwapChain)                                                       +
-            WindowSystem::GetSize(createInfo.wsiPlatform)                           +
-            (createInfo.imageCount * PresentFence::GetSize(createInfo.wsiPlatform)) +
-            PresentScheduler::GetSize(device, createInfo.wsiPlatform)               +
+    return (sizeof(SwapChain)                                                                   +
+            WindowSystem::GetSize(createInfo.wsiPlatform)                                       +
+            (createInfo.imageCount * PresentFence::GetSize(createInfo.wsiPlatform))             +
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+            PresentScheduler::GetSize(device, createInfo.pSlaveDevices, createInfo.wsiPlatform) +
+#else
+            PresentScheduler::GetSize(device, pSlaveDevices, createInfo.wsiPlatform)            +
+#endif
             Pal::SwapChain::GetPlacementSize(createInfo, device));
 }
 
@@ -153,8 +161,26 @@ Result SwapChain::Init(
 
     if (result == Result::Success)
     {
-        result         = PresentScheduler::Create(pLnxDevice, m_pWindowSystem, pPlacementAddr, &m_pScheduler);
-        pPlacementAddr = VoidPtrInc(pPlacementAddr, PresentScheduler::GetSize(*pLnxDevice, m_createInfo.wsiPlatform));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 454
+        IDevice* pSlaveDevices[XdmaMaxDevices - 1] = {};
+#endif
+
+        result         = PresentScheduler::Create(pLnxDevice,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+                                                  m_createInfo.pSlaveDevices,
+#else
+                                                  pSlaveDevices,
+#endif
+                                                  m_pWindowSystem,
+                                                  pPlacementAddr,
+                                                  &m_pScheduler);
+        pPlacementAddr = VoidPtrInc(pPlacementAddr, PresentScheduler::GetSize(*pLnxDevice,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+                                                                              m_createInfo.pSlaveDevices,
+#else
+                                                                              pSlaveDevices,
+#endif
+                                                                              m_createInfo.wsiPlatform));
     }
 
     const size_t fenceSize = PresentFence::GetSize(m_createInfo.wsiPlatform);

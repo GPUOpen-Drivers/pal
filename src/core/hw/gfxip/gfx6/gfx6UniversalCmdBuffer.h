@@ -31,7 +31,6 @@
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
-#include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
 #include "core/hw/gfxip/gfx6/gfx6WorkaroundState.h"
 #include "palIntervalTree.h"
 
@@ -478,6 +477,10 @@ public:
     virtual void CmdSaveBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
 
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override;
+
     virtual void CmdBeginQuery(
         const IQueryPool& queryPool,
         QueryType         queryType,
@@ -690,7 +693,9 @@ private:
         ICmdBuffer* pCmdBuffer,
         gpusize     streamOutFilledSizeVa,
         uint32      streamOutOffset,
-        uint32      stride);
+        uint32      stride,
+        uint32      firstInstance,
+        uint32      instanceCount);
     template <GfxIpLevel gfxLevel, bool issueSqttMarkerEvent, bool viewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
@@ -863,10 +868,8 @@ private:
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
-
-    PrefetchMgr  m_prefetchMgr;
-    CmdStream    m_deCmdStream;
-    CmdStream    m_ceCmdStream;
+    CmdStream       m_deCmdStream;
+    CmdStream       m_ceCmdStream;
 
     // Tracks the user-data signature of the currently active compute & graphics pipelines.
     const ComputePipelineSignature*   m_pSignatureCs;

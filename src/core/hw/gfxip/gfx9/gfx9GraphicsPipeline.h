@@ -84,9 +84,7 @@ public:
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const override;
 
-    uint32* RequestPrefetch(
-        const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const;
+    uint32* Prefetch(uint32* pCmdSpace) const;
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_paScModeCntl1; }
 
@@ -258,6 +256,8 @@ private:
             } context;
         } loadIndex; // LOAD_INDEX path, used for GPU's which support the updated microcode.
 
+        PipelinePrefetchPm4 prefetch;
+
         struct
         {
             struct
@@ -268,8 +268,8 @@ private:
 
             struct
             {
-                PM4_PFP_SET_CONTEXT_REG             hdrVgtShaderStagesEn;
-                regVGT_SHADER_STAGES_EN             vgtShaderStagesEn;
+                PM4_PFP_SET_CONTEXT_REG  hdrVgtShaderStagesEn;
+                regVGT_SHADER_STAGES_EN  vgtShaderStagesEn;
 
                 PM4_PFP_SET_CONTEXT_REG  hdrVgtGsMode;
                 regVGT_GS_MODE           vgtGsMode;
@@ -374,17 +374,23 @@ public:
 
     // Add a context register to GPU memory for use with LOAD_CONTEXT_REG_INDEX.
     PAL_INLINE void AddCtxReg(uint16 address, uint32 value)
-        { Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, value); }
+    {
+        PAL_ASSERT(Gfx9::CmdUtil::IsContextReg(address));
+        Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, value);
+    }
     template <typename Register_t>
     PAL_INLINE void AddCtxReg(uint16 address, Register_t reg)
-        { Pal::PipelineUploader::AddCtxRegister(address - CONTEXT_SPACE_START, reg.u32All); }
+        { AddCtxReg(address, reg.u32All); }
 
     // Add a SH register to GPU memory for use with LOAD_SH_REG_INDEX.
     PAL_INLINE void AddShReg(uint16 address, uint32 value)
-        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, value); }
+    {
+        PAL_ASSERT(CmdUtil::IsShReg(address));
+        Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, value);
+    }
     template <typename Register_t>
     PAL_INLINE void AddShReg(uint16 address, Register_t reg)
-        { Pal::PipelineUploader::AddShRegister(address - PERSISTENT_SPACE_START, reg.u32All); }
+        { AddShReg(address, reg.u32All); }
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipelineUploader);

@@ -3186,7 +3186,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
         if (linear)
         {
             invalid = ((ADDR_RSRC_TEX_1D != rsrcType) && prt) ||
-                      zbuffer || msaa || (pIn->bpp == 0) || ((pIn->bpp % 8) != 0) || thin3d;
+                      zbuffer || msaa || (pIn->bpp == 0) || ((pIn->bpp % 8) != 0);
         }
         else
         {
@@ -3205,11 +3205,11 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoSanityCheck(
                 {
                     invalid = (color && msaa) || thin3d;
                 }
-                else if (IsStandardSwizzle(rsrcType, swizzle))
+                else if (IsStandardSwizzle(swizzle))
                 {
                     invalid = zbuffer || thin3d;
                 }
-                else if (IsDisplaySwizzle(rsrcType, swizzle))
+                else if (IsDisplaySwizzle(swizzle))
                 {
                     invalid = zbuffer || (prt && (ADDR_RSRC_TEX_3D == rsrcType));
                 }
@@ -3246,613 +3246,429 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
     const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const
 {
-    // Macro define resource block type
-    enum AddrBlockType
-    {
-        AddrBlockMicro     = 0, // Resource uses 256B block
-        AddrBlock4KB       = 1, // Resource uses 4KB block
-        AddrBlock64KB      = 2, // Resource uses 64KB block
-        AddrBlockVar       = 3, // Resource uses var blcok
-        AddrBlockLinear    = 4, // Resource uses linear swizzle mode
-
-        AddrBlockMaxTiledType = AddrBlock64KB + 1,
-    };
-
-    enum AddrBlockSet
-    {
-        AddrBlockSetMicro     = 1 << AddrBlockMicro,
-        AddrBlockSetMacro4KB  = 1 << AddrBlock4KB,
-        AddrBlockSetMacro64KB = 1 << AddrBlock64KB,
-        AddrBlockSetVar       = 1 << AddrBlockVar,
-        AddrBlockSetLinear    = 1 << AddrBlockLinear,
-
-        AddrBlockSetMacro = AddrBlockSetMacro4KB | AddrBlockSetMacro64KB,
-    };
-
-    enum AddrSwSet
-    {
-        AddrSwSetZ = 1 << ADDR_SW_Z,
-        AddrSwSetS = 1 << ADDR_SW_S,
-        AddrSwSetD = 1 << ADDR_SW_D,
-        AddrSwSetR = 1 << ADDR_SW_R,
-
-        AddrSwSetAll = AddrSwSetZ | AddrSwSetS | AddrSwSetD | AddrSwSetR,
-    };
-
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
     ElemLib*          pElemLib   = GetElemLib();
 
-    // Set format to INVALID will skip this conversion
-    UINT_32 expandX = 1;
-    UINT_32 expandY = 1;
-    UINT_32 bpp     = pIn->bpp;
-    UINT_32 width   = pIn->width;
-    UINT_32 height  = pIn->height;
-
-    if (pIn->format != ADDR_FMT_INVALID)
-    {
-        // Don't care for this case
-        ElemMode elemMode = ADDR_UNCOMPRESSED;
-
-        // Get compression/expansion factors and element mode which indicates compression/expansion
-        bpp = pElemLib->GetBitsPerPixel(pIn->format,
-                                        &elemMode,
-                                        &expandX,
-                                        &expandY);
-
-        UINT_32 basePitch = 0;
-        GetElemLib()->AdjustSurfaceInfo(elemMode,
-                                        expandX,
-                                        expandY,
-                                        &bpp,
-                                        &basePitch,
-                                        &width,
-                                        &height);
-    }
-
+    UINT_32 bpp          = pIn->bpp;
+    UINT_32 width        = pIn->width;
+    UINT_32 height       = pIn->height;
     UINT_32 numSamples   = Max(pIn->numSamples, 1u);
     UINT_32 numFrags     = (pIn->numFrags == 0) ? numSamples : pIn->numFrags;
-    UINT_32 slice        = Max(pIn->numSlices, 1u);
-    UINT_32 numMipLevels = Max(pIn->numMipLevels, 1u);
-    UINT_32 minSizeAlign = NextPow2(pIn->minSizeAlign);
 
     if (pIn->flags.fmask)
     {
-        bpp        = GetFmaskBpp(numSamples, numFrags);
-        numFrags   = 1;
-        numSamples = 1;
+        bpp                = GetFmaskBpp(numSamples, numFrags);
+        numFrags           = 1;
+        numSamples         = 1;
         pOut->resourceType = ADDR_RSRC_TEX_2D;
     }
     else
     {
+        // Set format to INVALID will skip this conversion
+        if (pIn->format != ADDR_FMT_INVALID)
+        {
+            UINT_32 expandX, expandY;
+
+            // Don't care for this case
+            ElemMode elemMode = ADDR_UNCOMPRESSED;
+
+            // Get compression/expansion factors and element mode which indicates compression/expansion
+            bpp = pElemLib->GetBitsPerPixel(pIn->format,
+                                            &elemMode,
+                                            &expandX,
+                                            &expandY);
+
+            UINT_32 basePitch = 0;
+            GetElemLib()->AdjustSurfaceInfo(elemMode,
+                                            expandX,
+                                            expandY,
+                                            &bpp,
+                                            &basePitch,
+                                            &width,
+                                            &height);
+        }
+
         // The output may get changed for volume(3D) texture resource in future
         pOut->resourceType = pIn->resourceType;
     }
 
-    if (bpp < 8)
-    {
-        ADDR_ASSERT_ALWAYS();
+    const UINT_32 numSlices    = Max(pIn->numSlices, 1u);
+    const UINT_32 numMipLevels = Max(pIn->numMipLevels, 1u);
+    const BOOL_32 msaa         = (numFrags > 1) || (numSamples > 1);
+    const BOOL_32 displayRsrc  = pIn->flags.display || pIn->flags.rotated;
 
-        returnCode = ADDR_INVALIDPARAMS;
+    // Forbid swizzle mode(s) by client setting, for simplicity we never allow VAR swizzle mode for GFX9
+    ADDR2_SWMODE_SET allowedSwModeSet = {};
+    allowedSwModeSet.value |= pIn->forbiddenBlock.linear    ? 0 : Gfx9LinearSwModeMask;
+    allowedSwModeSet.value |= pIn->forbiddenBlock.micro     ? 0 : Gfx9Blk256BSwModeMask;
+    allowedSwModeSet.value |= pIn->forbiddenBlock.macro4KB  ? 0 : Gfx9Blk4KBSwModeMask;
+    allowedSwModeSet.value |= pIn->forbiddenBlock.macro64KB ? 0 : Gfx9Blk64KBSwModeMask;
+
+    if (pIn->preferredSwSet.value != 0)
+    {
+        allowedSwModeSet.value &= pIn->preferredSwSet.sw_Z ? ~0 : ~Gfx9ZSwModeMask;
+        allowedSwModeSet.value &= pIn->preferredSwSet.sw_S ? ~0 : ~Gfx9StandardSwModeMask;
+        allowedSwModeSet.value &= pIn->preferredSwSet.sw_D ? ~0 : ~Gfx9DisplaySwModeMask;
+        allowedSwModeSet.value &= pIn->preferredSwSet.sw_R ? ~0 : ~Gfx9RotateSwModeMask;
     }
-    else if (IsTex1d(pOut->resourceType))
+
+    if (pIn->noXor)
     {
-        pOut->swizzleMode         = ADDR_SW_LINEAR;
-        pOut->validBlockSet.value = AddrBlockSetLinear;
-        pOut->canXor              = FALSE;
+        allowedSwModeSet.value &= ~Gfx9XorSwModeMask;
     }
-    else
+
+    if (pIn->maxAlign > 0)
     {
-        ADDR2_BLOCK_SET blockSet;
-        blockSet.value = 0;
-
-        ADDR2_SWTYPE_SET addrPreferredSwSet, addrValidSwSet, clientPreferredSwSet;
-        addrPreferredSwSet.value = AddrSwSetS;
-        addrValidSwSet           = addrPreferredSwSet;
-        clientPreferredSwSet     = pIn->preferredSwSet;
-
-        if (clientPreferredSwSet.value == 0)
+        if (pIn->maxAlign < GetBlockSize(ADDR_SW_64KB))
         {
-            clientPreferredSwSet.value = AddrSwSetAll;
+            allowedSwModeSet.value &= ~Gfx9Blk64KBSwModeMask;
         }
 
-        // prt Xor and non-xor will have less height align requirement for stereo surface
-        BOOL_32 prtXor          = (pIn->flags.prt || pIn->flags.qbStereo) && (pIn->noXor == FALSE);
-        BOOL_32 displayResource = FALSE;
-
-        pOut->canXor = (pIn->flags.prt == FALSE) && (pIn->noXor == FALSE);
-
-        // Filter out improper swType and blockSet by HW restriction
-        if (pIn->flags.fmask || pIn->flags.depth || pIn->flags.stencil)
+        if (pIn->maxAlign < GetBlockSize(ADDR_SW_4KB))
         {
-            ADDR_ASSERT(IsTex2d(pOut->resourceType));
-            blockSet.value           = AddrBlockSetMacro;
-            addrPreferredSwSet.value = AddrSwSetZ;
-            addrValidSwSet.value     = AddrSwSetZ;
+            allowedSwModeSet.value &= ~Gfx9Blk4KBSwModeMask;
+        }
 
-            if (pIn->flags.noMetadata == FALSE)
+        if (pIn->maxAlign < GetBlockSize(ADDR_SW_256B))
+        {
+            allowedSwModeSet.value &= ~Gfx9Blk256BSwModeMask;
+        }
+    }
+
+    // Filter out invalid swizzle mode(s) by image attributes and HW restrictions
+    switch (pOut->resourceType)
+    {
+        case ADDR_RSRC_TEX_1D:
+            allowedSwModeSet.value &= Gfx9Rsrc1dSwModeMask;
+            break;
+
+        case ADDR_RSRC_TEX_2D:
+            allowedSwModeSet.value &= pIn->flags.prt ? Gfx9Rsrc2dPrtSwModeMask : Gfx9Rsrc2dSwModeMask;
+
+            if (bpp > 64)
             {
-                if (pIn->flags.depth &&
-                    pIn->flags.texture &&
-                    (((bpp == 16) && (numFrags >= 4)) || ((bpp == 32) && (numFrags >= 2))))
-                {
-                    // When _X/_T swizzle mode was used for MSAA depth texture, TC will get zplane
-                    // equation from wrong address within memory range a tile covered and use the
-                    // garbage data for compressed Z reading which finally leads to corruption.
-                    pOut->canXor = FALSE;
-                    prtXor       = FALSE;
-                }
-
-                if (m_settings.htileCacheRbConflict &&
-                    (pIn->flags.depth || pIn->flags.stencil) &&
-                    (slice > 1) &&
-                    (pIn->flags.metaRbUnaligned == FALSE) &&
-                    (pIn->flags.metaPipeUnaligned == FALSE))
-                {
-                    // Z_X 2D array with Rb/Pipe aligned HTile won't have metadata cache coherency
-                    pOut->canXor = FALSE;
-                }
+                allowedSwModeSet.value &= ~(Gfx9RotateSwModeMask | Gfx9ZSwModeMask);
             }
-        }
-        else if (IsTex3d(pOut->resourceType) && pIn->flags.prt)
-        {
-            blockSet.value = AddrBlockSetLinear | AddrBlockSetMacro;
+            break;
 
-            // PRT cannot use SW_D which gives an unexpected block dimension
-            addrPreferredSwSet.value = ElemLib::IsBlockCompressed(pIn->format) ? AddrSwSetS : AddrSwSetZ;
-            addrValidSwSet.value     = AddrSwSetZ | AddrSwSetS;
-        }
-        else if (ElemLib::IsBlockCompressed(pIn->format))
-        {
-            // block compressed formats (BCx, ASTC, ETC2) must be either S or D modes.
-            // Not sure under what circumstances "_D" would be appropriate as these formats
-            // are not displayable.
-            blockSet.value = AddrBlockSetMacro;
+        case ADDR_RSRC_TEX_3D:
+            allowedSwModeSet.value &= pIn->flags.prt ? Gfx9Rsrc3dPrtSwModeMask : Gfx9Rsrc3dSwModeMask;
 
-            // This isn't to be used as texture and caller doesn't allow macro tiled.
-            if ((pIn->flags.texture == FALSE) &&
-                (pIn->forbiddenBlock.macro4KB && pIn->forbiddenBlock.macro64KB))
+            if ((numMipLevels > 1) && (numSlices >= width) && (numSlices >= height))
             {
-                blockSet.value |= AddrBlockSetLinear;
-            }
-
-            addrPreferredSwSet.value = AddrSwSetD;
-            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD;
-        }
-        else if (ElemLib::IsMacroPixelPacked(pIn->format))
-        {
-            // macro pixel packed formats (BG_RG, GB_GR) does not support the Z modes.
-            // Its notclear under what circumstances the D or R modes would be appropriate
-            // since these formats are not displayable.
-            blockSet.value  = AddrBlockSetLinear | AddrBlockSetMacro;
-
-            addrPreferredSwSet.value = AddrSwSetS;
-            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD | AddrSwSetR;
-        }
-        else if (IsTex3d(pOut->resourceType))
-        {
-            blockSet.value = AddrBlockSetLinear | AddrBlockSetMacro;
-
-            if ((numMipLevels > 1) && (slice >= width) && (slice >= height))
-            {
+                // SW_*_D for 3D mipmaps (maxmip > 0) is only supported for Xmajor or Ymajor mipmap
                 // When depth (Z) is the maximum dimension then must use one of the SW_*_S
                 // or SW_*_Z modes if mipmapping is desired on a 3D surface
-                addrPreferredSwSet.value = AddrSwSetZ;
-                addrValidSwSet.value     = AddrSwSetZ | AddrSwSetS;
+                allowedSwModeSet.value &= ~Gfx9DisplaySwModeMask;
             }
-            else if (pIn->flags.color)
+
+            if ((bpp == 128) && pIn->flags.color)
             {
-                addrPreferredSwSet.value = AddrSwSetD;
-                addrValidSwSet.value     = AddrSwSetZ | AddrSwSetS | AddrSwSetD;
-            }
-            else
-            {
-                addrPreferredSwSet.value = AddrSwSetZ;
-                addrValidSwSet.value     = AddrSwSetZ | AddrSwSetD;
-                if (bpp != 128)
-                {
-                    addrValidSwSet.value |= AddrSwSetS;
-                }
+                allowedSwModeSet.value &= ~Gfx9StandardSwModeMask;
             }
 
             if (pIn->flags.view3dAs2dArray)
             {
-                ADDR_ASSERT(addrValidSwSet.sw_D);
-                addrPreferredSwSet.value  = AddrSwSetD;
-                addrValidSwSet.value     &= AddrSwSetD;
+                allowedSwModeSet.value &= Gfx9Rsrc3dThinSwModeMask | Gfx9LinearSwModeMask;
             }
-        }
-        else
-        {
-            addrPreferredSwSet.value = ((pIn->flags.display == TRUE) ||
-                                        (pIn->flags.overlay == TRUE) ||
-                                        (pIn->bpp           == 128)) ? AddrSwSetD : AddrSwSetS;
+            break;
 
-            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD | AddrSwSetR;
-
-            if (numMipLevels > 1)
-            {
-                ADDR_ASSERT(numFrags == 1);
-                blockSet.value = AddrBlockSetLinear | AddrBlockSetMacro;
-            }
-            else if ((numFrags > 1) || (numSamples > 1))
-            {
-                ADDR_ASSERT(IsTex2d(pOut->resourceType));
-                blockSet.value = AddrBlockSetMacro;
-            }
-            else
-            {
-                ADDR_ASSERT(IsTex2d(pOut->resourceType));
-                blockSet.value = AddrBlockSetLinear | AddrBlockSetMicro | AddrBlockSetMacro;
-
-                displayResource = pIn->flags.rotated || pIn->flags.display;
-
-                if (displayResource)
-                {
-                    addrPreferredSwSet.value = pIn->flags.rotated ? AddrSwSetR : AddrSwSetD;
-
-                    if (pIn->bpp > 64)
-                    {
-                        blockSet.value = 0;
-                    }
-                    else if (m_settings.isDce12)
-                    {
-                        if (pIn->bpp != 32)
-                        {
-                            blockSet.micro = FALSE;
-                        }
-
-                        // DCE12 does not support display surface to be _T swizzle mode
-                        prtXor = FALSE;
-
-                        addrValidSwSet.value = AddrSwSetD | AddrSwSetR;
-                    }
-                    else if (m_settings.isDcn1)
-                    {
-                        // _R is not supported by Dcn1
-                        if (pIn->bpp == 64)
-                        {
-                            addrPreferredSwSet.value = AddrSwSetD;
-                            addrValidSwSet.value     = AddrSwSetS | AddrSwSetD;
-                        }
-                        else
-                        {
-                            addrPreferredSwSet.value = AddrSwSetS;
-                            addrValidSwSet.value     = AddrSwSetS;
-                        }
-
-                        blockSet.micro = FALSE;
-                    }
-                    else
-                    {
-                        ADDR_NOT_IMPLEMENTED();
-                        returnCode = ADDR_NOTSUPPORTED;
-                    }
-                }
-            }
-        }
-
-        ADDR_ASSERT((addrValidSwSet.value & addrPreferredSwSet.value) == addrPreferredSwSet.value);
-
-        pOut->clientPreferredSwSet = clientPreferredSwSet;
-
-        // Clamp client preferred set to valid set
-        clientPreferredSwSet.value &= addrValidSwSet.value;
-
-        pOut->validSwTypeSet = addrValidSwSet;
-
-        if (clientPreferredSwSet.value == 0)
-        {
-            // Client asks for an invalid swizzle type...
+        default:
             ADDR_ASSERT_ALWAYS();
-            returnCode = ADDR_INVALIDPARAMS;
+            allowedSwModeSet.value = 0;
+            break;
+    }
+
+    if (pIn->format == ADDR_FMT_32_32_32)
+    {
+        allowedSwModeSet.value &= Gfx9LinearSwModeMask;
+    }
+
+    if (ElemLib::IsBlockCompressed(pIn->format))
+    {
+        if (pIn->flags.texture)
+        {
+            allowedSwModeSet.value &= Gfx9StandardSwModeMask | Gfx9DisplaySwModeMask;
         }
         else
         {
-            if (IsPow2(clientPreferredSwSet.value))
-            {
-                // Only one swizzle type left, use it directly
-                addrPreferredSwSet.value = clientPreferredSwSet.value;
-            }
-            else if ((clientPreferredSwSet.value & addrPreferredSwSet.value) == 0)
-            {
-                // Client wants 2 or more a valid swizzle type but none of them is addrlib preferred
-                if (clientPreferredSwSet.sw_D)
-                {
-                    addrPreferredSwSet.value = AddrSwSetD;
-                }
-                else if (clientPreferredSwSet.sw_Z)
-                {
-                    addrPreferredSwSet.value = AddrSwSetZ;
-                }
-                else if (clientPreferredSwSet.sw_R)
-                {
-                    addrPreferredSwSet.value = AddrSwSetR;
-                }
-                else
-                {
-                    ADDR_ASSERT(clientPreferredSwSet.sw_S);
-                    addrPreferredSwSet.value = AddrSwSetS;
-                }
-            }
+            allowedSwModeSet.value &= Gfx9StandardSwModeMask | Gfx9DisplaySwModeMask | Gfx9LinearSwModeMask;
+        }
+    }
 
-            if ((numFrags > 1) &&
-                (GetBlockSize(ADDR_SW_4KB) < (m_pipeInterleaveBytes * numFrags)))
+    if (ElemLib::IsMacroPixelPacked(pIn->format) ||
+        (msaa && ((bpp > 32) || pIn->flags.color || pIn->flags.unordered)))
+    {
+        allowedSwModeSet.value &= ~Gfx9ZSwModeMask;
+    }
+
+    if (pIn->flags.fmask || pIn->flags.depth || pIn->flags.stencil)
+    {
+        allowedSwModeSet.value &= Gfx9ZSwModeMask;
+
+        if (pIn->flags.noMetadata == FALSE)
+        {
+            if (pIn->flags.depth &&
+                pIn->flags.texture &&
+                (((bpp == 16) && (numFrags >= 4)) || ((bpp == 32) && (numFrags >= 2))))
             {
-                // MSAA surface must have blk_bytes/pipe_interleave >= num_samples
-                blockSet.macro4KB = FALSE;
+                // When _X/_T swizzle mode was used for MSAA depth texture, TC will get zplane
+                // equation from wrong address within memory range a tile covered and use the
+                // garbage data for compressed Z reading which finally leads to corruption.
+                allowedSwModeSet.value &= ~Gfx9XorSwModeMask;
             }
 
-            if (pIn->flags.prt)
+            if (m_settings.htileCacheRbConflict &&
+                (pIn->flags.depth || pIn->flags.stencil) &&
+                (numSlices > 1) &&
+                (pIn->flags.metaRbUnaligned == FALSE) &&
+                (pIn->flags.metaPipeUnaligned == FALSE))
             {
-                blockSet.value &= AddrBlockSetMacro64KB;
+                // Z_X 2D array with Rb/Pipe aligned HTile won't have metadata cache coherency
+                allowedSwModeSet.value &= ~Gfx9XSwModeMask;
+            }
+        }
+    }
+
+    if (msaa)
+    {
+        allowedSwModeSet.value &= Gfx9MsaaSwModeMask;
+    }
+
+    if ((numFrags > 1) &&
+        (GetBlockSize(ADDR_SW_4KB) < (m_pipeInterleaveBytes * numFrags)))
+    {
+        // MSAA surface must have blk_bytes/pipe_interleave >= num_samples
+        allowedSwModeSet.value &= Gfx9Blk64KBSwModeMask;
+    }
+
+    if (numMipLevels > 1)
+    {
+        allowedSwModeSet.value &= ~Gfx9Blk256BSwModeMask;
+    }
+
+    if (displayRsrc)
+    {
+        if (m_settings.isDce12)
+        {
+            allowedSwModeSet.value &= (bpp == 32) ? Dce12Bpp32SwModeMask : Dce12NonBpp32SwModeMask;
+        }
+        else if (m_settings.isDcn1)
+        {
+            allowedSwModeSet.value &= (bpp == 64) ? Dcn1Bpp64SwModeMask : Dcn1NonBpp64SwModeMask;
+        }
+        else
+        {
+            ADDR_NOT_IMPLEMENTED();
+        }
+    }
+
+    if (allowedSwModeSet.value != 0)
+    {
+#if DEBUG
+        // Post sanity check, at least AddrLib should accept the output generated by its own
+        ADDR2_COMPUTE_SURFACE_INFO_INPUT localIn = {};
+        localIn.flags        = pIn->flags;
+        localIn.resourceType = pOut->resourceType;
+        localIn.format       = pIn->format;
+        localIn.bpp          = bpp;
+        localIn.width        = width;
+        localIn.height       = height;
+        localIn.numSlices    = numSlices;
+        localIn.numMipLevels = numMipLevels;
+        localIn.numSamples   = numSamples;
+        localIn.numFrags     = numFrags;
+
+        UINT_32 validateSwModeSet = allowedSwModeSet.value;
+        for (UINT_32 i = 0; validateSwModeSet != 0; i++)
+        {
+            if (validateSwModeSet & 1)
+            {
+                localIn.swizzleMode = static_cast<AddrSwizzleMode>(i);
+                HwlComputeSurfaceInfoSanityCheck(&localIn);
             }
 
-            // Apply customized forbidden setting
-            blockSet.value &= ~pIn->forbiddenBlock.value;
+            validateSwModeSet >>= 1;
+        }
+#endif
 
-            if (pIn->maxAlign > 0)
+        pOut->validSwModeSet = allowedSwModeSet;
+        pOut->canXor         = (allowedSwModeSet.value & Gfx9XorSwModeMask) ? TRUE : FALSE;
+        pOut->validBlockSet  = GetAllowedBlockSet(allowedSwModeSet);
+        pOut->validSwTypeSet = GetAllowedSwSet(allowedSwModeSet);
+
+        pOut->clientPreferredSwSet = pIn->preferredSwSet;
+
+        if (pOut->clientPreferredSwSet.value == 0)
+        {
+            pOut->clientPreferredSwSet.value = AddrSwSetAll;
+        }
+
+        if (allowedSwModeSet.value == Gfx9LinearSwModeMask)
+        {
+            pOut->swizzleMode = ADDR_SW_LINEAR;
+        }
+        else
+        {
+            // Always ignore linear swizzle mode if there is other choice.
+            allowedSwModeSet.swLinear = 0;
+
+            ADDR2_BLOCK_SET allowedBlockSet = GetAllowedBlockSet(allowedSwModeSet);
+
+            // Determine block size if there is 2 or more block type candidates
+            if (IsPow2(allowedBlockSet.value) == FALSE)
             {
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_64KB))
-                {
-                    blockSet.macro64KB = FALSE;
-                }
+                const AddrSwizzleMode swMode[AddrBlockMaxTiledType]  = {ADDR_SW_256B, ADDR_SW_4KB, ADDR_SW_64KB};
+                Dim3d                 blkDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}};
+                Dim3d                 padDim[AddrBlockMaxTiledType]  = {{0}, {0}, {0}};
+                UINT_64               padSize[AddrBlockMaxTiledType] = {0};
 
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_4KB))
-                {
-                    blockSet.macro4KB = FALSE;
-                }
-
-                if (pIn->maxAlign < GetBlockSize(ADDR_SW_256B))
-                {
-                    blockSet.micro = FALSE;
-                }
-            }
-
-            Dim3d blkAlign[AddrBlockMaxTiledType]  = {{0}, {0}, {0}};
-            Dim3d paddedDim[AddrBlockMaxTiledType] = {{0}, {0}, {0}};
-            UINT_64 padSize[AddrBlockMaxTiledType] = {0};
-
-            if (blockSet.micro)
-            {
-                returnCode = ComputeBlockDimensionForSurf(&blkAlign[AddrBlockMicro].w,
-                                                          &blkAlign[AddrBlockMicro].h,
-                                                          &blkAlign[AddrBlockMicro].d,
-                                                          bpp,
-                                                          numFrags,
-                                                          pOut->resourceType,
-                                                          ADDR_SW_256B);
-
-                if (returnCode == ADDR_OK)
-                {
-                    if (displayResource)
-                    {
-                        blkAlign[AddrBlockMicro].w = PowTwoAlign(blkAlign[AddrBlockMicro].w, 32);
-                    }
-                    else if ((blkAlign[AddrBlockMicro].w >= width) && (blkAlign[AddrBlockMicro].h >= height) &&
-                             (minSizeAlign <= GetBlockSize(ADDR_SW_256B)))
-                    {
-                        // If one 256B block can contain the surface, don't bother bigger block type
-                        blockSet.macro4KB = FALSE;
-                        blockSet.macro64KB = FALSE;
-                        blockSet.var = FALSE;
-                    }
-
-                    padSize[AddrBlockMicro] = ComputePadSize(&blkAlign[AddrBlockMicro], width, height,
-                                                             slice, &paddedDim[AddrBlockMicro]);
-                }
-            }
-
-            if ((returnCode == ADDR_OK) && blockSet.macro4KB)
-            {
-                returnCode = ComputeBlockDimensionForSurf(&blkAlign[AddrBlock4KB].w,
-                                                          &blkAlign[AddrBlock4KB].h,
-                                                          &blkAlign[AddrBlock4KB].d,
-                                                          bpp,
-                                                          numFrags,
-                                                          pOut->resourceType,
-                                                          ADDR_SW_4KB);
-
-                if (returnCode == ADDR_OK)
-                {
-                    if (displayResource)
-                    {
-                        blkAlign[AddrBlock4KB].w = PowTwoAlign(blkAlign[AddrBlock4KB].w, 32);
-                    }
-
-                    padSize[AddrBlock4KB] = ComputePadSize(&blkAlign[AddrBlock4KB], width, height,
-                                                           slice, &paddedDim[AddrBlock4KB]);
-
-                    ADDR_ASSERT(padSize[AddrBlock4KB] >= padSize[AddrBlockMicro]);
-                }
-            }
-
-            if ((returnCode == ADDR_OK) && blockSet.macro64KB)
-            {
-                returnCode = ComputeBlockDimensionForSurf(&blkAlign[AddrBlock64KB].w,
-                                                          &blkAlign[AddrBlock64KB].h,
-                                                          &blkAlign[AddrBlock64KB].d,
-                                                          bpp,
-                                                          numFrags,
-                                                          pOut->resourceType,
-                                                          ADDR_SW_64KB);
-
-                if (returnCode == ADDR_OK)
-                {
-                    if (displayResource)
-                    {
-                        blkAlign[AddrBlock64KB].w = PowTwoAlign(blkAlign[AddrBlock64KB].w, 32);
-                    }
-
-                    padSize[AddrBlock64KB] = ComputePadSize(&blkAlign[AddrBlock64KB], width, height,
-                                                            slice, &paddedDim[AddrBlock64KB]);
-
-                    ADDR_ASSERT(padSize[AddrBlock64KB] >= padSize[AddrBlock4KB]);
-                    ADDR_ASSERT(padSize[AddrBlock64KB] >= padSize[AddrBlockMicro]);
-                }
-            }
-
-            if (returnCode == ADDR_OK)
-            {
-                UINT_64 minSizeAlignInElement = Max(minSizeAlign / (bpp >> 3), 1u);
+                const UINT_32 ratioLow           = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 3 : 2);
+                const UINT_32 ratioHi            = pIn->flags.minimizeAlign ? 1 : (pIn->flags.opt4space ? 2 : 1);
+                const UINT_64 sizeAlignInElement = Max(NextPow2(pIn->minSizeAlign) / (bpp >> 3), 1u);
+                UINT_32       minSizeBlk         = AddrBlockMicro;
+                UINT_64       minSize            = 0;
 
                 for (UINT_32 i = AddrBlockMicro; i < AddrBlockMaxTiledType; i++)
                 {
-                    padSize[i] = PowTwoAlign(padSize[i], minSizeAlignInElement);
-                }
-
-                // Use minimum block type which meets all conditions above if flag minimizeAlign was set
-                if (pIn->flags.minimizeAlign)
-                {
-                    // If padded size of 64KB block is larger than padded size of 256B block or 4KB
-                    // block, filter out 64KB block from candidate list
-                    if (blockSet.macro64KB &&
-                        ((blockSet.micro && (padSize[AddrBlockMicro] < padSize[AddrBlock64KB])) ||
-                         (blockSet.macro4KB && (padSize[AddrBlock4KB] < padSize[AddrBlock64KB]))))
+                    if (allowedBlockSet.value & (1 << i))
                     {
-                        blockSet.macro64KB = FALSE;
-                    }
+                        ComputeBlockDimensionForSurf(&blkDim[i].w,
+                                                     &blkDim[i].h,
+                                                     &blkDim[i].d,
+                                                     bpp,
+                                                     numFrags,
+                                                     pOut->resourceType,
+                                                     swMode[i]);
 
-                    // If padded size of 4KB block is larger than padded size of 256B block,
-                    // filter out 4KB block from candidate list
-                    if (blockSet.macro4KB &&
-                        blockSet.micro &&
-                        (padSize[AddrBlockMicro] < padSize[AddrBlock4KB]))
-                    {
-                        blockSet.macro4KB = FALSE;
-                    }
-                }
-                // Filter out 64KB/4KB block if a smaller block type has 2/3 or less memory footprint
-                else if (pIn->flags.opt4space)
-                {
-                    UINT_64 threshold = blockSet.micro ? padSize[AddrBlockMicro] :
-                                        (blockSet.macro4KB ? padSize[AddrBlock4KB] : padSize[AddrBlock64KB]);
+                        if (displayRsrc)
+                        {
+                            blkDim[i].w = PowTwoAlign(blkDim[i].w, 32);
+                        }
 
-                    threshold += threshold >> 1;
+                        padSize[i] = ComputePadSize(&blkDim[i], width, height, numSlices, &padDim[i]);
+                        padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
 
-                    if (blockSet.macro64KB && (padSize[AddrBlock64KB] > threshold))
-                    {
-                        blockSet.macro64KB = FALSE;
-                    }
-
-                    if (blockSet.macro4KB && (padSize[AddrBlock4KB] > threshold))
-                    {
-                        blockSet.macro4KB = FALSE;
-                    }
-                }
-                else
-                {
-                    if (blockSet.macro64KB &&
-                        (padSize[AddrBlock64KB] >= static_cast<UINT_64>(width) * height * slice * 2) &&
-                        ((blockSet.value & ~AddrBlockSetMacro64KB) != 0))
-                    {
-                        // If 64KB block waste more than half memory on padding, filter it out from
-                        // candidate list when it is not the only choice left
-                        blockSet.macro64KB = FALSE;
+                        if ((minSize == 0) ||
+                            ((padSize[i] * ratioHi) <= (minSize * ratioLow)))
+                        {
+                            minSize    = padSize[i];
+                            minSizeBlk = i;
+                        }
                     }
                 }
 
-                if (blockSet.value == 0)
+                if ((allowedBlockSet.micro == TRUE)      &&
+                    (width  <= blkDim[AddrBlockMicro].w) &&
+                    (height <= blkDim[AddrBlockMicro].h) &&
+                    (NextPow2(pIn->minSizeAlign) <= GetBlockSize(ADDR_SW_256B)))
                 {
-                    // Bad things happen, client will not get any useful information from AddrLib.
-                    // Maybe we should fill in some output earlier instead of outputing nothing?
-                    ADDR_ASSERT_ALWAYS();
-                    returnCode = ADDR_INVALIDPARAMS;
+                    minSizeBlk = AddrBlockMicro;
+                }
+
+                if (minSizeBlk == AddrBlockMicro)
+                {
+                    allowedSwModeSet.value &= Gfx9Blk256BSwModeMask;
+                }
+                else if (minSizeBlk == AddrBlock4KB)
+                {
+                    allowedSwModeSet.value &= Gfx9Blk4KBSwModeMask;
                 }
                 else
                 {
-                    pOut->validBlockSet = blockSet;
-                    pOut->canXor = pOut->canXor &&
-                                   (blockSet.macro4KB || blockSet.macro64KB || blockSet.var);
+                    ADDR_ASSERT(minSizeBlk == AddrBlock64KB)
+                    allowedSwModeSet.value &= Gfx9Blk64KBSwModeMask;
+                }
+            }
 
-                    if (blockSet.macro64KB || blockSet.macro4KB)
-                    {
-                        if (addrPreferredSwSet.value == AddrSwSetZ)
-                        {
-                            pOut->swizzleMode = blockSet.macro64KB ? ADDR_SW_64KB_Z : ADDR_SW_4KB_Z;
-                        }
-                        else if (addrPreferredSwSet.value == AddrSwSetS)
-                        {
-                            pOut->swizzleMode = blockSet.macro64KB ? ADDR_SW_64KB_S : ADDR_SW_4KB_S;
-                        }
-                        else if (addrPreferredSwSet.value == AddrSwSetD)
-                        {
-                            pOut->swizzleMode = blockSet.macro64KB ? ADDR_SW_64KB_D : ADDR_SW_4KB_D;
-                        }
-                        else
-                        {
-                            ADDR_ASSERT(addrPreferredSwSet.value == AddrSwSetR);
-                            pOut->swizzleMode = blockSet.macro64KB ? ADDR_SW_64KB_R : ADDR_SW_4KB_R;
-                        }
+            // Block type should be determined.
+            ADDR_ASSERT(IsPow2(GetAllowedBlockSet(allowedSwModeSet).value));
 
-                        if (prtXor && blockSet.macro64KB)
-                        {
-                            // Client wants PRTXOR, give back _T swizzle mode if 64KB is available
-                            const UINT_32 prtGap = ADDR_SW_64KB_Z_T - ADDR_SW_64KB_Z;
-                            pOut->swizzleMode = static_cast<AddrSwizzleMode>(pOut->swizzleMode + prtGap);
-                        }
-                        else if (pOut->canXor)
-                        {
-                            // Client wants XOR and this is allowed, return XOR version swizzle mode
-                            const UINT_32 xorGap = ADDR_SW_4KB_Z_X - ADDR_SW_4KB_Z;
-                            pOut->swizzleMode = static_cast<AddrSwizzleMode>(pOut->swizzleMode + xorGap);
-                        }
-                    }
-                    else if (blockSet.micro)
+            ADDR2_SWTYPE_SET allowedSwSet = GetAllowedSwSet(allowedSwModeSet);
+
+            // Determine swizzle type if there is 2 or more swizzle type candidates
+            if (IsPow2(allowedSwSet.value) == FALSE)
+            {
+                if (ElemLib::IsBlockCompressed(pIn->format))
+                {
+                    if (allowedSwSet.sw_D)
                     {
-                        if (addrPreferredSwSet.value == AddrSwSetS)
-                        {
-                            pOut->swizzleMode = ADDR_SW_256B_S;
-                        }
-                        else if (addrPreferredSwSet.value == AddrSwSetD)
-                        {
-                            pOut->swizzleMode = ADDR_SW_256B_D;
-                        }
-                        else
-                        {
-                            ADDR_ASSERT(addrPreferredSwSet.value == AddrSwSetR);
-                            pOut->swizzleMode = ADDR_SW_256B_R;
-                        }
-                    }
-                    else if (blockSet.linear)
-                    {
-                        // Fall into this branch doesn't mean linear is suitable, only no other choices!
-                        pOut->swizzleMode = ADDR_SW_LINEAR;
+                        allowedSwModeSet.value &= Gfx9DisplaySwModeMask;
                     }
                     else
                     {
-                        ADDR_ASSERT(blockSet.var);
-
-                        // Designer consider VAR swizzle mode is usless for most cases
-                        ADDR_UNHANDLED_CASE();
-
-                        returnCode = ADDR_NOTSUPPORTED;
+                        ADDR_ASSERT(allowedSwSet.sw_S);
+                        allowedSwModeSet.value &= Gfx9StandardSwModeMask;
                     }
-
-#if DEBUG
-                    // Post sanity check, at least AddrLib should accept the output generated by its own
-                    if (pOut->swizzleMode != ADDR_SW_LINEAR)
+                }
+                else if (ElemLib::IsMacroPixelPacked(pIn->format))
+                {
+                    if (allowedSwSet.sw_S)
                     {
-                        ADDR2_COMPUTE_SURFACE_INFO_INPUT localIn = {0};
-                        localIn.flags = pIn->flags;
-                        localIn.swizzleMode = pOut->swizzleMode;
-                        localIn.resourceType = pOut->resourceType;
-                        localIn.format = pIn->format;
-                        localIn.bpp = bpp;
-                        localIn.width = width;
-                        localIn.height = height;
-                        localIn.numSlices = slice;
-                        localIn.numMipLevels = numMipLevels;
-                        localIn.numSamples = numSamples;
-                        localIn.numFrags = numFrags;
-
-                        HwlComputeSurfaceInfoSanityCheck(&localIn);
-
+                        allowedSwModeSet.value &= Gfx9StandardSwModeMask;
                     }
-#endif
+                    else if (allowedSwSet.sw_D)
+                    {
+                        allowedSwModeSet.value &= Gfx9DisplaySwModeMask;
+                    }
+                    else
+                    {
+                        ADDR_ASSERT(allowedSwSet.sw_R);
+                        allowedSwModeSet.value &= Gfx9RotateSwModeMask;
+                    }
+                }
+                else if (pOut->resourceType == ADDR_RSRC_TEX_3D)
+                {
+                    if (pIn->flags.color && allowedSwSet.sw_D)
+                    {
+                        allowedSwModeSet.value &= Gfx9DisplaySwModeMask;
+                    }
+                    else if (allowedSwSet.sw_Z)
+                    {
+                        allowedSwModeSet.value &= Gfx9ZSwModeMask;
+                    }
+                    else
+                    {
+                        ADDR_ASSERT(allowedSwSet.sw_S);
+                        allowedSwModeSet.value &= Gfx9StandardSwModeMask;
+                    }
+                }
+                else
+                {
+                    if (pIn->flags.rotated && allowedSwSet.sw_R)
+                    {
+                        allowedSwModeSet.value &= Gfx9RotateSwModeMask;
+                    }
+                    else if (displayRsrc && allowedSwSet.sw_D)
+                    {
+                        allowedSwModeSet.value &= Gfx9DisplaySwModeMask;
+                    }
+                    else if (allowedSwSet.sw_S)
+                    {
+                        allowedSwModeSet.value &= Gfx9StandardSwModeMask;
+                    }
+                    else
+                    {
+                        ADDR_ASSERT(allowedSwSet.sw_Z);
+                        allowedSwModeSet.value &= Gfx9ZSwModeMask;
+                    }
                 }
             }
+
+            // Swizzle type should be determined.
+            ADDR_ASSERT(IsPow2(GetAllowedSwSet(allowedSwModeSet).value));
+
+            // Determine swizzle mode now - always select the "largest" swizzle mode for a given block type +
+            // swizzle type combination. For example, for AddrBlock64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's
+            // available, or otherwise select SW_64KB_S_T(17) if it's available, or otherwise select SW_64KB_S(9).
+            pOut->swizzleMode = static_cast<AddrSwizzleMode>(Log2NonPow2(allowedSwModeSet.value));
         }
+    }
+    else
+    {
+        // Invalid combination...
+        ADDR_ASSERT_ALWAYS();
+        returnCode = ADDR_INVALIDPARAMS;
     }
 
     return returnCode;

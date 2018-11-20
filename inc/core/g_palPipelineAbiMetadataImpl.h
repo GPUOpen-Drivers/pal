@@ -39,6 +39,87 @@ namespace Metadata
 // =====================================================================================================================
 PAL_INLINE Result DeserializeEnum(
     MsgPackReader*  pReader,
+    PipelineType*  pValue)
+{
+    Result result = pReader->Next(CWP_ITEM_STR);
+
+    if (result == Result::Success)
+    {
+        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
+                                          pReader->Get().as.str.length);
+
+        switch (strHash)
+        {
+        case HashLiteralString("VsPs"):
+            *pValue = PipelineType::VsPs;
+            break;
+        case HashLiteralString("Gs"):
+            *pValue = PipelineType::Gs;
+            break;
+        case HashLiteralString("Cs"):
+            *pValue = PipelineType::Cs;
+            break;
+        case HashLiteralString("Ngg"):
+            *pValue = PipelineType::Ngg;
+            break;
+        case HashLiteralString("Tess"):
+            *pValue = PipelineType::Tess;
+            break;
+        case HashLiteralString("GsTess"):
+            *pValue = PipelineType::GsTess;
+            break;
+        case HashLiteralString("NggTess"):
+            *pValue = PipelineType::NggTess;
+            break;
+        default:
+            result = Result::NotFound;
+            break;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+PAL_INLINE Result SerializeEnum(
+    MsgPackWriter*  pWriter,
+    PipelineType  value)
+{
+    Result result = Result::ErrorInvalidValue;
+
+    switch (value)
+    {
+    case PipelineType::VsPs:
+        result = pWriter->Pack("VsPs");
+        break;
+    case PipelineType::Gs:
+        result = pWriter->Pack("Gs");
+        break;
+    case PipelineType::Cs:
+        result = pWriter->Pack("Cs");
+        break;
+    case PipelineType::Ngg:
+        result = pWriter->Pack("Ngg");
+        break;
+    case PipelineType::Tess:
+        result = pWriter->Pack("Tess");
+        break;
+    case PipelineType::GsTess:
+        result = pWriter->Pack("GsTess");
+        break;
+    case PipelineType::NggTess:
+        result = pWriter->Pack("NggTess");
+        break;
+    default:
+        break;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+PAL_INLINE Result DeserializeEnum(
+    MsgPackReader*  pReader,
     ApiShaderType*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
@@ -592,10 +673,10 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.sgprLimit = (result == Result::Success);
                 break;
 
-            case HashLiteralString(HardwareStageMetadataKey::WavesPerGroup):
-                PAL_ASSERT(pMetadata->hasEntry.wavesPerGroup == 0);
-                result = pReader->UnpackNext(&pMetadata->wavesPerGroup);
-                pMetadata->hasEntry.wavesPerGroup = (result == Result::Success);
+            case HashLiteralString(HardwareStageMetadataKey::ThreadgroupDimensions):
+                PAL_ASSERT(pMetadata->hasEntry.threadgroupDimensions == 0);
+                result = pReader->UnpackNext(&pMetadata->threadgroupDimensions);
+                pMetadata->hasEntry.threadgroupDimensions = (result == Result::Success);
                 break;
 
             case HashLiteralString(HardwareStageMetadataKey::UsesUavs):
@@ -654,16 +735,24 @@ PAL_INLINE Result DeserializeHardwareStageMetadata(
                 break;
             }
 
+            case HashLiteralString(HardwareStageMetadataKey::UsesAppendConsume):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.usesAppendConsume == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.usesAppendConsume = value;
+                }
+                pMetadata->hasEntry.usesAppendConsume = (result == Result::Success);
+                break;
+            }
+
             case HashLiteralString(HardwareStageMetadataKey::MaxPrimsPerWave):
                 PAL_ASSERT(pMetadata->hasEntry.maxPrimsPerWave == 0);
                 result = pReader->UnpackNext(&pMetadata->maxPrimsPerWave);
                 pMetadata->hasEntry.maxPrimsPerWave = (result == Result::Success);
-                break;
-
-            case HashLiteralString(HardwareStageMetadataKey::NumInterpolants):
-                PAL_ASSERT(pMetadata->hasEntry.numInterpolants == 0);
-                result = pReader->UnpackNext(&pMetadata->numInterpolants);
-                pMetadata->hasEntry.numInterpolants = (result == Result::Success);
                 break;
 
             default:
@@ -742,7 +831,7 @@ PAL_INLINE Result DeserializePipelineMetadata(
 
             case HashLiteralString(PipelineMetadataKey::Type):
                 PAL_ASSERT(pMetadata->hasEntry.type == 0);
-                result = pReader->UnpackNext(&pMetadata->type);
+                result = DeserializeEnum(pReader, &pMetadata->type);
                 pMetadata->hasEntry.type = (result == Result::Success);
                 break;
 
@@ -822,16 +911,22 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.indirectUserDataTableAddresses = (result == Result::Success);
                 break;
 
+            case HashLiteralString(PipelineMetadataKey::NumInterpolants):
+                PAL_ASSERT(pMetadata->hasEntry.numInterpolants == 0);
+                result = pReader->UnpackNext(&pMetadata->numInterpolants);
+                pMetadata->hasEntry.numInterpolants = (result == Result::Success);
+                break;
+
             case HashLiteralString(PipelineMetadataKey::ScratchMemorySize):
                 PAL_ASSERT(pMetadata->hasEntry.scratchMemorySize == 0);
                 result = pReader->UnpackNext(&pMetadata->scratchMemorySize);
                 pMetadata->hasEntry.scratchMemorySize = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::ApiType):
-                PAL_ASSERT(pMetadata->hasEntry.apiType == 0);
-                result = pReader->UnpackNext(&pMetadata->apiType);
-                pMetadata->hasEntry.apiType = (result == Result::Success);
+            case HashLiteralString(PipelineMetadataKey::Api):
+                PAL_ASSERT(pMetadata->hasEntry.api == 0);
+                result = pReader->UnpackNext(&pMetadata->api);
+                pMetadata->hasEntry.api = (result == Result::Success);
                 break;
 
             case HashLiteralString(PipelineMetadataKey::ApiCreateInfo):

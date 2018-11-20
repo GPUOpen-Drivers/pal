@@ -325,6 +325,13 @@ Result GpuMemory::Init(
     m_flags.isStereo           = createInfo.flags.stereo;
     m_flags.autoPriority       = createInfo.flags.autoPriority;
     m_flags.peerWritable       = createInfo.flags.peerWritable;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 455
+    m_flags.restrictedContent  = createInfo.flags.restrictedContent;
+    m_flags.restrictedAccess   = createInfo.flags.restrictedAccess;
+    m_flags.crossAdapter       = createInfo.flags.crossAdapter;
+#endif
+
     m_flags.isClient           = internalInfo.flags.isClient;
     m_flags.pageDirectory      = internalInfo.flags.pageDirectory;
     m_flags.pageTableBlock     = internalInfo.flags.pageTableBlock;

@@ -1848,6 +1848,7 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations =
                 m_chipProperties.gfx9.support1xMsaaSampleLocations;
+
             break;
         }
 #endif // PAL_BUILD_GFX9
@@ -3117,8 +3118,8 @@ void Device::GetPeerImageSizes(
     }
 #endif
 
-    (*pPeerImageSize)     += GetImageSize(pOrigImage->GetImageCreateInfo(), pResult);
-    (*pPeerGpuMemorySize) += GpuMemoryObjectSize();
+    (*pPeerImageSize)     = GetImageSize(pOrigImage->GetImageCreateInfo(), pResult);
+    (*pPeerGpuMemorySize) = GpuMemoryObjectSize();
 }
 
 // =====================================================================================================================

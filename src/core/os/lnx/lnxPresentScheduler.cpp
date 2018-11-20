@@ -76,18 +76,35 @@ static void GetInternalQueueInfo(
 // =====================================================================================================================
 size_t PresentScheduler::GetSize(
     const Device& device,
+    IDevice*const pSlaveDevices[],
     WsiPlatform   wsiPlatform)
 {
     QueueCreateInfo queueInfo = {};
     GetInternalQueueInfo(device, &queueInfo);
 
-    // We need space for the object, m_pSignalQueue, and m_pPresentQueue.
-    return (sizeof(PresentScheduler) + (2 * device.GetQueueSize(queueInfo, nullptr)));
+    // We need space for the object, m_pSignalQueue, and m_pPresentQueues.
+    size_t objectSize = (sizeof(PresentScheduler) + (2 * device.GetQueueSize(queueInfo, nullptr)));
+
+    // Additional present queues for slave devices may have different create info/sizes.
+    for (uint32 i = 0; i < (XdmaMaxDevices - 1); i++)
+    {
+        Pal::Device* pDevice = static_cast<Pal::Device*>(pSlaveDevices[i]);
+
+        if (pDevice != nullptr)
+        {
+            GetInternalQueueInfo(*pDevice, &queueInfo);
+
+            objectSize += pDevice->GetQueueSize(queueInfo, nullptr);
+        }
+    }
+
+    return objectSize;
 }
 
 // =====================================================================================================================
 Result PresentScheduler::Create(
     Device*                 pDevice,
+    IDevice*const           pSlaveDevices[],
     WindowSystem*           pWindowSystem,
     void*                   pPlacementAddr,
     Pal::PresentScheduler** ppPresentScheduler)
@@ -95,7 +112,7 @@ Result PresentScheduler::Create(
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppPresentScheduler != nullptr));
 
     auto*const pScheduler = PAL_PLACEMENT_NEW(pPlacementAddr) PresentScheduler(pDevice, pWindowSystem);
-    Result     result     = pScheduler->Init(pScheduler + 1);
+    Result     result     = pScheduler->Init(pSlaveDevices, pScheduler + 1);
 
     if (result == Result::Success)
     {
@@ -121,36 +138,55 @@ PresentScheduler::PresentScheduler(
 
 // =====================================================================================================================
 Result PresentScheduler::Init(
-    void* pPlacementAddr)
+    IDevice*const pSlaveDevices[],
+    void*         pPlacementAddr)
 {
     Result result = Result::Success;
 
-    QueueCreateInfo queueInfo = {};
-    GetInternalQueueInfo(*m_pDevice, &queueInfo);
+    // Create the internal presentation queue as well as any additional internal queues for slave fullscreen presents
+    QueueCreateInfo presentQueueInfo = {};
+    Pal::Device*    pDevice          = m_pDevice;
+    uint32          queueIndex       = 0;
 
-    if (m_pDevice->GetEngine(queueInfo.engineType, queueInfo.engineIndex) == nullptr)
+    do
     {
-        // If the client didn't request this engine when they finalized the device, we need to create it.
-        result = m_pDevice->CreateEngine(queueInfo.engineType, queueInfo.engineIndex);
-    }
+        if (result == Result::Success)
+        {
+            GetInternalQueueInfo(*pDevice, &presentQueueInfo);
 
-    const size_t queueSize = m_pDevice->GetQueueSize(queueInfo, nullptr);
+            if (pDevice->GetEngine(presentQueueInfo.engineType, presentQueueInfo.engineIndex) == nullptr)
+            {
+                // If the client didn't request this engine when they finalized the device, we need to create it.
+                result = pDevice->CreateEngine(presentQueueInfo.engineType, presentQueueInfo.engineIndex);
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            result         = pDevice->CreateQueue(presentQueueInfo, pPlacementAddr, &m_pPresentQueues[queueIndex]);
+            pPlacementAddr = VoidPtrInc(pPlacementAddr, pDevice->GetQueueSize(presentQueueInfo, nullptr));
+        }
+
+        pDevice = static_cast<Pal::Device*>(pSlaveDevices[queueIndex]);
+        queueIndex++;
+    }
+    while ((pDevice != nullptr) && (queueIndex < XdmaMaxDevices));
 
     if (result == Result::Success)
     {
-        result         = m_pDevice->CreateQueue(queueInfo, pPlacementAddr, &m_pSignalQueue);
-        pPlacementAddr = VoidPtrInc(pPlacementAddr, queueSize);
+        QueueCreateInfo signalQueueInfo = {};
+
+        GetInternalQueueInfo(*m_pDevice, &signalQueueInfo);
+
+        PAL_ASSERT(m_pDevice->GetEngine(signalQueueInfo.engineType, signalQueueInfo.engineIndex));
+
+        result         = m_pDevice->CreateQueue(signalQueueInfo, pPlacementAddr, &m_pSignalQueue);
+        pPlacementAddr = VoidPtrInc(pPlacementAddr, m_pDevice->GetQueueSize(signalQueueInfo, nullptr));
     }
 
     if (result == Result::Success)
     {
-        result         = m_pDevice->CreateQueue(queueInfo, pPlacementAddr, &m_pPresentQueue);
-        pPlacementAddr = VoidPtrInc(pPlacementAddr, queueSize);
-    }
-
-    if (result == Result::Success)
-    {
-        result = Pal::PresentScheduler::Init(pPlacementAddr);
+        result = Pal::PresentScheduler::Init(pSlaveDevices, pPlacementAddr);
     }
 
     return result;

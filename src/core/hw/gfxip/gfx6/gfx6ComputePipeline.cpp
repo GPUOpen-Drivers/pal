@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6ComputePipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
-#include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 
@@ -291,6 +290,8 @@ Result ComputePipeline::HwlInit(
             break;
         }
 
+        m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
 
@@ -349,7 +350,7 @@ uint32* ComputePipeline::WriteCommands(
     Pal::CmdStream*                 pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
-    const Pal::PrefetchMgr&         prefetchMgr
+    bool                            prefetch
     ) const
 {
     auto*const pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
@@ -411,12 +412,13 @@ uint32* ComputePipeline::WriteCommands(
                                                                     pCmdSpace);
     }
 
-    const auto& gfx6PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
-    return gfx6PrefetchMgr.RequestPrefetch(PrefetchCs,
-                                           GetOriginalAddress(m_commands.set.computePgmLo.bits.DATA,
-                                                              m_commands.set.computePgmHi.bits.DATA),
-                                           m_stageInfo.codeLength,
-                                           pCmdSpace);
+    if (prefetch)
+    {
+        memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
+        pCmdSpace += m_commands.prefetch.spaceNeeded;
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

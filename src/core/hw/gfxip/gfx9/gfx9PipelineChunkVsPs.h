@@ -33,7 +33,6 @@ namespace Pal
 {
 
 class Platform;
-class PrefetchMgr;
 
 namespace Gfx9
 {
@@ -138,6 +137,7 @@ private:
 
             struct
             {
+                // If we don't set hdrSpiShaderPgm/ hdrSpiShaderUserData when NGG is disabled, we'll add NOP.
                 PM4_ME_SET_SH_REG           hdrSpiShaderPgm;
                 regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
                 regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;

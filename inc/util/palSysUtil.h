@@ -240,6 +240,19 @@ extern Result ListDir(
 /// @returns The Process ID of the current process
 extern uint32 GetIdOfCurrentProcess();
 
+/// OS-specific wrapper for printing stack trace information.
+///
+/// @param [out] pOutput    Output string. If buffer is a nullptr it returns the length of the string that would be
+///                         printed had a buffer with enough space been provided.
+/// @param [in]  bufSize    Available space in pOutput.
+/// @param [in]  skipFrames Number of stack frames to skip. Implied skip of 1 (0 is 1).
+///
+/// @param The resultant length of the stack trace string.
+extern size_t DumpStackTrace(
+    char*   pOutput,
+    size_t  bufSize,
+    uint32  skipFrames);
+
 /// Flushes CPU cached writes to memory.
 PAL_INLINE void FlushCpuWrites()
 {

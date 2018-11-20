@@ -840,6 +840,7 @@ void Image::InitLayoutStateMasks()
                     m_layoutToState.color.compressed.usages |= LayoutShaderRead;
                 }
             }
+
         }
         else if (isMsaa && isComprFmaskShaderReadable)
         {

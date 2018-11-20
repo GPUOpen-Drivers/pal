@@ -64,6 +64,7 @@ static void SetupCommonPreamble(
     memset(pCommonPreamble, 0, sizeof(CommonPreamblePm4Img));
 
     const CmdUtil&           cmdUtil   = pDevice->CmdUtil();
+    const Gfx6PalSettings&   settings  = pDevice->Settings();
     const GpuChipProperties& chipProps = pDevice->Parent()->ChipProperties();
 
     // First build the PM4 headers.
@@ -92,20 +93,22 @@ static void SetupCommonPreamble(
     // at this point. Using the packet SET_SH_REG_INDEX, the UMD mask will be ANDed with the KMD mask so that UMD does
     // not use the CUs that are intended for real time compute usage.
 
-    // Enable Compute workloads on all CU's of SE0/SE1.
-    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH0_CU_EN = 0xFFFF;
-    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH1_CU_EN = 0xFFFF;
-    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = 0xFFFF;
-    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = 0xFFFF;
+    const uint16 cuEnableMask = pDevice->GetCuEnableMask(0, settings.csCuEnLimitMask);
+
+    // Enable Compute workloads on all CU's of SE0/SE1 (unless masked).
+    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH0_CU_EN = cuEnableMask;
+    pCommonPreamble->computeStaticThreadMgmtSe0.bits.SH1_CU_EN = cuEnableMask;
+    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH0_CU_EN = cuEnableMask;
+    pCommonPreamble->computeStaticThreadMgmtSe1.bits.SH1_CU_EN = cuEnableMask;
 
     // On Gfx6, the registers in the 3rd PM4 packet are not present; no need to initialize them.
     if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
     {
-        // Enable Compute workloads on all CU's of SE2/SE3.
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = 0xFFFF;
-        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = 0xFFFF;
+        // Enable Compute workloads on all CU's of SE2/SE3 (unless masked).
+        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH0_CU_EN = cuEnableMask;
+        pCommonPreamble->computeStaticThreadMgmtSe2.bits.SH1_CU_EN = cuEnableMask;
+        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH0_CU_EN = cuEnableMask;
+        pCommonPreamble->computeStaticThreadMgmtSe3.bits.SH1_CU_EN = cuEnableMask;
     }
 }
 

@@ -663,8 +663,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 }
             }
             else
-            if (IsRaven(*m_pDevice)
-                )
             {
                 if (createInfo.flags.videoReferenceOnly)
                 {
@@ -674,11 +672,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                 {
                     pOut->swizzleMode = ADDR_SW_64KB_S;
                 }
-            }
-            else
-            {
-                // What is this?
-                PAL_ASSERT_ALWAYS();
             }
         }
         else if ((pBaseSubRes->subresId.aspect == ImageAspect::Stencil) &&

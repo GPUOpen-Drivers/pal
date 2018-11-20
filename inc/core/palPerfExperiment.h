@@ -296,7 +296,7 @@ struct ThreadTraceInfo
             uint32 threadTraceWrapBuffer     :  1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 422
             uint32 threadTraceStallBehavior  :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERISON >= 451
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
             uint32 threadTraceTokenConfig    :  1;
             uint32 reserved                  : 19;
 #else
@@ -315,7 +315,7 @@ struct ThreadTraceInfo
         size_t                    bufferSize;
 
         // Thread trace only options
-#if PAL_CLIENT_INTERFACE_MAJOR_VERISON >= 451
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 451
         ThreadTraceTokenConfig    threadTraceTokenConfig;
 #else
         uint32                    threadTraceTokenMask;

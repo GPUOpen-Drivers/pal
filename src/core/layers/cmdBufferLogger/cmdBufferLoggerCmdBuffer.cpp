@@ -2092,7 +2092,9 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize streamOutFilledSizeVa,
     uint32  streamOutOffset,
-    uint32  stride)
+    uint32  stride,
+    uint32  firstInstance,
+    uint32  instanceCount)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -2102,7 +2104,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
         // TODO: Add comment string.
     }
 
-    pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
+    pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
 }
 
 // =====================================================================================================================
@@ -3423,6 +3425,21 @@ void CmdBuffer::CmdSaveBufferFilledSizes(
     }
 
     GetNextLayer()->CmdSaveBufferFilledSizes(gpuVirtAddr);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdSetBufferFilledSize(
+    uint32  bufferId,
+    uint32  offset)
+{
+    if (m_flags.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetBufferFilledSize));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSetBufferFilledSize(bufferId, offset);
 }
 
 // =====================================================================================================================

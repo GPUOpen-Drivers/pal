@@ -120,9 +120,9 @@ using RegisterVector = Util::SparseVector<
     uint8,
     50,
     Platform,
-    CONTEXT_SPACE_START,         CntxRegUsedRangeEnd,
-    PERSISTENT_SPACE_START,      ShRegUsedRangeEnd,
-    Gfx09::mmIA_MULTI_VGT_PARAM, Gfx09::mmIA_MULTI_VGT_PARAM
+    CONTEXT_SPACE_START,           CntxRegUsedRangeEnd,
+    PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
+    Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular

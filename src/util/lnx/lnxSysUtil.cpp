@@ -710,4 +710,15 @@ uint32 GetIdOfCurrentProcess()
     return getpid();
 }
 
+// =====================================================================================================================
+// Linux-specific wrapper for printing stack trace information.
+size_t DumpStackTrace(
+    char*   pOutput,
+    size_t  bufSize,
+    uint32  skipFrames)
+{
+    PAL_NOT_IMPLEMENTED();
+    return 0;
+}
+
 } // Util

@@ -198,10 +198,11 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
         const auto& psStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)];
 
-        m_flags.psUsesUavs    = (psStageMetadata.flags.usesUavs    != 0);
-        m_flags.psUsesRovs    = (psStageMetadata.flags.usesRovs    != 0);
-        m_flags.psWritesUavs  = (psStageMetadata.flags.writesUavs  != 0);
-        m_flags.psWritesDepth = (psStageMetadata.flags.writesDepth != 0);
+        m_flags.psUsesUavs          = (psStageMetadata.flags.usesUavs          != 0);
+        m_flags.psUsesRovs          = (psStageMetadata.flags.usesRovs          != 0);
+        m_flags.psWritesUavs        = (psStageMetadata.flags.writesUavs        != 0);
+        m_flags.psWritesDepth       = (psStageMetadata.flags.writesDepth       != 0);
+        m_flags.psUsesAppendConsume = (psStageMetadata.flags.usesAppendConsume != 0);
 
         result = HwlInit(createInfo, abiProcessor, metadata, &metadataReader);
     }

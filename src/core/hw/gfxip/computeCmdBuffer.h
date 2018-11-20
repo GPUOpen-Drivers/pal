@@ -108,7 +108,6 @@ protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        PrefetchMgr*               pPrefetchMgr,
         GfxCmdStream*              pCmdStream);
 
     virtual ~ComputeCmdBuffer() {}

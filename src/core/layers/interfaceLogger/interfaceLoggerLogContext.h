@@ -146,6 +146,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdFillGds,
     CmdBufferCmdLoadBufferFilledSizes,
     CmdBufferCmdSaveBufferFilledSizes,
+    CmdBufferCmdSetBufferFilledSize,
     CmdBufferCmdBindBorderColorPalette,
     CmdBufferCmdSetPredication,
     CmdBufferCmdIf,

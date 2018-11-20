@@ -3028,7 +3028,7 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
     input.mipId           = region.imageSubres.mipLevel;
     input.unalignedWidth  = pBaseSubResInfo->extentElements.width;
     input.unalignedHeight = pBaseSubResInfo->extentElements.height;
-    input.numSlices       = createInfo.arraySize;
+    input.numSlices       = is3dImage ? createInfo.extent.depth : createInfo.arraySize;
     input.numMipLevels    = createInfo.mipLevels;
     input.numSamples      = createInfo.samples;
     input.numFrags        = createInfo.fragments;
@@ -3088,7 +3088,12 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
                         newRegions[newRegionsIdx].copySize  = input.bpp >> 3;
 
                         newRegionsIdx++;
-                    } // end check for successfully converting coordinates to an address
+                    }
+                    else
+                    {
+                        // What happens?
+                        PAL_ASSERT_ALWAYS();
+                    }
                 } // End loop through "x" pixels
 
                 CmdCopyMemory(pCmdBuffer, *pSrcMem, *pDstMem, newRegionsIdx, &newRegions[0]);

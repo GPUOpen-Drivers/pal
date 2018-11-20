@@ -38,6 +38,9 @@ extern "C"
 #endif
 
 #include "addrtypes.h"
+#ifdef ADDR_SCBU_BUILD
+#include "scbu_addrinterface_defs.h"
+#endif // ADDR_SCBU_BUILD
 
 #define ADDRLIB_VERSION_MAJOR 6
 #define ADDRLIB_VERSION_MINOR 2
@@ -371,6 +374,9 @@ typedef struct _ADDR_CREATE_INPUT
     ADDR_REGISTER_VALUE regValue;            ///< Data from registers to setup AddrLib global data
     ADDR_CLIENT_HANDLE  hClient;             ///< Client handle
     UINT_32             minPitchAlignPixels; ///< Minimum pitch alignment in pixels
+#if ADDR_SCBU_BUILD
+    SCBU_ADDR_CREATE_FLAGS  SCBU_flags;      ///< SCBU flags
+#endif // ADDR_SCBU_BUILD
 } ADDR_CREATE_INPUT;
 
 /**
@@ -2407,9 +2413,9 @@ typedef struct _ADDR2_MIP_INFO
                                             ///< to setup swizzle pattern
     UINT_64             macroBlockOffset;   ///< macro block offset in bytes from mip base
     UINT_32             mipTailOffset;      ///< mip tail offset in bytes
-    UINT_32             mipTailCoordX;      ///< mip tail coord x, gfx10 only
-    UINT_32             mipTailCoordY;      ///< mip tail coord y, gfx10 only
-    UINT_32             mipTailCoordZ;      ///< mip tail coord z, gfx10 only
+    UINT_32             mipTailCoordX;      ///< mip tail coord x
+    UINT_32             mipTailCoordY;      ///< mip tail coord y
+    UINT_32             mipTailCoordZ;      ///< mip tail coord z
 } ADDR2_MIP_INFO;
 
 /**
@@ -2659,8 +2665,10 @@ typedef struct _ADDR2_META_MIP_INFO
 
         struct
         {
-            UINT_32    offset;
-            UINT_32    sliceSize;
+            UINT_32    offset;      ///< Metadata offset within one slice,
+                                    ///  the thickness of a slice is meta block depth.
+            UINT_32    sliceSize;   ///< Metadata size within one slice,
+                                    ///  the thickness of a slice is meta block depth.
         };
     };
 } ADDR2_META_MIP_INFO;
@@ -2684,7 +2692,9 @@ typedef struct _ADDR2_COMPUTE_HTILE_INFO_INPUT
     UINT_32             unalignedHeight;    ///< Depth surface original height (of mip0)
     UINT_32             numSlices;          ///< Number of slices of depth surface (of mip0)
     UINT_32             numMipLevels;       ///< Total mipmap levels of color surface
-    UINT_32             firstMipIdInTail;
+    UINT_32             firstMipIdInTail;   ///  Id of the first mip in tail,
+                                            ///  if no mip is in tail, it should be set to
+                                            ///  number of mip levels
 } ADDR2_COMPUTE_HTILE_INFO_INPUT;
 
 /**
@@ -3252,7 +3262,8 @@ typedef struct _ADDR2_COMPUTE_DCCINFO_INPUT
     UINT_32             numMipLevels;       ///< Total mipmap levels of color surface
     UINT_32             dataSurfaceSize;    ///< The padded size of all slices and mip levels
                                             ///< useful in meta linear case
-    UINT_32             firstMipIdInTail;
+    UINT_32             firstMipIdInTail;   ///< The id of first mip in tail, if no mip is in tail,
+                                            ///  it should be number of mip levels
 } ADDR2_COMPUTE_DCCINFO_INPUT;
 
 /**
@@ -3287,7 +3298,9 @@ typedef struct _ADDR2_COMPUTE_DCCINFO_OUTPUT
     union
     {
         UINT_32 fastClearSizePerSlice;  ///< Size of DCC within a slice should be fast cleared
-        UINT_32 dccRamSliceSize;
+        UINT_32 dccRamSliceSize;        ///< DCC ram size per slice. For mipmap, it's
+                                        ///  the slize size of a mip chain, the thickness of a
+                                        ///  a slice is meta block depth
     };
 
     ADDR2_META_MIP_INFO* pMipInfo;      ///< DCC mip information
@@ -3560,6 +3573,55 @@ typedef union _ADDR2_SWTYPE_SET
 
 /**
 ****************************************************************************************************
+*   ADDR2_SWMODE_SET
+*
+*   @brief
+*       Bit field that defines swizzle type
+****************************************************************************************************
+*/
+typedef union _ADDR2_SWMODE_SET
+{
+    struct
+    {
+        UINT_32 swLinear   : 1;
+        UINT_32 sw256B_S   : 1;
+        UINT_32 sw256B_D   : 1;
+        UINT_32 sw256B_R   : 1;
+        UINT_32 sw4KB_Z    : 1;
+        UINT_32 sw4KB_S    : 1;
+        UINT_32 sw4KB_D    : 1;
+        UINT_32 sw4KB_R    : 1;
+        UINT_32 sw64KB_Z   : 1;
+        UINT_32 sw64KB_S   : 1;
+        UINT_32 sw64KB_D   : 1;
+        UINT_32 sw64KB_R   : 1;
+        UINT_32 swVar_Z    : 1;
+        UINT_32 swVar_S    : 1;
+        UINT_32 swVar_D    : 1;
+        UINT_32 swVar_R    : 1;
+        UINT_32 sw64KB_Z_T : 1;
+        UINT_32 sw64KB_S_T : 1;
+        UINT_32 sw64KB_D_T : 1;
+        UINT_32 sw64KB_R_T : 1;
+        UINT_32 sw4KB_Z_X  : 1;
+        UINT_32 sw4KB_S_X  : 1;
+        UINT_32 sw4KB_D_X  : 1;
+        UINT_32 sw4KB_R_X  : 1;
+        UINT_32 sw64KB_Z_X : 1;
+        UINT_32 sw64KB_S_X : 1;
+        UINT_32 sw64KB_D_X : 1;
+        UINT_32 sw64KB_R_X : 1;
+        UINT_32 swVar_Z_X  : 1;
+        UINT_32 swVar_S_X  : 1;
+        UINT_32 swVar_D_X  : 1;
+        UINT_32 swVar_R_X  : 1;
+    };
+
+    UINT_32 value;
+} ADDR2_SWMODE_SET;
+
+/**
+****************************************************************************************************
 *   ADDR2_GET_PREFERRED_SURF_SETTING_INPUT
 *
 *   @brief
@@ -3611,6 +3673,7 @@ typedef struct _ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT
                                                 ///  type
     ADDR2_SWTYPE_SET      validSwTypeSet;       ///< Valid swizzle type bit combination
     ADDR2_SWTYPE_SET      clientPreferredSwSet; ///< Client-preferred swizzle type bit combination
+    ADDR2_SWMODE_SET      validSwModeSet;       ///< Valid swizzle mode bit combination
 } ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT;
 
 /**

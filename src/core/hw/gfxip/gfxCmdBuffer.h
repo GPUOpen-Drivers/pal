@@ -43,7 +43,6 @@ class GfxDevice;
 class GpuMemory;
 class IndirectCmdGenerator;
 class Pipeline;
-class PrefetchMgr;
 class PerfExperiment;
 class IPerfExperiment;
 
@@ -383,8 +382,7 @@ public:
 protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
-        const CmdBufferCreateInfo& createInfo,
-        PrefetchMgr*               pPrefetchMgr);
+        const CmdBufferCreateInfo& createInfo);
     virtual ~GfxCmdBuffer();
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
@@ -452,7 +450,6 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
 
-    PrefetchMgr*const m_pPrefetchMgr;        // Manager for prefetching data into L2.
     uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                              // Populated by the GFXIP-specific layer.
     ComputeState      m_computeState;        // Currently bound compute command buffer state.

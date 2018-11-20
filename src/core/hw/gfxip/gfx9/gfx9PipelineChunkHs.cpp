@@ -81,6 +81,7 @@ void PipelineChunkHs::EarlyInit(
     {
         pInfo->loadedCtxRegCount += BaseLoadedCntxRegCount;
         pInfo->loadedShRegCount  += (BaseLoadedShRegCount + chipProps.gfx9.supportSpp);
+
     }
 }
 

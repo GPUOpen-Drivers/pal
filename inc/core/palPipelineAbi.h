@@ -51,7 +51,7 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 constexpr uint32 MetadataNoteType = 13; ///< NT_AMD_AMDGPU_HSA_METADATA
 
 constexpr uint32 PipelineMetadataMajorVersion = 1;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
 #else
 constexpr uint32 MetadataNoteType = 12; ///< NT_AMD_AMDGPU_HSA_METADATA
 
@@ -263,6 +263,18 @@ enum class PipelineAbiNoteType : uint32
     HsaIsa          = 3,  ///< Structure defining the ISA type in the code object.  Shared with HSA code objects.
     AbiMinorVersion = 8,  ///< ABI minor version.
     LegacyMetadata  = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
+};
+
+/// Pipeline category.
+enum PipelineType : uint32
+{
+    VsPs = 0,
+    Gs,
+    Cs,
+    Ngg,
+    Tess,
+    GsTess,
+    NggTess
 };
 
 /// Helper enum which is used along with the @ref PipelineSymbolType and @ref PipelineMetadataType to

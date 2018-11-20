@@ -64,7 +64,9 @@ static void PAL_STDCALL CmdDrawOpaqueInvalid(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
     uint32      streamOutOffset,
-    uint32      stride);
+    uint32      stride,
+    uint32      firstInstance,
+    uint32      instanceCount);
 static void PAL_STDCALL CmdDrawIndexedInvalid(
     ICmdBuffer* pCmdBuffer,
     uint32      firstIndex,
@@ -936,7 +938,9 @@ static void PAL_STDCALL CmdDrawOpaqueInvalid(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
     uint32      streamOutOffset,
-    uint32      stride)
+    uint32      stride,
+    uint32      firstInstance,
+    uint32      instanceCount)
 {
     PAL_NEVER_CALLED();
 }

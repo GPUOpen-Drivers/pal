@@ -92,9 +92,12 @@ PresentScheduler::PresentScheduler(
     :
     m_pDevice(pDevice),
     m_pSignalQueue(nullptr),
-    m_pPresentQueue(nullptr),
     m_workerActive(false)
 {
+    for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
+    {
+        m_pPresentQueues[deviceIndex] = nullptr;
+    }
 }
 
 // =====================================================================================================================
@@ -126,10 +129,13 @@ PresentScheduler::~PresentScheduler()
         m_pSignalQueue = nullptr;
     }
 
-    if (m_pPresentQueue != nullptr)
+    for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
     {
-        m_pPresentQueue->Destroy();
-        m_pPresentQueue = nullptr;
+        if (m_pPresentQueues[deviceIndex] != nullptr)
+        {
+            m_pPresentQueues[deviceIndex]->Destroy();
+            m_pPresentQueues[deviceIndex] = nullptr;
+        }
     }
 
     for (auto iter = m_idleJobList.Begin(); iter.IsValid(); )
@@ -149,7 +155,8 @@ PresentScheduler::~PresentScheduler()
 
 // =====================================================================================================================
 Result PresentScheduler::Init(
-    void* pPlacementAddr)
+    IDevice*const pSlaveDevices[],
+    void*         pPlacementAddr)
 {
     Result result = m_idleJobMutex.Init();
 
@@ -272,9 +279,38 @@ Result PresentScheduler::Present(
             pJob->SetType(PresentJobType::Present);
             pJob->SetPresentInfo(presentInfo);
 
-            EnqueueJob(pJob);
+            // Choose the internal presentation queue of the same device as the provided presentation queue.
+            Queue*  pClientQueue   = static_cast<Queue*>(pQueue);
+            IQueue* pInternalQueue = nullptr;
+
+            for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
+            {
+                if ((m_pPresentQueues[deviceIndex] != nullptr) &&
+                    (static_cast<Queue*>(m_pPresentQueues[deviceIndex])->GetDevice()) == pClientQueue->GetDevice())
+                {
+                    pInternalQueue = m_pPresentQueues[deviceIndex];
+                    break;
+                }
+            }
+
+            if ((pInternalQueue != nullptr) &&
+                ((presentInfo.presentMode != PresentMode::Windowed) || (m_pDevice == pClientQueue->GetDevice())))
+            {
+                pJob->SetQueue(pInternalQueue);
+
+                EnqueueJob(pJob);
+            }
+            else
+            {
+                // A valid present queue was not found either because:
+                // 1. We didn't find a matching queue in the m_pPresentQueues array.
+                // 2. This is a windowed present and the pClientQueue's parent device is not the swap chain's parent
+                //    device.
+                result = Result::ErrorIncompatibleQueue;
+            }
         }
-        else
+
+        if (result != Result::Success)
         {
             // If we failed to queue the job we must clean up some state to prevent the swap chain from deadlocking.
             const Result cleanupResult = FailedToQueuePresentJob(presentInfo, pQueue);
@@ -305,10 +341,13 @@ Result PresentScheduler::WaitIdle()
         }
     }
 
-    // Then wait for the present queue and signal queue in that order to flush any remaining queue operations.
-    if (result == Result::Success)
+    // Then wait for the present queues and signal queue in that order to flush any remaining queue operations.
+    for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
     {
-        result = m_pPresentQueue->WaitIdle();
+        if ((result == Result::Success) && (m_pPresentQueues[deviceIndex] != nullptr))
+        {
+            result = m_pPresentQueues[deviceIndex]->WaitIdle();
+        }
     }
 
     if (result == Result::Success)
@@ -393,7 +432,7 @@ void PresentScheduler::RunWorkerThread()
 
             case PresentJobType::Present:
                 {
-                    const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), m_pPresentQueue, false);
+                    const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), pJob->GetQueue(), false);
                     PAL_ALERT(IsErrorResult(presentResult));
                 }
 

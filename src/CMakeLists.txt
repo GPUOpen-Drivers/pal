@@ -337,7 +337,6 @@ if(PAL_BUILD_CORE)
             core/hw/gfxip/indirectCmdGenerator.cpp
             core/hw/gfxip/msaaState.cpp
             core/hw/gfxip/pipeline.cpp
-            core/hw/gfxip/prefetchMgr.cpp
             core/hw/gfxip/queryPool.cpp
             core/hw/gfxip/universalCmdBuffer.cpp
         )
@@ -385,7 +384,6 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx6/gfx6PipelineChunkVsPs.cpp
                 core/hw/gfxip/gfx6/gfx6PipelineStatsQueryPool.cpp
                 core/hw/gfxip/gfx6/gfx6Pm4Optimizer.cpp
-                core/hw/gfxip/gfx6/gfx6PrefetchMgr.cpp
                 core/hw/gfxip/gfx6/gfx6QueueContexts.cpp
                 core/hw/gfxip/gfx6/gfx6SettingsLoader.cpp
                 core/hw/gfxip/gfx6/gfx6ShaderRing.cpp
@@ -437,7 +435,6 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.cpp
                 core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.cpp
                 core/hw/gfxip/gfx9/gfx9Pm4Optimizer.cpp
-                core/hw/gfxip/gfx9/gfx9PrefetchMgr.cpp
                 core/hw/gfxip/gfx9/gfx9QueueContexts.cpp
                 core/hw/gfxip/gfx9/gfx9SettingsLoader.cpp
                 core/hw/gfxip/gfx9/gfx9ShaderRing.cpp
@@ -619,122 +616,6 @@ if(UNIX)
         util/lnx/lnxThread.cpp
         util/lnx/lnxTimeout.cpp
     )
-endif()
-
-### PAL Auto-generated Files ###########################################################################################
-set(GEN_TOOLS_DIR ${PROJECT_SOURCE_DIR}/tools/generate)
-set(GEN_SETTINGS  ${GEN_TOOLS_DIR}/genSettingsCode.py)
-
-set(GEN_SETTINGS_FILES
-    ${GEN_SETTINGS}
-    ${GEN_TOOLS_DIR}/settingsCodeTemplates.py
-    ${GEN_TOOLS_DIR}/platformSettingsCodeTemplates.py
-    ${GEN_TOOLS_DIR}/configParser.py
-)
-
-set(GEN_HEAP_PERF ${GEN_TOOLS_DIR}/genHeapPerfMain.pl)
-set(GEN_HEAP_PERF_FILES
-    ${GEN_HEAP_PERF}
-    ${GEN_TOOLS_DIR}/genHeapPerfCode.pm
-    ${GEN_TOOLS_DIR}/heapPerfParser.pm
-)
-
-if(PAL_BUILD_CORE)
-    set(SETTINGS_DIR ${PROJECT_SOURCE_DIR}/src/core)
-    set(SETTINGS_CFG_DIR ${PROJECT_SOURCE_DIR}/src/core)
-
-    add_custom_command(
-        OUTPUT ${SETTINGS_DIR}/g_palPlatformSettings.cpp ${SETTINGS_DIR}/g_palPlatformSettings.h
-        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${SETTINGS_CFG_DIR}/settings_platform.json --codeTemplateFile ${GEN_TOOLS_DIR}/platformSettingsCodeTemplates.py --outFilename g_palPlatformSettings --classNameOverride PlatformSettingsLoader --genRegistryCode
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_platform.json
-        COMMENT "Generating settings code from settings_platform.json"
-    )
-
-    add_custom_command(
-        OUTPUT ${SETTINGS_DIR}/g_palSettings.cpp ${SETTINGS_DIR}/g_palSettings.h
-        COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${SETTINGS_CFG_DIR}/settings_core.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_palSettings --genRegistryCode
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json
-        COMMENT "Generating settings code from settings_core.json"
-    )
-
-    add_custom_target(
-        RunSettingsGenerator
-        DEPENDS ${GEN_SETTINGS_FILES} ${SETTINGS_CFG_DIR}/settings_core.json ${SETTINGS_CFG_DIR}/settings_platform.json
-        COMMENT "Checking if re-generation is required for settings"
-    )
-
-    set(HEAP_PERF_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/src/core)
-    set(HEAP_PERF_INPUT_DIR ${PROJECT_SOURCE_DIR}/src/core)
-
-    file(GLOB HEAP_PERF_FILES ${HEAP_PERF_DIR}/hw/heapPerf/asic*.txt)
-
-    add_custom_command(
-        OUTPUT ${HEAP_PERF_OUTPUT_DIR}/g_heapPerf.cpp
-        COMMAND ${PERL_CMD} ${GEN_HEAP_PERF} ${HEAP_PERF_INPUT_DIR}/hw/heapPerf g_heapPerf ${HEAP_PERF_OUTPUT_DIR}
-        DEPENDS ${GEN_HEAP_PERF_FILES} ${HEAP_PERF_FILES}
-        COMMENT "Generating heap perf code from core/hw/heapPerf/asic*.txt"
-    )
-
-    add_custom_target(
-        RunHeapPerfGenerator
-        DEPENDS ${GEN_HEAP_PERF_FILES} ${HEAP_PERF_FILES}
-        COMMENT "Checking if re-generation is required for heapPerf"
-    )
-
-    if(PAL_BUILD_GFX)
-        if(PAL_BUILD_GFX6)
-            set(GFX6_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6)
-            set(GFX6_CFG_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6)
-            file(MAKE_DIRECTORY ${GFX6_DIR})
-
-            add_custom_command(
-                OUTPUT ${GFX6_DIR}/g_gfx6PalSettings.cpp ${GFX6_DIR}/g_gfx6PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${GFX6_CFG_DIR}/settings_gfx6.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_gfx6PalSettings --genRegistryCode
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
-                COMMENT "Generating gfx6Settings code from settings_gfx6.json"
-            )
-
-            add_custom_target(
-                RunGfx6SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX6_CFG_DIR}/settings_gfx6.json
-                COMMENT "Checking if re-generation is required for gfx6Settings"
-            )
-        endif()
-
-        if(PAL_BUILD_GFX9)
-            set(GFX9_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9)
-            set(GFX9_CFG_DIR ${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9)
-            file(MAKE_DIRECTORY ${GFX9_DIR})
-
-            add_custom_command(
-                OUTPUT ${GFX9_DIR}/g_gfx9PalSettings.cpp ${GFX9_DIR}/g_gfx9PalSettings.h
-                COMMAND ${PYTHON_CMD} ${GEN_SETTINGS} --settingsFile ${GFX9_CFG_DIR}/settings_gfx9.json --codeTemplateFile ${GEN_TOOLS_DIR}/settingsCodeTemplates.py --outFilename g_gfx9PalSettings --genRegistryCode
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
-                COMMENT "Generating gfx9Settings code from settings_gfx9.json"
-            )
-
-            add_custom_target(
-                RunGfx9SettingsGenerator
-                DEPENDS ${GEN_SETTINGS_FILES} ${GFX9_CFG_DIR}/settings_gfx9.json
-                COMMENT "Checking if re-generation is required for gfx9Settings"
-            )
-        endif()
-    endif()
-endif()
-
-if(PAL_BUILD_CORE)
-    add_dependencies(pal RunSettingsGenerator)
-    add_dependencies(pal RunHeapPerfGenerator)
-
-    if(PAL_BUILD_GFX)
-        if(PAL_BUILD_GFX6)
-            add_dependencies(pal RunGfx6SettingsGenerator)
-        endif()
-
-        if(PAL_BUILD_GFX9)
-            add_dependencies(pal RunGfx9SettingsGenerator)
-        endif()
-    endif()
 endif()
 
 ### Link Libraries #####################################################################################################

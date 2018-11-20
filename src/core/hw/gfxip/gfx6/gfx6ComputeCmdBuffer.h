@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx6/gfx6Gds.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
-#include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
 
 namespace Pal
 {
@@ -264,9 +263,7 @@ private:
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
-
-    PrefetchMgr  m_prefetchMgr;
-    CmdStream    m_cmdStream;
+    CmdStream       m_cmdStream;
 
     // Tracks the user-data signature of the currently active compute pipeline.
     const ComputePipelineSignature*  m_pSignatureCs;

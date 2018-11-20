@@ -142,6 +142,7 @@ void PipelineChunkVsPs::EarlyInit(
         {
             pInfo->loadedCtxRegCount += BaseLoadedCntxRegCountStreamOut;
         }
+
     }
 }
 
@@ -457,7 +458,7 @@ void PipelineChunkVsPs::BuildPm4Headers(
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
     const CmdUtil&           cmdUtil   = m_device.CmdUtil();
 
-    if (!enableLoadIndexPath)
+    if (enableLoadIndexPath == false)
     {
         m_commands.sh.ps.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
                                                                  mmSPI_SHADER_PGM_RSRC2_PS,
@@ -470,16 +471,24 @@ void PipelineChunkVsPs::BuildPm4Headers(
 
         if (loadInfo.enableNgg == false)
         {
-            m_commands.sh.vs.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                                                                     mmSPI_SHADER_PGM_RSRC2_VS,
-                                                                     ShaderGraphics,
-                                                                     &m_commands.sh.vs.hdrSpiShaderPgm);
+            m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
+                                                                      mmSPI_SHADER_PGM_RSRC2_VS,
+                                                                      ShaderGraphics,
+                                                                      &m_commands.sh.vs.hdrSpiShaderPgm);
 
             m_commands.sh.vs.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
                                                                      ShaderGraphics,
                                                                      &m_commands.sh.vs.hdrSpiShaderUserData);
+        }
+        else
+        {
+            const uint32 shaderPgmCnt = mmSPI_SHADER_PGM_RSRC2_VS - mmSPI_SHADER_PGM_LO_VS + 1;
+            m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + shaderPgmCnt,
+                                                             &m_commands.sh.vs.hdrSpiShaderPgm);
 
-        } // if enableNgg == false
+            m_commands.sh.vs.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                             &m_commands.sh.vs.hdrSpiShaderUserData);
+        }
 
         m_commands.context.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_Z_FORMAT,
                                                                         mmSPI_SHADER_COL_FORMAT,

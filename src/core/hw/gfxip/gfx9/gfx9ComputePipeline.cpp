@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
 #include "palPipelineAbiProcessorImpl.h"
 #include "palFile.h"
 
@@ -315,6 +314,8 @@ Result ComputePipeline::HwlInit(
             break;
         }
 
+        m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+
         // Finally, update the pipeline signature with user-mapping data contained in the ELF:
         SetupSignatureFromElf(metadata, registers);
 
@@ -361,7 +362,7 @@ uint32* ComputePipeline::WriteCommands(
     Pal::CmdStream*                 pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
-    const Pal::PrefetchMgr&         prefetchMgr
+    bool                            prefetch
     ) const
 {
     auto*const pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
@@ -407,12 +408,13 @@ uint32* ComputePipeline::WriteCommands(
                                                                     pCmdSpace);
     }
 
-    const auto& gfx9PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
-    return gfx9PrefetchMgr.RequestPrefetch(PrefetchCs,
-                                           GetOriginalAddress(m_commands.set.computePgmLo.bits.DATA,
-                                                              m_commands.set.computePgmHi.bits.DATA),
-                                           m_stageInfo.codeLength,
-                                           pCmdSpace);
+    if (prefetch)
+    {
+        memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
+        pCmdSpace += m_commands.prefetch.spaceNeeded;
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -482,6 +484,11 @@ void ComputePipeline::BuildPm4Headers(
         m_commands.set.spaceNeeded += cmdUtil.BuildSetOneShReg(regInfo.mmComputeShaderChksum,
                                                                ShaderCompute,
                                                                &m_commands.set.hdrComputeShaderChksum);
+    }
+    else
+    {
+        m_commands.set.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                       &m_commands.set.hdrComputeShaderChksum);
     }
 
     // PM4 image for universal command buffers:

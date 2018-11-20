@@ -130,6 +130,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdFillGds,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes,             (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSetBufferFilledSize,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindBorderColorPalette,            (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetPredication,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdIf,                                (CmdBuild)            },

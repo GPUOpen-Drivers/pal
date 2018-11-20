@@ -281,14 +281,17 @@ void Device::DepthStencilExpand(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-    RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                     *gfx6Image.Parent(),
-                                     pMsaaState,
-                                     transition.imageInfo.pQuadSamplePattern,
-                                     subresRange);
+    if (pMsaaState != nullptr)
+    {
+        RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
+                                         *gfx6Image.Parent(),
+                                         pMsaaState,
+                                         transition.imageInfo.pQuadSamplePattern,
+                                         subresRange);
 
-    pMsaaState->Destroy();
-    PAL_SAFE_FREE(pMsaaState, &allocator);
+        pMsaaState->Destroy();
+        PAL_SAFE_FREE(pMsaaState, &allocator);
+    }
 }
 
 // =====================================================================================================================
@@ -333,16 +336,19 @@ void Device::DepthStencilResummarize(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-    // DB blit to resummarize.
-    RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
-                                          *gfx6Image.Parent(),
-                                          transition.imageInfo.newLayout,
-                                          pMsaaState,
-                                          transition.imageInfo.pQuadSamplePattern,
-                                          subresRange);
+    if (pMsaaState != nullptr)
+    {
+        // DB blit to resummarize.
+        RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
+                                              *gfx6Image.Parent(),
+                                              transition.imageInfo.newLayout,
+                                              pMsaaState,
+                                              transition.imageInfo.pQuadSamplePattern,
+                                              subresRange);
 
-    pMsaaState->Destroy();
-    PAL_SAFE_FREE(pMsaaState, &allocator);
+        pMsaaState->Destroy();
+        PAL_SAFE_FREE(pMsaaState, &allocator);
+    }
 }
 
 // =====================================================================================================================
@@ -668,14 +674,17 @@ void Device::DccDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-    RsrcProcMgr().DccDecompress(pCmdBuf,
-                                pCmdStream,
-                                gfx6Image,
-                                pMsaaState,
-                                transition.imageInfo.pQuadSamplePattern,
-                                subresRange);
-    pMsaaState->Destroy();
-    PAL_SAFE_FREE(pMsaaState, &allocator);
+    if (pMsaaState != nullptr)
+    {
+        RsrcProcMgr().DccDecompress(pCmdBuf,
+                                    pCmdStream,
+                                    gfx6Image,
+                                    pMsaaState,
+                                    transition.imageInfo.pQuadSamplePattern,
+                                    subresRange);
+        pMsaaState->Destroy();
+        PAL_SAFE_FREE(pMsaaState, &allocator);
+    }
 }
 
 // =====================================================================================================================
@@ -699,12 +708,15 @@ void Device::FmaskDecompress(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-    RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                  pCmdStream,
-                                  gfx6Image,
-                                  pMsaaState,
-                                  transition.imageInfo.pQuadSamplePattern,
-                                  subresRange);
+    if (pMsaaState != nullptr)
+    {
+        RsrcProcMgr().FmaskDecompress(pCmdBuf,
+                                      pCmdStream,
+                                      gfx6Image,
+                                      pMsaaState,
+                                      transition.imageInfo.pQuadSamplePattern,
+                                      subresRange);
+    }
 
     // On gfx6 hardware, the CB Fmask cache writes corrupted data if cache lines are flushed after their
     // context has been retired. To avoid this, we must flush the CB metadata caches after every Fmask
@@ -777,14 +789,18 @@ void Device::FastClearEliminate(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
-    RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                     pCmdStream,
-                                     gfx6Image,
-                                     pMsaaState,
-                                     transition.imageInfo.pQuadSamplePattern,
-                                     subresRange);
-    pMsaaState->Destroy();
-    PAL_SAFE_FREE(pMsaaState, &allocator);
+
+    if (pMsaaState != nullptr)
+    {
+        RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                         pCmdStream,
+                                         gfx6Image,
+                                         pMsaaState,
+                                         transition.imageInfo.pQuadSamplePattern,
+                                         subresRange);
+        pMsaaState->Destroy();
+        PAL_SAFE_FREE(pMsaaState, &allocator);
+    }
 }
 
 // =====================================================================================================================

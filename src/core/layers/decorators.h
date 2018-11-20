@@ -1733,6 +1733,11 @@ public:
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override
         { m_pNextLayer->CmdSaveBufferFilledSizes(gpuVirtAddr); }
 
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override
+     { m_pNextLayer->CmdSetBufferFilledSize(bufferId, offset); }
+
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override
@@ -1970,10 +1975,12 @@ private:
         ICmdBuffer*   pCmdBuffer,
         gpusize       streamOutFilledSizeVa,
         uint32        streamOutOffset,
-        uint32        stride)
+        uint32        stride,
+        uint32        firstInstance,
+        uint32        instanceCount)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
+        pNextLayer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
     }
 
     static void PAL_STDCALL CmdDrawIndexedDecorator(

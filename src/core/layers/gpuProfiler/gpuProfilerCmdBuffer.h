@@ -356,6 +356,9 @@ public:
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
     virtual void CmdSaveBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override;
     virtual void CmdLoadCeRam(
         const IGpuMemory& srcGpuMemory,
         gpusize           memOffset,
@@ -482,7 +485,9 @@ private:
         ICmdBuffer* pCmdBuffer,
         gpusize     streamOutFilledSizeVa,
         uint32      streamOutOffset,
-        uint32      stride);
+        uint32      stride,
+        uint32      firstInstance,
+        uint32      instanceCount);
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,
@@ -656,6 +661,7 @@ private:
     void ReplayCmdFillGds(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdLoadBufferFilledSizes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSaveBufferFilledSizes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetBufferFilledSize(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdLoadCeRam(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdWriteCeRam(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdDumpCeRam(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

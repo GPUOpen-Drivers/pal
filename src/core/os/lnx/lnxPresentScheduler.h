@@ -42,10 +42,11 @@ class PresentScheduler : public Pal::PresentScheduler
 {
 public:
     // The present scheduler is designed to be placed into other PAL objects which requires the Create/Destroy pattern.
-    static size_t GetSize(const Device& device, WsiPlatform wsiPlatform);
+    static size_t GetSize(const Device& device, IDevice*const pSlaveDevices[], WsiPlatform wsiPlatform);
 
     static Result Create(
         Device*                 pDevice,
+        IDevice*const           pSlaveDevices[],
         WindowSystem*           pWindowSystem,
         void*                   pPlacementAddr,
         Pal::PresentScheduler** ppPresentScheduler);
@@ -58,7 +59,7 @@ private:
     PresentScheduler(Device* pDevice, WindowSystem* pWindowSystem);
     virtual ~PresentScheduler() { }
 
-    virtual Result Init(void* pPlacementAddr) override;
+    virtual Result Init(IDevice*const pSlaveDevices[], void* pPlacementAddr) override;
     virtual Result PreparePresent(IQueue* pQueue, PresentSchedulerJob* pJob) override;
 
     virtual Result ProcessPresent(const PresentSwapChainInfo& presentInfo, IQueue* pQueue, bool isInline) override;

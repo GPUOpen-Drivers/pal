@@ -93,6 +93,155 @@ enum Gfx9DataType
     Gfx9DataFmask
 };
 
+const UINT_32 Gfx9LinearSwModeMask = (1u << ADDR_SW_LINEAR);
+
+const UINT_32 Gfx9Blk256BSwModeMask = (1u << ADDR_SW_256B_S) |
+                                      (1u << ADDR_SW_256B_D) |
+                                      (1u << ADDR_SW_256B_R);
+
+const UINT_32 Gfx9Blk4KBSwModeMask = (1u << ADDR_SW_4KB_Z)   |
+                                     (1u << ADDR_SW_4KB_S)   |
+                                     (1u << ADDR_SW_4KB_D)   |
+                                     (1u << ADDR_SW_4KB_R)   |
+                                     (1u << ADDR_SW_4KB_Z_X) |
+                                     (1u << ADDR_SW_4KB_S_X) |
+                                     (1u << ADDR_SW_4KB_D_X) |
+                                     (1u << ADDR_SW_4KB_R_X);
+
+const UINT_32 Gfx9Blk64KBSwModeMask = (1u << ADDR_SW_64KB_Z)   |
+                                      (1u << ADDR_SW_64KB_S)   |
+                                      (1u << ADDR_SW_64KB_D)   |
+                                      (1u << ADDR_SW_64KB_R)   |
+                                      (1u << ADDR_SW_64KB_Z_T) |
+                                      (1u << ADDR_SW_64KB_S_T) |
+                                      (1u << ADDR_SW_64KB_D_T) |
+                                      (1u << ADDR_SW_64KB_R_T) |
+                                      (1u << ADDR_SW_64KB_Z_X) |
+                                      (1u << ADDR_SW_64KB_S_X) |
+                                      (1u << ADDR_SW_64KB_D_X) |
+                                      (1u << ADDR_SW_64KB_R_X);
+
+const UINT_32 Gfx9BlkVarSwModeMask = (1u << ADDR_SW_VAR_Z)   |
+                                     (1u << ADDR_SW_VAR_S)   |
+                                     (1u << ADDR_SW_VAR_D)   |
+                                     (1u << ADDR_SW_VAR_R)   |
+                                     (1u << ADDR_SW_VAR_Z_X) |
+                                     (1u << ADDR_SW_VAR_S_X) |
+                                     (1u << ADDR_SW_VAR_D_X) |
+                                     (1u << ADDR_SW_VAR_R_X);
+
+const UINT_32 Gfx9ZSwModeMask = (1u << ADDR_SW_4KB_Z)    |
+                                (1u << ADDR_SW_64KB_Z)   |
+                                (1u << ADDR_SW_VAR_Z)    |
+                                (1u << ADDR_SW_64KB_Z_T) |
+                                (1u << ADDR_SW_4KB_Z_X)  |
+                                (1u << ADDR_SW_64KB_Z_X) |
+                                (1u << ADDR_SW_VAR_Z_X);
+
+const UINT_32 Gfx9StandardSwModeMask = (1u << ADDR_SW_256B_S)   |
+                                       (1u << ADDR_SW_4KB_S)    |
+                                       (1u << ADDR_SW_64KB_S)   |
+                                       (1u << ADDR_SW_VAR_S)    |
+                                       (1u << ADDR_SW_64KB_S_T) |
+                                       (1u << ADDR_SW_4KB_S_X)  |
+                                       (1u << ADDR_SW_64KB_S_X) |
+                                       (1u << ADDR_SW_VAR_S_X);
+
+const UINT_32 Gfx9DisplaySwModeMask = (1u << ADDR_SW_256B_D)   |
+                                      (1u << ADDR_SW_4KB_D)    |
+                                      (1u << ADDR_SW_64KB_D)   |
+                                      (1u << ADDR_SW_VAR_D)    |
+                                      (1u << ADDR_SW_64KB_D_T) |
+                                      (1u << ADDR_SW_4KB_D_X)  |
+                                      (1u << ADDR_SW_64KB_D_X) |
+                                      (1u << ADDR_SW_VAR_D_X);
+
+const UINT_32 Gfx9RotateSwModeMask = (1u << ADDR_SW_256B_R)   |
+                                     (1u << ADDR_SW_4KB_R)    |
+                                     (1u << ADDR_SW_64KB_R)   |
+                                     (1u << ADDR_SW_VAR_R)    |
+                                     (1u << ADDR_SW_64KB_R_T) |
+                                     (1u << ADDR_SW_4KB_R_X)  |
+                                     (1u << ADDR_SW_64KB_R_X) |
+                                     (1u << ADDR_SW_VAR_R_X);
+
+const UINT_32 Gfx9XSwModeMask = (1u << ADDR_SW_4KB_Z_X)  |
+                                (1u << ADDR_SW_4KB_S_X)  |
+                                (1u << ADDR_SW_4KB_D_X)  |
+                                (1u << ADDR_SW_4KB_R_X)  |
+                                (1u << ADDR_SW_64KB_Z_X) |
+                                (1u << ADDR_SW_64KB_S_X) |
+                                (1u << ADDR_SW_64KB_D_X) |
+                                (1u << ADDR_SW_64KB_R_X) |
+                                (1u << ADDR_SW_VAR_Z_X)  |
+                                (1u << ADDR_SW_VAR_S_X)  |
+                                (1u << ADDR_SW_VAR_D_X)  |
+                                (1u << ADDR_SW_VAR_R_X);
+
+const UINT_32 Gfx9TSwModeMask = (1u << ADDR_SW_64KB_Z_T) |
+                                (1u << ADDR_SW_64KB_S_T) |
+                                (1u << ADDR_SW_64KB_D_T) |
+                                (1u << ADDR_SW_64KB_R_T);
+
+const UINT_32 Gfx9XorSwModeMask = Gfx9XSwModeMask |
+                                  Gfx9TSwModeMask;
+
+const UINT_32 Gfx9AllSwModeMask = Gfx9LinearSwModeMask   |
+                                  Gfx9ZSwModeMask        |
+                                  Gfx9StandardSwModeMask |
+                                  Gfx9DisplaySwModeMask  |
+                                  Gfx9RotateSwModeMask;
+
+const UINT_32 Gfx9Rsrc1dSwModeMask = Gfx9LinearSwModeMask;
+
+const UINT_32 Gfx9Rsrc2dSwModeMask = Gfx9AllSwModeMask;
+
+const UINT_32 Gfx9Rsrc3dSwModeMask = Gfx9AllSwModeMask & ~Gfx9Blk256BSwModeMask & ~Gfx9RotateSwModeMask;
+
+const UINT_32 Gfx9Rsrc2dPrtSwModeMask = (Gfx9Blk4KBSwModeMask | Gfx9Blk64KBSwModeMask) & ~Gfx9XSwModeMask;
+
+const UINT_32 Gfx9Rsrc3dPrtSwModeMask = Gfx9Rsrc2dPrtSwModeMask & ~Gfx9RotateSwModeMask & ~Gfx9DisplaySwModeMask;
+
+const UINT_32 Gfx9Rsrc3dThinSwModeMask = Gfx9DisplaySwModeMask & ~Gfx9Blk256BSwModeMask;
+
+const UINT_32 Gfx9MsaaSwModeMask = Gfx9AllSwModeMask & ~Gfx9Blk256BSwModeMask & ~Gfx9LinearSwModeMask;
+
+const UINT_32 Dce12NonBpp32SwModeMask = (1u << ADDR_SW_LINEAR)   |
+                                        (1u << ADDR_SW_4KB_D)    |
+                                        (1u << ADDR_SW_4KB_R)    |
+                                        (1u << ADDR_SW_64KB_D)   |
+                                        (1u << ADDR_SW_64KB_R)   |
+                                        (1u << ADDR_SW_VAR_D)    |
+                                        (1u << ADDR_SW_VAR_R)    |
+                                        (1u << ADDR_SW_4KB_D_X)  |
+                                        (1u << ADDR_SW_4KB_R_X)  |
+                                        (1u << ADDR_SW_64KB_D_X) |
+                                        (1u << ADDR_SW_64KB_R_X) |
+                                        (1u << ADDR_SW_VAR_D_X)  |
+                                        (1u << ADDR_SW_VAR_R_X);
+
+const UINT_32 Dce12Bpp32SwModeMask = (1u << ADDR_SW_256B_D) |
+                                     (1u << ADDR_SW_256B_R) |
+                                     Dce12NonBpp32SwModeMask;
+
+const UINT_32 Dcn1NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
+                                       (1u << ADDR_SW_4KB_S)    |
+                                       (1u << ADDR_SW_64KB_S)   |
+                                       (1u << ADDR_SW_VAR_S)    |
+                                       (1u << ADDR_SW_64KB_S_T) |
+                                       (1u << ADDR_SW_4KB_S_X)  |
+                                       (1u << ADDR_SW_64KB_S_X) |
+                                       (1u << ADDR_SW_VAR_S_X);
+
+const UINT_32 Dcn1Bpp64SwModeMask = (1u << ADDR_SW_4KB_D)    |
+                                    (1u << ADDR_SW_64KB_D)   |
+                                    (1u << ADDR_SW_VAR_D)    |
+                                    (1u << ADDR_SW_64KB_D_T) |
+                                    (1u << ADDR_SW_4KB_D_X)  |
+                                    (1u << ADDR_SW_64KB_D_X) |
+                                    (1u << ADDR_SW_VAR_D_X)  |
+                                    Dcn1NonBpp64SwModeMask;
+
 /**
 ************************************************************************************************************************
 * @brief GFX9 meta equation parameters
@@ -447,6 +596,31 @@ private:
         UINT_32*                                pMipmap0PaddedWidth,
         UINT_32*                                pSlice0PaddedHeight,
         ADDR2_MIP_INFO*                         pMipInfo = NULL) const;
+
+    static ADDR2_BLOCK_SET GetAllowedBlockSet(ADDR2_SWMODE_SET allowedSwModeSet)
+    {
+        ADDR2_BLOCK_SET allowedBlockSet = {};
+
+        allowedBlockSet.micro     = (allowedSwModeSet.value & Gfx9Blk256BSwModeMask) ? TRUE : FALSE;
+        allowedBlockSet.macro4KB  = (allowedSwModeSet.value & Gfx9Blk4KBSwModeMask)  ? TRUE : FALSE;
+        allowedBlockSet.macro64KB = (allowedSwModeSet.value & Gfx9Blk64KBSwModeMask) ? TRUE : FALSE;
+        allowedBlockSet.var       = (allowedSwModeSet.value & Gfx9BlkVarSwModeMask)  ? TRUE : FALSE;
+        allowedBlockSet.linear    = (allowedSwModeSet.value & Gfx9LinearSwModeMask)  ? TRUE : FALSE;
+
+        return allowedBlockSet;
+    }
+
+    static ADDR2_SWTYPE_SET GetAllowedSwSet(ADDR2_SWMODE_SET allowedSwModeSet)
+    {
+        ADDR2_SWTYPE_SET allowedSwSet = {};
+
+        allowedSwSet.sw_Z = (allowedSwModeSet.value & Gfx9ZSwModeMask)        ? TRUE : FALSE;
+        allowedSwSet.sw_S = (allowedSwModeSet.value & Gfx9StandardSwModeMask) ? TRUE : FALSE;
+        allowedSwSet.sw_D = (allowedSwModeSet.value & Gfx9DisplaySwModeMask)  ? TRUE : FALSE;
+        allowedSwSet.sw_R = (allowedSwModeSet.value & Gfx9RotateSwModeMask)   ? TRUE : FALSE;
+
+        return allowedSwSet;
+    }
 
     Gfx9ChipSettings m_settings;
 

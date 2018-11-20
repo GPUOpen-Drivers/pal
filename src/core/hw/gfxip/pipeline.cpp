@@ -340,13 +340,28 @@ Result Pipeline::GetShaderStatsForStage(
 
     if (result == Result::Success)
     {
-        const auto& stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(stageInfo.stageId)];
+        const auto&  gpuInfo       = m_pDevice->ChipProperties();
+        const auto&  stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(stageInfo.stageId)];
 
         pStats->common.numUsedSgprs = stageMetadata.sgprCount;
         pStats->common.numUsedVgprs = stageMetadata.vgprCount;
 
-        pStats->numAvailableSgprs = stageMetadata.sgprLimit;
-        pStats->numAvailableVgprs = stageMetadata.vgprLimit;
+        if (gpuInfo.gfxLevel < GfxIpLevel::GfxIp9)
+        {
+            pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
+                                                                                : gpuInfo.gfx6.numShaderVisibleSgprs;
+            pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
+                                                                                : gpuInfo.gfx6.numShaderVisibleVgprs;
+        }
+#if PAL_BUILD_GFX9
+        else
+        {
+            pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
+                                                                                : gpuInfo.gfx9.numShaderVisibleSgprs;
+            pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
+                                                                                : gpuInfo.gfx9.numShaderVisibleVgprs;
+        }
+#endif
 
         pStats->common.ldsUsageSizeInBytes    = stageMetadata.ldsSize;
         pStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
@@ -546,6 +561,9 @@ Result PipelineUploader::Begin(
             pMappedPtr   = VoidPtrInc(pMappedPtr, codeLength);
             gpuVirtAddr += codeLength;
 
+            m_prefetchGpuVirtAddr = m_codeGpuVirtAddr;
+            m_prefetchSize        = codeLength;
+
             if (dataLength > 0)
             {
                 pMappedPtr  = VoidPtrAlign(pMappedPtr, static_cast<size_t>(dataAlignment));
@@ -577,6 +595,8 @@ Result PipelineUploader::Begin(
 
                 pMappedPtr   = VoidPtrInc(pMappedPtr, dataLength);
                 gpuVirtAddr += dataLength;
+
+                m_prefetchSize = gpuVirtAddr - m_prefetchGpuVirtAddr;
             } // if dataLength > 0
 
             if (totalRegisters > 0)

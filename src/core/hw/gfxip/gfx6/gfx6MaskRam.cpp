@@ -901,10 +901,11 @@ bool Gfx6Fmask::UseFmaskForImage(
     const Pal::Image*const pParent = image.Parent();
 
     // Multisampled Images require FMask.
-    return ((pParent->IsRenderTarget()     == true)  &&
+    return (pParent->IsEqaa() ||
+            ((pParent->IsRenderTarget()     == true)  &&
             (pParent->IsShared()           == false) &&
             (pParent->IsMetadataDisabled() == false) &&
-            (pParent->GetImageCreateInfo().samples > 1));
+            (pParent->GetImageCreateInfo().samples > 1)));
 }
 
 // =====================================================================================================================

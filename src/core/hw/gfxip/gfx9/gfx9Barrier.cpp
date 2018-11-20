@@ -142,14 +142,17 @@ void Device::TransitionDepthStencil(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-            RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
-                                             image,
-                                             pMsaaState,
-                                             transition.imageInfo.pQuadSamplePattern,
-                                             subresRange);
+            if (pMsaaState != nullptr)
+            {
+                RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
+                                                 image,
+                                                 pMsaaState,
+                                                 transition.imageInfo.pQuadSamplePattern,
+                                                 subresRange);
 
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+                pMsaaState->Destroy();
+                PAL_SAFE_FREE(pMsaaState, &allocator);
+            }
 
             issuedBlt = true;
         }
@@ -198,16 +201,19 @@ void Device::TransitionDepthStencil(
                     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
                     IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-                    // DB blit to resummarize.
-                    RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
-                                                          image,
-                                                          transition.imageInfo.newLayout,
-                                                          pMsaaState,
-                                                          transition.imageInfo.pQuadSamplePattern,
-                                                          subresRange);
+                    if (pMsaaState != nullptr)
+                    {
+                        // DB blit to resummarize.
+                        RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
+                                                              image,
+                                                              transition.imageInfo.newLayout,
+                                                              pMsaaState,
+                                                              transition.imageInfo.pQuadSamplePattern,
+                                                              subresRange);
 
-                    pMsaaState->Destroy();
-                    PAL_SAFE_FREE(pMsaaState, &allocator);
+                        pMsaaState->Destroy();
+                        PAL_SAFE_FREE(pMsaaState, &allocator);
+                    }
 
                     issuedBlt = true;
                 }
@@ -454,15 +460,18 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-            RsrcProcMgr().DccDecompress(pCmdBuf,
-                                        pCmdStream,
-                                        gfx9Image,
-                                        pMsaaState,
-                                        transition.imageInfo.pQuadSamplePattern,
-                                        subresRange);
+            if (pMsaaState != nullptr)
+            {
+                RsrcProcMgr().DccDecompress(pCmdBuf,
+                                            pCmdStream,
+                                            gfx9Image,
+                                            pMsaaState,
+                                            transition.imageInfo.pQuadSamplePattern,
+                                            subresRange);
 
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+                pMsaaState->Destroy();
+                PAL_SAFE_FREE(pMsaaState, &allocator);
+            }
         }
         else if (fmaskDecompress)
         {
@@ -493,15 +502,18 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-            RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                          pCmdStream,
-                                          gfx9Image,
-                                          pMsaaState,
-                                          transition.imageInfo.pQuadSamplePattern,
-                                          subresRange);
+            if (pMsaaState != nullptr)
+            {
+                RsrcProcMgr().FmaskDecompress(pCmdBuf,
+                                              pCmdStream,
+                                              gfx9Image,
+                                              pMsaaState,
+                                              transition.imageInfo.pQuadSamplePattern,
+                                              subresRange);
 
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+                pMsaaState->Destroy();
+                PAL_SAFE_FREE(pMsaaState, &allocator);
+            }
         }
         else if (fastClearEliminate)
         {
@@ -518,16 +530,19 @@ void Device::ExpandColor(
             LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuf->Allocator(), false);
             IMsaaState* pMsaaState = BarrierMsaaState(this, pCmdBuf, &allocator, transition);
 
-            // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
-            fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                                  pCmdStream,
-                                                                  gfx9Image,
-                                                                  pMsaaState,
-                                                                  transition.imageInfo.pQuadSamplePattern,
-                                                                  subresRange);
+            if (pMsaaState != nullptr)
+            {
+                // Note: if FCE is not submitted to GPU, we don't need to update cache flags.
+                fastClearEliminate = RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                                                      pCmdStream,
+                                                                      gfx9Image,
+                                                                      pMsaaState,
+                                                                      transition.imageInfo.pQuadSamplePattern,
+                                                                      subresRange);
 
-            pMsaaState->Destroy();
-            PAL_SAFE_FREE(pMsaaState, &allocator);
+                pMsaaState->Destroy();
+                PAL_SAFE_FREE(pMsaaState, &allocator);
+            }
         }
     }
 

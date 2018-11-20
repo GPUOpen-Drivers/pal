@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
@@ -3568,6 +3569,60 @@ size_t CmdUtil::BuildCommentString(
     memcpy(pData + 3, pComment, stringLength);
 
     return packetSize;
+}
+
+// =====================================================================================================================
+// On GFX7+ CPDMA can read/write through L2.  Issue a BLT of the pipeline data to itself in order to prime its data in
+// L2.
+void CmdUtil::BuildPipelinePrefetchPm4(
+    const PipelineUploader& uploader,
+    PipelinePrefetchPm4*    pOutput
+    ) const
+{
+    const PalSettings&     coreSettings = m_device.Settings();
+    const Gfx6PalSettings& hwlSettings  = static_cast<const Device*>(m_device.GetGfxDevice())->Settings();
+
+    if ((m_device.ChipProperties().gfxLevel != GfxIpLevel::GfxIp6) && coreSettings.pipelinePrefetchEnable)
+    {
+        const gpusize prefetchAddr = uploader.PrefetchAddr();
+        uint32        prefetchSize = static_cast<uint32>(uploader.PrefetchSize());
+
+        if (coreSettings.shaderPrefetchClampSize != 0)
+        {
+            prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
+        }
+
+        // The .text section of the code object should be well aligned, but the prefetched data may not be.  In that
+        // case, just prefetch what we can without triggering the unaligned CPDMA workaround which would require an
+        // indeterminant amount of command space.
+        prefetchSize = Pow2AlignDown(prefetchSize, hwlSettings.cpDmaSrcAlignment);
+
+        // We always expect the prefetched portion of the code object to be shader code that must be 256 byte aligned.
+        PAL_ASSERT(IsPow2Aligned(prefetchAddr, hwlSettings.cpDmaSrcAlignment));
+
+        const auto& gfx6Device = static_cast<const Pal::Gfx6::Device&>(*m_device.GetGfxDevice());
+
+        DmaDataInfo dmaDataInfo  = {};
+        dmaDataInfo.dstAddr      = prefetchAddr;
+        dmaDataInfo.dstAddrSpace = CPDMA_ADDR_SPACE_MEM;
+        dmaDataInfo.dstSel       = gfx6Device.WaCpDmaHangMcTcAckDrop() ? CPDMA_DST_SEL_DST_ADDR :
+                                                                         CPDMA_DST_SEL_DST_ADDR_USING_L2;
+        dmaDataInfo.srcAddr      = prefetchAddr;
+        dmaDataInfo.srcAddrSpace = CPDMA_ADDR_SPACE_MEM;
+        dmaDataInfo.srcSel       = CPDMA_SRC_SEL_SRC_ADDR_USING_L2;
+        dmaDataInfo.numBytes     = prefetchSize;
+        dmaDataInfo.disableWc    = true;
+
+        const size_t dmaCmdSize = BuildDmaData(dmaDataInfo, &pOutput->dmaData);
+        pOutput->spaceNeeded = sizeof(PM4DMADATA) / sizeof(uint32);
+
+        // If this triggers, we just corrupted some memory.
+        PAL_ASSERT(dmaCmdSize == pOutput->spaceNeeded);
+    }
+    else
+    {
+        pOutput->spaceNeeded = 0;
+    }
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

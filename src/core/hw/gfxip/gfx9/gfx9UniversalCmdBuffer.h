@@ -29,7 +29,6 @@
 #include "core/hw/gfxip/gfx9/gfx9Gds.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
-#include "core/hw/gfxip/gfx9/gfx9PrefetchMgr.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "palIntervalTree.h"
@@ -160,15 +159,18 @@ struct DrawTimeHwState
     } dirty;                             // Draw state dirty flags. If any of these are set, the next call to
                                          // ValidateDrawTimeHwState needs to write them.
 
-    uint32                        instanceOffset;         // Current value of the instance offset user data.
-    uint32                        vertexOffset;           // Current value of the vertex offset user data.
-    uint32                        startIndex;             // Current value of the start index user data.
-    uint32                        log2IndexSize;          // Current value of the Log2(sizeof(indexType)) user data.
-    uint32                        numInstances;           // Current value of the NUM_INSTANCES state.
-    regPA_SC_MODE_CNTL_1          paScModeCntl1;          // Current value of the PA_SC_MODE_CNTL1 register.
-    regDB_COUNT_CONTROL           dbCountControl;         // Current value of the DB_COUNT_CONTROL register.
-    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;  // Current value of the VGT_MULTI_PRIM_IB_RESET_EN register.
-    gpusize                       nggIndexBufferBaseAddr; // Current value of the IndexBufferBaseAddr for NGG.
+    uint32                        instanceOffset;            // Current value of the instance offset user data.
+    uint32                        vertexOffset;              // Current value of the vertex offset user data.
+    uint32                        startIndex;                // Current value of the start index user data.
+    uint32                        log2IndexSize;             // Current value of the Log2(sizeof(indexType)) user data.
+    uint32                        numInstances;              // Current value of the NUM_INSTANCES state.
+    regPA_SC_MODE_CNTL_1          paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
+    regDB_COUNT_CONTROL           dbCountControl;            // Current value of the DB_COUNT_CONTROL register.
+    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;     // Current value of the VGT_MULTI_PRIM_IB_RESET_EN
+                                                             // register.
+    gpusize                       nggIndexBufferBaseAddr;    // Current value of the IndexBufferBaseAddr for NGG.
+    gpusize                       nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
+    gpusize                       nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
 };
 
 struct ColorInfoReg
@@ -534,6 +536,10 @@ public:
     virtual void CmdSaveBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
 
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override;
+
     virtual void CmdBeginQuery(
         const IQueryPool& queryPool,
         QueryType         queryType,
@@ -802,7 +808,9 @@ private:
         ICmdBuffer* pCmdBuffer,
         gpusize streamOutFilledSizeVa,
         uint32  streamOutOffset,
-        uint32  stride);
+        uint32  stride,
+        uint32  firstInstance,
+        uint32  instanceCount);
     template <bool issueSqttMarkerEvent, bool isNggFastLaunch, bool viewInstancingEnable>
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
@@ -985,11 +993,8 @@ private:
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
-
-    // Prefetch manager is for pre-loading / warming L2 caches on behalf of the command buffer
-    PrefetchMgr  m_prefetchMgr;
-    CmdStream    m_deCmdStream;
-    CmdStream    m_ceCmdStream;
+    CmdStream       m_deCmdStream;
+    CmdStream       m_ceCmdStream;
 
     // Tracks the user-data signature of the currently active compute & graphics pipelines.
     const ComputePipelineSignature*   m_pSignatureCs;
@@ -1097,7 +1102,9 @@ private:
                                                     // shaders.
             uint32 padParamCacheSpace         :  1; // True if this command buffer should pad used param-cache space to
                                                     // reduce context rolls.
-            uint32 reserved                   : 10;
+            uint32 reserved0                  :  1;
+            uint32 reserved1                  :  1;
+            uint32 reserved                   :  8;
         };
         uint32 u32All;
     } m_cachedSettings;

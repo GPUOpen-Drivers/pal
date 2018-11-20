@@ -40,7 +40,6 @@ namespace Pal
 
 class CmdStream;
 class PipelineUploader;
-class PrefetchMgr;
 
 // Represents information about shader operations stored obtained as shader metadata flags during processing of shader
 // IL stream.
@@ -228,6 +227,9 @@ public:
     gpusize CtxRegGpuVirtAddr() const { return m_ctxRegGpuVirtAddr; }
     gpusize ShRegGpuVirtAddr() const { return m_shRegGpuVirtAddr; }
 
+    gpusize PrefetchAddr() const { return m_prefetchGpuVirtAddr; }
+    gpusize PrefetchSize() const { return m_prefetchSize; }
+
 protected:
     // Writes a context register offset and value to the mapped region where registers are stored in GPU memory.
     PAL_INLINE void AddCtxRegister(uint16 offset, uint32 value)
@@ -249,6 +251,9 @@ private:
     GpuMemory*  m_pGpuMemory;
     gpusize     m_baseOffset;
     gpusize     m_gpuMemSize;
+
+    gpusize     m_prefetchGpuVirtAddr;
+    gpusize     m_prefetchSize;
 
     gpusize  m_codeGpuVirtAddr;
     gpusize  m_dataGpuVirtAddr;

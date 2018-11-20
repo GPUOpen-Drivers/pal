@@ -471,6 +471,10 @@ BOOL_32 CiLib::HwlInitGlobalParams(
         m_pipes = 4;
     }
 
+#ifdef ADDR_SCBU_BUILD
+    HwlInitGlobalParamsAdjust(&m_pipes);
+#endif // ADDR_SCBU_BUILD
+
     if (valid)
     {
         valid = InitTileSettingTable(pRegValue->pTileConfig, pRegValue->noOfEntries);
@@ -1033,7 +1037,6 @@ VOID CiLib::HwlOverrideTileMode(
         {
             switch (pInOut->format)
             {
-                // see //gfxip/gcB/devel/cds/src/verif/tc/models/csim/tcp.cpp
                 // tcpError("Thick micro tiling is not supported for format...
                 case ADDR_FMT_X24_8_32_FLOAT:
                 case ADDR_FMT_32_AS_8:

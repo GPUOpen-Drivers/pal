@@ -550,6 +550,11 @@ public:
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override
+     { PAL_NEVER_CALLED(); }
+
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override

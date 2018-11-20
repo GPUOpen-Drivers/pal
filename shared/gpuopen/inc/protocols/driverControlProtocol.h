@@ -28,7 +28,7 @@
 #include "gpuopen.h"
 
 #define DRIVERCONTROL_PROTOCOL_MAJOR_VERSION 2
-#define DRIVERCONTROL_PROTOCOL_MINOR_VERSION 0
+#define DRIVERCONTROL_PROTOCOL_MINOR_VERSION 1
 
 #define DRIVERCONTROL_INTERFACE_VERSION ((DRIVERCONTROL_INTERFACE_MAJOR_VERSION << 16) | DRIVERCONTROL_INTERFACE_MINOR_VERSION)
 
@@ -38,6 +38,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  2.1    | Added initialization time step functionality.                                                            |
 *|  2.0    | Added initialization time driver status values and a terminate driver command.                           |
 *|  1.0    | Initial version                                                                                          |
 ***********************************************************************************************************************

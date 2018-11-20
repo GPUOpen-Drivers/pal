@@ -166,7 +166,7 @@ ADDR_E_RETURNCODE Lib::Create(
                         break;
 #if ADDR_CI_BUILD
                     case FAMILY_VI:
-                    case FAMILY_CZ: // VI based fusion(carrizo, Nolan, Amur)
+                    case FAMILY_CZ:
                     case FAMILY_CI:
                     case FAMILY_KV: // CI based fusion
                         pLib = CiHwlInit(&client);

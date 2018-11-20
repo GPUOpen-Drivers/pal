@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/cmdStream.h"
+#include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -421,44 +422,20 @@ bool CmdUtil::IsShReg(
 
     return isShReg;
 }
+
 // =====================================================================================================================
 // Builds the common aspects of the acquire-mem packet into the supplied pPacket ptr.
 template <typename AcquireMemPacketType>
 uint32 CmdUtil::BuildAcquireMemInternal(
-    const AcquireMemInfo&  acquireMemInfo,
-    AcquireMemPacketType*  pPacket         // [out] Build the PM4 packet in this buffer.
+    const ExplicitAcquireMemInfo& acquireMemInfo,
+    AcquireMemPacketType*         pPacket         // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType) == false)
-    {
-        // If there's no graphics support on this engine then disable various gfx-specific requests
-        PAL_ASSERT(acquireMemInfo.cpMeCoherCntl.u32All == 0);
-        PAL_ASSERT(acquireMemInfo.flags.wbInvCbData == 0);
-        PAL_ASSERT(acquireMemInfo.flags.wbInvDb == 0);
-    }
-
     constexpr uint32  PacketSize = sizeof(AcquireMemPacketType) / sizeof(uint32);
     pPacket->header.u32All       = Type3Header(IT_ACQUIRE_MEM, PacketSize);
     pPacket->ordinal2            = 0;
 
-    // independently.
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        const uint32  tcCacheOp = static_cast<uint32>(acquireMemInfo.tcCacheOp);
-
-        regCP_COHER_CNTL cpCoherCntl = {};
-        cpCoherCntl.u32All                       = TcCacheOpConversionTable[tcCacheOp];
-        cpCoherCntl.bits.CB_ACTION_ENA           = acquireMemInfo.flags.wbInvCbData;
-        cpCoherCntl.bits.DB_ACTION_ENA           = acquireMemInfo.flags.wbInvDb;
-        cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = acquireMemInfo.flags.invSqK$;
-        cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = acquireMemInfo.flags.invSqI$;
-        cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = acquireMemInfo.flags.flushSqK$;
-
-        // There shouldn't be any shared bits between CP_ME_COHER_CNTL and CP_COHER_CNTL.
-        PAL_ASSERT((cpCoherCntl.u32All & acquireMemInfo.cpMeCoherCntl.u32All) == 0);
-
-        pPacket->bitfields2.coher_cntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
-    }
+    pPacket->bitfields2.coher_cntl = acquireMemInfo.coherCntl;
 
     if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
     {
@@ -502,13 +479,59 @@ size_t CmdUtil::BuildAcquireMem(
     void*                 pBuffer         // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    uint32  packetSize = 0;
+    if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType) == false)
+    {
+        // If there's no graphics support on this engine then disable various gfx-specific requests
+        PAL_ASSERT(acquireMemInfo.cpMeCoherCntl.u32All == 0);
+        PAL_ASSERT(acquireMemInfo.flags.wbInvCbData == 0);
+        PAL_ASSERT(acquireMemInfo.flags.wbInvDb == 0);
+    }
 
-    static_assert(sizeof(PM4MEC_ACQUIRE_MEM__GFX09) == sizeof(PM4ME_ACQUIRE_MEM__GFX09),
-                  "GFX9:  ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
+    // Translate AcquireMemInfo to an explicit AcquireMemInfo type.
+    ExplicitAcquireMemInfo explicitAcquireMemInfo = {};
+    explicitAcquireMemInfo.flags.usePfp = acquireMemInfo.flags.usePfp;
+    explicitAcquireMemInfo.engineType   = acquireMemInfo.engineType;
+    explicitAcquireMemInfo.baseAddress  = acquireMemInfo.baseAddress;
+    explicitAcquireMemInfo.sizeBytes    = acquireMemInfo.sizeBytes;
+
+    // The CP_COHER_CNTL bits either belong to the set of mutually exclusive TC cache ops or can be set
+    // independently.
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    {
+        const uint32  tcCacheOp = static_cast<uint32>(acquireMemInfo.tcCacheOp);
+
+        regCP_COHER_CNTL cpCoherCntl;
+        cpCoherCntl.u32All                       = TcCacheOpConversionTable[tcCacheOp];
+        cpCoherCntl.bits.CB_ACTION_ENA           = acquireMemInfo.flags.wbInvCbData;
+        cpCoherCntl.bits.DB_ACTION_ENA           = acquireMemInfo.flags.wbInvDb;
+        cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = acquireMemInfo.flags.invSqK$;
+        cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = acquireMemInfo.flags.invSqI$;
+        cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = acquireMemInfo.flags.flushSqK$;
+
+        // There shouldn't be any shared bits between CP_ME_COHER_CNTL and CP_COHER_CNTL.
+        PAL_ASSERT((cpCoherCntl.u32All & acquireMemInfo.cpMeCoherCntl.u32All) == 0);
+
+        explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
+    }
+
+    // Call a more explicit function.
+    return ExplicitBuildAcquireMem(explicitAcquireMemInfo, pBuffer);
+}
+
+// =====================================================================================================================
+// Builds the the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
+size_t CmdUtil::ExplicitBuildAcquireMem(
+    const ExplicitAcquireMemInfo& acquireMemInfo,
+    void*                         pBuffer         // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    uint32  packetSize = 0;
 
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
+        static_assert(sizeof(PM4MEC_ACQUIRE_MEM__GFX09) == sizeof(PM4ME_ACQUIRE_MEM__GFX09),
+                      "GFX9:  ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
+
         auto*const pPacket = static_cast<PM4ME_ACQUIRE_MEM__GFX09*>(pBuffer);
 
         packetSize = BuildAcquireMemInternal(acquireMemInfo, pPacket);
@@ -2386,10 +2409,11 @@ size_t CmdUtil::BuildPreambleCntl(
 // Builds the common aspects of a release-mem packet.
 template <typename ReleaseMemPacketType>
 size_t CmdUtil::BuildReleaseMemInternal(
-    const ReleaseMemInfo&  releaseMemInfo,
-    ReleaseMemPacketType*  pPacket,    // [out] Build the PM4 packet in this buffer.
-    uint32                 gdsAddr,    // dword offset, ignored unless dataSel == release_mem__store_gds_data_to_memory
-    uint32                 gdsSize     // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    const ExplicitReleaseMemInfo& releaseMemInfo,
+    ReleaseMemPacketType*         pPacket, // [out] Build the PM4 packet in this buffer.
+    uint32                        gdsAddr, // dword offset,
+                                           // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    uint32                        gdsSize  // ignored unless dataSel == release_mem__store_gds_data_to_memory
     ) const
 {
     constexpr uint32 PacketSize = (sizeof(ReleaseMemPacketType) / sizeof(uint32));
@@ -2458,9 +2482,10 @@ size_t CmdUtil::BuildReleaseMemInternal(
 // DWORDs taken up by this packet.
 size_t CmdUtil::BuildReleaseMem(
     const ReleaseMemInfo& releaseMemInfo,
-    void*                 pBuffer,     // [out] Build the PM4 packet in this buffer.
-    uint32                gdsAddr,     // dword offset, ignored unless dataSel == release_mem__store_gds_data_to_memory
-    uint32                gdsSize      // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    void*                 pBuffer,   // [out] Build the PM4 packet in this buffer.
+    uint32                gdsAddr,   // dword offset,
+                                     // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    uint32                gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
     ) const
 {
     static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
@@ -2500,54 +2525,58 @@ size_t CmdUtil::BuildReleaseMem(
                                            VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
     }
 
+    // Translate ReleaseMemInfo to a new ReleaseMemInfo type that's more universal.
+    ExplicitReleaseMemInfo explicitReleaseMemInfo;
+    explicitReleaseMemInfo.engineType = releaseMemInfo.engineType;
+    explicitReleaseMemInfo.vgtEvent   = releaseMemInfo.vgtEvent;
+    explicitReleaseMemInfo.dstAddr    = releaseMemInfo.dstAddr;
+    explicitReleaseMemInfo.dataSel    = releaseMemInfo.dataSel;
+    explicitReleaseMemInfo.data       = releaseMemInfo.data;
+
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
-        // versions are identical.
-        PM4MEC_RELEASE_MEM__GFX09 packet = {};
-        void* pReleaseMemPacket = VoidPtrInc(pBuffer, sizeof(uint32) * totalSize);
-        const size_t packetSize = BuildReleaseMemInternal(releaseMemInfo, &packet, gdsAddr, gdsSize);
+        regCP_COHER_CNTL cpCoherCntl = {};
 
         switch(releaseMemInfo.tcCacheOp)
         {
         case TcCacheOp::WbInvL1L2:
-            packet.bitfields2.tc_action_ena       = 1;
-            packet.bitfields2.tc_wb_action_ena    = 1;
+            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
+            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
             break;
 
         case TcCacheOp::WbInvL2Nc:
-            packet.bitfields2.tc_action_ena       = 1;
-            packet.bitfields2.tc_wb_action_ena    = 1;
-            packet.bitfields2.tc_nc_action_ena    = 1;
+            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
+            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
+            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
             break;
 
         case TcCacheOp::WbL2Nc:
-            packet.bitfields2.tc_wb_action_ena    = 1;
-            packet.bitfields2.tc_nc_action_ena    = 1;
+            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
+            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
             break;
 
         case TcCacheOp::WbL2Wc:
-            packet.bitfields2.tc_wb_action_ena    = 1;
-            packet.bitfields2.tc_wc_action_ena    = 1;
+            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
+            cpCoherCntl.bits.TC_WC_ACTION_ENA           = 1;
             break;
 
         case TcCacheOp::InvL2Nc:
-            packet.bitfields2.tc_action_ena       = 1;
-            packet.bitfields2.tc_nc_action_ena    = 1;
+            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
+            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
             break;
 
         case TcCacheOp::InvL2Md:
-            packet.bitfields2.tc_action_ena       = 1;
-            packet.bitfields2.tc_md_action_ena    = 1;
+            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
+            cpCoherCntl.bits.TC_INV_METADATA_ACTION_ENA = 1;
             break;
 
         case TcCacheOp::InvL1:
-            packet.bitfields2.tcl1_action_ena     = 1;
+            cpCoherCntl.bits.TCL1_ACTION_ENA            = 1;
             break;
 
         case TcCacheOp::InvL1Vol:
-            packet.bitfields2.tcl1_action_ena     = 1;
-            packet.bitfields2.tcl1_vol_action_ena = 1;
+            cpCoherCntl.bits.TCL1_ACTION_ENA            = 1;
+            cpCoherCntl.bits.TCL1_VOL_ACTION_ENA        = 1;
             break;
 
         default:
@@ -2555,11 +2584,55 @@ size_t CmdUtil::BuildReleaseMem(
             break;
         }
 
-        memcpy(pReleaseMemPacket, &packet, packetSize * sizeof(uint32));
-        totalSize += packetSize;
+        explicitReleaseMemInfo.coherCntl = cpCoherCntl.u32All;
     }
 
+    // Call a more explicit function.
+    totalSize += ExplicitBuildReleaseMem(explicitReleaseMemInfo,
+                                         VoidPtrInc(pBuffer, sizeof(uint32) * totalSize),
+                                         gdsAddr,
+                                         gdsSize);
+
     return totalSize;
+}
+
+// =====================================================================================================================
+// Generic function for building a RELEASE_MEM packet on either computer or graphics engines.  Return the number of
+// DWORDs taken up by this packet.
+size_t CmdUtil::ExplicitBuildReleaseMem(
+    const ExplicitReleaseMemInfo& releaseMemInfo,
+    void*                         pBuffer,   // [out] Build the PM4 packet in this buffer.
+    uint32                        gdsAddr,   // dword offset,
+                                             // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    uint32                        gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
+    ) const
+{
+    size_t packetSize = 0;
+
+    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    {
+        // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
+        // versions are identical.
+        PM4MEC_RELEASE_MEM__GFX09 packet = {};
+        packetSize = BuildReleaseMemInternal(releaseMemInfo, &packet, gdsAddr, gdsSize);
+
+        // Handle the GFX-specific aspects of a release-mem packet.
+        regCP_COHER_CNTL cpCoherCntl;
+        cpCoherCntl.u32All = releaseMemInfo.coherCntl;
+
+        packet.bitfields2.tcl1_vol_action_ena = cpCoherCntl.bitfields.TCL1_VOL_ACTION_ENA;
+        packet.bitfields2.tc_vol_action_ena   = 0;
+        packet.bitfields2.tc_wb_action_ena    = cpCoherCntl.bitfields.TC_WB_ACTION_ENA;
+        packet.bitfields2.tcl1_action_ena     = cpCoherCntl.bitfields.TCL1_ACTION_ENA;
+        packet.bitfields2.tc_action_ena       = cpCoherCntl.bitfields.TC_ACTION_ENA;
+        packet.bitfields2.tc_nc_action_ena    = cpCoherCntl.bitfields.TC_NC_ACTION_ENA;
+        packet.bitfields2.tc_wc_action_ena    = cpCoherCntl.bitfields.TC_WC_ACTION_ENA;
+        packet.bitfields2.tc_md_action_ena    = cpCoherCntl.bitfields.TC_INV_METADATA_ACTION_ENA;
+
+        memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
+    }
+
+    return packetSize;
 }
 
 // =====================================================================================================================
@@ -3474,6 +3547,67 @@ size_t CmdUtil::BuildCommentString(
     memcpy(pData + 3, pComment, stringLength);
 
     return packetSize;
+}
+
+// =====================================================================================================================
+// Issue commands to prime caches for access of a new pipeline.  This can be done with two methods:
+//
+// 1. Issue a CPDMA operation that will read the pipeline data through L2 then write it to "nowhere" (a new feature
+//    with GFX9).  This will prime the VM translation cache (UTCL2) as well as the L2 data cache.
+// 2. Issue a new packet that will only prime the VM translation cache (UTCL2).
+void CmdUtil::BuildPipelinePrefetchPm4(
+    const PipelineUploader& uploader,
+    PipelinePrefetchPm4*    pOutput
+    ) const
+{
+    const PalSettings&     coreSettings = m_device.Parent()->Settings();
+    const Gfx9PalSettings& hwlSettings  = m_device.Settings();
+
+    if (coreSettings.pipelinePrefetchEnable)
+    {
+        uint32 prefetchSize = static_cast<uint32>(uploader.PrefetchSize());
+
+        if (coreSettings.shaderPrefetchClampSize != 0)
+        {
+            prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
+        }
+
+        if (hwlSettings.shaderPrefetchMethod == PrefetchCpDma)
+        {
+            DmaDataInfo dmaDataInfo  = { };
+            dmaDataInfo.dstAddr      = 0;
+            dmaDataInfo.dstAddrSpace = das__pfp_dma_data__memory;
+            dmaDataInfo.dstSel       = dst_sel__pfp_dma_data__dst_nowhere;
+            dmaDataInfo.srcAddr      = uploader.PrefetchAddr();
+            dmaDataInfo.srcAddrSpace = sas__pfp_dma_data__memory;
+            dmaDataInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
+            dmaDataInfo.numBytes     = prefetchSize;
+            dmaDataInfo.disWc        = true;
+
+            BuildDmaData(dmaDataInfo, &pOutput->dmaData);
+            pOutput->spaceNeeded = sizeof(pOutput->dmaData) / sizeof(uint32);
+        }
+        else
+        {
+            PAL_ASSERT(hwlSettings.shaderPrefetchMethod == PrefetchPrimeUtcL2);
+
+            const gpusize firstPage = Pow2AlignDown(uploader.PrefetchAddr(), PrimeUtcL2MemAlignment);
+            const gpusize lastPage  = Pow2AlignDown(uploader.PrefetchAddr() + prefetchSize - 1, PrimeUtcL2MemAlignment);
+            const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
+
+            BuildPrimeUtcL2(firstPage,
+                            cache_perm__pfp_prime_utcl2__execute,
+                            prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
+                            engine_sel__pfp_prime_utcl2__prefetch_parser,
+                            numPages,
+                            &pOutput->primeUtcl2);
+            pOutput->spaceNeeded = sizeof(pOutput->primeUtcl2) / sizeof(uint32);
+        }
+    }
+    else
+    {
+        pOutput->spaceNeeded = 0;
+    }
 }
 
 // =====================================================================================================================

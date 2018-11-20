@@ -223,7 +223,9 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize streamOutFilledSizeVa,
     uint32  streamOutOffset,
-    uint32  stride)
+    uint32  stride,
+    uint32  firstInstance,
+    uint32  instanceCount)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -233,7 +235,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
 #endif
 
     pThis->AllocateHwShaderDbg(true, pThis->m_currentDraw++);
-    pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
+    pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
     pThis->PostDrawDispatch();
 }
 

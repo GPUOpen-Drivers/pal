@@ -149,7 +149,10 @@ union GpuMemoryFlags
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
         uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
         uint32 placeholder0             :  2; // Placeholder.
-        uint32 reserved                 : 31;
+        uint32 restrictedContent        :  1; // GPU memory is protected content
+        uint32 restrictedAccess         :  1; // GPU memory is restricted shared access resource
+        uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
+        uint32 reserved                 : 28;
     };
     uint64  u64All;
 };
@@ -239,6 +242,9 @@ public:
     bool IsBusAddressable()   const { return (m_flags.busAddressable   != 0); }
     bool IsTurboSyncSurface() const { return (m_flags.turboSyncSurface != 0); }
     bool IsPeerWritable()     const { return (m_flags.peerWritable     != 0); }
+    bool IsRestrictedContent() const { return (m_flags.restrictedContent != 0); }
+    bool IsRestrictedAccess() const { return (m_flags.restrictedAccess != 0); }
+    bool IsCrossAdapter()     const { return (m_flags.crossAdapter     != 0); }
     bool IsMapppedToPeerMemory()  const { return (m_flags.mapppedToPeerMemory  != 0); }
     bool IsSvmAlloc()         const { return (m_desc.flags.isSvmAlloc  != 0); }
     bool IsExecutable()       const { return (m_desc.flags.isExecutable != 0); }

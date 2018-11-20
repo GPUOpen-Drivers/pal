@@ -553,7 +553,8 @@ typedef enum _AddrPipeCfg
     ADDR_PIPECFG_P8_32x64_32x32  = 15,
     ADDR_PIPECFG_P16_32x32_8x16  = 17, /// 16 pipes
     ADDR_PIPECFG_P16_32x32_16x16 = 18,
-    ADDR_PIPECFG_MAX             = 19,
+    ADDR_PIPECFG_SCBU1           = 19, /// reserve for SCBU
+    ADDR_PIPECFG_MAX             = 20,
 } AddrPipeCfg;
 
 /**

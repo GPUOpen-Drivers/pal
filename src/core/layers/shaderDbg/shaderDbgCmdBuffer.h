@@ -105,7 +105,9 @@ private:
         ICmdBuffer* pCmdBuffer,
         gpusize     streamOutFilledSizeVa,
         uint32      streamOutOffset,
-        uint32      stride);
+        uint32      stride,
+        uint32      firstInstance,
+        uint32      instanceCount);
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,

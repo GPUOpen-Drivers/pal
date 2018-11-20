@@ -31,7 +31,6 @@
 #include "core/hw/gfxip/gfx6/gfx6DepthStencilView.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
-#include "core/hw/gfxip/gfx6/gfx6PrefetchMgr.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "palPipelineAbiProcessorImpl.h"
@@ -379,6 +378,8 @@ Result GraphicsPipeline::HwlInit(
             hasher.Update(m_commands.common);
             hasher.Finalize(reinterpret_cast<uint8* const>(&m_contextRegHash));
 
+            m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(uploader, &m_commands.prefetch);
+
             UpdateRingSizes(metadata);
         }
     }
@@ -647,53 +648,13 @@ uint32* GraphicsPipeline::WriteContextCommands(
 
 // =====================================================================================================================
 // Requests that this pipeline indicates what it would like to prefetch.
-uint32* GraphicsPipeline::RequestPrefetch(
-    const Pal::PrefetchMgr& prefetchMgr,
-    uint32*                 pCmdSpace
+uint32* GraphicsPipeline::Prefetch(
+    uint32* pCmdSpace
     ) const
 {
-    const auto& gfx6PrefetchMgr = static_cast<const PrefetchMgr&>(prefetchMgr);
+    memcpy(pCmdSpace, &m_commands.prefetch, m_commands.prefetch.spaceNeeded * sizeof(uint32));
 
-    PrefetchType hwEsPrefetch = PrefetchVs;
-    PrefetchType hwVsPrefetch = PrefetchVs;
-
-    if (IsTessEnabled())
-    {
-        pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(PrefetchVs,
-                                                    m_chunkLsHs.LsProgramGpuVa(),
-                                                    m_chunkLsHs.StageInfoLs().codeLength,
-                                                    pCmdSpace);
-        pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(PrefetchHs,
-                                                    m_chunkLsHs.HsProgramGpuVa(),
-                                                    m_chunkLsHs.StageInfoHs().codeLength,
-                                                    pCmdSpace);
-        hwEsPrefetch = PrefetchDs;
-        hwVsPrefetch = PrefetchDs;
-    }
-
-    if (IsGsEnabled())
-    {
-        pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(hwEsPrefetch,
-                                                    m_chunkEsGs.EsProgramGpuVa(),
-                                                    m_chunkEsGs.StageInfoEs().codeLength,
-                                                    pCmdSpace);
-        pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(PrefetchGs,
-                                                    m_chunkEsGs.GsProgramGpuVa(),
-                                                    m_chunkEsGs.StageInfoGs().codeLength,
-                                                    pCmdSpace);
-        hwVsPrefetch = PrefetchCopyShader;
-    }
-
-    pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(hwVsPrefetch,
-                                                m_chunkVsPs.VsProgramGpuVa(),
-                                                m_chunkVsPs.StageInfoVs().codeLength,
-                                                pCmdSpace);
-    pCmdSpace = gfx6PrefetchMgr.RequestPrefetch(PrefetchPs,
-                                                m_chunkVsPs.PsProgramGpuVa(),
-                                                m_chunkVsPs.StageInfoPs().codeLength,
-                                                pCmdSpace);
-
-    return pCmdSpace;
+    return pCmdSpace + m_commands.prefetch.spaceNeeded;
 }
 
 // =====================================================================================================================

@@ -142,6 +142,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
     nullptr,
+    nullptr,
 };
 
 // =====================================================================================================================

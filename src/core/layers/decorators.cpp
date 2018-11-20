@@ -1708,7 +1708,16 @@ size_t DeviceDecorator::GetSwapChainSize(
     Result*                    pResult
     ) const
 {
-    return m_pNextLayer->GetSwapChainSize(createInfo, pResult) + sizeof(SwapChainDecorator);
+    SwapChainCreateInfo nextCreateInfo = createInfo;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+    for (uint32 i = 0; i < (XdmaMaxDevices - 1); i++)
+    {
+        nextCreateInfo.pSlaveDevices[i] = NextDevice(createInfo.pSlaveDevices[i]);
+    }
+#endif
+
+    return m_pNextLayer->GetSwapChainSize(nextCreateInfo, pResult) + sizeof(SwapChainDecorator);
 }
 
 // =====================================================================================================================
@@ -1717,10 +1726,19 @@ Result DeviceDecorator::CreateSwapChain(
     void*                      pPlacementAddr,
     ISwapChain**               ppSwapChain)
 {
-    ISwapChain*  pSwapChain = nullptr;
-    const Result result     = m_pNextLayer->CreateSwapChain(createInfo,
-                                                            NextObjectAddr<SwapChainDecorator>(pPlacementAddr),
-                                                            &pSwapChain);
+    ISwapChain*         pSwapChain     = nullptr;
+    SwapChainCreateInfo nextCreateInfo = createInfo;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+    for (uint32 i = 0; i < (XdmaMaxDevices - 1); i++)
+    {
+        nextCreateInfo.pSlaveDevices[i] = NextDevice(createInfo.pSlaveDevices[i]);
+    }
+#endif
+
+    const Result result = m_pNextLayer->CreateSwapChain(nextCreateInfo,
+                                                        NextObjectAddr<SwapChainDecorator>(pPlacementAddr),
+                                                        &pSwapChain);
 
     if (result == Result::Success)
     {

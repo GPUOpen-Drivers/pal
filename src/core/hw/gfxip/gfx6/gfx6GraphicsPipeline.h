@@ -85,9 +85,7 @@ public:
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const override;
 
-    uint32* RequestPrefetch(
-        const Pal::PrefetchMgr& prefetchMgr,
-        uint32*                 pCmdSpace) const;
+    uint32* Prefetch(uint32* pCmdSpace) const;
 
     template <bool pm4OptImmediate>
     uint32* WriteDbShaderControl(
@@ -236,6 +234,8 @@ private:
                 PM4CMDLOADDATAINDEX  loadCtxRegIndex;
             } context;
         } loadIndex; // LOAD_INDEX path, used for GPU's which support the updated microcode.
+
+        PipelinePrefetchPm4 prefetch;
 
         struct
         {

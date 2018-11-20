@@ -34,6 +34,7 @@ namespace Pal
 
 class CmdStream;
 class Device;
+class PipelineUploader;
 enum class PredicateType : uint32;
 
 namespace Gfx6
@@ -109,6 +110,14 @@ struct FlipControlPacket
     uint32 dcpGrphPrimarySurfAddr;
     uint32 mmDcpGrphUpdate1;
     uint32 dcpGrphUpdate1;
+};
+
+// Pre-baked commands to prefetch (prime caches) for a pipeline.  This will be done with a CPDMA operation that will
+// prime GL2.
+struct PipelinePrefetchPm4
+{
+    PM4DMADATA dmaData;
+    uint32     spaceNeeded;
 };
 
 // =====================================================================================================================
@@ -506,6 +515,8 @@ public:
         void*         pBuffer) const;
 
     size_t BuildCommentString(const char* pComment, void* pBuffer) const;
+
+    void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
 
     GfxIpLevel IpLevel() const { return m_chipFamily; }
 

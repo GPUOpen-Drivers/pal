@@ -67,19 +67,19 @@ struct HardwareStageMetadata
     uint32             sgprCount;
     uint32             vgprLimit;
     uint32             sgprLimit;
-    uint32             wavesPerGroup;
+    uint32             threadgroupDimensions[3];
     uint32             maxPrimsPerWave;
-    uint32             numInterpolants;
 
     union
     {
         struct
         {
-            uint8 usesUavs    : 1;
-            uint8 usesRovs    : 1;
-            uint8 writesUavs  : 1;
-            uint8 writesDepth : 1;
-            uint8 reserved    : 4;
+            uint8 usesUavs          : 1;
+            uint8 usesRovs          : 1;
+            uint8 writesUavs        : 1;
+            uint8 writesDepth       : 1;
+            uint8 usesAppendConsume : 1;
+            uint8 reserved          : 3;
         };
         uint8 uAll;
     } flags;
@@ -88,22 +88,22 @@ struct HardwareStageMetadata
     {
         struct
         {
-            uint16 entryPoint         : 1;
-            uint16 scratchMemorySize  : 1;
-            uint16 ldsSize            : 1;
-            uint16 perfDataBufferSize : 1;
-            uint16 vgprCount          : 1;
-            uint16 sgprCount          : 1;
-            uint16 vgprLimit          : 1;
-            uint16 sgprLimit          : 1;
-            uint16 wavesPerGroup      : 1;
-            uint16 usesUavs           : 1;
-            uint16 usesRovs           : 1;
-            uint16 writesUavs         : 1;
-            uint16 writesDepth        : 1;
-            uint16 maxPrimsPerWave    : 1;
-            uint16 numInterpolants    : 1;
-            uint16 reserved           : 1;
+            uint16 entryPoint            : 1;
+            uint16 scratchMemorySize     : 1;
+            uint16 ldsSize               : 1;
+            uint16 perfDataBufferSize    : 1;
+            uint16 vgprCount             : 1;
+            uint16 sgprCount             : 1;
+            uint16 vgprLimit             : 1;
+            uint16 sgprLimit             : 1;
+            uint16 threadgroupDimensions : 1;
+            uint16 placeholder0          : 1;
+            uint16 usesUavs              : 1;
+            uint16 usesRovs              : 1;
+            uint16 writesUavs            : 1;
+            uint16 writesDepth           : 1;
+            uint16 usesAppendConsume     : 1;
+            uint16 maxPrimsPerWave       : 1;
         };
         uint16 uAll;
     } hasEntry;
@@ -112,7 +112,7 @@ struct HardwareStageMetadata
 struct PipelineMetadata
 {
     char                  name[64];
-    char                  type[10];
+    PipelineType          type;
     uint64                pipelineCompilerHash;
     ShaderMetadata        shader[static_cast<uint32>(ApiShaderType::Count)];
     HardwareStageMetadata hardwareStage[static_cast<uint32>(HardwareStage::Count)];
@@ -121,8 +121,9 @@ struct PipelineMetadata
     uint32                esGsLdsSize;
     uint32                streamOutTableAddress;
     uint32                indirectUserDataTableAddresses[3];
+    uint32                numInterpolants;
     uint32                scratchMemorySize;
-    char                  apiType[16];
+    char                  api[16];
     BinaryData            apiCreateInfo;
 
     union
@@ -149,11 +150,11 @@ struct PipelineMetadata
             uint16 esGsLdsSize                    : 1;
             uint16 streamOutTableAddress          : 1;
             uint16 indirectUserDataTableAddresses : 1;
+            uint16 numInterpolants                : 1;
             uint16 scratchMemorySize              : 1;
             uint16 placeholder0                   : 1;
             uint16 placeholder1                   : 1;
-            uint16 placeholder2                   : 1;
-            uint16 apiType                        : 1;
+            uint16 api                            : 1;
             uint16 apiCreateInfo                  : 1;
             uint16 reserved                       : 1;
         };
@@ -197,28 +198,29 @@ namespace PipelineMetadataKey
     static constexpr char EsGsLdsSize[]                    = ".es_gs_lds_size";
     static constexpr char StreamOutTableAddress[]          = ".stream_out_table_address";
     static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
+    static constexpr char NumInterpolants[]                = ".num_interpolants";
     static constexpr char ScratchMemorySize[]              = ".scratch_memory_size";
-    static constexpr char ApiType[]                        = ".api_type";
+    static constexpr char Api[]                            = ".api";
     static constexpr char ApiCreateInfo[]                  = ".api_create_info";
 };
 
 namespace HardwareStageMetadataKey
 {
-    static constexpr char EntryPoint[]         = ".entry_point";
-    static constexpr char ScratchMemorySize[]  = ".scratch_memory_size";
-    static constexpr char LdsSize[]            = ".lds_size";
-    static constexpr char PerfDataBufferSize[] = ".perf_data_buffer_size";
-    static constexpr char VgprCount[]          = ".vgpr_count";
-    static constexpr char SgprCount[]          = ".sgpr_count";
-    static constexpr char VgprLimit[]          = ".vgpr_limit";
-    static constexpr char SgprLimit[]          = ".sgpr_limit";
-    static constexpr char WavesPerGroup[]      = ".waves_per_group";
-    static constexpr char UsesUavs[]           = ".uses_uavs";
-    static constexpr char UsesRovs[]           = ".uses_rovs";
-    static constexpr char WritesUavs[]         = ".writes_uavs";
-    static constexpr char WritesDepth[]        = ".writes_depth";
-    static constexpr char MaxPrimsPerWave[]    = ".max_prims_per_wave";
-    static constexpr char NumInterpolants[]    = ".num_interpolants";
+    static constexpr char EntryPoint[]            = ".entry_point";
+    static constexpr char ScratchMemorySize[]     = ".scratch_memory_size";
+    static constexpr char LdsSize[]               = ".lds_size";
+    static constexpr char PerfDataBufferSize[]    = ".perf_data_buffer_size";
+    static constexpr char VgprCount[]             = ".vgpr_count";
+    static constexpr char SgprCount[]             = ".sgpr_count";
+    static constexpr char VgprLimit[]             = ".vgpr_limit";
+    static constexpr char SgprLimit[]             = ".sgpr_limit";
+    static constexpr char ThreadgroupDimensions[] = ".threadgroup_dimensions";
+    static constexpr char UsesUavs[]              = ".uses_uavs";
+    static constexpr char UsesRovs[]              = ".uses_rovs";
+    static constexpr char WritesUavs[]            = ".writes_uavs";
+    static constexpr char WritesDepth[]           = ".writes_depth";
+    static constexpr char UsesAppendConsume[]     = ".uses_append_consume";
+    static constexpr char MaxPrimsPerWave[]       = ".max_prims_per_wave";
 };
 
 namespace ShaderMetadataKey
@@ -235,6 +237,7 @@ Result DeserializePalCodeObjectMetadata(
     PalCodeObjectMetadata*  pMetadata,
     uint32*  pRegistersOffset);
 
+Result SerializeEnum(MsgPackWriter* pWriter, PipelineType value);
 Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderType value);
 Result SerializeEnum(MsgPackWriter* pWriter, HardwareStage value);
 Result SerializeEnum(MsgPackWriter* pWriter, PipelineSymbolType value);

@@ -250,6 +250,10 @@ public:
 
     static ADDR_E_RETURNCODE Create(
         const ADDR_CREATE_INPUT* pCreateInfo, ADDR_CREATE_OUTPUT* pCreateOut);
+#ifdef ADDR_SCBU_BUILD
+    static ADDR_E_RETURNCODE SCBU_Create(
+        const ADDR_CREATE_INPUT* pCreateInfo, ADDR_CREATE_OUTPUT* pCreateOut);
+#endif // ADDR_SCBU_BUILD
 
     /// Pair of Create
     VOID Destroy()

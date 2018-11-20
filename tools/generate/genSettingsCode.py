@@ -52,9 +52,6 @@ def loadJsonStr(jsonStr):
         visited.append(item)
 
         if isinstance(item, dict):
-            if "BuildTypes" in item:
-                # We'll want to remove the BuildTypes section from the final JSON.
-                item.pop("BuildTypes")
             for key, value in item.items():
                 if value not in visited:
                     queue.append({"parent": item, "item": value})
@@ -202,10 +199,18 @@ def defineEnum(valueList):
                     enumValue = enumValue + trailComment + value["Description"]
                 else:
                     enumValue = genComment(value["Description"], indt) + newline + enumValue
-            # Add this value to the full list, and if it's not the last value add a newline
-            enumData += enumValue
+            valueIfDefTmp = ""
+            valueEndDefTmp = ""
+            if "BuildTypes" in value:
+                for type in value["BuildTypes"]:
+                    valueIfDefTmp += "#if " + type + newline
+                    valueEndDefTmp += "#endif"
+            # Add this value to the full list, and if it's not the last value (or if there's an #endif) add a newline
             if i < (len(valueList["Values"]) - 1):
-                enumData += newline
+                enumValue += newline
+            elif valueEndDefTmp != "":
+                enumValue += newline
+            enumData += valueIfDefTmp + enumValue + valueEndDefTmp
 
         # Now fill in the dynamic data in the enum template
         enumDef = codeTemplates.Enum.replace("%EnumDataType%", "uint32")
@@ -398,39 +403,30 @@ for setting in settingsData["Settings"]:
     ###################################################################################################################
     # Setup backwards compatibility.
     ###################################################################################################################
-    if "Preprocessor" in setting:
+    if "BuildTypes" in setting:
         endifCount = 0
-        directives = setting["Preprocessor"]
-        hasMax = ("MaxVersion" in directives)
-        hasMin = ("MinVersion" in directives)
-        if hasMin and hasMax:
-            ifDefTmp = codeTemplates.IfMinMax.replace("%MinVersion%", directives["MinVersion"]).replace("%MaxVersion%", directives["MaxVersion"])
-            endifCount += 1
-        elif hasMax:
-            ifDefTmp = codeTemplates.IfMax.replace("%MaxVersion%", str(directives["MaxVersion"]))
-            endifCount += 1
-        elif hasMin:
-            ifDefTmp = codeTemplates.IfMin.replace("%MinVersion%", str(directives["MinVersion"]))
-            endifCount += 1
 
-        if "Custom" in directives:
-            for d in directives["Custom"]:
-                ifDefTmp += d["Command"] + " " + d["Expression"] + "\n"
-                endifCount += 1
+        for expression in setting["BuildTypes"]:
+            ifDefTmp += "#if " + expression + newline
+            endifCount += 1
 
         while endifCount > 0:
-            endDefTmp += codeTemplates.EndIf
+            endDefTmp += codeTemplates.EndIf + newline
             endifCount -= 1
 
     ###################################################################################################################
     # Create enum definition from the valid value list (if required)
     ###################################################################################################################
     if "ValidValues" in setting:
+        enumCode += ifDefTmp
         enumCode += defineEnum(setting["ValidValues"])
+        enumCode += endDefTmp
     elif setting["Type"] == "struct":
         for field in setting["Structure"]:
             if "ValidValues" in field:
+                enumCode += ifDefTmp
                 enumCode += defineEnum(field["ValidValues"])
+                enumCode += endDefTmp
 
     ###################################################################################################################
     # Define the Setting variable

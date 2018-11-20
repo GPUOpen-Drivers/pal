@@ -2379,10 +2379,12 @@ bool Gfx9Cmask::UseCmaskForImage(
     }
     else
     {
-        useCmask = (pParent->IsRenderTarget()               &&
-                   (pParent->IsShared() == false)           &&
-                   (pParent->IsMetadataDisabled() == false) &&
-                   (pParent->GetImageCreateInfo().samples > 1));
+        // Forcing CMask usage forces FMask usage, which is required for EQAA.
+        useCmask = (image.Parent()->IsEqaa() ||
+                    (pParent->IsRenderTarget() &&
+                    (pParent->IsShared() == false) &&
+                    (pParent->IsMetadataDisabled() == false) &&
+                    (pParent->GetImageCreateInfo().samples > 1)));
     }
 
     return useCmask;

@@ -38,7 +38,6 @@ namespace Gfx9
 
 class ComputePipelineUploader;
 class Device;
-class PrefetchMgr;
 
 // =====================================================================================================================
 // GFX9 compute pipeline class: implements GFX9 specific functionality for the ComputePipeline class.
@@ -52,7 +51,7 @@ public:
         Pal::CmdStream*                 pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
-        const Pal::PrefetchMgr&         prefetchMgr) const;
+        bool                            prefetch) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,
@@ -108,7 +107,7 @@ private:
             regCOMPUTE_NUM_THREAD_Y  computeNumThreadY;
             regCOMPUTE_NUM_THREAD_Z  computeNumThreadZ;
 
-            // Checksum register is optional, as not all GFX9+ hardware uses it.
+            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't use it, NOP will be added.
             PM4_ME_SET_SH_REG         hdrComputeShaderChksum;
             regCOMPUTE_SHADER_CHKSUM  computeShaderChksum;
 
@@ -125,6 +124,8 @@ private:
             PM4_ME_SET_SH_REG           hdrComputeResourceLimits;
             regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
         } dynamic; // Contains state which depends on bind-time parameters.
+
+        PipelinePrefetchPm4 prefetch;
     };
 
     ComputePipelineSignature  m_signature;

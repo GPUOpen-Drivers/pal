@@ -699,7 +699,8 @@ struct GpuChipProperties
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
                 uint32 placeholder2                             :  1;
-                uint32 reserved                                 :  8;
+                uint32 placeholder3                             :  1;
+                uint32 reserved                                 :  7;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block

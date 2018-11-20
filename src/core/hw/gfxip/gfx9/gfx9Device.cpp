@@ -123,6 +123,9 @@ Result CreateDevice(
         }
 
         pPfnTable->pfnCreateFmaskViewSrds = &Device::CreateFmaskViewSrds;
+#if ((PAL_BUILD_NAV21 || PAL_BUILD_NAVI21_LITE) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 434))
+        pPfnTable->pfnCreateBvhSrds       = &Device::CreateBvhSrds;
+#endif
     }
 
     return result;

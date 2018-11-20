@@ -34,7 +34,6 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/indirectCmdGenerator.h"
 #include "core/hw/gfxip/msaaState.h"
-#include "core/hw/gfxip/prefetchMgr.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "core/hw/gfxip/universalCmdBuffer.h"
@@ -3944,7 +3943,7 @@ void RsrcProcMgr::SlowClearCompute(
     PAL_ASSERT((texelScale == 1) || (texelScale == 3));
 
     // Get the appropriate pipeline.
-    enum RpmComputePipeline  pipelineEnum = RpmComputePipeline::Count;
+    auto pipelineEnum = RpmComputePipeline::Count;
     switch (imageType)
     {
     case ImageType::Tex1d:

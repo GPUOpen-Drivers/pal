@@ -64,10 +64,9 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::ComputeCmdBuffer(device, createInfo, &m_prefetchMgr, &m_cmdStream),
+    Pal::ComputeCmdBuffer(device, createInfo, &m_cmdStream),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
-    m_prefetchMgr(device),
     m_cmdStream(device,
                 createInfo.pCmdAllocator,
                 EngineTypeCompute,
@@ -594,7 +593,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
         pCmdSpace = pNewPipeline->WriteCommands(&m_cmdStream,
                                                 pCmdSpace,
                                                 m_computeState.dynamicCsInfo,
-                                                *m_pPrefetchMgr);
+                                                m_buildFlags.prefetchShaders);
 
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();

@@ -898,7 +898,9 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
     uint32      streamOutOffset,
-    uint32      stride)
+    uint32      stride,
+    uint32      firstInstance,
+    uint32      instanceCount)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -906,6 +908,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
     pThis->InsertToken(streamOutFilledSizeVa);
     pThis->InsertToken(streamOutOffset);
     pThis->InsertToken(stride);
+    pThis->InsertToken(firstInstance);
+    pThis->InsertToken(instanceCount);
 }
 
 // =====================================================================================================================
@@ -916,14 +920,16 @@ void CmdBuffer::ReplayCmdDrawOpaque(
     auto streamOutFilledSizeVa = ReadTokenVal<gpusize>();
     auto streamOutOffset       = ReadTokenVal<uint32>();
     auto stride                = ReadTokenVal<uint32>();
+    auto firstInstance         = ReadTokenVal<uint32>();
+    auto instanceCount         = ReadTokenVal<uint32>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.draw         = 1;
     logItem.cmdBufCall.draw.vertexCount   = 0;
-    logItem.cmdBufCall.draw.instanceCount = 1;
+    logItem.cmdBufCall.draw.instanceCount = instanceCount;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDraw);
-    pTgtCmdBuffer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride);
+    pTgtCmdBuffer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -2450,6 +2456,31 @@ void CmdBuffer::ReplayCmdSaveBufferFilledSizes(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSetBufferFilledSize(
+    uint32  bufferId,
+    uint32  offset)
+{
+    InsertToken(CmdBufCallId::CmdSetBufferFilledSize);
+    InsertToken(bufferId);
+    InsertToken(offset);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSetBufferFilledSize(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto bufferId = ReadTokenVal<uint32>();
+    auto offset   = ReadTokenVal<uint32>();
+
+    LogItem logItem = { };
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdSetBufferFilledSize);
+    pTgtCmdBuffer->CmdSetBufferFilledSize(bufferId, offset);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdLoadCeRam(
     const IGpuMemory& srcGpuMemory,
     gpusize           memOffset,
@@ -3157,6 +3188,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdFillGds,
         &CmdBuffer::ReplayCmdLoadBufferFilledSizes,
         &CmdBuffer::ReplayCmdSaveBufferFilledSizes,
+        &CmdBuffer::ReplayCmdSetBufferFilledSize,
         &CmdBuffer::ReplayCmdLoadCeRam,
         &CmdBuffer::ReplayCmdWriteCeRam,
         &CmdBuffer::ReplayCmdDumpCeRam,

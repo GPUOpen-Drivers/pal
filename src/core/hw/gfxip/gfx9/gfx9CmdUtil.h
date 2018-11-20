@@ -32,6 +32,7 @@ namespace Pal
 {
 
 class      CmdStream;
+class      PipelineUploader;
 enum class IndexType : uint32;
 
 namespace Gfx9
@@ -84,6 +85,27 @@ struct AcquireMemInfo
     gpusize             sizeBytes;
 };
 
+// Explicit version of AcquireMemInfo struct.
+struct ExplicitAcquireMemInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 usePfp      :  1; // If true the PFP will process this packet. Only valid on the universal engine.
+            uint32 reserved    : 31;
+        };
+        uint32 u32All;
+    } flags;
+
+    EngineType engineType;
+    uint32     coherCntl;
+
+    // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
+    gpusize    baseAddress;
+    gpusize    sizeBytes;
+};
+
 // To easily see the the differences between ReleaseMem and AcquireMem, we want to use an input structure
 // for BuildAcquireMem.
 struct ReleaseMemInfo
@@ -94,6 +116,17 @@ struct ReleaseMemInfo
     gpusize        dstAddr;
     uint32         dataSel;    // One of the data_sel_*_release_mem enumerations
     uint64         data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
+};
+
+// Explicit version of ReleaseMemInfo struct.
+struct ExplicitReleaseMemInfo
+{
+    EngineType       engineType;
+    VGT_EVENT_TYPE   vgtEvent;
+    uint32           coherCntl;
+    gpusize          dstAddr;
+    uint32           dataSel;    // One of the data_sel_*_release_mem enumerations
+    uint64           data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -163,6 +196,18 @@ struct RegisterInfo
     uint16  mmComputeShaderChksum;
 };
 
+// Pre-baked commands to prefetch (prime caches) for a pipeline.  This can either be done with a PRIME_UTCL2 packet,
+// which will prime the UTCL2 (L2 TLB) or with a DMA_DATA packet, which will also prime GL2.
+struct PipelinePrefetchPm4
+{
+    union
+    {
+        PM4PFP_DMA_DATA     dmaData;
+        PM4_PFP_PRIME_UTCL2 primeUtcl2;
+    };
+    uint32 spaceNeeded;
+};
+
 // =====================================================================================================================
 // Utility class which provides routines to help build PM4 packets.
 class CmdUtil
@@ -211,6 +256,9 @@ public:
     size_t BuildAcquireMem(
         const AcquireMemInfo& acquireMemInfo,
         void*                 pBuffer) const;
+    size_t ExplicitBuildAcquireMem(
+        const ExplicitAcquireMemInfo& acquireMemInfo,
+        void*                         pBuffer) const;
     size_t BuildAtomicMem(
         AtomicOp atomicOp,
         gpusize  dstMemAddr,
@@ -444,6 +492,11 @@ public:
         void*                 pBuffer,
         uint32                gdsAddr = 0,
         uint32                gdsSize = 0) const;
+    size_t ExplicitBuildReleaseMem(
+        const ExplicitReleaseMemInfo& releaseMemInfo,
+        void*                         pBuffer,
+        uint32                        gdsAddr = 0,
+        uint32                        gdsSize = 0) const;
     size_t BuildRewind(
         bool  offloadEnable,
         bool  valid,
@@ -572,6 +625,8 @@ public:
 
     size_t BuildCommentString(const char* pComment, void* pBuffer) const;
 
+    void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
+
     // Returns the register information for registers which have differing addresses between hardware families.
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
@@ -598,15 +653,15 @@ private:
 
     template <typename AcquireMemPacketType>
     uint32 BuildAcquireMemInternal(
-        const AcquireMemInfo&  acquireMemInfo,
-        AcquireMemPacketType*  pBuffer) const;
+        const ExplicitAcquireMemInfo& acquireMemInfo,
+        AcquireMemPacketType*         pPacket) const;
 
     template <typename ReleaseMemPacketType>
     size_t BuildReleaseMemInternal(
-        const ReleaseMemInfo&  releaseMemInfo,
-        ReleaseMemPacketType*  pPacket,
-        uint32                 gdsAddr,
-        uint32                 gdsSize) const;
+        const ExplicitReleaseMemInfo& releaseMemInfo,
+        ReleaseMemPacketType*         pPacket,
+        uint32                        gdsAddr,
+        uint32                        gdsSize) const;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void CheckShadowedContextReg(uint32 regAddr) const;

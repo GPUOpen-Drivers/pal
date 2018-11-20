@@ -180,7 +180,7 @@ const T& SparseVector<T, CapacityType, DefaultCapacity, Allocator, KeyRanges...>
     const uint32 chunkIndex = GetChunkIndex(keyIndex);
     const uint64 chunkMask  = GetChunkMask(keyIndex);
 
-    PAL_ASSERT((m_hasEntry[chunkIndex] & chunkMask) != 0);
+    PAL_ASSERT(HasEntry(key));
 
     const uint32 leftDistance = (chunkIndex > 0 ? m_accumPop[chunkIndex - 1] : 0) +
                                 CountSetBits(m_hasEntry[chunkIndex] & (chunkMask - 1));

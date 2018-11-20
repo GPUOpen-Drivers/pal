@@ -1225,14 +1225,14 @@ Result ValidateThreadTraceOptions(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 451
     if ((result == Result::Success)  &&
         (flags.threadTraceTokenMask) &&
-        ((values.threadTraceTokenMask & TokenMaskAll) != values.threadTraceTokenMask))
+        (values.threadTraceTokenMask == 0))
     {
         result = Result::ErrorInvalidValue;
     }
 
     if ((result == Result::Success) &&
         (flags.threadTraceRegMask)  &&
-        ((values.threadTraceRegMask & RegMaskAll) != values.threadTraceRegMask))
+        (values.threadTraceRegMask == 0))
     {
         result = Result::ErrorInvalidValue;
     }

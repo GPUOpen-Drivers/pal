@@ -25,7 +25,6 @@
 
 #include "core/cmdStream.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
-#include "core/hw/gfxip/prefetchMgr.h"
 #include "core/hw/gfxip/rpm/g_rpmComputePipelineInit.h"
 #include "core/hw/gfxip/rpm/g_rpmGfxPipelineInit.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
@@ -550,83 +549,86 @@ void ConvertClearColorToNativeFormat(
     // matches the behavior of the compute path.
     const auto& formatInfo = Formats::FormatInfoTable[static_cast<uint32>(clearFormat.format)];
 
-    for (uint32 rgbaIdx = 0; rgbaIdx < 4; ++rgbaIdx)
     {
-        // Figure out which component on the data format (if any) this RGBA component maps to.
-        const ChannelSwizzle compSwizzle = baseFormat.swizzle.swizzle[rgbaIdx];
-
-        uint32 compIdx;
-
-        // Map from component swizzle enum to component index.
-        if ((compSwizzle == ChannelSwizzle::Zero) || (compSwizzle == ChannelSwizzle::One))
+        for (uint32 rgbaIdx = 0; rgbaIdx < 4; ++rgbaIdx)
         {
-            compIdx = rgbaIdx;
-        }
-        else
-        {
-            compIdx = static_cast<uint32>(compSwizzle) - static_cast<uint32>(ChannelSwizzle::X);
-        }
+            // Figure out which component on the data format (if any) this RGBA component maps to.
+            const ChannelSwizzle compSwizzle = baseFormat.swizzle.swizzle[rgbaIdx];
 
-        // Get the bit count using compIdx as there may be a swizzle (Only occurs for A8 format).
-        const uint32 bitCount = formatInfo.bitCount[compIdx];
+            uint32 compIdx;
 
-        if (bitCount > 0)
-        {
-            const uint32 signBitMask       = static_cast<uint32>(1ULL << (bitCount - 1));
-            const uint32 maxComponentValue = static_cast<uint32>((1ULL << bitCount) - 1);
-
-            // Get the valid range of values on the given input component
-            const uint32 maskedColor       = pColor[rgbaIdx] & maxComponentValue;
-
-            // Convert from format's data representation back to 32-bit float/uint/sint
-            if (Formats::IsDepthStencilOnly(clearFormat.format) || Formats::IsFloat(clearFormat.format))
+            // Map from component swizzle enum to component index.
+            if ((compSwizzle == ChannelSwizzle::Zero) || (compSwizzle == ChannelSwizzle::One))
             {
-                // Shaders only understand 32-bit floats, so we need to convert the raw color (which is in the
-                // bitness of the format) to 32-bit IEEE format here.
-                pColor[rgbaIdx] = FloatToBits(FloatNumBitsToFloat32(maskedColor, bitCount));
-            }
-            else if (Formats::IsUint(clearFormat.format))
-            {
-                // This is the easy case, uint color data came in, uint color data going out, so the input color was
-                // already in the correct format, etc.
-                pColor[rgbaIdx] = maskedColor;
-            }
-            else if (Formats::IsSrgb(clearFormat.format) || Formats::IsUnorm(clearFormat.format))
-            {
-                // Convert from fixed point to floating point
-                float floatColor = UFixedToFloat(maskedColor, 0, bitCount);
-
-                // Convert the gamma-corrected value back to linear output from the shader; if the clear format
-                // is SRGB, gamma correction will be reapplied during color output.  No gamma correction on alpha.
-                if (Formats::IsSrgb(clearFormat.format) && (rgbaIdx != 3))
-                {
-                    floatColor = Formats::GammaToLinear(floatColor);
-                }
-
-                pColor[rgbaIdx] = FloatToBits(floatColor);
-            }
-            else if (Formats::IsSnorm(clearFormat.format))
-            {
-                float floatColor = SFixedToFloat(static_cast<int32>(maskedColor), 0, bitCount);
-
-                pColor[rgbaIdx] = FloatToBits(floatColor);
-            }
-            else if (Formats::IsSint(clearFormat.format))
-            {
-                // If this is really a negative number and the channel isn't already 32-bits wide, then we need to
-                // sign-extend this value as the shader only understands 32-bit numbers
-                if (((pColor[compIdx] & signBitMask) != 0) && (bitCount != 32))
-                {
-                    pColor[rgbaIdx] |= (~maxComponentValue);
-                }
+                compIdx = rgbaIdx;
             }
             else
             {
-                // What is this?
-                PAL_ASSERT_ALWAYS();
+                compIdx = static_cast<uint32>(compSwizzle) - static_cast<uint32>(ChannelSwizzle::X);
+            }
+
+            // Get the bit count using compIdx as there may be a swizzle (Only occurs for A8 format).
+            const uint32 bitCount = formatInfo.bitCount[compIdx];
+
+            if (bitCount > 0)
+            {
+                const uint32 signBitMask       = static_cast<uint32>(1ULL << (bitCount - 1));
+                const uint32 maxComponentValue = static_cast<uint32>((1ULL << bitCount) - 1);
+
+                // Get the valid range of values on the given input component
+                const uint32 maskedColor       = pColor[rgbaIdx] & maxComponentValue;
+
+                // Convert from format's data representation back to 32-bit float/uint/sint
+                if (Formats::IsDepthStencilOnly(clearFormat.format) || Formats::IsFloat(clearFormat.format))
+                {
+                    // Shaders only understand 32-bit floats, so we need to convert the raw color (which is in the
+                    // bitness of the format) to 32-bit IEEE format here.
+                    pColor[rgbaIdx] = FloatToBits(FloatNumBitsToFloat32(maskedColor, bitCount));
+                }
+                else if (Formats::IsUint(clearFormat.format))
+                {
+                    // This is the easy case, uint color data came in, uint color data going out, so the input color
+                    // was already in the correct format, etc.
+                    pColor[rgbaIdx] = maskedColor;
+                }
+                else if (Formats::IsSrgb(clearFormat.format) || Formats::IsUnorm(clearFormat.format))
+                {
+                    // Convert from fixed point to floating point
+                    float floatColor = UFixedToFloat(maskedColor, 0, bitCount);
+
+                    // Convert the gamma-corrected value back to linear output from the shader; if the clear format
+                    // is SRGB, gamma correction will be reapplied during color output.  No gamma correction on alpha.
+                    if (Formats::IsSrgb(clearFormat.format) && (rgbaIdx != 3))
+                    {
+                        floatColor = Formats::GammaToLinear(floatColor);
+                    }
+
+                    pColor[rgbaIdx] = FloatToBits(floatColor);
+                }
+                else if (Formats::IsSnorm(clearFormat.format))
+                {
+                    float floatColor = SFixedToFloat(static_cast<int32>(maskedColor), 0, bitCount);
+
+                    pColor[rgbaIdx] = FloatToBits(floatColor);
+                }
+                else if (Formats::IsSint(clearFormat.format))
+                {
+                    // If this is really a negative number and the channel isn't already 32-bits wide, then we need to
+                    // sign-extend this value as the shader only understands 32-bit numbers
+                    if (((pColor[compIdx] & signBitMask) != 0) && (bitCount != 32))
+                    {
+                        pColor[rgbaIdx] |= (~maxComponentValue);
+                    }
+                }
+                else
+                {
+                    // What is this?
+                    PAL_ASSERT_ALWAYS();
+                }
             }
         }
     }
+
 }
 
 // =====================================================================================================================

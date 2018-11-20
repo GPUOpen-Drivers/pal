@@ -46,12 +46,11 @@ namespace Pal
 UniversalCmdBuffer::UniversalCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    PrefetchMgr*               pPrefetchMgr,
     GfxCmdStream*              pDeCmdStream,
     GfxCmdStream*              pCeCmdStream,
     bool                       blendOptEnable)
     :
-    GfxCmdBuffer(device, createInfo, pPrefetchMgr),
+    GfxCmdBuffer(device, createInfo),
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
     m_pCeCmdStream(pCeCmdStream),

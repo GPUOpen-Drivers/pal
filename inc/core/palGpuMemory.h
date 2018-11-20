@@ -119,7 +119,14 @@ union GpuMemoryCreateFlags
         uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
         uint32 placeholder0      :  1; ///< Placeholder.
         uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 455
+        uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
+        uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.
+        uint32 crossAdapter      :  1; ///< Specifies the GPUMemory is shared cross-adapter resource.
+        uint32 reserved          : 11; ///< Reserved for future use.
+#else
         uint32 reserved          : 14; ///< Reserved for future use.
+#endif
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.
 };

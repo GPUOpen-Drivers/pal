@@ -31,7 +31,6 @@
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
-#include "core/hw/gfxip/prefetchMgr.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
@@ -51,11 +50,9 @@ namespace Pal
 // =====================================================================================================================
 GfxCmdBuffer::GfxCmdBuffer(
     const GfxDevice&           device,
-    const CmdBufferCreateInfo& createInfo,
-    PrefetchMgr*               pPrefetchMgr)
+    const CmdBufferCreateInfo& createInfo)
     :
     CmdBuffer(*device.Parent(), createInfo),
-    m_pPrefetchMgr(pPrefetchMgr),
     m_engineSupport(0),
     m_generatedChunkList(device.GetPlatform()),
     m_retainedGeneratedChunkList(device.GetPlatform()),
@@ -148,8 +145,6 @@ Result GfxCmdBuffer::Begin(
         {
             SetGfxCmdBufCpBltState(true);
         }
-
-        m_pPrefetchMgr->EnableShaderPrefetch(m_buildFlags.prefetchShaders != 0);
     }
 
     return result;

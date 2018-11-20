@@ -312,6 +312,9 @@ public:
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
     virtual void CmdSaveBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override;
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) override;
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
@@ -456,7 +459,9 @@ private:
         ICmdBuffer* pCmdBuffer,
         gpusize     streamOutFilledSizeVa,
         uint32      streamOutOffset,
-        uint32      stride);
+        uint32      stride,
+        uint32      firstInstance,
+        uint32      instanceCount);
     static void PAL_STDCALL CmdDrawIndexed(
         ICmdBuffer* pCmdBuffer,
         uint32      firstIndex,

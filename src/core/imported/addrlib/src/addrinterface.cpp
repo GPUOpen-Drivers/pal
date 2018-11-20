@@ -58,7 +58,14 @@ ADDR_E_RETURNCODE ADDR_API AddrCreate(
 {
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
-    returnCode = Lib::Create(pAddrCreateIn, pAddrCreateOut);
+#ifdef ADDR_SCBU_BUILD
+    returnCode = Lib::SCBU_Create(pAddrCreateIn, pAddrCreateOut);
+
+    if (pAddrCreateOut->hLib == NULL)
+#endif // ADDR_SCBU_BUILD
+    {
+        returnCode = Lib::Create(pAddrCreateIn, pAddrCreateOut);
+    }
 
     return returnCode;
 }

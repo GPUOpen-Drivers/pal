@@ -167,6 +167,11 @@ struct SwapChainCreateInfo
                                                ///  creating a swap chain on DirectDisplay platform, and exclusive
                                                ///  access to the IScreen is required, that is the IScreen needs to call
                                                ///  AcquireScreenAccess before swap chain creation.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 454
+    IDevice*              pSlaveDevices[XdmaMaxDevices - 1]; ///< Array of up to XdmaMaxDevices minus one for the device
+                                                             ///  that is creating this swap chain. These are additional
+                                                             ///  devices from which fullscreen presents can be executed
+#endif
 };
 
 /// Specifies the properties of acquiring next presentable image. Input structure to ISwapChain::AcquireNextImage
@@ -188,6 +193,10 @@ struct AcquireNextImageInfo
  * or queue semaphore before rendering into the relevant image. Swap chain images should be presented using the
  * IQueue::PresentSwapChain() function because it releases ownership of the presentable image index and triggers
  * necessary swap chain synchronization.
+ *
+ * Must be created on the master device, which is the only device from which Windowed presents can be executed.
+ * Fullscreen presents may be executed on this master device as well as any slave devices that are specified at swap
+ * chain creation.
  *
  * @see IDevice::CreateSwapChain()
  ***********************************************************************************************************************

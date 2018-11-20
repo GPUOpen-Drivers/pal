@@ -87,7 +87,6 @@ struct SiChipSettings
     UINT_32 isPolaris11       : 1;
     UINT_32 isPolaris12       : 1;
     UINT_32                   : 1;
-    // VI fusion (Carrizo/Amur/Noland)
     UINT_32 isCarrizo         : 1;
 };
 
@@ -284,14 +283,23 @@ protected:
         UINT_32 bpp, TileConfig tileConfig, INT_32 tileIndex, UINT_32 elementBytesLog2) const;
 
     // Protected non-virtual functions
+#ifdef ADDR_SCBU_BUILD
+    virtual
+#endif // ADDR_SCBU_BUILD
     VOID ComputeTileCoordFromPipeAndElemIdx(
         UINT_32 elemIdx, UINT_32 pipe, AddrPipeCfg pipeCfg, UINT_32 pitchInMacroTile,
         UINT_32 x, UINT_32 y, UINT_32* pX, UINT_32* pY) const;
 
+#ifdef ADDR_SCBU_BUILD
+    virtual
+#endif // ADDR_SCBU_BUILD
     UINT_32 TileCoordToMaskElementIndex(
         UINT_32 tx, UINT_32 ty, AddrPipeCfg  pipeConfig,
         UINT_32 *macroShift, UINT_32 *elemIdxBits) const;
 
+#ifdef ADDR_SCBU_BUILD
+    virtual
+#endif // ADDR_SCBU_BUILD
     BOOL_32 DecodeGbRegs(
         const ADDR_REGISTER_VALUE* pRegValue);
 
@@ -301,6 +309,9 @@ protected:
     // Initialize equation table
     VOID InitEquationTable();
 
+#ifdef ADDR_SCBU_BUILD
+    virtual
+#endif // ADDR_SCBU_BUILD
     UINT_32 GetPipePerSurf(AddrPipeCfg pipeConfig) const;
 
     static const UINT_32    TileTableSize = 32;

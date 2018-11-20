@@ -968,7 +968,9 @@ typedef void (PAL_STDCALL *CmdDrawOpaqueFunc)(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
     uint32      streamOutOffset,
-    uint32      stride);
+    uint32      stride,
+    uint32      firstInstance,
+    uint32      instanceCount);
 
 /// @internal Function pointer type definition for issuing indexed draws.
 ///
@@ -1716,13 +1718,33 @@ public:
     /// @param [in] streamOutFilledSizeVa gpuAddress of streamOut filled size for streamOut buffer.
     /// @param [in] streamOutOffset       the offset of begin of streamOut as vertex.
     /// @param [in] stride                stride for stream data as vertex.
+    /// @param [in] firstInstance         Starting instance for the draw. Instance IDs passed to the vertex shader
+    ///                                   will range from firstInstance to firstInstance + instanceCount - 1.
+    /// @param [in] instanceCount         Number of instances to draw.  If zero, the draw will be discarded.
+    PAL_INLINE void CmdDrawOpaque(
+        gpusize streamOutFilledSizeVa,
+        uint32  streamOutOffset,
+        uint32  stride,
+        uint32  firstInstance,
+        uint32  instanceCount)
+    {
+        m_funcTable.pfnCmdDrawOpaque(this,
+                                     streamOutFilledSizeVa,
+                                     streamOutOffset,
+                                     stride,
+                                     firstInstance,
+                                     instanceCount);
+    }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 453)
     PAL_INLINE void CmdDrawOpaque(
         gpusize streamOutFilledSizeVa,
         uint32  streamOutOffset,
         uint32  stride)
     {
-        m_funcTable.pfnCmdDrawOpaque(this, streamOutFilledSizeVa, streamOutOffset, stride);
+        CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, 0, 1);
     }
+#endif
 
     /// Issues an instanced, indexed draw call using the command buffer's currently bound graphics state.  Results in
     /// instanceCount * indexCount vertices being processed.
@@ -2626,6 +2648,15 @@ public:
     ///                         the corresponding filled-size counter is not saved.
     virtual void CmdSaveBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) = 0;
+
+    /// Set the offset to buffer-filled-size for a stream-out target.
+    ///
+    /// @param [in] bufferId   Stream-out buffer ID, it could be in the range [0, MaxStreamOutTargets).
+    /// @param [in] offset     The value to be written into the buffer filled size counter.
+    ///
+    virtual void CmdSetBufferFilledSize(
+        uint32  bufferId,
+        uint32  offset) = 0;
 
     /// Binds the specified border color palette for use by samplers.
     ///

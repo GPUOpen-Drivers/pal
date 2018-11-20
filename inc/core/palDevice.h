@@ -142,7 +142,7 @@ enum class GfxIpLevel : uint32
     GfxIp9    = 0x5,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 426
 #else
-#endif
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION
 
     Count             ///< Count of all supported GfxIp levels.
 };
@@ -957,8 +957,10 @@ struct DeviceProperties
                 uint32 support1xMsaaSampleLocations             : 1; ///< HW supports 1xMSAA custom quad sample patterns
                 uint32 placeholder4                             : 1; ///< Placeholder, do not use
 
-                uint32 placeholder5                             : 1;
-                uint32 reserved                                 : 9; ///< Reserved for future use.
+                uint32 placeholder5                             : 1; ///< Placeholder, do not use
+
+                uint32 placeholder6                             : 1;
+                uint32 reserved                                 : 8; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

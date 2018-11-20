@@ -112,7 +112,6 @@ Result Platform::ConnectToOsInterface()
 #endif
 
     const DrmLoaderFuncs&  drmProcs  = GetDrmLoader().GetProcsTable();
-    const Dri3LoaderFuncs& dri3Procs = GetDri3Loader().GetProcsTable();
 
     if (drmProcs.pfnAmdgpuCsCreateSemisValid()  &&
         drmProcs.pfnAmdgpuCsDestroySemisValid() &&
@@ -156,15 +155,6 @@ Result Platform::ConnectToOsInterface()
     {
         m_features.supportQueuePriority = 1;
     }
-
-#if XCB_RANDR_SUPPORTS_LEASE
-    if (dri3Procs.pfnXcbRandrCreateLeaseisValid()      &&
-        dri3Procs.pfnXcbRandrCreateLeaseReplyisValid() &&
-        dri3Procs.pfnXcbRandrCreateLeaseReplyFdsisValid())
-    {
-        m_features.supportRandRLease = 1;
-    }
-#endif
 
     return Result::Success;
 }

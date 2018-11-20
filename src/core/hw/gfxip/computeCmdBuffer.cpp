@@ -61,10 +61,9 @@ static void PAL_STDCALL DummyCmdSetUserDataGfx(
 ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    PrefetchMgr*               pPrefetchMgr,
     GfxCmdStream*              pCmdStream)
     :
-    GfxCmdBuffer(device, createInfo, pPrefetchMgr),
+    GfxCmdBuffer(device, createInfo),
     m_device(device),
     m_pCmdStream(pCmdStream)
 {

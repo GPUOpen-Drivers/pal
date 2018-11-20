@@ -230,13 +230,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     :
     Pal::UniversalCmdBuffer(device,
                             createInfo,
-                            &m_prefetchMgr,
                             &m_deCmdStream,
                             &m_ceCmdStream,
                             device.Settings().blendOptimizationsEnable),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
-    m_prefetchMgr(device),
     m_deCmdStream(device,
                   createInfo.pCmdAllocator,
                   EngineTypeUniversal,
@@ -311,8 +309,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                      (settings.waDisableDfsmWithEqaa                  &&   // Is the workaround enabled on this GPU?
                       (m_cachedSettings.disableDfsm         == false) &&   // Is DFSM already forced off?
                       (m_cachedSettings.disableBatchBinning == false));    // Is binning enabled?
-    m_cachedSettings.batchBreakOnNewPs        = settings.batchBreakOnNewPixelShader;
-    m_cachedSettings.padParamCacheSpace       =
+    m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
+    m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
 
     if (settings.binningMode == Gfx9DeferredBatchBinCustom)
@@ -829,6 +827,8 @@ void UniversalCmdBuffer::CmdBindIndexData(
     {
         m_drawTimeHwState.dirty.indexBufferBase        = 1;
         m_drawTimeHwState.valid.nggIndexBufferBaseAddr = 0;
+        m_drawTimeHwState.nggIndexBufferPfStartAddr    = 0;
+        m_drawTimeHwState.nggIndexBufferPfEndAddr      = 0;
     }
 
     if (m_graphicsState.iaState.indexCount != indexCount)
@@ -1810,15 +1810,17 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     ICmdBuffer* pCmdBuffer,
     gpusize     streamOutFilledSizeVa,
     uint32      streamOutOffset,
-    uint32      stride)
+    uint32      stride,
+    uint32      firstInstance,
+    uint32      instanceCount)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount   = 0;
-    drawInfo.instanceCount = 1;
+    drawInfo.instanceCount = instanceCount;
     drawInfo.firstVertex   = 0;
-    drawInfo.firstInstance = 0;
+    drawInfo.firstInstance = firstInstance;
     drawInfo.firstIndex    = 0;
     drawInfo.useOpaque     = true;
 
@@ -3799,7 +3801,11 @@ void UniversalCmdBuffer::ValidateDraw(
         const auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
         pDeCmdSpace = pNewPipeline->WriteShCommands(&m_deCmdStream, pDeCmdSpace, m_graphicsState.dynamicGraphicsInfo);
-        pDeCmdSpace = pNewPipeline->RequestPrefetch(*m_pPrefetchMgr, pDeCmdSpace);
+
+        if (m_buildFlags.prefetchShaders)
+        {
+            pDeCmdSpace = pNewPipeline->Prefetch(pDeCmdSpace);
+        }
 
         const auto*const pPrevSignature = m_pSignatureGfx;
         m_pSignatureGfx                 = &pNewPipeline->Signature();
@@ -4029,30 +4035,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // All of our dirty state will leak to the caller.
     m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
-
-    if (indexed                                                 &&
-        isNgg                                                   &&
-        (m_graphicsState.iaState.indexType == IndexType::Idx32) &&
-        (m_graphicsState.inputAssemblyState.topology == PrimitiveTopology::TriangleList))
-    {
-
-        // We'll underflow the numPages calculation if we're priming zero bytes.
-        const size_t  offset      = drawInfo.firstIndex  * sizeof(uint32);
-        const size_t  sizeInBytes = drawInfo.vtxIdxCount * sizeof(uint32);
-        const gpusize gpuAddr     = m_graphicsState.iaState.indexAddr + offset;
-        PAL_ASSERT(sizeInBytes > 0);
-
-        const gpusize firstPage = Pow2AlignDown(gpuAddr, PrimeUtcL2MemAlignment);
-        const gpusize lastPage  = Pow2AlignDown(gpuAddr + sizeInBytes - 1, PrimeUtcL2MemAlignment);
-        const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
-
-        pDeCmdSpace += m_cmdUtil.BuildPrimeUtcL2(firstPage,
-                                                 cache_perm__pfp_prime_utcl2__read,
-                                                 prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
-                                                 engine_sel__pfp_prime_utcl2__prefetch_parser,
-                                                 numPages,
-                                                 pDeCmdSpace);
-    }
 
     if (pipelineDirty || (stateDirty && dirtyFlags.colorBlendState))
     {
@@ -5319,7 +5301,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         pDeCmdSpace = pNewPipeline->WriteCommands(&m_deCmdStream,
                                                   pDeCmdSpace,
                                                   m_computeState.dynamicCsInfo,
-                                                  *m_pPrefetchMgr);
+                                                  m_buildFlags.prefetchShaders);
 
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
@@ -5554,6 +5536,24 @@ void UniversalCmdBuffer::CmdSaveBufferFilledSizes(
                                                               pDeCmdSpace);
         }
     }
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSetBufferFilledSize(
+    uint32  bufferId,
+    uint32  offset)
+{
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    PAL_ASSERT(bufferId < MaxStreamOutTargets);
+
+    pDeCmdSpace += m_cmdUtil.BuildStrmoutBufferUpdate(bufferId,
+                                                      source_select__pfp_strmout_buffer_update__use_buffer_offset,
+                                                      offset,
+                                                      0uLL,
+                                                      0uLL,
+                                                      pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }

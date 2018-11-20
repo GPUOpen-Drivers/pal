@@ -256,6 +256,8 @@ public:
 
     Util::IntrusiveListNode<Queue>* DeviceMembershipNode() { return &m_deviceMembershipNode; }
 
+    Device*const GetDevice() { return m_pDevice; }
+
     bool IsStalled() const { return m_stalled; }
 
     void IncFrameCount();

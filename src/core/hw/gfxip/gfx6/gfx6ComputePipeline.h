@@ -38,7 +38,6 @@ namespace Gfx6
 
 class ComputePipelineUploader;
 class Device;
-class PrefetchMgr;
 
 // =====================================================================================================================
 // GFX6 compute pipeline class: implements GFX6 specific functionality for the ComputePipeline class.
@@ -52,7 +51,7 @@ public:
         Pal::CmdStream*                 pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
-        const Pal::PrefetchMgr&         prefetchMgr) const;
+        bool                            prefetch) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,
@@ -118,6 +117,8 @@ private:
             PM4CMDSETDATA               hdrComputeResourceLimits;
             regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
         } dynamic; // Contains state which depends on bind-time parameters.
+
+        PipelinePrefetchPm4 prefetch;
     };
 
     ComputePipelineSignature     m_signature;

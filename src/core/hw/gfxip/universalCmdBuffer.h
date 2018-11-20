@@ -235,7 +235,6 @@ protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        PrefetchMgr*               pPrefetchMgr,
         GfxCmdStream*              pDeCmdStream,
         GfxCmdStream*              pCeCmdStream,
         bool                       blendOptEnable);
