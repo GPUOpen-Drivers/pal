@@ -208,23 +208,8 @@ constexpr size_t AtomicOpConversionTableSize = ArrayLen(AtomicOpConversionTable)
 static_assert((AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),
               "AtomicOp conversion table has too many/few entries");
 
-// This table was taken from the ACQUIRE_MEM packet spec.
-static constexpr uint32 TcCacheOpConversionTable[] =
-{
-    0,                                                                                     // Nop
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK,              // WbInvL1L2
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK
-                                         | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbInvL2Nc
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbL2Nc
-    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_WC_ACTION_ENA_MASK,           // WbL2Wc
-    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // InvL2Nc
-    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_INV_METADATA_ACTION_ENA_MASK, // InvL2Md
-    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK,                                                   // InvL1
-    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
-};
-
-constexpr size_t TcCacheOpConversionTableSize = ArrayLen(TcCacheOpConversionTable);
-static_assert(ArrayLen(TcCacheOpConversionTable) == static_cast<size_t>(TcCacheOp::Count),
+constexpr size_t TcCacheOpConversionTableSize = ArrayLen(Gfx9TcCacheOpConversionTable);
+static_assert(ArrayLen(Gfx9TcCacheOpConversionTable) == static_cast<size_t>(TcCacheOp::Count),
               "TcCacheOp conversion table has too many/few entries");
 
 static uint32 Type3Header(
@@ -501,7 +486,7 @@ size_t CmdUtil::BuildAcquireMem(
         const uint32  tcCacheOp = static_cast<uint32>(acquireMemInfo.tcCacheOp);
 
         regCP_COHER_CNTL cpCoherCntl;
-        cpCoherCntl.u32All                       = TcCacheOpConversionTable[tcCacheOp];
+        cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
         cpCoherCntl.bits.CB_ACTION_ENA           = acquireMemInfo.flags.wbInvCbData;
         cpCoherCntl.bits.DB_ACTION_ENA           = acquireMemInfo.flags.wbInvDb;
         cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = acquireMemInfo.flags.invSqK$;
@@ -2488,27 +2473,6 @@ size_t CmdUtil::BuildReleaseMem(
     uint32                gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
     ) const
 {
-    static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
-                    static_cast<uint32>(event_index__mec_release_mem__end_of_pipe)) &&
-                   (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
-                    static_cast<uint32>(event_index__mec_release_mem__shader_done))),
-                  "RELEASE_MEM event index enumerations don't match between ME and MEC!");
-    static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                        ==
-                    static_cast<uint32>(data_sel__mec_release_mem__none))                      &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)             ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))           &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)            ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))          &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)      ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))    &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_cp_perfcounter_hi_lo)   ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_cp_perfcounter_hi_lo)) &&
-                   (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory)    ==
-                    static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory))),
-                  "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
-    static_assert(sizeof(PM4MEC_RELEASE_MEM__GFX09) == sizeof(PM4ME_RELEASE_MEM__GFX09),
-                  "RELEASE_MEM is different sizes between ME and MEC!");
-
     size_t totalSize = 0;
 
     // Add a dummy ZPASS_DONE event before EOP timestamp events to avoid a DB hang.
@@ -2607,10 +2571,32 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
     uint32                        gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
     ) const
 {
+    static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
+                    static_cast<uint32>(event_index__mec_release_mem__end_of_pipe)) &&
+                   (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
+                    static_cast<uint32>(event_index__mec_release_mem__shader_done))),
+                  "RELEASE_MEM event index enumerations don't match between ME and MEC!");
+    static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                        ==
+                    static_cast<uint32>(data_sel__mec_release_mem__none))                      &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)             ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))           &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)            ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))          &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)      ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))    &&
+                   (static_cast<uint32>(data_sel__me_release_mem__send_cp_perfcounter_hi_lo)   ==
+                    static_cast<uint32>(data_sel__mec_release_mem__send_cp_perfcounter_hi_lo)) &&
+                   (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory)    ==
+                    static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory))),
+                  "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
+
     size_t packetSize = 0;
 
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
+        static_assert(sizeof(PM4MEC_RELEASE_MEM__GFX09) == sizeof(PM4MEC_RELEASE_MEM__GFX09),
+                      "RELEASE_MEM is different sizes between ME and MEC!");
+
         // This function is written with the MEC version of this packet, but we're assuming that the MEC and ME
         // versions are identical.
         PM4MEC_RELEASE_MEM__GFX09 packet = {};
@@ -3065,7 +3051,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     pPacket->offset_or_address_lo     = 0;
     pPacket->src_address_hi           = 0;
 
-    constexpr PFP_STRMOUT_BUFFER_UPDATE_data_type_enum DataType = data_type__pfp_strmout_buffer_update__dwords;
+    constexpr PFP_STRMOUT_BUFFER_UPDATE_data_type_enum DataType = data_type__pfp_strmout_buffer_update__bytes;
 
     switch (sourceSelect)
     {

@@ -121,8 +121,8 @@ LnxIfDef = "(__unix__)\n"
 
 ReadSettingsFunc = "\n\
 // =====================================================================================================================\n\
-// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n\
-void %ClassName%::ReadSettings()\n\
+%ReadSettingsDesc%\
+void %ClassName%::%ReadSettingsName%()\n\
 {\n\
     // read from the OS adapter for each individual setting\n\
 %ReadSettingsCode%\n\

@@ -654,7 +654,7 @@ void WriteVsZOut(
 
 // =====================================================================================================================
 // Writes the user data register required to allow the RPM multi-layer VS to identify the first slice to render to
-void WriteVsFirstSliceOffet(
+void WriteVsFirstSliceOffset(
     GfxCmdBuffer*   pCmdBuffer,
     uint32          firstSliceIndex)
 {

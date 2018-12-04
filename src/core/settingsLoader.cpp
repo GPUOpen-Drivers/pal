@@ -97,8 +97,11 @@ Result SettingsLoader::Init()
         // Register with the DevDriver settings service
         DevDriverRegister();
 
-        // Before passing off to the client we need to override the default values
+        // We want to override the default values for any platform specific reasons
         OverrideDefaults();
+
+        // Before we pass the settings to the client, perform a reread of any settings that need rereading
+        RereadSettings();
     }
 
     return ret;

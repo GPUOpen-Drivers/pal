@@ -64,7 +64,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.idleAfterSubmitGpuMask = 0x0;
     m_settings.tossPointMode = TossPointNone;
     m_settings.forceFixedFuncColorResolve = false;
-    m_settings.unboundDescriptorAddress = 0xdeadbeefdeadbeefL;
+    m_settings.unboundDescriptorAddress = 0xdeadbeefdeadbeef;
     m_settings.clearAllocatedLfb = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2DisableXorTileMode = false;

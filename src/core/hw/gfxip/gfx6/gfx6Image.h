@@ -357,6 +357,12 @@ public:
     // Fills metadata info to be used in memory export
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
 
+    virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const override
+    {
+        // Gfx6 doesn't support Release-acquire based barrier.
+        return Result::Success;
+    }
+
 private:
     PAL_INLINE bool IsFastClearColorMetaFetchable(const uint32* pColor) const;
     PAL_INLINE bool IsFastClearDepthMetaFetchable(float depth) const;

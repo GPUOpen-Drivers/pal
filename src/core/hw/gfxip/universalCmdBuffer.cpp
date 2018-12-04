@@ -240,7 +240,6 @@ void UniversalCmdBuffer::ResetState()
     // NULL color target will only be bound if the slot was not NULL and is being set to NULL. Use a value of all 1s
     // so NULL color targets will be bound when BuildNullColorTargets() is called for the first time.
     m_graphicsState.boundColorTargetMask = NoNullColorTargetMask;
-
 }
 
 // =====================================================================================================================

@@ -65,9 +65,6 @@ public:
     bool IsIndexed() const { return (m_flags.isIndexed != 0); }
 
 private:
-    uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteGrbmGfxBroadcastSe(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-
     template <typename SdmaRegType>
     void SetSdmaSelectReg(SdmaRegType* pSdmaReg) const;
 

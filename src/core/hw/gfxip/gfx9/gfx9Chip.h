@@ -142,6 +142,9 @@ constexpr uint32 Gfx9NumSimdPerCu = 4;
 constexpr uint32 Gfx9NumWavesPerSimd = 10;
 constexpr uint32 Gfx9NumWavesPerCu   = Gfx9NumWavesPerSimd * Gfx9NumSimdPerCu;
 
+// Number of slots(dwords) that one GPU event will need to support ReleaseAcquireInterface.
+constexpr uint32 MaxSlotsPerEvent = 2;
+
 // Enumerates the possible hardware stages which a shader can run as.  GFX9 combines several shader stages:
 // 1) LS + HS have been combined into a HS stage.  Note that the registers that control this stage are still
 //            called "LS", but HW considers this to be a HS stage in their docs.

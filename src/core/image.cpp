@@ -904,6 +904,11 @@ Result Image::GetSubresourceLayout(
         ret = Result::Success;
     }
 
+    if (ret == Result::Success)
+    {
+        ret = m_pGfxImage->GetDefaultGfxLayout(subresId, &pLayout->defaultGfxLayout);
+    }
+
     return ret;
 }
 
@@ -964,6 +969,10 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X5Y5Z5W1_Uscaled:
             ret = ADDR_FMT_1_5_5_5;
             break;
+        case ChNumFormat::X1Y5Z5W5_Unorm:
+        case ChNumFormat::X1Y5Z5W5_Uscaled:
+            ret = ADDR_FMT_5_5_5_1;
+            break;
         case ChNumFormat::X8_Unorm:
         case ChNumFormat::X8_Snorm:
         case ChNumFormat::X8_Uscaled:
@@ -994,6 +1003,7 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X8Y8Z8W8_Sint:
         case ChNumFormat::X8Y8Z8W8_Srgb:
         case ChNumFormat::AYUV:
+        case ChNumFormat::U8V8_Snorm_L8W8_Unorm:
             ret = ADDR_FMT_8_8_8_8;
             break;
         case ChNumFormat::X8Y8_Z8Y8_Unorm:
@@ -1017,6 +1027,7 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X10Y10Z10W2_Unorm:
         case ChNumFormat::X10Y10Z10W2_Uscaled:
         case ChNumFormat::X10Y10Z10W2_Uint:
+        case ChNumFormat::U10V10W10_Snorm_A2_Unorm:
             ret = ADDR_FMT_2_10_10_10;
             break;
         case ChNumFormat::X16_Unorm:

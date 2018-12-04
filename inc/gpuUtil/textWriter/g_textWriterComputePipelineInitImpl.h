@@ -66,6 +66,7 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableKalindi;
         break;
 
+    case Pal::AsicRevision::HawaiiPro:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Spectre:
     case Pal::AsicRevision::Spooky:

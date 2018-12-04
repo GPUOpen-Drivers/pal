@@ -161,6 +161,7 @@ enum class AsicRevision : uint32
 
     Bonaire    = 0x06,
     Hawaii     = 0x07,
+    HawaiiPro  = 0x08,
 
     Kalindi    = 0x0A,
     Godavari   = 0x0B,
@@ -700,7 +701,7 @@ struct DeviceProperties
 
                 /// If true, this engine does not support peer-to-peer copies that target memory in the invisible heap
                 /// on another GPU due to a hardware bug.
-                uint32 p2pCopyToInvisibleHeapIllegal  :  1;
+                uint32 p2pCopyToInvisibleHeapIllegal   :  1;
 
                 /// Reserved for future use.
                 uint32 reserved                        : 19;
@@ -960,7 +961,26 @@ struct DeviceProperties
                 uint32 placeholder5                             : 1; ///< Placeholder, do not use
 
                 uint32 placeholder6                             : 1;
-                uint32 reserved                                 : 8; ///< Reserved for future use.
+
+                /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
+                /// If true, nested command buffers inherit most API state from the calling root command buffer until
+                /// that state is bound to the nested command buffer itself.  If false, only the currently-bound color
+                /// and depth targets are inherited from the caller for Universal Engines, and no state is inherited
+                /// for other Engine types.
+                uint32 supportNestedCmdBufStateInheritance      : 1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 457
+                uint32 supportReleaseAcquireInterface           : 1; ///< If true, ASIC supports the new barrier interface
+                                                                     ///  designed for Acquire/Released-based barrier.
+                uint32 supportSplitReleaseAcquire               : 1; ///< If true, ASIC supports split CmdRelease()
+                                                                     ///  and CmdAcquire() to express barrier conditions
+                                                                     ///  instead of CmdReleaseThenAcquire().
+                                                                     ///  Note: Only supported if
+                                                                     ///  @ref supportReleaseAcquireInterface is supported.
+#else
+                uint32 placeholder7                             : 2; ///< Placeholder, do not use
+#endif
+                uint32 reserved                                 : 5; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1053,6 +1073,21 @@ struct DeviceProperties
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
+
+        union
+        {
+            struct
+            {
+                uint32 support                 : 1;  ///< Support Timeline type semaphore.
+                uint32 supportHostQuery        : 1;  ///< Support Timeline type semaphore host query.
+                uint32 supportHostWait         : 1;  ///< Support Timeline type semaphore host wait.
+                uint32 supportHostSignal       : 1;  ///< Support Timeline type semaphore host signal.
+                uint32 supportWaitBeforeSignal : 1;  ///< Support Timeline type semaphore wait before signal.
+
+                uint32 reserved                : 27; ///< Reserved for future use.
+            };
+            uint32 u32All;
+        } timelineSemaphore;
 
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.

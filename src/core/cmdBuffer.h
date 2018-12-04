@@ -192,6 +192,17 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void CmdRelease(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) override;
+
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) override;
+
+    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
+
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override
         { PAL_NEVER_CALLED(); }
@@ -925,6 +936,8 @@ private:
 
     void ReturnDataChunks(ChunkData* pData, CmdAllocType type, bool returnGpuMemory);
     void ReturnLinearAllocator();
+
+    void VerifyBarrierTransitions(const AcquireReleaseInfo& releaseInfo) const;
 
     const Device&          m_device;
     CmdBufferRecordState   m_recordState;

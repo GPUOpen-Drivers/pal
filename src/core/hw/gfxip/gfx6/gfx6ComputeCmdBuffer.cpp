@@ -76,7 +76,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_pSignatureCs(&NullCsSignature),
     m_predGpuAddr(0)
 {
-
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
@@ -125,10 +124,8 @@ void ComputeCmdBuffer::ResetState()
 
     m_pSignatureCs = &NullCsSignature;
 
-    {
-        // Non-DX12 clients and root command buffers start without a valid predicate GPU address.
-        m_predGpuAddr = 0;
-    }
+    // Command buffers start without a valid predicate GPU address.
+    m_predGpuAddr = 0;
 }
 
 // =====================================================================================================================
@@ -560,7 +557,6 @@ uint32* ComputeCmdBuffer::ValidateUserData(
                                 m_pSignatureCs->spillThreshold,
                                 &m_computeState.csUserDataEntries.entries[0]);
             relocated = true;
-
         }
 
         // Step #4:
@@ -1006,9 +1002,7 @@ void ComputeCmdBuffer::CmdCommentString(
     const char* pComment)
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
     pCmdSpace += m_cmdUtil.BuildCommentString(pComment, pCmdSpace);
-
     m_cmdStream.CommitCommands(pCmdSpace);
 }
 

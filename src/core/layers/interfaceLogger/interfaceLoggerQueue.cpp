@@ -148,13 +148,14 @@ Result Queue::WaitIdle()
 
 // =====================================================================================================================
 Result Queue::SignalQueueSemaphore(
-    IQueueSemaphore* pQueueSemaphore)
+    IQueueSemaphore* pQueueSemaphore,
+    uint64           value)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueueSignalQueueSemaphore;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::SignalQueueSemaphore(pQueueSemaphore);
+    const Result result   = QueueDecorator::SignalQueueSemaphore(pQueueSemaphore, value);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -162,6 +163,7 @@ Result Queue::SignalQueueSemaphore(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queueSemaphore", pQueueSemaphore);
+        pLogContext->KeyAndValue("value", value);
         pLogContext->EndInput();
 
         pLogContext->BeginOutput();
@@ -176,13 +178,14 @@ Result Queue::SignalQueueSemaphore(
 
 // =====================================================================================================================
 Result Queue::WaitQueueSemaphore(
-    IQueueSemaphore* pQueueSemaphore)
+    IQueueSemaphore* pQueueSemaphore,
+    uint64           value)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueueWaitQueueSemaphore;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::WaitQueueSemaphore(pQueueSemaphore);
+    const Result result   = QueueDecorator::WaitQueueSemaphore(pQueueSemaphore, value);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -190,6 +193,7 @@ Result Queue::WaitQueueSemaphore(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queueSemaphore", pQueueSemaphore);
+        pLogContext->KeyAndValue("value", value);
         pLogContext->EndInput();
 
         pLogContext->BeginOutput();

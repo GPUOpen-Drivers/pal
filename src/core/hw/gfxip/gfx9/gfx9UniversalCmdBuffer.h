@@ -50,7 +50,6 @@ struct UniversalCmdBufferState
     {
         struct
         {
-            uint32 isPrecisionOn         :  1; // Whether occlusion query active during execution uses precise data
             uint32 ceStreamDirty         :  1; // A CE RAM Dump command was added to the CE stream since the last Draw
                                                // requires increment & wait on CE counter commands to be added.
             // Tracks whether or not *ANY* piece of ring memory being dumped-to by the CE (by PAL or the client) has
@@ -69,7 +68,7 @@ struct UniversalCmdBufferState
             uint32 optimizeLinearGfxCpy  :  1;
             uint32 firstDrawExecuted     :  1;
             uint32 reservedForFutureHw   :  1;
-            uint32 reserved              : 21;
+            uint32 reserved              : 22;
         };
         uint32 u32All;
     } flags;
@@ -440,6 +439,17 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void CmdRelease(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) override;
+
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) override;
+
+    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
+
     virtual void CmdSetIndirectUserData(
         uint16      tableId,
         uint32      dwordOffset,
@@ -777,8 +787,6 @@ protected:
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
-    void ValidateExecuteNestedCmdBuffers(const UniversalCmdBuffer& cmdBuffer);
-
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
 
@@ -963,11 +971,11 @@ private:
         uint8   dirtyStrideMask,
         uint32* pCeCmdSpace);
 
-    Extent2d GetColorBinSize() const;
-    Extent2d GetDepthBinSize() const;
+    void Gfx9GetColorBinSize(Extent2d* pBinSize) const;
+    void Gfx9GetDepthBinSize(Extent2d* pBinSize) const;
     void SetPaScBinnerCntl0(const GraphicsPipeline&  pipeline,
                             const ColorBlendState*   pColorBlendState,
-                            Extent2d                 size,
+                            Extent2d*                pBinSize,
                             bool                     disableDfsm);
 
     void SendFlglSyncCommands(FlglRegSeqType type);
@@ -987,7 +995,7 @@ private:
         bool viewInstancingEnable,
         bool nggFastLuanch);
 
-    BinningMode GetDisableBinningSetting() const;
+    BinningMode GetDisableBinningSetting(Extent2d* pBinSize) const;
 
     uint32 GetDccControl(uint32 bppMoreThan64) const;
 
@@ -1110,8 +1118,7 @@ private:
     } m_cachedSettings;
 
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
-
-    NggState m_nggState;
+    NggState         m_nggState;
 
     // In order to prevent invalid query results if an app does Begin()/End(), Reset()/Begin()/End(), Resolve() on a
     // query slot in a command buffer (the first End() might overwrite values written by the Reset()), we have to

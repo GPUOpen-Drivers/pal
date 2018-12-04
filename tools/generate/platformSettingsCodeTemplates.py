@@ -122,8 +122,8 @@ LnxIfDef = "(__unix__)\n"
 
 ReadSettingsFunc = "\n\
 // =====================================================================================================================\n\
-// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n\
-void %ClassName%::ReadSettings(Pal::Device* pDevice)\n\
+%ReadSettingsDesc%\
+void %ClassName%::%ReadSettingsName%(Pal::Device* pDevice)\n\
 {\n\
 #if PAL_ENABLE_PRINTS_ASSERTS\n\
     // First setup the debug print and assert settings\n\

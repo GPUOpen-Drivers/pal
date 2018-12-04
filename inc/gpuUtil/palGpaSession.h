@@ -209,6 +209,7 @@ struct GpaSampleConfig
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.
         Pal::uint32 seMask;          ///< Mask that determines which specific SEs to run Thread trace on.
+                                     ///  If 0, all SEs are enabled
         Pal::gpusize gpuMemoryLimit; ///< Maximum amount of GPU memory in bytes this sample can allocate for the SQTT
                                      ///  buffer.  If 0, allocate maximum size to prevent dropping tokens toward the
                                      ///  end of the sample.
@@ -345,13 +346,15 @@ public:
     /// is signaled.
     Pal::Result TimedSignalQueueSemaphore(Pal::IQueue* pQueue,
                                           Pal::IQueueSemaphore* pQueueSemaphore,
-                                          const TimedQueueSemaphoreInfo& timedSignalInfo);
+                                          const TimedQueueSemaphoreInfo& timedSignalInfo,
+                                          Pal::uint64  value = 0);
 
     /// Executes a timed queue semaphore wait through the given queue.  The HW time is measured when the queue semaphore
     /// wait finishes.
     Pal::Result TimedWaitQueueSemaphore(Pal::IQueue* pQueue,
                                         Pal::IQueueSemaphore* pQueueSemaphore,
-                                        const TimedQueueSemaphoreInfo& timedWaitInfo);
+                                        const TimedQueueSemaphoreInfo& timedWaitInfo,
+                                        Pal::uint64  value = 0);
 
     /// Injects a timed queue present event.
     Pal::Result TimedQueuePresent(Pal::IQueue* pQueue,

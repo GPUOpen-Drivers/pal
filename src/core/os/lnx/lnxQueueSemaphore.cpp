@@ -49,6 +49,10 @@ Result QueueSemaphore::OsInit(
     bool isCreateSignaledSemaphore = false;
     Linux::Device* pLnxDevice = static_cast<Linux::Device*>(m_pDevice);
 
+    m_flags.timeline = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
+    m_flags.timeline = createInfo.flags.timeline;
+#endif
     if ((pLnxDevice->GetSemaphoreType() == Linux::SemaphoreType::SyncObj) &&
         (pLnxDevice->IsInitialSignaledSyncobjSemaphoreSupported()))
     {
@@ -61,7 +65,7 @@ Result QueueSemaphore::OsInit(
         isCreateSignaledSemaphore = false;
     }
 
-    return pLnxDevice->CreateSemaphore(isCreateSignaledSemaphore, &m_hSemaphore);
+    return pLnxDevice->CreateSemaphore(isCreateSignaledSemaphore, m_flags.timeline, &m_hSemaphore);
 }
 
 // =====================================================================================================================
@@ -110,15 +114,16 @@ Result QueueSemaphore::OpenExternal(
 // Enqueues a command on the specified Queue to signal this Semaphore when all outstanding command buffers have
 // completed.
 Result QueueSemaphore::OsSignal(
-    Queue* pQueue)
+    Queue* pQueue,
+    uint64 value)
 {
-    return static_cast<Linux::Queue*>(pQueue)->SignalSemaphore(m_hSemaphore);
+    return static_cast<Linux::Queue*>(pQueue)->SignalSemaphore(m_hSemaphore, value);
 }
-
 // =====================================================================================================================
 // Enqueues a command on the specified Queue to stall that Queue until the Semaphore is signalled by another Queue.
 Result QueueSemaphore::OsWait(
-    Queue* pQueue)
+    Queue* pQueue,
+    uint64 value)
 {
     Result result = Result::Success;
 
@@ -129,10 +134,55 @@ Result QueueSemaphore::OsWait(
     }
     else
     {
-        result = static_cast<Linux::Queue*>(pQueue)->WaitSemaphore(m_hSemaphore);
+        result = static_cast<Linux::Queue*>(pQueue)->WaitSemaphore(m_hSemaphore, value);
     }
 
     return result;
 }
 
+// =====================================================================================================================
+// Query timeline semaphore payload.
+Result QueueSemaphore::QuerySemaphoreValue(
+    uint64*                  pValue)
+{
+    Result result = Result::Success;
+
+    // Only timeline semaphore supports this method.
+    result = m_flags.timeline ?
+             static_cast<Linux::Device*>(m_pDevice)->QuerySemaphoreValue(m_hSemaphore, pValue) :
+             Result::ErrorInvalidObjectType;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Wait on timeline specific point with timeoutNs
+Result QueueSemaphore::WaitSemaphoreValue(
+    uint64                   value,
+    uint64                   timeoutNs)
+{
+    Result result = Result::Success;
+
+    // Only timeline semaphore supports this method.
+    result = m_flags.timeline ?
+             static_cast<Linux::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, timeoutNs) :
+             Result::ErrorInvalidObjectType;
+
+    return result;
+}
+
+// =====================================================================================================================
+// Signal on timeline specific point
+Result QueueSemaphore::SignalSemaphoreValue(
+    uint64                   value)
+{
+    Result result = Result::Success;
+
+    // Only timeline semaphore supports this method.
+    result = m_flags.timeline ?
+             static_cast<Linux::Device*>(m_pDevice)->SignalSemaphoreValue(m_hSemaphore, value) :
+             Result::ErrorInvalidObjectType;
+
+    return result;
+}
 } // Pal

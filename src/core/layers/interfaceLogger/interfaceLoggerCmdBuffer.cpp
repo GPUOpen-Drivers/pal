@@ -712,6 +712,171 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
+    AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(releaseInfo.imageBarrierCount, m_pPlatform);
+
+    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextReleaseInfo = releaseInfo;
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRelease;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        m_pNextLayer->CmdRelease(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndStruct("releaseInfo", releaseInfo);
+            pLogContext->KeyAndObject("gpuEvent", pGpuEvent);
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
+    AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(acquireInfo.imageBarrierCount, m_pPlatform);
+    AutoBuffer<IGpuEvent*, 16, Platform> nextGpuEvents(gpuEventCount, m_pPlatform);
+
+    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)   ||
+        (nextGpuEvents.Capacity() < gpuEventCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
+        }
+        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+
+        for (uint32 i = 0; i < gpuEventCount; i++)
+        {
+            nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
+        }
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquire;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        m_pNextLayer->CmdAcquire(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
+            pLogContext->KeyAndBeginList("gpuEvents", false);
+
+            for (uint32 idx = 0; idx < gpuEventCount; ++idx)
+            {
+                pLogContext->Object(nextGpuEvents[idx]);
+            }
+
+            pLogContext->EndList();
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(barrierInfo.memoryBarrierCount, m_pPlatform);
+    AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(barrierInfo.imageBarrierCount, m_pPlatform);
+
+    if ((memoryBarriers.Capacity() < barrierInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < barrierInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextBarrierInfo = barrierInfo;
+
+        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = barrierInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextBarrierInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = barrierInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(barrierInfo.pImageBarriers[i].pImage);
+        }
+        nextBarrierInfo.pImageBarriers = &imageBarriers[0];
+
+        BeginFuncInfo funcInfo;
+        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdReleaseThenAcquire;
+        funcInfo.objectId     = m_objectId;
+        funcInfo.preCallTime  = m_pPlatform->GetTime();
+        m_pNextLayer->CmdReleaseThenAcquire(nextBarrierInfo);
+        funcInfo.postCallTime = m_pPlatform->GetTime();
+
+        LogContext* pLogContext = nullptr;
+        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndStruct("barrierInfo", barrierInfo);
+            pLogContext->EndInput();
+
+            m_pPlatform->LogEndFunc(pLogContext);
+        }
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyMemory(
     const IGpuMemory&       srcGpuMemory,
     const IGpuMemory&       dstGpuMemory,

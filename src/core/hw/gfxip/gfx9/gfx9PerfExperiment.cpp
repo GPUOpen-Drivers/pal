@@ -70,18 +70,33 @@ PerfExperiment::PerfExperiment(
 // Initializes the usage status for each GPU block's performance counters.
 void PerfExperiment::InitBlockUsage()
 {
-    const Gfx9PerfCounterInfo& perfInfo = m_device.Parent()->ChipProperties().gfx9.perfCounterInfo;
+    const auto& chipProps = m_device.Parent()->ChipProperties().gfx9;
+    const auto& perfInfo  = chipProps.perfCounterInfo;
 
     // TODO: 'PerfCtrEmpty' is zero, should we simply memset the whole array?
     //       (This method is more explicit, for what its worth.)
     for (size_t blk = 0; blk < static_cast<size_t>(GpuBlock::Count); ++blk)
     {
-        const size_t blockInstances = (perfInfo.block[blk].numInstances    *
-                                       perfInfo.block[blk].numShaderArrays *
-                                       perfInfo.block[blk].numShaderEngines);
+        const auto& blockInfo = perfInfo.block[blk];
+        size_t blockInstances = blockInfo.numInstances;
+
+        switch (blockInfo.distribution)
+        {
+        case PerfCounterDistribution::PerShaderArray:
+            blockInstances *= chipProps.numShaderEngines * chipProps.numShaderArrays;
+            break;
+        case PerfCounterDistribution::PerShaderEngine:
+            blockInstances *= chipProps.numShaderEngines;
+            break;
+        case PerfCounterDistribution::GlobalBlock:
+        default:
+            // Nothing to do here.
+            break;
+        }
+
         for (size_t inst = 0; inst < blockInstances; ++inst)
         {
-            for (size_t ctr = 0; ctr < perfInfo.block[blk].numCounters; ++ctr)
+            for (size_t ctr = 0; ctr < blockInfo.numCounters; ++ctr)
             {
                 // Mark the counter as completely unused.
                 m_blockUsage[blk].instance[inst].counter[ctr] = PerfCtrEmpty;

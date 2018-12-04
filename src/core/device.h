@@ -405,6 +405,14 @@ constexpr size_t MaxUmcCountersPerBlock = 5;
 // Maximum number of UMC perf counter registers exposed to SW, per UMC channel.
 constexpr size_t MaxCountersPerUmcch = 5;
 
+enum class PerfCounterDistribution : uint32
+{
+    Unavailable = 0,    // Performance counter is unavailable.
+    PerShaderEngine,    // Performance counter instances are per shader engine.
+    PerShaderArray,     // Performance counter instances are per shader array.
+    GlobalBlock,        // Performance counter exists outside of the shader engines.
+};
+
 // Contains information for perf counters for Gfx9
 struct Gfx9PerfCounterInfo
 {
@@ -412,18 +420,15 @@ struct Gfx9PerfCounterInfo
 
     struct
     {
-        bool     available;                         // If the block is available for perf experiments.
-        uint32   numShaderEngines;                  // Number of shader engines which contain this block
-                                                    // (1 for global blocks)
-        uint32   numShaderArrays;                   // Number of shader arrays which contain this block
-                                                    // (1 for global blocks)
-        uint32   numInstances;                      // Number of block instances in each shader array
-        uint32   numCounters;                       // Number of counters for each instance
-        uint32   maxEventId;                        // Maximum number of events for this block
-        uint32   numStreamingCounters;              // Number of streaming perf ctr's for each instance
-        uint32   numStreamingCounterRegs;           // Number of registers which can be configured for
-                                                    // streaming counters
-        uint32   spmBlockSelectCode;                // The select code for obtaining spm counter data for this block;
+        PerfCounterDistribution distribution;             // How the block is distributed across the chip.
+        uint32                  numInstances;             // Number of block instances in each distribution
+        uint32                  numCounters;              // Number of counters for each instance
+        uint32                  maxEventId;               // Maximum number of events for this block
+        uint32                  numStreamingCounters;     // Number of streaming perf ctr's for each instance
+        uint32                  numStreamingCounterRegs;  // Number of registers which can be configured for
+                                                          // streaming counters
+        uint32                  spmBlockSelectCode;       // The select code for obtaining spm counter data for
+                                                          // this block;
         struct
         {
             uint32  perfSel0RegAddr;                // Perf select register offset #0
@@ -537,6 +542,8 @@ struct GpuChipProperties
         uint32 tcpSizeInBytes;                       // Size in bytes of one TCP (L1). There is one TCP per CU.
         uint32 maxLateAllocVsLimit;                  // Maximum number of VS waves that can be in flight without
                                                      // having param cache and position buffer space.
+        uint32 numSlotsPerEvent;                     // Number of slots allocated for a GPU event. One slot is
+                                                     // one dword size.
         bool   queuesUseCaches;                      // If gfxip queue processors use cached reads/writes.
     } gfxip;
 #endif
@@ -700,7 +707,14 @@ struct GpuChipProperties
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
                 uint32 placeholder2                             :  1;
                 uint32 placeholder3                             :  1;
-                uint32 reserved                                 :  7;
+                uint32 supportReleaseAcquireInterface           :  1; // If true, ASIC supports the new barrier interface
+                                                                      // designed for Acquire/Released-based barrier.
+                uint32 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
+                                                                      // CmdRelease() and CmdAcquire()
+                                                                      // instead of CmdReleaseThenAcquire().
+                                                                      // Note: ReleaseAcquireInterface support is a
+                                                                      //       prerequisite.
+                uint32 reserved                                 :  5;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1862,6 +1876,7 @@ extern void InitializePerfExperimentProperties(
 
 // Initialize default values for the GPU chip properties for GFXIP9+ hardware.
 extern void InitializeGpuChipProperties(
+    const Platform*    pPlatform,
     uint32             cpUcodeVersion,
     GpuChipProperties* pInfo);
 

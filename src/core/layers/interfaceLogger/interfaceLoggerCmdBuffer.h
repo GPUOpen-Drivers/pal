@@ -105,6 +105,15 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
+    virtual void CmdRelease(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) override;
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) override;
+    virtual void CmdReleaseThenAcquire(
+        const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
         const IGpuMemory&       dstGpuMemory,

@@ -668,48 +668,6 @@ void Device::FillCacheOperations(
 }
 
 // =====================================================================================================================
-// Returns the TcCacheOp that can satisfy the most cacheFlags without over-syncing. Note that the flags for the
-// selected cache op are set to zero.
-static TcCacheOp SelectTcCacheOp(
-    SyncReqs* pSyncReqs)
-{
-    TcCacheOp cacheOp = TcCacheOp::Nop;
-
-    if (TestAllFlagsSet(pSyncReqs->cacheFlags, CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc))
-    {
-        pSyncReqs->cacheFlags &= ~(CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
-        cacheOp                = TcCacheOp::WbInvL1L2;
-    }
-    else if (TestAllFlagsSet(pSyncReqs->cacheFlags, CacheSyncInvTcc | CacheSyncFlushTcc))
-    {
-        pSyncReqs->cacheFlags &= ~(CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
-        cacheOp                = TcCacheOp::WbInvL2Nc;
-    }
-    else if (TestAnyFlagSet(pSyncReqs->cacheFlags, CacheSyncFlushTcc))
-    {
-        pSyncReqs->cacheFlags &= ~CacheSyncFlushTcc;
-        cacheOp                = TcCacheOp::WbL2Nc;
-    }
-    else if (TestAnyFlagSet(pSyncReqs->cacheFlags, CacheSyncInvTcc))
-    {
-        pSyncReqs->cacheFlags &= ~(CacheSyncInvTcc | CacheSyncInvTccMd);
-        cacheOp                = TcCacheOp::InvL2Nc;
-    }
-    else if (TestAnyFlagSet(pSyncReqs->cacheFlags, CacheSyncInvTcp))
-    {
-        pSyncReqs->cacheFlags &= ~CacheSyncInvTcp;
-        cacheOp                = TcCacheOp::InvL1;
-    }
-    else if (TestAnyFlagSet(pSyncReqs->cacheFlags, CacheSyncInvTccMd))
-    {
-        pSyncReqs->cacheFlags &= ~CacheSyncInvTccMd;
-        cacheOp                = TcCacheOp::InvL2Md;
-    }
-
-    return cacheOp;
-}
-
-// =====================================================================================================================
 // Examines the specified sync reqs, and the corresponding hardware commands to satisfy the requirements.
 void Device::IssueSyncs(
     GfxCmdBuffer*                 pCmdBuf,
@@ -762,7 +720,7 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.waitOnEopTsBottomOfPipe = 1;
         pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEvent(engineType,
                                                           eopEvent,
-                                                          SelectTcCacheOp(&syncReqs),
+                                                          SelectTcCacheOp(&syncReqs.cacheFlags),
                                                           pCmdBuf->TimestampGpuVirtAddr(),
                                                           pCmdSpace);
         pCmdBuf->SetPrevCmdBufInactive();
@@ -825,7 +783,7 @@ void Device::IssueSyncs(
 
             acquireInfo.engineType           = engineType;
             acquireInfo.cpMeCoherCntl.u32All = syncReqs.cpMeCoherCntl.u32All;
-            acquireInfo.tcCacheOp            = SelectTcCacheOp(&syncReqs);
+            acquireInfo.tcCacheOp            = SelectTcCacheOp(&syncReqs.cacheFlags);
             acquireInfo.baseAddress          = rangeStartAddr;
             acquireInfo.sizeBytes            = rangeSize;
 
@@ -1135,6 +1093,8 @@ void Device::Barrier(
                                     (globalSyncReqs.csPartialFlush &&
                                      (globalSyncReqs.vsPartialFlush || globalSyncReqs.psPartialFlush)));
 
+    const uint32 numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
+
     if (barrier.pSplitBarrierGpuEvent != nullptr)
     {
         if (barrier.flags.splitBarrierEarlyPhase)
@@ -1187,16 +1147,20 @@ void Device::Barrier(
         else if (barrier.flags.splitBarrierLatePhase)
         {
             // Wait for the event set during the early phase to be set.
-            const GpuEvent* pGpuEvent = static_cast<const GpuEvent*>(barrier.pSplitBarrierGpuEvent);
+            const GpuEvent* pGpuEvent       = static_cast<const GpuEvent*>(barrier.pSplitBarrierGpuEvent);
+            const gpusize   gpuEventStartVa = pGpuEvent->GetBoundGpuMemory().GpuVirtAddr();
 
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                                   function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                   engine_sel__pfp_wait_reg_mem__prefetch_parser,
-                                                   pGpuEvent->GetBoundGpuMemory().GpuVirtAddr(),
-                                                   GpuEvent::SetValue,
-                                                   0xFFFFFFFF,
-                                                   pCmdSpace);
+            for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
+            {
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                       engine_sel__pfp_wait_reg_mem__prefetch_parser,
+                                                       gpuEventStartVa + (sizeof(uint32) * slotIdx),
+                                                       GpuEvent::SetValue,
+                                                       0xFFFFFFFF,
+                                                       pCmdSpace);
+            }
             pCmdStream->CommitCommands(pCmdSpace);
 
             if (globalSyncReqs.waitOnEopTs)
@@ -1263,19 +1227,23 @@ void Device::Barrier(
         // CPU.
         for (uint32 i = 0; i < barrier.gpuEventWaitCount; i++)
         {
-            const GpuEvent* pGpuEvent  = static_cast<const GpuEvent*>(barrier.ppGpuEvents[i]);
-            const uint32    waitEngine = (barrier.waitPoint == HwPipeTop) ?
-                                         static_cast<uint32>(engine_sel__pfp_wait_reg_mem__prefetch_parser) :
-                                         static_cast<uint32>(engine_sel__me_wait_reg_mem__micro_engine);
+            const GpuEvent* pGpuEvent       = static_cast<const GpuEvent*>(barrier.ppGpuEvents[i]);
+            const gpusize   gpuEventStartVa = pGpuEvent->GetBoundGpuMemory().GpuVirtAddr();
+            const uint32    waitEngine      = (barrier.waitPoint == HwPipeTop) ?
+                                              static_cast<uint32>(engine_sel__pfp_wait_reg_mem__prefetch_parser) :
+                                              static_cast<uint32>(engine_sel__me_wait_reg_mem__micro_engine);
 
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
-                                                   function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                   waitEngine,
-                                                   pGpuEvent->GetBoundGpuMemory().GpuVirtAddr(),
-                                                   GpuEvent::SetValue,
-                                                   0xFFFFFFFF,
-                                                   pCmdSpace);
+            for (uint32 slotIdx = 0; slotIdx < numEventSlots; slotIdx++)
+            {
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(mem_space__me_wait_reg_mem__memory_space,
+                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                       waitEngine,
+                                                       gpuEventStartVa + (sizeof(uint32) * slotIdx),
+                                                       GpuEvent::SetValue,
+                                                       0xFFFFFFFF,
+                                                       pCmdSpace);
+            }
 
             pCmdStream->CommitCommands(pCmdSpace);
         }

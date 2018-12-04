@@ -134,10 +134,12 @@ public:
     bool IsPendingWait() const { return m_pendingWait; }
 
     Result WaitSemaphore(
-        amdgpu_semaphore_handle hSemaphore);
+        amdgpu_semaphore_handle hSemaphore,
+        uint64                  value);
 
     Result SignalSemaphore(
-        amdgpu_semaphore_handle hSemaphore);
+        amdgpu_semaphore_handle hSemaphore,
+        uint64                  value);
 
     virtual Result OsSubmit(
         const SubmitInfo&         submitInfo,
@@ -233,8 +235,13 @@ private:
     // The sync object refers to the fence of last submission.
     amdgpu_syncobj_handle m_lastSignaledSyncObject;
 
+    struct SemaphoreInfo
+    {
+        amdgpu_semaphore_handle hSemaphore;
+        uint64                  value;
+    };
     // The vector to store the pending wait semaphore when sync object is in using.
-    Util::Vector<amdgpu_semaphore_handle, 16, Platform> m_waitSemList;
+    Util::Vector<SemaphoreInfo, 16, Platform> m_waitSemList;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

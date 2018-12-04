@@ -39,14 +39,6 @@ namespace Gfx9
 namespace PerfCtrInfo
 {
 
-struct  BlockPerfCounterInfo
-{
-    uint32  numRegs;                         // Number of counter registers in this block instance.
-    uint32  numTotalStreamingCounterRegs;    // Number of streaming counter registers in this block.
-    uint32  numStreamingCounters;            // Num streaming counters this SELECT(0/1) configures.
-    uint32  regOffsets[MaxCountersPerBlock]; // Address offsets for all counters in this block.
-};
-
 // Table of all the primary perf-counter select registers.  We list all the register offsets since the delta's
 // between registers are not consistent.
 static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
@@ -406,7 +398,6 @@ uint32 GetSpmBlockSelect(
     GpuChipProperties* pProps,
     GpuBlock           block)
 {
-
     const uint32  blockIdx = static_cast<uint32>(block);
     const uint32 DefaultBlockSelect = 0xFFFF;
 
@@ -461,14 +452,13 @@ uint32 GetSpmBlockSelect(
 // =====================================================================================================================
 // Helper function to initialize the performance counter information for a specific GPU block.
 void SetupBlockInfo(
-    GpuChipProperties* pProps,
-    GpuBlock           block,            // Block identifier
-    uint32             numShaderEngines, // Number of shader engines for this block
-    uint32             numShaderArrays,  // Number of shader arrays for this block
-    uint32             numInstances,     // Number of instances per shader array, except for SQ block(# of SQG per SH)
-    uint32             ctrLoRegAddr,     // Low counter data address register address
-    uint32             ctrHiRegAddr,     // High counter data address register address
-    int32              ctrRegIncr)       // Counter data register block address increment
+    GpuChipProperties*      pProps,
+    GpuBlock                block,        // Block identifier
+    PerfCounterDistribution distribution,
+    uint32                  numInstances, // Number of instances per shader array, except for SQ block(# of SQG per SH)
+    uint32                  ctrLoRegAddr, // Low counter data address register address
+    uint32                  ctrHiRegAddr, // High counter data address register address
+    int32                   ctrRegIncr)   // Counter data register block address increment
 {
     BlockPerfCounterInfo  selReg0 = {};
     BlockPerfCounterInfo  selReg1 = {};
@@ -481,9 +471,7 @@ void SetupBlockInfo(
 
     PAL_ASSERT(selReg0.numRegs <= MaxCountersPerBlock);
 
-    pInfo->block[blockIdx].available               = true;
-    pInfo->block[blockIdx].numShaderEngines        = numShaderEngines;
-    pInfo->block[blockIdx].numShaderArrays         = numShaderArrays;
+    pInfo->block[blockIdx].distribution            = distribution;
     pInfo->block[blockIdx].numInstances            = numInstances;
     pInfo->block[blockIdx].numCounters             = selReg0.numRegs;
     pInfo->block[blockIdx].numStreamingCounters    = selReg0.numStreamingCounters + selReg1.numStreamingCounters;
@@ -511,8 +499,6 @@ void SetupBlockInfo(
 void SetupMcSysBlockInfo(
     GpuChipProperties*           pProps,
     GpuBlock                     block,            // Block identifier
-    uint32                       numShaderEngines, // Number of shader engines for this block
-    uint32                       numShaderArrays,  // Number of shader arrays for this block
     uint32                       numInstances,     // Number of instances per shader array
     uint32                       ctrLoRegAddr,     // Low counter data address register address
     uint32                       ctrHiRegAddr,     // High counter data address register address
@@ -521,8 +507,7 @@ void SetupMcSysBlockInfo(
 {
     SetupBlockInfo(pProps,
                    block,
-                   numShaderEngines,
-                   numShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    numInstances,
                    ctrLoRegAddr,
                    ctrHiRegAddr,
@@ -546,20 +531,15 @@ void SetupUmcchBlockInfo(
     GpuChipProperties* pProps)
 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 424
-    constexpr uint32 DefaultShaderEngines =  1;
-    constexpr uint32 DefaultShaderArrays  =  1;
-
     Gfx9PerfCounterInfo*const pInfo = &pProps->gfx9.perfCounterInfo;
     auto& blockInfo    = pInfo->umcChannelBlocks;
     auto& perfCtrInfo  = pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];
 
-    perfCtrInfo.available        = true;
+    perfCtrInfo.distribution     = PerfCounterDistribution::GlobalBlock;
     perfCtrInfo.numInstances     = pProps->gfx9.numSdpInterfaces;  // The number of UMC channels is equal to the number
                                                                    // of EA blocks or the number of SDP interface ports.
     perfCtrInfo.numCounters      = Gfx9NumUmcchCounters;
     perfCtrInfo.maxEventId       = Gfx9PerfCtrUmcMaxEvent;
-    perfCtrInfo.numShaderArrays  = DefaultShaderArrays;
-    perfCtrInfo.numShaderEngines = DefaultShaderEngines;
 
     const UmcchPerfCounterAddr* pPerfCtrAddr = nullptr;
 
@@ -607,8 +587,6 @@ void SetupUmcchBlockInfo(
 // Initializes the performance counter information for common hardware blocks.
 static void SetupHwlCounters(
     GpuChipProperties* pProps,
-    uint32             defaultNumShaderEngines, // Number of shader engines for this device
-    uint32             defaultNumShaderArrays,  // Number of shader arrays for this device
     uint32             defaultNumInstances)     // Num instances per shader array, except for SQ block(# of SQG per SH)
 {
     const uint32 shaderEngines    = pProps->gfx9.numShaderEngines;
@@ -620,8 +598,7 @@ static void SetupHwlCounters(
     // CPF block
     SetupBlockInfo(pProps,
                    GpuBlock::Cpf,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmCPF_PERFCOUNTER0_LO,
                    mmCPF_PERFCOUNTER0_HI,
@@ -630,8 +607,7 @@ static void SetupHwlCounters(
     // CPG block
     SetupBlockInfo(pProps,
                    GpuBlock::Cpg,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmCPG_PERFCOUNTER0_LO,
                    mmCPG_PERFCOUNTER0_HI,
@@ -640,8 +616,7 @@ static void SetupHwlCounters(
     // CPC block
     SetupBlockInfo(pProps,
                    GpuBlock::Cpc,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmCPC_PERFCOUNTER0_LO,
                    mmCPC_PERFCOUNTER0_HI,
@@ -650,8 +625,7 @@ static void SetupHwlCounters(
     // CB block
     SetupBlockInfo(pProps,
                    GpuBlock::Cb,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    rbPerShaderArray,
                    mmCB_PERFCOUNTER0_LO,
                    mmCB_PERFCOUNTER0_HI,
@@ -660,8 +634,7 @@ static void SetupHwlCounters(
     // DB block
     SetupBlockInfo(pProps,
                    GpuBlock::Db,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    rbPerShaderArray,
                    mmDB_PERFCOUNTER0_LO,
                    mmDB_PERFCOUNTER0_HI,
@@ -670,8 +643,7 @@ static void SetupHwlCounters(
     // GRBM block
     SetupBlockInfo(pProps,
                    GpuBlock::Grbm,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmGRBM_PERFCOUNTER0_LO,
                    mmGRBM_PERFCOUNTER0_HI,
@@ -680,8 +652,7 @@ static void SetupHwlCounters(
     // GRBMSE block
     SetupBlockInfo(pProps,
                    GpuBlock::GrbmSe,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    shaderEngines,
                    mmGRBM_SE0_PERFCOUNTER_LO,
                    mmGRBM_SE0_PERFCOUNTER_HI,
@@ -690,8 +661,7 @@ static void SetupHwlCounters(
     // RLC block
     SetupBlockInfo(pProps,
                    GpuBlock::Rlc,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmRLC_PERFCOUNTER0_LO,
                    mmRLC_PERFCOUNTER0_HI,
@@ -700,8 +670,7 @@ static void SetupHwlCounters(
     // SC block
     SetupBlockInfo(pProps,
                    GpuBlock::Sc,
-                   shaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    defaultNumInstances,
                    mmPA_SC_PERFCOUNTER0_LO,
                    mmPA_SC_PERFCOUNTER0_HI,
@@ -710,8 +679,7 @@ static void SetupHwlCounters(
     // SX block
     SetupBlockInfo(pProps,
                    GpuBlock::Sx,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    defaultNumInstances,
                    mmSX_PERFCOUNTER0_LO,
                    mmSX_PERFCOUNTER0_HI,
@@ -720,8 +688,7 @@ static void SetupHwlCounters(
     // SPI block
     SetupBlockInfo(pProps,
                    GpuBlock::Spi,
-                   shaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    defaultNumInstances,
                    mmSPI_PERFCOUNTER0_LO,
                    mmSPI_PERFCOUNTER0_HI,
@@ -730,8 +697,7 @@ static void SetupHwlCounters(
     // TA block
     SetupBlockInfo(pProps,
                    GpuBlock::Ta,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    numCuPerSh,
                    mmTA_PERFCOUNTER0_LO,
                    mmTA_PERFCOUNTER0_HI,
@@ -740,8 +706,7 @@ static void SetupHwlCounters(
     // TD block
     SetupBlockInfo(pProps,
                    GpuBlock::Td,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    numCuPerSh,
                    mmTD_PERFCOUNTER0_LO,
                    mmTD_PERFCOUNTER0_HI,
@@ -750,8 +715,7 @@ static void SetupHwlCounters(
     // GDS block
     SetupBlockInfo(pProps,
                    GpuBlock::Gds,
-                   defaultNumShaderEngines,
-                   defaultNumShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    defaultNumInstances,
                    mmGDS_PERFCOUNTER0_LO,
                    mmGDS_PERFCOUNTER0_HI,
@@ -760,8 +724,7 @@ static void SetupHwlCounters(
     // RMI block
     SetupBlockInfo(pProps,
                    GpuBlock::Rmi,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    RmiInstances,
                    mmRMI_PERFCOUNTER0_LO,
                    mmRMI_PERFCOUNTER0_HI,
@@ -776,8 +739,6 @@ static void SetupHwlCounters(
 void SetupGfx9Counters(
     GpuChipProperties* pProps)
 {
-    constexpr uint32 DefaultShaderEngines =  1;
-    constexpr uint32 DefaultShaderArrays  =  1;
     constexpr uint32 DefaultInstances     =  1;
     constexpr uint32 TcaInstances         =  2;
     constexpr uint32 EaInstances          = 16;
@@ -797,13 +758,12 @@ void SetupGfx9Counters(
     const uint32 shaderArrays       = pProps->gfx9.numShaderArrays;
     const uint32 numCuPerSh         = pProps->gfx9.numCuPerSh;
 
-    SetupHwlCounters(pProps, DefaultShaderEngines, DefaultShaderArrays, DefaultInstances);
+    SetupHwlCounters(pProps, DefaultInstances);
 
     // PA block
     SetupBlockInfo(pProps,
                    GpuBlock::Pa,
-                   shaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    DefaultInstances,
                    mmPA_SU_PERFCOUNTER0_LO,
                    mmPA_SU_PERFCOUNTER0_HI,
@@ -812,8 +772,7 @@ void SetupGfx9Counters(
     // TCP block
     SetupBlockInfo(pProps,
                    GpuBlock::Tcp,
-                   shaderEngines,
-                   shaderArrays,
+                   PerfCounterDistribution::PerShaderArray,
                    numCuPerSh,
                    mmTCP_PERFCOUNTER0_LO,
                    mmTCP_PERFCOUNTER0_HI,
@@ -822,8 +781,7 @@ void SetupGfx9Counters(
     // TCC block
     SetupBlockInfo(pProps,
                    GpuBlock::Tcc,
-                   DefaultShaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    pProps->gfx9.numTccBlocks,
                    Gfx09::mmTCC_PERFCOUNTER0_LO,
                    Gfx09::mmTCC_PERFCOUNTER0_HI,
@@ -832,8 +790,7 @@ void SetupGfx9Counters(
     // TCA block
     SetupBlockInfo(pProps,
                    GpuBlock::Tca,
-                   DefaultShaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    TcaInstances,
                    Gfx09::mmTCA_PERFCOUNTER0_LO,
                    Gfx09::mmTCA_PERFCOUNTER0_HI,
@@ -842,8 +799,7 @@ void SetupGfx9Counters(
     // SDMA block
     SetupBlockInfo(pProps,
                    GpuBlock::Dma,
-                   DefaultShaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    SdmaInstances,
                    mmSDMA0_PERFCOUNTER0_RESULT,
                    mmSDMA0_PERFCOUNTER1_RESULT,
@@ -854,8 +810,7 @@ void SetupGfx9Counters(
     // SQ block
     SetupBlockInfo(pProps,
                    GpuBlock::Sq,
-                   shaderEngines,
-                   SqShaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    SqInstances,
                    mmSQ_PERFCOUNTER0_LO,
                    mmSQ_PERFCOUNTER0_HI,
@@ -864,8 +819,7 @@ void SetupGfx9Counters(
     // VGT block
     SetupBlockInfo(pProps,
                    GpuBlock::Vgt,
-                   shaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::PerShaderEngine,
                    DefaultInstances,
                    Gfx09::mmVGT_PERFCOUNTER0_LO,
                    Gfx09::mmVGT_PERFCOUNTER0_HI,
@@ -874,9 +828,8 @@ void SetupGfx9Counters(
     // IA block
     SetupBlockInfo(pProps,
                    GpuBlock::Ia,
-                   Max(shaderEngines / 2U, 1U),
-                   DefaultShaderArrays,
-                   DefaultInstances,
+                   PerfCounterDistribution::GlobalBlock,
+                   Max(shaderEngines / 2u, 1u),
                    Gfx09::mmIA_PERFCOUNTER0_LO,
                    Gfx09::mmIA_PERFCOUNTER0_HI,
                    (Gfx09::mmIA_PERFCOUNTER1_LO - Gfx09::mmIA_PERFCOUNTER0_LO));
@@ -884,8 +837,7 @@ void SetupGfx9Counters(
     // WD block
     SetupBlockInfo(pProps,
                    GpuBlock::Wd,
-                   DefaultShaderEngines,
-                   DefaultShaderArrays,
+                   PerfCounterDistribution::GlobalBlock,
                    DefaultInstances,
                    Gfx09::mmWD_PERFCOUNTER0_LO,
                    Gfx09::mmWD_PERFCOUNTER0_HI,
@@ -894,8 +846,6 @@ void SetupGfx9Counters(
     // ATC block
     SetupMcSysBlockInfo(pProps,
                         GpuBlock::Atc,
-                        DefaultShaderEngines,
-                        DefaultShaderArrays,
                         DefaultInstances,
                         Gfx09::mmATC_PERFCOUNTER_LO,
                         Gfx09::mmATC_PERFCOUNTER_HI,
@@ -905,8 +855,6 @@ void SetupGfx9Counters(
     // ATCL2 block
     SetupMcSysBlockInfo(pProps,
                         GpuBlock::AtcL2,
-                        DefaultShaderEngines,
-                        DefaultShaderArrays,
                         DefaultInstances,
                         Gfx09::mmATC_L2_PERFCOUNTER_LO,
                         Gfx09::mmATC_L2_PERFCOUNTER_HI,
@@ -916,8 +864,6 @@ void SetupGfx9Counters(
     // MCVML2 block
     SetupMcSysBlockInfo(pProps,
                         GpuBlock::McVmL2,
-                        DefaultShaderEngines,
-                        DefaultShaderArrays,
                         DefaultInstances,
                         Gfx09::mmMC_VM_L2_PERFCOUNTER_LO,
                         Gfx09::mmMC_VM_L2_PERFCOUNTER_HI,
@@ -930,8 +876,6 @@ void SetupGfx9Counters(
     {
         SetupMcSysBlockInfo(pProps,
                             GpuBlock::Ea,
-                            DefaultShaderEngines,
-                            DefaultShaderArrays,
                             EaInstances,
                             Gfx09_0::mmGCEA_PERFCOUNTER_LO,
                             Gfx09_0::mmGCEA_PERFCOUNTER_HI,
@@ -942,8 +886,6 @@ void SetupGfx9Counters(
     {
         SetupMcSysBlockInfo(pProps,
                             GpuBlock::Ea,
-                            DefaultShaderEngines,
-                            DefaultShaderArrays,
                             EaInstances,
                             Gfx09_1x::mmGCEA_PERFCOUNTER_LO,
                             Gfx09_1x::mmGCEA_PERFCOUNTER_HI,
@@ -954,8 +896,6 @@ void SetupGfx9Counters(
     // RPB block
     SetupMcSysBlockInfo(pProps,
                         GpuBlock::Rpb,
-                        DefaultShaderEngines,
-                        DefaultShaderArrays,
                         DefaultInstances,
                         Gfx09::mmRPB_PERFCOUNTER_LO,
                         Gfx09::mmRPB_PERFCOUNTER_HI,

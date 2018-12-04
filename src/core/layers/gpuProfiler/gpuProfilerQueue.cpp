@@ -491,21 +491,23 @@ Result Queue::WaitIdle()
 // =====================================================================================================================
 // Log the SignalQueueSemaphore call and pass it to the next layer.
 Result Queue::SignalQueueSemaphore(
-    IQueueSemaphore* pQueueSemaphore)
+    IQueueSemaphore* pQueueSemaphore,
+    uint64           value)
 {
     LogQueueCall(QueueCallId::SignalQueueSemaphore);
 
-    return QueueDecorator::SignalQueueSemaphore(pQueueSemaphore);
+    return QueueDecorator::SignalQueueSemaphore(pQueueSemaphore, value);
 }
 
 // =====================================================================================================================
 // Log the WaitQueueSemaphore call and pass it to the next layer.
 Result Queue::WaitQueueSemaphore(
-    IQueueSemaphore* pQueueSemaphore)
+    IQueueSemaphore* pQueueSemaphore,
+    uint64           value)
 {
     LogQueueCall(QueueCallId::WaitQueueSemaphore);
 
-    return QueueDecorator::WaitQueueSemaphore(pQueueSemaphore);
+    return QueueDecorator::WaitQueueSemaphore(pQueueSemaphore, value);
 }
 
 // =====================================================================================================================

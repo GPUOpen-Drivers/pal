@@ -496,15 +496,19 @@ Result Queue::RemapVirtualMemoryPages(
 
 // =====================================================================================================================
 Result Queue::WaitSemaphore(
-    amdgpu_semaphore_handle hSemaphore
-    )
+    amdgpu_semaphore_handle hSemaphore,
+    uint64                  value)
 {
     Result result = Result::Success;
     const auto& device  = static_cast<Device&>(*m_pDevice);
     const auto& context = static_cast<SubmissionContext&>(*m_pSubmissionContext);
     if (device.GetSemaphoreType() == SemaphoreType::SyncObj)
     {
-        result = m_waitSemList.PushBack(hSemaphore);
+        struct SemaphoreInfo semaphoreInfo = { };
+
+        semaphoreInfo.hSemaphore    = hSemaphore;
+        semaphoreInfo.value         = value;
+        result = m_waitSemList.PushBack(semaphoreInfo);
     }
     else
     {
@@ -523,8 +527,8 @@ Result Queue::WaitSemaphore(
 
 // =====================================================================================================================
 Result Queue::SignalSemaphore(
-    amdgpu_semaphore_handle hSemaphore
-    )
+    amdgpu_semaphore_handle hSemaphore,
+    uint64                  value)
 {
     Result result       = Result::Success;
     const auto& device  = static_cast<Device&>(*m_pDevice);
@@ -541,7 +545,9 @@ Result Queue::SignalSemaphore(
         {
             result = device.ConveySyncObjectState(
                          reinterpret_cast<uintptr_t>(hSemaphore),
-                         m_lastSignaledSyncObject);
+                         value,
+                         m_lastSignaledSyncObject,
+                         0);
         }
         else
         {
@@ -746,14 +752,14 @@ Result Queue::SubmitPm4(
             // post-batching code. The command uploader provides these semaphores and must guarantee this is safe.
             if (pWaitBeforeLaunch != nullptr)
             {
-                result = WaitQueueSemaphoreInternal(pWaitBeforeLaunch, true);
+                result = WaitQueueSemaphoreInternal(pWaitBeforeLaunch, 0, true);
             }
 
             result = SubmitIbs(internalSubmitInfo, isDummySubmission);
 
             if ((pSignalAfterLaunch != nullptr) && (result == Result::Success))
             {
-                result = SignalQueueSemaphoreInternal(pSignalAfterLaunch, true);
+                result = SignalQueueSemaphoreInternal(pSignalAfterLaunch, 0, true);
             }
         }
     }
@@ -1026,7 +1032,9 @@ Result Queue::DoAssociateFenceWithLastSubmit(
     {
         result = m_device.ConveySyncObjectState(
             static_cast<SyncobjFence*>(pFence)->SyncObjHandle(),
-            static_cast<SubmissionContext*>(m_pSubmissionContext)->GetLastSignaledSyncObj());
+            0,
+            static_cast<SubmissionContext*>(m_pSubmissionContext)->GetLastSignaledSyncObj(),
+            0);
     }
     else
     {
@@ -1224,6 +1232,15 @@ Result Queue::AddIb(
     return result;
 }
 
+// below temp definitions will be removed when they are finalized.
+#define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT    0x07
+#define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL  0x08
+struct drm_amdgpu_cs_chunk_syncobj {
+    __u32 handle;
+    __u32 flags;
+    __u64 point;
+};
+
 // =====================================================================================================================
 // Submits the accumulated list of IBs to the GPU. Resets the IB list to begin building the next submission.
 Result Queue::SubmitIbsRaw(
@@ -1248,16 +1265,14 @@ Result Queue::SubmitIbsRaw(
                         chunkArray(totalChunk, m_pDevice->GetPlatform());
     AutoBuffer<struct drm_amdgpu_cs_chunk_data, 8, Pal::Platform>
                         chunkDataArray(m_numIbs, m_pDevice->GetPlatform());
-    AutoBuffer<struct drm_amdgpu_cs_chunk_sem, 32, Pal::Platform>
-                        waitChunkArray(waitCount, m_pDevice->GetPlatform());
-    AutoBuffer<struct drm_amdgpu_cs_chunk_sem, 32, Pal::Platform>
-                        signalChunkArray(signalCount, m_pDevice->GetPlatform());
+
+    void*const pMemory = PAL_MALLOC((signalCount + waitCount) * Max(sizeof(drm_amdgpu_cs_chunk_sem),
+                sizeof(drm_amdgpu_cs_chunk_syncobj)), m_pDevice->GetPlatform(), AllocInternal);
 
     // default size is the minumum capacity of AutoBuffer.
-    if ((chunkArray.Capacity()       < totalChunk) ||
-        (chunkDataArray.Capacity()   < m_numIbs)   ||
-        (waitChunkArray.Capacity()   < waitCount)  ||
-        (signalChunkArray.Capacity() < signalCount))
+    if ((chunkArray.Capacity()       <  totalChunk)  ||
+        (chunkDataArray.Capacity()   <  m_numIbs)    ||
+        (pMemory                     == nullptr))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -1282,46 +1297,124 @@ Result Queue::SubmitIbsRaw(
             currentChunk ++;
         }
 
-        // add the semaphore supposed to be waited before the submission.
-        if (waitCount > 0)
+        if (pDevice->IsTimelineSyncobjSemaphoreSupported())
         {
-            chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_IN;
-            chunkArray[currentChunk].length_dw = waitCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
-            chunkArray[currentChunk].chunk_data = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&waitChunkArray[0]));
-            uint32 waitListSize = m_waitSemList.NumElements();
-            uint32 index = 0;
-            for (uint32 i = 0; i < waitListSize; i++, index++)
-            {
-                amdgpu_semaphore_handle handle;
-                m_waitSemList.PopBack(&handle);
-                waitChunkArray[index].handle = reinterpret_cast<uintptr_t>(handle);
-            }
-            for (uint32 i = 0; i < internalSubmitInfo.waitSemaphoreCount; i++, index++)
-            {
-                amdgpu_semaphore_handle handle =
-                    static_cast<QueueSemaphore*>(internalSubmitInfo.ppWaitSemaphores[i])->GetSyncObjHandle();
-                waitChunkArray[index].handle = reinterpret_cast<uintptr_t>(handle);
-            }
-            currentChunk ++;
-        }
+            struct drm_amdgpu_cs_chunk_syncobj* pWaitChunkArray     =
+                static_cast<struct drm_amdgpu_cs_chunk_syncobj*>(pMemory);
+            struct drm_amdgpu_cs_chunk_syncobj* pSignalChunkArray   =
+                static_cast<struct drm_amdgpu_cs_chunk_syncobj*>(
+                    VoidPtrInc(pMemory, sizeof(drm_amdgpu_cs_chunk_syncobj) * waitCount));
 
-        // add the semaphore supposed to be signaled after the submission.
-        if (signalCount > 0)
+            // add the semaphore supposed to be waited before the submission.
+            if (waitCount > 0)
+            {
+                chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT;
+                chunkArray[currentChunk].length_dw  = waitCount * sizeof(struct drm_amdgpu_cs_chunk_syncobj) / 4;
+                chunkArray[currentChunk].chunk_data =
+                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
+
+                uint32 waitListSize = m_waitSemList.NumElements();
+                uint32 index        = 0;
+                for (uint32 i = 0; i < waitListSize; i++, index++)
+                {
+                    struct SemaphoreInfo semaInfo  = { };
+                    m_waitSemList.PopBack(&semaInfo);
+                    pWaitChunkArray[index].handle    = reinterpret_cast<uintptr_t>(semaInfo.hSemaphore);
+                    pWaitChunkArray[index].flags     = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
+                    pWaitChunkArray[index].point     = semaInfo.value;
+                }
+                for (uint32 i = 0; i < internalSubmitInfo.waitSemaphoreCount; i++, index++)
+                {
+                    amdgpu_semaphore_handle handle  =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppWaitSemaphores[i])->GetSyncObjHandle();
+
+                    const bool timeline =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppWaitSemaphores[i])->IsTimeline();
+
+                    PAL_ASSERT((timeline == false) || (internalSubmitInfo.pWaitPoints[i] != 0));
+
+                    pWaitChunkArray[index].handle    = reinterpret_cast<uintptr_t>(handle);
+                    pWaitChunkArray[index].flags     = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
+                    pWaitChunkArray[index].point     = timeline ? internalSubmitInfo.pWaitPoints[i] : 0;
+                }
+                currentChunk ++;
+            }
+
+            // add the semaphore supposed to be signaled after the submission.
+            if (signalCount > 0)
+            {
+                chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL;
+                chunkArray[currentChunk].length_dw  = signalCount * sizeof(struct drm_amdgpu_cs_chunk_syncobj) / 4;
+                chunkArray[currentChunk].chunk_data =
+                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
+
+                for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
+                {
+                    amdgpu_semaphore_handle handle   =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppSignalSemaphores[i])->GetSyncObjHandle();
+
+                    const bool timeline =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppSignalSemaphores[i])->IsTimeline();
+
+                    PAL_ASSERT((timeline == false) || (internalSubmitInfo.pSignalPoints[i] != 0));
+
+                    pSignalChunkArray[i].handle      = reinterpret_cast<uintptr_t>(handle);
+                    pSignalChunkArray[i].point       = timeline ? internalSubmitInfo.pSignalPoints[i] : 0;
+                }
+                pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
+            }
+        }
+        else
         {
-            chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
-            chunkArray[currentChunk].length_dw = signalCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
-            chunkArray[currentChunk].chunk_data =
-                static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&signalChunkArray[0]));
+            struct drm_amdgpu_cs_chunk_sem* pWaitChunkArray     =
+                static_cast<struct drm_amdgpu_cs_chunk_sem*>(pMemory);
+            struct drm_amdgpu_cs_chunk_sem* pSignalChunkArray   =
+                static_cast<struct drm_amdgpu_cs_chunk_sem*>(
+                    VoidPtrInc(pMemory, sizeof(drm_amdgpu_cs_chunk_sem) * waitCount));
 
-            for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
+            // add the semaphore supposed to be waited before the submission.
+            if (waitCount > 0)
             {
-                amdgpu_semaphore_handle handle =
-                    static_cast<QueueSemaphore*>(internalSubmitInfo.ppSignalSemaphores[i])->GetSyncObjHandle();
-                signalChunkArray[i].handle = reinterpret_cast<uintptr_t>(handle);
-            }
-            signalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
-        }
+                chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_IN;
+                chunkArray[currentChunk].length_dw  = waitCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
+                chunkArray[currentChunk].chunk_data =
+                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pWaitChunkArray[0]));
 
+                uint32 waitListSize = m_waitSemList.NumElements();
+                uint32 index        = 0;
+
+                for (uint32 i = 0; i < waitListSize; i++, index++)
+                {
+                    struct SemaphoreInfo semaInfo   = { };
+                    m_waitSemList.PopBack(&semaInfo);
+                    pWaitChunkArray[index].handle   = reinterpret_cast<uintptr_t>(semaInfo.hSemaphore);
+                }
+                for (uint32 i = 0; i < internalSubmitInfo.waitSemaphoreCount; i++, index++)
+                {
+                    amdgpu_semaphore_handle handle  =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppWaitSemaphores[i])->GetSyncObjHandle();
+                    pWaitChunkArray[index].handle   = reinterpret_cast<uintptr_t>(handle);
+                }
+                currentChunk ++;
+            }
+
+            // add the semaphore supposed to be signaled after the submission.
+            if (signalCount > 0)
+            {
+                chunkArray[currentChunk].chunk_id   = AMDGPU_CHUNK_ID_SYNCOBJ_OUT;
+                chunkArray[currentChunk].length_dw  = signalCount * sizeof(struct drm_amdgpu_cs_chunk_sem) / 4;
+                chunkArray[currentChunk].chunk_data =
+                    static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&pSignalChunkArray[0]));
+
+                for (uint32 i = 0; i < internalSubmitInfo.signalSemaphoreCount; i++)
+                {
+                    amdgpu_semaphore_handle handle  =
+                        static_cast<QueueSemaphore*>(internalSubmitInfo.ppSignalSemaphores[i])->GetSyncObjHandle();
+                    pSignalChunkArray[i].handle     = reinterpret_cast<uintptr_t>(handle);
+                }
+                pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
+            }
+        }
         result = pDevice->SubmitRaw(pContext->Handle(),
                 isDummySubmission ? m_hDummyResourceList : m_hResourceList,
                 totalChunk,
@@ -1330,6 +1423,7 @@ Result Queue::SubmitIbsRaw(
 
         pContext->SetLastSignaledSyncObj(m_lastSignaledSyncObject);
 
+        PAL_FREE(pMemory, m_pDevice->GetPlatform());
         // all pending waited semaphore has been poped already.
         PAL_ASSERT(m_waitSemList.IsEmpty());
     }

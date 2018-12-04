@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 455
+#define PAL_INTERFACE_MAJOR_VERSION 458
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -98,6 +98,7 @@ enum class NullGpuId : uint32
 
     Spectre    = 0x05,
     Spooky     = 0x06,
+    HawaiiPro  = 0x07,
     Hawaii     = 0x08,
     Kalindi    = 0x09,
     Godavari   = 0x0A,

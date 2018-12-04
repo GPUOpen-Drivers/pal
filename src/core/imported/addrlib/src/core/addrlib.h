@@ -289,6 +289,8 @@ public:
 
     ADDR_E_RETURNCODE GetMaxMetaAlignments(ADDR_GET_MAX_ALINGMENTS_OUTPUT* pOut) const;
 
+    UINT_32 GetBpe(AddrFormat format) const;
+
 protected:
     Lib();  // Constructor is protected
     Lib(const Client* pClient);

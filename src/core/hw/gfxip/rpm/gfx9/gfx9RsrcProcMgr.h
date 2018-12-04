@@ -147,6 +147,11 @@ public:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const override;
 
+    bool WillDecompressWithCompute(
+        const GfxCmdBuffer* pCmdBuffer,
+        const Image&        gfxImage,
+        const SubresRange&  range) const;
+
 protected:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}

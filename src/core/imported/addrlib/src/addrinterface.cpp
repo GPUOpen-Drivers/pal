@@ -840,6 +840,34 @@ BOOL_32 ADDR_API ElemGetExportNorm(
 
 /**
 ****************************************************************************************************
+*   ElemSize
+*
+*   @brief
+*       Get bits-per-element for specified format
+*
+*   @return
+*       Bits-per-element of specified format
+*
+****************************************************************************************************
+*/
+UINT_32 ADDR_API ElemSize(
+    ADDR_HANDLE hLib,
+    AddrFormat  format)
+{
+    UINT_32 bpe = 0;
+
+    Addr::Lib* pLib = Lib::GetLib(hLib);
+
+    if (pLib != NULL)
+    {
+        bpe = pLib->GetBpe(format);
+    }
+
+    return bpe;
+}
+
+/**
+****************************************************************************************************
 *   AddrConvertTileInfoToHW
 *
 *   @brief

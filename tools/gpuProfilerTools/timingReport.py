@@ -83,8 +83,15 @@ def DeterminePipelineType(row):
         else:
             return "VsPs"
 
-if len(sys.argv) != 2:
-    sys.exit("Usage: timingReport.py <full path to log folder>.")
+enPrintAllPipelines = False
+
+if len(sys.argv) > 3 or len(sys.argv) < 2:
+    sys.exit("Usage: timingReport.py <full path to log folder> [-all].")
+elif len(sys.argv) == 3:
+    if sys.argv[2] == "-all":
+        enPrintAllPipelines = True
+    else:
+        sys.exit("Usage: timingReport.py <full path to log folder>. [-all]")
 
 gpuFrameTime = 0
 
@@ -278,7 +285,7 @@ for pipeline in collections.OrderedDict(sorted(perPipelineTable.items(), key=lam
     pipelineNum += 1
     timePerFrame = perPipelineTable[pipeline][2] / frameCount
     pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
-    if pctOfFrame < 1.0:
+    if pctOfFrame < 1.0 and not enPrintAllPipelines:
         hidden += 1
     else:
         print("  {0:2d}. {1:s} | {2:10s}   |      {3:10d} |       {4:>12,.2f} |      {5:5.2f} %".
@@ -301,7 +308,7 @@ for pipeline in collections.OrderedDict(sorted(perPipelineTable.items(), key=lam
     pipelineNum += 1
     timePerFrame = perPipelineTable[pipeline][2] / frameCount
     pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
-    if pctOfFrame < 1.0:
+    if pctOfFrame < 1.0 and not enPrintAllPipelines:
         hidden += 1
     else:
         pipelineHashes = perPipelineTable[pipeline]
@@ -328,7 +335,7 @@ for ps in collections.OrderedDict(sorted(perPsTable.items(), key=lambda x: x[1][
     psNum += 1
     timePerFrame = perPsTable[ps][1] / frameCount
     pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
-    if pctOfFrame < 1.0:
+    if pctOfFrame < 1.0 and not enPrintAllPipelines:
         hidden += 1
     else:
         print("  {0:2d}. {1:36s}|      {2:10d} |       {3:>12,.2f} |      {4:5.2f} %".

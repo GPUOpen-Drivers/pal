@@ -172,7 +172,7 @@ public:
 
     /// Use CPU to reset the query pool slots.
     ///
-    /// Only supported for occlusion query pools.
+    /// Supported for occlusion and video decode statistics query pools.
     ///
     /// @param [in]     startQuery First query pool slot to reset.
     /// @param [in]     queryCount Number of query pool slots to reset.

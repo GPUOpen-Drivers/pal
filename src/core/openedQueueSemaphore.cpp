@@ -63,18 +63,19 @@ bool OpenedQueueSemaphore::HasStalledQueues()
 // =====================================================================================================================
 // Signals this Semaphore object from the specified Queue.
 Result OpenedQueueSemaphore::Signal(
-    Queue* pQueue)
+    Queue* pQueue,
+    uint64 value)
 {
-    return m_pMaster->SignalInternal(pQueue, this);
+    return m_pMaster->SignalInternal(pQueue, this, value);
 }
 
 // =====================================================================================================================
 // Waits-on this Semaphore object using the specified Queue.
 Result OpenedQueueSemaphore::Wait(
     Queue*         pQueue,
+    uint64         value,
     volatile bool* pIsStalled)
 {
-    return m_pMaster->WaitInternal(pQueue, this, pIsStalled);
+    return m_pMaster->WaitInternal(pQueue, this, value, pIsStalled);
 }
-
 } // Pal

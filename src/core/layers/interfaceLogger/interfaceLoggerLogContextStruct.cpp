@@ -124,6 +124,86 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const AcquireReleaseInfo& value)
+{
+    BeginMap(false);
+    KeyAndPipelineStageFlags("srcStageMask", value.srcStageMask);
+    KeyAndPipelineStageFlags("dstStageMask", value.dstStageMask);
+    KeyAndCacheCoherencyUsageFlags("srcGlobalAccessMask", value.srcGlobalAccessMask);
+    KeyAndCacheCoherencyUsageFlags("dstGlobalAccessMask", value.dstGlobalAccessMask);
+
+    KeyAndBeginList("memoryBarriers", false);
+
+    for (uint32 idx = 0; idx < value.memoryBarrierCount; ++idx)
+    {
+        const auto& memoryBarrier = value.pMemoryBarriers[idx];
+
+        BeginMap(false);
+
+        KeyAndBeginList("flags", true);
+
+        if (memoryBarrier.flags.globallyAvailable)
+        {
+            Value("GloballyAvailable");
+        }
+
+        EndList();
+
+        KeyAndObject("pGpuMemory", memoryBarrier.memory.pGpuMemory);
+
+        if (memoryBarrier.memory.pGpuMemory != nullptr)
+        {
+            KeyAndValue("offset", memoryBarrier.memory.offset);
+            KeyAndValue("size", memoryBarrier.memory.size);
+        }
+
+        KeyAndCacheCoherencyUsageFlags("srcAccessMask", memoryBarrier.srcAccessMask);
+        KeyAndCacheCoherencyUsageFlags("dstAccessMask", memoryBarrier.dstAccessMask);
+
+        EndMap();
+    }
+
+    EndList();
+    KeyAndBeginList("imageBarriers", false);
+
+    for (uint32 idx = 0; idx < value.imageBarrierCount; ++idx)
+    {
+        const auto& imageBarrier = value.pImageBarriers[idx];
+
+        BeginMap(false);
+
+        KeyAndObject("pImage", imageBarrier.pImage);
+
+        if (imageBarrier.pImage != nullptr)
+        {
+            KeyAndStruct("subresRange", imageBarrier.subresRange);
+
+            KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
+            KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
+            KeyAndStruct("box", imageBarrier.box);
+            KeyAndStruct("oldLayout", imageBarrier.oldLayout);
+            KeyAndStruct("newLayout", imageBarrier.newLayout);
+
+            Key("pQuadSamplePattern");
+            if (imageBarrier.pQuadSamplePattern != nullptr)
+            {
+                Struct(*imageBarrier.pQuadSamplePattern);
+            }
+            else
+            {
+                NullValue();
+            }
+        }
+
+        EndMap();
+    }
+
+    EndList();
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const PipelineBindParams& value)
 {
     BeginMap(false);

@@ -91,6 +91,9 @@ public:
     const void* GetDriverSettingsPtr() const { return m_pSettingsPtr; };
     Util::MetroHash::Hash GetSettingsHash() const { return m_settingHash; };
 
+    // auto-generated functions
+    virtual void RereadSettings() {}
+
 protected:
     DriverSettings* m_pSettingsPtr;
     Util::MetroHash::Hash m_settingHash;

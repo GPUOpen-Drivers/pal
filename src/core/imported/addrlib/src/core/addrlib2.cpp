@@ -112,7 +112,7 @@ Lib* Lib::GetLib(
     if ((pAddrLib != NULL) &&
         (pAddrLib->GetChipFamily() <= ADDR_CHIP_FAMILY_VI))
     {
-        // only valid and GFX9+ AISC can use AddrLib2 function.
+        // only valid and GFX9+ ASIC can use AddrLib2 function.
         ADDR_ASSERT_ALWAYS();
         hLib = NULL;
     }
@@ -828,10 +828,6 @@ ADDR_E_RETURNCODE Lib::ComputePipeBankXor(
          (pOut->size != sizeof(ADDR2_COMPUTE_PIPEBANKXOR_OUTPUT))))
     {
         returnCode = ADDR_INVALIDPARAMS;
-    }
-    else if (IsXor(pIn->swizzleMode) == FALSE)
-    {
-        returnCode = ADDR_NOTSUPPORTED;
     }
     else
     {

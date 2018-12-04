@@ -98,6 +98,11 @@ public:
         static_cast<Pal::Gfx6::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
     }
 
+    virtual void HwlRereadSettings() override
+    {
+        m_pSettingsLoader->RereadSettings();
+    }
+
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
 
     virtual Result GetLinearImageAlignments(LinearImageAlignments* pAlignments) const override;

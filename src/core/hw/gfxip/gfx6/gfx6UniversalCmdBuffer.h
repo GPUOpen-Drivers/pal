@@ -50,7 +50,6 @@ struct UniversalCmdBufferState
     {
         struct
         {
-            uint32 isPrecisionOn        :  1; // Whether occlusion query active during execution uses precise data
             uint32 ceStreamDirty        :  1; // A CE RAM Dump command was added to the CE stream since the last Draw
                                               // requires increment & wait on CE counter commands to be added.
             // Tracks whether or not *ANY* piece of ring memory being dumped-to by the CE (by PAL or the client) has
@@ -66,7 +65,7 @@ struct UniversalCmdBufferState
             uint32 deCounterDirty       :  1;
             uint32 containsDrawIndirect :  1;
             uint32 optimizeLinearGfxCpy :  1;
-            uint32 reserved             : 24;
+            uint32 reserved             : 25;
         };
         uint32 u32All;
     } flags;
@@ -76,7 +75,6 @@ struct UniversalCmdBufferState
     // Thus we only need to track this minimum diff amount. If ceWaitOnDeCounterDiff flag is also set, the CE will be
     // asked to wait for a DE counter diff at the next Draw or Dispatch.
     uint32  minCounterDiff;
-
 };
 
 // Represents an "image" of the PM4 headers necessary to write NULL depth-stencil state to hardware. The required
@@ -671,8 +669,6 @@ protected:
         regDB_COUNT_CONTROL     dbCountControl,
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
-
-    void ValidateExecuteNestedCmdBuffers(const UniversalCmdBuffer& cmdBuffer);
 
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }

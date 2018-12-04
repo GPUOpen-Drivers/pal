@@ -67,10 +67,12 @@ struct InternalSubmitInfo
     MgpuSlsInfo mgpuSlsInfo;
 
     // The semaphore arrays are only used by Linux backend to better align with u/k interface
-    uint32                  signalSemaphoreCount; ///< The count of semaphores that have to signal after the submission.
-    uint32                  waitSemaphoreCount;   ///< The count of semaphores that have to wait before the submission.
-    IQueueSemaphore**       ppSignalSemaphores;   ///< Array of semaphores that have to signal after the submission.
-    IQueueSemaphore**       ppWaitSemaphores;     ///< Array of semaphores that have to wait after the submission.
+    uint32                  signalSemaphoreCount; // The count of semaphores that have to signal after the submission.
+    uint32                  waitSemaphoreCount;   // The count of semaphores that have to wait before the submission.
+    uint64*                 pSignalPoints;        // timeline semaphore signal points array.
+    uint64*                 pWaitPoints;          // timeline semaphore wait points array.
+    IQueueSemaphore**       ppSignalSemaphores;   // Array of semaphores that have to signal after the submission.
+    IQueueSemaphore**       ppWaitSemaphores;     // Array of semaphores that have to wait after the submission.
 };
 
 // Enumerates the types of Queue commands which could be batched-up if the Queue is stalled on a Semaphore.
@@ -101,6 +103,7 @@ struct BatchedQueueCmdData
         struct
         {
             IQueueSemaphore* pSemaphore;
+            uint64           value;
         } semaphore;
 
         struct
@@ -180,18 +183,18 @@ public:
     virtual Result WaitIdle() override;
 
     // NOTE: Part of the public IQueue interface.
-    virtual Result SignalQueueSemaphore(IQueueSemaphore* pQueueSemaphore) override
-        { return SignalQueueSemaphoreInternal(pQueueSemaphore, false); }
+    virtual Result SignalQueueSemaphore(IQueueSemaphore* pQueueSemaphore, uint64 value) override
+        { return SignalQueueSemaphoreInternal(pQueueSemaphore, value, false); }
 
     // A special version of SignalQueueSemaphore with PAL-internal arguments.
-    Result SignalQueueSemaphoreInternal(IQueueSemaphore* pQueueSemaphore, bool postBatching);
+    Result SignalQueueSemaphoreInternal(IQueueSemaphore* pQueueSemaphore, uint64 value, bool postBatching);
 
     // NOTE: Part of the public IQueue interface.
-    virtual Result WaitQueueSemaphore(IQueueSemaphore* pQueueSemaphore) override
-        { return WaitQueueSemaphoreInternal(pQueueSemaphore, false); }
+    virtual Result WaitQueueSemaphore(IQueueSemaphore* pQueueSemaphore, uint64 value) override
+        { return WaitQueueSemaphoreInternal(pQueueSemaphore, value, false); }
 
     // A special version of WaitQueueSemaphore with PAL-internal arguments.
-    Result WaitQueueSemaphoreInternal(IQueueSemaphore* pQueueSemaphore, bool postBatching);
+    Result WaitQueueSemaphoreInternal(IQueueSemaphore* pQueueSemaphore, uint64 value, bool postBatching);
 
     // NOTE: Part of the public IQueue interface.
     virtual Result PresentDirect(const PresentDirectInfo& presentInfo) override

@@ -178,7 +178,7 @@ Result PresentScheduler::Init(
 
         GetInternalQueueInfo(*m_pDevice, &signalQueueInfo);
 
-        PAL_ASSERT(m_pDevice->GetEngine(signalQueueInfo.engineType, signalQueueInfo.engineIndex));
+        PAL_ASSERT(m_pDevice->GetEngine(signalQueueInfo.engineType, signalQueueInfo.engineIndex) != nullptr);
 
         result         = m_pDevice->CreateQueue(signalQueueInfo, pPlacementAddr, &m_pSignalQueue);
         pPlacementAddr = VoidPtrInc(pPlacementAddr, m_pDevice->GetQueueSize(signalQueueInfo, nullptr));

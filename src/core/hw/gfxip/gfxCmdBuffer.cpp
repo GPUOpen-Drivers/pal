@@ -61,6 +61,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_device(device),
     m_pTimestampMem(nullptr),
     m_timestampOffset(0),
+    m_internalEvent(GpuEventCreateInfo{}, device.Parent()),
     m_computeStateFlags(0),
     m_spmTraceEnabled(false),
     m_fceRefCountVec(device.GetPlatform())
@@ -118,6 +119,11 @@ Result GfxCmdBuffer::Init(
                                                              false,
                                                              &m_pTimestampMem,
                                                              &m_timestampOffset);
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_internalEvent.Init();
     }
 
     return result;
@@ -317,6 +323,39 @@ HwPipePoint GfxCmdBuffer::OptimizeHwPipePostBlit() const
     }
 
     return pipePoint;
+}
+
+// =====================================================================================================================
+// If PipelineStageBlt is set, convert it to more specific internal pipeline stages based on GfxCmdBufferState flags.
+// Return the processed stageMask.
+uint32 GfxCmdBuffer::ConvertToInternalPipelineStageMask(
+    uint32 stageMask // [in] A representation of PipelineStageFlag.
+    ) const
+{
+    if (TestAnyFlagSet(stageMask, PipelineStageBlt))
+    {
+        // If there are no BLTs in flight at this point, we will use the earliest pipe stage TopOfPipe. This will
+        // optimize any redundant stalls when called from the barrier implementation. Otherwise, this function remaps
+        // the BLT pipe stage based on the gfx block that performed the BLT operation.
+        stageMask &= ~PipelineStageBlt;
+
+        // Check xxxBltActive states in order.
+        const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
+        if (cmdBufState.gfxBltActive)
+        {
+            stageMask |= PipelineStageBottomOfPipe;
+        }
+        else if (cmdBufState.csBltActive)
+        {
+            stageMask |= PipelineStageCs;
+        }
+        else
+        {
+            stageMask |= PipelineStageTopOfPipe;
+        }
+    }
+
+    return stageMask;
 }
 
 // =====================================================================================================================

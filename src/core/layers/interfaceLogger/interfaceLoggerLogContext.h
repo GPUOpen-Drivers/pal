@@ -100,6 +100,9 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
     CmdBufferCmdBarrier,
+    CmdBufferCmdRelease,
+    CmdBufferCmdAcquire,
+    CmdBufferCmdReleaseThenAcquire,
     CmdBufferCmdDraw,
     CmdBufferCmdDrawOpaque,
     CmdBufferCmdDrawIndexed,
@@ -429,6 +432,7 @@ public:
     // These functions create a list or map that represents a PAL interface structure.
     void Struct(const AcquireNextImageInfo& value);
     void Struct(const BarrierInfo& value);
+    void Struct(const AcquireReleaseInfo& value);
     void Struct(const BindStreamOutTargetParams& value);
     void Struct(const BindTargetParams& value);
     void Struct(const BlendConstParams& value);
@@ -628,6 +632,7 @@ public:
 
     // These functions create a list that specifies all set flags. The function name indicates the PAL enum type.
     void CacheCoherencyUsageFlags(uint32 flags);
+    void PipelineStageFlags(uint32 flags);
     void ComputeStateFlags(uint32 flags);
     void CopyControlFlags(uint32 flags);
     void GpuMemoryRefFlags(uint32 flags);
@@ -662,6 +667,7 @@ public:
 
     void KeyAndStruct(const char* pKey, const AcquireNextImageInfo& value)                { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const BarrierInfo& value)                         { Key(pKey); Struct(value); }
+    void KeyAndStruct(const char* pKey, const AcquireReleaseInfo& value)                  { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const BindStreamOutTargetParams& value)           { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const BindTargetParams& value)                    { Key(pKey); Struct(value); }
     void KeyAndStruct(const char* pKey, const BlendConstParams& value)                    { Key(pKey); Struct(value); }
@@ -859,6 +865,7 @@ public:
     void KeyAndEnum(const char* pKey, TurboSyncControlMode value)         { Key(pKey); Enum(value); }
 
     void KeyAndCacheCoherencyUsageFlags(const char* pKey, uint32 flags) { Key(pKey); CacheCoherencyUsageFlags(flags); }
+    void KeyAndPipelineStageFlags(const char* pKey, uint32 flags)       { Key(pKey); PipelineStageFlags(flags); }
     void KeyAndComputeStateFlags(const char* pKey, uint32 flags)        { Key(pKey); ComputeStateFlags(flags); }
     void KeyAndCopyControlFlags(const char* pKey, uint32 flags)         { Key(pKey); CopyControlFlags(flags); }
     void KeyAndGpuMemoryRefFlags(const char* pKey, uint32 flags)        { Key(pKey); GpuMemoryRefFlags(flags); }

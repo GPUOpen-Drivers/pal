@@ -63,22 +63,27 @@ public:
     // NOTE: Part of the public IDestroyable interface.
     virtual void Destroy() override;
 
-    virtual Result Signal(Queue* pQueue) = 0;
+    virtual Result Signal(Queue* pQueue, uint64 value) = 0;
     virtual Result Wait(
         Queue*         pQueue,
+        uint64         value,
         volatile bool* pIsStalled) = 0;
 
     bool IsShareable() const { return m_flags.shareable; }
     bool IsShared() const { return m_flags.shared; }
     bool IsExternalOpened() const { return m_flags.externalOpened; }
+    bool IsTimeline() const { return m_flags.timeline; }
 
 protected:
     explicit QueueSemaphore(Device* pDevice);
 
-    virtual Result OsInit(const QueueSemaphoreCreateInfo& createInfo);
-    virtual Result OsSignal(Queue* pQueue);
-    virtual Result OsWait(Queue* pQueue);
+    virtual Result QuerySemaphoreValue(uint64*  pValue);
+    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs);
+    virtual Result SignalSemaphoreValue(uint64  value);
 
+    virtual Result OsInit(const QueueSemaphoreCreateInfo& createInfo);
+    virtual Result OsSignal(Queue* pQueue, uint64 value);
+    virtual Result OsWait(Queue* pQueue, uint64 value);
     Device*const  m_pDevice;
 
     amdgpu_semaphore_handle m_hSemaphore;
@@ -96,7 +101,8 @@ private:
             uint32 shareable         :  1; // Semaphore can be shared across APIs or processes
             uint32 shared            :  1; // Semaphore was opened from another GPU's semaphore or external handle
             uint32 externalOpened    :  1; // Semaphore was created by other APIs
-            uint32 reserved          : 29;
+            uint32 timeline          :  1; // Semaphore is timeline semaphore
+            uint32 reserved          : 28;
         };
         uint32 u32All;
     } m_flags;

@@ -375,9 +375,12 @@ void RsrcProcMgr::CmdCopyImage(
     // MSAA source and destination images must have the same number of samples.
     PAL_ASSERT(srcInfo.samples == dstInfo.samples);
 
-    const bool isDepth      = (srcImage.IsDepthStencil() || dstImage.IsDepthStencil()     ||
-                               Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) ||
-                               Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format));
+    const bool bothDepth    = ((srcImage.IsDepthStencil() && dstImage.IsDepthStencil()) ||
+                               (Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) &&
+                                Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format)));
+    const bool bothColor    = ((srcImage.IsDepthStencil() == false) && (dstImage.IsDepthStencil() == false) &&
+                               (Formats::IsDepthStencilOnly(srcInfo.swizzledFormat.format) == false) &&
+                               (Formats::IsDepthStencilOnly(dstInfo.swizzledFormat.format) == false));
     const bool isCompressed = (Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
                                Formats::IsBlockCompressed(dstInfo.swizzledFormat.format));
     const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
@@ -395,14 +398,15 @@ void RsrcProcMgr::CmdCopyImage(
                                    (dstInfo.samples == 1)                                &&
                                    (isCompressed == false)                               &&
                                    (isYuv == false)                                      &&
-                                   (isDepth == false)                                    &&
+                                   (bothDepth == false)                                  &&
+                                   (bothColor == true)                                   &&
                                    ((isSrgb == false) || srcInfo.flags.copyFormatsMatch) &&
                                    (p2pBltWa == false))                                  ||
-                                  (isDepth && srcInfo.samples > 1)));
+                                  (bothDepth && srcInfo.samples > 1)));
 
     if (useGraphicsCopy)
     {
-        if (isDepth)
+        if (bothDepth)
         {
             CopyDepthStencilImageGraphics(pCmdBuffer,
                                           srcImage,
@@ -500,7 +504,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     SubresRange viewRange = { };
     viewRange.startSubres = srcImage.GetBaseSubResource();
@@ -746,7 +750,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Setup the viewport and scissor to restrict rendering to the destination region being copied.
     viewportInfo.viewports[0].originX = static_cast<float>(pRegions[0].dstOffset.x);
@@ -2020,7 +2024,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     }
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
     const GraphicsPipeline* pPreviousPipeline = nullptr;
@@ -3222,7 +3226,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     {
         // Note: we should clear the same range of slices for depth and/or stencil attachment. If this
         // requirement needs to be relaxed, we need to separate the draws for depth clear and stencil clear.
-        RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, pClearRegions[scissorIndex].startSlice);
+        RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, pClearRegions[scissorIndex].startSlice);
 
         viewportInfo.viewports[0].originX = static_cast<float>(pClearRegions[scissorIndex].rect.offset.x);
         viewportInfo.viewports[0].originY = static_cast<float>(pClearRegions[scissorIndex].rect.offset.y);
@@ -3434,7 +3438,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
 
         for (uint32 scissorIndex = 0; scissorIndex < regionCount; ++scissorIndex)
         {
-            RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, pClearRegions[scissorIndex].startSlice);
+            RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, pClearRegions[scissorIndex].startSlice);
 
             viewportInfo.viewports[0].originX   = static_cast<float>(pClearRegions[scissorIndex].rect.offset.x);
             viewportInfo.viewports[0].originY   = static_cast<float>(pClearRegions[scissorIndex].rect.offset.y);
@@ -3693,7 +3697,7 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     uint32 convertedColor[4] = {0};
 
@@ -4663,7 +4667,7 @@ void RsrcProcMgr::ResolveImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Determine which format we should use to view the source image. The initial value is the stencil format.
     SwizzledFormat srcFormat =
@@ -4961,22 +4965,51 @@ void RsrcProcMgr::ResolveImageCompute(
 
     if (dstImage.GetGfxImage()->HasHtileData())
     {
-        // However, dest image might contain htile data when resolve is performed on compute queue.
-        // ResolveDst will be referred as decomprWithHiZ(HiZ valid), thus expand hiZ to 0-1.
-        // It is not recommended to be called here, since hiZ expanded to 0-1 is not friendly to db usage. Moreover,
-        // there's potential htile sync risk due to htile overlapped waw hazard here. So we put alert here.
-        PAL_ALERT_ALWAYS();
-
+        bool performedHiZExpand = false;
         for (uint32 i = 0; i < regionCount; ++i)
         {
-            const ImageResolveRegion& curRegion = pRegions[i];
-            SubresRange subresRange = {};
-            subresRange.startSubres.aspect = curRegion.dstAspect;
-            subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
-            subresRange.startSubres.arraySlice = curRegion.dstSlice;
-            subresRange.numMips = 1;
-            subresRange.numSlices = curRegion.numSlices;
-            HwlExpandHtileHiZRange(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
+            // Only perform expand htile HiZ range if the destination aspect is depth.
+            if (pRegions[i].dstAspect == ImageAspect::Depth)
+            {
+                const ImageResolveRegion& curRegion = pRegions[i];
+                SubresRange subresRange = {};
+                subresRange.startSubres.aspect = curRegion.dstAspect;
+                subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
+                subresRange.startSubres.arraySlice = curRegion.dstSlice;
+                subresRange.numMips = 1;
+                subresRange.numSlices = curRegion.numSlices;
+                HwlExpandHtileHiZRange(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
+
+                performedHiZExpand = true;
+            }
+        }
+
+        // Add the barrier if a HiZ expand was performed.
+        if (performedHiZExpand)
+        {
+            // There is a potential problem here because the htile is shared between
+            // the depth and stencil aspects, but the APIs manage the state of those
+            // aspects independently.  At this point in the code, we know the depth
+            // aspect must be in a state that supports being a resolve destination,
+            // but the stencil aspect may still be in a state that supports stencil
+            // target rendering.  Since we are modifying HTILE asynchronously with
+            // respect to the DB and through a different data path than the DB, we
+            // need to ensure our CS won't overlap with subsequent stencil rendering
+            // and that our HTILE updates are immediately visible to the DB.
+
+            BarrierInfo hiZExpandBarrier = {};
+            hiZExpandBarrier.waitPoint = HwPipePreCs;
+
+            constexpr HwPipePoint PostCs = HwPipePostCs;
+            hiZExpandBarrier.pipePointWaitCount = 1;
+            hiZExpandBarrier.pPipePoints = &PostCs;
+
+            BarrierTransition transition = {};
+            transition.srcCacheMask = CoherShader;
+            transition.dstCacheMask = CoherShader | CoherDepthStencilTarget;
+            hiZExpandBarrier.pTransitions = &transition;
+
+            pCmdBuffer->CmdBarrier(hiZExpandBarrier);
         }
     }
 }
@@ -5276,7 +5309,7 @@ void RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
     const uint32 lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
@@ -5428,7 +5461,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
     const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
@@ -5603,7 +5636,7 @@ void RsrcProcMgr::GenericColorBlit(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip = (range.startSubres.mipLevel + range.numMips - 1);
     gpusize mipCondDwordsOffset = metaDataOffset;

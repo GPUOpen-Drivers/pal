@@ -138,6 +138,24 @@ PAL_INLINE size_t VoidPtrDiff(
     return (static_cast<const uint8*>(p1) - static_cast<const uint8*>(p2));
 }
 
+/// Returns the high 32 bits of a 64-bit integer.
+///
+/// @returns Returns the high 32 bits of a 64-bit integer.
+constexpr uint32 HighPart(
+    uint64 value)  ///< 64-bit input value.
+{
+    return (value & 0xFFFFFFFF00000000) >> 32;
+}
+
+/// Returns the low 32 bits of a 64-bit integer.
+///
+/// @returns Returns the low 32 bits of a 64-bit integer.
+constexpr uint32 LowPart(
+    uint64 value)  ///< 64-bit input value.
+{
+    return (value & 0x00000000FFFFFFFF);
+}
+
 /// Determines if any of the bits set in "test" are also set in "src".
 ///
 /// @returns True if any bits in "test" are set in "src", false otherwise.
@@ -244,6 +262,129 @@ void WideBitfieldAndBits(
     }
 }
 
+/// Scans the specified bit-mask for the least-significant '1' bit.
+///
+/// @returns True if the input was nonzero; false otherwise.
+template <typename T>
+bool BitMaskScanForward(
+    uint32* pIndex,  ///< [out] Index of least-significant '1' bit.
+    T       mask)    ///< Bit-mask to scan.
+{
+    bool result = false;
+
+    // Compiler intrinsics can be finnicky and possibly cause bad code gen; care must be taken when modifying this code!
+#if defined(_WIN64)
+    *pIndex = (sizeof(T) > 4) ? static_cast<uint32>(::_tzcnt_u64(mask)) : (::_tzcnt_u32(static_cast<uint32>(mask)));
+#else
+    *pIndex = (sizeof(T) > 4) ? __builtin_ctzll(mask) : __builtin_ctz(static_cast<uint32>(mask));
+#endif
+    if (mask != 0)
+    {
+        result = (mask != 0);
+    }
+
+    return result;
+}
+
+/// Scans the specified bit-mask for the most-significant '1' bit.
+///
+/// @returns True if the input was nonzero; false otherwise.
+template <typename T>
+bool BitMaskScanReverse(
+    uint32* pIndex,  ///< [out] Index of most-significant '1' bit.
+    T       mask)    ///< Bit-mask to scan.
+{
+    bool result = false;
+
+    // Compiler intrinsics can be finnicky and possibly cause bad code gen; care must be taken when modifying this code!
+#if defined(_WIN64)
+    auto*const pOut = reinterpret_cast<unsigned long*>(pIndex);
+    result = (sizeof(T) > 4) ? (::_BitScanReverse64(pOut, mask) != 0)
+                             : (::_BitScanReverse(pOut, static_cast<uint32>(mask)) != 0);
+#else
+    if (mask == 0)
+    {
+        *pIndex = 0;
+        result  = false;
+    }
+    else
+    {
+        *pIndex = (sizeof(T) > 4) ? (63u - __builtin_clzll(mask)) : (31u - __builtin_clz(static_cast<uint32>(mask)));
+        result  = true;
+    }
+#endif
+
+    return result;
+}
+
+/// Scans the specified wide bit-mask for the least-significant '1' bit.
+///
+/// @returns True if input was nonzero; false otherwise.
+template <typename T, size_t N>
+bool WideBitMaskScanForward(
+    uint32* pIndex,        ///< [out] Index of least-significant '1' bit.
+    T       (&mask)[N])    ///< Bit-mask to scan.
+{
+    uint32 maskIndex = ((*pIndex) / (sizeof(T) << 3));
+
+    // Check to see if the wide bitmask has some bits set.
+    uint32 index = 0;
+    while ((mask[index] == 0) && (++index < N));
+    bool result = (index < N);
+
+    while (result == true)
+    {
+        result = BitMaskScanForward(pIndex, mask[maskIndex]);
+
+        if (result == false)
+        {
+            ++maskIndex;
+            result = (maskIndex < N);
+        }
+        else
+        {
+            (*pIndex) = (*pIndex) + (maskIndex * (sizeof(T) << 3));
+            break;
+        }
+    }
+
+    return result;
+}
+
+/// Scans the specified wide bit-mask for the most-significant '1' bit.
+///
+/// @returns True if input was nonzero; false otherwise.
+template <typename T, size_t N>
+bool WideBitMaskScanReverse(
+    uint32* pIndex,        ///< [out] Index of most-significant '1' bit.
+    T       (&mask)[N])    ///< Bit-mask to scan.
+{
+    uint32 maskIndex = ((*pIndex) / (sizeof(T) << 3));
+
+    // Check to see if the wide bitmask has some bits set.
+    uint32 index = N - 1;
+    while ((mask[index] == 0) && (--index > 0));
+    bool result = (mask[index] != 0);
+
+    while (result == true)
+    {
+        result = BitMaskScanReverse(pIndex, mask[maskIndex]);
+
+        if (result == false)
+        {
+            const uint32 oldIndex = maskIndex--;
+            result = (oldIndex != 0);
+        }
+        else
+        {
+            (*pIndex) = (*pIndex) + (maskIndex * (sizeof(T) << 3));
+            break;
+        }
+    }
+
+    return result;
+}
+
 /// Determines if a value is a power of two.
 ///
 /// @returns True if it is a power of two, false otherwise.
@@ -275,6 +416,55 @@ T Pow2Align(
 {
     PAL_ASSERT(IsPowerOfTwo(alignment));
     return ((value + static_cast<T>(alignment) - 1) & ~(static_cast<T>(alignment) - 1));
+}
+
+/// Rounds the specified uint 'value' up to the nearest power of 2
+///
+/// @param [in] value  The value to pad.
+///
+/// @returns Power of 2 padded value.
+template <typename T>
+T Pow2Pad(
+    T value)
+{
+    T ret = value;
+
+    if ((value & (value - 1)) != 0)
+    {
+        uint32 lastBitIndex = 0;
+        BitMaskScanReverse(&lastBitIndex, value);
+        ret = (static_cast<T>(0x2) << lastBitIndex);
+    }
+
+    return ret;
+}
+
+/// Computes the base-2 logarithm of an unsigned integer.
+///
+/// If the given integer is not a power of 2, this function will not provide an exact answer.
+///
+/// @param [in] u  Value to compute the logarithm of.
+///
+/// @returns log_2(u)
+template <typename T>
+uint32 Log2(
+    T u)
+{
+    uint32 logValue = 0;
+    return BitMaskScanReverse(&logValue, u) ? logValue : 0;
+}
+
+/// Computes the base-2 logarithm of an unsigned 64-bit integer based on ceiling
+///
+/// If the given integer is not a power of 2, this function will not provide an exact answer.
+///
+/// @returns ceilLog_2(u)
+template <typename T>
+uint32 CeilLog2(
+    T u)  ///< Value to compute the ceil logarithm of.
+{
+    const uint32 logValue = Log2(u);
+    return ((static_cast<T>(0x1ul) << logValue) < u) ? (logValue + 1) : logValue;
 }
 
 /// Implements an alternative version of integer division in which the quotient is always rounded up instead of down.
@@ -323,29 +513,6 @@ T Pow2AlignDown(
     return (value & ~(alignment - 1));
 }
 
-/// Rounds the specified uint 'value' up to the nearest power of 2
-///
-/// @returns Power of 2 padded value.
-template <typename T>
-T Pow2Pad(
-    T value)  ///< Value to pad.
-{
-    T ret = 1;
-    if (IsPowerOfTwo(value))
-    {
-        ret = value;
-    }
-    else
-    {
-        while (ret < value)
-        {
-            ret <<= 1;
-        }
-    }
-
-    return ret;
-}
-
 /// Determines the maximum of two numbers.
 ///
 /// @returns The larger of the two inputs.
@@ -389,134 +556,6 @@ constexpr T Clamp(
 {
     return ((input <= lowBound)  ? lowBound  :
             (input >= highBound) ? highBound : input);
-}
-
-/// Computes the base-2 logarithm of an unsigned 64-bit integer.
-///
-/// If the given integer is not a power of 2, this function will not provide an exact answer.
-///
-/// @returns log_2(u)
-template <typename T>
-uint32 Log2(
-    T u)  ///< Value to compute the logarithm of.
-{
-    uint32 logValue = 0;
-
-    while (u > 1)
-    {
-        ++logValue;
-        u >>= 1;
-    }
-
-    return logValue;
-}
-
-/// Computes the base-2 logarithm of an unsigned 64-bit integer based on ceiling
-///
-/// If the given integer is not a power of 2, this function will not provide an exact answer.
-///
-/// @returns ceilLog_2(u)
-template <typename T>
-uint32 CeilLog2(
-    T u)  ///< Value to compute the ceil logarithm of.
-{
-    uint32 logValue = 0;
-
-    while ((0x1ul << logValue) < u)
-    {
-        logValue++;
-    }
-
-    return logValue;
-}
-
-/// Scans the specified bit-mask for the least-significant '1' bit.
-///
-/// @returns True if the input was nonzero; false otherwise.
-PAL_INLINE bool BitMaskScanForward(
-    uint32* pIndex,  ///< [out] Index of least-significant '1' bit.
-    uint32  mask)    ///< Bit-mask to scan.
-{
-    bool result = false;
-
-    const uint32 indexPlusOne = __builtin_ffs(mask);
-    if (indexPlusOne == 0)
-    {
-        *pIndex = 0;
-        result  = false;
-    }
-    else
-    {
-        *pIndex = (indexPlusOne - 1);
-        result  = true;
-    }
-
-    return result;
-}
-
-/// Scans the specified wide bit-mask for the least-significant '1' bit.
-///
-/// @returns True if input was nonzero; false otherwise.
-template <typename T, size_t N>
-bool WideBitMaskScanForward(
-    uint32* pIndex,        ///< [out] Index of least-significant '1' bit.
-    T       (&mask)[N])    ///< Bit-mask to scan.
-{
-    const  uint32 originalIndex = (*pIndex);
-    uint32        maskIndex     = ((*pIndex) / (sizeof(T) << 3));
-
-    // Check to see if the wide bitmask has some bits set.
-    uint32 index = 0;
-    while ((mask[index] == 0) && (++index < N));
-    bool result = (index < N);
-
-    // We're now using this to represent a local copy of the index of the least-significant '1' bit.
-    index = (*pIndex);
-
-    while (result == true)
-    {
-        const uint32 indexPlusOne = __builtin_ffs(mask[maskIndex]);
-        if (indexPlusOne == 0)
-        {
-            *pIndex = 0;
-            result = false;
-        }
-        else
-        {
-            *pIndex = (indexPlusOne - 1);
-            result = true;
-        }
-        if (result == false)
-        {
-            maskIndex++;
-            result = (maskIndex < N);
-        }
-        else
-        {
-            (*pIndex) = (*pIndex) + (maskIndex * (sizeof(T) << 3));
-            break;
-        }
-    }
-
-    return result;
-}
-
-/// Returns the high 32 bits of a 64-bit integer.
-///
-/// @returns Returns the high 32 bits of a 64-bit integer.
-constexpr uint32 HighPart(
-    uint64 value)  ///< 64-bit input value.
-{
-    return (value & 0xFFFFFFFF00000000) >> 32;
-}
-
-/// Returns the low 32 bits of a 64-bit integer.
-///
-/// @returns Returns the low 32 bits of a 64-bit integer.
-constexpr uint32 LowPart(
-    uint64 value)  ///< 64-bit input value.
-{
-    return (value & 0x00000000FFFFFFFF);
 }
 
 /// Converts a byte value to the equivalent number of DWORDs (uint32) rounded up.  I.e., 3 bytes will return 1 dword.
@@ -694,7 +733,7 @@ template <typename T>
 void Swap(T& left, T& right)
 {
     T tmp = Move(left);
-    left = Move(right);
+    left  = Move(right);
     right = Move(tmp);
 }
 

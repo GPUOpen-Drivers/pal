@@ -251,6 +251,10 @@ static const char* PipelineMetadataNameStrings[] =
     "RESERVED0",
 
     "RESERVED1",
+
+    "PS_WRITES_UAVS",
+    "PS_WRITES_DEPTH",
+    "PS_USES_APPEND_CONSUME",
 };
 
 /// The pipeline ABI note types.
@@ -442,8 +446,8 @@ enum class PipelineMetadataType : uint32
 
     HsMaxTessFactor,       ///< Maximum tessellation factor declared in the pipeline's HS. 32-bit float.
 
-    PsUsesUavs,            ///< 1 if the pipeline's pixel shader uses any UAVs, otherwise 0.
-    PsUsesRovs,            ///< 1 if the pipeline's pixel shader uses any ROVs, otherwise 0.
+    PsUsesUavs,            ///< 1 if the pipeline's pixel shader reads or writes any UAVs, otherwise 0.
+    PsUsesRovs,            ///< 1 if the pipeline's pixel shader reads or writes any ROVs, otherwise 0.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 382
     PsRunsAtSampleRate,    ///< 1 if the shader runs at sample rate vs. pixel rate.
@@ -549,6 +553,10 @@ enum class PipelineMetadataType : uint32
     Reserved0,                    ///< Reserved for future use.
 
     Reserved1,                    ///< Reserved for future use.
+
+    PsWritesUavs,                 ///< 1 if the pipeline's pixel shader writes any UAVs, otherwise 0.
+    PsWritesDepth,                ///< 1 if the pipeline's pixel shader writes depth values, otherwise 0.
+    PsUsesAppendConsume,          ///< 1 if the pipeline's pixel shader uses UAV append/consume operations, otherwise 0.
 
     Count,
 

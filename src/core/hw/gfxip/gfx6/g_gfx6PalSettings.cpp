@@ -84,13 +84,12 @@ void SettingsLoader::SetupDefaults()
     m_settings.dsWavesPerSimdOverflow = 4;
     m_settings.offchipTfDegree = 4.0;
     m_settings.gfx6OffChipHsSkipDataCopyNullPatch = false;
-    m_settings.gfxMaxWavesPerCu = 0;
-    m_settings.lsCuEnLimitMask = 0xffffffffL;
-    m_settings.esCuEnLimitMask = 0xffffffffL;
-    m_settings.gsCuEnLimitMask = 0xffffffffL;
-    m_settings.vsCuEnLimitMask = 0xffffffffL;
-    m_settings.psCuEnLimitMask = 0xffffffffL;
-    m_settings.csCuEnLimitMask = 0xffffffffL;
+    m_settings.lsCuEnLimitMask = 0xffffffff;
+    m_settings.esCuEnLimitMask = 0xffffffff;
+    m_settings.gsCuEnLimitMask = 0xffffffff;
+    m_settings.vsCuEnLimitMask = 0xffffffff;
+    m_settings.psCuEnLimitMask = 0xffffffff;
+    m_settings.csCuEnLimitMask = 0xffffffff;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
@@ -284,11 +283,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsSkipDataCopyNullPatchStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx6OffChipHsSkipDataCopyNullPatch,
-                           InternalSettingScope::PrivatePalGfx6Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfxMaxWavesPerCuStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gfxMaxWavesPerCu,
                            InternalSettingScope::PrivatePalGfx6Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLsCuEnLimitMaskStr,
@@ -559,6 +553,19 @@ void SettingsLoader::ReadSettings()
 }
 
 // =====================================================================================================================
+// Reads the setting from the OS adapter and sets the structure value when the setting values are found.
+// This is expected to be done after the component has perform overrides of any defaults.
+void SettingsLoader::RereadSettings()
+{
+    // read from the OS adapter for each individual setting
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscGsNullPrimStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waMiscGsNullPrim,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+}
+
+// =====================================================================================================================
 // Initializes the SettingInfo hash map and array of setting hashes.
 void SettingsLoader::InitSettingsInfo()
 {
@@ -703,11 +710,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.gfx6OffChipHsSkipDataCopyNullPatch;
     info.valueSize = sizeof(m_settings.gfx6OffChipHsSkipDataCopyNullPatch);
     m_settingsInfoMap.Insert(1952167388, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gfxMaxWavesPerCu;
-    info.valueSize = sizeof(m_settings.gfxMaxWavesPerCu);
-    m_settingsInfoMap.Insert(4080017031, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.lsCuEnLimitMask;

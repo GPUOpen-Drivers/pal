@@ -676,6 +676,36 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    VerifyBarrierTransitions(releaseInfo);
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    VerifyBarrierTransitions(acquireInfo);
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    VerifyBarrierTransitions(barrierInfo);
+#endif // PAL_ENABLE_PRINTS_ASSERTS
+}
+
+// =====================================================================================================================
 // Writes the commands necessary to write "data" to the specified event.
 // Invoked whenever you call ICmdBuffer::CmdSetEvent or ICmdBuffer::CmdResetEvent.
 void CmdBuffer::WriteEvent(
@@ -1021,6 +1051,75 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
     uint32      zDim)
 {
     PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Helper function used for validation of depth / stencil image transitions. For Release/acquire-based barrier only.
+void CmdBuffer::VerifyBarrierTransitions(
+    const AcquireReleaseInfo& barrierInfo
+    ) const
+{
+    AutoBuffer<bool, 16, Platform>  processed(barrierInfo.imageBarrierCount, m_device.GetPlatform());
+    if (processed.Capacity() >= barrierInfo.imageBarrierCount)
+    {
+        memset(&processed[0], 0, sizeof(bool) * barrierInfo.imageBarrierCount);
+
+        for (uint32  idx = 0; idx < barrierInfo.imageBarrierCount; idx++)
+        {
+            const ImgBarrier& transition = barrierInfo.pImageBarriers[idx];
+            const auto*       pImage     = static_cast<const Image*>(transition.pImage);
+
+            PAL_ASSERT(pImage != nullptr);
+
+            const ImageCreateFlags&  imageCreateFlags = pImage->GetImageCreateInfo().flags;
+
+            // If we have (deep breath):
+            //     A depth image with both Z and stencil aspects
+            //     That is coming out of uninitialized state
+            //     That we haven't seen before
+            //     That is valid for sub-resource-init
+            //     That must transition both the depth and stencil aspects on the same barrier call to be safe
+            //
+            // then we need to do a little more validation.
+            if (pImage->IsDepthStencil()                                                   &&
+                pImage->IsAspectValid(ImageAspect::Depth)                                  &&
+                pImage->IsAspectValid(ImageAspect::Stencil)                                &&
+                TestAnyFlagSet(transition.oldLayout.usages, LayoutUninitializedTarget)     &&
+                (processed[idx] == false)                                                  &&
+                imageCreateFlags.perSubresInit                                             &&
+                (imageCreateFlags.separateDepthAspectInit == false))
+            {
+                const ImageAspect  firstAspect = transition.subresRange.startSubres.aspect;
+                const ImageAspect  otherAspect = (firstAspect == ImageAspect::Depth)
+                                                    ? ImageAspect::Stencil
+                                                    : ImageAspect::Depth;
+
+                bool  otherAspectFound = false;
+                for (uint32  innerIdx = idx + 1;
+                     ((otherAspectFound == false) && (innerIdx < barrierInfo.imageBarrierCount));
+                     innerIdx++)
+                {
+                    const ImgBarrier& innerTransition = barrierInfo.pImageBarriers[innerIdx];
+
+                    // We found the other aspect if this transition is:
+                    //   1) Referencing the same image
+                    //   2) Also coming out of uninitialized state
+                    //   3) Refers to the "other" aspect
+                    if ((innerTransition.pImage == pImage)                                          &&
+                        TestAnyFlagSet(innerTransition.oldLayout.usages, LayoutUninitializedTarget) &&
+                        (innerTransition.subresRange.startSubres.aspect == otherAspect))
+                    {
+                        processed[innerIdx] = true;
+                        otherAspectFound    = true;
+                    }
+                }
+
+                PAL_ASSERT(otherAspectFound);
+
+                processed[idx] = true;
+            } // end check for an image that needs more validation
+        } // end loop through all the transitions associated with this barrier
+    }
 }
 
 } // Pal

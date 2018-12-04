@@ -1047,13 +1047,14 @@ Pal::Result GpaSession::TimedSubmit(
 Pal::Result GpaSession::TimedSignalQueueSemaphore(
     Pal::IQueue*                   pQueue,
     IQueueSemaphore*               pQueueSemaphore,
-    const TimedQueueSemaphoreInfo& timedSignalInfo)
+    const TimedQueueSemaphoreInfo& timedSignalInfo,
+    Pal::uint64                    value)
 {
     Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
 
     if (result == Pal::Result::Success)
     {
-        result = pQueue->SignalQueueSemaphore(pQueueSemaphore);
+        result = pQueue->SignalQueueSemaphore(pQueueSemaphore, value);
     }
 
     TimedQueueState* pQueueState = nullptr;
@@ -1086,13 +1087,14 @@ Pal::Result GpaSession::TimedSignalQueueSemaphore(
 Pal::Result GpaSession::TimedWaitQueueSemaphore(
     Pal::IQueue*                   pQueue,
     IQueueSemaphore*               pQueueSemaphore,
-    const TimedQueueSemaphoreInfo& timedWaitInfo)
+    const TimedQueueSemaphoreInfo& timedWaitInfo,
+    Pal::uint64                    value)
 {
     Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
 
     if (result == Pal::Result::Success)
     {
-        result = pQueue->WaitQueueSemaphore(pQueueSemaphore);
+        result = pQueue->WaitQueueSemaphore(pQueueSemaphore, value);
     }
 
     TimedQueueState* pQueueState = nullptr;
@@ -2899,7 +2901,7 @@ Result GpaSession::AcquirePerfExperiment(
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 429
-                    if (Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
+                    if (sampleConfig.sqtt.seMask == 0 || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
 #endif
                     {
                         sqttInfo.instance = i;

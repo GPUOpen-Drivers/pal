@@ -2004,6 +2004,392 @@ void CmdBuffer::DescribeBarrier(
 }
 
 // =====================================================================================================================
+static void MemoryBarrierTransitionToString(
+    CmdBuffer*        pCmdBuffer,
+    uint32            index,
+    const MemBarrier& transition,
+    char              string[StringLength])
+{
+    Snprintf(&string[0], StringLength, "barrierInfo.pMemoryBarriers[%u] = {", index);
+    pCmdBuffer->CmdCommentString(&string[0]);
+
+    pCmdBuffer->CmdCommentString("\tmemory = [");
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    DumpGpuMemoryInfo(pCmdBuffer, transition.memory.pGpuMemory, "Bound GpuMemory", "\t\t");
+
+    Snprintf(pString, StringLength, "%s\t offset = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, "%s\t Size   = 0x%016llX", "Bound GpuMemory", transition.memory.size);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    pCmdBuffer->CmdCommentString("\t]");
+
+    Snprintf(pString, StringLength, "srcAccessMask = 0x%0X", transition.srcAccessMask);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "dstAccessMask = 0x%0X", transition.dstAccessMask);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    pCmdBuffer->CmdCommentString("}");
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+static void ImageBarrierTransitionToString(
+    CmdBuffer*        pCmdBuffer,
+    uint32            index,
+    const ImgBarrier& transition,
+    char              string[StringLength])
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    Snprintf(&string[0], StringLength, "barrierInfo.pImageBarriers[%u] = {", index);
+    pNextCmdBuffer->CmdCommentString(&string[0]);
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    if (transition.pImage != nullptr)
+    {
+        DumpImageInfo(pCmdBuffer, transition.pImage, "pImage", "\t\t");
+
+        SubresRangeToString(pCmdBuffer, transition.subresRange, pString);
+        Snprintf(&string[0], StringLength, "\t\tsubresRange = %s", pString);
+        pNextCmdBuffer->CmdCommentString(&string[0]);
+
+        pNextCmdBuffer->CmdCommentString("\tBox = {");
+
+        Snprintf(pString, StringLength, "\t\t");
+        Offset3dToString(transition.box.offset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "\t\t");
+        Extent3dToString(transition.box.extent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        pNextCmdBuffer->CmdCommentString("\t}");
+
+        Snprintf(pString, StringLength, "srcAccessMask = 0x%0X", transition.srcAccessMask);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "dstAccessMask = 0x%0X", transition.dstAccessMask);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(&string[0], StringLength, "\t\toldLayout = ");
+        ImageLayoutToString(transition.oldLayout, &string[0]);
+        pNextCmdBuffer->CmdCommentString(&string[0]);
+
+        Snprintf(&string[0], StringLength, "\t\tnewLayout = ");
+        ImageLayoutToString(transition.newLayout, &string[0]);
+        pNextCmdBuffer->CmdCommentString(&string[0]);
+
+        if (transition.pQuadSamplePattern != nullptr)
+        {
+            DumpMsaaQuadSamplePattern(
+                pCmdBuffer, *transition.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
+        }
+    }
+    else
+    {
+        Snprintf(&string[0], StringLength, "\t\tpImage = 0x%016" PRIXPTR, transition.pImage);
+        pNextCmdBuffer->CmdCommentString(&string[0]);
+    }
+
+    pNextCmdBuffer->CmdCommentString("}");
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+static void CmdReleaseToString(
+    CmdBuffer*                pCmdBuffer,
+    const AcquireReleaseInfo& barrierInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = 0x%0X", barrierInfo.srcStageMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = 0x%0X", barrierInfo.srcGlobalAccessMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    {
+        MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
+    }
+
+    Snprintf(pString, StringLength, "barrierInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
+    }
+
+    pNextCmdBuffer->CmdCommentString("IGpuEvent:");
+    Snprintf(pString, StringLength,
+        "pGpuEvent = 0x%016" PRIXPTR, pGpuEvent);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+static void CmdAcquireToString(
+    CmdBuffer*                pCmdBuffer,
+    const AcquireReleaseInfo& barrierInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = 0x%0X", barrierInfo.dstStageMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = 0x%0X", barrierInfo.dstGlobalAccessMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    {
+        MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
+    }
+
+    Snprintf(pString, StringLength, "gpuEventCount = %u", gpuEventCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < gpuEventCount; i++)
+    {
+        pNextCmdBuffer->CmdCommentString("IGpuEvent:");
+        Snprintf(pString, StringLength,
+            "pGpuEvent = 0x%016" PRIXPTR, ppGpuEvents[i]);
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+static void CmdAcquireReleaseToString(
+    CmdBuffer*                pCmdBuffer,
+    const AcquireReleaseInfo& barrierInfo)
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = 0x%0X", barrierInfo.srcStageMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = 0x%0X", barrierInfo.dstStageMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = 0x%0X", barrierInfo.srcGlobalAccessMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = 0x%0X", barrierInfo.dstGlobalAccessMask);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    {
+        MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
+    }
+
+    Snprintf(pString, StringLength, "barrierInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        ImageBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pImageBarriers[i], pString);
+    }
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    if (m_flags.logCmdBarrier)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdRelease));
+
+        CmdReleaseToString(this, releaseInfo, pGpuEvent);
+    }
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
+    AcquireReleaseInfo nextReleaseInfo = releaseInfo;
+    MemBarrier*        pMemoryBarriers = nullptr;
+    ImgBarrier*        pImageBarriers  = nullptr;
+    const IGpuEvent*   pNextGpuEvent   = NextGpuEvent(pGpuEvent);
+
+    if (releaseInfo.memoryBarrierCount > 0)
+    {
+        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, releaseInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            pMemoryBarriers[i] = releaseInfo.pMemoryBarriers[i];
+            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+
+        nextReleaseInfo.pMemoryBarriers = pMemoryBarriers;
+    }
+
+    if (releaseInfo.imageBarrierCount > 0)
+    {
+        pImageBarriers = PAL_NEW_ARRAY(ImgBarrier, releaseInfo.imageBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            pImageBarriers[i] = releaseInfo.pImageBarriers[i];
+            pImageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+
+        nextReleaseInfo.pImageBarriers = pImageBarriers;
+    }
+
+    GetNextLayer()->CmdRelease(nextReleaseInfo, pNextGpuEvent);
+
+    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+    PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    if (m_flags.logCmdBarrier)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdAcquire));
+
+        CmdAcquireToString(this, acquireInfo, gpuEventCount, ppGpuEvents);
+    }
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
+    AcquireReleaseInfo     nextAcquireInfo = acquireInfo;
+    MemBarrier*            pMemoryBarriers = nullptr;
+    ImgBarrier*            pImageBarriers  = nullptr;
+    const IGpuEvent** ppNextGpuEvents = nullptr;
+
+    if (acquireInfo.memoryBarrierCount > 0)
+    {
+        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, acquireInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            pMemoryBarriers[i] = acquireInfo.pMemoryBarriers[i];
+            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+
+        nextAcquireInfo.pMemoryBarriers = pMemoryBarriers;
+    }
+
+    if (acquireInfo.imageBarrierCount > 0)
+    {
+        pImageBarriers = PAL_NEW_ARRAY(ImgBarrier, acquireInfo.imageBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            pImageBarriers[i] = acquireInfo.pImageBarriers[i];
+            pImageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
+        }
+
+        nextAcquireInfo.pImageBarriers = pImageBarriers;
+    }
+
+    if (gpuEventCount > 0)
+    {
+        ppNextGpuEvents = PAL_NEW_ARRAY(const IGpuEvent*, gpuEventCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < gpuEventCount; i++)
+        {
+            ppNextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
+        }
+
+        nextAcquireInfo.pImageBarriers = pImageBarriers;
+    }
+
+    GetNextLayer()->CmdAcquire(nextAcquireInfo, gpuEventCount, ppNextGpuEvents);
+
+    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+    PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
+    PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    if (m_flags.logCmdBarrier)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdReleaseThenAcquire));
+
+        CmdAcquireReleaseToString(this, barrierInfo);
+    }
+
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
+    AcquireReleaseInfo nextBarrierInfo = barrierInfo;
+    MemBarrier*        pMemoryBarriers = nullptr;
+    ImgBarrier*        pImageBarriers  = nullptr;
+
+    if (barrierInfo.memoryBarrierCount > 0)
+    {
+        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, barrierInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+        {
+            pMemoryBarriers[i] = barrierInfo.pMemoryBarriers[i];
+            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+
+        nextBarrierInfo.pMemoryBarriers = pMemoryBarriers;
+    }
+
+    if (barrierInfo.imageBarrierCount > 0)
+    {
+        pImageBarriers = PAL_NEW_ARRAY(ImgBarrier, barrierInfo.imageBarrierCount, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+        {
+            pImageBarriers[i] = barrierInfo.pImageBarriers[i];
+            pImageBarriers[i].pImage = NextImage(barrierInfo.pImageBarriers[i].pImage);
+        }
+
+        nextBarrierInfo.pImageBarriers = pImageBarriers;
+    }
+
+    GetNextLayer()->CmdReleaseThenAcquire(nextBarrierInfo);
+
+    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+    PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdWaitRegisterValue(
     uint32      registerOffset,
     uint32      data,

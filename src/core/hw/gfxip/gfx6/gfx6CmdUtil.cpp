@@ -3066,7 +3066,9 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     pPacket->ordinal4           = 0;
     pPacket->ordinal5           = 0;
 
-    constexpr uint32 DataType = 0; // 0 Indicates the GPU memory buffer-filled-size is in dwords.
+    // The dataType field was added in uCode version #26 to support stream-out size in bytes.
+    PAL_ASSERT(m_device.EngineProperties().cpUcodeVersion >= 26);
+    constexpr uint32 DataType = 1; // 1 Indicates the GPU memory buffer-filled-size is in bytes.
 
     switch (sourceSelect)
     {

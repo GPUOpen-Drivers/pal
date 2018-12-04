@@ -50,25 +50,29 @@ public:
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo) override { return Result::ErrorUnavailable; }
 
     // Instructs a Queue to signal this Semaphore.
-    virtual Result Signal(Queue* pQueue) override { return SignalInternal(pQueue, this); }
+    virtual Result Signal(
+        Queue* pQueue,
+        uint64 value) override { return SignalInternal(pQueue, this, value); }
 
     // Instructs a Queue to wait on this Semaphore.
     virtual Result Wait(
         Queue*         pQueue,
-        volatile bool* pIsStalled) override { return WaitInternal(pQueue, this, pIsStalled); }
+        uint64         value,
+        volatile bool* pIsStalled) override { return WaitInternal(pQueue, this, value, pIsStalled); }
 
     // NOTE: Part of the public IQueueSemaphore interface.
     virtual bool HasStalledQueues() override;
 
     bool IsBlockedBySemaphore(const QueueSemaphore* pSemaphore);
-
     Result SignalInternal(
         Queue*          pQueue,
-        QueueSemaphore* pSemaphore);
+        QueueSemaphore* pSemaphore,
+        uint64          value);
 
     Result WaitInternal(
         Queue*          pQueue,
         QueueSemaphore* pSemaphore,
+        uint64          value,
         volatile bool*  pIsStalled);
 
     Result InitExternal();
@@ -78,7 +82,8 @@ public:
 private:
     Result AddBlockedQueue(
         Queue*          pQueue,
-        QueueSemaphore* pSemaphore);
+        QueueSemaphore* pSemaphore,
+        uint64          value);
     Result ReleaseBlockedQueues();
 
     Util::Mutex  m_queuesLock;
@@ -88,6 +93,7 @@ private:
     {
         Queue*           pQueue;        // The blocked Queue
         QueueSemaphore*  pSemaphore;    // The blocking Semaphore
+        uint64           value;         // timeline semaphore point value
         uint64           waitCount;     // The wait-count before the Queue becomes unblocked
     };
 

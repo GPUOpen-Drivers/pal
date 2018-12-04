@@ -1287,6 +1287,17 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+    virtual void CmdRelease(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) override;
+
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) override;
+
+    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
+
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
         const IGpuMemory&       dstGpuMemory,
@@ -2625,12 +2636,14 @@ public:
         { return m_pNextLayer->WaitIdle(); }
 
     virtual Result SignalQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) override
-        { return m_pNextLayer->SignalQueueSemaphore(NextQueueSemaphore(pQueueSemaphore)); }
+        IQueueSemaphore* pQueueSemaphore,
+        uint64           value) override
+        { return m_pNextLayer->SignalQueueSemaphore(NextQueueSemaphore(pQueueSemaphore), value); }
 
     virtual Result WaitQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) override
-        { return m_pNextLayer->WaitQueueSemaphore(NextQueueSemaphore(pQueueSemaphore)); }
+        IQueueSemaphore* pQueueSemaphore,
+        uint64           value) override
+        { return m_pNextLayer->WaitQueueSemaphore(NextQueueSemaphore(pQueueSemaphore), value); }
 
     virtual Result PresentDirect(
         const PresentDirectInfo& presentInfo) override;
@@ -2720,6 +2733,15 @@ public:
     virtual OsExternalHandle ExportExternalHandle(
         const QueueSemaphoreExportInfo& exportInfo) const override
         { return m_pNextLayer->ExportExternalHandle(exportInfo); }
+
+    virtual Result QuerySemaphoreValue(uint64*  pValue) override
+        { return m_pNextLayer->QuerySemaphoreValue(pValue); }
+
+    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs) override
+        { return m_pNextLayer->WaitSemaphoreValue(value, timeoutNs); }
+
+    virtual Result SignalSemaphoreValue(uint64  value) override
+        { return m_pNextLayer->SignalSemaphoreValue(value); }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

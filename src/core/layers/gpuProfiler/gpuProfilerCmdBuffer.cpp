@@ -761,6 +761,249 @@ void CmdBuffer::ReplayCmdBarrier(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    InsertToken(CmdBufCallId::CmdRelease);
+    InsertToken(releaseInfo.srcStageMask);
+    InsertToken(releaseInfo.dstStageMask);
+    InsertToken(releaseInfo.srcGlobalAccessMask);
+    InsertToken(releaseInfo.dstGlobalAccessMask);
+    InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
+    InsertTokenArray(releaseInfo.pImageBarriers, releaseInfo.imageBarrierCount);
+
+    InsertToken(pGpuEvent);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdRelease(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    AcquireReleaseInfo releaseInfo;
+
+    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
+    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
+    releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
+    releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
+    releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
+    releaseInfo.imageBarrierCount   = ReadTokenArray(&releaseInfo.pImageBarriers);
+
+    auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
+
+    pTgtCmdBuffer->ResetBarrierString();
+
+    // We can only log the parameters of one transition at a time.
+    LogItem logItem = { };
+    logItem.cmdBufCall.flags.barrier    = 1;
+    logItem.cmdBufCall.barrier.pComment = nullptr;
+
+    char commentString[MaxCommentLength] = {};
+    Snprintf(&commentString[0], MaxCommentLength,
+                "SrcGlobalAccessMask: 0x%08x\n"
+                "DstGlobalAccessMask: 0x%08x",
+                releaseInfo.srcGlobalAccessMask,
+                releaseInfo.dstGlobalAccessMask);
+    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+
+    for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+    {
+        const MemBarrier& memoryBarrier = releaseInfo.pMemoryBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcAccessMask: 0x%08x\n"
+                 "DstAccessMask: 0x%08x",
+                 memoryBarrier.srcAccessMask,
+                 memoryBarrier.dstAccessMask);
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+    {
+        const ImgBarrier& imageBarrier = releaseInfo.pImageBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcCacheMask: 0x%08x\n"
+                 "DstCacheMask: 0x%08x\n"
+                 "OldLayout: 0x%08x\n"
+                 "NewLayout: 0x%08x",
+                 imageBarrier.srcAccessMask,
+                 imageBarrier.dstAccessMask,
+                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdRelease);
+
+    pTgtCmdBuffer->CmdRelease(releaseInfo, pGpuEvent);
+
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    InsertToken(CmdBufCallId::CmdAcquire);
+    InsertToken(acquireInfo.srcStageMask);
+    InsertToken(acquireInfo.dstStageMask);
+    InsertToken(acquireInfo.srcGlobalAccessMask);
+    InsertToken(acquireInfo.dstGlobalAccessMask);
+    InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
+    InsertTokenArray(acquireInfo.pImageBarriers, acquireInfo.imageBarrierCount);
+
+    InsertTokenArray(ppGpuEvents, gpuEventCount);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdAcquire(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    AcquireReleaseInfo acquireInfo;
+
+    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
+    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
+    acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
+    acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
+    acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
+    acquireInfo.imageBarrierCount   = ReadTokenArray(&acquireInfo.pImageBarriers);
+
+    IGpuEvent** ppGpuEvents   = nullptr;
+    uint32      gpuEventCount = ReadTokenArray(&ppGpuEvents);
+
+    pTgtCmdBuffer->ResetBarrierString();
+
+    // We can only log the parameters of one transition at a time.
+    LogItem logItem = { };
+    logItem.cmdBufCall.flags.barrier    = 1;
+    logItem.cmdBufCall.barrier.pComment = nullptr;
+
+    char commentString[MaxCommentLength] = {};
+    Snprintf(&commentString[0], MaxCommentLength,
+                "SrcGlobalAccessMask: 0x%08x\n"
+                "DstGlobalAccessMask: 0x%08x",
+                acquireInfo.srcGlobalAccessMask,
+                acquireInfo.dstGlobalAccessMask);
+    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+
+    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    {
+        const MemBarrier& memoryBarrier = acquireInfo.pMemoryBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcAccessMask: 0x%08x\n"
+                 "DstAccessMask: 0x%08x",
+                 memoryBarrier.srcAccessMask,
+                 memoryBarrier.dstAccessMask);
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+    for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+    {
+        const ImgBarrier& imageBarrier = acquireInfo.pImageBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcCacheMask: 0x%08x\n"
+                 "DstCacheMask: 0x%08x\n"
+                 "OldLayout: 0x%08x\n"
+                 "NewLayout: 0x%08x",
+                 imageBarrier.srcAccessMask,
+                 imageBarrier.dstAccessMask,
+                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdAcquire);
+
+    pTgtCmdBuffer->CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
+
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
+    InsertToken(barrierInfo.srcStageMask);
+    InsertToken(barrierInfo.dstStageMask);
+    InsertToken(barrierInfo.srcGlobalAccessMask);
+    InsertToken(barrierInfo.dstGlobalAccessMask);
+    InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
+    InsertTokenArray(barrierInfo.pImageBarriers, barrierInfo.imageBarrierCount);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdReleaseThenAcquire(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    AcquireReleaseInfo barrierInfo;
+
+    barrierInfo.srcStageMask        = ReadTokenVal<uint32>();
+    barrierInfo.dstStageMask        = ReadTokenVal<uint32>();
+    barrierInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
+    barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
+    barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
+    barrierInfo.imageBarrierCount   = ReadTokenArray(&barrierInfo.pImageBarriers);
+
+    pTgtCmdBuffer->ResetBarrierString();
+
+    // We can only log the parameters of one transition at a time.
+    LogItem logItem = { };
+    logItem.cmdBufCall.flags.barrier    = 1;
+    logItem.cmdBufCall.barrier.pComment = nullptr;
+
+    char commentString[MaxCommentLength] = {};
+    Snprintf(&commentString[0], MaxCommentLength,
+                "SrcGlobalAccessMask: 0x%08x\n"
+                "DstGlobalAccessMask: 0x%08x",
+                barrierInfo.srcGlobalAccessMask,
+                barrierInfo.dstGlobalAccessMask);
+    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+
+    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    {
+        const MemBarrier& memoryBarrier = barrierInfo.pMemoryBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcAccessMask: 0x%08x\n"
+                 "DstAccessMask: 0x%08x",
+                 memoryBarrier.srcAccessMask,
+                 memoryBarrier.dstAccessMask);
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        const ImgBarrier& imageBarrier = barrierInfo.pImageBarriers[i];
+
+        Snprintf(&commentString[0], MaxCommentLength,
+                 "SrcCacheMask: 0x%08x\n"
+                 "DstCacheMask: 0x%08x\n"
+                 "OldLayout: 0x%08x\n"
+                 "NewLayout: 0x%08x",
+                 imageBarrier.srcAccessMask,
+                 imageBarrier.dstAccessMask,
+                 *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
+                 *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
+        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    }
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdReleaseThenAcquire);
+
+    pTgtCmdBuffer->CmdReleaseThenAcquire(barrierInfo);
+
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdWaitRegisterValue(
     uint32      registerOffset,
     uint32      data,
@@ -3140,6 +3383,9 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
         &CmdBuffer::ReplayCmdBarrier,
+        &CmdBuffer::ReplayCmdRelease,
+        &CmdBuffer::ReplayCmdAcquire,
+        &CmdBuffer::ReplayCmdReleaseThenAcquire,
         &CmdBuffer::ReplayCmdWaitRegisterValue,
         &CmdBuffer::ReplayCmdWaitMemoryValue,
         &CmdBuffer::ReplayCmdWaitBusAddressableMemoryMarker,

@@ -1665,7 +1665,6 @@ Result Device::GetProperties(
             auto*       pQueueInfo = &pInfo->queueProperties[i];
 
             pQueueInfo->flags.supportsSwapChainPresents = queueInfo.flags.supportsSwapChainPresents;
-
             pQueueInfo->supportedDirectPresentModes     = queueInfo.supportedDirectPresentModes;
         }
         pInfo->gpuMemoryProperties.flags.virtualRemappingSupport = m_memoryProperties.flags.virtualRemappingSupport;
@@ -1816,6 +1815,10 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
             pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 457
+            pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
+            pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
+#endif
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;

@@ -341,7 +341,7 @@ void Gfx9ThreadTrace::GetHwTokenConfig(
     else
     {
         // Perf counter gathering in thread trace is not supported currently.
-        PAL_ASSERT((configTokens & ThreadTraceTokenTypeFlags::Perf) == 0);
+        PAL_ALERT(Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Perf));
 
         pTokenMask->misc         = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Misc         );
         pTokenMask->timestamp    = Util::TestAnyFlagSet(configTokens, ThreadTraceTokenTypeFlags::Timestamp    );
@@ -361,14 +361,15 @@ void Gfx9ThreadTrace::GetHwTokenConfig(
     }
 
     // There is no option to choose between register reads and writes in TT2.1, so we enable all register ops.
-    const bool allRegs = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::AllRegWrites) ||
-                         Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::AllRegReads)  ||
+    const bool allRegs = Util::TestAllFlagsSet(configRegMask, ThreadTraceRegTypeFlags::AllRegWrites) ||
+                         Util::TestAllFlagsSet(configRegMask, ThreadTraceRegTypeFlags::AllRegReads)  ||
                          Util::TestAllFlagsSet(configRegMask, ThreadTraceRegTypeFlags::AllReadsAndWrites);
 
     if (allRegs)
     {
-        //Note: According to the thread trace programming guide, the "other" bit must always be set to 0
-        pRegMask->u8All = 0x7F;
+        //Note: According to the thread trace programming guide, the "other" bit must always be set to 0.
+        //      However, this should be safe so long as stable 'profiling' clocks are enabled
+        pRegMask->u8All = 0xFF;
     }
     else
     {
@@ -381,6 +382,8 @@ void Gfx9ThreadTrace::GetHwTokenConfig(
         pRegMask->shdec                  = Util::TestAnyFlagSet(configRegMask,
                                                                 ThreadTraceRegTypeFlags::ShaderLaunchStateRegs);
         pRegMask->ttMarkerEventInitiator = Util::TestAnyFlagSet(configRegMask, ThreadTraceRegTypeFlags::MarkerRegs);
+        pRegMask->other                  = Util::TestAnyFlagSet(configRegMask,
+                                                                ThreadTraceRegTypeFlags::OtherConfigRegs);
     }
 }
 

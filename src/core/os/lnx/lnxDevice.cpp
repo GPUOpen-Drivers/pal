@@ -26,6 +26,7 @@
 #include "core/g_palSettings.h"
 #include "core/os/lnx/dri3/dri3WindowSystem.h"
 #include "core/os/lnx/lnxDevice.h"
+#include "core/queueSemaphore.h"
 #include "core/os/lnx/lnxQueue.h"
 #include "core/os/lnx/lnxTimestampFence.h"
 #include "core/os/lnx/lnxSyncobjFence.h"
@@ -487,11 +488,11 @@ Result Device::OsLateInit()
     CheckSyncObjectSupportStatus();
 
     // reconfigure Semaphore/Fence Type with m_syncobjSupportState.
-    if ((Settings().disableSyncObject == false) && m_syncobjSupportState.SyncobjSemaphore)
+    if ((Settings().disableSyncObject == false) && m_syncobjSupportState.syncobjSemaphore)
     {
         m_semType = SemaphoreType::SyncObj;
 
-        if ((Settings().disableSyncobjFence == false) && m_syncobjSupportState.SyncobjFence)
+        if ((Settings().disableSyncobjFence == false) && m_syncobjSupportState.syncobjFence)
         {
             m_fenceType = FenceType::SyncObj;
         }
@@ -722,6 +723,12 @@ Result Device::GetProperties(
         pInfo->osProperties.supportSyncFileSemaphore = (m_semType == SemaphoreType::SyncObj);
         pInfo->osProperties.supportSyncFileFence     = (m_fenceType == FenceType::SyncObj);
 #endif
+
+        pInfo->osProperties.timelineSemaphore.support                 = m_syncobjSupportState.timelineSemaphore;
+        pInfo->osProperties.timelineSemaphore.supportHostQuery        = m_syncobjSupportState.timelineSemaphore;
+        pInfo->osProperties.timelineSemaphore.supportHostWait         = m_syncobjSupportState.timelineSemaphore;
+        pInfo->osProperties.timelineSemaphore.supportHostSignal       = false;
+        pInfo->osProperties.timelineSemaphore.supportWaitBeforeSignal = false;
 
         pInfo->osProperties.supportQueuePriority = m_supportQueuePriority;
         // Linux don't support changing the queue priority at the submission granularity.
@@ -978,7 +985,7 @@ void Device::InitGfx9ChipProperties()
 
     InitGfx9CuMask();
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(m_engineProperties.cpUcodeVersion, &m_chipProperties);
+    Gfx9::InitializeGpuChipProperties(GetPlatform(), m_engineProperties.cpUcodeVersion, &m_chipProperties);
 
     if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
     {
@@ -3150,20 +3157,20 @@ void Device::CheckSyncObjectSupportStatus()
         {
             status = DestroySyncObject(hSyncobj);
         }
-        m_syncobjSupportState.SyncobjSemaphore = (status == Result::Success);
+        m_syncobjSupportState.syncobjSemaphore = (status == Result::Success);
 
         // Check CreateSignaledSyncObject support with DRM_SYNCOBJ_CREATE_SIGNALED flags
         // Dependent on Basic SyncObject's support
         if ((pLnxPlatform->IsCreateSignaledSyncObjectSupported()) &&
-            (m_syncobjSupportState.SyncobjSemaphore == 1))
+            (m_syncobjSupportState.syncobjSemaphore == 1))
         {
             status = CreateSyncObject(DRM_SYNCOBJ_CREATE_SIGNALED, &hSyncobj);
-            m_syncobjSupportState.InitialSignaledSyncobjSemaphore = (status == Result::Success);
+            m_syncobjSupportState.initialSignaledSyncobjSemaphore = (status == Result::Success);
 
             // Check SyncobjFence needed SyncObject api with wait/reset interface
             // Dependent on CreateSignaledSyncObject support; Will just wait on this initial Signaled Syncobj.
             if ((pLnxPlatform->IsSyncobjFenceSupported()) &&
-                (m_syncobjSupportState.InitialSignaledSyncobjSemaphore == 1))
+                (m_syncobjSupportState.initialSignaledSyncobjSemaphore == 1))
             {
                 if (status == Result::Success)
                 {
@@ -3182,9 +3189,14 @@ void Device::CheckSyncObjectSupportStatus()
                         status = ResetSyncObject(&hSyncobj, 1);
                     }
                     DestroySyncObject(hSyncobj);
-                    m_syncobjSupportState.SyncobjFence = (status == Result::Success);
+                    m_syncobjSupportState.syncobjFence = (status == Result::Success);
                 }
             }
+        }
+        if (IsDrmVersionOrGreater(3,28))
+        {
+	    // disable by default until kenerl and libdrm are finalized.
+            m_syncobjSupportState.timelineSemaphore = false;
         }
     }
 }
@@ -3218,7 +3230,9 @@ Result Device::SyncObjExportSyncFile(
 // =====================================================================================================================
 Result Device::ConveySyncObjectState(
     amdgpu_syncobj_handle importSyncObj,
-    amdgpu_syncobj_handle exportSyncObj
+    uint64                importPoint,
+    amdgpu_syncobj_handle exportSyncObj,
+    uint64                exportPoint
     ) const
 {
     // In current kernel driver, the ioctl to transfer fence state is not implemented.
@@ -3226,9 +3240,11 @@ Result Device::ConveySyncObjectState(
     // It still runs into problem, since we cannot guarantee the fence is still valid when we call the export, since
     // the fence would be null-ed if signaled.
     int32 syncFileFd = 0;
-    int32 ret = m_drmProcs.pfnAmdgpuCsSyncobjExportSyncFile(m_hDevice,
-                                                            exportSyncObj,
-                                                            &syncFileFd);
+    int32 ret = 0;
+
+    ret = m_drmProcs.pfnAmdgpuCsSyncobjExportSyncFile(m_hDevice,
+                                                      exportSyncObj,
+                                                      &syncFileFd);
     if (ret == 0)
     {
         ret = m_drmProcs.pfnAmdgpuCsSyncobjImportSyncFile(m_hDevice,
@@ -3309,6 +3325,7 @@ Result Device::ImportSyncObject(
 // =====================================================================================================================
 Result Device::CreateSemaphore(
     bool                     isCreatedSignaled,
+    bool                     isCreatedTimeline,
     amdgpu_semaphore_handle* pSemaphoreHandle
     ) const
 {
@@ -3328,6 +3345,10 @@ Result Device::CreateSemaphore(
     {
         uint32 flags = isCreatedSignaled ? DRM_SYNCOBJ_CREATE_SIGNALED : 0;
 
+        if (isCreatedTimeline)
+        {
+            flags = flags;
+        }
         result = CreateSyncObject(flags, &hSem);
         if (result == Result::Success)
         {
@@ -3530,6 +3551,40 @@ Result Device::ImportSemaphore(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Result Device::QuerySemaphoreValue(
+    amdgpu_semaphore_handle  hSemaphore,
+    uint64*                  pValue
+    ) const
+{
+    int32 ret = 0;
+
+    return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+Result Device::WaitSemaphoreValue(
+    amdgpu_semaphore_handle  hSemaphore,
+    uint64                   value,
+    uint64                   timeoutNs
+    ) const
+{
+    int32 ret = 0;
+
+    return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+Result Device::SignalSemaphoreValue(
+    amdgpu_semaphore_handle  hSemaphore,
+    uint64                   value
+    ) const
+{
+    int32 ret = 0;
+
+    return CheckResult(ret, Result::ErrorUnknown);
 }
 
 // =====================================================================================================================

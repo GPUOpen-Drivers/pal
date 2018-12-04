@@ -31,8 +31,8 @@
 namespace Pal
 {
 
-static constexpr gpusize GpuRequiredMemSizeInBytes = 4;
-static constexpr gpusize GpuRequiredMemAlignment   = 8;
+static constexpr gpusize GpuRequiredMemSizePerSlotInBytes = 4;
+static constexpr gpusize GpuRequiredMemAlignment          = 8;
 
 // =====================================================================================================================
 GpuEvent::GpuEvent(
@@ -41,7 +41,8 @@ GpuEvent::GpuEvent(
     :
     m_createInfo(createInfo),
     m_pDevice(pDevice),
-    m_pEventData(nullptr)
+    m_pEventData(nullptr),
+    m_numSlotsPerEvent(pDevice->ChipProperties().gfxip.numSlotsPerEvent)
 {
 }
 
@@ -64,10 +65,11 @@ GpuEvent::~GpuEvent()
 // =====================================================================================================================
 Result GpuEvent::Init()
 {
-    const bool cpuVisible = (m_createInfo.flags.gpuAccessOnly == 0);
+    const bool    cpuVisible                = (m_createInfo.flags.gpuAccessOnly == 0);
+    const gpusize gpuRequiredMemSizeInBytes = GpuRequiredMemSizePerSlotInBytes * m_numSlotsPerEvent;
 
     GpuMemoryCreateInfo createInfo = {};
-    createInfo.size      = GpuRequiredMemSizeInBytes;
+    createInfo.size      = gpuRequiredMemSizeInBytes;
     createInfo.alignment = GpuRequiredMemAlignment;
     createInfo.vaRange   = VaRange::Default;
     createInfo.priority  = GpuMemPriority::Normal;
@@ -123,7 +125,12 @@ void GpuEvent::Destroy()
 // NOTE: Part of the public IGpuEvent interface.
 Result GpuEvent::Set()
 {
-    return CpuWrite(SetValue);
+    Result result = Result::Success;
+    for (uint32 slotIdx = 0; (result == Result::Success) && (slotIdx < m_numSlotsPerEvent); slotIdx++)
+    {
+        result = CpuWrite(slotIdx, SetValue);
+    }
+    return result;
 }
 
 // =====================================================================================================================
@@ -131,7 +138,12 @@ Result GpuEvent::Set()
 // NOTE: Part of the public IGpuEvent interface.
 Result GpuEvent::Reset()
 {
-    return CpuWrite(ResetValue);
+    Result result = Result::Success;
+    for (uint32 slotIdx = 0; (result == Result::Success) && (slotIdx < m_numSlotsPerEvent); slotIdx++)
+    {
+        result = CpuWrite(slotIdx, ResetValue);
+    }
+    return result;
 }
 
 // =====================================================================================================================
@@ -145,25 +157,27 @@ Result GpuEvent::GetStatus()
 
     if (m_pEventData != nullptr)
     {
-        // We should only peek at the event data once; if we read from it multiple times the GPU could get in and
-        // change the value when we don't expect it to change.
-        const uint32 eventValue = *m_pEventData;
+        result = Result::EventSet;
 
-        switch (eventValue)
+        // Treat event as reset if a single slot is reset, treat as set only if all slots are set.
+        for (uint32 slotIdx = 0; slotIdx < m_numSlotsPerEvent; slotIdx++)
         {
-        case SetValue:
-            result = Result::EventSet;
-            break;
+            // We should only peek at the event data once; if we read from it multiple times the GPU could get in and
+            // change the value when we don't expect it to change.
+            const uint32 eventValue = *(m_pEventData + slotIdx);
 
-        case ResetValue:
-            result = Result::EventReset;
-            break;
-
-        default:
-            // A GFX6 hardware bug workaround can result in the event memory temporarily being written to a value
-            // other than SetValue or ResetValue. Treat this the same as being in the reset state.
-            result = Result::EventReset;
-            break;
+            if (eventValue == ResetValue)
+            {
+                result = Result::EventReset;
+                break;
+            }
+            else if (eventValue != SetValue)
+            {
+                // A GFX6 hardware bug workaround can result in the event memory temporarily being written to a value
+                // other than SetValue or ResetValue. Treat this the same as being in the reset state.
+                result = Result::EventReset;
+                break;
+            }
         }
     }
 
@@ -173,14 +187,17 @@ Result GpuEvent::GetStatus()
 // =====================================================================================================================
 // Helper function to execute the memory map and CPU-side write to the GPU memory.
 Result GpuEvent::CpuWrite(
+    uint32 slotIdx,
     uint32 data)
 {
+    PAL_ASSERT(slotIdx < m_numSlotsPerEvent);
+
     Result result = Result::ErrorInvalidPointer;
 
     if (m_pEventData != nullptr)
     {
-        *m_pEventData = data;
-        result        = Result::Success;
+        *(m_pEventData + slotIdx) = data;
+        result = Result::Success;
     }
 
     return result;

@@ -1273,9 +1273,9 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
     {
         case FAMILY_AI:
             m_settings.isArcticIsland = 1;
-            m_settings.isVega10    = ASICREV_IS_VEGA10_P(uChipRevision);
+            m_settings.isVega10 = ASICREV_IS_VEGA10_P(uChipRevision);
 #if ADDR_VEGA12_BUILD
-            m_settings.isVega12    = ASICREV_IS_VEGA12_P(uChipRevision);
+            m_settings.isVega12 = ASICREV_IS_VEGA12_P(uChipRevision);
 #endif
             m_settings.isDce12 = 1;
 
@@ -1292,19 +1292,30 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
 #if ADDR_RAVEN1_BUILD
         case FAMILY_RV:
             m_settings.isArcticIsland = 1;
-            m_settings.isRaven        = ASICREV_IS_RAVEN(uChipRevision);
-
-            if (m_settings.isRaven)
-            {
-                m_settings.isDcn1   = 1;
-            }
-
-            m_settings.metaBaseAlignFix = 1;
 
             if (ASICREV_IS_RAVEN(uChipRevision))
             {
+                m_settings.isRaven = 1;
+
                 m_settings.depthPipeXorDisable = 1;
             }
+
+            if (m_settings.isRaven == 0)
+            {
+                m_settings.htileAlignFix = 1;
+                m_settings.applyAliasFix = 1;
+            }
+
+#if ADDR_RENOIR_BUILD
+            if (ASICREV_IS_RENOIR(uChipRevision))
+            {
+                m_settings.isRaven = 1;
+            }
+#endif
+
+            m_settings.isDcn1 = m_settings.isRaven;
+
+            m_settings.metaBaseAlignFix = 1;
             break;
 #endif
 
@@ -3010,33 +3021,40 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputePipeBankXor(
     const ADDR2_COMPUTE_PIPEBANKXOR_INPUT* pIn,
     ADDR2_COMPUTE_PIPEBANKXOR_OUTPUT*      pOut) const
 {
-    UINT_32 macroBlockBits = GetBlockSizeLog2(pIn->swizzleMode);
-    UINT_32 pipeBits       = GetPipeXorBits(macroBlockBits);
-    UINT_32 bankBits       = GetBankXorBits(macroBlockBits);
-
-    UINT_32 pipeXor = 0;
-    UINT_32 bankXor = 0;
-
-    const UINT_32 bankMask = (1 << bankBits) - 1;
-    const UINT_32 index    = pIn->surfIndex & bankMask;
-
-    const UINT_32 bpp      = pIn->flags.fmask ?
-                             GetFmaskBpp(pIn->numSamples, pIn->numFrags) : GetElemLib()->GetBitsPerPixel(pIn->format);
-    if (bankBits == 4)
+    if (IsXor(pIn->swizzleMode))
     {
-        static const UINT_32 BankXorSmallBpp[] = {0, 7, 4, 3, 8, 15, 12, 11, 1, 6, 5, 2, 9, 14, 13, 10};
-        static const UINT_32 BankXorLargeBpp[] = {0, 7, 8, 15, 4, 3, 12, 11, 1, 6, 9, 14, 5, 2, 13, 10};
+        UINT_32 macroBlockBits = GetBlockSizeLog2(pIn->swizzleMode);
+        UINT_32 pipeBits       = GetPipeXorBits(macroBlockBits);
+        UINT_32 bankBits       = GetBankXorBits(macroBlockBits);
 
-        bankXor = (bpp <= 32) ? BankXorSmallBpp[index] : BankXorLargeBpp[index];
+        UINT_32 pipeXor = 0;
+        UINT_32 bankXor = 0;
+
+        const UINT_32 bankMask = (1 << bankBits) - 1;
+        const UINT_32 index    = pIn->surfIndex & bankMask;
+
+        const UINT_32 bpp      = pIn->flags.fmask ?
+                                 GetFmaskBpp(pIn->numSamples, pIn->numFrags) : GetElemLib()->GetBitsPerPixel(pIn->format);
+        if (bankBits == 4)
+        {
+            static const UINT_32 BankXorSmallBpp[] = {0, 7, 4, 3, 8, 15, 12, 11, 1, 6, 5, 2, 9, 14, 13, 10};
+            static const UINT_32 BankXorLargeBpp[] = {0, 7, 8, 15, 4, 3, 12, 11, 1, 6, 9, 14, 5, 2, 13, 10};
+
+            bankXor = (bpp <= 32) ? BankXorSmallBpp[index] : BankXorLargeBpp[index];
+        }
+        else if (bankBits > 0)
+        {
+            UINT_32 bankIncrease = (1 << (bankBits - 1)) - 1;
+            bankIncrease = (bankIncrease == 0) ? 1 : bankIncrease;
+            bankXor = (index * bankIncrease) & bankMask;
+        }
+
+        pOut->pipeBankXor = (bankXor << pipeBits) | pipeXor;
     }
-    else if (bankBits > 0)
+    else
     {
-        UINT_32 bankIncrease = (1 << (bankBits - 1)) - 1;
-        bankIncrease = (bankIncrease == 0) ? 1 : bankIncrease;
-        bankXor = (index * bankIncrease) & bankMask;
+        pOut->pipeBankXor = 0;
     }
-
-    pOut->pipeBankXor = (bankXor << pipeBits) | pipeXor;
 
     return ADDR_OK;
 }
@@ -3965,6 +3983,19 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeSurfaceInfoTiled(
                               (pIn->bpp >> 3) * pIn->numFrags;
             pOut->surfSize  = pOut->sliceSize * pOut->mipChainSlice;
             pOut->baseAlign = ComputeSurfaceBaseAlignTiled(pIn->swizzleMode);
+
+            if ((IsBlock256b(pIn->swizzleMode) == FALSE) &&
+                (pIn->flags.color || pIn->flags.depth || pIn->flags.stencil || pIn->flags.fmask) &&
+                (pIn->flags.texture == TRUE) &&
+                (pIn->flags.noMetadata == FALSE) &&
+                (pIn->flags.metaPipeUnaligned == FALSE))
+            {
+                // Assume client requires pipe aligned metadata, which is TcCompatible and will be accessed by TC...
+                // Then we need extra padding for base surface. Otherwise, metadata and data surface for same pixel will
+                // be flushed to different pipes, but texture engine only uses pipe id of data surface to fetch both of
+                // them, which may cause invalid metadata to be fetched.
+                pOut->baseAlign = Max(pOut->baseAlign, m_pipeInterleaveBytes * m_pipes);
+            }
 
             if (pIn->flags.prt)
             {

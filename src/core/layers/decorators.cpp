@@ -1942,6 +1942,124 @@ void CmdBufferFwdDecorator::CmdBarrier(
 }
 
 // =====================================================================================================================
+void CmdBufferFwdDecorator::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
+    AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
+
+    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextReleaseInfo = releaseInfo;
+
+        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = releaseInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(releaseInfo.pImageBarriers[i].pImage);
+        }
+        nextReleaseInfo.pImageBarriers = &imageBarriers[0];
+
+        m_pNextLayer->CmdRelease(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+    }
+}
+
+// =====================================================================================================================
+void CmdBufferFwdDecorator::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
+    AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
+    AutoBuffer<const IGpuEvent*, 16, PlatformDecorator> nextGpuEvents(gpuEventCount, pPlatform);
+
+    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount) ||
+        (nextGpuEvents.Capacity() < gpuEventCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+
+        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = acquireInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(acquireInfo.pImageBarriers[i].pImage);
+        }
+        nextAcquireInfo.pImageBarriers = &imageBarriers[0];
+
+        for (uint32 i = 0; i < gpuEventCount; i++)
+        {
+            nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
+        }
+
+        m_pNextLayer->CmdAcquire(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+    }
+}
+
+// =====================================================================================================================
+void CmdBufferFwdDecorator::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
+    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(barrierInfo.memoryBarrierCount, pPlatform);
+    AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(barrierInfo.imageBarrierCount, pPlatform);
+
+    if ((memoryBarriers.Capacity() < barrierInfo.memoryBarrierCount) ||
+        (imageBarriers.Capacity() < barrierInfo.imageBarrierCount))
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        AcquireReleaseInfo nextBarrierInfo = barrierInfo;
+
+        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+        {
+            memoryBarriers[i]                   = barrierInfo.pMemoryBarriers[i];
+            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
+        }
+        nextBarrierInfo.pMemoryBarriers = &memoryBarriers[0];
+
+        for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+        {
+            imageBarriers[i]        = barrierInfo.pImageBarriers[i];
+            imageBarriers[i].pImage = NextImage(barrierInfo.pImageBarriers[i].pImage);
+        }
+        nextBarrierInfo.pImageBarriers = &imageBarriers[0];
+
+        m_pNextLayer->CmdReleaseThenAcquire(nextBarrierInfo);
+    }
+}
+
+// =====================================================================================================================
 void CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)

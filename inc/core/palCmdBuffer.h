@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palDevice.h"
+#include "palGpuMemory.h"
 #include "palImage.h"
 #include "palMsaaState.h"
 #include "palPipeline.h"
@@ -208,6 +209,30 @@ enum HwPipePoint : uint32
     // The following points apply to BLT-specific work:
     HwPipePreBlt           = HwPipePostIndexFetch,  ///< As late as possible before BLT operations are launched.
     HwPipePostBlt          = 0x6                    ///< All prior requested BLTs have completed.
+};
+
+/// Bitmask values that can be OR'ed together to specify a synchronization scope.  See srcStageMask and dstStageMask in
+/// @ref AcquireReleaseInfo.
+///
+/// When specifying an execution dependency at a synchronization point where previous operations must *happen-before*
+/// future operations, a mask of these flags specifies a *synchronization scope* that restricts which stages of prior
+/// draws, dispatches, or BLTs must *happen-before* which stages of future draws, dispatches, or BLTs.
+enum PipelineStageFlag : uint32
+{
+    PipelineStageTopOfPipe         = 0x00000001,
+    PipelineStageFetchIndirectArgs = 0x00000002,
+    PipelineStageFetchIndices      = 0x00000004,
+    PipelineStageVs                = 0x00000008,
+    PipelineStageHs                = 0x00000010,
+    PipelineStageDs                = 0x00000020,
+    PipelineStageGs                = 0x00000040,
+    PipelineStagePs                = 0x00000080,
+    PipelineStageEarlyDsTarget     = 0x00000100,
+    PipelineStageLateDsTarget      = 0x00000200,
+    PipelineStageColorTarget       = 0x00000400,
+    PipelineStageCs                = 0x00000800,
+    PipelineStageBlt               = 0x00001000,
+    PipelineStageBottomOfPipe      = 0x00002000
 };
 
 /// Bitmask values that can be ORed together to specify all potential usages of an image at a point in time.  Such a
@@ -525,14 +550,6 @@ struct PipelineBindParams
     };
 };
 
-/// Collection of bitmasks specifying which operations are currently allowed on an image, and which queues are allowed
-/// to perform those operations.  Based on this information, PAL can determine the best compression state of the image.
-struct ImageLayout
-{
-    uint32 usages  : 24;  ///< Bitmask of @ref ImageLayoutUsageFlags values.
-    uint32 engines :  8;  ///< Bitmask of @ref ImageLayoutEngineFlags values.
-};
-
 /// Specifies per-MRT color target view and current image state.  Used as input to ICmdBuffer::CmdBindTargets().
 struct ColorTargetBindInfo
 {
@@ -703,6 +720,117 @@ struct BarrierInfo
     const IGpuEvent*  pSplitBarrierGpuEvent;
 
     uint32 reason; ///< The reason that the barrier was invoked.
+};
+
+/// Specifies *availability* and/or *visibility* operations on a section of an IGpuMemory object.  See @ref
+/// AcquireReleaseInfo.
+struct MemBarrier
+{
+    union
+    {
+        struct
+        {
+            uint32 globallyAvailable :  1; ///< Normally, data made available is in the GPU LLC.  When this bit is
+                                           ///  set, available means in memory, available to all clients in the
+                                           ///  system.  This is useful for rare cases like mid command buffer
+                                           ///  synchronization with the CPU or another external device.
+            uint32 reserved          : 31; ///< Reserved for future use.
+        };
+        uint32 u32All;                     ///< Flags packed as a 32-bit uint.
+    } flags;                               ///< Flags controlling the memory barrier.
+
+    GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
+    uint32             srcAccessMask;      ///< *Access scope* for the availability operation.  This should be a mask of
+                                           ///  all relevant CacheCoherencyUsageFlags corresponding to prior write
+                                           ///  operations that should be made available (i.e., written back from local
+                                           ///  caches to the LLC).  This must be 0 when passed in to
+                                           ///  ICmdBuffer::CmdAcquire(), which only supports visibility operations.
+    uint32             dstAccessMask;      ///< *Access scope* for the visibility operation.  This should be a mask of
+                                           ///  all relevant CacheCoherencyUsageFlags corresponding to upcoming
+                                           ///  read/write operations that need visibility (i.e., invalidate
+                                           ///  corresponding local caches above the LLC).  This must be 0 when passed
+                                           ///  in to ICmdBuffer::CmdRelease(), which only supports availability
+                                           ///  operations.
+};
+
+/// Specifies required layout transition, *availability*, and/or *visibility* operations on a subresource of an IImage
+/// object.  See @ref AcquireReleaseInfo.
+struct ImgBarrier
+{
+    const IImage* pImage;        ///< Relevant image resource for this barrier.
+    SubresRange   subresRange;   ///< Selects a range of aspects/slices/mips the barrier affects.  If newLayout
+                                 ///  includes @ref LayoutUninitializedTarget this range must cover all subresources of
+                                 ///  pImage unless the perSubresInit image create flag was specified.
+
+    Box           box;           ///< Restricts the barrier to a sub-section of each subresource.  The Z offset/extent
+                                 ///  must be 0 for 1D/2D images, and the Y offset/extent must be 0 for 1D images.  A
+                                 ///  box with zero extents will be ignored, and the barrier will affect the entire
+                                 ///  subresource range.  This box may be used to restrict ranges of cache flushes or
+                                 ///  invalidations, or may restrict what data is decompressed.  However, the
+                                 ///  implementation may not be able to optimize particular cases and may expand the
+                                 ///  barrier to cover the entire subresource range.  Specifying a subregion with a box
+                                 ///  when newLayout includes @ref LayoutUninitializedTarget is not supported.
+
+    uint32        srcAccessMask; ///< *Access scope* for the availability operation.  This should be a mask of all
+                                 ///  relevant CacheCoherencyUsageFlags corresponding to prior write operations that
+                                 ///  should be made available (i.e., written back from local caches to the LLC).  This
+                                 ///  must be 0 when passed in to ICmdBuffer::CmdAcquire(), which only supports
+                                 ///  visibility operations.
+    uint32        dstAccessMask; ///< *Access scope* for the visibility operation.  This should be a mask of all
+                                 ///  relevant CacheCoherencyUsageFlags corresponding to upcoming read/write operations
+                                 ///  that need visibility (i.e., invalidate corresponding local caches above the LLC).
+                                 ///  This must be 0 when passed in to ICmdBuffer::CmdRelease(), which only supports
+                                 ///  availability operations.
+
+    ImageLayout   oldLayout;     ///< Specifies the current image layout based on bitmasks of allowed operations and
+                                 ///  engines up to this point.  These masks imply the previous compression state. No
+                                 ///  usage flags should ever be set in oldLayout.usages that correspond to usages
+                                 ///  that are not supported by the engine that is performing the transition.  The
+                                 ///  engine type performing the transition must be set in oldLayout.engines.
+    ImageLayout   newLayout;     ///< Specifies the upcoming image layout based on bitmasks of allowed operations and
+                                 ///  engines after this point.  These masks imply the upcoming compression state.
+                                 ///  point.  A difference between oldLayoutUsageMask and newLayoutUsageMask may result
+                                 ///  in a decompression.  PAL's implementation will ensure the results of any layout
+                                 ///  operations are consistent with the requested availability and visibility
+                                 ///  operations.
+
+    /// Specifies a custom sample pattern over a 2x2 pixel quad.  The position for each sample is specified on a grid
+    /// where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is the maximum valid
+    /// position (not quite to the bottom/right border of the pixel).  Specifies a custom sample pattern over a 2x2
+    /// pixel quad. Can be left null for non-MSAA images or when a valid IMsaaState is bound prior to the CmdBarrier
+    /// call.
+    const MsaaQuadSamplePattern* pQuadSamplePattern;
+};
+
+/// Input structure to CmdRelease(), CmdAcquire(), and CmdReleastThenAcquire(), describing the execution dependencies,
+/// memory dependencies, and image layout transitions that must be resolved.
+struct AcquireReleaseInfo
+{
+    uint32               srcStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                              ///  scope that must be confirmed complete as part of a release.  Must be
+                                              ///  0 when passed in to ICmdBuffer::CmdAcquire().
+    uint32               dstStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                              ///  scope of operations to be performed after the acquire.  Must be
+                                              ///  0 when passed in to ICmdBuffer::CmdRelease().
+
+    uint32               srcGlobalAccessMask; ///< *Access scope* for the global availability operation.  Serves the
+                                              ///  same purpose as srcAccessMask in @ref MemoryBarrier, but will cause
+                                              ///  all relevant caches to be flushed without range checking.  This must
+                                              ///  be 0 when passed in to ICmdBuffer::CmdAcquire(), which only supports
+                                              ///  visibility operations.
+    uint32               dstGlobalAccessMask; ///< *Access scope* for the global visibility operation.  Serves the
+                                              ///  same purpose as dstAccessMask in @ref MemoryBarrier, but will cause
+                                              ///  all relevant caches to be invalidated without range checking.  This
+                                              ///  must be 0 when passed in to ICmdBuffer::CmdRelease(), which only
+                                              ///  supports availability operations.
+
+    uint32               memoryBarrierCount;  ///< Number of entries in pMemoryBarriers.
+    const MemBarrier*    pMemoryBarriers;     ///< Describes memory dependencies specific to a range of a particular
+                                              ///  IGpuMemory object.
+
+    uint32               imageBarrierCount;   ///< Number of entries in pImageBarriers.
+    const ImgBarrier*    pImageBarriers;      ///  Describes memory dependencies and image layout transitions required
+                                              ///  for a subresource range of a particular IImage object.
 };
 
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a
@@ -1692,6 +1820,69 @@ public:
     /// @param [in] barrierInfo See @ref BarrierInfo for detailed information.
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) = 0;
+
+    /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
+    /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,
+    /// different usage.
+    ///
+    /// Conceptually, this method will:
+    ///   - Ensure the specified source synchronization scope has completed.
+    ///   - Ensure all specified resources are available in memory.  The availability operation will flush all
+    ///     write-back caches to the last-level-cache.
+    ///   - Perform any requested layout transitions.
+    ///
+    /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
+    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
+    /// layout transitions that could not be predicted at release-time.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
+    /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
+    ///                         transitions.
+    /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
+    ///                         no event will be signaled.
+    virtual void CmdRelease(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) = 0;
+
+    /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
+    /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
+    ///
+    /// Conceptually, this method will:
+    ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
+    ///     support the specified destination synchronization scope.
+    ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
+    ///     relevant caches above the last-level-cache.
+    ///   - Perform any requested layout transitions.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
+    /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
+    ///                            layout transitions.
+    /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
+    /// @param [in] pGpuEvents     One or more events to wait on.  Typically these will be set via CmdRelease(), but
+    ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
+    ///                            If null, the implementation will automatically wait for all prior GPU work on this
+    ///                            queue to complete before allowing future work specified in dstStageMask.
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) = 0;
+
+    /// Conceptually equivalent to calling CmdRelease() followed immediately by CmdAcquire().  Can be called in cases
+    /// where the client/application cannot detect separate release and acquire points for a transition.
+    ///
+    /// Effectively equivalent to @ref ICmdBuffer::CmdBarrier.
+    ///
+    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
+    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///
+    /// @param [in] barrierInfo  Describes the synchronization scopes, availability/visibility operations, and the
+    ///                          required layout transitions.
+    virtual void CmdReleaseThenAcquire(
+        const AcquireReleaseInfo& barrierInfo) = 0;
 
     /// Issues an instanced, non-indexed draw call using the command buffer's currently bound graphics state.  Results
     /// in instanceCount * vertexCount vertices being processed.

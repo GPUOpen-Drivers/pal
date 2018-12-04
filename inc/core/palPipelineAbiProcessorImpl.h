@@ -970,7 +970,7 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
 
             if ((result == Result::Success) &&
                 (noteProcessor.Add(MetadataNoteType,
-                                   AmdGpuVendorName,
+                                   AmdGpuArchName,
                                    codeObjectMetadataWriter.GetBuffer(),
                                    codeObjectMetadataWriter.GetSize()) == UINT_MAX))
             {
@@ -978,11 +978,11 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
             }
 #else
             if ((noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::HsaIsa),
-                                   AmdGpuVendorName,
+                                   AmdGpuArchName,
                                    &m_gpuVersionNote,
                                    AbiAmdGpuVersionNoteSize) == UINT_MAX) ||
                 (noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::AbiMinorVersion),
-                                   AmdGpuVendorName,
+                                   AmdGpuArchName,
                                    &m_abiMinorVersionNote,
                                    AbiMinorVersionNoteSize) == UINT_MAX))
             {
@@ -1015,7 +1015,7 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
                     }
 
                     if (noteProcessor.Add(static_cast<uint32>(PipelineAbiNoteType::LegacyMetadata),
-                                          AmdGpuVendorName,
+                                          AmdGpuArchName,
                                           &entries[0],
                                           (noteEntryCount * sizeof(PalMetadataNoteEntry))) != UINT_MAX)
                     {
@@ -1630,7 +1630,7 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
         }
     }
 
-    // Translate per-hardware stage metadata
+    // Translate per-hardware stage metadata.
     static constexpr uint32 Ps = static_cast<uint32>(HardwareStage::Ps);
 
     type = static_cast<uint32>(PipelineMetadataType::PsUsesUavs);
@@ -1638,6 +1638,13 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
     {
         pOut->pipeline.hardwareStage[Ps].flags.usesUavs = (metadata.At(indices[type]).value != 0);
         pOut->pipeline.hardwareStage[Ps].hasEntry.usesUavs = 1;
+#if (!PAL_BUILD_SCPC) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 456)
+        if (indices[static_cast<uint32>(PipelineMetadataType::PsWritesUavs)] == -1)
+        {
+            pOut->pipeline.hardwareStage[Ps].flags.writesUavs = (metadata.At(indices[type]).value != 0);
+            pOut->pipeline.hardwareStage[Ps].hasEntry.writesUavs = 1;
+        }
+#endif
     }
 
     type = static_cast<uint32>(PipelineMetadataType::PsUsesRovs);
@@ -1645,6 +1652,27 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
     {
         pOut->pipeline.hardwareStage[Ps].flags.usesRovs = (metadata.At(indices[type]).value != 0);
         pOut->pipeline.hardwareStage[Ps].hasEntry.usesRovs = 1;
+    }
+
+    type = static_cast<uint32>(PipelineMetadataType::PsWritesUavs);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.hardwareStage[Ps].flags.writesUavs = (metadata.At(indices[type]).value != 0);
+        pOut->pipeline.hardwareStage[Ps].hasEntry.writesUavs = 1;
+    }
+
+    type = static_cast<uint32>(PipelineMetadataType::PsWritesDepth);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.hardwareStage[Ps].flags.writesDepth = (metadata.At(indices[type]).value != 0);
+        pOut->pipeline.hardwareStage[Ps].hasEntry.writesDepth = 1;
+    }
+
+    type = static_cast<uint32>(PipelineMetadataType::PsUsesAppendConsume);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.hardwareStage[Ps].flags.usesAppendConsume = (metadata.At(indices[type]).value != 0);
+        pOut->pipeline.hardwareStage[Ps].hasEntry.usesAppendConsume = 1;
     }
 
     for (uint32 h = 0; h < static_cast<uint32>(HardwareStage::Count); ++h)

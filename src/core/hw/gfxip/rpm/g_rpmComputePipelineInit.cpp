@@ -78,8 +78,9 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableTahiti;
         break;
 
+    case AsicRevision::HawaiiPro:
     case AsicRevision::Hawaii:
-        pTable = rpmComputeBinaryTableHawaii;
+        pTable = rpmComputeBinaryTableHawaiiPro;
         break;
 
     case AsicRevision::Bonaire:

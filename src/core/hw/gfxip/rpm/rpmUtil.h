@@ -74,7 +74,7 @@ extern void ConvertClearColorToNativeFormat(
 extern uint32 GetNormalizedData(uint32 inputData, uint32 maxComponentValue);
 
 extern void WriteVsZOut(GfxCmdBuffer* pCmdBuffer, float depthValue);
-extern void WriteVsFirstSliceOffet(GfxCmdBuffer* pCmdBuffer, uint32 firstSliceIndex);
+extern void WriteVsFirstSliceOffset(GfxCmdBuffer* pCmdBuffer, uint32 firstSliceIndex);
 extern void BindBltRasterState(GfxCmdBuffer* pCmdBuffer);
 
 // Helper structure containing the constant buffer data for CmdCopyImage blits.

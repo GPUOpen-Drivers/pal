@@ -92,7 +92,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.enableOnchipGs = true;
     m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimSafe;
     m_settings.outOfOrderWatermark = 7;
-    m_settings.gfxMaxWavesPerCu = 0;
     m_settings.gsCuGroupEnabled = false;
     m_settings.gsMaxLdsSize = 8192;
     m_settings.gsOffChipThreshold = 64;
@@ -121,10 +120,10 @@ void SettingsLoader::SetupDefaults()
     m_settings.disableCoverageAaMask = true;
     m_settings.wdLoadBalancingMode = Gfx9WdLoadBalancingAdvanced;
     m_settings.batchBreakOnNewPixelShader = false;
-    m_settings.gsCuEnLimitMask = 0xffffffffL;
-    m_settings.vsCuEnLimitMask = 0xffffffffL;
-    m_settings.psCuEnLimitMask = 0xffffffffL;
-    m_settings.csCuEnLimitMask = 0xffffffffL;
+    m_settings.gsCuEnLimitMask = 0xffffffff;
+    m_settings.vsCuEnLimitMask = 0xffffffff;
+    m_settings.psCuEnLimitMask = 0xffffffff;
+    m_settings.csCuEnLimitMask = 0xffffffff;
     m_settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsCopyAllAtEnd;
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
     m_settings.gfx9OptimizeDsDataFetch = false;
@@ -140,6 +139,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.nggRingSize = 32;
     m_settings.binningMode = Gfx9DeferredBatchBinAccurate;
     m_settings.customBatchBinSize = 0x800080;
+
     m_settings.disableBinningPsKill = true;
     m_settings.disableBinningNoDb = false;
     m_settings.disableBinningBlendingOff = false;
@@ -357,11 +357,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOutOfOrderWatermarkStr,
                            Util::ValueType::Uint,
                            &m_settings.outOfOrderWatermark,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGfxMaxWavesPerCuStr,
-                           Util::ValueType::Uint,
-                           &m_settings.gfxMaxWavesPerCu,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pGsCuGroupEnabledStr,
@@ -792,6 +787,94 @@ void SettingsLoader::ReadSettings()
 }
 
 // =====================================================================================================================
+// Reads the setting from the OS adapter and sets the structure value when the setting values are found.
+// This is expected to be done after the component has perform overrides of any defaults.
+void SettingsLoader::RereadSettings()
+{
+    // read from the OS adapter for each individual setting
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRestrictMetaDataUseInMipTailStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waRestrictMetaDataUseInMipTail,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaWrite1xAASampleLocationsToZeroStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waWrite1xAASampleLocationsToZero,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaColorCacheControllerInvalidEvictionStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waColorCacheControllerInvalidEviction,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaOverwriteCombinerTargetMaskOnlyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waOverwriteCombinerTargetMaskOnly,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableHtilePrefetchStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableHtilePrefetch,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscPopsMissedOverlapStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waMiscPopsMissedOverlap,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscScissorRegisterChangeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waMiscScissorRegisterChange,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMiscPsFlushScissorChangeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waMiscPsFlushScissorChange,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaHtilePipeBankXorMustBeZeroStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waHtilePipeBankXorMustBeZero,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisableDfsmWithEqaaStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisableDfsmWithEqaa,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDisable24BitHWFormatForTCCompatibleDepthStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDisable24BitHWFormatForTCCompatibleDepth,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDummyZpassDoneBeforeTsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDummyZpassDoneBeforeTs,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaMetaAliasingFixEnabledStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waMetaAliasingFixEnabled,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaForce256bCbFetchStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waForce256bCbFetch,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaCmaskImageSyncsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waCmaskImageSyncs,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaDepthStencilTargetMetadataNeedsTccFlushStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waDepthStencilTargetMetadataNeedsTccFlush,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+}
+
+// =====================================================================================================================
 // Initializes the SettingInfo hash map and array of setting hashes.
 void SettingsLoader::InitSettingsInfo()
 {
@@ -966,11 +1049,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.outOfOrderWatermark;
     info.valueSize = sizeof(m_settings.outOfOrderWatermark);
     m_settingsInfoMap.Insert(2921949520, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.gfxMaxWavesPerCu;
-    info.valueSize = sizeof(m_settings.gfxMaxWavesPerCu);
-    m_settingsInfoMap.Insert(4080017031, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gsCuGroupEnabled;

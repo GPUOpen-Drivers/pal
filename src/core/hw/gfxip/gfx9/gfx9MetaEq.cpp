@@ -414,16 +414,8 @@ uint32 MetaDataAddrEquation::GetNumSamples() const
         const uint32  eqData = Get(bitPos, MetaDataAddrCompS);
 
         uint32  index = 0;
-        if (BitMaskScanForward(&index, eqData))
+        if (BitMaskScanReverse(&index, eqData))
         {
-            // If this ever trips (which I would find to be very unlikely...  that would mean that two sample bits are
-            // used in the same equation bit). we would need to do a "BitMaskScanBackwards" to make sure we got the
-            // highest sample position affecting this equation bit.  But that function doesn't exist.
-            //
-            // Note that "IsPowerOfTwo" will cause an assert if eqData==0 (which is the normal case), which is why
-            // this assert is inside the "if" statement, not outside.
-            PAL_ASSERT (IsPowerOfTwo(eqData));
-
             // Say the high reference in this equation is "s2".  This would be returned by this function as "1 << 2"
             // (which equals 4), but we really need to loop through the first seven samples in this case (i.e., up to
             // (1 << (2 + 1)) == 8 to ensure we catch all possibilities where s2 would be set.  i.e.,:
@@ -712,10 +704,10 @@ void MetaDataAddrEquation::GenerateMetaEqParamConst(
 
             if (metablkIdxLoBitsOffset == 0)
             {
-                // The first occurance of any metablock bits in equation is what we want.
-                if (BitMaskScanForward(&lowSetMetaBlockBit, metaBlockData) && (lowSetMetaBlockBit == 0))
+                // Look for the m0 reference
+                if ((metaBlockData & 0x1) != 0)
                 {
-                    metablkIdxLoBitsOffset = bitPos;
+                   metablkIdxLoBitsOffset = bitPos;
                 }
             }
             else if ((metaBlockData == 0) && (metablkIdxLoBitsLength == 0))

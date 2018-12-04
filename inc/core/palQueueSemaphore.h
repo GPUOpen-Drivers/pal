@@ -50,7 +50,15 @@ struct QueueSemaphoreCreateInfo
             uint32 shareable         :  1;  ///< This queue semaphore may be opened for use by a different device.
             uint32 sharedViaNtHandle :  1;  ///< This queue semaphore can only be shared through Nt handle.
             uint32 externalOpened    :  1;  ///< Semaphore was created by other APIs
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 458
+            /// This queue semaphore is a timeline semaphore. Timeline semaphores have a 64-bit unsigned integer payload
+            /// which gets monotonically increased with each Signal operation. A wait on a timeline semaphore blocks the
+            /// waiter until the specified payload value has been signaled.
+            uint32 timeline          :  1;
+            uint32 reserved          : 28;  ///< Reserved for future use.
+#else
             uint32 reserved          : 29;  ///< Reserved for future use.
+#endif
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< Queue semaphore creation flags.
@@ -131,6 +139,41 @@ public:
     /// @returns True if one or more queues have some number of commands batched-up waiting for other queues to signal
     ///          this semaphore. False otherwise.
     virtual bool HasStalledQueues() = 0;
+
+    /// Query timeline Semaphore payload
+    ///
+    /// @param [out] pValue           returned payload from querying
+    ///
+    /// @returns Success if the timeline semaphore is queried successful.  Otherwise, one of the following errors may
+    ///          be returned:
+    ///          + ErrorInvalidValue if an unexpected conversion error occurs.
+    ///          + ErrorInvalidObjectType if semaphore is non-timeline type.
+    virtual Result QuerySemaphoreValue(
+        uint64*                  pValue) = 0;
+
+    /// Wait on timeline Semaphore points, to be clarified, this is a CPU wait.
+    ///
+    /// @param    [in]  value            Indicate which point to be waited.
+    /// @param    [in]  timeoutNs        the max waiting time, timeout is the timeout period in units of nanoseconds.
+    ///
+    /// @returns Success if the timeline semaphore point is waited successful.  Otherwise, one of the following errors
+    ///          may be returned:
+    ///          + ErrorInvalidValue if an unexpected conversion error occurs.
+    ///          + ErrorInvalidObjectType if semaphore is non-timeline type.
+    virtual Result WaitSemaphoreValue(
+        uint64                   value,
+        uint64                   timeoutNs) = 0;
+
+    /// Signal on timeline Semaphore points, to be clarified, this is a CPU signal.
+    ///
+    /// @param    [in]  value            Indicate which point to be signaled.
+    ///
+    /// @returns Success if the timeline semaphore point is signaled successful.  Otherwise, one of the following errors
+    ///          may be returned:
+    ///          + ErrorInvalidValue if an unexpected conversion error occurs.
+    ///          + ErrorInvalidObjectType if semaphore is non-timeline type.
+    virtual Result SignalSemaphoreValue(
+        uint64                   value) = 0;
 
     /// Returns an OS-specific handle which can be used to refer to this semaphore object across processes. This will
     /// return a null or invalid handle if the object was not created with the external create flag set.

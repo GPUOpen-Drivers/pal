@@ -56,6 +56,8 @@ public:
     void ValidateSettings(PalSettings* pSettings);
     void OverrideDefaults(PalSettings* pSettings);
 
+    virtual void RereadSettings() override;
+
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);

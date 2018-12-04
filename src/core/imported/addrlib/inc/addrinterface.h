@@ -1930,6 +1930,22 @@ ADDR_E_RETURNCODE ADDR_API ElemFlt32ToColorPixel(
 
 /**
 ****************************************************************************************************
+*   ElemSize
+*
+*   @brief
+*       Get bits-per-element for specified format
+*
+*   @return
+*       Bits-per-element of specified format
+*
+****************************************************************************************************
+*/
+UINT_32 ADDR_API ElemSize(
+    ADDR_HANDLE hLib,
+    AddrFormat  format);
+
+/**
+****************************************************************************************************
 *   ADDR_CONVERT_TILEINFOTOHW_INPUT
 *
 *   @brief

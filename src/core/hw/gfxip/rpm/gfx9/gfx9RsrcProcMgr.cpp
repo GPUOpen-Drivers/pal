@@ -1283,6 +1283,19 @@ void RsrcProcMgr::ExpandDepthStencil(
 }
 
 // =====================================================================================================================
+bool RsrcProcMgr::WillDecompressWithCompute(
+    const GfxCmdBuffer* pCmdBuffer,
+    const Image&        gfxImage,
+    const SubresRange&  range
+    ) const
+{
+    const bool supportsComputePath = gfxImage.SupportsComputeDecompress(range.startSubres);
+
+    return ((pCmdBuffer->IsGraphicsSupported() == false) ||
+            (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))));
+}
+
+// =====================================================================================================================
 // Performs a fast-clear on a color image by updating the image's DCC buffer.
 void RsrcProcMgr::HwlFastColorClear(
     GfxCmdBuffer*      pCmdBuffer,
@@ -2257,7 +2270,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // All mip levels share the same depth export value, so only need to do it once.
     RpmUtil::WriteVsZOut(pCmdBuffer, depth);
-    RpmUtil::WriteVsFirstSliceOffet(pCmdBuffer, 0);
+    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Box of partial clear is only valid when number of mip-map is equal to 1.
     PAL_ASSERT((boxCnt == 0) || ((pBox != nullptr) && (range.numMips == 1)));

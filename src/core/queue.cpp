@@ -630,6 +630,7 @@ Result Queue::WaitIdle()
 // NOTE: Part of the public IQueue interface.
 Result Queue::SignalQueueSemaphoreInternal(
     IQueueSemaphore* pQueueSemaphore,
+    uint64           value,
     bool             postBatching)
 {
     QueueSemaphore*const pSemaphore = static_cast<QueueSemaphore*>(pQueueSemaphore);
@@ -642,7 +643,7 @@ Result Queue::SignalQueueSemaphoreInternal(
     {
         // The Semaphore object is responsible for notifying any stalled Queues which may get released by this signal
         // operation.
-        result = pSemaphore->Signal(this);
+        result = pSemaphore->Signal(this, value);
     }
     else
     {
@@ -655,12 +656,13 @@ Result Queue::SignalQueueSemaphoreInternal(
             BatchedQueueCmdData cmdData  = { };
             cmdData.command              = BatchedQueueCmd::SignalSemaphore;
             cmdData.semaphore.pSemaphore = pQueueSemaphore;
+            cmdData.semaphore.value      = value;
 
             result = m_batchedCmds.PushBack(cmdData);
         }
         else
         {
-            result = pSemaphore->Signal(this);
+            result = pSemaphore->Signal(this, value);
         }
     }
 
@@ -674,6 +676,7 @@ Result Queue::SignalQueueSemaphoreInternal(
 // NOTE: Part of the public IQueue interface.
 Result Queue::WaitQueueSemaphoreInternal(
     IQueueSemaphore* pQueueSemaphore,
+    uint64           value,
     bool             postBatching)
 {
     QueueSemaphore*const pSemaphore = static_cast<QueueSemaphore*>(pQueueSemaphore);
@@ -686,7 +689,7 @@ Result Queue::WaitQueueSemaphoreInternal(
     {
         // If this Queue isn't stalled yet, we can execute the wait immediately (which, of course, could stall
         // this Queue).
-        result = pSemaphore->Wait(this, &m_stalled);
+        result = pSemaphore->Wait(this, value, &m_stalled);
     }
     else
     {
@@ -699,12 +702,13 @@ Result Queue::WaitQueueSemaphoreInternal(
             BatchedQueueCmdData cmdData  = { };
             cmdData.command              = BatchedQueueCmd::WaitSemaphore;
             cmdData.semaphore.pSemaphore = pQueueSemaphore;
+            cmdData.semaphore.value      = value;
 
             result = m_batchedCmds.PushBack(cmdData);
         }
         else
         {
-            result = pSemaphore->Wait(this, &m_stalled);
+            result = pSemaphore->Wait(this, value, &m_stalled);
         }
     }
 
@@ -1044,11 +1048,12 @@ Result Queue::ReleaseFromStalledState()
             break;
 
         case BatchedQueueCmd::SignalSemaphore:
-            result = static_cast<QueueSemaphore*>(cmdData.semaphore.pSemaphore)->Signal(this);
+            result = static_cast<QueueSemaphore*>(cmdData.semaphore.pSemaphore)->Signal(this, cmdData.semaphore.value);
             break;
 
         case BatchedQueueCmd::WaitSemaphore:
-            result = static_cast<QueueSemaphore*>(cmdData.semaphore.pSemaphore)->Wait(this, &stalledAgain);
+            result = static_cast<QueueSemaphore*>(cmdData.semaphore.pSemaphore)->Wait(this, cmdData.semaphore.value,
+                                                                                      &stalledAgain);
             break;
 
         case BatchedQueueCmd::PresentDirect:

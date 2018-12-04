@@ -198,6 +198,8 @@ public:
     // Returns true if the specified mip level supports having a meta-data surface for the given mip level
     virtual bool CanMipSupportMetaData(uint32  mip) const { return true; }
 
+    virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const = 0;
+
     // Returns true if a clear operation was ever performed with a non-TC compatible clear color.
     bool    HasSeenNonTcCompatibleClearColor() const { return (m_hasSeenNonTcCompatClearColor == true); }
     void    SetNonTcCompatClearFlag(bool value) { m_hasSeenNonTcCompatClearColor = value; }

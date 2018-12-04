@@ -365,6 +365,8 @@ public:
 
     bool IsColorDataZeroOrOne(const uint32*  pColor, uint32 compIdx) const;
 
+    virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const override;
+
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
     static const uint32                      MaxNumPlanes = 3;
@@ -405,6 +407,12 @@ private:
         // For depth-stencil images and their compression states (one each for depth and stencil aspects).
         DepthStencilLayoutToState  depthStencil[2];
     } m_layoutToState;
+
+    union
+    {
+        ImageLayout color;
+        ImageLayout depthStencil[2];
+    } m_defaultGfxLayout;
 
     Result ComputeAlignedSurfaceDimensions(
         const SubResourceInfo*              pSubResInfo,

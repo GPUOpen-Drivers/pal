@@ -308,6 +308,7 @@ public:
     const PalSettings& CoreSettings() const;
     virtual void HwlValidateSettings(PalSettings* pSettings) = 0;
     virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) = 0;
+    virtual void HwlRereadSettings() = 0;
 
     // This gives the GFX device an opportunity to override and/or fixup some of the PAL device properties after all
     // settings have been read. Called during IDevice::CommitSettingsAndInit().

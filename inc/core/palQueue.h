@@ -358,24 +358,26 @@ public:
     /// Inserts a semaphore signal into the GPU queue.  The semaphore will be signaled once all previously submitted
     /// work on this queue has completed.
     ///
-    /// @param [in] pQueueSemaphore Semaphore to signal.
+    /// @param [in] pQueueSemaphore     Semaphore to signal.
+    /// @param [in] value               timeline Semaphore point value to signal, ignored for non-timeline semaphores.
     ///
     /// @returns Success if the semaphore signal was successfully queued.  Otherwise, one of the following errors may be
     ///          returned:
     ///          + ErrorUnknown if the OS scheduler rejects the signal for unknown reasons.
     virtual Result SignalQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) = 0;
+        IQueueSemaphore* pQueueSemaphore, uint64 value = 0) = 0;
 
     /// Inserts a semaphore wait into the GPU queue.  The queue will be stalled until the specified semaphore is
     /// signaled.
     ///
-    /// @param [in] pQueueSemaphore Semaphore to wait on.
+    /// @param [in] pQueueSemaphore     Semaphore to wait on.
+    /// @param [in] value               timeline semaphore point value to wait on, ignored for non-timeline semaphores.
     ///
     /// @returns Success if the semaphore wait was successfully queued.  Otherwise, one of the following errors may be
     ///          returned:
     ///          + ErrorUnknown if the OS scheduler rejects the wait for unknown reasons.
     virtual Result WaitQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) = 0;
+        IQueueSemaphore* pQueueSemaphore, uint64 value = 0) = 0;
 
     /// This function passes application information to KMD for application specific power optimizations.
     /// Power configuration are restored to default when all application queues are destroyed.

@@ -443,6 +443,7 @@ if(PAL_BUILD_CORE)
                 core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.cpp
                 core/hw/gfxip/gfx9/gfx9UniversalEngine.cpp
                 core/hw/gfxip/gfx9/gfx9WorkaroundState.cpp
+                core/hw/gfxip/gfx9/gfx9AcquireReleaseBarrier.cpp
             )
 
             # Resource Processing Manager(RPM) GFXIP 9 files.

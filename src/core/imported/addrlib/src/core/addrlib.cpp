@@ -603,4 +603,19 @@ BOOL_32 Lib::GetExportNorm(
     return enabled;
 }
 
+/**
+****************************************************************************************************
+*   Lib::GetBpe
+*
+*   @brief
+*       Get bits-per-element for specified format
+*   @return
+*       bits-per-element of specified format
+****************************************************************************************************
+*/
+UINT_32 Lib::GetBpe(AddrFormat format) const
+{
+    return GetElemLib()->GetBitsPerPixel(format);
+}
+
 } // Addr

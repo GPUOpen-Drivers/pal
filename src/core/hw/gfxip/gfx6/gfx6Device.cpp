@@ -2152,9 +2152,15 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
-            const SurfaceSwap surfSwap = Formats::Gfx6::ColorCompSwap(viewInfo.swizzledFormat);
 
-            if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
+            // For the single component FORMAT cases, ALPHA_IS_ON_MSB (AIOM)=0 indicates the channel is color,
+            // while ALPHA_IS_ON_MSB (AIOM)=1 indicates the channel is alpha.
+            // ALPHA_IS_ON_MSB should be set to 1 for all single-component formats only if swap is SWAP_ALT_REV
+            const SurfaceSwap surfSwap = Formats::Gfx6::ColorCompSwap(viewInfo.swizzledFormat);
+            const uint32 numComponents = Formats::NumComponents(viewInfo.swizzledFormat.format);
+
+            if  (((numComponents == 1) && (surfSwap == SWAP_ALT_REV)) ||
+                 ((numComponents != 1) && (surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV)))
             {
                 srd.word6.bits.ALPHA_IS_ON_MSB__VI = 1;
             }
@@ -2658,6 +2664,8 @@ void InitializeGpuChipProperties(
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
     pInfo->gfx6.supports2BitSignedValues = 0;
 
+    pInfo->gfxip.numSlotsPerEvent = 1;
+
     switch (pInfo->familyId)
     {
     // GFX 6 Discrete GPU's (Southern Islands):
@@ -2785,13 +2793,16 @@ void InitializeGpuChipProperties(
         }
         else if (ASICREV_IS_HAWAII_P(pInfo->eRevId))
         {
+            const bool isHawaiiPro = ((pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A0) ||
+                                      (pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A1));
+
             pInfo->gfx6.numShaderEngines = 4;
             pInfo->gfx6.maxNumCuPerSh    = 11;
             pInfo->gfx6.maxNumRbPerSe    = 4;
             pInfo->gfx6.numMcdTiles      = 8;
             pInfo->gfx6.numTccBlocks     = 16;
-            pInfo->revision              = AsicRevision::Hawaii;
-            pInfo->gfxStepping           = 2;
+            pInfo->revision              = isHawaiiPro ? AsicRevision::HawaiiPro : AsicRevision::Hawaii;
+            pInfo->gfxStepping           = isHawaiiPro ? 1 : 2;
             pInfo->gfxip.tccSizeInBytes  = 1024 * 1024;
 
             // Support for IT_SET_SH_REG_INDEX added from CP feature version 29 onwards.

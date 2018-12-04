@@ -538,7 +538,10 @@ public:
         uint32_t             fenceCount) const;
 
     bool IsInitialSignaledSyncobjSemaphoreSupported() const
-        { return m_syncobjSupportState.InitialSignaledSyncobjSemaphore == 1; }
+        { return m_syncobjSupportState.initialSignaledSyncobjSemaphore == 1; }
+
+    bool IsTimelineSyncobjSemaphoreSupported() const
+        { return m_syncobjSupportState.timelineSemaphore == 1; }
 
     Result ReadRegisters(
         uint32  dwordOffset,
@@ -572,10 +575,13 @@ public:
 
     Result ConveySyncObjectState(
         amdgpu_syncobj_handle    importSyncObj,
-        amdgpu_syncobj_handle    exportSyncObj) const;
+        uint64                   importPoint,
+        amdgpu_syncobj_handle    exportSyncObj,
+        uint64                   exportPoint) const;
 
     Result CreateSemaphore(
         bool                     isCreatedSignaled,
+        bool                     isCreatedTimeline,
         amdgpu_semaphore_handle* pSemaphoreHandle) const;
 
     Result DestroySemaphore(
@@ -603,6 +609,19 @@ public:
         OsExternalHandle         fd,
         amdgpu_semaphore_handle* pSemaphoreHandle,
         bool                     isReference) const;
+
+    Result QuerySemaphoreValue(
+        amdgpu_semaphore_handle hSemaphore,
+        uint64*                 pValue) const;
+
+    Result WaitSemaphoreValue(
+        amdgpu_semaphore_handle hSemaphore,
+        uint64                  value,
+        uint64                  timeoutNs) const;
+
+    Result SignalSemaphoreValue(
+        amdgpu_semaphore_handle  hSemaphore,
+        uint64                   value) const;
 
     Result AssignVirtualAddress(
         Pal::GpuMemory*         pGpuMemory,
@@ -866,10 +885,11 @@ private:
     {
         struct
         {
-            uint32 SyncobjSemaphore                : 1;
-            uint32 InitialSignaledSyncobjSemaphore : 1;
-            uint32 SyncobjFence                    : 1;
-            uint32 reserved                        : 29;
+            uint32 syncobjSemaphore                : 1;
+            uint32 initialSignaledSyncobjSemaphore : 1;
+            uint32 syncobjFence                    : 1;
+            uint32 timelineSemaphore               : 1;
+            uint32 reserved                        : 28;
         };
         uint32 flags;
     } m_syncobjSupportState;

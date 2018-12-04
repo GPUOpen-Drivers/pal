@@ -125,15 +125,17 @@ bool MasterQueueSemaphore::IsBlockedBySemaphore(
 // Signals the specified Semaphore object associated with this Semaphore from the specified Queue.
 Result MasterQueueSemaphore::SignalInternal(
     Queue*          pQueue,
-    QueueSemaphore* pSemaphore)
+    QueueSemaphore* pSemaphore,
+    uint64          value)
 {
     Result result = Result::Success;
 
+    PAL_ASSERT((IsTimeline() == false) || (value != 0));
     if (m_pDevice->IsNull() == false)
     {
-        if (IsExternalOpened() || IsShareable())
+        if (IsExternalOpened() || IsShareable() || IsTimeline())
         {
-            result = OsSignal(pQueue);
+            result = OsSignal(pQueue, value);
         }
         else
         {
@@ -141,7 +143,7 @@ Result MasterQueueSemaphore::SignalInternal(
 
             ++m_signalCount;
 
-            result = OsSignal(pQueue);
+            result = OsSignal(pQueue, value);
             if (result == Result::Success)
             {
                 result = ReleaseBlockedQueues();
@@ -158,15 +160,17 @@ Result MasterQueueSemaphore::SignalInternal(
 Result MasterQueueSemaphore::WaitInternal(
     Queue*          pQueue,
     QueueSemaphore* pSemaphore,
+    uint64          value,
     volatile bool*  pIsStalled)
 {
     Result result = Result::Success;
 
+    PAL_ASSERT((IsTimeline() == false) || (value != 0));
     if (m_pDevice->IsNull() == false)
     {
-        if (IsExternalOpened() || IsShareable())
+        if (IsExternalOpened() || IsShareable() || IsTimeline())
         {
-            result = OsWait(pQueue);
+            result = OsWait(pQueue, value);
         }
         else
         {
@@ -183,7 +187,7 @@ Result MasterQueueSemaphore::WaitInternal(
                 // From our perspective, the Queue is now blocked because we haven't seen the corresponding Signal to
                 // this Wait. Rather than hand the OS the Wait operation now, we'll batch this up and mark the Queue
                 // as blocked.
-                result = AddBlockedQueue(pQueue, pSemaphore);
+                result = AddBlockedQueue(pQueue, pSemaphore, value);
                 if (result == Result::Success)
                 {
                     // NOTE: This assertion could trip if the application or client waited on the same Queue with two
@@ -195,7 +199,7 @@ Result MasterQueueSemaphore::WaitInternal(
             else
             {
                 // The Queue isn't blocked from our perspective, so let the operation go down to the GPU scheduler.
-                result = OsWait(pQueue);
+                result = OsWait(pQueue, value);
             }
         }
     }
@@ -220,11 +224,13 @@ Result MasterQueueSemaphore::EarlySignal()
 // caller!
 Result MasterQueueSemaphore::AddBlockedQueue(
     Queue*          pQueue,
-    QueueSemaphore* pSemaphore)
+    QueueSemaphore* pSemaphore,
+    uint64          value)
 {
     BlockedInfo info = { };
     info.pQueue      = pQueue;
     info.pSemaphore  = pSemaphore;
+    info.value       = value;
     info.waitCount   = m_waitCount;
 
     return m_blockedQueues.PushBack(info);
@@ -248,7 +254,7 @@ Result MasterQueueSemaphore::ReleaseBlockedQueues()
             // The Semaphore has been signaled already by some other Queue, so it is safe to submit the Wait request
             // from the OS' perspective.
             PAL_ASSERT(info.pQueue != nullptr);
-            result = OsWait(info.pQueue);
+            result = OsWait(info.pQueue, info.value);
 
             // ...it is also safe to submit any batched-up commands to the OS.
             if (result == Result::Success)

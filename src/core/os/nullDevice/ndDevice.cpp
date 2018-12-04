@@ -64,7 +64,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
 
     { FAMILY_KV,  KV_SPECTRE_A0,        PRID_KV_SPECTRE_GODAVARI_D4,  GfxEngineGfx6,  DEVICE_ID_SPECTRE_DESKTOP_130F },
     { FAMILY_KV,  KV_SPOOKY_A0,         PRID_KV_SPOOKY,               GfxEngineGfx6,  DEVICE_ID_SPOOKY_DESKTOP_1316  },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_00,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67A0     },
     { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_80,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67BE     },
     { FAMILY_KV,  KV_KALINDI_A0,        PRID_KV_KALINDI_00,           GfxEngineGfx6,  DEVICE_ID_KALINDI__9830        },
     { FAMILY_KV,  KV_GODAVARI_A0,       PRID_GODAVARI_MULLINS_01,     GfxEngineGfx6,  DEVICE_ID_KV_GODAVARI__9850    },
@@ -110,7 +110,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
 
     "SPECTRE:gfx700",
     "SPOOKY:gfx700",
-    nullptr,
+    "HAWAIIPRO:gfx701",
     "HAWAII:gfx702",
     "KALINDI:gfx703",
     "GODAVARI:gfx703",
@@ -822,7 +822,7 @@ void Device::InitGfx9ChipProperties()
     auto*const  pChipInfo  = &m_chipProperties.gfx9;
 
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(UINT_MAX, &m_chipProperties);
+    Gfx9::InitializeGpuChipProperties(GetPlatform(), UINT_MAX, &m_chipProperties);
 
     if (AMDGPU_IS_VEGA10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {

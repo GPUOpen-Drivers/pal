@@ -72,7 +72,7 @@ ImageSrd                 nullImageView  = {};
 static const SamplerSrd  NullSampler    = {};
 
 // Microcode version for CE dump offset support
-static constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
+constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 
 // Microcode version for SET_SH_REG_OFFSET with 256B alignment.
 constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
@@ -2228,6 +2228,19 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         {
             // The setup of the compression-related fields requires knowing the bound memory and the expected
             // usage of the memory (read or write), so defer most of the setup to "WriteDescriptorSlot".
+
+            // For single-channel FORMAT cases, ALPHA_IS_ON_MSB(AIOM) = 0 indicates the channel is color.
+            // while ALPHA_IS_ON_MSB (AIOM) = 1 indicates the channel is alpha.
+
+            // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
+            // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
+            // during CB rendering/draw on gfx9.2, which requires special handling.
+            // According to Anthony (Anthony.Chan@amd.com), ALPHA_IS_ON_MSB (AIOM) settings on RV 2 should be as follows:
+            // AIOM = 0 for alpha, and AIOM = 1 for color.
+
+            // To avoid any ambiguity, clear codes of single-channel formats could only be 0000 or 1111, which means
+            // ALPHA_IS_ON_MSB (AIOM) settings actually won't make any difference. To walk around RV2 hardware limitation
+            // mentioned above, ALPHA_IS_ON_MSB settings on gfx9 remains unchanged.
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
             if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
@@ -2667,6 +2680,7 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
 // Initializes the GPU chip properties for a Device object, specifically for the GFX9 hardware layer. Returns an error
 // if an unsupported chip revision is detected.
 void InitializeGpuChipProperties(
+    const Platform*    pPlatform,
     uint32             cpUcodeVersion,
     GpuChipProperties* pInfo)
 {
@@ -2676,7 +2690,6 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.maxImageDimension.width  = MaxImageWidth;
     pInfo->imageProperties.maxImageDimension.height = MaxImageHeight;
     pInfo->imageProperties.maxImageDimension.depth  = MaxImageDepth;
-    pInfo->imageProperties.prtTileSize              = PrtTileSize;
 
     // GFX9 ASICs support texture quilting on single-sample surfaces.
     pInfo->imageProperties.flags.supportsSingleSampleQuilting = 1;
@@ -2710,8 +2723,10 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
     memcpy(&pInfo->gfxip.fastUserDataEntries[0], &FastUserDataEntriesByStage[0], sizeof(FastUserDataEntriesByStage));
 
-    pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
-    pInfo->imageProperties.prtTileSize = PrtTileSize;
+    {
+        pInfo->imageProperties.prtFeatures = Gfx9PrtFeatures;
+        pInfo->imageProperties.prtTileSize = PrtTileSize;
+    }
 
     pInfo->gfx9.supports2BitSignedValues           = 1;
     pInfo->gfx9.supportConservativeRasterization   = 1;
@@ -2763,11 +2778,13 @@ void InitializeGpuChipProperties(
     // Gfx 9 APU's (Raven):
     case FAMILY_RV:
         pInfo->gpuType  = GpuType::Integrated;
-        pInfo->gfx9.numShaderEngines     = 1;
-        pInfo->gfx9.maxGsWavesPerVgt     = 16;
-        pInfo->gfx9.parameterCacheLines  = 1024;
-        pInfo->gfx9.rbPlus               = 1;
-        pInfo->gfx9.numSdpInterfaces     = 2;
+        pInfo->gfx9.numShaderEngines               = 1;
+        pInfo->gfx9.maxGsWavesPerVgt               = 16;
+        pInfo->gfx9.parameterCacheLines            = 1024;
+        pInfo->gfx9.rbPlus                         = 1;
+        pInfo->gfx9.numSdpInterfaces               = 2;
+        pInfo->gfx9.supportReleaseAcquireInterface = 1;
+        pInfo->gfx9.supportSplitReleaseAcquire     = 0;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {
@@ -2786,9 +2803,11 @@ void InitializeGpuChipProperties(
     // Gfx 9 Discrete GPU's (Vega):
     case FAMILY_AI:
         pInfo->gpuType = GpuType::Discrete;
-        pInfo->gfx9.numShaderEngines    = 4;
-        pInfo->gfx9.maxGsWavesPerVgt    = 32;
-        pInfo->gfx9.parameterCacheLines = 4096;
+        pInfo->gfx9.numShaderEngines               = 4;
+        pInfo->gfx9.maxGsWavesPerVgt               = 32;
+        pInfo->gfx9.parameterCacheLines            = 4096;
+        pInfo->gfx9.supportReleaseAcquireInterface = 1;
+        pInfo->gfx9.supportSplitReleaseAcquire     = 0;
 
         if (ASICREV_IS_VEGA10_P(pInfo->eRevId))
         {
@@ -2839,6 +2858,15 @@ void InitializeGpuChipProperties(
     pInfo->nullSrds.pNullImageView  = &nullImageView;
     pInfo->nullSrds.pNullFmaskView  = &nullImageView;
     pInfo->nullSrds.pNullSampler    = &NullSampler;
+
+    if (pInfo->gfx9.supportReleaseAcquireInterface == 1)
+    {
+        pInfo->gfxip.numSlotsPerEvent = MaxSlotsPerEvent;
+    }
+    else
+    {
+        pInfo->gfxip.numSlotsPerEvent = 1;
+    }
 }
 
 // =====================================================================================================================
@@ -2920,14 +2948,27 @@ void InitializePerfExperimentProperties(
         const auto&             blockInfo = perfCounterInfo.block[blockIdx];
         GpuBlockPerfProperties* pBlock    = &pProperties->blocks[blockIdx];
 
-        pBlock->available = blockInfo.available;
+        pBlock->available = (blockInfo.distribution != PerfCounterDistribution::Unavailable);
 
-        if (blockInfo.available)
+        if (pBlock->available)
         {
             const uint32 totalCounters  = blockInfo.numCounters;
-            const uint32 totalInstances = blockInfo.numShaderEngines *
-                                          blockInfo.numShaderArrays  *
-                                          blockInfo.numInstances;
+            uint32       totalInstances = blockInfo.numInstances;
+
+            switch (blockInfo.distribution)
+            {
+            case PerfCounterDistribution::PerShaderArray:
+                totalInstances *= chipProps.gfx9.numShaderEngines * chipProps.gfx9.numShaderArrays;
+                break;
+            case PerfCounterDistribution::PerShaderEngine:
+                totalInstances *= chipProps.gfx9.numShaderEngines;
+                break;
+
+            case PerfCounterDistribution::GlobalBlock:
+            default:
+                // Nothing to do here.
+                break;
+            }
 
             pBlock->instanceCount           = totalInstances;
             pBlock->maxEventId              = blockInfo.maxEventId;
@@ -4749,6 +4790,49 @@ Result Device::P2pBltWaModifyRegionListMemoryToImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Returns the TcCacheOp that can satisfy the most cacheFlags without over-syncing. Note that the flags for the
+// selected cache op are set to zero.
+TcCacheOp Device::SelectTcCacheOp(
+    uint32* pCacheFlags // [in/out]
+    ) const
+{
+    TcCacheOp cacheOp = TcCacheOp::Nop;
+
+    if (TestAllFlagsSet(*pCacheFlags, CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc))
+    {
+        *pCacheFlags &= ~(CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
+        cacheOp      = TcCacheOp::WbInvL1L2;
+    }
+    else if (TestAllFlagsSet(*pCacheFlags , CacheSyncInvTcc | CacheSyncFlushTcc))
+    {
+        *pCacheFlags &= ~(CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
+        cacheOp      = TcCacheOp::WbInvL2Nc;
+    }
+    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncFlushTcc))
+    {
+        *pCacheFlags &= ~CacheSyncFlushTcc;
+        cacheOp      = TcCacheOp::WbL2Nc;
+    }
+    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTcc))
+    {
+        *pCacheFlags &= ~(CacheSyncInvTcc | CacheSyncInvTccMd);
+        cacheOp      = TcCacheOp::InvL2Nc;
+    }
+    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTcp))
+    {
+        *pCacheFlags &= ~CacheSyncInvTcp;
+        cacheOp      = TcCacheOp::InvL1;
+    }
+    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTccMd))
+    {
+        *pCacheFlags &= ~CacheSyncInvTccMd;
+        cacheOp      = TcCacheOp::InvL2Md;
+    }
+
+    return cacheOp;
 }
 } // Gfx9
 } // Pal

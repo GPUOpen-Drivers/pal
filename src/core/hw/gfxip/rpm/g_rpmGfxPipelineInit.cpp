@@ -68,8 +68,9 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableOland;
         break;
 
+    case AsicRevision::HawaiiPro:
     case AsicRevision::Hawaii:
-        pTable = rpmGfxBinaryTableHawaii;
+        pTable = rpmGfxBinaryTableHawaiiPro;
         break;
 
     case AsicRevision::Carrizo:

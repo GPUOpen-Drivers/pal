@@ -147,6 +147,7 @@ Result GfxDevice::InitHwlSettings(
     if (ret == Result::Success)
     {
         HwlOverrideDefaultSettings(pSettings);
+        HwlRereadSettings();
     }
 
     return ret;

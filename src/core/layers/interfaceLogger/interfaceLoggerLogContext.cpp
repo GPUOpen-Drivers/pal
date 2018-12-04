@@ -125,6 +125,9 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
+    { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
+    { InterfaceFunc::CmdBufferCmdAcquire,                                       InterfaceObject::CmdBuffer,            "CmdAcquire"                              },
+    { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                            InterfaceObject::CmdBuffer,            "CmdReleaseThenAcquire"                   },
     { InterfaceFunc::CmdBufferCmdDraw,                                          InterfaceObject::CmdBuffer,            "CmdDraw"                                 },
     { InterfaceFunc::CmdBufferCmdDrawOpaque,                                    InterfaceObject::CmdBuffer,            "CmdDrawOpaque"                           },
     { InterfaceFunc::CmdBufferCmdDrawIndexed,                                   InterfaceObject::CmdBuffer,            "CmdDrawIndexed"                          },
@@ -813,6 +816,46 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherCeDump",             // 0x00001000,
         "CoherStreamOut",          // 0x00002000,
         "CoherMemory",             // 0x00004000,
+    };
+
+    BeginList(false);
+
+    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    {
+        if ((flags & (1 << idx)) != 0)
+        {
+            Value(StringTable[idx]);
+        }
+    }
+
+    // This will trigger if there are flags missing in our table.
+    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::PipelineStageFlags(
+    uint32 flags)
+{
+    const char*const StringTable[] =
+    {
+        "PipelineStageTopOfPipe",         //= 0x00000001,
+        "PipelineStageFetchIndirectArgs", //= 0x00000002,
+        "PipelineStageFetchIndices",      //= 0x00000004,
+        "PipelineStageVs",                //= 0x00000008,
+        "PipelineStageHs",                //= 0x00000010,
+        "PipelineStageDs",                //= 0x00000020,
+        "PipelineStageGs",                //= 0x00000040,
+        "PipelineStagePs",                //= 0x00000080,
+        "PipelineStageEarlyDsTarget",     //= 0x00000100,
+        "PipelineStageLateDsTarget",      //= 0x00000200,
+        "PipelineStageColorTarget",       //= 0x00000400,
+        "PipelineStageCs",                //= 0x00000800,
+        "PipelineStageBlt",               //= 0x00001000,
+        "PipelineStageBottomOfPipe",      //= 0x00002000,
     };
 
     BeginList(false);

@@ -61,6 +61,7 @@ Pal::Result CreateTimeGraphComputePipelines(
         break;
 
     case Pal::AsicRevision::Bonaire:
+    case Pal::AsicRevision::HawaiiPro:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Kalindi:
     case Pal::AsicRevision::Godavari:

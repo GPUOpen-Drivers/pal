@@ -58,13 +58,15 @@ public:
     const BoundGpuMemory& GetBoundGpuMemory() const { return m_gpuMemory; }
 
 private:
-    Result CpuWrite(uint32 data);
+    Result CpuWrite(uint32 slotId, uint32 data);
 
     const GpuEventCreateInfo m_createInfo;
     Device*const             m_pDevice;
 
     BoundGpuMemory           m_gpuMemory;
     volatile uint32*         m_pEventData;
+
+    const uint32             m_numSlotsPerEvent;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuEvent);
 };

@@ -76,6 +76,14 @@ enum CacheSyncFlags : uint32
     CacheSyncFlushAndInvDbMd   = CacheSyncInvDbMd           | CacheSyncFlushDbMd,
     CacheSyncFlushAndInvDb     = CacheSyncFlushAndInvDbData | CacheSyncFlushAndInvDbMd,
     CacheSyncFlushAndInvRb     = CacheSyncFlushAndInvCb     | CacheSyncFlushAndInvDb,
+
+    // Some helper masks for combinations of separate flush/invalidation and Cb/Db/whole Rb.
+    CacheSyncFlushCb = CacheSyncFlushCbData | CacheSyncFlushCbMd,
+    CacheSyncInvCb   = CacheSyncInvCbData   | CacheSyncInvCbMd,
+    CacheSyncFlushDb = CacheSyncFlushDbData | CacheSyncFlushDbMd,
+    CacheSyncInvDb   = CacheSyncInvDbData   | CacheSyncInvDbMd,
+    CacheSyncFlushRb = CacheSyncFlushCb     | CacheSyncFlushDb,
+    CacheSyncInvRb   = CacheSyncInvCb       | CacheSyncInvDb,
 };
 
 enum RegisterRangeType : uint32
@@ -102,6 +110,27 @@ struct SyncReqs
         uint32 syncCpDma      :  1;
         uint32 reserved       : 26;
     };
+};
+
+enum HwLayoutTransition : uint32
+{
+    None                         = 0x0,
+
+    // Depth/Stencil
+    ExpandDepthStencil           = 0x1,
+    HwlExpandHtileHiZRange       = 0x2,
+    ResummarizeDepthStencil      = 0x3,
+
+    // Color
+    FastClearEliminate           = 0x4,
+    FmaskDecompress              = 0x5,
+    DccDecompress                = 0x6,
+    MsaaColorDecompress          = 0x7,
+    FmaskDecomprMsaaColorDecompr = 0x8, // FmaskDecompress->MsaaColorDecompress
+    DccDecomprMsaaColorDecompr   = 0x9, // DccDecompress->MsaaColorDecompress
+
+    // Initialize Color metadata or Depth/stencil Htile.
+    InitMaskRam                  = 0xa,
 };
 
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
@@ -139,6 +168,11 @@ public:
     virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) override
     {
         static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
+    }
+
+    virtual void HwlRereadSettings() override
+    {
+        m_pSettingsLoader->RereadSettings();
     }
 
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
@@ -368,6 +402,24 @@ public:
 
     void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
 
+    void BarrierRelease(
+        GfxCmdBuffer*             pCmdBuf,
+        CmdStream*                pCmdStream,
+        const AcquireReleaseInfo& barrierReleaseInfo,
+        const IGpuEvent*          pGpuEvent) const;
+
+    void BarrierAcquire(
+        GfxCmdBuffer*             pCmdBuf,
+        CmdStream*                pCmdStream,
+        const AcquireReleaseInfo& barrierAcquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent*const*    ppGpuEvents) const;
+
+    void BarrierReleaseThenAcquire(
+        GfxCmdBuffer*             pCmdBuf,
+        CmdStream*                pCmdStream,
+        const AcquireReleaseInfo& barrierInfo) const;
+
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
     void IssueSyncs(
@@ -392,6 +444,15 @@ public:
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
+    void AcqRelColorTransition(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const ImgBarrier&             imgBarrier,
+        HwLayoutTransition            transition) const;
+    void AcqRelDepthStencilTransition(
+        GfxCmdBuffer*                 pCmdBuf,
+        const ImgBarrier&             imgBarrier,
+        HwLayoutTransition            transition) const;
     void DescribeBarrier(
         GfxCmdBuffer*                 pCmdBuf,
         const BarrierTransition*      pTransition,
@@ -489,6 +550,91 @@ private:
         Gfx9ImageSrd*                pSrd) const;
 
     void SetupWorkarounds();
+
+    TcCacheOp SelectTcCacheOp(uint32* pCacheFlags) const;
+
+    HwLayoutTransition ConvertToColorBlt(
+        const GfxCmdBuffer* pCmdBuf,
+        const Pal::Image&   image,
+        const SubresRange&  subresRange,
+        ImageLayout         oldLayout,
+        ImageLayout         newLayout) const;
+    HwLayoutTransition ConvertToDepthStencilBlt(
+        const GfxCmdBuffer* pCmdBuf,
+        const Pal::Image&   image,
+        const SubresRange&  subresRange,
+        ImageLayout         oldLayout,
+        ImageLayout         newLayout) const;
+    HwLayoutTransition ConvertToBlt(
+        const GfxCmdBuffer* pCmdBuf,
+        const ImgBarrier&   imageBarrier) const;
+
+    void GetBltStageAccessInfo(
+        HwLayoutTransition  transition,
+        const GfxCmdBuffer* pCmdBuffer,
+        const Image&        gfxImage,
+        const SubresRange&  range,
+        uint32*             pStageMask,
+        uint32*             pAccessMask) const;
+
+    void IssueBlt(
+        GfxCmdBuffer*      pCmdBuf,
+        CmdStream*         pCmdStream,
+        const ImgBarrier*  pImgBarrier,
+        HwLayoutTransition transition) const;
+
+    bool AcqRelInitMaskRam(
+        GfxCmdBuffer*      pCmdBuf,
+        CmdStream*         pCmdStream,
+        const ImgBarrier&  imgBarrier,
+        HwLayoutTransition transition) const;
+
+    size_t BuildReleaseSyncPackets(
+        EngineType engineType,
+        uint32     stageMask,
+        uint32     accessMask,
+        bool       flushLlc,
+        gpusize    gpuEventStartVa,
+        void*      pBuffer) const;
+
+    size_t BuildAcquireSyncPackets(
+        EngineType engineType,
+        uint32     stageMask,
+        uint32     accessMask,
+        bool       invalidateLlc,
+        gpusize    baseAddress,
+        gpusize    sizeBytes,
+        void*      pBuffer) const;
+
+    void IssueReleaseSync(
+        GfxCmdBuffer*    pCmdBuf,
+        CmdStream*       pCmdStream,
+        uint32           stageMask,
+        uint32           accessMask,
+        bool             flushLlc,
+        const IGpuEvent* pGpuEvent) const;
+
+    void IssueAcquireSync(
+        GfxCmdBuffer*          pCmdBuf,
+        CmdStream*             pCmdStream,
+        uint32                 stageMask,
+        uint32                 accessMask,
+        bool                   invalidateLlc,
+        gpusize                rangeStartAddr,
+        gpusize                rangeSize,
+        uint32                 gpuEventCount,
+        const IGpuEvent*const* ppGpuEvents) const;
+
+    uint32 Gfx9BuildReleaseCoherCntl(
+        uint32                accessMask,
+        bool                  flushTcc,
+        uint32                vgtEventCount,
+        const VGT_EVENT_TYPE* pVgtEvents) const;
+
+    bool WaRefreshTccToAlignMetadata(
+        const ImgBarrier& imgBarrier,
+        uint32            srcAccessMask,
+        uint32            dstAccessMask) const;
 
     Gfx9::CmdUtil  m_cmdUtil;
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.

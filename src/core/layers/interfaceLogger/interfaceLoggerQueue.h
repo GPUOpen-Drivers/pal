@@ -50,9 +50,9 @@ public:
         const SubmitInfo& submitInfo) override;
     virtual Result WaitIdle() override;
     virtual Result SignalQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) override;
+        IQueueSemaphore* pQueueSemaphore, uint64 value) override;
     virtual Result WaitQueueSemaphore(
-        IQueueSemaphore* pQueueSemaphore) override;
+        IQueueSemaphore* pQueueSemaphore, uint64 value) override;
 
     virtual Result PresentDirect(
         const PresentDirectInfo& presentInfo) override;

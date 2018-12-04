@@ -199,6 +199,8 @@ struct SubResourceInfo
         };
         uint32     u32All;
     } flags;
+
+    ImageLayout defaultGfxLayout;
 };
 
 enum class DccFormatEncoding : uint32

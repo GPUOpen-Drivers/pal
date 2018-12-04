@@ -78,7 +78,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_pSignatureCs(&NullCsSignature),
     m_predGpuAddr(0)
 {
-
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
@@ -128,10 +127,8 @@ void ComputeCmdBuffer::ResetState()
 
     m_pSignatureCs = &NullCsSignature;
 
-    {
-        // Non-DX12 clients and root command buffers start without a valid predicate GPU address.
-        m_predGpuAddr = 0;
-    }
+    // Command buffers start without a valid predicate GPU address.
+    m_predGpuAddr = 0;
 }
 
 // =====================================================================================================================
@@ -145,6 +142,54 @@ void ComputeCmdBuffer::CmdBarrier(
     m_gfxCmdBufState.packetPredicate = 0;
 
     m_device.Barrier(this, &m_cmdStream, barrierInfo);
+
+    m_gfxCmdBufState.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    CmdBuffer::CmdRelease(releaseInfo, pGpuEvent);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
+    m_gfxCmdBufState.packetPredicate = 0;
+
+    m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, pGpuEvent);
+
+    m_gfxCmdBufState.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent*const*    ppGpuEvents)
+{
+    CmdBuffer::CmdAcquire(acquireInfo, gpuEventCount, ppGpuEvents);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
+    m_gfxCmdBufState.packetPredicate = 0;
+
+    m_device.BarrierAcquire(this, &m_cmdStream, acquireInfo, gpuEventCount, ppGpuEvents);
+
+    m_gfxCmdBufState.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_gfxCmdBufState.packetPredicate;
+    m_gfxCmdBufState.packetPredicate = 0;
+
+    m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, barrierInfo);
 
     m_gfxCmdBufState.packetPredicate = packetPredicate;
 }
@@ -526,7 +571,6 @@ uint32* ComputeCmdBuffer::ValidateUserData(
                                 m_pSignatureCs->spillThreshold,
                                 &m_computeState.csUserDataEntries.entries[0]);
             relocated = true;
-
         }
 
         // Step #4:
@@ -1105,6 +1149,24 @@ void ComputeCmdBuffer::WriteEventCmd(
         releaseInfo.data           = data;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+    }
+
+    // Set remaining (unused) event slots as early as possible. Gfx9/10 may support ReleaseAcquireInterface which
+    // enables multiple slots (2 slots for now) for a GpuEvent. PAL client has the freedom to not enable it, in this
+    // case we signal the unused slots as early in the pipeline as possible.
+    const uint32 numEventSlots = m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent;
+    for (uint32 i = 1; i < numEventSlots; i++)
+    {
+        // Implement set/reset event with a WRITE_DATA command using the CP.
+        pCmdSpace += m_cmdUtil.BuildWriteData(EngineTypeCompute,
+                                              boundMemObj.GpuVirtAddr() + (i * sizeof(uint32)),
+                                              1,
+                                              0, // engine select, ignored for compute
+                                              dst_sel__mec_write_data__memory,
+                                              wr_confirm__mec_write_data__wait_for_write_confirmation,
+                                              &data,
+                                              PredDisable,
+                                              pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);

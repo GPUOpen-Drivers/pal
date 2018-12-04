@@ -1758,8 +1758,11 @@ void Gfx9Dcc::GetXyzInc(
     }
     else
     {
-        // 1D images don't support DCC
-        PAL_ASSERT_ALWAYS();
+        PAL_ASSERT(imageType == ImageType::Tex1d);
+
+        *pXinc = 256 / (1 << bppLog2);
+        *pYinc = 1;
+        *pZinc = 1;
     }
 }
 
@@ -2104,7 +2107,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
                                             clearRange.startSubres.arraySlice };
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(baseSubResource);
 
-    if (pSubResInfo->flags.supportMetaDataTexFetch)
+    if (pSubResInfo->flags.supportMetaDataTexFetch != 0)
     {
         // Surfaces that are fast cleared to one of the following colors may be texture fetched:
         //      1) ARGB(0, 0, 0, 0)
@@ -2117,105 +2120,155 @@ uint8 Gfx9Dcc::GetFastClearCode(
         // issued prior to using this surface as a texture.
         const ImageCreateInfo& createInfo    = image.Parent()->GetImageCreateInfo();
         const uint32           numComponents = NumComponents(createInfo.swizzledFormat.format);
+        const SurfaceSwap      surfSwap      = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
         const ChannelSwizzle*  pSwizzle      = &createInfo.swizzledFormat.swizzle.swizzle[0];
 
-        bool  isAlphaPresent        = false;
-        bool  alphaIsZero           = true;
-        bool  fastClearElimRequired = false;
-        bool  rgbSeen               = false;
-        uint32  firstRgbColor       = 0; // only valid if rgbSeen=true
-        for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && (fastClearElimRequired == false)); cmpIdx++)
+        uint32                 color[4] = {};
+        uint32                 ones[4]  = {};
+        uint32                 cmpIdx   = 0;
+        uint32                 rgbaIdx  = 0;
+
+        switch(numComponents)
         {
-            if (image.IsColorDataZeroOrOne(pConvertedColor, cmpIdx))
+        case 1:
+            while ((pSwizzle[rgbaIdx] != ChannelSwizzle::X) && (rgbaIdx < 4))
             {
-                switch (pSwizzle[cmpIdx])
-                {
-                case ChannelSwizzle::W:
-                    isAlphaPresent = true;
-                    alphaIsZero = (pConvertedColor[cmpIdx] == 0);
-                    break;
-
-                case ChannelSwizzle::X:
-                case ChannelSwizzle::Y:
-                case ChannelSwizzle::Z:
-                    if (rgbSeen == false)
-                    {
-                        firstRgbColor = pConvertedColor[cmpIdx];
-                        rgbSeen       = true;
-                    }
-                    else if (firstRgbColor != pConvertedColor[cmpIdx])
-                    {
-                        // The fast-clear-codes assume that all the RGB values are the same. In this case they're not,
-                        // so fast-clearing this surface won't work with the texture pipe without a
-                        // fast-clear-eliminate pass.
-                        fastClearElimRequired = true;
-                    }
-                    break;
-
-                default:
-                    PAL_ASSERT_ALWAYS();
-                    break;
-                }
-            }
-            else
-            {
-                // This is not a zero-or-one component, which means the fast-clear only works for TC-compatible
-                // surfaces if we also do a fast-clear-eliminate pass when this surface is bound as a texture.
-                fastClearElimRequired = true;
-            }
-        }
-
-        if (fastClearElimRequired == false)
-        {
-            // This clear-color corresponds to one of the four clear-colors that the texture pipe inherently
-            // understands, so figure out the proper clear code.
-            const bool  rgbIsZero = (firstRgbColor == 0);
-
-            if (isAlphaPresent == false)
-            {
-                // Formats that don't have alpha apparently need to have the same clear value broadcast across all
-                // channels even though the alpha channel isn't there...
-                alphaIsZero = rgbIsZero;
+                rgbaIdx++;
             }
 
-            if ((alphaIsZero == true) && (rgbIsZero == true))
+            PAL_ASSERT(pSwizzle[rgbaIdx] == ChannelSwizzle::X);
+
+            color[0] =
+            color[1] =
+            color[2] =
+            color[3] = pConvertedColor[rgbaIdx];
+
+            ones[0] =
+            ones[1] =
+            ones[2] =
+            ones[3] = image.TranslateClearCodeOneToNativeFmt(0);
+            break;
+
+        // Formats with two channels are special. Value from X channel represents color in clear code,
+        // and value from Y channel represents alpha in clear code.
+        case 2:
+            color[0] =
+            color[1] =
+            color[2] = pConvertedColor[0];
+
+            PAL_ASSERT(pSwizzle[0] >= ChannelSwizzle::X);
+
+            cmpIdx  = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
+            ones[0] =
+            ones[1] =
+            ones[2] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+
+            // In SWAP_STD case, clear color (in RGBA) has swizzle format of XY--. Clear code is RRRG.
+            // In SWAP_STD_REV case, clear color (in RGBA) has swizzle format of YX--. Clear code is GGGR.
+            if ((surfSwap == SWAP_STD) || (surfSwap == SWAP_STD_REV))
             {
-                clearCode = Gfx9DccClearColor::ClearColor0000;
+                color[3] = pConvertedColor[1];
+
+                PAL_ASSERT(pSwizzle[1] >= ChannelSwizzle::X);
+
+                cmpIdx   = static_cast<uint32>(pSwizzle[1]) - static_cast<uint32>(ChannelSwizzle::X);
+                ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
             }
-            else
+            // In SWAP_ALT case, clear color (in RGBA) has swizzle format of X--Y. Clear code is RRRA.
+            // In SWAP_ALT_REV case, clear color (in RGBA) has swizzle format of Y--X. Clear code is AAAR.
+            else if ((surfSwap == SWAP_ALT) || (surfSwap == SWAP_ALT_REV))
             {
-                if (image.Parent()->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent)
+                color[3] = pConvertedColor[3];
+
+                PAL_ASSERT(pSwizzle[3] >= ChannelSwizzle::X);
+
+                cmpIdx   = static_cast<uint32>(pSwizzle[3]) - static_cast<uint32>(ChannelSwizzle::X);
+                ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+            }
+            break;
+        case 3:
+            for (rgbaIdx = 0; rgbaIdx < 3; rgbaIdx++)
+            {
+                color[rgbaIdx] = pConvertedColor[rgbaIdx];
+
+                PAL_ASSERT(pSwizzle[rgbaIdx] >= ChannelSwizzle::X);
+
+                cmpIdx = static_cast<uint32>(pSwizzle[rgbaIdx]) - static_cast<uint32>(ChannelSwizzle::X);
+                ones[rgbaIdx] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+            }
+            color[3] = 0;
+            ones[3]  = 0;
+            break;
+        case 4:
+            for (rgbaIdx = 0; rgbaIdx < 4; rgbaIdx++)
+            {
+                color[rgbaIdx] = pConvertedColor[rgbaIdx];
+
+                if (pSwizzle[rgbaIdx] == ChannelSwizzle::One)
                 {
-                    // cant allow special clear color code because the formats do not support DCC Constant
-                    // encoding. This happens when we mix signed and unsigned formats. There is no problem with
-                    // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
-                    clearCode = Gfx9DccClearColor::ClearColorReg;
-                    fastClearElimRequired = true;
-                }
-                else if ((alphaIsZero == false) && (rgbIsZero == true))
-                {
-                    clearCode = Gfx9DccClearColor::ClearColor0001;
-                }
-                else if ((alphaIsZero == true) && (rgbIsZero == false))
-                {
-                    clearCode = Gfx9DccClearColor::ClearColor1110;
+                    // Only for swizzle format XYZ1 / ZYX1
+                    PAL_ASSERT(rgbaIdx == 3);
+
+                    color[rgbaIdx] = color[2];
+                    ones[rgbaIdx]  = ones[2];
                 }
                 else
                 {
-                    clearCode = Gfx9DccClearColor::ClearColor1111;
+                    PAL_ASSERT(pSwizzle[rgbaIdx] != ChannelSwizzle::Zero);
+
+                    cmpIdx = static_cast<uint32>(pSwizzle[rgbaIdx]) - static_cast<uint32>(ChannelSwizzle::X);
+                    ones[rgbaIdx] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
                 }
             }
-
+            break;
+        default:
+            break;
         }
 
-        *pNeedFastClearElim = fastClearElimRequired;
+        *pNeedFastClearElim = false;
+
+        if ((color[0] == 0) &&
+            (color[1] == 0) &&
+            (color[2] == 0) &&
+            (color[3] == 0))
+        {
+            clearCode = Gfx9DccClearColor::ClearColor0000;
+        }
+        else if (image.Parent()->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent)
+        {
+            // cant allow special clear color code because the formats do not support DCC Constant
+            // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+            // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+            *pNeedFastClearElim = true;
+        }
+        else if ((color[0] == 0) &&
+                 (color[1] == 0) &&
+                 (color[2] == 0) &&
+                 (color[3] == ones[3]))
+        {
+            clearCode = Gfx9DccClearColor::ClearColor0001;
+        }
+        else if ((color[0] == ones[0]) &&
+                 (color[1] == ones[1]) &&
+                 (color[2] == ones[2]) &&
+                 (color[3] == 0))
+        {
+            clearCode = Gfx9DccClearColor::ClearColor1110;
+        }
+        else if ((color[0] == ones[0]) &&
+                 (color[1] == ones[1]) &&
+                 (color[2] == ones[2]) &&
+                 (color[3] == ones[3]))
+        {
+            clearCode = Gfx9DccClearColor::ClearColor1111;
+        }
+        else
+        {
+            *pNeedFastClearElim = true;
+        }
     }
     else
     {
-        // Since this image won't be texture fetched, we can fast-clear to any color and we just need to use the
-        // generic fast-clear code.
-        clearCode = Gfx9DccClearColor::ClearColorReg;
-
         // Even though it won't be texture feched, it is still safer to unconditionally do FCE to guarantee the base
         // data is coherent with prior clears
         *pNeedFastClearElim = true;

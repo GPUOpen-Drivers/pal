@@ -71,6 +71,7 @@ Image::Image(
     m_useCompToSingleForFastClears(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
+    memset(&m_defaultGfxLayout,   0, sizeof(m_defaultGfxLayout));
     memset(m_addrSurfOutput,      0, sizeof(m_addrSurfOutput));
     memset(m_addrMipOutput,       0, sizeof(m_addrMipOutput));
     memset(m_addrSurfSetting,     0, sizeof(m_addrSurfSetting));
@@ -780,7 +781,8 @@ bool Image::DoesImageSupportCopySrcCompression() const
 
 // =====================================================================================================================
 // Initializes the layout-to-state masks which are used by Device::Barrier() to determine which operations are needed
-// when transitioning between different Image layouts.
+// when transitioning between different Image layouts. DefaultGfxLayouts are used by Device::BarrierAcquire() and
+// Device::BarrierRelease().
 void Image::InitLayoutStateMasks()
 {
     const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
@@ -791,16 +793,20 @@ void Image::InitLayoutStateMasks()
     {
         PAL_ASSERT(Parent()->IsDepthStencil() == false);
 
+        ImageLayout compressedLayout        = {};
+        ImageLayout fmaskDecompressedLayout = {};
+
         // Always allow compression for layouts that only support the color target usage.
-        m_layoutToState.color.compressed.usages  = LayoutColorTarget;
-        m_layoutToState.color.compressed.engines = LayoutUniversalEngine;
+        compressedLayout.usages  = LayoutColorTarget;
+        compressedLayout.engines = LayoutUniversalEngine;
 
         // Additional usages may be allowed for an image in the compressed state.
         if (pBaseSubResInfo->flags.supportMetaDataTexFetch != 0)
         {
+
             if (TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDcc : UseComputeExpandDcc)))
             {
-                m_layoutToState.color.compressed.engines |= LayoutComputeEngine;
+                compressedLayout.engines |= LayoutComputeEngine;
             }
 
             if (isMsaa)
@@ -811,19 +817,19 @@ void Image::InitLayoutStateMasks()
                 // c. ShaderBasedResolve (when format don't match) :- In this case we won't end up here since pal won't
                 // allow any DCC surface and hence tc-compatibility flag supportMetaDataTexFetch will be 0.
                 // conclusion:- We can keep it compressed in all cases.
-                m_layoutToState.color.compressed.usages |= LayoutResolveSrc;
+                compressedLayout.usages |= LayoutResolveSrc;
 
                 // As stated above we only land up here if dcc is allocated and we are tc-compatible and also in
                 // this case on gfxip8 we will have fmask surface tc-compatible, which means we can keep colorcompressed
                 // for fmaskbasedmsaaread
-                m_layoutToState.color.compressed.usages |= LayoutShaderFmaskBasedRead;
+                compressedLayout.usages |= LayoutShaderFmaskBasedRead;
             }
             else
             {
                 if (DoesImageSupportCopySrcCompression())
                 {
                     // Our copy path has been designed to allow compressed copy sources.
-                    m_layoutToState.color.compressed.usages |= LayoutCopySrc;
+                    compressedLayout.usages |= LayoutCopySrc;
                 }
 
                 // You can't raw copy to a compressed texture, you can only write to it using the image's format.
@@ -831,13 +837,13 @@ void Image::InitLayoutStateMasks()
                 // format.
                 if (m_createInfo.flags.copyFormatsMatch != 0)
                 {
-                    m_layoutToState.color.compressed.usages |= LayoutCopyDst;
+                    compressedLayout.usages |= LayoutCopyDst;
                 }
 
                 // We can keep this layout compressed if all view formats are DCC compatible.
                 if (Parent()->GetDccFormatEncoding() != DccFormatEncoding::Incompatible)
                 {
-                    m_layoutToState.color.compressed.usages |= LayoutShaderRead;
+                    compressedLayout.usages |= LayoutShaderRead;
                 }
             }
 
@@ -858,12 +864,12 @@ void Image::InitLayoutStateMasks()
             // we have a dcc surface but we are not tc-compatible in that case we can't remain color compressed
             // conclusion :- In this case it is safe for us to keep entire color compressed except one case as
             // identified above. We only make fmask tc-compatible when we can keep entire color surface compressed.
-            m_layoutToState.color.compressed.usages |= LayoutResolveSrc;
+            compressedLayout.usages |= LayoutResolveSrc;
 
             // The only case it won't work if DCC is allocated and yet this surface is not tc-compatible, if dcc
             // was never allocated then we can keep entire image color compressed (isComprFmaskShaderReadable takes
             // care of it).
-            m_layoutToState.color.compressed.usages |= LayoutShaderFmaskBasedRead;
+            compressedLayout.usages |= LayoutShaderFmaskBasedRead;
         }
 
         // The Fmask-decompressed state is only valid for MSAA images.  This state implies that the base color data
@@ -872,10 +878,10 @@ void Image::InitLayoutStateMasks()
         if (isMsaa)
         {
             // Postpone all decompresses for the ResolveSrc state from Barrier-time to Resolve-time.
-            m_layoutToState.color.compressed.usages |= LayoutResolveSrc;
+            compressedLayout.usages |= LayoutResolveSrc;
 
             // Our copy path has been designed to allow color compressed MSAA copy sources.
-            m_layoutToState.color.fmaskDecompressed.usages = LayoutColorTarget | LayoutCopySrc;
+            fmaskDecompressedLayout.usages = LayoutColorTarget | LayoutCopySrc;
 
             // Resolve can take 3 different paths inside pal:-
             // a. FixedFuncHWResolve :- in this case since CB does all the work we can keep everything compressed.
@@ -884,14 +890,20 @@ void Image::InitLayoutStateMasks()
             // case is not a problem since at barrier time we will issue a dccdecompress
             // c. ShaderBasedResolve (when format don't match) :- we won't have dcc surface in this case and hence
             //  it is completely fine to keep color into fmaskdecompressed state.
-            m_layoutToState.color.fmaskDecompressed.usages |= LayoutResolveSrc;
+            fmaskDecompressedLayout.usages |= LayoutResolveSrc;
 
             // We can keep this resource into Fmaskcompressed state since barrier will handle any corresponding
             // decompress for cases when dcc is present and we are not tc-compatible.
-            m_layoutToState.color.fmaskDecompressed.usages |= LayoutShaderFmaskBasedRead;
+            fmaskDecompressedLayout.usages |= LayoutShaderFmaskBasedRead;
 
-            m_layoutToState.color.fmaskDecompressed.engines = LayoutUniversalEngine | LayoutComputeEngine;
+            fmaskDecompressedLayout.engines = LayoutUniversalEngine | LayoutComputeEngine;
         }
+
+        m_layoutToState.color.compressed        = compressedLayout;
+        m_layoutToState.color.fmaskDecompressed = fmaskDecompressedLayout;
+
+        m_defaultGfxLayout.color = compressedLayout;
+
     }
     else if (m_pHtile != nullptr)
     {
@@ -912,18 +924,18 @@ void Image::InitLayoutStateMasks()
         // For resolve dst, HiZ is always valid whatever pixel shader resolve or depth-stencil copy resolve performed:
         // 1. Htile is valid during pixel shader resolve.
         // 2. Htile copy-and-fix-up will be performed after depth-stencil copy resolve to ensure HiZ to be valid.
-        ImageLayout decomprWithHiZ;
+        ImageLayout decomprWithHiZLayout;
 
-        decomprWithHiZ.usages  = DbUsages | ShaderReadUsages | LayoutResolveDst;
-        decomprWithHiZ.engines = LayoutUniversalEngine | LayoutComputeEngine;
+        decomprWithHiZLayout.usages  = DbUsages | ShaderReadUsages | LayoutResolveDst;
+        decomprWithHiZLayout.engines = LayoutUniversalEngine | LayoutComputeEngine;
 
         // If the client has given us a hint that this Image never does anything to this Image which would cause
         // the Image data and Hi-Z to become out-of-sync, we can include all layouts in the decomprWithHiZ state
         // because this Image will never need to do a resummarization blit.
         if (m_createInfo.usageFlags.hiZNeverInvalid != 0)
         {
-            decomprWithHiZ.usages  = AllDepthImageLayoutFlags;
-            decomprWithHiZ.engines = LayoutUniversalEngine | LayoutComputeEngine | LayoutDmaEngine;
+            decomprWithHiZLayout.usages  = AllDepthImageLayoutFlags;
+            decomprWithHiZLayout.engines = LayoutUniversalEngine | LayoutComputeEngine | LayoutDmaEngine;
         }
 
         // Layouts that are compressed support all DB compatible usages in the universal queue
@@ -983,13 +995,17 @@ void Image::InitLayoutStateMasks()
         const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
 
         m_layoutToState.depthStencil[depth].compressed     = compressedLayouts;
-        m_layoutToState.depthStencil[depth].decomprWithHiZ = decomprWithHiZ;
+        m_layoutToState.depthStencil[depth].decomprWithHiZ = decomprWithHiZLayout;
+
+        m_defaultGfxLayout.depthStencil[depth] = compressedLayouts;
 
         // Supported stencil layouts per compression state
         if (m_pHtile->TileStencilDisabled() == false)
         {
             m_layoutToState.depthStencil[stencil].compressed     = compressedLayouts;
-            m_layoutToState.depthStencil[stencil].decomprWithHiZ = decomprWithHiZ;
+            m_layoutToState.depthStencil[stencil].decomprWithHiZ = decomprWithHiZLayout;
+
+            m_defaultGfxLayout.depthStencil[stencil] = compressedLayouts;
         }
         else
         {
@@ -997,7 +1013,23 @@ void Image::InitLayoutStateMasks()
             m_layoutToState.depthStencil[stencil].compressed.engines     = 0;
             m_layoutToState.depthStencil[stencil].decomprWithHiZ.usages  = 0;
             m_layoutToState.depthStencil[stencil].decomprWithHiZ.engines = 0;
+
+            m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
+            m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
         }
+    }
+    else
+    {
+        // If compression is not supported, there is only one layout.
+        m_defaultGfxLayout.color.usages  = LayoutAllUsages;
+        m_defaultGfxLayout.color.engines = LayoutAllEngines;
+
+        const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
+        const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
+        m_defaultGfxLayout.depthStencil[depth].usages    = LayoutAllUsages & (~LayoutUninitializedTarget);
+        m_defaultGfxLayout.depthStencil[depth].engines   = LayoutAllEngines;
+        m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
+        m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
     }
 }
 
@@ -2830,6 +2862,33 @@ void Image::GetSharedMetadataInfo(
     pMetadataInfo->fastClearMetaDataOffset          = m_fastClearMetaDataOffset;
     pMetadataInfo->fastClearEliminateMetaDataOffset = m_fastClearEliminateMetaDataOffset;
     pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
+}
+
+// =====================================================================================================================
+// Get the default layout which is the optimally compressed layout for the subresource.
+Result Image::GetDefaultGfxLayout(
+    SubresId     subresId,
+    ImageLayout* pLayout
+    ) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pLayout != nullptr)
+    {
+        if (subresId.aspect == ImageAspect::Color)
+        {
+            *pLayout = m_defaultGfxLayout.color;
+        }
+        else
+        {
+            PAL_ASSERT((subresId.aspect == ImageAspect::Depth) || (subresId.aspect == ImageAspect::Stencil));
+            *pLayout = m_defaultGfxLayout.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
+        }
+
+        result = Result::Success;
+    }
+
+    return result;
 }
 
 } // Gfx9

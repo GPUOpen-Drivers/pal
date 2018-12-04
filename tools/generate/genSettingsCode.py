@@ -131,7 +131,9 @@ registryTypes = { "uint32":"Uint",
                   "string":"Str",
                   "uint64":"Uint64",
                   "size_t":"Uint",
-                  "enum": "Uint" }
+                  "enum": "Uint",
+                  "uint16":"Uint",
+                  "int16":"Int"}
 def getRegistryType(type):
     return "Util::ValueType::"+registryTypes[type]
 
@@ -143,7 +145,9 @@ ddSettingTypes = { "uint32":"Uint",
                    "string":"String",
                    "uint64":"Uint64",
                    "size_t":"Uint",
-                   "enum": "Uint" }
+                   "enum": "Uint",
+                   "uint16":"Uint",
+                   "int16":"Int"}
 def getDevDriverType(type):
     return "SettingType::"+ddSettingTypes[type]
 
@@ -361,6 +365,7 @@ enumCode = ""
 settingDefs = ""
 setDefaultsCode = ""
 readSettingsCode = ""
+rereadSettingsCode = ""
 copySettingsCode = ""
 updateSettingsCode = ""
 settingsStrings = ""
@@ -524,7 +529,8 @@ for setting in settingsData["Settings"]:
     ###################################################################################################################
     # The presence of the Scope field indicates that the setting can be read from the registry
     if args.genRegistryCode and "Scope" in setting:
-        readSettingData = []
+        readSettingData   = []
+        rereadSettingData = []
         if setting["Type"] == "struct":
             # Struct type settings have their fields stored in the registry with the struct name prepended.
             # For example a struct setting named fancyStruct with a field named haxControl would be stored in the
@@ -549,6 +555,9 @@ for setting in settingsData["Settings"]:
                                                 "")
                     data["hashName"] = field["HashName"]
                     readSettingData.append(data)
+
+                    if "Flags" in field and "RereadSetting" in field["Flags"] and field["Flags"]["RereadSetting"]:
+                        rereadSettingData.append(data)
                 else:
                     # For arrays we have to loop once for each element
                     for i in range(settingIntSize):
@@ -563,6 +572,9 @@ for setting in settingsData["Settings"]:
                         data["hashName"] = field["HashName"]
                         readSettingData.append(data)
 
+                        if "Flags" in field and "RereadSetting" in field["Flags"] and field["Flags"]["RereadSetting"]:
+                            rereadSettingData.append(data)
+
         elif setting["Type"] == "string":
             data = setupReadSettingData(setting["Name"],
                                         setting["Scope"],
@@ -574,6 +586,8 @@ for setting in settingsData["Settings"]:
                                         "")
             data["hashName"] = setting["HashName"]
             readSettingData.append(data)
+            if "Flags" in setting and "RereadSetting" in setting["Flags"] and setting["Flags"]["RereadSetting"]:
+                rereadSettingData.append(data)
         elif settingIntSize > 0:
             # Array types are stored in the registry with each element matching the array name with the element index
             # appended. For example an array setting named "BestSettingEver" with a size of 4 would have its elements
@@ -589,6 +603,8 @@ for setting in settingsData["Settings"]:
                                             str(i))
                 data["hashName"] = setting["HashName"]
                 readSettingData.append(data)
+                if "Flags" in setting and "RereadSetting" in setting["Flags"] and setting["Flags"]["RereadSetting"]:
+                    rereadSettingData.append(data)
         else:
             data = setupReadSettingData(setting["Name"],
                                         setting["Scope"],
@@ -600,6 +616,8 @@ for setting in settingsData["Settings"]:
                                         "")
             data["hashName"] = setting["HashName"]
             readSettingData.append(data)
+            if "Flags" in setting and "RereadSetting" in setting["Flags"] and setting["Flags"]["RereadSetting"]:
+                rereadSettingData.append(data)
 
         for data in readSettingData:
             settingsStringTmp, readSettingTmp = genReadSettingCode(data)
@@ -611,6 +629,14 @@ for setting in settingsData["Settings"]:
             readSettingsCode += ifDefTmp
             readSettingsCode += readSettingTmp
             readSettingsCode += endDefTmp
+
+        for data in rereadSettingData:
+            _, readSettingTmp = genReadSettingCode(data)
+
+            rereadSettingsCode += ifDefTmp
+            rereadSettingsCode += readSettingTmp
+            rereadSettingsCode += endDefTmp
+
     ###################################################################################################################
     # InitSettingsData() per setting code
     ###################################################################################################################
@@ -726,8 +752,21 @@ setupDefaults = setupDefaults.replace("%SetDefaultsCode%", setDefaultsCode)
 
 if args.genRegistryCode:
     readSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", args.className)
+    readSettings = readSettings.replace("%ReadSettingsName%", "ReadSettings")
+    readSettings = readSettings.replace("%ReadSettingsDesc%",
+                                        "// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n")
     readSettings = readSettings.replace("%SettingStructName%", settingStructName)
     readSettings = readSettings.replace("%ReadSettingsCode%", readSettingsCode)
+
+    rereadSettings = ""
+    if len(rereadSettingsCode) > 0:
+        rereadSettings = codeTemplates.ReadSettingsFunc.replace("%ClassName%", args.className)
+        rereadSettings = rereadSettings.replace("%ReadSettingsName%", "RereadSettings")
+        rereadSettings = rereadSettings.replace("%ReadSettingsDesc%",
+                                                "// Reads the setting from the OS adapter and sets the structure value when the setting values are found.\n"
+                                                "// This is expected to be done after the component has perform overrides of any defaults.\n")
+        rereadSettings = rereadSettings.replace("%SettingStructName%", settingStructName)
+        rereadSettings = rereadSettings.replace("%ReadSettingsCode%", rereadSettingsCode)
 
 initSettingsInfo = codeTemplates.InitSettingsInfoFunc.replace("%ClassName%", args.className)
 initSettingsInfo = initSettingsInfo.replace("%InitSettingInfoCode%", settingInfoCode)
@@ -768,6 +807,8 @@ headerFile.close()
 sourceFileTxt = copyrightAndWarning + includeFileList + codeTemplates.DevDriverIncludes + namespaceStart + setupDefaults
 if args.genRegistryCode:
     sourceFileTxt += readSettings
+    if len(rereadSettings) > 0:
+        sourceFileTxt += rereadSettings
 sourceFileTxt += initSettingsInfo + devDriverRegister + namespaceEnd
 sourceFile.write(sourceFileTxt)
 sourceFile.close()

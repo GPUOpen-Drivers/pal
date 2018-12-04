@@ -106,7 +106,7 @@ bool GraphicsPipeline::CanDrawPrimsOutOfOrder(
     if ((gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimSafe) ||
         (gfx9EnableOutOfOrderPrimitives == OutOfOrderPrimAggressive))
     {
-        if (PsUsesUavs() || pDepthStencilState == nullptr)
+        if (PsWritesUavs() || pDepthStencilState == nullptr)
         {
             enableOutOfOrderPrims = false;
         }

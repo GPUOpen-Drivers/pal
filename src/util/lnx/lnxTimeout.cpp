@@ -29,6 +29,8 @@
 #include <cstring>
 #include <time.h>
 
+#include "palInlineFuncs.h"
+
 namespace Util
 {
 
@@ -71,6 +73,29 @@ void ComputeTimeoutExpiration(
         memset(pAbsTimeout, 0, sizeof(timespec));
         PAL_ASSERT_ALWAYS();
     }
+}
+
+// =====================================================================================================================
+// On Linux, many of the thread wait functions require that a timeout for the wait be specified in terms of "absolute
+// time at which the timeout should expire" rather than "how long to wait".
+//
+// This helper computes the absolute timeoutNs according timeout
+int64 ComputeAbsTimeout(
+    uint64 timeout)
+{
+    struct timespec startTime = {};
+
+    uint64 currentTimeNs = 0;
+    uint64 absTimeoutNs  = 0;
+
+    ComputeTimeoutExpiration(&startTime, 0);
+    currentTimeNs = startTime.tv_sec * 1000000000ull + startTime.tv_nsec;
+    timeout       = Util::Min(UINT64_MAX - currentTimeNs, timeout);
+    absTimeoutNs  = currentTimeNs + timeout;
+
+    // definition of drm_timeout_abs_to_jiffies (int64_t timeout_nsec) require input to be int64_t,
+    // so trim down the max value to be INT64_MAX, otherwise drm_timeout_abs_to_jiffies compute wrong output.
+    return Util::Min(absTimeoutNs, static_cast<uint64>INT64_MAX);
 }
 
 // =====================================================================================================================

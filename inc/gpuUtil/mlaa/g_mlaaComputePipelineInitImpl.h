@@ -103,6 +103,7 @@ Pal::Result CreateMlaaComputePipelines(
     case Pal::AsicRevision::Oland:
     case Pal::AsicRevision::Hainan:
     case Pal::AsicRevision::Bonaire:
+    case Pal::AsicRevision::HawaiiPro:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Kalindi:
     case Pal::AsicRevision::Godavari:

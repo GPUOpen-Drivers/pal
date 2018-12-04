@@ -57,6 +57,21 @@ enum class TcCacheOp : uint32
     Count
 };
 
+// This table was taken from the ACQUIRE_MEM packet spec.
+static constexpr uint32 Gfx9TcCacheOpConversionTable[] =
+{
+    0,                                                                                     // Nop
+    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK,              // WbInvL1L2
+    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_ACTION_ENA_MASK
+                                         | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbInvL2Nc
+    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbL2Nc
+    CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | CP_COHER_CNTL__TC_WC_ACTION_ENA_MASK,           // WbL2Wc
+    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // InvL2Nc
+    CP_COHER_CNTL__TC_ACTION_ENA_MASK    | CP_COHER_CNTL__TC_INV_METADATA_ACTION_ENA_MASK, // InvL2Md
+    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK,                                                   // InvL1
+    CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
+};
+
 // In addition to the a TC cache op, ACQUIRE_MEM can flush or invalidate additional caches independently. It is easiest
 // to capture all of this information if we use an input structure for BuildAcquireMem.
 struct AcquireMemInfo

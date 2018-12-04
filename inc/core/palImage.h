@@ -384,6 +384,14 @@ struct ImageMemoryLayout
     uint32      stereoLineOffset;            ///< Y offset to the right eye data, in texels
 };
 
+/// Collection of bitmasks specifying which operations are currently allowed on an image, and which queues are allowed
+/// to perform those operations.  Based on this information, PAL can determine the best compression state of the image.
+struct ImageLayout
+{
+    uint32 usages  : 24;  ///< Bitmask of @ref ImageLayoutUsageFlags values.
+    uint32 engines :  8;  ///< Bitmask of @ref ImageLayoutEngineFlags values.
+};
+
 /// Reports position and memory layout information for a specific subresource in an image.  Output structure for
 /// IImage::GetSubresourceLayout().
 struct SubresLayout
@@ -400,6 +408,14 @@ struct SubresLayout
 
     /// Extent of the subresource in texels, including all internal padding for this subresource.
     Extent3d paddedExtent;
+
+    /// Reports supported engines and usages for this subresource while it can remain in its optimal compression state.
+    /// Clients using CmdRelease()/CmdAcquire() without complete knowledge of the application's next usage during
+    /// CmdRelease() or its previous usage at CmdAcquire() can treat this layout as a performant target for an
+    /// intermediate state that will avoid unnecessary decompressions.
+    ///
+    /// This value is only valid if supportSplitReleaseAcquire is set in @ref DeviceProperties.
+    ImageLayout defaultGfxLayout;
 };
 
 /// Selects a specific subresource of an image resource.

@@ -43,9 +43,10 @@ public:
 
     virtual Result Open(const QueueSemaphoreOpenInfo& openInfo) override;
 
-    virtual Result Signal(Queue* pQueue) override;
+    virtual Result Signal(Queue* pQueue, uint64 value) override;
     virtual Result Wait(
         Queue*         pQueue,
+        uint64         value,
         volatile bool* pIsStalled) override;
 
     // NOTE: Part of the public IQueueSemaphore interface.

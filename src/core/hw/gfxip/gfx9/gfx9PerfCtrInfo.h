@@ -42,6 +42,14 @@ namespace Gfx9
 namespace PerfCtrInfo
 {
 
+struct  BlockPerfCounterInfo
+{
+    uint32  numRegs;                         // Number of counter registers in this block instance.
+    uint32  numTotalStreamingCounterRegs;    // Number of streaming counter registers in this block.
+    uint32  numStreamingCounters;            // Num streaming counters this SELECT(0/1) configures.
+    uint32  regOffsets[MaxCountersPerBlock]; // Address offsets for all counters in this block.
+};
+
 extern void   InitPerfCtrInfo(const Platform*  pPlatform, GpuChipProperties* pProps);
 
 // Maximum number of ShaderEngines
@@ -227,6 +235,6 @@ static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_Raven[2] =
     { Raven::mmUMCCH1_PerfMonCtlClk,  Raven::mmUMCCH1_PerfMonCtl1 , Raven::mmUMCCH1_PerfMonCtr1_Lo },
 };
 
-} // PerfExperiment
+} // PerfCtrInfo
 } // Gfx9
 } // Pal

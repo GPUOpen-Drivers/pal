@@ -312,6 +312,7 @@ public:
     virtual void RemoveQuery(QueryPoolType queryPoolType) = 0;
 
     gpusize TimestampGpuVirtAddr() const { return m_pTimestampMem->Desc().gpuVirtAddr + m_timestampOffset; }
+    GpuEvent* GetInternalEvent() { return &m_internalEvent; }
 
     virtual void PushGraphicsState() = 0;
     virtual void PopGraphicsState()  = 0;
@@ -325,6 +326,7 @@ public:
 
     // Helper functions
     HwPipePoint OptimizeHwPipePostBlit() const;
+    uint32 ConvertToInternalPipelineStageMask(uint32 stageMask) const;
     void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.gfxBltActive = gfxBltActive; }
     void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.csBltActive = csBltActive; }
     void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.cpBltActive = cpBltActive; }
@@ -482,8 +484,9 @@ private:
 
     GpuMemory*  m_pTimestampMem;       // Memory and offset used to hold a cache flush invalidate timestamp event.
     gpusize     m_timestampOffset;
+    GpuEvent    m_internalEvent;      // PAL-initiated gpuEvent for Release/Acquire-based barrier.
 
-    uint32  m_computeStateFlags;       // The flags that CmdSaveCompputeState was called with.
+    uint32  m_computeStateFlags;       // The flags that CmdSaveComputeState was called with.
     bool    m_spmTraceEnabled;         // Used to indicate whether Spm Trace has been enabled through this command
                                        // buffer so that appropriate submit-time operations can be done.
 

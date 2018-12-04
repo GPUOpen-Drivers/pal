@@ -35,6 +35,9 @@ namespace Util
 // Computes the absolute time at which a timeout duration should expire.
 extern void ComputeTimeoutExpiration(timespec* pAbsTimeout, uint64 nanoseconds);
 
+// Computes the absolute time according timeout.
+extern int64 ComputeAbsTimeout(uint64 timeout);
+
 // Determines whether or not an absolute timeout duration has passed.
 extern bool IsTimeoutExpired(const timespec* pAbsTimeout);
 

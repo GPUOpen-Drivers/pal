@@ -139,7 +139,7 @@ Lib* Lib::GetLib(
         ((pAddrLib->GetChipFamily() == ADDR_CHIP_FAMILY_IVLD) ||
          (pAddrLib->GetChipFamily() > ADDR_CHIP_FAMILY_VI)))
     {
-        // only valid and pre-VI AISC can use AddrLib1 function.
+        // only valid and pre-VI ASIC can use AddrLib1 function.
         ADDR_ASSERT_ALWAYS();
         hLib = NULL;
     }

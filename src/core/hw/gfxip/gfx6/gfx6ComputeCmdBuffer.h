@@ -258,7 +258,6 @@ private:
         const ComputeCmdBuffer& cmdBuffer);
 
     bool NeedFixupMoreThan4096ThreadGroups() const;
-
     void ConvertThreadGroupsToThreads(uint32* pX, uint32* pY, uint32* pZ) const;
 
     const Device&   m_device;

@@ -185,13 +185,17 @@ Result Device::CommitSettingsAndInit()
         }
     }
 
-    if ((result == Result::Success) && (settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success)                                                    &&
+        (settings.gpuProfilerMode == GpuProfilerMode::GpuProfilerCounterAndTimingOnly) &&
+        (settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile[0] != '\0'))
     {
         result = InitGlobalPerfCounterState();
         PAL_ASSERT(result == Result::Success);
     }
 
-    if ((result == Result::Success) && (settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile[0] != '\0'))
+    if ((result == Result::Success)                                               &&
+        (settings.gpuProfilerMode == GpuProfilerMode::GpuProfilerTraceEnabledTtv) &&
+        (settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile[0] != '\0'))
     {
         result = InitSpmTraceCounterState();
         PAL_ASSERT(result == Result::Success);
