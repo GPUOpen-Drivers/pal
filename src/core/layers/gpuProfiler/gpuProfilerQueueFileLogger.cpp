@@ -149,6 +149,7 @@ void Queue::OpenLogFile(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "HpGfxOnly",
 #endif
+
     };
 
     static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,
@@ -228,6 +229,7 @@ void Queue::OpenSqttFile(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "HpGfxOnly",
 #endif
+
     };
 
     static_assert(ArrayLen(pEngineTypeStrings) == EngineTypeCount,

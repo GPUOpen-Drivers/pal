@@ -238,7 +238,8 @@ void RsrcProcMgr::CopyMemoryCs(
     const MemoryCopyRegion* pRegions
     ) const
 {
-    constexpr uint32 NumGpuMemory = 2; // source & destination.
+    constexpr uint32  NumGpuMemory  = 2;        // source & destination.
+    constexpr gpusize CopySizeLimit = 16777216; // 16 MB.
 
     bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
 
@@ -280,23 +281,6 @@ void RsrcProcMgr::CopyMemoryCs(
     // Save current command buffer state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-    // Create an embedded user-data table and bind it to user data 0. We need buffer views for the source and
-    // destination.
-    uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                               SrdDwordAlignment() * NumGpuMemory,
-                                                               SrdDwordAlignment(),
-                                                               PipelineBindPoint::Compute,
-                                                               0);
-
-    // Populate the table with raw buffer views, by convention the destination is placed before the source.
-    BufferViewInfo rawBufferView = {};
-    RpmUtil::BuildRawBufferViewInfo(&rawBufferView, dstGpuMemory, 0);
-    m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
-    pSrdTable += SrdDwordAlignment();
-
-    RpmUtil::BuildRawBufferViewInfo(&rawBufferView, srcGpuMemory, 0);
-    m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
-
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
@@ -305,44 +289,64 @@ void RsrcProcMgr::CopyMemoryCs(
             pCmdBuffer->P2pBltWaCopyNextRegion(chunkAddrs[idx]);
         }
 
-        // 64-bit offsets and copySizes are not yet implemented
-        PAL_ASSERT(HighPart(pRegions[idx].srcOffset) == 0);
-        PAL_ASSERT(HighPart(pRegions[idx].dstOffset) == 0);
-        PAL_ASSERT(HighPart(pRegions[idx].copySize)  == 0);
+        const gpusize srcOffset  = pRegions[idx].srcOffset;
+        const gpusize dstOffset  = pRegions[idx].dstOffset;
+        const gpusize copySize   = pRegions[idx].copySize;
 
-        const uint32 srcOffset = LowPart(pRegions[idx].srcOffset);
-        const uint32 dstOffset = LowPart(pRegions[idx].dstOffset);
-        const uint32 copySize  = LowPart(pRegions[idx].copySize);
-
-        // Write the region-specific user data.
-        // User data 1: The low part of the source offset.
-        // User data 2: The low part of the destination offset.
-        // user data 3: The low part of the copy size.
-        const uint32 regionUserData[3] = { srcOffset, dstOffset, copySize };
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
-
-        // Get the pipeline object and number of thread groups.
-        const ComputePipeline* pPipeline = nullptr;
-        uint32 numThreadGroups = 0;
-
-        if (IsPow2Aligned(srcOffset, sizeof(uint32)) &&
-            IsPow2Aligned(dstOffset, sizeof(uint32)) &&
-            IsPow2Aligned(copySize,  sizeof(uint32)))
+        for(gpusize copyOffset = 0; copyOffset < copySize; copyOffset += CopySizeLimit)
         {
-            // Offsets and copySize are DWORD aligned so we can use the DWORD copy pipeline.
-            pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferDword);
-            numThreadGroups = RpmUtil::MinThreadGroups(copySize / sizeof(uint32), pPipeline->ThreadsPerGroup());
-        }
-        else
-        {
-            // Since the offsets and copySize are not all DWORD aligned we have to use the byte copy pipeline.
-            pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferByte);
-            numThreadGroups = RpmUtil::MinThreadGroups(copySize, pPipeline->ThreadsPerGroup());
-        }
+            const uint32 copySectionSize = static_cast<uint32>(Min(CopySizeLimit, copySize - copyOffset));
 
-        // Bind pipeline and dispatch.
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
-        pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+            // Create an embedded user-data table and bind it to user data. We need buffer views for the source and
+            // destination.
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment() * NumGpuMemory,
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Compute,
+                                                                       0);
+
+            // Populate the table with raw buffer views, by convention the destination is placed before the source.
+            BufferViewInfo rawBufferView = {};
+            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
+                                            dstGpuMemory,
+                                            dstOffset + copyOffset,
+                                            copySectionSize);
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
+            pSrdTable += SrdDwordAlignment();
+
+            RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
+                                            srcGpuMemory,
+                                            srcOffset + copyOffset,
+                                            copySectionSize);
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
+
+            const uint32 regionUserData[3] = { 0, 0, copySectionSize };
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
+
+            // Get the pipeline object and number of thread groups.
+            const ComputePipeline* pPipeline = nullptr;
+            uint32 numThreadGroups           = 0;
+
+            if (IsPow2Aligned(srcOffset + copyOffset, sizeof(uint32)) &&
+                IsPow2Aligned(dstOffset + copyOffset, sizeof(uint32)) &&
+                IsPow2Aligned(copySectionSize, sizeof(uint32)))
+            {
+                // Offsets and copySectionSize are DWORD aligned so we can use the DWORD copy pipeline.
+                pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferDword);
+                numThreadGroups = RpmUtil::MinThreadGroups(copySectionSize / sizeof(uint32),
+                                                           pPipeline->ThreadsPerGroup());
+            }
+            else
+            {
+                // Offsets and copySectionSize are not all DWORD aligned so we have to use the byte copy pipeline.
+                pPipeline       = GetPipeline(RpmComputePipeline::CopyBufferByte);
+                numThreadGroups = RpmUtil::MinThreadGroups(copySectionSize, pPipeline->ThreadsPerGroup());
+            }
+
+            // Bind pipeline and dispatch.
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+            pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+        }
     }
 
     if (p2pBltInfoRequired)
@@ -504,7 +508,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     SubresRange viewRange = { };
     viewRange.startSubres = srcImage.GetBaseSubResource();
@@ -750,7 +753,6 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Setup the viewport and scissor to restrict rendering to the destination region being copied.
     viewportInfo.viewports[0].originX = static_cast<float>(pRegions[0].dstOffset.x);
@@ -2024,7 +2026,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     }
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
     const GraphicsPipeline* pPreviousPipeline = nullptr;
@@ -3697,7 +3698,6 @@ void RsrcProcMgr::SlowClearGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     uint32 convertedColor[4] = {0};
 
@@ -4667,7 +4667,6 @@ void RsrcProcMgr::ResolveImageGraphics(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Determine which format we should use to view the source image. The initial value is the stencil format.
     SwizzledFormat srcFormat =
@@ -5309,7 +5308,6 @@ void RsrcProcMgr::ExpandDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
     const uint32 lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
@@ -5461,7 +5459,6 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
     const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
@@ -5636,7 +5633,6 @@ void RsrcProcMgr::GenericColorBlit(
     pCmdBuffer->CmdSetTriangleRasterState(triangleRasterState);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     const uint32 lastMip = (range.startSubres.mipLevel + range.numMips - 1);
     gpusize mipCondDwordsOffset = metaDataOffset;

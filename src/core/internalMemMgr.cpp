@@ -269,7 +269,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             localCreateInfo.size = PoolAllocationSize;
             localInternalInfo.flags.buddyAllocated = 1;
 
-            GpuMemory*  pGpuMemory = nullptr;
+            GpuMemory* pGpuMemory = nullptr;
 
             // Issue the base memory allocation
             result = AllocateBaseGpuMem(localCreateInfo, localInternalInfo, readOnly, &pGpuMemory);
@@ -368,25 +368,21 @@ Result InternalMemMgr::AllocateBaseGpuMem(
     bool                                readOnly,
     GpuMemory**                         ppGpuMemory)
 {
-    Result result = Result::ErrorOutOfGpuMemory;
-
-    GpuMemoryCreateInfo localCreateInfo = createInfo;
-
     const gpusize allocGranularity = m_pDevice->MemoryProperties().realMemAllocGranularity;
 
+    GpuMemoryCreateInfo localCreateInfo = createInfo;
     localCreateInfo.size      = Pow2Align(localCreateInfo.size,      allocGranularity);
     localCreateInfo.alignment = Pow2Align(localCreateInfo.alignment, allocGranularity);
 
     // All memory allocated by the internal mem mgr should be always resident.
     PAL_ASSERT(internalInfo.flags.alwaysResident);
 
-    // Issue the memory allocation
-    result = m_pDevice->CreateInternalGpuMemory(localCreateInfo, internalInfo, ppGpuMemory);
+    Result result = m_pDevice->CreateInternalGpuMemory(localCreateInfo, internalInfo, ppGpuMemory);
 
     if (IsErrorResult(result) == false)
     {
         // We need to add the newly created allocation to the reference list
-        Util::RWLockAuto<RWLock::ReadWrite> referenceLock(&m_referenceLock);
+        RWLockAuto<RWLock::ReadWrite> referenceLock(&m_referenceLock);
 
         GpuMemoryInfo memInfo = {};
         memInfo.pGpuMemory  = *ppGpuMemory;
@@ -461,14 +457,14 @@ Result InternalMemMgr::FreeGpuMem(
     GpuMemory*  pGpuMemory,
     gpusize     offset)
 {
-    Util::MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
-
     PAL_ASSERT(pGpuMemory != nullptr);
 
     Result result = Result::ErrorInvalidValue;
 
     if (pGpuMemory->WasBuddyAllocated())
     {
+        MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
+
         // Try to find the allocation in the pool list
         for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
         {
@@ -507,27 +503,32 @@ Result InternalMemMgr::FreeBaseGpuMem(
 {
     Result result = Result::ErrorInvalidValue;
 
-    // Try to find the allocation in the reference list
-    m_referenceLock.LockForWrite();
-    for (auto it = GetRefListIter(); it.Get() != nullptr; it.Next())
+    // This scope is just to minimize the duration of holding the references lock.
     {
-        GpuMemoryInfo* pMemInfo = it.Get();
+        RWLockAuto<RWLock::ReadWrite> referenceLock(&m_referenceLock);
 
-        PAL_ASSERT(pMemInfo->pGpuMemory != nullptr);
-
-        if (pGpuMemory == pMemInfo->pGpuMemory)
+        // Try to find the allocation in the reference list
+        for (auto it = GetRefListIter(); it.Get() != nullptr; it.Next())
         {
-            // Also remove the reference list item and increment the watermark
-            m_references.Erase(&it);
-            m_referenceWatermark++;
+            GpuMemoryInfo* pMemInfo = it.Get();
 
-            result = Result::Success;
-            break;
+            PAL_ASSERT(pMemInfo->pGpuMemory != nullptr);
+
+            if (pGpuMemory == pMemInfo->pGpuMemory)
+            {
+                // Also remove the reference list item and increment the watermark
+                m_references.Erase(&it);
+                m_referenceWatermark++;
+
+                result = Result::Success;
+                break;
+            }
         }
     }
-    m_referenceLock.UnlockForWrite();
 
-    // Release the GPU memory object
+    // Release the GPU memory object.
+    // This must be done after releasing the references lock because some platforms may take a different lock to do
+    // internal bookkeeping when releasing GPU memory.
     pGpuMemory->DestroyInternal();
 
     // If we didn't find the allocation in the reference list then something went wrong with the allocation scheme
@@ -540,8 +541,7 @@ Result InternalMemMgr::FreeBaseGpuMem(
 // Get number of elements of m_reference
 uint32 InternalMemMgr::GetReferencesCount()
 {
-    Util::RWLockAuto<RWLock::ReadOnly> referenceLock(&m_referenceLock);
-
+    RWLockAuto<RWLock::ReadOnly> referenceLock(&m_referenceLock);
     return static_cast<uint32>(m_references.NumElements());
 }
 

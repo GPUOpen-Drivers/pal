@@ -966,11 +966,14 @@ void LogContext::ImageLayoutEngineFlags(
 {
     const char*const StringTable[] =
     {
-        "LayoutUniversalEngine",   // 0x01,
-        "LayoutComputeEngine",     // 0x02,
-        "LayoutDmaEngine",         // 0x04,
-        "LayoutVideoEncodeEngine", // 0x08,
-        "LayoutVideoDecodeEngine", // 0x10,
+        "LayoutUniversalEngine",      // 0x01,
+        "LayoutComputeEngine",        // 0x02,
+        "LayoutDmaEngine",            // 0x04,
+        "LayoutVideoEncodeEngine",    // 0x08,
+        "LayoutVideoDecodeEngine",    // 0x10,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
+        "LayoutVideoJpegDecodeEngine",// 0x20
+#endif
     };
 
     BeginList(false);

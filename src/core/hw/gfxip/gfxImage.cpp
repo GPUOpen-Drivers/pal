@@ -299,4 +299,13 @@ void GfxImage::Destroy()
     }
 }
 
+// =====================================================================================================================
+// Get the index of a specified aspect.
+uint32 GfxImage::GetDepthStencilStateIndex(
+    ImageAspect dsAspect
+    ) const
+{
+    PAL_ASSERT(dsAspect == ImageAspect::Depth || dsAspect == ImageAspect::Stencil);
+    return (m_pImageInfo->numPlanes == 1) ? 0 : static_cast<uint32>(dsAspect == ImageAspect::Stencil);
+}
 } // Pal

@@ -278,12 +278,17 @@ enum ImageLayoutUsageFlags : uint32
 /// corresponding to the usage flags.
 enum ImageLayoutEngineFlags : uint32
 {
-    LayoutUniversalEngine   = 0x1,
-    LayoutComputeEngine     = 0x2,
-    LayoutDmaEngine         = 0x4,
-    LayoutVideoEncodeEngine = 0x8,
-    LayoutVideoDecodeEngine = 0x10,
-    LayoutAllEngines        = 0x1F
+    LayoutUniversalEngine       = 0x1,
+    LayoutComputeEngine         = 0x2,
+    LayoutDmaEngine             = 0x4,
+    LayoutVideoEncodeEngine     = 0x8,
+    LayoutVideoDecodeEngine     = 0x10,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
+    LayoutVideoJpegDecodeEngine = 0x20,
+    LayoutAllEngines            = 0x3F
+#else
+    LayoutAllEngines            = 0x1F
+#endif
 };
 
 /// Bitmask values that can be ORed together to specify previous output usage and upcoming input usages of an image or

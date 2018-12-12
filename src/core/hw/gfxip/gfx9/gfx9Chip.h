@@ -293,11 +293,9 @@ constexpr uint32 Gfx9LdsDwGranularity      = 128;
 constexpr uint32 Gfx9LdsDwGranularityShift = 7;
 
 // The maximum number of waves per SH.
-constexpr uint32  Gfx9MaxWavesPerShCompute = (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
-                                              COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT);
-// Max size of primitives per subgroup for adjacency primitives or when GS instancing is used. This restriction is
-// applicable only when onchip GS is used.
-constexpr uint32 OnChipGsMaxPrimPerSubgrp = 255;
+constexpr uint32 Gfx9MaxWavesPerShCompute = (COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH_MASK >>
+                                             COMPUTE_RESOURCE_LIMITS__WAVES_PER_SH__SHIFT);
+constexpr uint32 MaxGsThreadsPerSubgroup = 256;
 
 // The value of ONCHIP that is the field of register VGT_GS_MODE
 constexpr uint32 VgtGsModeOnchip = 3;

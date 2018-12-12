@@ -179,7 +179,6 @@ private:
         struct
         {
             PM4ME_CONTEXT_REG_RMW  paScAaConfig;
-            PM4ME_CONTEXT_REG_RMW  paScConservativeRastCntl;
         } common; // Packets which are common to both the SET and LOAD_INDEX paths (such as read-modify-writes).
 
         struct

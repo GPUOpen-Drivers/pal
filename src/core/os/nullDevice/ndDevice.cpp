@@ -92,6 +92,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
 #endif
     { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
@@ -136,6 +137,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
 #endif
+    nullptr,
     nullptr,
     nullptr,
 

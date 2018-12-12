@@ -2257,7 +2257,6 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // All mip levels share the same depth export value, so only need to do it once.
     RpmUtil::WriteVsZOut(pCmdBuffer, depth);
-    RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
 
     // Box of partial clear is only valid when number of mip-map is equal to 1.
     PAL_ASSERT((boxCnt == 0) || ((pBox != nullptr) && (range.numMips == 1)));

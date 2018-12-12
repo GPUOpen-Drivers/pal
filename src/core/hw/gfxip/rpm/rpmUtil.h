@@ -49,6 +49,11 @@ PAL_INLINE uint32 MinThreadGroups(uint32 minThreads, uint32 threadsPerGroup)
 
 extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo, const GpuMemory& bufferMemory, gpusize byteOffset);
 
+extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo,
+                                   const GpuMemory& bufferMemory,
+                                   gpusize byteOffset,
+                                   gpusize range);
+
 extern void BuildImageViewInfo(
     ImageViewInfo*     pInfo,
     const Image&       image,

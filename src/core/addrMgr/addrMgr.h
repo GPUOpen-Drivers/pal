@@ -81,7 +81,7 @@ protected:
 
     virtual ~AddrMgr();
 
-    uint32 CalcBytesPerElement(const SubResourceInfo* pSubResInfo) const;
+    static uint32 CalcBytesPerElement(const SubResourceInfo*  pSubResInfo);
 
     // Computes the size (in PRT tiles) of the mip tail for a particular Image aspect.
     virtual void ComputeTilesInMipTail(

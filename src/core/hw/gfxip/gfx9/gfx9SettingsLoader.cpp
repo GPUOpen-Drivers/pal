@@ -210,9 +210,8 @@ void SettingsLoader::ValidateSettings(
         m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
     }
 
-    m_settings.nggRegLaunchGsPrimsPerSubgrp     = Min(m_settings.nggRegLaunchGsPrimsPerSubgrp,
-                                                          OnChipGsMaxPrimPerSubgrp);
-    m_settings.idealNggFastLaunchWavesPerSubgrp = Min(m_settings.idealNggFastLaunchWavesPerSubgrp, 4U);
+    m_settings.nggPrimsPerSubgroup = Min(m_settings.nggPrimsPerSubgroup, MaxGsThreadsPerSubgroup);
+    m_settings.nggVertsPerSubgroup = Min(m_settings.nggVertsPerSubgroup, MaxGsThreadsPerSubgroup);
 
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {

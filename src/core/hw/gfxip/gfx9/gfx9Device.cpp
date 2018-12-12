@@ -2232,15 +2232,6 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // For single-channel FORMAT cases, ALPHA_IS_ON_MSB(AIOM) = 0 indicates the channel is color.
             // while ALPHA_IS_ON_MSB (AIOM) = 1 indicates the channel is alpha.
 
-            // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
-            // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
-            // during CB rendering/draw on gfx9.2, which requires special handling.
-            // According to Anthony (Anthony.Chan@amd.com), ALPHA_IS_ON_MSB (AIOM) settings on RV 2 should be as follows:
-            // AIOM = 0 for alpha, and AIOM = 1 for color.
-
-            // To avoid any ambiguity, clear codes of single-channel formats could only be 0000 or 1111, which means
-            // ALPHA_IS_ON_MSB (AIOM) settings actually won't make any difference. To walk around RV2 hardware limitation
-            // mentioned above, ALPHA_IS_ON_MSB settings on gfx9 remains unchanged.
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
             if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
@@ -2789,7 +2780,7 @@ void InitializeGpuChipProperties(
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {
             pInfo->revision = AsicRevision::Raven;
-            pInfo->gfxStepping = 2;
+            pInfo->gfxStepping               = 2;
             pInfo->gfx9.numTccBlocks         = 4;
             pInfo->gfx9.maxNumCuPerSh        = 11;
             pInfo->gfx9.maxNumRbPerSe        = 2;

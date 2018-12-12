@@ -77,9 +77,9 @@ public:
 protected:
     explicit QueueSemaphore(Device* pDevice);
 
-    virtual Result QuerySemaphoreValue(uint64*  pValue);
-    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs);
-    virtual Result SignalSemaphoreValue(uint64  value);
+    virtual Result QuerySemaphoreValue(uint64*  pValue) override;
+    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs) override;
+    virtual Result SignalSemaphoreValue(uint64  value) override;
 
     virtual Result OsInit(const QueueSemaphoreCreateInfo& createInfo);
     virtual Result OsSignal(Queue* pQueue, uint64 value);

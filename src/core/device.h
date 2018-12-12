@@ -2084,6 +2084,7 @@ PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+// Renoir
 #endif // PAL_BUILD_GFX9
 
 static bool IsGfx091xPlus(const Device& device)

@@ -128,8 +128,9 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
     m_settings.gfx9OptimizeDsDataFetch = false;
     m_settings.nggEnableMode = NggPipelineTypeAll;
-    m_settings.nggRegLaunchGsPrimsPerSubgrp = 0;
-    m_settings.idealNggFastLaunchWavesPerSubgrp = 4;
+    m_settings.nggSubgroupSize = NggSubgroupOptimizeForPrims;
+    m_settings.nggPrimsPerSubgroup = 256;
+    m_settings.nggVertsPerSubgroup = 256;
     m_settings.nggLateAllocGs = 127;
     m_settings.enableBackfaceCullMask = NggPipelineTypeDisabled;
     m_settings.enableAccurateFrustumCullMask = NggPipelineTypeDisabled;
@@ -539,14 +540,19 @@ void SettingsLoader::ReadSettings()
                            &m_settings.nggEnableMode,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggRegLaunchGsPrimsPerSubgrpStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSubgroupSizeStr,
                            Util::ValueType::Uint,
-                           &m_settings.nggRegLaunchGsPrimsPerSubgrp,
+                           &m_settings.nggSubgroupSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggFastLaunchWavesPerSubgrpStr,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggPrimsPerSubgroupStr,
                            Util::ValueType::Uint,
-                           &m_settings.idealNggFastLaunchWavesPerSubgrp,
+                           &m_settings.nggPrimsPerSubgroup,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggVertsPerSubgroupStr,
+                           Util::ValueType::Uint,
+                           &m_settings.nggVertsPerSubgroup,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggLateAllocGsStr,
@@ -1231,14 +1237,19 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1973955291, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.nggRegLaunchGsPrimsPerSubgrp;
-    info.valueSize = sizeof(m_settings.nggRegLaunchGsPrimsPerSubgrp);
-    m_settingsInfoMap.Insert(3995251135, info);
+    info.pValuePtr = &m_settings.nggSubgroupSize;
+    info.valueSize = sizeof(m_settings.nggSubgroupSize);
+    m_settingsInfoMap.Insert(2078497267, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.idealNggFastLaunchWavesPerSubgrp;
-    info.valueSize = sizeof(m_settings.idealNggFastLaunchWavesPerSubgrp);
-    m_settingsInfoMap.Insert(2749143846, info);
+    info.pValuePtr = &m_settings.nggPrimsPerSubgroup;
+    info.valueSize = sizeof(m_settings.nggPrimsPerSubgroup);
+    m_settingsInfoMap.Insert(958458130, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.nggVertsPerSubgroup;
+    info.valueSize = sizeof(m_settings.nggVertsPerSubgroup);
+    m_settingsInfoMap.Insert(2005944793, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.nggLateAllocGs;

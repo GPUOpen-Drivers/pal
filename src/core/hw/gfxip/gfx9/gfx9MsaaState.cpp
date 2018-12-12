@@ -69,6 +69,7 @@ MsaaState::MsaaState(
     m_pixelShaderSamples(0),
     m_log2OcclusionQuerySamples(0)
 {
+    m_paScConsRastCntl.u32All = 0;
 }
 
 // =====================================================================================================================
@@ -106,15 +107,6 @@ void MsaaState::BuildPm4Headers()
                                 aaConfigMask,
                                 0,
                                 &m_pm4Image.paScAaConfig);
-
-    // MSAA state is responsible for all the fields in this register except for
-    // "COVERAGE_AA_MASK_ENABLE" and "UNDER_RAST_ENABLE", which are owned by the pipeline.
-    m_pm4Image.spaceNeeded += cmdUtil.BuildContextRegRmw(
-            mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
-            static_cast<uint32>(~(PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__COVERAGE_AA_MASK_ENABLE_MASK |
-                                  PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNDER_RAST_ENABLE_MASK)),
-            0, // filled in by the "Init" function
-            &m_pm4Image.paScConservativeRastCntl);
 
     //     Driver must insert FLUSH_DFSM event whenever the AA mode changes if force_punchout is set to
     //     auto as well as channel mask changes (ARGB to RGB)
@@ -165,14 +157,14 @@ uint32* MsaaState::WriteCommands(
 Result MsaaState::Init(
     const MsaaStateCreateInfo& msaaState)
 {
-    regPA_SC_AA_CONFIG                        paScAaConfig     = {};
-    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL  paScConsRastCntl = {};
-    const auto&                               settings         = GetGfx9Settings(*m_device.Parent());
+    regPA_SC_AA_CONFIG  paScAaConfig    = {};
+    const auto&         settings        = GetGfx9Settings(*m_device.Parent());
 
     m_log2Samples               = Log2(msaaState.coverageSamples);
     m_sampleMask                = msaaState.sampleMask;
     m_pixelShaderSamples        = msaaState.pixelShaderSamples;
     m_log2OcclusionQuerySamples = Log2(msaaState.occlusionQuerySamples);
+    m_paScConsRastCntl.u32All   = 0;
 
     BuildPm4Headers();
 
@@ -256,67 +248,59 @@ Result MsaaState::Init(
 
     if (msaaState.flags.enableConservativeRasterization)
     {
+        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 1;
+
+        m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 0;
+        m_paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 1;
+        m_paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 1;
+        m_paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 1;
+
+        m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION = 0;
+        m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT       = 4;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
         switch (msaaState.conservativeRasterizationMode)
         {
         case ConservativeRasterizationMode::Overestimate:
-            {
 #endif
-                paScAaConfig.bits.AA_MASK_CENTROID_DTMN                 = 1;
-                paScConsRastCntl.bits.OVER_RAST_ENABLE                  = 1;
-                paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT           = 0;
-                paScConsRastCntl.bits.UNDER_RAST_ENABLE                 = 0;
-                paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT          = 1;
-                paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE     = 1;
-
-                paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE         = 0;
-                paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE               = 1;
-                paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE              = 1;
-                paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE          = 1;
-
-                m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION   = 0;
-                m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT         = 4;
+            m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 1;
+            m_paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 0;
+            m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
+            m_paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 1;
+            m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 1;
+            m_paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = (settings.disableCoverageAaMask ? 0 : 1);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 425
-            }
             break;
+
         case ConservativeRasterizationMode::Underestimate:
-            {
-                paScAaConfig.bits.AA_MASK_CENTROID_DTMN                 = 1;
-                paScConsRastCntl.bits.OVER_RAST_ENABLE                  = 0;
-                paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT           = 1;
-                paScConsRastCntl.bits.UNDER_RAST_ENABLE                 = 1;
-                paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT          = 0;
-                paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE     = 0;
-
-                paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE         = 0;
-                paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE               = 1;
-                paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE              = 1;
-                paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE          = 1;
-
-                m_pm4Image.dbEqaa.bits.ENABLE_POSTZ_OVERRASTERIZATION   = 0;
-                m_pm4Image.dbEqaa.bits.OVERRASTERIZATION_AMOUNT         = 4;
-            }
+            m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
+            m_paScConsRastCntl.bits.OVER_RAST_SAMPLE_SELECT       = 1;
+            m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 1;
+            m_paScConsRastCntl.bits.UNDER_RAST_SAMPLE_SELECT      = 0;
+            m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+            m_paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE       = 0;
             break;
-        default:
+
+        case ConservativeRasterizationMode::Count:
+            PAL_ASSERT_ALWAYS();
             break;
         }
 #endif
     }
     else
     {
-        paScAaConfig.bits.AA_MASK_CENTROID_DTMN             = 0;
-        paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
-        paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
-        paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+        paScAaConfig.bits.AA_MASK_CENTROID_DTMN               = 0;
 
-        paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
-        paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
-        paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
-        paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
+        m_paScConsRastCntl.bits.OVER_RAST_ENABLE              = 0;
+        m_paScConsRastCntl.bits.UNDER_RAST_ENABLE             = 0;
+        m_paScConsRastCntl.bits.PBB_UNCERTAINTY_REGION_ENABLE = 0;
+        m_paScConsRastCntl.bits.NULL_SQUAD_AA_MASK_ENABLE     = 1;
+        m_paScConsRastCntl.bits.PREZ_AA_MASK_ENABLE           = 0;
+        m_paScConsRastCntl.bits.POSTZ_AA_MASK_ENABLE          = 0;
+        m_paScConsRastCntl.bits.CENTROID_SAMPLE_OVERRIDE      = 0;
     }
 
-    m_pm4Image.paScConservativeRastCntl.reg_data = paScConsRastCntl.u32All;
-    m_pm4Image.paScAaConfig.reg_data             = paScAaConfig.u32All;
+    m_pm4Image.paScAaConfig.reg_data = paScAaConfig.u32All;
 
     if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
     {

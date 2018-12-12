@@ -764,7 +764,8 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_commands.set.context.paClVteCntl.u32All     = registers.At(mmPA_CL_VTE_CNTL);
     m_commands.set.context.paSuVtxCntl.u32All     = registers.At(mmPA_SU_VTX_CNTL);
     m_paScModeCntl1.u32All                        = registers.At(mmPA_SC_MODE_CNTL_1);
-    m_commands.set.context.vgtGsOnchipCntl.u32All = registers.At(mmVGT_GS_ONCHIP_CNTL);
+
+    registers.HasEntry(mmVGT_GS_ONCHIP_CNTL, &m_commands.set.context.vgtGsOnchipCntl.u32All);
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
     // rasterization.

@@ -4189,13 +4189,46 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
     }
 
+    // Underestimation may be used alone or as inner coverage.
+    bool onlyUnderestimation = false;
+
+    // Set the conservative rasterization register state.
+    // The final setting depends on whether inner coverage was used in the PS.
+    if (stateDirty && (dirtyFlags.msaaState || pipelineDirty) &&
+        (pMsaaState != nullptr))
+    {
+        auto paScConsRastCntl = pMsaaState->PaScConsRastCntl();
+
+        if (pPipeline->UsesInnerCoverage())
+        {
+            paScConsRastCntl.bits.UNDER_RAST_ENABLE       = 1; // Inner coverage requires underestimating CR.
+            paScConsRastCntl.bits.COVERAGE_AA_MASK_ENABLE = 0;
+        }
+        else
+        {
+            onlyUnderestimation = ((paScConsRastCntl.bits.UNDER_RAST_ENABLE == 1) &&
+                                   (paScConsRastCntl.bits.OVER_RAST_ENABLE  == 0));
+        }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
+                                                            paScConsRastCntl.u32All,
+                                                            pDeCmdSpace);
+    }
+
     // MSAA num samples are associated with the MSAA state object, but inner coverage affects how many samples are
     // required. We need to update the value of this register.
     // When the pixel shader uses inner coverage the rasterizer needs another "sample" to hold the inner coverage
     // result.
     const uint32 log2MsaaStateSamples = (pMsaaState != nullptr) ? pMsaaState->Log2NumSamples() : 0;
-    const uint32 log2TotalSamples     = log2MsaaStateSamples + (pPipeline->UsesInnerCoverage() ? 1 : 0);
-    const bool   newAaConfigSamples   = (m_log2NumSamples != log2TotalSamples);
+    uint32       log2TotalSamples     = 0;
+
+    if (!onlyUnderestimation)
+    {
+        log2TotalSamples = log2MsaaStateSamples + (pPipeline->UsesInnerCoverage() ? 1 : 0);
+    }
+    // Else, use the underestimation result directly as the only covered sample.
+
+    const bool newAaConfigSamples = (m_log2NumSamples != log2TotalSamples);
 
     if ((stateDirty && dirtyFlags.msaaState) ||
         newAaConfigSamples                   ||

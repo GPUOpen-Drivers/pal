@@ -56,7 +56,6 @@ struct MsaaStatePm4Img
     regDB_ALPHA_TO_MASK                   dbAlphaToMask;        // DB_ALPHA_TO_MASK register value
 
     PM4ME_CONTEXT_REG_RMW                 paScAaConfig;         // PA SC AA config register
-    PM4ME_CONTEXT_REG_RMW                 paScConservativeRastCntl;
 
     PM4ME_NON_SAMPLE_EVENT_WRITE          flushDfsm;            // flushDfsm event
 
@@ -145,6 +144,8 @@ public:
     uint32 NumPixelShaderSamples() const { return m_pixelShaderSamples; }
     uint32 Log2OcclusionQuerySamples() const { return m_log2OcclusionQuerySamples; }
 
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_paScConsRastCntl; }
+
 protected:
     virtual ~MsaaState() {}
 
@@ -158,7 +159,8 @@ private:
     uint32  m_pixelShaderSamples;
     uint32  m_log2OcclusionQuerySamples;
 
-    MsaaStatePm4Img  m_pm4Image;
+    MsaaStatePm4Img                             m_pm4Image;
+    regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL    m_paScConsRastCntl;
 
     PAL_DISALLOW_DEFAULT_CTOR(MsaaState);
     PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);

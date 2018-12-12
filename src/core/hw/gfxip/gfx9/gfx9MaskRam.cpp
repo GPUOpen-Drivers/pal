@@ -1758,11 +1758,9 @@ void Gfx9Dcc::GetXyzInc(
     }
     else
     {
-        PAL_ASSERT(imageType == ImageType::Tex1d);
+        PAL_ASSERT_ALWAYS();
 
-        *pXinc = 256 / (1 << bppLog2);
-        *pYinc = 1;
-        *pZinc = 1;
+        // 1D images...  should never get here.  GFX9 1D images don't support DCC.
     }
 }
 

@@ -951,6 +951,7 @@ void LogContext::Enum(
 #endif
         nullptr,
         nullptr,
+        nullptr,
 
         nullptr,
         nullptr,

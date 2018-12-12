@@ -274,15 +274,7 @@ void PipelineChunkVsPs::LateInit(
     m_commands.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_commands.context.vgtPrimitiveIdEn.u32All   = registers.At(mmVGT_PRIMITIVEID_EN);
 
-    m_commands.common.paScAaConfig.reg_data             = registers.At(mmPA_SC_AA_CONFIG);
-    m_commands.common.paScConservativeRastCntl.reg_data = registers.At(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL);
-
-    // Override the Pipeline ABI's reported COVERAGE_AA_MASK_ENABLE bit if the settings request it.
-    if (settings.disableCoverageAaMask)
-    {
-        m_commands.common.paScConservativeRastCntl.reg_data &=
-            ~PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__COVERAGE_AA_MASK_ENABLE_MASK;
-    }
+    m_commands.common.paScAaConfig.reg_data      = registers.At(mmPA_SC_AA_CONFIG);
 
     // Binner_cntl1:
     // 16 bits: Maximum amount of parameter storage allowed per batch.
@@ -557,12 +549,6 @@ void PipelineChunkVsPs::BuildPm4Headers(
                                PA_SC_AA_CONFIG__COVERAGE_TO_SHADER_SELECT_MASK,
                                0,
                                &m_commands.common.paScAaConfig);
-
-    cmdUtil.BuildContextRegRmw(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
-                               (PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__COVERAGE_AA_MASK_ENABLE_MASK |
-                                PA_SC_CONSERVATIVE_RASTERIZATION_CNTL__UNDER_RAST_ENABLE_MASK),
-                               0,
-                               &m_commands.common.paScConservativeRastCntl);
 }
 
 // =====================================================================================================================

@@ -752,7 +752,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     // We must convert our byte pitches into units of elements. For most formats (including BC formats) the subresource
     // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
     // per texel.
-    const uint32 bytesPerElement = CalcBytesPerElement(pBaseSubRes);
+    const uint32 bytesPerElement = AddrMgr::CalcBytesPerElement(pBaseSubRes);
     const bool   isYuvPlanar     = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
 
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))

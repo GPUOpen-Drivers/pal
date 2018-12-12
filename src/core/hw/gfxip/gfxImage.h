@@ -214,11 +214,7 @@ protected:
         ImageInfo*    pImageInfo,
         const Device& device);
 
-    static uint32 GetDepthStencilStateIndex(ImageAspect dsAspect)
-    {
-        PAL_ASSERT(dsAspect == ImageAspect::Depth || dsAspect == ImageAspect::Stencil);
-        return static_cast<uint32>(dsAspect == ImageAspect::Stencil);
-    }
+    uint32 GetDepthStencilStateIndex(ImageAspect dsAspect) const;
 
     static void UpdateMetaDataLayout(
         ImageMemoryLayout* pGpuMemLayout,

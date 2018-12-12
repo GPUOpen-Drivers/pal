@@ -422,6 +422,20 @@ void BuildRawBufferViewInfo(
 }
 
 // =====================================================================================================================
+// Populates a raw BufferViewInfo that wraps an explicit range of the provided memory object.
+void BuildRawBufferViewInfo(
+    BufferViewInfo*   pInfo,
+    const GpuMemory&  bufferMemory,
+    gpusize           byteOffset,
+    gpusize           range)
+{
+    pInfo->gpuAddr        = bufferMemory.Desc().gpuVirtAddr + byteOffset;
+    pInfo->range          = range;
+    pInfo->stride         = 1;
+    pInfo->swizzledFormat = UndefinedSwizzledFormat;
+}
+
+// =====================================================================================================================
 // Populates an ImageViewInfo that wraps the given range of the provided image object.
 void BuildImageViewInfo(
     ImageViewInfo*     pInfo,

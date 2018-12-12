@@ -1045,20 +1045,23 @@ void Image::InitLayoutStateMasksOneMip(
 
         m_layoutToState[mip].depthStencil[depth].compressed     = compressedLayouts;
         m_layoutToState[mip].depthStencil[depth].decomprWithHiZ = decomprWithHiZ;
+        if (depth != stencil)
+        {
+            // Supported stencil layouts per compression state
+            if (m_pHtile->TileStencilDisabled() == false)
+            {
+                m_layoutToState[mip].depthStencil[stencil].compressed     = compressedLayouts;
+                m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ = decomprWithHiZ;
+            }
+            else
+            {
+                m_layoutToState[mip].depthStencil[stencil].compressed.usages      = 0;
+                m_layoutToState[mip].depthStencil[stencil].compressed.engines     = 0;
+                m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.usages  = 0;
+                m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.engines = 0;
+            }
+        }
 
-        // Supported stencil layouts per compression state
-        if (m_pHtile->TileStencilDisabled() == false)
-        {
-            m_layoutToState[mip].depthStencil[stencil].compressed     = compressedLayouts;
-            m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ = decomprWithHiZ;
-        }
-        else
-        {
-            m_layoutToState[mip].depthStencil[stencil].compressed.usages      = 0;
-            m_layoutToState[mip].depthStencil[stencil].compressed.engines     = 0;
-            m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.usages  = 0;
-            m_layoutToState[mip].depthStencil[stencil].decomprWithHiZ.engines = 0;
-        }
     } // End check for (m_pHtile != nullptr)
 }
 

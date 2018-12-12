@@ -999,23 +999,26 @@ void Image::InitLayoutStateMasks()
 
         m_defaultGfxLayout.depthStencil[depth] = compressedLayouts;
 
-        // Supported stencil layouts per compression state
-        if (m_pHtile->TileStencilDisabled() == false)
+        if (depth != stencil)
         {
-            m_layoutToState.depthStencil[stencil].compressed     = compressedLayouts;
-            m_layoutToState.depthStencil[stencil].decomprWithHiZ = decomprWithHiZLayout;
+            // Supported stencil layouts per compression state
+            if (m_pHtile->TileStencilDisabled() == false)
+            {
+                m_layoutToState.depthStencil[stencil].compressed     = compressedLayouts;
+                m_layoutToState.depthStencil[stencil].decomprWithHiZ = decomprWithHiZLayout;
 
-            m_defaultGfxLayout.depthStencil[stencil] = compressedLayouts;
-        }
-        else
-        {
-            m_layoutToState.depthStencil[stencil].compressed.usages      = 0;
-            m_layoutToState.depthStencil[stencil].compressed.engines     = 0;
-            m_layoutToState.depthStencil[stencil].decomprWithHiZ.usages  = 0;
-            m_layoutToState.depthStencil[stencil].decomprWithHiZ.engines = 0;
+                m_defaultGfxLayout.depthStencil[stencil] = compressedLayouts;
+            }
+            else
+            {
+                m_layoutToState.depthStencil[stencil].compressed.usages      = 0;
+                m_layoutToState.depthStencil[stencil].compressed.engines     = 0;
+                m_layoutToState.depthStencil[stencil].decomprWithHiZ.usages  = 0;
+                m_layoutToState.depthStencil[stencil].decomprWithHiZ.engines = 0;
 
-            m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
-            m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
+                m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
+                m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
+            }
         }
     }
     else
