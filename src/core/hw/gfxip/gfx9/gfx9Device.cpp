@@ -563,6 +563,50 @@ Result Device::CreateEngine(
 }
 
 // =====================================================================================================================
+Result Device::CreateDummyCommandStream(
+    EngineType       engineType,
+    Pal::CmdStream** ppCmdStream
+    ) const
+{
+    Result          result     = Result::ErrorOutOfMemory;
+    Pal::CmdStream* pCmdStream = PAL_NEW(CmdStream, GetPlatform(), AllocInternal)(*this,
+                                     Parent()->InternalUntrackedCmdAllocator(),
+                                     engineType,
+                                     SubEngineType::Primary,
+                                     CmdStreamUsage::Workload,
+                                     false);
+    if (pCmdStream != nullptr)
+    {
+        result = pCmdStream->Init();
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr CmdStreamBeginFlags beginFlags = {};
+        pCmdStream->Reset(nullptr, true);
+        pCmdStream->Begin(beginFlags, nullptr);
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        pCmdSpace += m_cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords, pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdStream->End();
+    }
+    else
+    {
+        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppCmdStream) = pCmdStream;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Determines the size of the QueueContext object needed for GFXIP9+ hardware. Only supported on Universal and
 // Compute Queues.
 size_t Device::GetQueueContextSize(
@@ -2232,6 +2276,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // For single-channel FORMAT cases, ALPHA_IS_ON_MSB(AIOM) = 0 indicates the channel is color.
             // while ALPHA_IS_ON_MSB (AIOM) = 1 indicates the channel is alpha.
 
+            // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
+            // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
+            // during CB rendering/draw on gfx9.2, which requires special handling.
+
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(viewInfo.swizzledFormat);
 
             if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
@@ -2749,6 +2797,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numPhysicalVgprs        = 256;
         pInfo->gfx9.vgprAllocGranularity    = 4;
         pInfo->gfx9.minVgprAlloc            = 4;
+        pInfo->gfxip.shaderPrefetchBytes    = 2 * ShaderICacheLineSize;
     }
 
     pInfo->gfx9.gsVgtTableDepth         = 32;

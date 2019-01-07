@@ -54,6 +54,8 @@ public:
         gpusize           dataSize,
         const uint32*     pData) override;
 
+    static uint32* BuildNops(uint32* pCmdSpace, uint32 numDwords);
+
 protected:
     virtual ~DmaCmdBuffer() {}
 

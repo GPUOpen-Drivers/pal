@@ -41,6 +41,7 @@ namespace PerfCtrInfo
 
 // Table of all the primary perf-counter select registers.  We list all the register offsets since the delta's
 // between registers are not consistent.
+
 static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
 {
     { Gfx9NumCpfCounters, 1, 2,    { mmCPF_PERFCOUNTER0_SELECT,
@@ -157,10 +158,10 @@ static constexpr BlockPerfCounterInfo Gfx9PerfCountSelect0[] =
                                      Gfx09::mmMC_VM_L2_PERFCOUNTER6_CFG,
                                      Gfx09::mmMC_VM_L2_PERFCOUNTER7_CFG,  }, },  // mc vm l2
     { Gfx9NumEaCounters, 0, 0,     { 0                                    }, },  // ea
-    { Gfx9NumRpbCounters, 0, 0,    { Gfx09::mmRPB_PERFCOUNTER0_CFG,
-                                     Gfx09::mmRPB_PERFCOUNTER1_CFG,
-                                     Gfx09::mmRPB_PERFCOUNTER2_CFG,
-                                     Gfx09::mmRPB_PERFCOUNTER3_CFG,       }, },  // rpb
+    { Gfx9NumRpbCounters, 0, 0,    { Vega::mmRPB_PERFCOUNTER0_CFG,
+                                     Vega::mmRPB_PERFCOUNTER1_CFG,
+                                     Vega::mmRPB_PERFCOUNTER2_CFG,
+                                     Vega::mmRPB_PERFCOUNTER3_CFG,        }, },  // rpb
     { Gfx9NumRmiCounters, 1, 2,    { mmRMI_PERFCOUNTER0_SELECT,
                                      mmRMI_PERFCOUNTER1_SELECT,
                                      mmRMI_PERFCOUNTER2_SELECT,
@@ -240,7 +241,9 @@ void GetPrimaryBlockCounterInfo(
 
     if (pProps->gfxLevel == GfxIpLevel::GfxIp9)
     {
-        memcpy(pBlockCounterInfo, &Gfx9PerfCountSelect0[blockIdx], sizeof(BlockPerfCounterInfo));
+        {
+            memcpy(pBlockCounterInfo, &Gfx9PerfCountSelect0[blockIdx], sizeof(BlockPerfCounterInfo));
+        }
 
         // The base table contains the Vega10 information; fix up any differences with the variations here
         if ((pProps->familyId == FAMILY_RV) && (block == GpuBlock::Dma))
@@ -304,6 +307,7 @@ uint32 GetMaxEventId(
         constexpr uint32 Gfx9PerfCtrRlcMaxEvent = 7; //< RLC, doesn't have enumerations, look in reg spec
 
         // Define the generic max event IDs.  Most of these are the same between the GFX9 variations
+
         static constexpr uint32  MaxEventId[static_cast<uint32>(GpuBlock::Count)] =
         {
             MaxCpfPerfcountSelGfx09,
@@ -320,7 +324,7 @@ uint32 GetMaxEventId(
             0, // Tcc, see below,
             MaxTcaPerfSel,
             MaxPerfcounterValsGfx09,
-            MaxCBPerfSelGfx09,
+            MaxCBPerfSelVega,
             MaxGdsPerfcountSelectGfx09,
             0, // Srbm,
             MaxGrbmPerfSelGfx09,
@@ -343,7 +347,9 @@ uint32 GetMaxEventId(
 #endif
         };
 
-        maxEventId = MaxEventId[blockIdx];
+        {
+            maxEventId = MaxEventId[blockIdx];
+        }
 
         if (maxEventId == 0)
         {
@@ -381,7 +387,9 @@ uint32 GetMaxEventId(
             }
             else if (block == GpuBlock::Tcc)
             {
-                maxEventId = MaxTccPerfSelVg10_Vg12_Rv1x;
+                maxEventId = MaxTccPerfSelVg10_Vg12;
+                static_assert((MaxTccPerfSelVg10_Vg12 == MaxTccPerfSelRaven),
+                              "Max TCC perf counter enumeration doesn't match!\n");
 
             }
         } // end check for an invalid block ID
@@ -894,13 +902,15 @@ void SetupGfx9Counters(
     }
 
     // RPB block
-    SetupMcSysBlockInfo(pProps,
-                        GpuBlock::Rpb,
-                        DefaultInstances,
-                        Gfx09::mmRPB_PERFCOUNTER_LO,
-                        Gfx09::mmRPB_PERFCOUNTER_HI,
-                        0,
-                        Gfx09::mmRPB_PERFCOUNTER_RSLT_CNTL);
+    {
+        SetupMcSysBlockInfo(pProps,
+                            GpuBlock::Rpb,
+                            DefaultInstances,
+                            Vega::mmRPB_PERFCOUNTER_LO,
+                            Vega::mmRPB_PERFCOUNTER_HI,
+                            0,
+                            Vega::mmRPB_PERFCOUNTER_RSLT_CNTL);
+    }
 }
 
 // =====================================================================================================================

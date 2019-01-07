@@ -161,7 +161,14 @@ union ImageCreateFlags
 #else
         uint32 reserved1               :  1;
 #endif
-        uint32 reserved                : 13; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
+        uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a desination
+                                             ///  will overwrite the entire image (width and height of resolve region is
+                                             ///  same as width and height of resolve dst).
+#else
+        uint32 reserved2               :  1;
+#endif
+        uint32 reserved                : 12; ///< Reserved for future use.
     };
     uint32 u32All;                     ///< Flags packed as 32-bit uint.
 };

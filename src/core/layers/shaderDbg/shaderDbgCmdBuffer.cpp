@@ -375,8 +375,8 @@ void CmdBuffer::AllocateHwShaderDbg(
     if ((m_maxNumTracedDraws == 0) || (m_numTracedDraws < m_maxNumTracedDraws))
     {
         PAL_ASSERT(m_pCurrentPipeline != nullptr);
-        uint64 compilerHash = m_pCurrentPipeline->GetInfo().compilerHash;
-        uint32 hwShaderDbgMask = m_pCurrentPipeline->HwShaderDbgMask();
+        const uint64 compilerHash = m_pCurrentPipeline->GetInfo().internalPipelineHash.stable;
+        uint32 hwShaderDbgMask    = m_pCurrentPipeline->HwShaderDbgMask();
 
         const uint32 numShaders = Util::CountSetBits(hwShaderDbgMask);
         AutoBuffer<IGpuMemory*,

@@ -37,7 +37,7 @@
 #define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
 
 /// The minor version number of the RGP file format specification that this header corresponds to.
-#define RGP_FILE_FORMAT_SPEC_MINOR_VER 3
+#define RGP_FILE_FORMAT_SPEC_MINOR_VER 4
 
 struct RgpChunkVersionNumbers
 {
@@ -103,7 +103,9 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_CPU_INFO,                     /*!< Description of the CPU on which the trace was made. */
     SQTT_FILE_CHUNK_TYPE_SPM_DB,                       /*!< SPM trace data. */
     SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,         /*!< Pipeline code object database. */
-    SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS,      /*!< Pipeline API-level load event data. */
+    SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS,    /*!< Code object loader event data. */
+    SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION,              /*!< Pipeline State Object -> Code Object correlation mapping. */
+    SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE,        /*!< Instrumentation table. */
     SQTT_FILE_CHUNK_TYPE_COUNT
 } SqttFileChunkType;
 
@@ -120,7 +122,9 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
-    {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS
+    {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE
 };
 
 static_assert(Util::ArrayLen(RgpChunkVersionNumberLookup) == static_cast<uint32_t>(SQTT_FILE_CHUNK_TYPE_COUNT),
@@ -340,38 +344,63 @@ typedef struct SqttCodeObjectDatabaseRecord
     uint32_t  recordSize;  /*!< The size of the code object in bytes. */
 } SqttCodeObjectDatabaseRecord;
 
-/**  A structure encapsulating information for a timeline of API-level code object load and unload events.
+/**  A structure encapsulating information for a timeline of code object loader events.
  */
-typedef struct SqttFileChunkApiLevelLoaderEvents
+typedef struct SqttFileChunkCodeObjectLoaderEvents
 {
     SqttFileChunkHeader header;
     uint32_t            offset;
     uint32_t            flags;
-    uint32_t            recordSize;                         /*!< Size of a single SqttApiLevelLoaderEventRecord. */
+    uint32_t            recordSize;                         /*!< Size of a single SqttCodeObjectLoaderEventRecord. */
     uint32_t            recordCount;
-} SqttFileChunkApiLevelLoaderEvents;
+} SqttFileChunkCodeObjectLoaderEvents;
 
-/** An enumeration of the API level loader event types.
+/** An enumeration of the code object loader event types.
 */
-typedef enum SqttApiLevelLoaderEventType
+typedef enum SqttCodeObjectLoaderEventType
 {
-    SQTT_API_LEVEL_OBJECT_LOAD   = 0x00000000,
-    SQTT_API_LEVEL_OBJECT_UNLOAD = 0x00000001
-} SqttApiLevelLoaderEventType;
+    SQTT_CODE_OBJECT_LOAD_TO_GPU_MEMORY     = 0x00000000,
+    SQTT_CODE_OBJECT_UNLOAD_FROM_GPU_MEMORY = 0x00000001
+} SqttCodeObjectLoaderEventType;
+
+/**  A structure encapsulating a 128-bit hash.
+*/
+typedef struct SqttHash128
+{
+    uint64_t lower;   /*!< Lower 64-bits of hash. */
+    uint64_t upper;   /*!< Upper 64-bits of hash. */
+} SqttHash128;
 
 /**  A structure encapsulating information about each record in the loader events chunk.
  */
-typedef struct SqttApiLevelLoaderEventRecord
+typedef struct SqttCodeObjectLoaderEventRecord
 {
-    SqttApiLevelLoaderEventType eventType;                  /*!< The type of loader event. */
-    uint32_t                    reserved;                   /*!< Reserved. */
-    uint64_t                    baseAddress;                /*!< The base address where the code object has been loaded. */
-    uint64_t                    codeObjectHash;             /*!< Code object's compiler hash. */
-    uint64_t                    apiHash;                    /*!< Code object hash including runtime API information. */
-    uint64_t                    shaderCodeHash;             /*!< Hash of the shader code. */
-    char                        apiObjectName[64];          /*!< API-level object name as a null-terminated string. */
-    uint64_t                    timestamp;                  /*!< Timestamp. Always set to 0 for now. */
-} SqttApiLevelLoaderEventRecord;
+    SqttCodeObjectLoaderEventType eventType;          /*!< The type of loader event. */
+    uint32_t                      reserved;           /*!< Reserved. */
+    uint64_t                      baseAddress;        /*!< The base address where the code object has been loaded. */
+    SqttHash128                   codeObjectHash;     /*!< Code object hash. For now, same as internal pipeline hash. */
+    uint64_t                      timestamp;          /*!< CPU timestamp of this event in clock cycle units. */
+} SqttCodeObjectLoaderEventRecord;
+
+/**  A structure encapsulating information for Pipeline State Object correlation mappings.
+ */
+typedef struct SqttFileChunkPsoCorrelation
+{
+    SqttFileChunkHeader header;
+    uint32_t            offset;
+    uint32_t            flags;
+    uint32_t            recordSize;                         /*!< Size of a single SqttPsoCorrelationRecord. */
+    uint32_t            recordCount;
+} SqttFileChunkPsoCorrelation;
+
+/**  A structure encapsulating information about each record in the PSO correlation chunk.
+ */
+typedef struct SqttPsoCorrelationRecord
+{
+    uint64_t    apiPsoHash;            /*!< API PSO hash provided by the client driver. */
+    SqttHash128 internalPipelineHash;  /*!< Internal pipeline hash provided by the pipeline compiler. */
+    char        apiObjectName[64];     /*!< (Optional) Debug object name as a null-terminated string. */
+} SqttPsoCorrelationRecord;
 
 /** An enumeration of the hardware shader stage that the shader will run on. Bitfield of shader stages. Deprecated.
 */
@@ -396,14 +425,6 @@ typedef enum SqttShaderFlags
     SQTT_SHADER_STREAM_OUT_ENABLED = 0x4
 } SqttShaderFlags;
 
-/**  A structure encapsulating a 128-bit shader hash. Deprecated.
-*/
-typedef struct SqttShaderHash
-{
-    uint64_t lower;   ///< Lower 64-bits of hash
-    uint64_t upper;   ///< Upper 64-bits of hash
-} ShaderHash;
-
 /**  A structure encapsulating information about each ISA blob in each record of the shader ISA database. Deprecated.
  */
 typedef struct SqttShaderIsaBlobHeader
@@ -412,8 +433,8 @@ typedef struct SqttShaderIsaBlobHeader
     uint32_t        actualVgprCount;                   /*!< The actual number of VGPRs used by the shader. */
     uint32_t        actualSgprCount;                   /*!< The actual number of SGPRs used by the shader. */
     uint32_t        actualLdsCount;                    /*!< The actual number of LDS bytes used by the shader. */
-    SqttShaderHash  apiShaderHash;                     /*!< 128-bit hash of the shader, API specific. */
-    SqttShaderHash  palShaderHash;                     /*!< 128-bit PAL internal hash of shader used in shader cache */
+    SqttHash128     apiShaderHash;                     /*!< 128-bit hash of the shader, API specific. */
+    SqttHash128     palShaderHash;                     /*!< 128-bit PAL internal hash of shader used in shader cache */
     uint32_t        scratchSize;                       /*!< The number of DWORDs used for scratch memory. */
     uint32_t        flags;                             /*!< Flags as defined in SqttShaderFlags. */
     uint64_t        baseAddress;                       /*!< Base address of first instruction in chunk. */

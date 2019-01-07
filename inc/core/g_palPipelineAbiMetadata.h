@@ -113,7 +113,7 @@ struct PipelineMetadata
 {
     char                  name[64];
     PipelineType          type;
-    uint64                pipelineCompilerHash;
+    uint64                internalPipelineHash[2];
     ShaderMetadata        shader[static_cast<uint32>(ApiShaderType::Count)];
     HardwareStageMetadata hardwareStage[static_cast<uint32>(HardwareStage::Count)];
     uint32                userDataLimit;
@@ -143,7 +143,7 @@ struct PipelineMetadata
         {
             uint16 name                           : 1;
             uint16 type                           : 1;
-            uint16 pipelineCompilerHash           : 1;
+            uint16 internalPipelineHash           : 1;
             uint16 userDataLimit                  : 1;
             uint16 spillThreshold                 : 1;
             uint16 usesViewportArrayIndex         : 1;
@@ -188,7 +188,7 @@ namespace PipelineMetadataKey
 {
     static constexpr char Name[]                           = ".name";
     static constexpr char Type[]                           = ".type";
-    static constexpr char PipelineCompilerHash[]           = ".pipeline_compiler_hash";
+    static constexpr char InternalPipelineHash[]           = ".internal_pipeline_hash";
     static constexpr char Shaders[]                        = ".shaders";
     static constexpr char HardwareStages[]                 = ".hardware_stages";
     static constexpr char Registers[]                      = ".registers";

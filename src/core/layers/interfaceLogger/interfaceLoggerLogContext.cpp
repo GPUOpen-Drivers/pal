@@ -1195,9 +1195,10 @@ const char* LogContext::GetEngineName(
         "ExclusiveCompute", // EngineTypeExclusiveCompute
         "Dma",              // EngineTypeDma
         "Timer",            // EngineTypeTimer
-            "HpUniversal",      // EngineTypeHighPriorityUniversal
+
+        "HpUniversal",      // EngineTypeHighPriorityUniversal
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-            "HpGfxOnly",        // EngineTypeHighPriorityGraphics
+        "HpGfxOnly",        // EngineTypeHighPriorityGraphics
 #endif
     };
 

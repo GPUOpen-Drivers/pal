@@ -202,8 +202,8 @@ void Pipeline::Destroy()
             Util::File file;
 
             ShaderDumpInfo dumpInfo = {};
-            dumpInfo.pipelineHash   = info.pipelineHash;
-            dumpInfo.compilerHash   = info.compilerHash;
+            dumpInfo.pipelineHash   = info.palRuntimeHash;
+            dumpInfo.compilerHash   = info.internalPipelineHash.stable;
             dumpInfo.type           = type;
             dumpInfo.hash           = info.shader[i].hash;
             dumpInfo.pFile          = &file;
@@ -240,8 +240,6 @@ void Pipeline::Destroy()
                             dumpInfo.type         = type;
                             dumpInfo.hwStage      = hwStage;
                             dumpInfo.hash         = info.shader[i].hash;
-                            dumpInfo.pipelineHash = info.pipelineHash;
-                            dumpInfo.compilerHash = info.compilerHash;
 
                             payloadSize += DumpShaderPerfData(dumpInfo, &data[0], size);
                             numShaders++;

@@ -48,6 +48,7 @@ struct Hash
     union
     {
         uint32 dwords[4]; ///< Output hash in dwords.
+        uint64 qwords[2]; ///< Output hash in qwords.
         uint8  bytes[16]; ///< Output hash in bytes.
     };
 };

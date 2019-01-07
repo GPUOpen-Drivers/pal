@@ -110,8 +110,8 @@ DepthStencilView::DepthStencilView(
     const SubResourceInfo*const pDepthSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
 
-    m_flags.depthMetadataTexFetch   = pDepthSubResInfo->flags.supportMetaDataTexFetch;
-    m_flags.stencilMetadataTexFetch = pStencilSubResInfo->flags.supportMetaDataTexFetch;
+    m_flags.depthMetadataTexFetch   = pDepthSubResInfo->flags.supportMetaDataTexFetch && m_flags.hTile;
+    m_flags.stencilMetadataTexFetch = pStencilSubResInfo->flags.supportMetaDataTexFetch && m_flags.hTile;
 
     if (m_device.Settings().waitOnMetadataMipTail)
     {
@@ -606,8 +606,8 @@ void Gfx9DepthStencilView::InitRegisters(
 
     // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
     //                     order to be readable by TC
-    m_pm4Cmds.dbZInfo.gfx09.ITERATE_FLUSH       = pDepthSubResInfo->flags.supportMetaDataTexFetch;
-    m_pm4Cmds.dbStencilInfo.gfx09.ITERATE_FLUSH = pStencilSubResInfo->flags.supportMetaDataTexFetch;
+    m_pm4Cmds.dbZInfo.gfx09.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
+    m_pm4Cmds.dbStencilInfo.gfx09.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
 
     m_pm4Cmds.dbZInfo.gfx09.FAULT_BEHAVIOR        = FAULT_ZERO;
     m_pm4Cmds.dbStencilInfo.gfx09.FAULT_BEHAVIOR  = FAULT_ZERO;

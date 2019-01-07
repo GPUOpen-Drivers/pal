@@ -252,6 +252,7 @@ Device::Device(
     memset(&m_chipProperties, 0, sizeof(m_chipProperties));
     memset(&m_heapProperties[0], 0, sizeof(m_heapProperties));
     memset(&m_pEngines[0], 0, sizeof(m_pEngines));
+    memset(&m_pDummyCommandStreams[0], 0, sizeof(m_pDummyCommandStreams));
     memset(&m_gdsSizes, 0, sizeof(m_gdsSizes));
     memset(m_gdsInfo, 0, sizeof(m_gdsInfo));
     memset(&m_gpuName[0], 0, sizeof(m_gpuName));
@@ -337,6 +338,11 @@ Result Device::Cleanup()
     if (m_pTextWriter != nullptr)
     {
         PAL_SAFE_DELETE(m_pTextWriter, m_pPlatform);
+    }
+
+    for (uint32 engineType = 0; engineType < EngineTypeCount; engineType++)
+    {
+        PAL_SAFE_DELETE(m_pDummyCommandStreams[engineType], m_pPlatform);
     }
 
     if (m_pGfxDevice != nullptr)
@@ -482,6 +488,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.borderColorPaletteSizeLimit = 4096;
     m_publicSettings.disableCommandBufferPreemption = false;
     m_publicSettings.disableSkipFceOptimization = true;
+    m_publicSettings.dccBitsPerPixelThreshold = UINT_MAX;
+    m_publicSettings.miscellaneousDebugString[0] = '\0';
+    m_publicSettings.renderedByString[0] = '\0';
 
     return ret;
 }
@@ -1124,6 +1133,24 @@ Result Device::CommitSettingsAndInit()
     PAL_ASSERT(m_pSettingsLoader != nullptr);
     m_pSettingsLoader->FinalizeSettings();
 
+    if (m_pPlatform->PlatformSettings().debugOverlayEnabled)
+    {
+        auto* pDebugOverlayConfig = &m_pPlatform->PlatformSettingsPtr()->debugOverlayConfig;
+
+        // Only copy the client specified debug strings when the platform settings don't have them.
+        if ((pDebugOverlayConfig->miscellaneousDebugString[0] == '\0') &&
+            (m_publicSettings.miscellaneousDebugString[0] != '\0'))
+        {
+            strcpy(pDebugOverlayConfig->miscellaneousDebugString, m_publicSettings.miscellaneousDebugString);
+
+        }
+        if ((pDebugOverlayConfig->renderedByString[0] == '\0') &&
+            (m_publicSettings.renderedByString[0] != '\0'))
+        {
+            strcpy(pDebugOverlayConfig->renderedByString, m_publicSettings.renderedByString);
+        }
+    }
+
     // The memory heap properties need to be finalized after the settings because we use settings to store the
     // performance ratings for each GPU memory heap.
     FinalizeMemoryHeapProperties();
@@ -1408,6 +1435,12 @@ Result Device::Finalize(
         result = CreateEngines(finalizeInfo);
     }
 
+    // Initialize a real dummy command stream, which is filled with NOP
+    if (result == Result::Success)
+    {
+        result = CreateDummyCommandStreams();
+    }
+
     // If developer mode is enabled we need to initialize some internal resources.
     if ((result == Result::Success) && m_pPlatform->IsDeveloperModeEnabled())
     {
@@ -1516,6 +1549,50 @@ Result Device::CreateEngine(
         result = Result::ErrorUnknown;
         break;
     };
+
+    return result;
+}
+
+// =====================================================================================================================
+// This helper function allows us to create Dummy Command Streams (Filled with NOP) for ip-specific engines
+Result Device::CreateDummyCommandStreams()
+{
+    Result result = Result::Success;
+
+    for (uint32 i = 0; ((i < EngineTypeCount) && (result == Result::Success)); i++)
+    {
+        const EngineType engineType = static_cast<EngineType>(i);
+
+        if (m_engineProperties.perEngine[engineType].numAvailable > 0)
+        {
+            switch (engineType)
+            {
+#if PAL_BUILD_GFX
+            case EngineTypeUniversal:
+            case EngineTypeCompute:
+            case EngineTypeExclusiveCompute:
+                if ((m_pGfxDevice != nullptr) && (m_engineProperties.perEngine[engineType].numAvailable > 0))
+                {
+                    result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
+                }
+                break;
+#endif
+#if PAL_BUILD_OSS
+            case EngineTypeDma:
+                if (m_pOssDevice != nullptr)
+                {
+                    result = m_pOssDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
+                }
+                break;
+#endif
+
+            default:
+                // No corresponding dummy command stream for this engine
+                m_pDummyCommandStreams[engineType] = nullptr;
+                break;
+            }
+        }
+    }
 
     return result;
 }

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "pal.h"
+#include "core/cmdStream.h"
 
 namespace Pal
 {
@@ -51,6 +52,8 @@ public:
         EngineType engineType,
         uint32     engineIndex,
         Engine**   ppEngine) = 0;
+
+    virtual Result CreateDummyCommandStream(EngineType engineType, Pal::CmdStream** ppCmdStream) const = 0;
 
     // Determines the amount of storage needed for a QueueContext object for the given Queue type and ID. For Queue
     // types not supported by OSSIP hardware blocks, this should return zero.

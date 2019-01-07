@@ -358,6 +358,9 @@ struct GpuQueueProperties
 // properly.
 constexpr uint32 MinCmdStreamsPerSubmission = 4;
 
+// Size of an instruction cache line (bytes).
+constexpr gpusize ShaderICacheLineSize = 64;
+
 #if PAL_BUILD_GFX6
 // Maximum amount of counters per GPU block.
 constexpr size_t Gfx6MaxCountersPerBlock = 16;
@@ -545,6 +548,7 @@ struct GpuChipProperties
         uint32 numSlotsPerEvent;                     // Number of slots allocated for a GPU event. One slot is
                                                      // one dword size.
         bool   queuesUseCaches;                      // If gfxip queue processors use cached reads/writes.
+        uint32 shaderPrefetchBytes;                  // Number of bytes the SQ will prefetch, if any.
     } gfxip;
 #endif
 
@@ -702,11 +706,9 @@ struct GpuChipProperties
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  4; // Placeholder. Do not use.
+                uint32 placeholder1                             :  6; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint32 placeholder2                             :  1;
-                uint32 placeholder3                             :  1;
                 uint32 supportReleaseAcquireInterface           :  1; // If true, ASIC supports the new barrier interface
                                                                       // designed for Acquire/Released-based barrier.
                 uint32 supportSplitReleaseAcquire               :  1; // If true, ASIC supports split a barrier to
@@ -1483,6 +1485,9 @@ public:
 
     Result CreateEngine(EngineType engineType, uint32 engineIndex);
 
+    CmdStream* GetDummyCommandStream(EngineType engineType)
+        { return m_pDummyCommandStreams[engineType]; }
+
     size_t IndirectUserDataTableSize(uint32 tableId) const
         { return m_finalizeInfo.indirectUserDataTable[tableId].sizeInDwords; }
     size_t IndirectUserDataTableCeRamOffset(uint32 tableId) const
@@ -1704,6 +1709,8 @@ protected:
 
     Engine*       m_pEngines[EngineTypeCount][MaxAvailableEngines];
 
+    CmdStream*    m_pDummyCommandStreams[EngineTypeCount];
+
     uint32        m_gdsSizes[EngineTypeCount];
     Pal::GdsInfo  m_gdsInfo[EngineTypeCount][MaxAvailableEngines];
     bool          m_perPipelineBindPointGds;
@@ -1763,6 +1770,8 @@ private:
     Result CreateInternalCmdAllocators();
 
     Result CreateEngines(const DeviceFinalizeInfo& finalizeInfo);
+
+    Result CreateDummyCommandStreams();
 
     uint64 GetTimeoutValueInNs(uint64  appTimeoutInNs) const;
 
@@ -2084,7 +2093,6 @@ PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-// Renoir
 #endif // PAL_BUILD_GFX9
 
 static bool IsGfx091xPlus(const Device& device)

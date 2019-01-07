@@ -576,7 +576,7 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     // We must convert our byte pitches into units of elements. For most formats (including BC formats) the subresource
     // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
     // per texel.
-    const uint32 bytesPerElement = AddrMgr::CalcBytesPerElement(pSubResInfo);
+    const uint32 bytesPerElement = CalcBytesPerElement(pSubResInfo);
 
     // For nonzero mip level, let the AddrLib calculate the rowPitch/depthPitch according to the base pitch.
     if ((pSubResInfo->subresId.mipLevel == 0) && (imageCreateInfo.rowPitch > 0) && (imageCreateInfo.depthPitch > 0))

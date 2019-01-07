@@ -722,6 +722,50 @@ Result Device::CreateEngine(
 }
 
 // =====================================================================================================================
+Result Device::CreateDummyCommandStream(
+    EngineType       engineType,
+    Pal::CmdStream** ppCmdStream
+    ) const
+{
+    Result          result     = Result::ErrorOutOfMemory;
+    Pal::CmdStream* pCmdStream = PAL_NEW(CmdStream, GetPlatform(), AllocInternal)(*this,
+                                     Parent()->InternalUntrackedCmdAllocator(),
+                                     engineType,
+                                     SubEngineType::Primary,
+                                     CmdStreamUsage::Workload,
+                                     false);
+    if (pCmdStream != nullptr)
+    {
+        result = pCmdStream->Init();
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr CmdStreamBeginFlags beginFlags = {};
+        pCmdStream->Reset(nullptr, true);
+        pCmdStream->Begin(beginFlags, nullptr);
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        pCmdSpace += m_cmdUtil.BuildNop(m_cmdUtil.GetMinNopSizeInDwords(), pCmdSpace);
+
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdStream->End();
+    }
+    else
+    {
+        PAL_SAFE_DELETE(pCmdStream, GetPlatform());
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppCmdStream) = pCmdStream;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Determines the size of the QueueContext object needed for GFXIP6+ hardware. Only supported on Universal and
 // Compute Queues.
 size_t Device::GetQueueContextSize(
@@ -2968,6 +3012,8 @@ void InitializeGpuChipProperties(
             pInfo->revision              = AsicRevision::Polaris10;
             pInfo->gfxStepping           = 3;
             pInfo->gfxip.tccSizeInBytes  = 2048 * 1024;
+
+            pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
             pInfo->gfx6.supportTrapezoidTessDistribution = 1;
         }
         else if (ASICREV_IS_POLARIS11_M(pInfo->eRevId))
@@ -2982,6 +3028,7 @@ void InitializeGpuChipProperties(
             pInfo->gfxStepping           = 3;
             pInfo->gfxip.tccSizeInBytes  = 1024 * 1024;
 
+            pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
             pInfo->gfx6.supportTrapezoidTessDistribution = 1;
         }
         else if (ASICREV_IS_POLARIS12_V(pInfo->eRevId))
@@ -2996,6 +3043,7 @@ void InitializeGpuChipProperties(
             pInfo->revision              = AsicRevision::Polaris12;
             pInfo->gfxStepping           = 3;
 
+            pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
             pInfo->gfx6.supportTrapezoidTessDistribution = 1;
         }
         break;

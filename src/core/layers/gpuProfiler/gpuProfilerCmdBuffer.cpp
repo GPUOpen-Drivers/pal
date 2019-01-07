@@ -297,7 +297,7 @@ void CmdBuffer::ReplayCmdBindPipeline(
 
         if (pGpaSession != nullptr)
         {
-            pGpaSession->RegisterPipeline(pPipeline);
+            pGpaSession->RegisterPipeline(pPipeline, { });
         }
     }
 }

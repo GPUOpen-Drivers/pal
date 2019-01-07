@@ -1566,8 +1566,15 @@ void UniversalCmdBuffer::CmdSetTriangleRasterState(
 
         pParams = &m_graphicsState.triangleRasterState;
     }
+    else if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
+    {
+        m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
+
+        pParams = &m_graphicsState.triangleRasterState;
+    }
 
     const regPA_SU_SC_MODE_CNTL paSuScModeCntl = BuildPaSuScModeCntl(*pParams);
+
     m_state.primShaderCbLayout.pipelineStateCb.paSuScModeCntl = paSuScModeCntl.u32All;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -2572,8 +2579,6 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
-    PAL_ASSERT(m_gfxIpLevel == GfxIpLevel::GfxIp9);
-
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
@@ -7286,6 +7291,13 @@ uint32 UniversalCmdBuffer::GetDccControl(
 
     // Default enable DCC overwrite combiner
     dccControl.bits.OVERWRITE_COMBINER_DISABLE = 0;
+
+    //  This will stop compression to one of the four "magic" clear colors.
+    const auto& settings = m_device.Settings();
+    if (IsGfx091xPlus(*(m_device.Parent())) && settings.forceRegularClearCode)
+    {
+        dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_AC01 = 1;
+    }
 
     // Set-and-forget DCC register:
     if (IsGfx9(*m_device.Parent()))

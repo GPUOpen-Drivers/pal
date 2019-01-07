@@ -835,10 +835,10 @@ PAL_INLINE Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.type = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PipelineMetadataKey::PipelineCompilerHash):
-                PAL_ASSERT(pMetadata->hasEntry.pipelineCompilerHash == 0);
-                result = pReader->UnpackNext(&pMetadata->pipelineCompilerHash);
-                pMetadata->hasEntry.pipelineCompilerHash = (result == Result::Success);
+            case HashLiteralString(PipelineMetadataKey::InternalPipelineHash):
+                PAL_ASSERT(pMetadata->hasEntry.internalPipelineHash == 0);
+                result = pReader->UnpackNext(&pMetadata->internalPipelineHash);
+                pMetadata->hasEntry.internalPipelineHash = (result == Result::Success);
                 break;
 
             case HashLiteralString(PipelineMetadataKey::Shaders):

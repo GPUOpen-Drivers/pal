@@ -256,6 +256,12 @@ struct PerfExperimentMemory
     size_t memorySize;  // Size of the memory allocated in pMemory.
 };
 
+/// Struct for supplying API-dependent information about pipelines.
+struct RegisterPipelineInfo
+{
+    Pal::uint64 apiPsoHash;  ///< Client-provided PSO hash.
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -511,16 +517,20 @@ public:
 
     /// Register pipeline with GpaSession for obtaining shader dumps and load events in the RGP file.
     ///
-    /// @param [in] pPipeline The PAL pipeline to be tracked.
+    /// @param [in] pPipeline   The PAL pipeline to be tracked.
+    /// @param [in] clientInfo  API-dependent information for this pipeline to also be recorded.
     ///
     /// @returns Success if the pipeline has been registered with GpaSession successfully.
     ///          + AlreadyExists if a duplicate pipeline is provided.
-    Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline);
+    Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
+    Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline) { return RegisterPipeline(pPipeline, { }); }
+#endif
 
     /// Unregister pipeline with GpaSession for obtaining unload events in the RGP file.
     /// This should be called immediately before destroying the PAL pipeline object.
     ///
-    /// @param [in] pPipeline The PAL pipeline to be tracked.
+    /// @param [in] pPipeline  The PAL pipeline to be tracked.
     ///
     /// @returns Success if the pipeline has been unregistered with GpaSession successfully.
     Pal::Result UnregisterPipeline(const Pal::IPipeline* pPipeline);
@@ -544,18 +554,24 @@ private:
     // Event type for code object load events
     enum class CodeObjectLoadEventType
     {
-        Load   = 0,
-        Unload
+        LoadToGpuMemory     = 0,
+        UnloadFromGpuMemory
     };
 
-    // Represents all information to be contained in one SqttApiLevelLoaderEventRecord
+    // Represents all information to be contained in one SqttCodeObjectLoaderEventRecord
     struct CodeObjectLoadEventRecord
     {
         CodeObjectLoadEventType eventType;
         Pal::uint64             baseAddress;
-        Pal::uint64             codeObjectHash;
-        Pal::uint64             apiHash;
+        Pal::ShaderHash         codeObjectHash;
         Pal::uint64             timestamp;
+    };
+
+    // Represents all information to be contained in one SqttPsoCorrelationRecord
+    struct PsoCorrelationRecord
+    {
+        Pal::uint64        apiPsoHash;
+        Pal::PipelineHash  internalPipelineHash;
     };
 
     Pal::IDevice*const            m_pDevice;                    // Device associated with this GpaSession.
@@ -600,23 +616,27 @@ private:
     PerfExpMemDeque* m_pAvailablePerfExpMem;
 
     // Unique pipelines registered with this GpaSession.
-    Util::HashSet<Pal::uint64, GpaAllocator> m_registeredPipelines;
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredPipelines;
+    // Unique API PSOs registered with this GpaSession.
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredApiPsos;
 
     // List of cached pipeline code object records that will be copied to the final database at the end of a trace
     Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_codeObjectRecordsCache;
-
     // List of pipeline code object records that were registered during a trace
     Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_curCodeObjectRecords;
 
     // List of cached code object load event records that will be copied to the final database at the end of a trace
     Util::Deque<CodeObjectLoadEventRecord, GpaAllocator>  m_codeObjectLoadEventRecordsCache;
-
     // List of code object load event records that were registered during a trace
     Util::Deque<CodeObjectLoadEventRecord, GpaAllocator>  m_curCodeObjectLoadEventRecords;
 
+    // List of cached PSO correlation records that will be copied to the final database at the end of a trace
+    Util::Deque<PsoCorrelationRecord, GpaAllocator>  m_psoCorrelationRecordsCache;
+    // List of PSO correlation records that were registered during a trace
+    Util::Deque<PsoCorrelationRecord, GpaAllocator>  m_curPsoCorrelationRecords;
+
     // List of cached shader isa records that will be copied to the final shader records database at the end of a trace
     Util::Deque<ShaderRecord, GpaAllocator>  m_shaderRecordsCache;
-
     // List of shader isa records that were registered during a trace
     Util::Deque<ShaderRecord, GpaAllocator>  m_curShaderRecords;
 

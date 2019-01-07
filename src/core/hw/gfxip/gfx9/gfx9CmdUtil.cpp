@@ -326,10 +326,12 @@ CmdUtil::CmdUtil(
             }
         }
 
-        m_registerInfo.mmAtcPerfResultCntl          = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmAtcL2PerfResultCntl        = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmMcVmL2PerfResultCntl       = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmRpbPerfResultCntl          = Gfx09::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmAtcPerfResultCntl    = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmAtcL2PerfResultCntl  = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
+        m_registerInfo.mmMcVmL2PerfResultCntl = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
+        {
+            m_registerInfo.mmRpbPerfResultCntl = Vega::mmRPB_PERFCOUNTER_RSLT_CNTL;
+        }
         m_registerInfo.mmSpiShaderPgmLoLs           = Gfx09::mmSPI_SHADER_PGM_LO_LS;
         m_registerInfo.mmSpiShaderPgmLoEs           = Gfx09::mmSPI_SHADER_PGM_LO_ES;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP;
@@ -352,7 +354,7 @@ uint32 CmdUtil::ChainSizeInDwords(
     {
         sizeInBytes = sizeof(PM4PFP_INDIRECT_BUFFER);
     }
-    else if (engineType == EngineTypeCompute)
+    else if ((engineType == EngineTypeCompute) || (engineType == EngineTypeExclusiveCompute))
     {
         sizeInBytes = sizeof(PM4MEC_INDIRECT_BUFFER);
     }

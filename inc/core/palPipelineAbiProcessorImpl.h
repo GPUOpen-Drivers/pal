@@ -322,7 +322,11 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
     {
         memset(pMetadata, 0, sizeof(*pMetadata));
 
-        if (m_metadataMajorVer >= 1)
+        if (m_metadataMajorVer == 0)
+        {
+            result = TranslateLegacyMetadata(pReader, pMetadata);
+        }
+        else if (m_metadataMajorVer == PipelineMetadataMajorVersion)
         {
             result = pReader->InitFromBuffer(m_pMetadata, static_cast<uint32>(m_metadataSize));
             uint32 registersOffset = UINT_MAX;
@@ -339,7 +343,7 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
         }
         else
         {
-            result = TranslateLegacyMetadata(pReader, pMetadata);
+            result = Result::ErrorUnsupportedPipelineElfAbiVersion;
         }
     }
 
@@ -1102,15 +1106,14 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
     if (result == Result::Success)
     {
-        // TODO: Determine what are considered unsupported ABI major and minor versions to
-        // figure out when to return Result::ErrorUnsupportedPipelineElfAbiVersion
-        if (m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion)
+        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion) ||
+            (m_elfProcessor.GetTargetMachine()        != Elf::MachineType::AmdGpu))
         {
             result = Result::ErrorInvalidPipelineElf;
         }
-        else if (m_elfProcessor.GetTargetMachine() != Elf::MachineType::AmdGpu)
+        else if (m_elfProcessor.GetFileHeader()->ei_abiversion != ElfAbiVersion)
         {
-            result = Result::ErrorInvalidPipelineElf;
+            result = Result::ErrorUnsupportedPipelineElfAbiVersion;
         }
     }
 
@@ -1506,20 +1509,41 @@ Result PipelineAbiProcessor<Allocator>::TranslateLegacyMetadata(
     pOut->hasEntry.version = 1;
 
     // Translate pipeline metadata.
-    pOut->pipeline.pipelineCompilerHash = { };
-    uint32 type = static_cast<uint32>(PipelineMetadataType::PipelineHashLo);
+    pOut->pipeline.internalPipelineHash[0] = 0;
+    pOut->pipeline.internalPipelineHash[1] = 0;
+    uint32 type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword0);
     if (indices[type] != -1)
     {
-        pOut->pipeline.pipelineCompilerHash |= static_cast<uint64>(metadata.At(indices[type]).value);
-        pOut->pipeline.hasEntry.pipelineCompilerHash = 1;
+        pOut->pipeline.internalPipelineHash[0] |= static_cast<uint64>(metadata.At(indices[type]).value);
+        pOut->pipeline.hasEntry.internalPipelineHash = 1;
     }
 
-    type = static_cast<uint32>(PipelineMetadataType::PipelineHashHi);
+    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword1);
     if (indices[type] != -1)
     {
-        pOut->pipeline.pipelineCompilerHash |=
-            (static_cast<uint64>(metadata.At(indices[type]).value) << 32);
-        pOut->pipeline.hasEntry.pipelineCompilerHash = 1;
+        pOut->pipeline.internalPipelineHash[0] |= (static_cast<uint64>(metadata.At(indices[type]).value) << 32);
+        pOut->pipeline.hasEntry.internalPipelineHash = 1;
+    }
+
+    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword2);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.internalPipelineHash[1] |= static_cast<uint64>(metadata.At(indices[type]).value);
+        pOut->pipeline.hasEntry.internalPipelineHash = 1;
+    }
+
+    type = static_cast<uint32>(PipelineMetadataType::InternalPipelineHashDword3);
+    if (indices[type] != -1)
+    {
+        pOut->pipeline.internalPipelineHash[1] |= (static_cast<uint64>(metadata.At(indices[type]).value) << 32);
+        pOut->pipeline.hasEntry.internalPipelineHash = 1;
+    }
+
+    if (pOut->pipeline.internalPipelineHash[1] == 0)
+    {
+        // If the hash is a legacy 64-bit pipeline compiler hash, just use the same hash for both halves of the internal
+        // pipeline hash - the legacy hash is most like the "stable" hash.
+        pOut->pipeline.internalPipelineHash[1] = pOut->pipeline.internalPipelineHash[0];
     }
 
     type = static_cast<uint32>(PipelineMetadataType::UserDataLimit);

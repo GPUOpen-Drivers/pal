@@ -958,10 +958,15 @@ static void CmdBindPipelineToString(
 
     if (params.pPipeline != nullptr)
     {
-        Snprintf(pString, StringLength, "PipelineHash      = 0x%016llX", params.pPipeline->GetInfo().pipelineHash);
+        const auto& info = params.pPipeline->GetInfo();
+
+        Snprintf(pString, StringLength, "PipelineStableHash      = 0x%016llX", info.internalPipelineHash.stable);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "CompilerHash      = 0x%016llX", params.pPipeline->GetInfo().compilerHash);
+        Snprintf(pString, StringLength, "PipelineUniqueHash      = 0x%016llX", info.internalPipelineHash.unique);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "PipelinePalRuntimeHash  = 0x%016llX", info.palRuntimeHash);
         pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
     }
     else

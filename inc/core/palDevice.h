@@ -505,6 +505,8 @@ struct PalPublicSettings
     /// of clear values to allow the vast majority of images that never clear to a value that isn't TC-compatible to
     /// skip the CPU and front-end GPU overhead of issuing a predicated fast clear eliminate BLT.
     bool disableSkipFceOptimization;
+    /// Sets the minimum BPP of surfaces which will have DCC enabled
+    uint32 dccBitsPerPixelThreshold;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.

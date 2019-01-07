@@ -912,11 +912,10 @@ void DmaCmdBuffer::WriteEventCmd(
 }
 
 // =====================================================================================================================
-// Writes a NOP packet.
-uint32* DmaCmdBuffer::WriteNops(
+// Build a NOP packet.
+uint32* DmaCmdBuffer::BuildNops(
     uint32* pCmdSpace,
-    uint32  numDwords
-    ) const
+    uint32  numDwords)
 {
     // Starting with OSS4, the NOP packet is variable length.  Note that the count field is the size of the body of the
     // NOP excluding the 1 dword packet header.
@@ -927,6 +926,16 @@ uint32* DmaCmdBuffer::WriteNops(
     *reinterpret_cast<SDMA_PKT_NOP*>(pCmdSpace) = packet;
 
     return pCmdSpace + numDwords;
+}
+
+// =====================================================================================================================
+// Writes a NOP packet.
+uint32* DmaCmdBuffer::WriteNops(
+    uint32* pCmdSpace,
+    uint32  numDwords
+    ) const
+{
+    return BuildNops(pCmdSpace, numDwords);
 }
 
 // =====================================================================================================================

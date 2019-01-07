@@ -67,6 +67,8 @@ CppIncludes = "#include \"core/device.h\"\n\
 IncludeDir = "core/"
 HwlIncludeDir = "core/hw/gfxip/%Hwl%/"
 
+PrefixName = ""
+
 DevDriverIncludes = "\n\
 #include \"devDriverServer.h\"\n\
 #include \"protocols/ddSettingsService.h\"\n\

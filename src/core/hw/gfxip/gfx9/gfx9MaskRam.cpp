@@ -1158,17 +1158,21 @@ bool Gfx9Htile::UseHtileForImage(
     const Pal::Device& device,
     const Image&       image)
 {
-    const Pal::Image*const pParent = image.Parent();
+    const Pal::Image*const pParent    = image.Parent();
+    const auto&            settings   = GetGfx9Settings(device);
+    const auto&            createInfo = pParent->GetImageCreateInfo();
 
-    static const uint32 MinHtileWidth = 8;
+    static const uint32 MinHtileWidth  = 8;
     static const uint32 MinHtileHeight = 8;
 
-    return ((pParent->IsDepthStencil()           == true)      &&
-            (pParent->IsShared()                 == false)     &&
-            (pParent->IsMetadataDisabled()       == false)     &&
-            (GetGfx9Settings(device).htileEnable == true))     &&
-            (pParent->GetImageCreateInfo().extent.width  >= MinHtileWidth) &&
-            (pParent->GetImageCreateInfo().extent.height >= MinHtileHeight);
+    bool  useHtile = ((pParent->IsDepthStencil()     == true)          &&
+                      (pParent->IsShared()           == false)         &&
+                      (pParent->IsMetadataDisabled() == false)         &&
+                      (settings.htileEnable          == true))         &&
+                      (createInfo.extent.width       >= MinHtileWidth) &&
+                      (createInfo.extent.height      >= MinHtileHeight);
+
+    return useHtile;
 }
 
 // =====================================================================================================================
@@ -1320,14 +1324,8 @@ Result Gfx9Htile::Init(
     // far Z plane.
     m_flags.zrangePrecision = 1;
 
-    // Use Z-only hTile if this image's format doesn't have a stencil aspect
-    if ((device.SupportsStencil(imageCreateInfo.swizzledFormat.format, imageCreateInfo.tiling) == false)
-       )
-    {
-        // If this Image's format does not contain stencil data, allow the HW to use the extra HTile bits for improved
-        // HiZ Z-range precision.
-        m_flags.tileStencilDisable = 1;
-    }
+    // There are instances where we don't want the hTile buffer to reflect any stencil data
+    m_flags.tileStencilDisable = image.IsHtileDepthOnly() ? 1 : 0;
 
     // Determine the subResource ID of the base slice and mip-map for this aspect
     const SubresId  baseSubResource = pParent->GetBaseSubResource();
@@ -1985,7 +1983,7 @@ bool Gfx9Dcc::UseDccForImage(
         // surfaces and this surface qualifies.
         useDcc = false;
     }
-    else if (settings.dccBitsPerPixelThreshold > BitsPerPixel(createInfo.swizzledFormat.format))
+    else if (pPalSettings->dccBitsPerPixelThreshold > BitsPerPixel(createInfo.swizzledFormat.format))
     {
         useDcc = false;
     }
@@ -2098,14 +2096,14 @@ uint8 Gfx9Dcc::GetFastClearCode(
                                                 //       before it can be used as a texture
 {
     // Fast-clear code that is valid for images that won't be texture fetched.
-    Gfx9DccClearColor clearCode = Gfx9DccClearColor::ClearColorReg;
-
-    const Pal::SubresId baseSubResource = { clearRange.startSubres.aspect,
-                                            clearRange.startSubres.mipLevel,
-                                            clearRange.startSubres.arraySlice };
+    Gfx9DccClearColor   clearCode           = Gfx9DccClearColor::ClearColorReg;
+    const auto&         settings            = GetGfx9Settings(*image.Parent()->GetDevice());
+    const Pal::SubresId baseSubResource     = { clearRange.startSubres.aspect,
+                                                clearRange.startSubres.mipLevel,
+                                                clearRange.startSubres.arraySlice };
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(baseSubResource);
 
-    if (pSubResInfo->flags.supportMetaDataTexFetch != 0)
+    if ((pSubResInfo->flags.supportMetaDataTexFetch != 0) && (settings.forceRegularClearCode == false))
     {
         // Surfaces that are fast cleared to one of the following colors may be texture fetched:
         //      1) ARGB(0, 0, 0, 0)

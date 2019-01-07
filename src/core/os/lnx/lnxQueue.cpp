@@ -177,7 +177,7 @@ Queue::Queue(
     m_memMgrResourcesInList(0),
     m_hResourceList(nullptr),
     m_hDummyResourceList(nullptr),
-    m_pDummyGpuMemory(nullptr),
+    m_pDummyCmdStream(nullptr),
     m_memListDirty(true),
     m_internalMgrTimestamp(0),
     m_appMemRefCount(0),
@@ -209,10 +209,9 @@ Queue::~Queue()
         static_cast<Device*>(m_pDevice)->DestroyResourceList(m_hDummyResourceList);
     }
 
-    if (m_pDummyGpuMemory != nullptr)
+    if (m_pDummyCmdStream != nullptr)
     {
-        m_pDummyGpuMemory->DestroyInternal();
-        m_pDummyGpuMemory = nullptr;
+        m_pDummyCmdStream = nullptr;
     }
 
     if (m_lastSignaledSyncObject > 0)
@@ -271,42 +270,23 @@ Result Queue::Init(
 
     if (result == Result::Success)
     {
-        PAL_ASSERT(m_pDummyCmdBuffer != nullptr);
-
         Device* pDevice = static_cast<Device*>(m_pDevice);
 
         Vector<amdgpu_bo_handle, 1, Platform> dummyResourceList(pDevice->GetPlatform());
 
-        for (uint32 streamIdx = 0; streamIdx < m_pDummyCmdBuffer->NumCmdStreams(); ++streamIdx)
+        m_pDummyCmdStream = m_pDevice->GetDummyCommandStream(m_engineType);
+
+        if (m_pDummyCmdStream != nullptr)
         {
-            const CmdStream*const pCmdStream = m_pDummyCmdBuffer->GetCmdStream(streamIdx);
-            for (auto iter = pCmdStream->GetFwdIterator(); iter.IsValid(); iter.Next())
+            for (auto iter = m_pDummyCmdStream->GetFwdIterator(); iter.IsValid(); iter.Next())
             {
                 const CmdStreamChunk*const pChunk = iter.Get();
                 dummyResourceList.PushBack(static_cast<GpuMemory*>(pChunk->GpuMemory())->SurfaceHandle());
             }
         }
-
-        // If the chunk list for dummy command buffer is empty, pad a dummy gpu memory.
-        if (dummyResourceList.NumElements() == 0)
+        else
         {
-            GpuMemoryCreateInfo createInfo = {};
-            createInfo.size      = 4096;
-            createInfo.alignment = 0;
-            createInfo.vaRange   = VaRange::Default;
-            createInfo.priority  = GpuMemPriority::Normal;
-            createInfo.heaps[0]  = GpuHeapGartUswc;
-            createInfo.heapCount = 1;
-
-            GpuMemoryInternalCreateInfo internalInfo = {};
-            internalInfo.flags.alwaysResident = 1;
-
-            result = m_pDevice->CreateInternalGpuMemory(createInfo, internalInfo, &m_pDummyGpuMemory);
-
-            if (result == Result::Success)
-            {
-                dummyResourceList.PushBack(static_cast<GpuMemory*>(m_pDummyGpuMemory)->SurfaceHandle());
-            }
+            result = Result::ErrorOutOfMemory;
         }
 
         if (result == Result::Success)
@@ -599,7 +579,7 @@ Result Queue::OsSubmit(
             localSubmitInfo.ppCmdBuffers   = reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
             localSubmitInfo.cmdBufferCount = 1;
 
-            if (m_ifhMode == IfhModeDisabled)
+            if ((m_ifhMode == IfhModeDisabled) && (!isDummySubmission))
             {
                 m_pDummyCmdBuffer->IncrementSubmitCount();
             }
@@ -722,14 +702,16 @@ Result Queue::SubmitPm4(
                                                        ppNextCmdBuffers,
                                                        &batchSize,
                                                        &pWaitBeforeLaunch,
-                                                       &pSignalAfterLaunch);
+                                                       &pSignalAfterLaunch,
+                                                       isDummySubmission);
             }
             else
             {
                 result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                       numNextCmdBuffers,
                                                       ppNextCmdBuffers,
-                                                      &batchSize);
+                                                      &batchSize,
+                                                      isDummySubmission);
             }
         }
         else
@@ -737,7 +719,8 @@ Result Queue::SubmitPm4(
             result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                   numNextCmdBuffers,
                                                   ppNextCmdBuffers,
-                                                  &batchSize);
+                                                  &batchSize,
+                                                  isDummySubmission);
         }
 
         if (result == Result::Success)
@@ -774,7 +757,8 @@ Result Queue::PrepareChainedCommandBuffers(
     const InternalSubmitInfo& internalSubmitInfo,
     uint32                    cmdBufferCount,
     ICmdBuffer*const*         ppCmdBuffers,
-    uint32*                   pAppendedCmdBuffers)
+    uint32*                   pAppendedCmdBuffers,
+    bool                      isDummySubmission)
 {
     Result result = Result::Success;
 
@@ -796,7 +780,7 @@ Result Queue::PrepareChainedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPreambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx]);
+        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx], isDummySubmission);
     }
 
     // The command buffer streams are grouped by stream index.
@@ -823,7 +807,7 @@ Result Queue::PrepareChainedCommandBuffers(
                 if (pPrevCmdStream == nullptr)
                 {
                     // The first command buffer's command streams are what the kernel will launch.
-                    result = AddCmdStream(*pCurCmdStream);
+                    result = AddCmdStream(*pCurCmdStream, isDummySubmission);
                 }
                 else
                 {
@@ -859,7 +843,7 @@ Result Queue::PrepareChainedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx]);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx], isDummySubmission);
     }
 
     if (result == Result::Success)
@@ -879,7 +863,8 @@ Result Queue::PrepareUploadedCommandBuffers(
     ICmdBuffer*const*         ppCmdBuffers,
     uint32*                   pAppendedCmdBuffers,
     IQueueSemaphore**         ppWaitBeforeLaunch,
-    IQueueSemaphore**         ppSignalAfterLaunch)
+    IQueueSemaphore**         ppSignalAfterLaunch,
+    bool                      isDummySubmission)
 {
     UploadedCmdBufferInfo uploadInfo = {};
     Result result = m_pCmdUploadRing->UploadCmdBuffers(cmdBufferCount, ppCmdBuffers, &uploadInfo);
@@ -889,7 +874,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPreambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx]);
+        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx], isDummySubmission);
     }
 
     // Append all non-empty uploaded command streams.
@@ -917,7 +902,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx]);
+        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx], isDummySubmission);
     }
 
     if (result == Result::Success)
@@ -965,7 +950,7 @@ Result Queue::SubmitNonGfxIp(
         // Non GFX IP command buffers are expected to only have a single command stream.
         PAL_ASSERT(pCmdBuffer->NumCmdStreams() == 1);
 
-        const CmdStream*const pCmdStream = pCmdBuffer->GetCmdStream(0);
+        const CmdStream*const pCmdStream = isDummySubmission ? m_pDummyCmdStream : pCmdBuffer->GetCmdStream(0);
         uint32                chunkCount = 0; // Keep track of how many chunks will be submitted next.
 
         for (auto iter = pCmdStream->GetFwdIterator(); iter.IsValid() && (result == Result::Success); iter.Next())
@@ -1190,15 +1175,25 @@ Result Queue::AppendResourceToList(
 // =====================================================================================================================
 // Calls AddIb on the first chunk from the given command stream.
 Result Queue::AddCmdStream(
-    const CmdStream& cmdStream)
+    const CmdStream& cmdStream,
+    bool             isDummySubmission)
 {
-    const CmdStreamChunk*const pChunk = cmdStream.GetFirstChunk();
+    Result result = Result::Success;
 
-    return AddIb(pChunk->GpuVirtAddr(),
-                 pChunk->CmdDwordsToExecute(),
-                 (cmdStream.GetSubEngineType() == SubEngineType::ConstantEngine),
-                 cmdStream.IsPreemptionEnabled(),
-                 cmdStream.DropIfSameContext());
+    if ((isDummySubmission == false) || (cmdStream.GetCmdStreamUsage() == CmdStreamUsage::Workload))
+    {
+        const CmdStreamChunk*const pChunk = isDummySubmission ?
+                                            m_pDummyCmdStream->GetFirstChunk() :
+                                            cmdStream.GetFirstChunk();
+
+        result =  AddIb(pChunk->GpuVirtAddr(),
+                        pChunk->CmdDwordsToExecute(),
+                        (cmdStream.GetSubEngineType() == SubEngineType::ConstantEngine),
+                        cmdStream.IsPreemptionEnabled(),
+                        cmdStream.DropIfSameContext());
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

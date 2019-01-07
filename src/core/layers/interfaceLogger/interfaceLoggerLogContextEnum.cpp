@@ -490,9 +490,10 @@ void LogContext::Enum(
         "EngineTypeExclusiveCompute", // 0x2,
         "EngineTypeDma",              // 0x3,
         "EngineTypeTimer",            // 0x4,
-        "EngineTypeHpUniversal",
+
+        "EngineTypeHpUniversal",      // 0x5,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
-        "EngineTypeHpGfxOnly",
+        "EngineTypeHpGfxOnly",        // 0x6,
 #endif
     };
 

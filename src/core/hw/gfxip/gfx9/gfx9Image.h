@@ -367,6 +367,8 @@ public:
 
     virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const override;
 
+    bool IsHtileDepthOnly() const;
+
 private:
     // Address dimensions are calculated on a per-plane (aspect) basis
     static const uint32                      MaxNumPlanes = 3;

@@ -1758,11 +1758,6 @@ constexpr unsigned int mmWD_QOS_DEFAULT                         = 0x0000;
 constexpr unsigned int mmWD_UTCL1_CNTL_DEFAULT                  = 0x0080;
 constexpr unsigned int mmWD_UTCL1_STATUS_DEFAULT                = 0x0000;
 
-namespace Apu09Plus
-{
-    constexpr unsigned int mmTD_CNTL_DEFAULT                        = 0x0000;
-} // namespace Apu09Plus
-
 namespace Gfx09
 {
     constexpr unsigned int mmATC_ATS_SDPPORT_CNTL_DEFAULT           = 0x3FFA210;
@@ -2095,16 +2090,6 @@ namespace Gfx09
     constexpr unsigned int mmRMI_GENERAL_CNTL_DEFAULT               = 0x0000;
     constexpr unsigned int mmRMI_SPARE_1_DEFAULT                    = 0x0000;
     constexpr unsigned int mmRMI_SPARE_DEFAULT                      = 0x0001;
-    constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
-    constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
-    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
-    constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
-    constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
-    constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;
-    constexpr unsigned int mmRPB_DEINTRLV_COMBINE_CNTL_DEFAULT      = 0x0004;
-    constexpr unsigned int mmRPB_PASSPW_CONF_DEFAULT                = 0x0230;
-    constexpr unsigned int mmRPB_SDPPORT_CNTL_DEFAULT               = 0xFD14814;
-    constexpr unsigned int mmRPB_VC_SWITCH_RDWR_DEFAULT             = 0x4040;
     constexpr unsigned int mmSH_MEM_CONFIG_DEFAULT                  = 0x0000;
     constexpr unsigned int mmSPI_CONFIG_CNTL_DEFAULT                = 0x62C688;
     constexpr unsigned int mmSPI_CONFIG_PS_CU_EN_DEFAULT            = 0x0000;
@@ -2238,7 +2223,6 @@ namespace Gfx09
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_29_DEFAULT     = 0xCDCDCDCD;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_30_DEFAULT     = 0xCDCDCDCD;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_LS_31_DEFAULT     = 0xCDCDCDCD;
-    constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES_DEFAULT = 0x200040;
     constexpr unsigned int mmSPI_VS_OUT_CONFIG_DEFAULT              = 0x004C;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS4_DEFAULT       = 0x007F;
     constexpr unsigned int mmSPI_WCL_PIPE_PERCENT_CS5_DEFAULT       = 0x007F;
@@ -2516,6 +2500,7 @@ namespace Gfx09_0
     constexpr unsigned int mmSX_PERFCOUNTER2_SELECT_DEFAULT         = 0xCDCDCD;
     constexpr unsigned int mmSX_PERFCOUNTER3_SELECT_DEFAULT         = 0xCDCDCD;
     constexpr unsigned int mmTA_PERFCOUNTER1_SELECT_DEFAULT         = 0x1CCCD;
+    constexpr unsigned int mmTD_CNTL_DEFAULT                        = 0x0000;
     constexpr unsigned int mmTD_PERFCOUNTER1_SELECT_DEFAULT         = 0x1CCCD;
     constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT        = 0x40180;
 } // namespace Gfx09_0
@@ -2597,7 +2582,18 @@ namespace Rv1x
     constexpr unsigned int mmRMI_TCIW_FORMATTER1_CNTL_DEFAULT       = 0x4404001E;
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_1_DEFAULT      = 0xFFFFFFFF;
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_DEFAULT        = 0x8000800;
+    constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
+    constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
+    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
+    constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
+    constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
+    constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;
+    constexpr unsigned int mmRPB_DEINTRLV_COMBINE_CNTL_DEFAULT      = 0x0004;
+    constexpr unsigned int mmRPB_PASSPW_CONF_DEFAULT                = 0x0230;
+    constexpr unsigned int mmRPB_SDPPORT_CNTL_DEFAULT               = 0xFD14814;
+    constexpr unsigned int mmRPB_VC_SWITCH_RDWR_DEFAULT             = 0x4040;
     constexpr unsigned int mmSPI_START_PHASE_DEFAULT                = 0x0000;
+    constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES_DEFAULT = 0x200040;
     constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT             = 0x00FF;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT             = 0x007F;
 } // namespace Rv1x
@@ -2614,11 +2610,22 @@ namespace Vega
     constexpr unsigned int mmRMI_TCIW_FORMATTER1_CNTL_DEFAULT       = 0x4404001E;
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_1_DEFAULT      = 0xFFFFFFFF;
     constexpr unsigned int mmRMI_XBAR_ARBITER_CONFIG_DEFAULT        = 0x8000800;
+    constexpr unsigned int mmRPB_ARB_CNTL2_DEFAULT                  = 0x40104;
+    constexpr unsigned int mmRPB_ARB_CNTL_DEFAULT                   = 0x40404;
+    constexpr unsigned int mmRPB_ATS_CNTL2_DEFAULT                  = 0x50B13;
+    constexpr unsigned int mmRPB_ATS_CNTL_DEFAULT                   = 0x58088422;
+    constexpr unsigned int mmRPB_BIF_CNTL_DEFAULT                   = 0x1000404;
+    constexpr unsigned int mmRPB_BLOCKLEVEL_CONF_DEFAULT            = 0x00F0;
+    constexpr unsigned int mmRPB_DEINTRLV_COMBINE_CNTL_DEFAULT      = 0x0004;
+    constexpr unsigned int mmRPB_PASSPW_CONF_DEFAULT                = 0x0230;
+    constexpr unsigned int mmRPB_SDPPORT_CNTL_DEFAULT               = 0xFD14814;
+    constexpr unsigned int mmRPB_VC_SWITCH_RDWR_DEFAULT             = 0x4040;
     constexpr unsigned int mmSDMA1_PERFCOUNTER0_RESULT_DEFAULT      = 0x0000;
     constexpr unsigned int mmSDMA1_PERFCOUNTER1_RESULT_DEFAULT      = 0x0000;
     constexpr unsigned int mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE_DEFAULT = 0x640000;
     constexpr unsigned int mmSDMA1_PERFMON_CNTL_DEFAULT             = 0xFF7FD;
     constexpr unsigned int mmSPI_START_PHASE_DEFAULT                = 0x0000;
+    constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES_DEFAULT = 0x200040;
     constexpr unsigned int mmVGT_STRMOUT_DELAY_DEFAULT              = 0x92420;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT             = 0x01FF;
 } // namespace Vega
@@ -2635,7 +2642,6 @@ namespace Vg10
     constexpr unsigned int mmSPI_CONFIG_CNTL_1_DEFAULT              = 0x1000106;
     constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT             = 0x200017F;
     constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT     = 0x8000400;
-    constexpr unsigned int mmTD_CNTL_DEFAULT                        = 0x0000;
     constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT             = 0x03FF;
 } // namespace Vg10
 

@@ -172,7 +172,8 @@ private:
         const GpuMemory* pGpuMemory);
 
     Result AddCmdStream(
-        const CmdStream& cmdStream);
+        const CmdStream& cmdStream,
+        bool             isDummySubmission);
 
     Result AddIb(
         gpusize gpuVirtAddr,
@@ -198,7 +199,8 @@ private:
         const InternalSubmitInfo& internalSubmitInfo,
         uint32                    cmdBufferCount,
         ICmdBuffer*const*         ppCmdBuffers,
-        uint32*                   pAppendedCmdBuffers);
+        uint32*                   pAppendedCmdBuffers,
+        bool                      isDummySubmission);
 
     Result PrepareUploadedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
@@ -206,7 +208,8 @@ private:
         ICmdBuffer*const*         ppCmdBuffers,
         uint32*                   pAppendedCmdBuffers,
         IQueueSemaphore**         ppWaitBeforeLaunch,
-        IQueueSemaphore**         ppSignalAfterLaunch);
+        IQueueSemaphore**         ppSignalAfterLaunch,
+        bool                      isDummySubmission);
 
     Result SubmitNonGfxIp(
         const SubmitInfo&         submitInfo,
@@ -218,7 +221,7 @@ private:
     // in the common case where the set of resident allocations doesn't change.
     amdgpu_bo_list_handle m_hResourceList;
     amdgpu_bo_list_handle m_hDummyResourceList;   // The dummy resource list used by dummy submission.
-    Pal::GpuMemory*       m_pDummyGpuMemory;      // The dummy gpu memory used by dummy resource list.
+    Pal::CmdStream*       m_pDummyCmdStream;      // The dummy command stream used by dummy submission.
     bool                  m_memListDirty;         // Indicates m_memList has changed since the last submit.
     Util::RWLock          m_memListLock;          // Protect m_memListLock from muli-thread access.
     uint32                m_internalMgrTimestamp; // Store timestamp of internal memory mgr.

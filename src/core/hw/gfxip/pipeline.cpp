@@ -141,12 +141,19 @@ void Pipeline::ExtractPipelineInfo(
     ShaderType                firstShader,
     ShaderType                lastShader)
 {
-    m_info.compilerHash = metadata.pipeline.pipelineCompilerHash;
-    PAL_ALERT(m_info.compilerHash == 0); // We don't expect the pipeline ABI to report a hash of zero.
+    m_info.internalPipelineHash =
+        { metadata.pipeline.internalPipelineHash[0], metadata.pipeline.internalPipelineHash[1] };
+    // Default the PAL runtime hash to the unique portion of the internal pipeline hash. PAL pipelines that include
+    // additional state should override this with a new hash composed of that state and this hash.
+    m_info.palRuntimeHash = m_info.internalPipelineHash.unique;
 
-    // Default the pipeline hash to the compiler hash. PAL pipelines that include additional state should override this
-    // with a new hash composed of that state and the compiler hash.
-    m_info.pipelineHash = m_info.compilerHash;
+    // We don't expect the pipeline ABI to report a hash of zero.
+    PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
+    m_info.compilerHash = m_info.internalPipelineHash.stable;
+    m_info.pipelineHash = m_info.internalPipelineHash.unique;
+#endif
 
     for (uint32 s = static_cast<uint32>(firstShader); s <= static_cast<uint32>(lastShader); ++s)
     {
@@ -412,7 +419,7 @@ void Pipeline::DumpPipelineElf(
 #if PAL_ENABLE_PRINTS_ASSERTS
     const PalSettings& settings = m_pDevice->Settings();
     uint64 hashToDump = settings.pipelineLogConfig.logPipelineHash;
-    bool hashMatches = ((hashToDump == 0) || (m_info.compilerHash == hashToDump));
+    bool hashMatches = ((hashToDump == 0) || (m_info.internalPipelineHash.stable == hashToDump));
 
     const bool dumpInternal  = settings.pipelineLogConfig.logInternal;
     const bool dumpExternal  = settings.pipelineLogConfig.logExternal;
@@ -426,7 +433,12 @@ void Pipeline::DumpPipelineElf(
         char fileName[512] = { };
         if ((pName == nullptr) || (pName[0] == '\0'))
         {
-            Snprintf(&fileName[0], sizeof(fileName), "%s/%s_0x%016llX.elf", pLogDir, pPrefix, m_info.compilerHash);
+            Snprintf(&fileName[0],
+                     sizeof(fileName),
+                     "%s/%s_0x%016llX.elf",
+                     pLogDir,
+                     pPrefix,
+                     m_info.internalPipelineHash.stable);
         }
         else
         {
@@ -445,7 +457,7 @@ void Pipeline::DumpPipelineElf(
     {
         pDumpService->RegisterPipeline(m_pPipelineBinary,
                                        static_cast<uint32>(m_pipelineBinaryLen),
-                                       m_info.compilerHash);
+                                       m_info.internalPipelineHash.stable);
     }
 #endif
 }
@@ -542,6 +554,18 @@ Result PipelineUploader::Begin(
             performanceDataOffset += performanceDataBytes;
         }
     } // for each hardware stage
+
+    // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
+    // that follows the end of the shader to avoid a page fault when the SQ tries to
+    // prefetch past the end of a shader
+
+    // shaderPrefetchBytes is set from "SQC_CONFIG.INST_PRF_COUNT" (gfx8-9)
+    // defaulting to the hardware supported maximum if necessary
+
+    const gpusize minSafeSize = Pow2Align(codeLength, ShaderICacheLineSize) +
+                                pDevice->ChipProperties().gfxip.shaderPrefetchBytes;
+
+    createInfo.size = Max(createInfo.size, minSafeSize);
 
     Result result = pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);
     if (result == Result::Success)

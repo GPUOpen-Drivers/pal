@@ -142,16 +142,18 @@ Sections<Allocator>::~Sections()
 // =====================================================================================================================
 template <typename Allocator>
 Section<Allocator>* Sections<Allocator>::Add(
-    SectionType type)
+    SectionType          type,
+    const SectionHeader* pSectionHdr)
 {
-    return Add(type, SectionNameStringTable[static_cast<uint32>(type)]);
+    return Add(type, SectionNameStringTable[static_cast<uint32>(type)], pSectionHdr);
 }
 
 // =====================================================================================================================
 template <typename Allocator>
 Section<Allocator>* Sections<Allocator>::Add(
-    SectionType type,
-    const char* pName)
+    SectionType          type,
+    const char*          pName,
+    const SectionHeader* pSectionHdr)
 {
     PAL_ASSERT((type >= SectionType::Null)  &&
                (type <  SectionType::Count) &&
@@ -183,7 +185,7 @@ Section<Allocator>* Sections<Allocator>::Add(
 
         if (pSection != nullptr)
         {
-            const uint32 nameOffset = m_pStringProcessor->Add(pName);
+            const uint32 nameOffset = (pSectionHdr == nullptr) ? m_pStringProcessor->Add(pName) : pSectionHdr->sh_name;
             if (nameOffset == 0)
             {
                 result = Result::ErrorOutOfMemory;
@@ -227,7 +229,8 @@ Section<Allocator>* Sections<Allocator>::Add(
 // =====================================================================================================================
 template <typename Allocator>
 Section<Allocator>* Sections<Allocator>::Add(
-    const char* pName)
+    const char*          pName,
+    const SectionHeader* pSectionHdr)
 {
     Result result = Result::Success;
     if (m_sectionVector.NumElements() == 0)
@@ -254,7 +257,7 @@ Section<Allocator>* Sections<Allocator>::Add(
             if (strcmp(SectionNameStringTable[i], pName) == 0)
             {
                 // Match found from standard sections.
-                pSection = Add(static_cast<SectionType>(i));
+                pSection = Add(static_cast<SectionType>(i), pSectionHdr);
                 break;
             }
         }
@@ -1316,7 +1319,7 @@ Result ElfProcessor<Allocator>::LoadFromBuffer(
                 }
                 else
                 {
-                    pSection = m_sections.Add(pName);
+                    pSection = m_sections.Add(pName, pSectionHdrReader);
                     if (pSection == nullptr)
                     {
                         result = Result::ErrorOutOfMemory;

@@ -967,6 +967,19 @@ void Image::InitLayoutStateMasksOneMip(
 
             m_layoutToState[mip].color.fmaskDecompressed.engines = LayoutUniversalEngine | LayoutComputeEngine;
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 461
+        else
+        {
+            // If the image is always be fully overwritten when being resolved:
+            // a. Fix-function/Compute Shader resolve :- There is no need to issue DccExpand at barrier time.
+            // We can do dcc fixup after the resolve.
+            // b. Pixel shader resolve :- There is no need to issue DccExpand at barrier time.
+            if (m_createInfo.flags.fullResolveDstOnly == 1)
+            {
+                m_layoutToState[mip].color.compressed.usages |= LayoutResolveDst;
+            }
+         }
+#endif
     } // End check for HasColorMetadata()
     else if (m_pHtile != nullptr)
     {

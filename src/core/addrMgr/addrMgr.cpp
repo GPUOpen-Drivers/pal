@@ -205,11 +205,16 @@ void AddrMgr::ComputePackedMipInfo(
 
 // =====================================================================================================================
 uint32 AddrMgr::CalcBytesPerElement(
-    const SubResourceInfo*  pSubResInfo)
+    const SubResourceInfo* pSubResInfo
+    ) const
 {
-    // bitsPerTexel is already the size of an element. The exception is 96-bit formats which have three 32-bit element
-    // per texel.
-    return (pSubResInfo->bitsPerTexel == 96) ? 4 : (pSubResInfo->bitsPerTexel >> 3);
+    // The 96-bit formats which have three 32-bit element per texel.
+    const uint32 bytesPerElement = (pSubResInfo->bitsPerTexel == 96) ? 4 :
+        ElemSize(AddrLibHandle(), Image::GetAddrFormat(pSubResInfo->format.format)) >> 3;
+
+    PAL_ASSERT(bytesPerElement > 0);
+
+    return bytesPerElement;
 }
 
 // =====================================================================================================================

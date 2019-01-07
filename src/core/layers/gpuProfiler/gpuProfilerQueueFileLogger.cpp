@@ -145,6 +145,7 @@ void Queue::OpenLogFile(
         "XAce",
         "Dma",
         "Timer",
+
         "HpUniversal",
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
         "HpGfxOnly",
@@ -244,12 +245,12 @@ void Queue::OpenSqttFile(
         if (logItem.cmdBufCall.flags.draw == 1)
         {
             Snprintf(crcInfo, CrcInfoSize, "_DRAW_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.draw.pipelineInfo.compilerHash);
+                     logItem.cmdBufCall.draw.pipelineInfo.internalPipelineHash.stable);
         }
         else if (logItem.cmdBufCall.flags.dispatch == 1)
         {
             Snprintf(crcInfo, CrcInfoSize, "_DISPATCH_PIPELINE%.16I64x",
-                     logItem.cmdBufCall.dispatch.pipelineInfo.compilerHash);
+                     logItem.cmdBufCall.dispatch.pipelineInfo.internalPipelineHash.stable);
         }
     }
 
@@ -405,8 +406,8 @@ void Queue::OutputCmdBufCallToFile(
     {
         m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,0x%016llx%016llx,0x%016llx%016llx,"
                          "0x%016llx%016llx,0x%016llx%016llx,%u,%u,,",
-                         cmdBufItem.draw.pipelineInfo.pipelineHash,
-                         cmdBufItem.draw.pipelineInfo.compilerHash,
+                         cmdBufItem.draw.pipelineInfo.palRuntimeHash,
+                         cmdBufItem.draw.pipelineInfo.internalPipelineHash.stable,
                          cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.upper,
                          cmdBufItem.draw.pipelineInfo.shader[VsIdx].hash.lower,
                          cmdBufItem.draw.pipelineInfo.shader[HsIdx].hash.upper,
@@ -423,8 +424,8 @@ void Queue::OutputCmdBufCallToFile(
     else if (cmdBufItem.flags.dispatch)
     {
         m_logFile.Printf("0x%016llx,0x%016llx,0x%016llx%016llx,,,,,%u,,,",
-                         cmdBufItem.dispatch.pipelineInfo.pipelineHash,
-                         cmdBufItem.dispatch.pipelineInfo.compilerHash,
+                         cmdBufItem.dispatch.pipelineInfo.palRuntimeHash,
+                         cmdBufItem.dispatch.pipelineInfo.internalPipelineHash.stable,
                          cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.upper,
                          cmdBufItem.draw.pipelineInfo.shader[CsIdx].hash.lower,
                          cmdBufItem.dispatch.threadGroupCount);

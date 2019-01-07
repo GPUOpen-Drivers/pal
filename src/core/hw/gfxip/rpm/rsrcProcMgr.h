@@ -432,6 +432,14 @@ private:
         uint32                    regionCount,
         const ImageResolveRegion* pRegions) const = 0;
 
+    virtual void HwlFixupResolveDstImage(
+        GfxCmdBuffer*             pCmdBuffer,
+        const GfxImage&           dstImage,
+        ImageLayout               dstImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        bool                      computeResolve) const = 0;
+
     void CopyColorImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,

@@ -1307,6 +1307,12 @@ void UniversalCmdBuffer::CmdSetTriangleRasterState(
 
         pParams = &m_graphicsState.triangleRasterState;
     }
+    else if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
+    {
+        m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
+
+        pParams = &m_graphicsState.triangleRasterState;
+    }
 
     regPA_SU_SC_MODE_CNTL paSuScModeCntl = BuildPaSuScModeCntl(*pParams);
 

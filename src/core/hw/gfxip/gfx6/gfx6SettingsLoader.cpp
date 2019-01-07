@@ -315,6 +315,11 @@ void SettingsLoader::ValidateSettings(
         m_settings.dbPerTileExpClearEnable = true;
     }
 
+    if (pPalSettings->dccBitsPerPixelThreshold == UINT_MAX)
+    {
+        pPalSettings->dccBitsPerPixelThreshold = 0;
+    }
+
     // Clamp the number of supported user-data entries between the number of fast-user-data registers available and
     // the maximum number of virtualized user-data entries.
     pPalSettings->maxUserDataEntries = Max(MaxFastUserDataEntries,

@@ -176,7 +176,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
         // The pipeline ABI reports a unique pipeline hash of all of the components of its pipeline.  However, PAL
         // includes more state in the graphics pipeline than just the shaders.  We need to incorporate the reported
         // hash into our own checksum.
-        hasher.Update(m_info.compilerHash);
+        hasher.Update(m_info.palRuntimeHash);
 
         if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
         {
@@ -208,7 +208,10 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     }
 
     // Finalize the hash.
-    hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.pipelineHash));
+    hasher.Finalize(reinterpret_cast<uint8* const>(&m_info.palRuntimeHash));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
+    m_info.pipelineHash = m_info.palRuntimeHash;
+#endif
 
     return result;
 }

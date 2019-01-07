@@ -159,11 +159,10 @@ void DmaCmdBuffer::CmdWriteImmediate(
 }
 
 // =====================================================================================================================
-// Writes a NOP packet.
-uint32* DmaCmdBuffer::WriteNops(
+// Build a NOP packet.
+uint32* DmaCmdBuffer::BuildNops(
     uint32* pCmdSpace,
-    uint32  numDwords
-    ) const
+    uint32  numDwords)
 {
     constexpr size_t PacketDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
     static_assert(PacketDwords == 1, "WriteNops implementation assumes NOP packet is 1 dword.");
@@ -179,6 +178,16 @@ uint32* DmaCmdBuffer::WriteNops(
     }
 
     return reinterpret_cast<uint32*>(pPacket);
+}
+
+// =====================================================================================================================
+// Writes a NOP packet.
+uint32* DmaCmdBuffer::WriteNops(
+    uint32* pCmdSpace,
+    uint32  numDwords
+    ) const
+{
+    return BuildNops(pCmdSpace, numDwords);
 }
 
 // =====================================================================================================================

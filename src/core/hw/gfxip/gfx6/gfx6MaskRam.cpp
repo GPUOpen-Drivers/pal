@@ -1216,6 +1216,11 @@ bool Gfx6Dcc::UseDccForImage(
             // surfaces and this surface qualifies.
             useDcc = false;
         }
+        else if (pPalSettings->dccBitsPerPixelThreshold > BitsPerPixel(createInfo.swizzledFormat.format))
+        {
+            //Disable DCC if the threshold is greater than the BPP of the image.
+            useDcc = false;
+        }
         else
         {
             const ChNumFormat format = createInfo.swizzledFormat.format;

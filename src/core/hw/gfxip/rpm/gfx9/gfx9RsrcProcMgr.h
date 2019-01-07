@@ -230,6 +230,15 @@ protected:
         const Pal::Image&      dstImage,
         const SubresRange&     range) const override {}
 
+    virtual void HwlFixupResolveDstImage(
+        GfxCmdBuffer*             pCmdBuffer,
+        const GfxImage&           dstImage,
+        ImageLayout               dstImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        bool                      computeResolve
+        ) const override;
+
     static void MetaDataDispatch(
         GfxCmdBuffer*       pCmdBuffer,
         const Image&        image,
@@ -262,8 +271,7 @@ private:
 
     static bool UsePixelCopy(
         const Pal::Image&             image,
-        const MemoryImageCopyRegion&  region,
-        bool                          includePadding);
+        const MemoryImageCopyRegion&  region);
 
     virtual void HwlFastColorClear(
         GfxCmdBuffer*      pCmdBuffer,

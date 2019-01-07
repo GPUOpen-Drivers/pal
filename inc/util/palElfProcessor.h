@@ -63,29 +63,30 @@ public:
 
     /// Creates a section and returns it with preset values.
     ///
-    /// @param [in] type The type of the section to create from the available standard sections in
-    ///                  SectionType.
+    /// @param [in] type        The type of the section to create from the available standard sections in SectionType.
+    /// @param [in] pSectionHdr Non-null for loading from an existing ELF buffer.
     ///
     /// @returns Pointer to newly created section with standard values set for the given SectionType.
     ///          Nullptr is returned if memory allocation fails.
-    Section<Allocator>* Add(SectionType type);
+    Section<Allocator>* Add(SectionType type, const SectionHeader* pSectionHdr = nullptr);
 
     /// Creates a section and returns it with preset values.
     ///
-    /// @param [in] type  The type of the section to create from the available standard sections in
-    ///                   SectionType.
-    /// @param [in] pName The name of the section to create.
+    /// @param [in] type        The type of the section to create from the available standard sections in SectionType.
+    /// @param [in] pName       The name of the section to create.
+    /// @param [in] pSectionHdr Non-null for loading from an existing ELF buffer.
     ///
     /// @returns Pointer to newly created section with standard values set for the given SectionType
     ///          and custom name.  Nullptr is returned if memory allocation fails.
-    Section<Allocator>* Add(SectionType type, const char* pName);
+    Section<Allocator>* Add(SectionType type, const char* pName, const SectionHeader* pSectionHdr = nullptr);
 
     /// Creates a section and returns it with preset values only if its name is standard.
     ///
-    /// @param [in] pName The name of the section to create.
+    /// @param [in] pName       The name of the section to create.
+    /// @param [in] pSectionHdr Non-null for loading from an existing ELF buffer.
     ///
     /// @returns Pointer to newly created section.  Nullptr is returned if memory allocation fails.
-    Section<Allocator>* Add(const char* pName);
+    Section<Allocator>* Add(const char* pName, const SectionHeader* pSectionHdr = nullptr);
 
     /// Gets the Section with the given index.
     ///

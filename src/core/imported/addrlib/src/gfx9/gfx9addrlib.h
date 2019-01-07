@@ -622,6 +622,9 @@ private:
         return allowedSwSet;
     }
 
+    BOOL_32 ValidateNonSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
+    BOOL_32 ValidateSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
+
     Gfx9ChipSettings m_settings;
 
     CoordEq      m_cachedMetaEq[MaxCachedMetaEq];

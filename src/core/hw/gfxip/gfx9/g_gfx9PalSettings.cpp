@@ -65,6 +65,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.alwaysDecompress = 0x0;
     m_settings.treat1dAs2d = true;
 
+    m_settings.forceRegularClearCode = false;
     m_settings.forceGraphicsFillMemoryPath = false;
     m_settings.waitOnMetadataMipTail = true;
     m_settings.blendOptimizationsEnable = true;
@@ -74,7 +75,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
     m_settings.useDcc = 0x1ff;
-    m_settings.dccBitsPerPixelThreshold = 0;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;
@@ -230,6 +230,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.treat1dAs2d,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceRegularClearCodeStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.forceRegularClearCode,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pForceGraphicsFillMemoryPathStr,
                            Util::ValueType::Boolean,
                            &m_settings.forceGraphicsFillMemoryPath,
@@ -273,11 +278,6 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
                            Util::ValueType::Uint,
                            &m_settings.useDcc,
-                           InternalSettingScope::PrivatePalGfx9Key);
-
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDccBitsPerPixelThresholdStr,
-                           Util::ValueType::Uint,
-                           &m_settings.dccBitsPerPixelThreshold,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCsMaxWavesPerCuStr,
@@ -927,6 +927,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(648332656, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.forceRegularClearCode;
+    info.valueSize = sizeof(m_settings.forceRegularClearCode);
+    m_settingsInfoMap.Insert(2537383476, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.forceGraphicsFillMemoryPath;
     info.valueSize = sizeof(m_settings.forceGraphicsFillMemoryPath);
     m_settingsInfoMap.Insert(451570688, info);
@@ -970,11 +975,6 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.useDcc;
     info.valueSize = sizeof(m_settings.useDcc);
     m_settingsInfoMap.Insert(4029518654, info);
-
-    info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.dccBitsPerPixelThreshold;
-    info.valueSize = sizeof(m_settings.dccBitsPerPixelThreshold);
-    m_settingsInfoMap.Insert(2664815996, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.csMaxWavesPerCu;

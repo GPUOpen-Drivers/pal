@@ -215,6 +215,15 @@ private:
         uint32                    regionCount,
         const ImageResolveRegion* pRegions) const override;
 
+    virtual void HwlFixupResolveDstImage(
+        GfxCmdBuffer*             pCmdBuffer,
+        const GfxImage&           dstImage,
+        ImageLayout               dstImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        bool                      computeResolve
+        ) const override;
+
     void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,

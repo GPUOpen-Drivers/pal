@@ -4390,6 +4390,13 @@ void RsrcProcMgr::CmdResolveImage(
                             regionCount,
                             pRegions,
                             srcMethod);
+
+        HwlFixupResolveDstImage(pCmdBuffer,
+                                *dstImage.GetGfxImage(),
+                                dstImageLayout,
+                                pRegions,
+                                regionCount,
+                                true);
     }
     else
     {
@@ -4408,6 +4415,13 @@ void RsrcProcMgr::CmdResolveImage(
                                   dstImageLayout,
                                   regionCount,
                                   pRegions);
+
+            HwlFixupResolveDstImage(pCmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    false);
         }
         else if ((srcMethod.depthStencilCopy == 1) && (dstMethod.depthStencilCopy == 1) &&
                   HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
@@ -4439,6 +4453,13 @@ void RsrcProcMgr::CmdResolveImage(
                                 regionCount,
                                 pRegions,
                                 srcMethod);
+
+            HwlFixupResolveDstImage(pCmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    true);
         }
         else
         {

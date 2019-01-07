@@ -218,6 +218,13 @@ void SettingsLoader::ValidateSettings(
         m_settings.nggEnableMode = NggPipelineTypeDisabled;
     }
 
+    // Set default value for DCC BPP Threshold unless it was already overriden
+    if (pPalSettings->dccBitsPerPixelThreshold == UINT_MAX)
+    {
+        pPalSettings->dccBitsPerPixelThreshold = 0;
+
+    }
+
     m_state = SettingsLoaderState::Final;
 }
 

@@ -301,7 +301,7 @@ public:
     Result InitHwlSettings(PalSettings* pSettings);
     Util::MetroHash::Hash GetSettingsHash() const
     {
-        static const Util::MetroHash::Hash zeroHash = { 0, 0, 0, 0 };
+        static const Util::MetroHash::Hash zeroHash = { };
         return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->GetSettingsHash() : zeroHash;
     }
 
@@ -325,6 +325,8 @@ public:
         EngineType engineType,
         uint32     engineIndex,
         Engine**   ppEngine) = 0;
+
+    virtual Result CreateDummyCommandStream(EngineType engineType, Pal::CmdStream** ppCmdStream) const = 0;
 
     // Determines the amount of storage needed for a QueueContext object for the given Queue type and ID. For Queue
     // types not supported by GFXIP hardware blocks, this should return zero.

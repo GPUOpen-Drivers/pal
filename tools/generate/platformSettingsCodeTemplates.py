@@ -68,6 +68,8 @@ CppIncludes = "#include \"core/platform.h\"\n\
 IncludeDir = "core/"
 HwlIncludeDir = ""
 
+PrefixName = ""
+
 DevDriverIncludes = "\n\
 #include \"devDriverServer.h\"\n\
 #include \"protocols/ddSettingsService.h\"\n\

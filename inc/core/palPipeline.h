@@ -58,29 +58,35 @@ struct ShaderHash
     uint64 upper;   ///< Upper 64-bits of hash
 };
 
-/// Determines whether two ShaderHashes are equal.
-///
-/// @param  [in]    hash1    The first 128-bit shader hash
-/// @param  [in]    hash2    The second 128-bit shader hash
-///
-/// @returns True if the shader hashes are equal.
-PAL_INLINE bool ShaderHashesEqual(
-    const ShaderHash hash1,
-    const ShaderHash hash2)
+/// PipelineHash represents a concatenated pair of 64-bit hashes.
+struct PipelineHash
 {
-    return ((hash1.lower == hash2.lower) & (hash1.upper == hash2.upper));
-}
+    uint64 stable;   ///< Lower 64-bits of hash.  "Stable" portion, suitable for e.g. shader replacement use cases.
+    uint64 unique;   ///< Upper 64-bits of hash.  "Unique" portion, suitable for e.g. pipeline cache use cases.
+};
 
-/// Determines whether the given ShaderHash is non-zero.
+///@{
+/// Determines whether two ShaderHashes or PipelineHashes are equal.
 ///
-/// @param  [in]    hash    A 128-bit shader hash
+/// @param  [in]    hash1    The first 128-bit shader hash or pipeline hash
+/// @param  [in]    hash2    The second 128-bit shader hash or pipeline hash
 ///
-/// @returns True if the shader hash is non-zero.
-PAL_INLINE bool ShaderHashIsNonzero(
-    const ShaderHash hash)
-{
-    return ((hash.upper | hash.lower) != 0);
-}
+/// @returns True if the hashes are equal.
+PAL_INLINE bool ShaderHashesEqual(const ShaderHash hash1, const ShaderHash hash2)
+    { return ((hash1.lower  == hash2.lower)  && (hash1.upper  == hash2.upper)); }
+PAL_INLINE bool PipelineHashesEqual(const PipelineHash hash1, const PipelineHash hash2)
+    { return ((hash1.stable == hash2.stable) && (hash1.unique == hash2.unique)); }
+///@}
+
+///@{
+/// Determines whether the given ShaderHash or PipelineHash is non-zero.
+///
+/// @param  [in]    hash    A 128-bit shader hash or pipeline hash
+///
+/// @returns True if the hash is non-zero.
+PAL_INLINE bool ShaderHashIsNonzero(const ShaderHash hash)     { return ((hash.upper  | hash.lower)  != 0); }
+PAL_INLINE bool PipelineHashIsNonzero(const PipelineHash hash) { return ((hash.stable | hash.unique) != 0); }
+///@}
 
 /// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
 enum class ShaderType : uint32
@@ -332,12 +338,21 @@ struct GraphicPipelineViewInstancingInfo
 /// use to correlate PAL pipeline/shader dumps with corresponding API-level pipelines/shaders.
 struct PipelineInfo
 {
+    PipelineHash internalPipelineHash;  ///< 128-bit identifier extracted from this pipeline's ELF binary, composed of
+                                        ///  the state the compiler decided was appropriate to identify the compiled
+                                        ///  shaders.  The lower 64 bits are "stable"; the upper 64 bits are "unique".
+    uint64       palRuntimeHash;        ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler
+                                        ///  information and PAL-specific runtime-adjacent information. Mapping of
+                                        ///  PAL runtime hash to internal pipeline hash is many-to-one.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
     uint64 pipelineHash;      ///< Unique 64-bit identifier for the PAL pipeline, composed of compiler information and
-                              ///  PAL-specific information.
+                              ///  PAL-specific runtime-adjacent information.
     uint64 compilerHash;      ///< 64-bit identifier extracted from this pipeline's ELF binary, composed of the state
                               ///  the compiler decided was appropriate to identify the compiled shaders.  Pipelines
                               ///  can have identical compiler hashes but different pipeline hashes.  Note that this
                               ///  is not computed by taking a hash of the binary blob data.
+#endif
 
     struct
     {

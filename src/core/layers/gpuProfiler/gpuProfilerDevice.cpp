@@ -847,7 +847,7 @@ bool Device::SqttEnabledForPipeline(
         constexpr uint32 PsIdx = static_cast<uint32>(ShaderType::Pixel);
 
         // Return true if we find a non-zero matching hash.
-        if ((m_sqttCompilerHash != 0) && (m_sqttCompilerHash == info.compilerHash))
+        if ((m_sqttCompilerHash != 0) && (m_sqttCompilerHash == info.internalPipelineHash.stable))
         {
             enabled = true;
         }

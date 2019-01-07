@@ -2058,6 +2058,71 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 }
 
 // =====================================================================================================================
+// Before fixfunction or compute shader resolve, we do an optimization that we skip expanding DCC if dst image will be
+// fully overwritten in the comming resolve. It means the DCC of dst image needs to be fixed up to expand state after
+// the resolve.
+void RsrcProcMgr::HwlFixupResolveDstImage(
+    GfxCmdBuffer*             pCmdBuffer,
+    const GfxImage&           dstImage,
+    ImageLayout               dstImageLayout,
+    const ImageResolveRegion* pRegions,
+    uint32                    regionCount,
+    bool                      computeResolve
+    ) const
+{
+    const Image& gfx9Image     = static_cast<const Image&>(dstImage);
+    const auto&  dstCreateInfo = dstImage.Parent()->GetImageCreateInfo();
+    const auto&  device        = *m_pDevice->Parent();
+
+    // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
+    if (Util::TestAnyFlagSet(gfx9Image.LayoutToColorCompressionState().compressed.usages,
+                              Pal::LayoutResolveDst)
+       )
+    {
+        BarrierInfo      barrierInfo = {};
+        Pal::SubresRange range       = {};
+        AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
+
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            range.startSubres.aspect     = pRegions[i].dstAspect;
+            range.startSubres.arraySlice = pRegions[i].dstSlice;
+            range.startSubres.mipLevel   = pRegions[i].dstMipLevel;
+            range.numMips                = 1;
+            range.numSlices              = pRegions[i].numSlices;
+
+            transition[i].imageInfo.pImage             = dstImage.Parent();
+            transition[i].imageInfo.oldLayout.usages   = Pal::LayoutUninitializedTarget;
+            transition[i].imageInfo.oldLayout.engines  = dstImageLayout.engines;
+
+            transition[i].imageInfo.newLayout.usages   = dstImageLayout.usages;
+            transition[i].imageInfo.newLayout.engines  = dstImageLayout.engines;
+            transition[i].imageInfo.subresRange        = range;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+            if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
+            }
+            else
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
+            }
+            transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
+#else
+            transition[i].imageInfo.pQuadSamplePattern = nullptr;
+#endif
+            transition[i].srcCacheMask                 = Pal::CoherResolve;
+            transition[i].dstCacheMask                 = Pal::CoherResolve;
+        }
+
+        barrierInfo.pTransitions    = transition.Data();
+        barrierInfo.transitionCount = regionCount;
+
+        pCmdBuffer->CmdBarrier(barrierInfo);
+    }
+}
+
+// =====================================================================================================================
 // Use the compute engine to initialize hTile memory that corresponds to the specified clearRange
 void RsrcProcMgr::InitHtile(
     GfxCmdBuffer*      pCmdBuffer,
@@ -3118,10 +3183,9 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
 // Returns true if the CmdCopyMemoryFromToImageViaPixels function needs to be used
 bool RsrcProcMgr::UsePixelCopy(
     const Pal::Image&             image,
-    const MemoryImageCopyRegion&  region,
-    bool                          includePadding)
+    const MemoryImageCopyRegion&  region)
 {
-    const Extent3d  hwCopyDims = GetCopyViaSrdCopyDims(image, region.imageSubres, includePadding);
+    const Extent3d  hwCopyDims = GetCopyViaSrdCopyDims(image, region.imageSubres, true);
 
     // If the default implementation copy dimensions did not cover the region specified by this region, then
     // we need to copy the remaining pixels the slow way.
@@ -3166,7 +3230,7 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
         {
             const auto&  region = pRegions[regionIdx];
 
-            if (UsePixelCopy(dstImage, region, includePadding))
+            if (UsePixelCopy(dstImage, region))
             {
                 CmdCopyMemoryFromToImageViaPixels(pCmdBuffer, dstImage, srcGpuMemory, region, includePadding, false);
             }
@@ -3208,7 +3272,7 @@ void RsrcProcMgr::CmdCopyImageToMemory(
         {
             const auto&  region = pRegions[regionIdx];
 
-            if (UsePixelCopy(srcImage, region, includePadding))
+            if (UsePixelCopy(srcImage, region))
             {
                 // We have to wait for the compute shader invoked above to finish...  Otherwise, it will be writing
                 // zeroes into the destination memory that correspond to pixels that it couldn't read.  This only

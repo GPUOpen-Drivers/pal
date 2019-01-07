@@ -1102,6 +1102,77 @@ void RsrcProcMgr::HwlCreateDecompressResolveSafeImageViewSrds(
 }
 
 // =====================================================================================================================
+// Before fixfunction or compute shader resolve, we do an optimization that we skip expanding DCC if dst image will be
+// fully overwritten in the comming resolve. It means the DCC of dst image needs to be fixed up to expand state after
+// the resolve.
+void RsrcProcMgr::HwlFixupResolveDstImage(
+    GfxCmdBuffer*             pCmdBuffer,
+    const GfxImage&           dstImage,
+    ImageLayout               dstImageLayout,
+    const ImageResolveRegion* pRegions,
+    uint32                    regionCount,
+    bool                      computeResolve
+    ) const
+{
+    const Image& gfx6Image     = static_cast<const Image&>(dstImage);
+    const auto&  dstCreateInfo = dstImage.Parent()->GetImageCreateInfo();
+
+    uint32             regionId     = 0;
+    BarrierInfo        barrierInfo  = {};
+    Pal::SubresRange   range        = {};
+    SubresId           startSubres  = {};
+    AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
+
+    for (uint32 i = 0; i < regionCount; i++)
+    {
+        startSubres.aspect     = pRegions[i].dstAspect;
+        startSubres.arraySlice = pRegions[i].dstSlice;
+        startSubres.mipLevel   = pRegions[i].dstMipLevel;
+
+        if (Util::TestAnyFlagSet(gfx6Image.LayoutToColorCompressionState(startSubres).compressed.usages,
+                                  Pal::LayoutResolveDst))
+        {
+            range.startSubres = startSubres;
+            range.numMips     = 1;
+            range.numSlices   = pRegions[i].numSlices;
+
+            transition[regionId].imageInfo.pImage             = dstImage.Parent();
+            transition[regionId].imageInfo.oldLayout.usages   = Pal::LayoutUninitializedTarget;
+            transition[regionId].imageInfo.oldLayout.engines  = dstImageLayout.engines;
+
+            transition[regionId].imageInfo.newLayout.usages   = dstImageLayout.usages;
+            transition[regionId].imageInfo.newLayout.engines  = dstImageLayout.engines;
+            transition[regionId].imageInfo.subresRange        = range;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 406
+            if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
+            }
+            else
+            {
+                PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
+            }
+            transition[regionId].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
+#else
+            transition[regionId].imageInfo.pQuadSamplePattern = nullptr;
+#endif
+            transition[regionId].srcCacheMask                 = Pal::CoherResolve;
+            transition[regionId].dstCacheMask                 = Pal::CoherResolve;
+
+            regionId++;
+        }
+    }
+
+    if (regionId > 0)
+    {
+        barrierInfo.pTransitions    = transition.Data();
+        barrierInfo.transitionCount = regionId;
+
+        pCmdBuffer->CmdBarrier(barrierInfo);
+    }
+}
+
+// =====================================================================================================================
 // After a fixed-func depth/stencil copy resolve, src htile will be copied to dst htile and set the zmask or smask to
 // expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
 // necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.

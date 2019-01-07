@@ -314,10 +314,13 @@ GpaSession::GpaSession(
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
+    m_registeredApiPsos(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
     m_codeObjectLoadEventRecordsCache(m_pPlatform),
     m_curCodeObjectLoadEventRecords(m_pPlatform),
+    m_psoCorrelationRecordsCache(m_pPlatform),
+    m_curPsoCorrelationRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -475,10 +478,13 @@ GpaSession::GpaSession(
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(src.m_pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
+    m_registeredApiPsos(512, m_pPlatform),
     m_codeObjectRecordsCache(m_pPlatform),
     m_curCodeObjectRecords(m_pPlatform),
     m_codeObjectLoadEventRecordsCache(m_pPlatform),
     m_curCodeObjectLoadEventRecords(m_pPlatform),
+    m_psoCorrelationRecordsCache(m_pPlatform),
+    m_curPsoCorrelationRecords(m_pPlatform),
     m_shaderRecordsCache(m_pPlatform),
     m_curShaderRecords(m_pPlatform),
     m_timedQueuesArray(m_pPlatform),
@@ -582,12 +588,15 @@ Result GpaSession::Init()
 
     if (result == Result::Success)
     {
-        m_registerPipelineLock.Init();
+        result = m_registerPipelineLock.Init();
     }
-
     if (result == Result::Success)
     {
-        m_registeredPipelines.Init();
+        result = m_registeredPipelines.Init();
+    }
+    if (result == Result::Success)
+    {
+        result = m_registeredApiPsos.Init();
     }
 
     // CopySession specific work
@@ -1394,10 +1403,13 @@ Result GpaSession::End(
         {
             m_curCodeObjectRecords.PushBack(*iter.Get());
         }
-
         for (auto iter = m_codeObjectLoadEventRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
         {
             m_curCodeObjectLoadEventRecords.PushBack(*iter.Get());
+        }
+        for (auto iter = m_psoCorrelationRecordsCache.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            m_curPsoCorrelationRecords.PushBack(*iter.Get());
         }
 
         // Copy all entries in the shader record cache into the current shader records list.
@@ -2268,26 +2280,42 @@ void GpaSession::DestroyTimedQueueState(
 }
 
 // =====================================================================================================================
-// Registers a pipeline with the GpaSession. Returns AlreadyExists on duplicate pipeline.
+// Registers a pipeline with the GpaSession. Returns AlreadyExists on duplicate PAL pipeline.
 Result GpaSession::RegisterPipeline(
-    const IPipeline* pPipeline)
+    const IPipeline*             pPipeline,
+    const RegisterPipelineInfo&  clientInfo)
 {
     PAL_ASSERT(pPipeline != nullptr);
+    const PipelineInfo& pipeInfo = pPipeline->GetInfo();
 
     // Even if the pipeline was already previously encountered, we still want to record every time it gets loaded.
-    Result result = AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::Load);
+    Result result = AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::LoadToGpuMemory);
 
-    PipelineInfo pipeInfo = pPipeline->GetInfo();
+    m_registerPipelineLock.LockForWrite();
+
+    if ((result == Result::Success)  &&
+        (clientInfo.apiPsoHash != 0) &&
+        (m_registeredApiPsos.Contains(clientInfo.apiPsoHash) == false))
+    {
+        // Record a (many-to-one) mapping of API PSO hash -> internal pipeline hash so they can be correlated.
+        PsoCorrelationRecord record = { };
+        record.apiPsoHash           = clientInfo.apiPsoHash;
+        record.internalPipelineHash = pipeInfo.internalPipelineHash;
+        result = m_psoCorrelationRecordsCache.PushBack(record);
+
+        if (result == Result::Success)
+        {
+            result = m_registeredApiPsos.Insert(clientInfo.apiPsoHash);
+        }
+    }
 
     if (result == Result::Success)
     {
-        m_registerPipelineLock.LockForWrite();
-
-        result = m_registeredPipelines.Contains(pipeInfo.pipelineHash) ? Result::AlreadyExists :
-                 m_registeredPipelines.Insert(pipeInfo.pipelineHash);
-
-        m_registerPipelineLock.UnlockForWrite();
+        result = m_registeredPipelines.Contains(pipeInfo.palRuntimeHash) ? Result::AlreadyExists :
+                 m_registeredPipelines.Insert(pipeInfo.palRuntimeHash);
     }
+
+    m_registerPipelineLock.UnlockForWrite();
 
     if (result == Result::Success)
     {
@@ -2367,7 +2395,7 @@ Result GpaSession::RegisterPipeline(
 Result GpaSession::UnregisterPipeline(
     const IPipeline* pPipeline)
 {
-    return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::Unload);
+    return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::UnloadFromGpuMemory);
 }
 
 // =====================================================================================================================
@@ -2396,9 +2424,12 @@ Result GpaSession::AddCodeObjectLoadEvent(
         CodeObjectLoadEventRecord record = { };
         record.eventType      = eventType;
         record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
-        record.codeObjectHash = info.compilerHash;
-        record.apiHash        = info.pipelineHash;
-        record.timestamp      = 0; // Always set to 0 for now.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 460
+        record.codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique };
+#else
+        record.codeObjectHash = { info.compilerHash, info.compilerHash };
+#endif
+        record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
 
         m_registerPipelineLock.LockForWrite();
         result = m_codeObjectLoadEventRecordsCache.PushBack(record);
@@ -2893,7 +2924,7 @@ Result GpaSession::AcquirePerfExperiment(
                 sqttInfo.optionFlags.threadTraceRegMask   = 1;
 
                 // Request for all registers in the thread trace. This is hardcoded for now.
-                sqttInfo.optionValues.threadTraceRegMask = 0xFF;
+                sqttInfo.optionValues.threadTraceRegMask = RegType::AllRegWrites;
 
                 sqttInfo.optionValues.threadTraceTokenMask = m_flags.enableSampleUpdates ? SqttTokenMaskMinimal :
                                                                                            standardTokenMask;
@@ -3342,8 +3373,8 @@ Result GpaSession::DumpRgpData(
         // Write API code object loader events to the RGP file.
         if (result == Result::Success)
         {
-            const size_t chunkTotalSize = (sizeof(SqttFileChunkApiLevelLoaderEvents) +
-                (sizeof(SqttApiLevelLoaderEventRecord) * m_curCodeObjectLoadEventRecords.NumElements()));
+            const size_t chunkTotalSize = (sizeof(SqttFileChunkCodeObjectLoaderEvents) +
+                (sizeof(SqttCodeObjectLoaderEventRecord) * m_curCodeObjectLoadEventRecords.NumElements()));
 
             if (pRgpOutput != nullptr)
             {
@@ -3353,19 +3384,19 @@ Result GpaSession::DumpRgpData(
                 }
                 else
                 {
-                    SqttFileChunkApiLevelLoaderEvents loaderEvents = {};
-                    loaderEvents.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS;
-                    loaderEvents.header.chunkIdentifier.chunkIndex = 0;
+                    SqttFileChunkCodeObjectLoaderEvents loaderEvents = {};
+                    loaderEvents.header.chunkIdentifier.chunkType    = SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS;
+                    loaderEvents.header.chunkIdentifier.chunkIndex   = 0;
                     loaderEvents.header.majorVersion =
-                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS].majorVersion;
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS].majorVersion;
                     loaderEvents.header.minorVersion =
-                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_API_LEVEL_LOADER_EVENTS].minorVersion;
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS].minorVersion;
                     loaderEvents.recordCount         = static_cast<uint32>(m_curCodeObjectLoadEventRecords.NumElements());
-                    loaderEvents.recordSize          = sizeof(SqttApiLevelLoaderEventRecord);
+                    loaderEvents.recordSize          = sizeof(SqttCodeObjectLoaderEventRecord);
 
                     loaderEvents.header.sizeInBytes  = static_cast<int32>(chunkTotalSize);
 
-                    // The loader events starts from the beginning of the chunk.
+                    // The loader events start from the beginning of the chunk.
                     loaderEvents.offset              = static_cast<uint32>(curFileOffset);
 
                     // There are no flags for this chunk in the specification as of yet.
@@ -3373,16 +3404,16 @@ Result GpaSession::DumpRgpData(
 
                     memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
                            &loaderEvents,
-                           sizeof(SqttFileChunkApiLevelLoaderEvents));
+                           sizeof(SqttFileChunkCodeObjectLoaderEvents));
                 }
             }
 
-            curFileOffset += sizeof(SqttFileChunkApiLevelLoaderEvents);
+            curFileOffset += sizeof(SqttFileChunkCodeObjectLoaderEvents);
 
-            constexpr SqttApiLevelLoaderEventType PalToSqttLoadEvent[] =
+            constexpr SqttCodeObjectLoaderEventType PalToSqttLoadEvent[] =
             {
-                SQTT_API_LEVEL_OBJECT_LOAD,   // CodeObjectLoadEventType::Load
-                SQTT_API_LEVEL_OBJECT_UNLOAD, // CodeObjectLoadEventType::Unload
+                SQTT_CODE_OBJECT_LOAD_TO_GPU_MEMORY,     // CodeObjectLoadEventType::LoadToGpuMemory
+                SQTT_CODE_OBJECT_UNLOAD_FROM_GPU_MEMORY, // CodeObjectLoadEventType::UnloadFromGpuMemory
             };
 
             for (auto iter = m_curCodeObjectLoadEventRecords.Begin(); iter.Get() != nullptr; iter.Next())
@@ -3391,22 +3422,81 @@ Result GpaSession::DumpRgpData(
 
                 if ((result == Result::Success) && (pRgpOutput != nullptr))
                 {
-                    SqttApiLevelLoaderEventRecord sqttRecord = {};
+                    SqttCodeObjectLoaderEventRecord sqttRecord = {};
                     sqttRecord.eventType      =
                         PalToSqttLoadEvent[static_cast<uint32>(srcRecord.eventType)];
                     sqttRecord.baseAddress    = srcRecord.baseAddress;
-                    sqttRecord.codeObjectHash = srcRecord.codeObjectHash;
-                    sqttRecord.shaderCodeHash = 0;
-                    sqttRecord.apiHash        = srcRecord.apiHash;
+                    sqttRecord.codeObjectHash = { srcRecord.codeObjectHash.lower, srcRecord.codeObjectHash.upper };
                     sqttRecord.timestamp      = srcRecord.timestamp;
 
                     // Copy one record to the buffer provided.
                     memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
                            &sqttRecord,
-                           sizeof(SqttApiLevelLoaderEventRecord));
+                           sizeof(SqttCodeObjectLoaderEventRecord));
                 }
 
-                curFileOffset += sizeof(SqttApiLevelLoaderEventRecord);
+                curFileOffset += sizeof(SqttCodeObjectLoaderEventRecord);
+            }
+        }
+
+        // Write API PSO -> internal pipeline correlation chunk.
+        if (result == Result::Success)
+        {
+            const size_t chunkTotalSize = (sizeof(SqttFileChunkPsoCorrelation) +
+                (sizeof(SqttPsoCorrelationRecord) * m_curPsoCorrelationRecords.NumElements()));
+
+            if (pRgpOutput != nullptr)
+            {
+                if (static_cast<size_t>(curFileOffset + chunkTotalSize) > *pTraceSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    SqttFileChunkPsoCorrelation psoCorrelations       = {};
+                    psoCorrelations.header.chunkIdentifier.chunkType  = SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION;
+                    psoCorrelations.header.chunkIdentifier.chunkIndex = 0;
+                    psoCorrelations.header.majorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION].majorVersion;
+                    psoCorrelations.header.minorVersion =
+                        RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION].minorVersion;
+                    psoCorrelations.recordCount         = static_cast<uint32>(m_curPsoCorrelationRecords.NumElements());
+                    psoCorrelations.recordSize          = sizeof(SqttPsoCorrelationRecord);
+
+                    psoCorrelations.header.sizeInBytes  = static_cast<int32>(chunkTotalSize);
+
+                    // The PSO correlations start from the beginning of the chunk.
+                    psoCorrelations.offset              = static_cast<uint32>(curFileOffset);
+
+                    // There are no flags for this chunk in the specification as of yet.
+                    psoCorrelations.flags               = 0;
+
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &psoCorrelations,
+                           sizeof(SqttFileChunkPsoCorrelation));
+                }
+            }
+
+            curFileOffset += sizeof(SqttFileChunkPsoCorrelation);
+
+            for (auto iter = m_curPsoCorrelationRecords.Begin(); iter.Get() != nullptr; iter.Next())
+            {
+                const PsoCorrelationRecord& srcRecord = *iter.Get();
+
+                if ((result == Result::Success) && (pRgpOutput != nullptr))
+                {
+                    SqttPsoCorrelationRecord sqttRecord = { };
+                    sqttRecord.apiPsoHash           = srcRecord.apiPsoHash;
+                    sqttRecord.internalPipelineHash =
+                        { srcRecord.internalPipelineHash.stable, srcRecord.internalPipelineHash.unique };
+
+                    // Copy one record to the buffer provided.
+                    memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
+                           &sqttRecord,
+                           sizeof(SqttPsoCorrelationRecord));
+                }
+
+                curFileOffset += sizeof(SqttPsoCorrelationRecord);
             }
         }
 

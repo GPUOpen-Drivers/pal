@@ -91,6 +91,53 @@ Result Device::CreateEngine(
 }
 
 // =====================================================================================================================
+Result Device::CreateDummyCommandStream(
+    EngineType       engineType,
+    Pal::CmdStream** ppCmdStream
+    ) const
+{
+    Result          result     = Result::ErrorOutOfMemory;
+    Pal::CmdStream* pCmdStream = PAL_NEW(CmdStream, Parent()->GetPlatform(), Util::SystemAllocType::AllocInternal)(
+                                     Parent(),
+                                     Parent()->InternalUntrackedCmdAllocator(),
+                                     engineType,
+                                     SubEngineType::Primary,
+                                     CmdStreamUsage::Workload,
+                                     0,
+                                     0,
+                                     false);
+    if (pCmdStream != nullptr)
+    {
+        result = pCmdStream->Init();
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr CmdStreamBeginFlags beginFlags = {};
+        pCmdStream->Reset(nullptr, true);
+        pCmdStream->Begin(beginFlags, nullptr);
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        pCmdSpace = DmaCmdBuffer::BuildNops(pCmdSpace, pCmdStream->GetSizeAlignDwords());
+
+        pCmdStream->CommitCommands(pCmdSpace);
+        pCmdStream->End();
+    }
+    else
+    {
+        PAL_SAFE_DELETE(pCmdStream, Parent()->GetPlatform());
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppCmdStream) = pCmdStream;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Determines the size of the QueueContext object needed for OSSIP1 hardware. Only supported on DMA Queues.
 size_t Device::GetQueueContextSize(
     const QueueCreateInfo& createInfo

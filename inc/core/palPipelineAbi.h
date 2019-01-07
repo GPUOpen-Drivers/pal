@@ -50,8 +50,8 @@ constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 432
 constexpr uint32 MetadataNoteType = 13; ///< NT_AMD_AMDGPU_HSA_METADATA
 
-constexpr uint32 PipelineMetadataMajorVersion = 1;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
+constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
+constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
 #else
 constexpr uint32 MetadataNoteType = 12; ///< NT_AMD_AMDGPU_HSA_METADATA
 
@@ -163,8 +163,8 @@ static const char* PipelineMetadataNameStrings[] =
     "API_PS_HASH_DWORD2",
     "API_PS_HASH_DWORD3",
 
-    "PIPELINE_HASH_LO",
-    "PIPELINE_HASH_HI",
+    "INTERNAL_PIPELINE_HASH_DWORD0",
+    "INTERNAL_PIPELINE_HASH_DWORD1",
 
     "USER_DATA_LIMIT",
 
@@ -255,6 +255,9 @@ static const char* PipelineMetadataNameStrings[] =
     "PS_WRITES_UAVS",
     "PS_WRITES_DEPTH",
     "PS_USES_APPEND_CONSUME",
+
+    "INTERNAL_PIPELINE_HASH_DWORD2",
+    "INTERNAL_PIPELINE_HASH_DWORD3",
 };
 
 /// The pipeline ABI note types.
@@ -432,8 +435,12 @@ enum class PipelineMetadataType : uint32
     ApiPsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API pixel shader.
     ApiPsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API pixel shader.
 
-    PipelineHashLo,        ///< Low  32-bits of a 64-bit hash identifying the pipeline.
-    PipelineHashHi,        ///< High 32-bits of a 64-bit hash identifying the pipeline.
+    InternalPipelineHashDword0,    ///< Dword 0 of a 128-bit hash identifying the internal pipeline (stable portion).
+    InternalPipelineHashDword1,    ///< Dword 1 of a 128-bit hash identifying the internal pipeline (stable portion).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 460
+    PipelineHashLo = InternalPipelineHashDword0,
+    PipelineHashHi = InternalPipelineHashDword1,
+#endif
 
     UserDataLimit,         ///< Number of user data entries accessed by this pipeline.
 
@@ -557,6 +564,9 @@ enum class PipelineMetadataType : uint32
     PsWritesUavs,                 ///< 1 if the pipeline's pixel shader writes any UAVs, otherwise 0.
     PsWritesDepth,                ///< 1 if the pipeline's pixel shader writes depth values, otherwise 0.
     PsUsesAppendConsume,          ///< 1 if the pipeline's pixel shader uses UAV append/consume operations, otherwise 0.
+
+    InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
+    InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
 
     Count,
 

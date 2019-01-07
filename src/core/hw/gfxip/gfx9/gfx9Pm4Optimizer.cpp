@@ -283,7 +283,7 @@ bool Pm4Optimizer::OptimizePm4Commands(
                                            &m_cntxRegs[0]);
             m_contextRollDetected |= ((pOptCmdCur > pPreOptCmdCur) != 0);
         }
-        else if (opcode == IT_SET_CONTEXT_REG_INDIRECT)
+        else if (opcode == IT_SET_CONTEXT_REG_INDIRECT__VEGA)
         {
             HandlePm4SetContextRegIndirect(reinterpret_cast<const PM4_PFP_SET_CONTEXT_REG&>(*pOrigCmdCur));
             m_contextRollDetected = true;

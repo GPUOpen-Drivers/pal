@@ -115,6 +115,8 @@ public:
         uint32     engineIndex,
         Engine**   ppEngine) override;
 
+    virtual Result CreateDummyCommandStream(EngineType engineType, Pal::CmdStream** ppCmdStream) const override;
+
     virtual size_t GetQueueContextSize(const QueueCreateInfo& createInfo) const override;
 
     virtual Result CreateQueueContext(

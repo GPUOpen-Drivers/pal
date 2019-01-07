@@ -139,6 +139,9 @@ constexpr uint32 Gfx9NumRmiCounters    = 4;   //< RMI
 // Represents the number of performance counter registers availble per UMC channel.
 constexpr uint32 Gfx9NumUmcchCounters  = MaxCountersPerUmcch;   //< UMC
 
+// Raven family specific.
+constexpr uint32 RvNumSdmaCounters     = 1;   //< SDMA
+
 /// Maximum thread trace buffer size: 128MB per Engine.
 constexpr size_t MaximumBufferSize = (128 * 1024 * 1024);
 /// Default thread trace buffer size: 1MB per Engine.

@@ -435,8 +435,6 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
-    PAL_ASSERT(m_gfxIpLevel == GfxIpLevel::GfxIp9);
-
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
