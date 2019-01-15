@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -891,15 +891,19 @@ Result Image::GetSubresourceLayout(
     {
         const SubResourceInfo*const pSubResInfo = SubresourceInfo(subresId);
 
-        pLayout->offset        = pSubResInfo->offset;
-        pLayout->swizzleOffset = pSubResInfo->swizzleOffset;
-        pLayout->size          = pSubResInfo->size;
-        pLayout->rowPitch      = pSubResInfo->rowPitch;
-        pLayout->depthPitch    = pSubResInfo->depthPitch;
-        pLayout->tileToken     = pSubResInfo->tileToken;
-        pLayout->tileSwizzle   = m_pDevice->GetAddrMgr()->GetTileSwizzle(this, subresId);
-        pLayout->blockSize     = pSubResInfo->blockSize;
-        pLayout->paddedExtent  = pSubResInfo->actualExtentElements;
+        pLayout->offset         = pSubResInfo->offset;
+        pLayout->swizzleOffset  = pSubResInfo->swizzleOffset;
+        pLayout->size           = pSubResInfo->size;
+        pLayout->rowPitch       = pSubResInfo->rowPitch;
+        pLayout->depthPitch     = pSubResInfo->depthPitch;
+        pLayout->tileToken      = pSubResInfo->tileToken;
+        pLayout->tileSwizzle    = m_pDevice->GetAddrMgr()->GetTileSwizzle(this, subresId);
+        pLayout->blockSize      = pSubResInfo->blockSize;
+        pLayout->paddedExtent   = pSubResInfo->actualExtentElements;
+        pLayout->mipTailCoord.x = pSubResInfo->mipTailCoord.x;
+        pLayout->mipTailCoord.y = pSubResInfo->mipTailCoord.y;
+        pLayout->mipTailCoord.z = pSubResInfo->mipTailCoord.z;
+        pLayout->elementBytes   = pSubResInfo->bitsPerTexel >> 3;
 
         ret = Result::Success;
     }

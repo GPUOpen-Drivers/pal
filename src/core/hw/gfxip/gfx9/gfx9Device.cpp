@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2828,8 +2828,8 @@ void InitializeGpuChipProperties(
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
         {
-            pInfo->revision = AsicRevision::Raven;
-            pInfo->gfxStepping               = 2;
+            pInfo->revision                  = AsicRevision::Raven;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingRaven;
             pInfo->gfx9.numTccBlocks         = 4;
             pInfo->gfx9.maxNumCuPerSh        = 11;
             pInfo->gfx9.maxNumRbPerSe        = 2;
@@ -2851,8 +2851,8 @@ void InitializeGpuChipProperties(
 
         if (ASICREV_IS_VEGA10_P(pInfo->eRevId))
         {
-            pInfo->revision = AsicRevision::Vega10;
-            pInfo->gfxStepping = 0;
+            pInfo->revision              = AsicRevision::Vega10;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingVega10;
             pInfo->gfx9.numTccBlocks     = 16;
             pInfo->gfx9.maxNumCuPerSh    = 16;
             pInfo->gfx9.maxNumRbPerSe    = 4;
@@ -2860,8 +2860,8 @@ void InitializeGpuChipProperties(
         }
         else if (ASICREV_IS_VEGA12_P(pInfo->eRevId))
         {
-            pInfo->revision = AsicRevision::Vega12;
-            pInfo->gfxStepping = 4;
+            pInfo->revision                  = AsicRevision::Vega12;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingVega12;
             pInfo->gfx9.numTccBlocks         = 8;
             pInfo->gfx9.maxNumCuPerSh        = 5;
             pInfo->gfx9.maxNumRbPerSe        = 2;
@@ -2943,11 +2943,11 @@ void FinalizeGpuChipProperties(
     {
         for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
         {
-            const uint32 cuActiveMask    = pInfo->gfx9.activeCuMask[sa][se];
+            const uint32 cuActiveMask    = pInfo->gfx9.activeCuMask[se][sa];
             const uint32 cuActiveCount   = CountSetBits(cuActiveMask);
             numActiveCus += cuActiveCount;
 
-            const uint32 cuAlwaysOnMask  = pInfo->gfx9.alwaysOnCuMask[sa][se];
+            const uint32 cuAlwaysOnMask  = pInfo->gfx9.alwaysOnCuMask[se][sa];
             const uint32 cuAlwaysOnCount = CountSetBits(cuAlwaysOnMask);
             numAlwaysOnCus += cuAlwaysOnCount;
 

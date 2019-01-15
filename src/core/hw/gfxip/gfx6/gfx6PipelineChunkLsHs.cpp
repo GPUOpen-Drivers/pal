@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -210,6 +210,7 @@ void PipelineChunkLsHs::LateInit(
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkLsHs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -217,8 +218,7 @@ uint32* PipelineChunkLsHs::WriteShCommands(
     const DynamicStageInfo& hsStageInfo
     ) const
 {
-    // NOTE: The SH register PM4 image size will be zero if the LOAD_INDEX path is enabled.
-    if (m_commands.sh.spaceNeeded > 0)
+    if (UseLoadIndexPath == false)
     {
         pCmdSpace = pCmdStream->WritePm4Image(m_commands.sh.spaceNeeded, &m_commands.sh, pCmdSpace);
     }
@@ -264,21 +264,49 @@ uint32* PipelineChunkLsHs::WriteShCommands(
     return pCmdSpace;
 }
 
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkLsHs::WriteShCommands<false>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& lsStageInfo,
+    const DynamicStageInfo& hsStageInfo
+    ) const;
+template
+uint32* PipelineChunkLsHs::WriteShCommands<true>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& lsStageInfo,
+    const DynamicStageInfo& hsStageInfo
+    ) const;
+
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused
 // DWORD in pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkLsHs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: The context register PM4 headers will be zero if the LOAD_INDEX path is enabled.  It is only expected
-    // that this will be called if the pipeline is using the SET path.
-    PAL_ASSERT(m_commands.context.hdrVgtHosTessLevel.header.u32All != 0);
+    // NOTE: It is expected that this function will only ever be called when the set path is in use.
+    PAL_ASSERT(UseLoadIndexPath == false);
 
     constexpr uint32 SpaceNeeded = sizeof(m_commands.context) / sizeof(uint32);
     return pCmdStream->WritePm4Image(SpaceNeeded, &m_commands.context, pCmdSpace);
 }
+
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkLsHs::WriteContextCommands<false>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
+template
+uint32* PipelineChunkLsHs::WriteContextCommands<true>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this Pipeline chunk.
@@ -287,32 +315,27 @@ void PipelineChunkLsHs::BuildPm4Headers(
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-    // NOTE: The context and SH PM4 image should have zero size when the LOAD_INDEX path is enabled.  There is no
-    // need to build the PM4 headers when running in that mode.
-    if (!enableLoadIndexPath)
-    {
-        m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_LS,
-                                                              mmSPI_SHADER_PGM_RSRC2_LS,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderPgmLs);
+    m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_LS,
+                                                          mmSPI_SHADER_PGM_RSRC2_LS,
+                                                          ShaderGraphics,
+                                                          &m_commands.sh.hdrSpiShaderPgmLs);
 
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderUserDataLs);
+    m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
+                                                          ShaderGraphics,
+                                                          &m_commands.sh.hdrSpiShaderUserDataLs);
 
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_HS,
-                                                               mmSPI_SHADER_PGM_RSRC2_HS,
-                                                               ShaderGraphics,
-                                                               &m_commands.sh.hdrSpiShaderPgmHs);
+    m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_HS,
+                                                           mmSPI_SHADER_PGM_RSRC2_HS,
+                                                           ShaderGraphics,
+                                                           &m_commands.sh.hdrSpiShaderPgmHs);
 
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderUserDataHs);
+    m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                                          ShaderGraphics,
+                                                          &m_commands.sh.hdrSpiShaderUserDataHs);
 
-        cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
-                                       mmVGT_HOS_MIN_TESS_LEVEL,
-                                       &m_commands.context.hdrVgtHosTessLevel);
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
+                                   mmVGT_HOS_MIN_TESS_LEVEL,
+                                   &m_commands.context.hdrVgtHosTessLevel);
 
     // Build the PM4 image used in the workaround for the WaShaderSpiWriteShaderPgmRsrc2Ls hardware bug:
     //

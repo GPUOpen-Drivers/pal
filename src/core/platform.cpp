@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -109,11 +109,14 @@ Platform::Platform(
     memset(&m_properties, 0, sizeof(m_properties));
 
     m_flags.u32All = 0;
-    m_flags.disableGpuTimeout          = createInfo.flags.disableGpuTimeout;
-    m_flags.force32BitVaSpace          = createInfo.flags.force32BitVaSpace;
-    m_flags.createNullDevice           = createInfo.flags.createNullDevice;
-    m_flags.enableSvmMode              = createInfo.flags.enableSvmMode;
-    m_flags.requestShadowDescVaRange   = createInfo.flags.requestShadowDescriptorVaRange;
+    m_flags.disableGpuTimeout            = createInfo.flags.disableGpuTimeout;
+    m_flags.force32BitVaSpace            = createInfo.flags.force32BitVaSpace;
+    m_flags.createNullDevice             = createInfo.flags.createNullDevice;
+    m_flags.enableSvmMode                = createInfo.flags.enableSvmMode;
+    m_flags.requestShadowDescVaRange     = createInfo.flags.requestShadowDescriptorVaRange;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 463
+    m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
+#endif
 
     if (createInfo.pLogInfo != nullptr)
     {

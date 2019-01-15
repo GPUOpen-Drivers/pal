@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -355,17 +355,22 @@ uint32* ComputePipeline::WriteCommands(
 {
     auto*const pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
 
-    if ((m_commands.loadIndex.loadShRegIndex.header.u32All == 0) ||
-        (pGfx6CmdStream->GetEngineType() == EngineType::EngineTypeCompute))
+    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
+    // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
+    // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
+    // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
+    const bool useSetPath =
+        ((m_commands.loadIndex.loadShRegIndex.header.u32All == 0) ||
+         pGfx6CmdStream->Pm4OptimizerEnabled()                    ||
+         (pGfx6CmdStream->GetEngineType() == EngineType::EngineTypeCompute));
+
+    if (useSetPath)
     {
-        // Must fall back to the "legacy" SET path on GPU's which don't support the updated microcode, or on compute
-        // engines (the MEC does not support any LOAD packets).
         constexpr uint32 SpaceNeededSet = sizeof(m_commands.set) / sizeof(uint32);
         pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededSet, &m_commands.set, pCmdSpace);
     }
     else
     {
-        // Universal engines on GPU's which support the updated microcode can use the LOAD_INDEX path.
         constexpr uint32 SpaceNeededLoad = sizeof(m_commands.loadIndex) / sizeof(uint32);
         pCmdSpace = pGfx6CmdStream->WritePm4Image(SpaceNeededLoad, &m_commands.loadIndex, pCmdSpace);
     }

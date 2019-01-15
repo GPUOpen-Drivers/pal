@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -366,8 +366,17 @@ uint32* ComputePipeline::WriteCommands(
     ) const
 {
     auto*const pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
-    if ((pGfx9CmdStream->GetEngineType() == EngineType::EngineTypeCompute) ||
-        (m_commands.loadIndex.loadShRegIndex.header.u32All == 0))
+
+    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled or for compute command buffers.  The optimizer cannot
+    // optimize these load packets because the register values are in GPU memory.  Additionally, any client requesting
+    // PM4 optimization is trading CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
+    // This gets disabled for compute command buffers because the MEC does not support any LOAD packets.
+    const bool useSetPath =
+        ((m_commands.loadIndex.loadShRegIndex.header.u32All == 0) ||
+         pGfx9CmdStream->Pm4OptimizerEnabled()                    ||
+         (pGfx9CmdStream->GetEngineType() == EngineType::EngineTypeCompute));
+
+    if (useSetPath)
     {
         pCmdSpace = pGfx9CmdStream->WritePm4Image(m_commands.set.spaceNeeded, &m_commands.set, pCmdSpace);
     }

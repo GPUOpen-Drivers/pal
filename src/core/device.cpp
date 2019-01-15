@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1417,7 +1417,7 @@ Result Device::Finalize(
                 result = CreateInternalCmdAllocators();
             }
 
-            if (result == Result::Success)
+            if ((result == Result::Success) && (m_pPlatform->InternalResidencyOptsDisabled() == false))
             {
                 result = PerformOsInternalQueueInit();
             }
@@ -1571,20 +1571,32 @@ Result Device::CreateDummyCommandStreams()
             case EngineTypeUniversal:
             case EngineTypeCompute:
             case EngineTypeExclusiveCompute:
-                if ((m_pGfxDevice != nullptr) && (m_engineProperties.perEngine[engineType].numAvailable > 0))
+                if (m_pGfxDevice != nullptr)
                 {
                     result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
                 }
                 break;
 #endif
-#if PAL_BUILD_OSS
+#if PAL_BUILD_OSS || PAL_BUILD_GFX
             case EngineTypeDma:
+#if PAL_BUILD_OSS
+                // Most GPU's use OSSIP for DMA engines.
                 if (m_pOssDevice != nullptr)
                 {
+                    // Create OSS command stream for DMA...
                     result = m_pOssDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
                 }
-                break;
 #endif
+#if PAL_BUILD_GFX
+                // Some GPUs use GFXIP instead for DMA engines.
+                if ((m_pDummyCommandStreams[engineType] == nullptr) && (m_pGfxDevice != nullptr))
+                {
+                    // Create GFX command stream for DMA...
+                    result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
+                }
+#endif
+                break;
+#endif // PAL_BUILD_OSS || PAL_BUILD_GFX
 
             default:
                 // No corresponding dummy command stream for this engine
@@ -1868,6 +1880,27 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution =
                 m_chipProperties.gfx6.supportTrapezoidTessDistribution;
 
+            if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
+            {
+                // Gfx6 has a max 2SE x 2SH layout
+                for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
+                {
+                    for (uint32 sh = 0; sh < gfx6Props.numShaderArrays; ++sh)
+                    {
+                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] =
+                            static_cast<uint16>(gfx6Props.activeCuMaskGfx6[se][sh]);
+                    }
+                }
+            }
+            else
+            {
+                // Gfx7-8 have a max 4SE x 1SH layout
+                for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
+                {
+                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] =
+                        static_cast<uint16>(gfx6Props.activeCuMaskGfx7[se]);
+                }
+            }
             break;
         }
 #endif // PAL_BUILD_GFX6
@@ -1918,6 +1951,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx9Props.gsPrimBufferDepth;
             pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx9Props.gsVgtTableDepth;
 
+            pInfo->gfxipProperties.shaderCore.flags.u32All = 0;
+
             // Tessellation distribution mode flags.
             pInfo->gfxipProperties.flags.supportPatchTessDistribution     =
                 m_chipProperties.gfx9.supportPatchTessDistribution;
@@ -1929,6 +1964,22 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support1xMsaaSampleLocations =
                 m_chipProperties.gfx9.support1xMsaaSampleLocations;
 
+            PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
+                       (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
+            if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
+                {
+                    for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
+                    {
+                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] =
+                                static_cast<uint16>(gfx9Props.activeCuMask[se][sa]);
+
+                        // Ensure no overflow occurs
+                        PAL_ASSERT(TestAnyFlagSet(gfx9Props.activeCuMask[se][sa], 0xffff0000) == false);
+                    }
+                }
+            }
             break;
         }
 #endif // PAL_BUILD_GFX9

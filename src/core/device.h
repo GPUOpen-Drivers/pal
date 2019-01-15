@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -675,9 +675,9 @@ struct GpuChipProperties
             uint32 gsPrimBufferDepth;
             uint32 maxGsWavesPerVgt;
             uint32 parameterCacheLines;
-            // First index is the shader array, second index is the shader engine
-            uint32 activeCuMask[4][4];
-            uint32 alwaysOnCuMask[4][4];
+            //                   [SE][SA]
+            uint32 activeCuMask  [4] [4];
+            uint32 alwaysOnCuMask[4] [4];
 
             uint32 numSdpInterfaces;          // Number of Synchronous Data Port interfaces to memory.
 
@@ -706,7 +706,7 @@ struct GpuChipProperties
                 uint32 supportSpp                               :  1; // HW supports Shader Profiling for Power
                 uint32 validPaScTileSteeringOverride            :  1; // Value of paScTileSteeringOverride is valid
                 uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 placeholder1                             :  6; // Placeholder. Do not use.
+                uint32 placeholder1                             :  5; // Placeholder. Do not use.
                 uint32 timestampResetOnIdle                     :  1; // GFX OFF feature causes the timestamp to reset.
                 uint32 support1xMsaaSampleLocations             :  1; // HW supports 1xMSAA custom quad sample patterns
                 uint32 supportReleaseAcquireInterface           :  1; // If true, ASIC supports the new barrier interface
@@ -716,6 +716,7 @@ struct GpuChipProperties
                                                                       // instead of CmdReleaseThenAcquire().
                                                                       // Note: ReleaseAcquireInterface support is a
                                                                       //       prerequisite.
+                uint32 placeholder2                             :  1; // Placeholder. Do not use.
                 uint32 reserved                                 :  5;
             };
 

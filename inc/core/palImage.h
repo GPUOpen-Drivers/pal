@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -403,6 +403,7 @@ struct ImageLayout
 /// IImage::GetSubresourceLayout().
 struct SubresLayout
 {
+    uint32   elementBytes;  ///< size of each element in bytes
     gpusize  offset;        ///< Offset in bytes from the base of the image's GPU memory where the subresource starts.
     gpusize  swizzleOffset; ///< Offset in bytes used for supporting parameterized swizzle
     gpusize  size;          ///< Size of the subresource in bytes.
@@ -412,6 +413,7 @@ struct SubresLayout
                             ///  optimally tiled copies.
     uint32   tileSwizzle;   ///< Bank/Pipe swizzle bits for macro-tiling modes.
     Extent3d blockSize;     ///< Size of a tile block in texels - micro tile for 1D tiling and macro tile for 2D tiling.
+    Offset3d mipTailCoord;  ///< coords of the subresource within the mip tail
 
     /// Extent of the subresource in texels, including all internal padding for this subresource.
     Extent3d paddedExtent;

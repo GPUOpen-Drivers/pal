@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -60,12 +60,12 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableTahiti;
         break;
 
-    case Pal::AsicRevision::Bonaire:
     case Pal::AsicRevision::Kalindi:
     case Pal::AsicRevision::Godavari:
         pTable = textWriterComputeBinaryTableKalindi;
         break;
 
+    case Pal::AsicRevision::Bonaire:
     case Pal::AsicRevision::HawaiiPro:
     case Pal::AsicRevision::Hawaii:
     case Pal::AsicRevision::Spectre:

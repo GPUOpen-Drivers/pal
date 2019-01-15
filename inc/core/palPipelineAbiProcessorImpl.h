@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -147,11 +147,11 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
     {
     case 6:
         m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx600) +
-                                                          gfxIpStepping);
+                                                             gfxIpStepping);
         break;
     case 7:
         m_flags.machineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx700) +
-                                                          gfxIpStepping);
+                                                             gfxIpStepping);
         break;
     case 8:
         m_flags.machineType = (gfxIpMinorVer > 0) ? AmdGpuMachineType::Gfx810 :
@@ -161,17 +161,14 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
     case 9:
         switch (gfxIpStepping)
         {
-        case 0:
+        case GfxIpSteppingVega10:
             m_flags.machineType = AmdGpuMachineType::Gfx900;
             break;
-        case 2:
+        case GfxIpSteppingRaven:
             m_flags.machineType = AmdGpuMachineType::Gfx902;
             break;
-        case 4:
+        case GfxIpSteppingVega12:
             m_flags.machineType = AmdGpuMachineType::Gfx904;
-            break;
-        case 6:
-            m_flags.machineType = AmdGpuMachineType::Gfx906;
             break;
         }
         break;

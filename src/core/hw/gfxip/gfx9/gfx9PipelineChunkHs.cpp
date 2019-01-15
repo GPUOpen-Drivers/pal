@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -156,14 +156,14 @@ void PipelineChunkHs::LateInit(
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkHs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
     const DynamicStageInfo& hsStageInfo
     ) const
 {
-    // NOTE: The SH register PM4 size will be zero if the pipeline isn't using the SET path.
-    if (m_commands.sh.spaceNeeded != 0)
+    if (UseLoadIndexPath == false)
     {
         pCmdSpace = pCmdStream->WritePm4Image(m_commands.sh.spaceNeeded, &m_commands.sh, pCmdSpace);
     }
@@ -193,21 +193,47 @@ uint32* PipelineChunkHs::WriteShCommands(
     return pCmdSpace;
 }
 
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkHs::WriteShCommands<false>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& hsStageInfo
+    ) const;
+template
+uint32* PipelineChunkHs::WriteShCommands<true>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& hsStageInfo
+    ) const;
+
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkHs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: The context register PM4 headers will be zero if the pipeline isn't using the SET path.  It is only
-    // expected that this will be called if the pipeline *is* using the SET path.
-    PAL_ASSERT(m_commands.context.hdrvVgtHosTessLevel.header.u32All != 0);
+    // NOTE: It is expected that this function will only ever be called when the set path is in use.
+    PAL_ASSERT(UseLoadIndexPath == false);
 
     constexpr uint32 SpaceNeeded = sizeof(m_commands.context) / sizeof(uint32);
     return pCmdStream->WritePm4Image(SpaceNeeded, &m_commands.context, pCmdSpace);
 }
+
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkHs::WriteContextCommands<false>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
+template
+uint32* PipelineChunkHs::WriteContextCommands<true>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this Pipeline chunk.
@@ -220,26 +246,23 @@ void PipelineChunkHs::BuildPm4Headers(
     const uint16 baseUserDataHs     = m_device.GetBaseUserDataReg(HwShaderStage::Hs);
     const uint32 mmSpiShaderPgmLoLs = cmdUtil.GetRegInfo().mmSpiShaderPgmLoLs;
 
-    if (!enableLoadIndexPath)
-    {
-        m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSpiShaderPgmLoLs,
-                                                              mmSpiShaderPgmLoLs + 1,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderPgmHs);
+    m_commands.sh.spaceNeeded = cmdUtil.BuildSetSeqShRegs(mmSpiShaderPgmLoLs,
+                                                          mmSpiShaderPgmLoLs + 1,
+                                                          ShaderGraphics,
+                                                          &m_commands.sh.hdrSpiShaderPgmHs);
 
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(baseUserDataHs + ConstBufTblStartReg,
-                                                              ShaderGraphics,
-                                                              &m_commands.sh.hdrSpiShaderUserDataHs);
+    m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(baseUserDataHs + ConstBufTblStartReg,
+                                                          ShaderGraphics,
+                                                          &m_commands.sh.hdrSpiShaderUserDataHs);
 
-        m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
-                                                               mmSPI_SHADER_PGM_RSRC2_HS,
-                                                               ShaderGraphics,
-                                                               &m_commands.sh.hdrSpiShaderPgmRsrcHs);
+    m_commands.sh.spaceNeeded += cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
+                                                           mmSPI_SHADER_PGM_RSRC2_HS,
+                                                           ShaderGraphics,
+                                                           &m_commands.sh.hdrSpiShaderPgmRsrcHs);
 
-        cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
-                                       mmVGT_HOS_MIN_TESS_LEVEL,
-                                       &m_commands.context.hdrvVgtHosTessLevel);
-    }
+    cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
+                                   mmVGT_HOS_MIN_TESS_LEVEL,
+                                   &m_commands.context.hdrvVgtHosTessLevel);
 
     // NOTE: Supporting real-time compute requires use of SET_SH_REG_INDEX for this register.
     m_commands.dynamic.spaceNeeded = cmdUtil.BuildSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -112,12 +112,12 @@ typedef enum SqttFileChunkType
 /// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
 static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
 {
-    {0, 2}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
-    {0, 1}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
+    {0, 4}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
+    {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_ISA_DATABASE,
-    {1, 0}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
+    {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
@@ -194,12 +194,12 @@ typedef enum SqttGpuType
  */
 typedef enum SqttGfxIpLevel
 {
-    SQTT_GFXIP_LEVEL_NONE      = 0x0,
-    SQTT_GFXIP_LEVEL_GFXIP_6   = 0x1,
-    SQTT_GFXIP_LEVEL_GFXIP_7   = 0x2,
-    SQTT_GFXIP_LEVEL_GFXIP_8   = 0x3,
-    SQTT_GFXIP_LEVEL_GFXIP_8_1 = 0x4,
-    SQTT_GFXIP_LEVEL_GFXIP_9   = 0x5,
+    SQTT_GFXIP_LEVEL_NONE       = 0x0,
+    SQTT_GFXIP_LEVEL_GFXIP_6    = 0x1,
+    SQTT_GFXIP_LEVEL_GFXIP_7    = 0x2,
+    SQTT_GFXIP_LEVEL_GFXIP_8    = 0x3,
+    SQTT_GFXIP_LEVEL_GFXIP_8_1  = 0x4,
+    SQTT_GFXIP_LEVEL_GFXIP_9    = 0x5,
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -221,6 +221,8 @@ typedef enum SqttMemoryType
 } SqttMemoryType;
 
 const uint32_t SQTT_GPU_NAME_MAX_SIZE = 256;
+const uint32_t SQTT_MAX_NUM_SE        = 32;
+const uint32_t SQTT_SA_PER_SE         = 2;
 
 /** A structure encapsulating information about the ASIC on which the trace was performed.
  */
@@ -268,7 +270,14 @@ typedef struct SqttFileChunkAsicInfo
     uint32_t            memoryOpsPerClock;               /*!< Number of memory operations per memory clock cycle. */
     SqttMemoryType      memoryChipType;                  /*!< The type of memory chip used by the asic. */
     uint32_t            ldsGranularity;                  /*!< The LDS allocation granularity expressed in bytes. */
+    uint16_t            cuMask[SQTT_MAX_NUM_SE][SQTT_SA_PER_SE];
+                                                         /*!< Mask of present, non-harvested CUs (physical layout) */
+    char                reserved1[128];                  /*!< Reserved for future changes to CU mask */
 } SqttFileChunkAsicInfo;
+
+static_assert(sizeof(SqttFileChunkAsicInfo::cuMask)    == 1024 / 8, "cuMask doesn't match RGP Spec");
+static_assert(sizeof(SqttFileChunkAsicInfo::cuMask[0]) == 32   / 8, "cuMask SE size doesn't match RGP Spec");
+static_assert(sizeof(SqttFileChunkAsicInfo::reserved1) == 1024 / 8, "reserved1 doesn't match RGP Spec");
 
 /** A structure encapsulating information about the API on which the trace was performed.
  */
@@ -493,11 +502,13 @@ typedef enum SqttQueueType
 */
 typedef enum SqttEngineType
 {
-    SQTT_ENGINE_TYPE_UNKNOWN           = 0x0,
-    SQTT_ENGINE_TYPE_UNIVERSAL         = 0x1,
-    SQTT_ENGINE_TYPE_COMPUTE           = 0x2,
-    SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE = 0x3,
-    SQTT_ENGINE_TYPE_DMA               = 0x4,
+    SQTT_ENGINE_TYPE_UNKNOWN                 = 0x0,
+    SQTT_ENGINE_TYPE_UNIVERSAL               = 0x1,
+    SQTT_ENGINE_TYPE_COMPUTE                 = 0x2,
+    SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE       = 0x3,
+    SQTT_ENGINE_TYPE_DMA                     = 0x4,
+    SQTT_ENGINE_TYPE_HIGH_PRIORITY_UNIVERSAL = 0x7,
+    SQTT_ENGINE_TYPE_HIGH_PRIORITY_GRAPHICS  = 0x8
 } SqttEngineType;
 
 /** A structure encapsulating hardware information about a queue.

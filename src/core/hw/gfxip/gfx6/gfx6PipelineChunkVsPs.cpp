@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -302,6 +302,7 @@ void PipelineChunkVsPs::LateInit(
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
@@ -309,8 +310,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     const DynamicStageInfo& psStageInfo
     ) const
 {
-    // NOTE: The SH register PM4 image headers will be zero if the GPU doesn't support these registers.
-    if (m_commands.sh.hdrSpiShaderPgmVs.header.u32All != 0)
+    if (UseLoadIndexPath == false)
     {
         constexpr uint32 SpaceNeededSh = sizeof(m_commands.sh) / sizeof(uint32);
         pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSh, &m_commands.sh, pCmdSpace);
@@ -362,22 +362,49 @@ uint32* PipelineChunkVsPs::WriteShCommands(
     return pCmdSpace;
 }
 
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkVsPs::WriteShCommands<false>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& vsStageInfo,
+    const DynamicStageInfo& psStageInfo
+    ) const;
+template
+uint32* PipelineChunkVsPs::WriteShCommands<true>(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& vsStageInfo,
+    const DynamicStageInfo& psStageInfo
+    ) const;
+
 // =====================================================================================================================
 // Copies this pipeline chunk's context commands into the specified command space. Returns the next unused
 // DWORD in pCmdSpace.
+template <bool UseLoadIndexPath>
 uint32* PipelineChunkVsPs::WriteContextCommands(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
     ) const
 {
-    // NOTE: The context and stream-out PM4 image sizes will be zero if the LOAD_INDEX path is enabled.  It is only
-    // expected that this will be called if the pipeline is using the SET path.
-    PAL_ASSERT(m_commands.context.spaceNeeded > 0);
-    PAL_ASSERT(m_commands.streamOut.spaceNeeded > 0);
+    // NOTE: It is expected that this function will only ever be called when the set path is in use.
+    PAL_ASSERT(UseLoadIndexPath == false);
 
     pCmdSpace = pCmdStream->WritePm4Image(m_commands.context.spaceNeeded, &m_commands.context, pCmdSpace);
     return pCmdStream->WritePm4Image(m_commands.streamOut.spaceNeeded, &m_commands.streamOut, pCmdSpace);
 }
+
+// Instantiate template versions for the linker.
+template
+uint32* PipelineChunkVsPs::WriteContextCommands<false>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
+template
+uint32* PipelineChunkVsPs::WriteContextCommands<true>(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
+    ) const;
 
 // =====================================================================================================================
 // Assembles the PM4 headers for the commands in this pipeline chunk.
@@ -387,60 +414,55 @@ void PipelineChunkVsPs::BuildPm4Headers(
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-    // NOTE: The context, stream-out and SH PM4 images should have zero size when the LOAD_INDEX path is enabled.  There
-    // is no need to build the PM4 headers when running in that mode.
-    if (!enableLoadIndexPath)
+    cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
+                              mmSPI_SHADER_PGM_RSRC2_VS,
+                              ShaderGraphics,
+                              &m_commands.sh.hdrSpiShaderPgmVs);
+
+    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+                             ShaderGraphics,
+                             &m_commands.sh.hdrSpiShaderUserDataVs);
+
+    cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
+                              mmSPI_SHADER_PGM_RSRC2_PS,
+                              ShaderGraphics,
+                              &m_commands.sh.hdrSpiSHaderPgmPs);
+
+    cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                             ShaderGraphics,
+                             &m_commands.sh.hdrSpiShaderUserDataPs);
+
+    m_commands.context.spaceNeeded =  cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
+                                                                     mmSPI_SHADER_COL_FORMAT,
+                                                                     &m_commands.context.hdrOutFormat);
+
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
+                                                                    &m_commands.context.hdrVsOutCntl);
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
+                                                                    &m_commands.context.hdrPrimId);
+
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_BARYC_CNTL,
+                                                                    &m_commands.context.hdrBarycCntl);
+
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
+                                                                     mmSPI_PS_INPUT_ADDR,
+                                                                     &m_commands.context.hdrPsIn);
+
+    PAL_ASSERT((interpolatorCount > 0) && (interpolatorCount <= MaxPsInputSemantics));
+    m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
+                                                                    (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
+                                                                    &m_commands.context.hdrPsInputs);
+
+    m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
+                                                                      mmVGT_STRMOUT_BUFFER_CONFIG,
+                                                                      &m_commands.streamOut.hdrStrmoutCfg);
+    if (UsesStreamOut())
     {
-        cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_VS,
-                                  mmSPI_SHADER_PGM_RSRC2_VS,
-                                  ShaderGraphics,
-                                  &m_commands.sh.hdrSpiShaderPgmVs);
-
-        cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                                 ShaderGraphics,
-                                 &m_commands.sh.hdrSpiShaderUserDataVs);
-
-        cmdUtil.BuildSetSeqShRegs(mmSPI_SHADER_PGM_LO_PS,
-                                  mmSPI_SHADER_PGM_RSRC2_PS,
-                                  ShaderGraphics,
-                                  &m_commands.sh.hdrSpiSHaderPgmPs);
-
-        cmdUtil.BuildSetOneShReg(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                                 ShaderGraphics,
-                                 &m_commands.sh.hdrSpiShaderUserDataPs);
-
-        m_commands.context.spaceNeeded =  cmdUtil.BuildSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
-                                                                         mmSPI_SHADER_COL_FORMAT,
-                                                                         &m_commands.context.hdrOutFormat);
-
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmPA_CL_VS_OUT_CNTL,
-                                                                        &m_commands.context.hdrVsOutCntl);
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmVGT_PRIMITIVEID_EN,
-                                                                        &m_commands.context.hdrPrimId);
-
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetOneContextReg(mmSPI_BARYC_CNTL,
-                                                                        &m_commands.context.hdrBarycCntl);
-
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_ENA,
-                                                                         mmSPI_PS_INPUT_ADDR,
-                                                                         &m_commands.context.hdrPsIn);
-
-        PAL_ASSERT(interpolatorCount <= MaxPsInputSemantics);
-        m_commands.context.spaceNeeded += cmdUtil.BuildSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0,
-                                                                        (mmSPI_PS_INPUT_CNTL_0 + interpolatorCount - 1),
-                                                                        &m_commands.context.hdrPsInputs);
-
-        m_commands.streamOut.spaceNeeded = cmdUtil.BuildSetSeqContextRegs(mmVGT_STRMOUT_CONFIG,
-                                                                          mmVGT_STRMOUT_BUFFER_CONFIG,
-                                                                          &m_commands.streamOut.hdrStrmoutCfg);
-        if (UsesStreamOut())
+        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
         {
-            for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
-            {
-                m_commands.streamOut.spaceNeeded += cmdUtil.BuildSetOneContextReg(
-                    VgtStrmoutVtxStrideAddr[i],
-                    &m_commands.streamOut.stride[i].hdrVgtStrmoutVtxStride);
-            }
+            m_commands.streamOut.spaceNeeded += cmdUtil.BuildSetOneContextReg(
+                VgtStrmoutVtxStrideAddr[i],
+                &m_commands.streamOut.stride[i].hdrVgtStrmoutVtxStride);
         }
     }
 

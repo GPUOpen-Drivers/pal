@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include "palFile.h"
 #include "palSysMemory.h"
 #include "palMemTrackerImpl.h"
+#include "palHashMapImpl.h"
 
 #include <cwchar>
 #include <errno.h>
@@ -158,58 +159,104 @@ Result QuerySystemInfo(
             }
         }
 
+        pSystemInfo->cpuLogicalCoreCount  = 0;
         pSystemInfo->cpuPhysicalCoreCount = 0;
-        pSystemInfo->cpuLogicalCoreCount = 0;
 
         // parse /proc/cpuinfo to get logical and physical core info
         File cpuInfoFile;
         cpuInfoFile.Open("/proc/cpuinfo", FileAccessRead);
+
         if ((result == Result::Success) && cpuInfoFile.IsOpen())
         {
-            // "/proc/cpuinfo" size will be larger than 8K for 8 logical cores; 1K per core.
-            constexpr size_t BufSize = 32*1024;
-            GenericAllocatorAuto allocator;
-            void * pBuf = PAL_CALLOC(BufSize, &allocator, AllocInternalTemp);
-            size_t sizeRead = 0;
-            uint32 idx = 0;
-            uint32 cpuLogicalCoreCount = 0;
-            uint32 maxCpuPhysicalCoreIndex = 0;
-
-            if (pBuf != nullptr)
+            struct CpuCoreCount
             {
-                cpuInfoFile.Read(pBuf, BufSize, &sizeRead);
+                uint32 logicalCoreCount;
+                uint32 physicalCoreCount;
+            };
+            typedef Util::HashMap<uint32, CpuCoreCount, GenericAllocatorAuto> PhysicalPackageCoreCountMap;
 
-                char * pMatchStr =  static_cast<char *>(pBuf);
-                pMatchStr[sizeRead] = '\0';
+            constexpr size_t     BufSize            = 8*1024;
+            constexpr uint32     MaxSocketsHint     = 4;
+            CpuCoreCount*        pCoreCount         = nullptr;
+            bool                 coreCountPopulated = false;
+            GenericAllocatorAuto allocator;
 
-                while( (pMatchStr = strstr(pMatchStr, "processor")) )
+            auto pBuf = static_cast<char* const>(PAL_CALLOC(BufSize, &allocator, AllocInternalTemp));
+            PhysicalPackageCoreCountMap coreCountPerPhysicalId(MaxSocketsHint, &allocator);
+
+            result = coreCountPerPhysicalId.Init();
+
+            while ((pBuf != nullptr) && (result == Result::Success))
+            {
+                result = cpuInfoFile.ReadLine(pBuf, BufSize, nullptr);
+
+                if (result == Result::Success)
                 {
-                    cpuLogicalCoreCount++;
-
-                    pMatchStr = strstr(pMatchStr, "core id");
-                    if (pMatchStr == nullptr)
+                    auto pMatchStr = strstr(pBuf, "physical id");
+                    if (pMatchStr != nullptr)
                     {
-                        break;
+                        uint32 physicalId = 0;
+
+                        if (sscanf(pMatchStr, "physical id : %d", &physicalId) == 1)
+                        {
+                            result = coreCountPerPhysicalId.FindAllocate(physicalId,
+                                                                         &coreCountPopulated,
+                                                                         &pCoreCount);
+                        }
+                        else
+                        {
+                            PAL_ASSERT_ALWAYS();
+                        }
+                        continue;
                     }
 
-                    if (sscanf(pMatchStr, "core id : %d", &idx) == 1)
+                    if ((coreCountPopulated == false) && (pCoreCount != nullptr))
                     {
-                        maxCpuPhysicalCoreIndex = Max(maxCpuPhysicalCoreIndex, idx);
+                        pMatchStr = strstr(pBuf, "siblings");
+                        if (pMatchStr != nullptr)
+                        {
+                            auto ret = sscanf(pMatchStr, "siblings : %d", &pCoreCount->logicalCoreCount);
+                            PAL_ASSERT(ret == 1);
+                            continue;
+                        }
+
+                        pMatchStr = strstr(pBuf, "cpu cores");
+                        if (pMatchStr != nullptr)
+                        {
+                            auto ret = sscanf(pMatchStr, "cpu cores : %d", &pCoreCount->physicalCoreCount);
+                            PAL_ASSERT(ret == 1);
+                            continue;
+                        }
                     }
-                    pMatchStr = pMatchStr + 1;
                 }
-
-                PAL_FREE(pBuf,&allocator);
+                else // EOF or an error
+                {
+                    if (result == Result::Eof)
+                    {
+                        result = Result::Success;
+                    }
+                    break;
+                }
             }
 
-            pSystemInfo->cpuLogicalCoreCount = cpuLogicalCoreCount;
+            PAL_FREE(pBuf, &allocator);
 
-            pSystemInfo->cpuPhysicalCoreCount = maxCpuPhysicalCoreIndex + 1;
+            if (result == Result::Success)
+            {
+                for (auto iter = coreCountPerPhysicalId.Begin(); iter.Get() != nullptr; iter.Next())
+                {
+                    const auto& coreCount = iter.Get()->value;
+
+                    pSystemInfo->cpuLogicalCoreCount  += coreCount.logicalCoreCount;
+                    pSystemInfo->cpuPhysicalCoreCount += coreCount.physicalCoreCount;
+                }
+            }
         }
+
         cpuInfoFile.Close();
 
         // GetCcxMask() should be called only for Ryzen for now.
-        if (pSystemInfo->cpuType == CpuType::AmdRyzen)
+        if ((result == Result::Success) && (pSystemInfo->cpuType == CpuType::AmdRyzen))
         {
             result = GetCcxMask(pSystemInfo, pSystemInfo->cpuLogicalCoreCount);
         }

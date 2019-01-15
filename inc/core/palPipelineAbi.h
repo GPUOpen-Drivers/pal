@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -92,8 +92,47 @@ enum class AmdGpuMachineType : uint8
 #endif
 };
 
+/// Enumerates the steppng values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
+/// in this list, because some values are re-used across different GFXIP major/minor versions (e.g., Gfx6.0.0
+/// and Gfx9.0.0 are different GPUs that happen to share a common stepping number).
+enum GfxIpStepping : uint16
+{
+    // GFXIP 6.0.x steppings:
+    GfxIpSteppingTahiti    = 0,
+    GfxIpSteppingPitcairn  = 1,
+    GfxIpSteppingCapeVerde = 1,
+    GfxIpSteppingOland     = 1,
+    GfxIpSteppingHainan    = 1,
+
+    // GFXIP 7.0.x steppings:
+    GfxIpSteppingKaveri    = 0,
+    GfxIpSteppingHawaiiPro = 1,
+    GfxIpSteppingHawaii    = 2,
+    GfxIpSteppingKalindi   = 3,
+    GfxIpSteppingBonaire   = 4,
+
+    // GFXIP 8.0.x steppings:
+    GfxIpSteppingCarrizo = 1,
+    GfxIpSteppingIceland = 2,
+    GfxIpSteppingTonga   = 2,
+    GfxIpSteppingFiji    = 3,
+    GfxIpSteppingPolaris = 3,
+
+    // GFXIP 8.1.x steppings:
+    GfxIpSteppingStoney = 0,
+
+    // GFXIP 9.0.x steppings:
+    GfxIpSteppingVega10 = 0,
+    GfxIpSteppingRaven  = 2,
+    GfxIpSteppingVega12 = 4,
+
+};
+
 /// Name of the section where our pipeline binaries store the disassembly for all shader stages.
 static constexpr char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
+
+/// Name prefix of the section where our pipeline binaries store extra information e.g. LLVM IR.
+static constexpr char AmdGpuCommentName[] = ".AMDGPU.comment.";
 
 /// String table of the Pipeline ABI symbols.
 static const char* PipelineAbiSymbolNameStrings[] =

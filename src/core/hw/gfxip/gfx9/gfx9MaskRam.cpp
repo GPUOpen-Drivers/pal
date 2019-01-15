@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2044,6 +2044,15 @@ bool Gfx9Dcc::UseDccForImage(
             {
                 // Make sure the settings allow use of DCC surfaces for single-sampled surfaces
                 useDcc = useDcc && TestAnyFlagSet(settings.useDcc, Gfx9UseDccSingleSample);
+            }
+
+            if (useDcc && (TestAnyFlagSet(settings.useDcc, Gfx9UseDccForNonReadableFormats) == false))
+            {
+                // Ok, if we have a format that's renderable (or shader-writeable), but it's not readable, then this
+                // will trigger a format replacement with RPM-based copy operations which in turn cause big headaches
+                // with partial rectangles that paritally cover DCC tiles.  The exception is SRGB formats  as those
+                // are copied via UINT format anyway.
+                useDcc = image.ImageSupportsShaderReadsAndWrites();
             }
 
             // TODO: Re-evaulate the performance of DCC with multi-mip / multi-slice images on GFX9.  Clearing

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,10 +65,13 @@ public:
         GraphicsPipelineUploader* pUploader,
         Util::MetroHash64*        pHasher);
 
+    template <bool UseLoadIndexPath>
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& hsStageInfo) const;
+
+    template <bool UseLoadIndexPath>
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;

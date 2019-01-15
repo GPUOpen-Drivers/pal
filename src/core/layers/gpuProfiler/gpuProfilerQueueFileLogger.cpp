@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -39,17 +39,6 @@ namespace Pal
 {
 namespace GpuProfiler
 {
-
-// Translation table for obtaining Sqtt thread trace version given the Pal::GfxIpLevel.
-static const SqttVersion GfxipToSqttVersionTranslation[static_cast<uint32>(Pal::GfxIpLevel::Count)] =
-{
-    SQTT_VERSION_NONE,
-    SQTT_VERSION_2_0,  // Gfxip 6
-    SQTT_VERSION_2_1,  // Gfxip 7
-    SQTT_VERSION_2_2,  // Gfxip 8
-    SQTT_VERSION_2_2,  // Gfxip 8.1
-    SQTT_VERSION_2_3   // Gfxip 9
-};
 
 // =====================================================================================================================
 // Writes .csv entries to file corresponding to the first count items in the m_logItems deque.  The caller guarantees

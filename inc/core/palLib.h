@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 461
+#define PAL_INTERFACE_MAJOR_VERSION 463
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 0
+#define PAL_INTERFACE_MINOR_VERSION 3
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -120,8 +120,8 @@ enum class NullGpuId : uint32
     Vega12     = 0x18,
 #endif
 
-    Max        = 0x20,
-    All        = 0x21,
+    Max        = 0x22,
+    All        = 0x23,
 };
 
 /// Maps a null GPU ID to its associated text name.
@@ -164,7 +164,14 @@ struct PlatformCreateInfo
                                                          ///  the @ref VaRange::ShadowDescriptorTable virtual-address
                                                          ///  range. Some GPU's may not be capable of supporting this,
                                                          ///  even when requested by the client.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 463
+            uint32 disableInternalResidencyOpts   : 1;   ///< Disables residency optimizations for internal GPU memory
+                                                         ///  allocations.  Some clients may wish to have them turned
+                                                         ///  off to save on system resources.
+            uint32 reserved                   : 26;      ///< Reserved for future use.
+#else
             uint32 reserved                   : 27;      ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< Platform-wide creation flags.

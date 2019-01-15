@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -114,6 +114,11 @@ constexpr uint32 MaxIndirectUserDataTables = 3;
 /// Maximum number of supported entries in the MSAA sample pattern palette.  See IDevice::SetSamplePatternPalette().
 constexpr uint32 MaxSamplePatternPaletteEntries = 16;
 
+/// Maximum number of supported units in the gpu. These can be much larger than the actual values, but useful for arrays.
+constexpr uint32 MaxShaderEngines       = 32;
+/// Maximum number of supported subunits each Shader Engine splits into (SH or SA, depending on generation)
+constexpr uint32 MaxShaderArraysPerSe   = 2;
+
 /// Specifies what type of GPU a particular IDevice is (i.e., discrete vs. integrated).
 enum class GpuType : uint32
 {
@@ -140,11 +145,9 @@ enum class GfxIpLevel : uint32
     GfxIp8    = 0x3,
     GfxIp8_1  = 0x4,
     GfxIp9    = 0x5,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 426
-#else
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 462
+    Count              ///< Count of all supported GfxIp levels.
 #endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION
-
-    Count             ///< Count of all supported GfxIp levels.
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
@@ -962,8 +965,6 @@ struct DeviceProperties
 
                 uint32 placeholder5                             : 1; ///< Placeholder, do not use
 
-                uint32 placeholder6                             : 1;
-
                 /// Indicates that the GFX IP hardware (and PAL) support state inheritance for nested command buffers.
                 /// If true, nested command buffers inherit most API state from the calling root command buffer until
                 /// that state is bound to the nested command buffer itself.  If false, only the currently-bound color
@@ -980,9 +981,9 @@ struct DeviceProperties
                                                                      ///  Note: Only supported if
                                                                      ///  @ref supportReleaseAcquireInterface is supported.
 #else
-                uint32 placeholder7                             : 2; ///< Placeholder, do not use
+                uint32 placeholder6                             : 2; ///< Placeholder, do not use
 #endif
-                uint32 reserved                                 : 5; ///< Reserved for future use.
+                uint32 reserved                                 : 6; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1020,6 +1021,16 @@ struct DeviceProperties
 
         struct
         {
+            union
+            {
+                struct
+                {
+                    uint32  placeholder0     :  1;
+                    uint32  reserved :  31;         ///< Reserved for future use.
+                };
+                uint32  u32All;                      ///< Flags packed as a 32-bit unsigned integer.
+            } flags;
+
             uint32 numShaderEngines;        ///< Number of shader engines.
             uint32 numShaderArrays;         ///< Number of shader arrays.
             uint32 numCusPerShaderArray;    ///< Number of CUs per shader array that are actually usable.
@@ -1056,6 +1067,8 @@ struct DeviceProperties
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
 #endif
+            uint16 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
+                                            ///< Mask of present, non-harvested CUs (physical layout)
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -447,7 +447,7 @@ Gfx9ThreadTrace::Gfx9ThreadTrace(
     // Default to only selecting CUs that are active and not reserved for realtime use.  GFX9 only has one
     // shader array.
     PAL_ASSERT(chipProps.gfx9.numShaderArrays == 1);
-    const uint32 cuTraceableCuMask = chipProps.gfx9.activeCuMask[0][m_shaderEngine] & ~chipProps.gfxip.realTimeCuMask;
+    const uint32 cuTraceableCuMask = chipProps.gfx9.activeCuMask[m_shaderEngine][0] & ~chipProps.gfxip.realTimeCuMask;
 
     // If it exists, select the first available CU from the mask
     uint32 firstActiveCu = 0;

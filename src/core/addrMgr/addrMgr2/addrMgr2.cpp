@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -832,6 +832,9 @@ Result AddrMgr2::InitSubresourceInfo(
     pSubResInfo->actualExtentElements.width  = mipInfo.pitch;
     pSubResInfo->actualExtentElements.height = mipInfo.height;
     pSubResInfo->actualExtentElements.depth  = mipInfo.depth;
+    pSubResInfo->mipTailCoord.x              = mipInfo.mipTailCoordX;
+    pSubResInfo->mipTailCoord.y              = mipInfo.mipTailCoordY;
+    pSubResInfo->mipTailCoord.z              = mipInfo.mipTailCoordZ;
 
     // AddrLib doesn't tell us the values for extentElements or actualExtentTexels so we must compute them ourselves.
     // It also doesn't tell us the exact ratios between texels and elements but we can compute them from the pitch

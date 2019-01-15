@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1051,21 +1051,21 @@ void Device::InitGfx9ChipProperties()
 void Device::InitGfx9CuMask()
 {
     auto*const pChipInfo = &m_chipProperties.gfx9;
-    for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
+    for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
     {
-        for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
+        for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
         {
-            pChipInfo->activeCuMask[shIndex][seIndex] = m_gpuInfo.cu_bitmap[seIndex][shIndex];
+            pChipInfo->activeCuMask[seIndex][shIndex] = m_gpuInfo.cu_bitmap[seIndex][shIndex];
 
             constexpr uint32 AlwaysOnSeMaskSize = 16;
             constexpr uint32 AlwaysOnSeMask     = (1ul << AlwaysOnSeMaskSize) - 1;
 
             const uint32 aoSeMask = (m_gpuInfo.cu_ao_mask >> (seIndex * AlwaysOnSeMaskSize)) & AlwaysOnSeMask;
-            pChipInfo->alwaysOnCuMask[shIndex][seIndex] = aoSeMask;
+            pChipInfo->alwaysOnCuMask[seIndex][shIndex] = aoSeMask;
         }
     }
 }
-#endif
+#endif // PAL_BUILD_GFX9
 
 // =====================================================================================================================
 // Helper method which translate the amdgpu vram type into LocalMemoryType.
@@ -1374,6 +1374,7 @@ Result Device::InitMemQueueInfo()
             case EngineTypeHighPriorityUniversal:
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
             case EngineTypeHighPriorityGraphics:
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 459
 #endif
                 // not supported on linux
                 pEngineInfo->numAvailable       = 0;

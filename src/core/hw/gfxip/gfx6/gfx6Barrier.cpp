@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -488,7 +488,8 @@ void Device::ExpandColor(
         // Performing an expand in the late phase is not ideal for performance, as it indicates the decompress could not
         // be pipelined and likely resulted in a bubble.  If an app is hitting this alert too often, it may have an
         // impact on performance.
-        PAL_ALERT(earlyPhase == false);
+        PAL_ALERT_MSG(earlyPhase == false, "Performing an expand in the late phase, oldLayout=0x%x, newLayout=0x%x",
+                      transition.imageInfo.oldLayout, transition.imageInfo.newLayout);
 
         // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV.  In order to
         // ensure the cache flush finishes before continuing, we must wait on a timestamp.

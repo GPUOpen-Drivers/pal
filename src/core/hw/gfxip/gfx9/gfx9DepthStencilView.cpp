@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,9 +32,11 @@
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
+#include <type_traits>
 
 using namespace Util;
 using namespace Pal::Formats::Gfx9;
+using std::is_same;
 
 namespace Pal
 {
@@ -315,6 +317,7 @@ void DepthStencilView::UpdateImageVa(
     // the associated image yet, so don't do anything if it's not safe
     if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
     {
+
         if (m_flags.hTile)
         {
             // Program fast-clear metadata base address.

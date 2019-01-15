@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,19 +45,78 @@ using namespace Pal;
 namespace GpuUtil
 {
 
-// Translation table for obtaining Sqtt thread trace version given the Pal::GfxIpLevel.
-static const SqttVersion GfxipToSqttVersionTranslation[static_cast<uint32>(Pal::GfxIpLevel::Count)] =
+// =====================================================================================================================
+// Translation table for obtaining Sqtt thread trace gfx ip level given the Pal::GfxIpLevel.
+SqttGfxIpLevel GfxipToSqttGfxIpLevel(
+    Pal::GfxIpLevel gfxIpLevel)
 {
-    SQTT_VERSION_NONE,
-    SQTT_VERSION_2_0,  // Gfxip 6
-    SQTT_VERSION_2_1,  // Gfxip 7
-    SQTT_VERSION_2_2,  // Gfxip 8
-    SQTT_VERSION_2_2,  // Gfxip 8.1
-    SQTT_VERSION_2_3,  // Gfxip 9
-};
+    SqttGfxIpLevel sqttLevel = SQTT_GFXIP_LEVEL_NONE;
+
+    switch (gfxIpLevel)
+    {
+    case Pal::GfxIpLevel::None:
+        sqttLevel = SQTT_GFXIP_LEVEL_NONE;
+        break;
+    case Pal::GfxIpLevel::GfxIp6:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_6;
+        break;
+    case Pal::GfxIpLevel::GfxIp7:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_7;
+        break;
+    case Pal::GfxIpLevel::GfxIp8:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_8;
+        break;
+    case Pal::GfxIpLevel::GfxIp8_1:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_8_1;
+        break;
+    case Pal::GfxIpLevel::GfxIp9:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_9;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
+        break;
+    }
+
+    return sqttLevel;
+}
+
+// =====================================================================================================================
+// Translation function for obtaining Sqtt thread trace version given the Pal::GfxIpLevel.
+SqttVersion GfxipToSqttVersion(
+    Pal::GfxIpLevel gfxIpLevel)
+{
+    SqttVersion version = SQTT_VERSION_NONE;
+
+    switch (gfxIpLevel)
+    {
+    case Pal::GfxIpLevel::None:
+        version = SQTT_VERSION_NONE;
+        break;
+    case Pal::GfxIpLevel::GfxIp6:
+        version = SQTT_VERSION_2_0;
+        break;
+    case Pal::GfxIpLevel::GfxIp7:
+        version = SQTT_VERSION_2_1;
+        break;
+    case Pal::GfxIpLevel::GfxIp8:
+        version = SQTT_VERSION_2_2;
+        break;
+    case Pal::GfxIpLevel::GfxIp8_1:
+        version = SQTT_VERSION_2_2;
+        break;
+    case Pal::GfxIpLevel::GfxIp9:
+        version = SQTT_VERSION_2_3;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
+        break;
+    }
+
+    return version;
+}
 
 // Translation table for obtaining SqttQueueType given the Pal::QueueType.
-static const SqttQueueType PalQueueTypeToSqttQueueType[Pal::QueueTypeCount] =
+static const SqttQueueType PalQueueTypeToSqttQueueType[] =
 {
     SQTT_QUEUE_TYPE_UNIVERSAL, // QueueTypeUniversal
     SQTT_QUEUE_TYPE_COMPUTE,   // QueueTypeCompute
@@ -65,18 +124,28 @@ static const SqttQueueType PalQueueTypeToSqttQueueType[Pal::QueueTypeCount] =
     SQTT_QUEUE_TYPE_UNKNOWN,   // QueueTypeTimer
 };
 
+static_assert(Util::ArrayLen(PalQueueTypeToSqttQueueType) == Pal::QueueTypeCount,
+        "The number of QueueTypes have changed. Please update GpaSession::PalQueueTypeToSqttQueueType.");
+
 // Translation table for obtaining SqttEngineType given the Pal::QueueType.
-static const SqttEngineType PalEngineTypeToSqttEngineType[Pal::EngineTypeCount] =
+static const SqttEngineType PalEngineTypeToSqttEngineType[] =
 {
-    SQTT_ENGINE_TYPE_UNIVERSAL,         // EngineTypeUniversal
-    SQTT_ENGINE_TYPE_COMPUTE,           // EngineTypeCompute
-    SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE, // EngineTypeExclusiveCompute
-    SQTT_ENGINE_TYPE_DMA,               // EngineTypeDma
-    SQTT_ENGINE_TYPE_UNKNOWN,           // EngineTypeTimer
+    SQTT_ENGINE_TYPE_UNIVERSAL,               // EngineTypeUniversal
+    SQTT_ENGINE_TYPE_COMPUTE,                 // EngineTypeCompute
+    SQTT_ENGINE_TYPE_EXCLUSIVE_COMPUTE,       // EngineTypeExclusiveCompute
+    SQTT_ENGINE_TYPE_DMA,                     // EngineTypeDma
+    SQTT_ENGINE_TYPE_UNKNOWN,                 // EngineTypeTimer
+    SQTT_ENGINE_TYPE_HIGH_PRIORITY_UNIVERSAL, // EngineTypeHighPriorityUniversal
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
+    SQTT_ENGINE_TYPE_HIGH_PRIORITY_GRAPHICS,  // EngineTypeHighPriorityGraphics
+#endif
 };
 
+static_assert(Util::ArrayLen(PalEngineTypeToSqttEngineType) == Pal::EngineTypeCount,
+        "The number of EngineTypes have changed. Please update GpaSession::PalEngineTypeToSqttEngineType.");
+
 // Translation table for obtaining SqttMemoryType given a Pal::LocalMemoryType.
-static constexpr SqttMemoryType SqttMemoryTypeTable[static_cast<uint32>(Pal::LocalMemoryType::Count)] =
+static constexpr SqttMemoryType SqttMemoryTypeTable[] =
 {
     SQTT_MEMORY_TYPE_UNKNOWN, // Unknown
     SQTT_MEMORY_TYPE_DDR2,    // Ddr2
@@ -88,6 +157,9 @@ static constexpr SqttMemoryType SqttMemoryTypeTable[static_cast<uint32>(Pal::Loc
     SQTT_MEMORY_TYPE_HBM2,    // Hbm2
     SQTT_MEMORY_TYPE_HBM3     // Hbm3
 };
+
+static_assert(Util::ArrayLen(SqttMemoryTypeTable) == static_cast<uint32>(Pal::LocalMemoryType::Count),
+        "The number of LocalMemoryTypes have changed. Please update GpaSession::SqttMemoryTypeTable.");
 
 struct BlockEventId
 {
@@ -245,7 +317,7 @@ void FillSqttAsicInfo(
     pAsicInfo->sgprAllocGranularity       = properties.gfxipProperties.shaderCore.sgprAllocGranularity;
     pAsicInfo->hardwareContexts           = properties.gfxipProperties.hardwareContexts;
     pAsicInfo->gpuType                    = static_cast<SqttGpuType>(properties.gpuType);
-    pAsicInfo->gfxIpLevel                 = static_cast<SqttGfxIpLevel>(properties.gfxLevel);
+    pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel);
     pAsicInfo->gpuIndex                   = properties.gpuIndex;
     pAsicInfo->gdsSize                    = properties.gfxipProperties.gdsSize;
     pAsicInfo->gdsPerShaderEngine         = properties.gfxipProperties.gdsSize /
@@ -282,6 +354,14 @@ void FillSqttAsicInfo(
         SqttMemoryTypeTable[static_cast<uint32>(properties.gpuMemoryProperties.localMemoryType)];
 
     pAsicInfo->ldsGranularity = properties.gfxipProperties.shaderCore.ldsGranularity;
+
+    for (uint32 se = 0; se < MaxShaderEngines; se++)
+    {
+        for (uint32 sa = 0; sa < MaxShaderArraysPerSe; sa++)
+        {
+            pAsicInfo->cuMask[se][sa] = properties.gfxipProperties.shaderCore.activeCuMask[se][sa];
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -3238,7 +3318,7 @@ Result GpaSession::DumpRgpData(
             desc.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DESC].majorVersion;
             desc.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SQTT_DESC].minorVersion;
 
-            desc.sqttVersion = GfxipToSqttVersionTranslation[static_cast<uint32>(m_deviceProps.gfxLevel)];
+            desc.sqttVersion = GfxipToSqttVersion(m_deviceProps.gfxLevel);
 
             if ((result == Result::Success) && (pRgpOutput != nullptr))
             {

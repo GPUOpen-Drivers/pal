@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,49 +56,52 @@ enum GfxEngine : uint32
 // Identification table for all the GPUs that are supported in NULL device mode
 constexpr  NullIdLookup  NullIdLookupTable[] =
 {
-    { FAMILY_SI,  SI_TAHITI_P_A21,      PRID_SI_TAHITI,               GfxEngineGfx6,  DEVICE_ID_SI_TAHITI_P_6780     },
-    { FAMILY_SI,  SI_PITCAIRN_PM_A12,   PRID_SI_PITCAIRN,             GfxEngineGfx6,  DEVICE_ID_SI_PITCAIRN_PM_6818  },
-    { FAMILY_SI,  SI_CAPEVERDE_M_A12,   PRID_SI_CAPEVERDE,            GfxEngineGfx6,  DEVICE_ID_SI_CAPEVERDE_M_683D  },
-    { FAMILY_SI,  SI_OLAND_M_A0,        PRID_SI_OLAND_87,             GfxEngineGfx6,  DEVICE_ID_SI_OLAND_M_6611      },
-    { FAMILY_SI,  SI_HAINAN_V_A0,       PRID_SI_HAINAN_EXO_81,        GfxEngineGfx6,  DEVICE_ID_SI_HAINAN_V_6660     },
+    { FAMILY_SI,  SI_TAHITI_P_A21,      PRID_SI_TAHITI,               GfxEngineGfx6,  DEVICE_ID_SI_TAHITI_P_6780      },
+    { FAMILY_SI,  SI_PITCAIRN_PM_A12,   PRID_SI_PITCAIRN,             GfxEngineGfx6,  DEVICE_ID_SI_PITCAIRN_PM_6818   },
+    { FAMILY_SI,  SI_CAPEVERDE_M_A12,   PRID_SI_CAPEVERDE,            GfxEngineGfx6,  DEVICE_ID_SI_CAPEVERDE_M_683D   },
+    { FAMILY_SI,  SI_OLAND_M_A0,        PRID_SI_OLAND_87,             GfxEngineGfx6,  DEVICE_ID_SI_OLAND_M_6611       },
+    { FAMILY_SI,  SI_HAINAN_V_A0,       PRID_SI_HAINAN_EXO_81,        GfxEngineGfx6,  DEVICE_ID_SI_HAINAN_V_6660      },
 
-    { FAMILY_KV,  KV_SPECTRE_A0,        PRID_KV_SPECTRE_GODAVARI_D4,  GfxEngineGfx6,  DEVICE_ID_SPECTRE_DESKTOP_130F },
-    { FAMILY_KV,  KV_SPOOKY_A0,         PRID_KV_SPOOKY,               GfxEngineGfx6,  DEVICE_ID_SPOOKY_DESKTOP_1316  },
-    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_00,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67A0     },
-    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_80,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67BE     },
-    { FAMILY_KV,  KV_KALINDI_A0,        PRID_KV_KALINDI_00,           GfxEngineGfx6,  DEVICE_ID_KALINDI__9830        },
-    { FAMILY_KV,  KV_GODAVARI_A0,       PRID_GODAVARI_MULLINS_01,     GfxEngineGfx6,  DEVICE_ID_KV_GODAVARI__9850    },
-    { FAMILY_CI,  CI_BONAIRE_M_A0,      PRID_CI_BONAIRE_TOBAGO_81,    GfxEngineGfx6,  DEVICE_ID_CI_BONAIRE_M_6640    },
+    { FAMILY_KV,  KV_SPECTRE_A0,        PRID_KV_SPECTRE_GODAVARI_D4,  GfxEngineGfx6,  DEVICE_ID_SPECTRE_DESKTOP_130F  },
+    { FAMILY_KV,  KV_SPOOKY_A0,         PRID_KV_SPOOKY,               GfxEngineGfx6,  DEVICE_ID_SPOOKY_DESKTOP_1316   },
+    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_00,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67A0      },
+    { FAMILY_CI,  CI_HAWAII_P_A0,       PRID_CI_HAWAII_80,            GfxEngineGfx6,  DEVICE_ID_CI_HAWAII_P_67BE      },
+    { FAMILY_KV,  KV_KALINDI_A0,        PRID_KV_KALINDI_00,           GfxEngineGfx6,  DEVICE_ID_KALINDI__9830         },
+    { FAMILY_KV,  KV_GODAVARI_A0,       PRID_GODAVARI_MULLINS_01,     GfxEngineGfx6,  DEVICE_ID_KV_GODAVARI__9850     },
+    { FAMILY_CI,  CI_BONAIRE_M_A0,      PRID_CI_BONAIRE_TOBAGO_81,    GfxEngineGfx6,  DEVICE_ID_CI_BONAIRE_M_6640     },
 
-    { FAMILY_CZ,  CZ_CARRIZO_A0,        PRID_CZ_CARRIZO_C4,           GfxEngineGfx6,  DEVICE_ID_CZ_CARRIZO_9870      },
-    { FAMILY_CZ,  CZ_BISTROL_A0,        PRID_CZ_BRISTOL_E1,           GfxEngineGfx6,  DEVICE_ID_CZ_BRISTOL_9874      },
-    { FAMILY_VI,  VI_ICELAND_M_A0,      PRID_VI_ICELAND_MESO_81,      GfxEngineGfx6,  DEVICE_ID_VI_ICELAND_M_6900    },
-    { FAMILY_VI,  VI_TONGA_P_A1,        PRID_VI_TONGA_00,             GfxEngineGfx6,  DEVICE_ID_VI_TONGA_P_6920      },
-    { FAMILY_VI,  VI_FIJI_P_A0,         PRID_VI_FIJI_CC,              GfxEngineGfx6,  DEVICE_ID_VI_FIJI_P_7300       },
-    { FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF  },
-    { FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF  },
-    { FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F  },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { FAMILY_CZ,  CZ_STONEY_A0,         PRID_ST_80,                   GfxEngineGfx6,  DEVICE_ID_ST_98E4              },
+    { FAMILY_CZ,  CZ_CARRIZO_A0,        PRID_CZ_CARRIZO_C4,           GfxEngineGfx6,  DEVICE_ID_CZ_CARRIZO_9870       },
+    { FAMILY_CZ,  CZ_BISTROL_A0,        PRID_CZ_BRISTOL_E1,           GfxEngineGfx6,  DEVICE_ID_CZ_BRISTOL_9874       },
+    { FAMILY_VI,  VI_ICELAND_M_A0,      PRID_VI_ICELAND_MESO_81,      GfxEngineGfx6,  DEVICE_ID_VI_ICELAND_M_6900     },
+    { FAMILY_VI,  VI_TONGA_P_A1,        PRID_VI_TONGA_00,             GfxEngineGfx6,  DEVICE_ID_VI_TONGA_P_6920       },
+    { FAMILY_VI,  VI_FIJI_P_A0,         PRID_VI_FIJI_CC,              GfxEngineGfx6,  DEVICE_ID_VI_FIJI_P_7300        },
+    { FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF   },
+    { FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF   },
+    { FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F   },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { FAMILY_CZ,  CZ_STONEY_A0,         PRID_ST_80,                   GfxEngineGfx6,  DEVICE_ID_ST_98E4               },
 
 #if PAL_BUILD_GFX9
-    { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860     },
-    { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD              },
-    { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0     },
+    { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860      },
+    { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD               },
+    { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0      },
 #else
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 #endif
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                      },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 };
 
 const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
@@ -141,6 +144,8 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
 
+    nullptr,
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -883,12 +888,12 @@ void Device::InitGfx9ChipProperties()
     pChipInfo->numActiveRbs       = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
 
     const uint32  activeCuMask = (1 << pChipInfo->numCuPerSh) - 1;
-    for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
+    for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
     {
-        for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
+        for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
         {
-            pChipInfo->activeCuMask[shIndex][seIndex]   = activeCuMask;
-            pChipInfo->alwaysOnCuMask[shIndex][seIndex] = activeCuMask;
+            pChipInfo->activeCuMask[seIndex][shIndex]   = activeCuMask;
+            pChipInfo->alwaysOnCuMask[seIndex][shIndex] = activeCuMask;
         }
     }
 

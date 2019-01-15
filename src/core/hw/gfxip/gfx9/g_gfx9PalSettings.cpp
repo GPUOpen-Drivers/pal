@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -57,6 +57,7 @@ void SettingsLoader::SetupDefaults()
 {
     // set setting variables to their default values...
     m_settings.enableLoadIndexForObjectBinds = true;
+
     m_settings.disableBorderColorPaletteBinds = false;
     m_settings.drainPsOnOverlap = false;
     m_settings.printMetaEquationInfo = 0x0;
@@ -74,7 +75,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.fmaskCompressDisable = false;
     m_settings.fmaskAllowPipeBankXor = false;
     m_settings.dccOnComputeEnable = 0x3;
-    m_settings.useDcc = 0x1ff;
+    m_settings.useDcc = 0x3ff;
     m_settings.csMaxWavesPerCu = 0;
     m_settings.csLockThreshold = 0;
     m_settings.csSimdDestCntl = CsSimdDestCntlDefault;

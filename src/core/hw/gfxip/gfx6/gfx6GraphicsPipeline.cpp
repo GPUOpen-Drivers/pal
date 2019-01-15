@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -576,31 +576,49 @@ uint32* GraphicsPipeline::WriteShCommands(
     DynamicStageInfos stageInfos = {};
     CalcDynamicStageInfos(graphicsInfo, &stageInfos);
 
-    if (IsTessEnabled())
-    {
-        pCmdSpace = m_chunkLsHs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.ls, stageInfos.hs);
-    }
-    if (IsGsEnabled())
-    {
-        pCmdSpace = m_chunkEsGs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.es, stageInfos.gs);
-    }
-    pCmdSpace = m_chunkVsPs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.vs, stageInfos.ps);
+    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
+    // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
+    // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
+    const bool useSetPath =
+        ((m_commands.loadIndex.sh.loadShRegIndex.header.u32All == 0) || pCmdStream->Pm4OptimizerEnabled());
 
-    // NOTE: It is possible for neither of the below branches to be taken for HW which doesn't support Late-Alloc VS
-    // (such as Gfx6).
-    if (m_commands.set.sh.hdrSpiShaderLateAllocVs.header.u32All != 0)
+    if (useSetPath)
     {
-        // The SET path's PM4 headers will be initialized if the current GPU doesn't support the updated microcode.  In
-        // that case, we must fall back to the "legacy" SET path.
-        constexpr uint32 SpaceNeededSet = sizeof(m_commands.set.sh) / sizeof(uint32);
-        pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSet, &m_commands.set.sh, pCmdSpace);
+        // Gfx6 doesn't support late-alloc VS, so this PM4 image will be uninitialized on those GPU's.
+        if (m_commands.set.sh.hdrSpiShaderLateAllocVs.header.u32All != 0)
+        {
+            constexpr uint32 SpaceNeededSet = sizeof(m_commands.set.sh) / sizeof(uint32);
+            pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededSet, &m_commands.set.sh, pCmdSpace);
+        }
+
+        if (IsTessEnabled())
+        {
+            pCmdSpace = m_chunkLsHs.WriteShCommands<false>(pCmdStream, pCmdSpace, stageInfos.ls, stageInfos.hs);
+        }
+        if (IsGsEnabled())
+        {
+            pCmdSpace = m_chunkEsGs.WriteShCommands<false>(pCmdStream, pCmdSpace, stageInfos.es, stageInfos.gs);
+        }
+        pCmdSpace = m_chunkVsPs.WriteShCommands<false>(pCmdStream, pCmdSpace, stageInfos.vs, stageInfos.ps);
     }
-    else if (m_commands.loadIndex.sh.loadShRegIndex.header.u32All != 0)
+    else
     {
+        PAL_ASSERT(m_commands.loadIndex.sh.loadShRegIndex.header.u32All != 0);
+
         // The LOAD_INDEX path can only be used if its PM4 header is initialized (this indicates that the LOAD_INDEX
         // path is supported by the current GPU's microcode).
         constexpr uint32 SpaceNeededLoad = sizeof(m_commands.loadIndex.sh) / sizeof(uint32);
         pCmdSpace = pCmdStream->WritePm4Image(SpaceNeededLoad, &m_commands.loadIndex.sh, pCmdSpace);
+
+        if (IsTessEnabled())
+        {
+            pCmdSpace = m_chunkLsHs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.ls, stageInfos.hs);
+        }
+        if (IsGsEnabled())
+        {
+            pCmdSpace = m_chunkEsGs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.es, stageInfos.gs);
+        }
+        pCmdSpace = m_chunkVsPs.WriteShCommands<true>(pCmdStream, pCmdSpace, stageInfos.vs, stageInfos.ps);
     }
 
     return pCmdSpace;
@@ -616,21 +634,25 @@ uint32* GraphicsPipeline::WriteContextCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-    if (m_commands.set.context.spaceNeeded != 0)
+    // Disable the LOAD_INDEX path if the PM4 optimizer is enabled.  The optimizer cannot optimize these load packets
+    // because the register values are in GPU memory.  Additionally, any client requesting PM4 optimization is trading
+    // CPU cycles for GPU performance, so the savings of using LOAD_INDEX is not important.
+    const bool useSetPath =
+        ((m_commands.loadIndex.context.loadCtxRegIndex.header.u32All == 0) || pCmdStream->Pm4OptimizerEnabled());
+
+    if (useSetPath)
     {
-        // The SET path's PM4 size will be initialized if the current GPU doesn't support the updated microcode.  In
-        // that case, we must fall back to the "legacy" SET path.
         pCmdSpace = pCmdStream->WritePm4Image(m_commands.set.context.spaceNeeded, &m_commands.set.context, pCmdSpace);
 
         if (IsTessEnabled())
         {
-            pCmdSpace = m_chunkLsHs.WriteContextCommands(pCmdStream, pCmdSpace);
+            pCmdSpace = m_chunkLsHs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
         }
         if (IsGsEnabled())
         {
-            pCmdSpace = m_chunkEsGs.WriteContextCommands(pCmdStream, pCmdSpace);
+            pCmdSpace = m_chunkEsGs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
         }
-        pCmdSpace = m_chunkVsPs.WriteContextCommands(pCmdStream, pCmdSpace);
+        pCmdSpace = m_chunkVsPs.WriteContextCommands<false>(pCmdStream, pCmdSpace);
     }
     else
     {
@@ -678,60 +700,58 @@ void GraphicsPipeline::BuildPm4Headers(
                                           uploader.CtxRegisterCount(),
                                           &m_commands.loadIndex.context.loadCtxRegIndex);
     }
-    else
+
+    if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
     {
-        if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
-        {
-            cmdUtil.BuildSetOneShReg(mmSPI_SHADER_LATE_ALLOC_VS__CI__VI,
-                                     ShaderGraphics,
-                                     &m_commands.set.sh.hdrSpiShaderLateAllocVs);
-        }
+        cmdUtil.BuildSetOneShReg(mmSPI_SHADER_LATE_ALLOC_VS__CI__VI,
+                                 ShaderGraphics,
+                                 &m_commands.set.sh.hdrSpiShaderLateAllocVs);
+    }
 
-        m_commands.set.context.spaceNeeded =
-            cmdUtil.BuildSetOneContextReg(mmVGT_SHADER_STAGES_EN, &m_commands.set.context.hdrVgtShaderStagesEn);
+    m_commands.set.context.spaceNeeded =
+        cmdUtil.BuildSetOneContextReg(mmVGT_SHADER_STAGES_EN, &m_commands.set.context.hdrVgtShaderStagesEn);
 
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmVGT_GS_MODE, &m_commands.set.context.hdrVgtGsMode);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmVGT_REUSE_OFF, &m_commands.set.context.hdrVgtReuseOff);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmVGT_TF_PARAM, &m_commands.set.context.hdrVgtTfParam);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmCB_COLOR_CONTROL, &m_commands.set.context.hdrCbColorControl);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
+                                       &m_commands.set.context.hdrCbShaderTargetMask);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmPA_CL_CLIP_CNTL, &m_commands.set.context.hdrPaClClipCntl);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmPA_SU_VTX_CNTL, &m_commands.set.context.hdrPaSuVtxCntl);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmPA_CL_VTE_CNTL, &m_commands.set.context.hdrPaClVteCntl);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmPA_SC_LINE_CNTL, &m_commands.set.context.hdrPaScLineCntl);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmSPI_INTERP_CONTROL_0, &m_commands.set.context.hdrSpiInterpControl0);
+
+    m_commands.set.context.spaceNeeded +=
+        cmdUtil.BuildSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+                                      &m_commands.set.context.hdrVgtVertexReuseBlockCntl);
+
+    if (m_pDevice->WaDbOverRasterization() == false)
+    {
+        // This hardware workaround requires draw-time validation for DB_SHADER_CONTROL.  If the current GPU is
+        // not affected by this HW bug, we can just put it into the pipeline PM4 image.
         m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_GS_MODE, &m_commands.set.context.hdrVgtGsMode);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_REUSE_OFF, &m_commands.set.context.hdrVgtReuseOff);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_TF_PARAM, &m_commands.set.context.hdrVgtTfParam);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmCB_COLOR_CONTROL, &m_commands.set.context.hdrCbColorControl);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
-                                           &m_commands.set.context.hdrCbShaderTargetMask);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_CL_CLIP_CNTL, &m_commands.set.context.hdrPaClClipCntl);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_SU_VTX_CNTL, &m_commands.set.context.hdrPaSuVtxCntl);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_CL_VTE_CNTL, &m_commands.set.context.hdrPaClVteCntl);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmPA_SC_LINE_CNTL, &m_commands.set.context.hdrPaScLineCntl);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmSPI_INTERP_CONTROL_0, &m_commands.set.context.hdrSpiInterpControl0);
-
-        m_commands.set.context.spaceNeeded +=
-            cmdUtil.BuildSetOneContextReg(mmVGT_VERTEX_REUSE_BLOCK_CNTL,
-                                          &m_commands.set.context.hdrVgtVertexReuseBlockCntl);
-
-        if (m_pDevice->WaDbOverRasterization() == false)
-        {
-            // This hardware workaround requires draw-time validation for DB_SHADER_CONTROL.  If the current GPU is
-            // not affected by this HW bug, we can just put it into the pipeline PM4 image.
-            m_commands.set.context.spaceNeeded +=
-                cmdUtil.BuildSetOneContextReg(mmDB_SHADER_CONTROL, &m_commands.set.context.hdrDbShaderControl);
-        }
+            cmdUtil.BuildSetOneContextReg(mmDB_SHADER_CONTROL, &m_commands.set.context.hdrDbShaderControl);
     }
 
     cmdUtil.BuildContextRegRmw(mmDB_ALPHA_TO_MASK,

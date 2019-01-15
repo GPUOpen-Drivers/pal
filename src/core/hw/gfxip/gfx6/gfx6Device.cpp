@@ -2,7 +2,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2018 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2732,7 +2732,6 @@ void InitializeGpuChipProperties(
 
         pInfo->imageProperties.prtFeatures = Gfx6PrtFeatures;
         pInfo->gfxip.tcpSizeInBytes        = 16384;
-        pInfo->gfxStepping                 = 1;
 
         if (ASICREV_IS_TAHITI_P(pInfo->eRevId))
         {
@@ -2743,7 +2742,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles       = 6;
             pInfo->gfx6.numTccBlocks      = 12;
             pInfo->revision               = AsicRevision::Tahiti;
-            pInfo->gfxStepping             = 0;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingTahiti;
             pInfo->gfxip.tccSizeInBytes   = 768 * 1024;
         }
         else if (ASICREV_IS_PITCAIRN_PM(pInfo->eRevId))
@@ -2755,6 +2754,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles       = 4;
             pInfo->gfx6.numTccBlocks      = 8;
             pInfo->revision               = AsicRevision::Pitcairn;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingPitcairn;
             pInfo->gfxip.tccSizeInBytes   = 512 * 1024;
         }
         else if (ASICREV_IS_CAPEVERDE_M(pInfo->eRevId))
@@ -2766,6 +2766,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles       = 2;
             pInfo->gfx6.numTccBlocks      = 4;
             pInfo->revision               = AsicRevision::Capeverde;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingCapeVerde;
             pInfo->gfxip.tccSizeInBytes   = 512 * 1024;
         }
         else if (ASICREV_IS_OLAND_M(pInfo->eRevId))
@@ -2782,6 +2783,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.gsPrimBufferDepth = 768;
             pInfo->gfx6.maxGsWavesPerVgt  = 16;
             pInfo->revision               = AsicRevision::Oland;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingOland;
             pInfo->gfxip.tccSizeInBytes   = 256 * 1024;
         }
         else if (ASICREV_IS_HAINAN_V(pInfo->eRevId))
@@ -2796,6 +2798,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.gsPrimBufferDepth = 768;
             pInfo->gfx6.maxGsWavesPerVgt  = 16;
             pInfo->revision               = AsicRevision::Hainan;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingHainan;
             pInfo->gfxip.tccSizeInBytes   = 256 * 1024;
         }
         break;
@@ -2832,21 +2835,26 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles      = 2;
             pInfo->gfx6.numTccBlocks     = 4;
             pInfo->revision              = AsicRevision::Bonaire;
-            pInfo->gfxStepping           = 4;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingBonaire;
             pInfo->gfxip.tccSizeInBytes  = 512 * 1024;
         }
         else if (ASICREV_IS_HAWAII_P(pInfo->eRevId))
         {
-            const bool isHawaiiPro = ((pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A0) ||
-                                      (pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A1));
-
             pInfo->gfx6.numShaderEngines = 4;
             pInfo->gfx6.maxNumCuPerSh    = 11;
             pInfo->gfx6.maxNumRbPerSe    = 4;
             pInfo->gfx6.numMcdTiles      = 8;
             pInfo->gfx6.numTccBlocks     = 16;
-            pInfo->revision              = isHawaiiPro ? AsicRevision::HawaiiPro : AsicRevision::Hawaii;
-            pInfo->gfxStepping           = isHawaiiPro ? 1 : 2;
+            if ((pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A0) || (pInfo->deviceId == DEVICE_ID_CI_HAWAII_P_67A1))
+            {
+                pInfo->revision          = AsicRevision::HawaiiPro;
+                pInfo->gfxStepping       = Abi::GfxIpSteppingHawaiiPro;
+            }
+            else
+            {
+                pInfo->revision          = AsicRevision::Hawaii;
+                pInfo->gfxStepping       = Abi::GfxIpSteppingHawaii;
+            }
             pInfo->gfxip.tccSizeInBytes  = 1024 * 1024;
 
             // Support for IT_SET_SH_REG_INDEX added from CP feature version 29 onwards.
@@ -2893,7 +2901,7 @@ void InitializeGpuChipProperties(
             pInfo->revision             = (ASICREV_IS_KALINDI_GODAVARI(pInfo->eRevId)
                                            ? AsicRevision::Godavari
                                            : AsicRevision::Kalindi);
-            pInfo->gfxStepping          = 3;
+            pInfo->gfxStepping          = Abi::GfxIpSteppingKalindi;
         }
         else if (ASICREV_IS_SPECTRE(pInfo->eRevId) || ASICREV_IS_SPOOKY(pInfo->eRevId))
         {
@@ -2912,7 +2920,7 @@ void InitializeGpuChipProperties(
             pInfo->revision             = (ASICREV_IS_SPECTRE(pInfo->eRevId)
                                            ? AsicRevision::Spectre
                                            : AsicRevision::Spooky);
-            pInfo->gfxStepping          = 0;
+            pInfo->gfxStepping          = Abi::GfxIpSteppingKaveri;
         }
         break;
     // GFXIP 8 Discrete GPU's (Volcanic Islands):
@@ -2970,7 +2978,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.maxGsWavesPerVgt      = 16;
             pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailableWithSpiBug;
             pInfo->revision                   = AsicRevision::Iceland;
-            pInfo->gfxStepping                = 2;
+            pInfo->gfxStepping                = Abi::GfxIpSteppingIceland;
             pInfo->gfxip.tccSizeInBytes       = 256 * 1024;
         }
         else if (ASICREV_IS_TONGA_P(pInfo->eRevId))
@@ -2985,7 +2993,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numTccBlocks          = 12;
             pInfo->gfx6.numShaderVisibleSgprs = MaxSgprsAvailableWithSpiBug;
             pInfo->revision                   = AsicRevision::Tonga;
-            pInfo->gfxStepping                = 2;
+            pInfo->gfxStepping                = Abi::GfxIpSteppingTonga;
             pInfo->gfxip.tccSizeInBytes       = 768 * 1024;
         }
         else if (ASICREV_IS_FIJI_P(pInfo->eRevId))
@@ -2997,7 +3005,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numTccBlocks     = 16;
             pInfo->revision              = AsicRevision::Fiji;
             pInfo->gfxip.tccSizeInBytes  = 2048 * 1024;
-            pInfo->gfxStepping           = 3;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingFiji;
 
             pInfo->gfx6.supportTrapezoidTessDistribution = 1;
         }
@@ -3010,7 +3018,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles      = 4;
             pInfo->gfx6.numTccBlocks     = 8;
             pInfo->revision              = AsicRevision::Polaris10;
-            pInfo->gfxStepping           = 3;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingPolaris;
             pInfo->gfxip.tccSizeInBytes  = 2048 * 1024;
 
             pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
@@ -3025,7 +3033,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numMcdTiles      = 2;
             pInfo->gfx6.numTccBlocks     = 4;
             pInfo->revision              = AsicRevision::Polaris11;
-            pInfo->gfxStepping           = 3;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingPolaris;
             pInfo->gfxip.tccSizeInBytes  = 1024 * 1024;
 
             pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
@@ -3041,7 +3049,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.numTccBlocks     = 4;
             pInfo->gfxip.tccSizeInBytes  = 512 * 1024;
             pInfo->revision              = AsicRevision::Polaris12;
-            pInfo->gfxStepping           = 3;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingPolaris;
 
             pInfo->gfxip.shaderPrefetchBytes = 2 * ShaderICacheLineSize;
             pInfo->gfx6.supportTrapezoidTessDistribution = 1;
@@ -3102,7 +3110,7 @@ void InitializeGpuChipProperties(
             pInfo->revision               = (ASICREV_IS_CARRIZO_BRISTOL(pInfo->eRevId)
                                              ? AsicRevision::Bristol
                                              : AsicRevision::Carrizo);
-            pInfo->gfxStepping            = 1;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingCarrizo;
             pInfo->gfxip.tccSizeInBytes   = 512 * 1024;
 
             pInfo->gfxip.gdsSize = 65536;
@@ -3116,7 +3124,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx6.gsPrimBufferDepth = 256;
             pInfo->gfx6.rbPlus            = 1;
             pInfo->revision               = AsicRevision::Stoney;
-            pInfo->gfxStepping            = 0;
+            pInfo->gfxStepping            = Abi::GfxIpSteppingStoney;
             pInfo->gfxip.tccSizeInBytes   = 128 * 1024;
 
             pInfo->gfxip.gdsSize = 4096;
