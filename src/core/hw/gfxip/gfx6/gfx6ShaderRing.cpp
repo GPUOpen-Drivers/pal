@@ -544,29 +544,11 @@ OffchipLdsBuffer::OffchipLdsBuffer(
 // depends on the number of offchip LDS buffers available to the chip. Returns the allocation size, in bytes.
 gpusize OffchipLdsBuffer::ComputeAllocationSize() const
 {
-    // Determine the LDS buffer size in DWORD's based on settings.
-    gpusize offchipLdsBufferSizeDwords = 0;
-    switch (m_pDevice->Settings().gfx7OffchipLdsBufferSize)
-    {
-    case OffchipLdsBufferSize1024:
-        offchipLdsBufferSizeDwords = 1024;
-        break;
-    case OffchipLdsBufferSize2048:
-        offchipLdsBufferSizeDwords = 2048;
-        break;
-    case OffchipLdsBufferSize4096:
-        offchipLdsBufferSizeDwords = 4096;
-        break;
-    case OffchipLdsBufferSize8192:
-        offchipLdsBufferSizeDwords = 8192;
-        break;
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
+    // Determine the LDS buffer size in bytes based on settings.
+    const gpusize offchipLdsBufferSizeBytes = m_pDevice->Parent()->ChipProperties().gfxip.offChipTessBufferSize;
 
     // Our maximum item size represents how many offchip LDS buffers we need space for in total.
-    return (offchipLdsBufferSizeDwords * sizeof(uint32) * m_itemSizeMax);
+    return (offchipLdsBufferSizeBytes * m_itemSizeMax);
 }
 
 // =====================================================================================================================

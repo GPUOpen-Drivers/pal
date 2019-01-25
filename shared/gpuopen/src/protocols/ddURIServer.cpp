@@ -166,8 +166,10 @@ namespace DevDriver
                         URIHeader& header = m_payload.GetPayload<URIHeader>();
                         if (header.command == URIMessage::URIPostRequest)
                         {
-                            char* pServiceName = nullptr;
-                            char* pServiceArguments = nullptr;
+                            // It's important that these have nonnull defaults.
+                            char pEmptyString[] = "";
+                            char* pServiceName = pEmptyString;
+                            char* pServiceArguments = pEmptyString;
                             URIPostRequestPayload& payload = m_payload.GetPayload<URIPostRequestPayload>();
 
                             result = ExtractRequestParameters(payload.uriString, &pServiceName, &pServiceArguments) ?

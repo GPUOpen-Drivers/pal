@@ -140,7 +140,7 @@ namespace DevDriver
                     DD_UNREACHABLE();
                 }
 
-                result = SendPayload(payload);
+                result = SendPayload(&payload);
 
                 if (result == Result::Success)
                 {
@@ -174,7 +174,7 @@ namespace DevDriver
                     const uint32 headerTimeout = kRGPChunkTimeoutInMs * (m_traceContext.traceInfo.parameters.numPreparationFrames + 1);
 
                     // Attempt to receive the trace data header.
-                    result = ReceivePayload(payload, headerTimeout);
+                    result = ReceivePayload(&payload, headerTimeout);
                     if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataHeader))
                     {
                         // We've successfully received the trace data header. Check if the trace was successful.
@@ -225,7 +225,7 @@ namespace DevDriver
                     RGPPayload payload = {};
 
                     // Attempt to receive the trace data header.
-                    result = ReceivePayload(payload, timeoutInMs);
+                    result = ReceivePayload(&payload, timeoutInMs);
                     if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataHeader))
                     {
                         // We've successfully received the trace data header. Check if the trace was successful.
@@ -279,7 +279,7 @@ namespace DevDriver
             {
                 if (GetSessionVersion() >= RGP_TRACE_PROGRESS_VERSION)
                 {
-                    result = ReceivePayload(payload, kRGPChunkTimeoutInMs);
+                    result = ReceivePayload(&payload, kRGPChunkTimeoutInMs);
 
                     if (result == Result::Success)
                     {
@@ -294,7 +294,7 @@ namespace DevDriver
                             if (m_traceContext.numChunksReceived == m_traceContext.numChunks)
                             {
                                 // Make sure we read the sentinel value before returning. It should always mark the end of the trace data chunk stream.
-                                result = ReceivePayload(payload, kRGPChunkTimeoutInMs);
+                                result = ReceivePayload(&payload, kRGPChunkTimeoutInMs);
 
                                 if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataSentinel))
                                 {
@@ -328,7 +328,7 @@ namespace DevDriver
                     const uint32 firstChunkTimeout = kRGPChunkTimeoutInMs * (m_traceContext.traceInfo.parameters.numPreparationFrames + 1);
                     const uint32 packetTimeout = (m_traceContext.numChunksReceived == 0) ? firstChunkTimeout : kRGPChunkTimeoutInMs;
 
-                    result = ReceivePayload(payload, packetTimeout);
+                    result = ReceivePayload(&payload, packetTimeout);
 
                     if (result == Result::Success)
                     {
@@ -369,14 +369,14 @@ namespace DevDriver
                 {
                     payload.command = RGPMessage::AbortTrace;
 
-                    result = SendPayload(payload);
+                    result = SendPayload(&payload);
 
                     if (result == Result::Success)
                     {
                         // Discard all messages until we find the trace data sentinel.
                         while ((result == Result::Success) && (payload.command != RGPMessage::TraceDataSentinel))
                         {
-                            result = ReceivePayload(payload);
+                            result = ReceivePayload(&payload);
                         }
 
                         if ((result == Result::Success)                        &&
@@ -419,7 +419,7 @@ namespace DevDriver
                 RGPPayload payload = {};
                 payload.command = RGPMessage::QueryProfilingStatusRequest;
 
-                if ((Transact(payload, payload) == Result::Success) &&
+                if ((Transact(&payload) == Result::Success) &&
                     (payload.command == RGPMessage::QueryProfilingStatusResponse))
                 {
                     *pStatus = payload.queryProfilingStatusResponse.status;
@@ -439,7 +439,7 @@ namespace DevDriver
                 RGPPayload payload = {};
                 payload.command = RGPMessage::EnableProfilingRequest;
 
-                if ((Transact(payload, payload) == Result::Success) &&
+                if ((Transact(&payload) == Result::Success) &&
                     (payload.command == RGPMessage::EnableProfilingResponse))
                 {
                     result = payload.enableProfilingStatusResponse.result;

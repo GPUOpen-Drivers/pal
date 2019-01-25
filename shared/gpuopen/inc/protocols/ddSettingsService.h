@@ -45,7 +45,17 @@ namespace SettingsURIService
 {
 
 static const char* kSettingsServiceName = "settings";
-DD_STATIC_CONST Version kSettingsServiceVersion = 2;
+DD_STATIC_CONST Version kSettingsServiceVersion = 3;
+
+/*
+***********************************************************************************************************************
+*| Version | Change Description                                                                                       |
+*| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  3.0    | Adds settingsDataHash and queryCurrentValues commands                                                    |
+*|  2.0    | Adds header to settingsData to indicate if/how data is encoded.                                          |
+*|  1.0    | Initial version                                                                                          |
+***********************************************************************************************************************
+*/
 
 // =====================================================================================================================
 // Settings Service
@@ -91,9 +101,12 @@ public:
 private:
     // Command handlers
     Result HandleGetComponents(IURIRequestContext* pContext);
+    Result HandleGetSettingDataHash(IURIRequestContext* pContext);
     Result HandleGetSettingData(IURIRequestContext* pContext);
     Result HandleGetValue(IURIRequestContext* pContext);
+    Result HandleQueryValues(IURIRequestContext* pContext);
     Result HandleSetValue(IURIRequestContext* pContext);
+    bool GetValue(const RegisteredComponent& component, SettingNameHash settingName, SettingValue** ppSettingValue);
 
     inline bool IsSettingNameValid(const RegisteredComponent& component, SettingNameHash name)
     {

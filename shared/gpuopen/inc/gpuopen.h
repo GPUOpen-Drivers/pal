@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 36
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 38
 
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
@@ -45,6 +45,10 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 38.0    | Added support for specifying hostname in ListenerCreateInfo and renamed enableUWP flag to                |
+*|         | enableKernelTransport.                                                                                   |
+*| 37.0    | Added support for Querying ClientInfo from DriverControlProtocol                                         |
+*| 36.1    | Removed internal log message queue inside LoggingClient. This improves performance significantly.        |
 *| 36.0    | Added support for capturing the RGP trace on specific frame or dispatch.                                 |
 *|         | Added bitfield to control whether driver internal code objects are included in the code object database. |
 *| 35.0    | Updated Settings URI enum SettingType to avoid X11 macro name collision.                                 |
@@ -143,6 +147,7 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_LISTENER_HOSTNAME_VERSION 38
 #define GPUOPEN_SETTINGS_URI_LINUX_BUILD 35
 #define GPUOPEN_VERSIONED_URI_SERVICES_VERSION 34
 #define GPUOPEN_URIINTERFACE_CLEANUP_VERSION 33
@@ -222,6 +227,21 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 // Include in the private section of a class declaration in order to disallow use of the default constructor
 #define DD_DISALLOW_DEFAULT_CTOR(_typename)   \
     _typename();
+
+// Detect the CPU architecture for the target.
+// These are often evaluated during the preprocessor stage, so it's important that we don't rely on things like sizeof.
+#if   UINTPTR_MAX == 0xFFFFFFFF
+    #define DEVDRIVER_ARCHITECTURE_BITS 32
+#elif UINTPTR_MAX == 0xFFFFFFFFFFFFFFFF
+    #define DEVDRIVER_ARCHITECTURE_BITS 64
+#else
+    static_assert(false, "Unknown or unsupported target architecture.");
+#endif
+static_assert(DEVDRIVER_ARCHITECTURE_BITS == (8 * sizeof(void*)), // Assume 8-bits-per-byte.
+             "DEVDRIVER_ARCHITECTURE_BITS does not match sizeof(void*).");
+
+#define DD_BUILD_32 (DEVDRIVER_ARCHITECTURE_BITS == 32)
+#define DD_BUILD_64 (DEVDRIVER_ARCHITECTURE_BITS == 64)
 
 namespace DevDriver
 {
@@ -353,22 +373,51 @@ namespace DevDriver
         Count
     };
 
-    union ClientMetadata
+    struct DD_ALIGNAS(4) ClientMetadata
     {
-        struct DD_ALIGNAS(8)
+        ProtocolFlags protocols;
+        Component     clientType;
+        uint8         reserved;
+        StatusFlags   status;
+
+        // For System messages, which are not session-based, we alias the sequence field as ClientMetadata.  This constructor
+        // is provided to help unpack the raw 64-bit sequence field into a ClientMetadata struct without needing to type-cast
+        explicit ClientMetadata(uint64 value)
         {
-            ProtocolFlags protocols;
-            Component     clientType;
-            uint8         reserved;
-            StatusFlags   status;
-        };
-        uint64 value;
+            // If we're going to alias as a 64-bit value, make sure the struct is still just 64-bits)
+            static_assert(sizeof(uint64) == sizeof(ClientMetadata),
+                          "Size of ClientMetadata is no longer 64-bits, alias constructor needs updating");
+
+            // Bits 0-31 are the ProtocolFlags
+            protocols.value = static_cast<uint32>(value & 0xFFFF);
+
+            // Bits 32-39 are the Component
+            clientType = static_cast<Component>((value & 0xFF00000000) >> 32);
+
+            // Bits 40-47 are reserved, ignore them and zero initialize
+            reserved = 0;
+
+            // Bits 48-63 are the StatusFlags
+            status = static_cast<StatusFlags>((value & 0xFFFF000000000000) >> 48);
+        }
+
+        // Default constructor, default initialize everything
+        ClientMetadata() = default;
+
+        // Returns true if all values are default values
+        bool IsDefault() const
+        {
+            return ((protocols.value == 0) && (clientType == Component::Unknown) && (status == 0));
+        }
 
         // Test if all non-zero fields in the ClientMetadata value are contained in the function parameter
         bool Matches(const ClientMetadata &right) const
         {
             bool result = true;
-            if (value != 0)
+
+            // The Matches function treats this struct as a filter, so a ClientMetadata with all default (zero) values
+            // by definition always matches.
+            if (IsDefault() == false)
             {
                 // Component is an enum, so the comparison needs to be equality
                 const bool clientTypeMatches =
@@ -388,6 +437,7 @@ namespace DevDriver
                     : true;
                 result = clientTypeMatches & protocolMatches & statusMatches;
             }
+
             return result;
         }
 
@@ -395,7 +445,10 @@ namespace DevDriver
         bool MatchesAny(const ClientMetadata &right) const
         {
             bool result = true;
-            if (value != 0)
+
+            // The MatchesAny function treats this struct as a filter, so a ClientMetadata with all default (zero) values
+            // by definition always matches.
+            if (IsDefault() == false)
             {
                 // Component is an enum, so the comparison needs to be equality
                 const bool clientTypeMatches = (clientType == right.clientType);
@@ -405,6 +458,7 @@ namespace DevDriver
                 const bool statusMatches = (status & right.status) != 0;
                 result = clientTypeMatches | protocolMatches | statusMatches;
             }
+
             return result;
         }
     };
@@ -543,7 +597,7 @@ namespace DevDriver
     // this problem when it happens.
     static_assert(kMessageVersion == 1011, "ClientInfoStruct needs to be updated so that clientName is long enough to support a full path");
     // todo: shorten clientDescription to 64bytes and make clientName 320bytes to support full path
-    DD_NETWORK_STRUCT(ClientInfoStruct, 8)
+    DD_NETWORK_STRUCT(ClientInfoStruct, 4)
     {
         char            clientName[kMaxStringLength];
         char            clientDescription[kMaxStringLength];

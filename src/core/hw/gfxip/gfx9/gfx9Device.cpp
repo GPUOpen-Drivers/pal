@@ -306,11 +306,25 @@ void Device::FinalizeChipProperties(
         pChipProperties->gfx9.supportImplicitPrimitiveShader = 0;
     }
 
-    // When using off-chip memory for passing data between tessellation shader stages, the size of each "offchip LDS"
-    // buffer is related to the maximum amount of "real" LDS space a threadgroup could utilize.  The
-    // offchipLdsBufferSize setting represents that ratio: 0 = all of it, 1 = 1/2, 2 = 1/4, 4 = 1/8.
-    pChipProperties->gfxip.offChipTessBufferSize =
-        (pChipProperties->gfxip.ldsSizePerThreadGroup >> settings.offchipLdsBufferSize);
+    switch (settings.offchipLdsBufferSize)
+    {
+    case OffchipLdsBufferSize1024:
+        pChipProperties->gfxip.offChipTessBufferSize = 1024 * sizeof(uint32);
+        break;
+    case OffchipLdsBufferSize2048:
+        pChipProperties->gfxip.offChipTessBufferSize = 2048 * sizeof(uint32);
+        break;
+    case OffchipLdsBufferSize4096:
+        pChipProperties->gfxip.offChipTessBufferSize = 4096 * sizeof(uint32);
+        break;
+    case OffchipLdsBufferSize8192:
+        pChipProperties->gfxip.offChipTessBufferSize = 8192 * sizeof(uint32);
+        break;
+    default:
+        PAL_NEVER_CALLED();
+        break;
+    }
+
     pChipProperties->gfxip.tessFactorBufferSizePerSe = settings.tessFactorBufferSizePerSe;
 }
 
@@ -2749,7 +2763,7 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.numSimdPerCu = 4;
 
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
-    pInfo->gfxip.ldsSizePerThreadGroup = 32 * 1024;
+    pInfo->gfxip.ldsSizePerThreadGroup = 64 * 1024;
     pInfo->gfxip.ldsSizePerCu          = 65536;
     pInfo->gfxip.ldsGranularity        = Gfx9LdsDwGranularity * sizeof(uint32);
     pInfo->gfxip.tccSizeInBytes        = 4096 * 1024;

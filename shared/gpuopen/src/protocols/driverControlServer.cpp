@@ -29,7 +29,7 @@
 #include "protocols/systemProtocols.h"
 
 #define DRIVERCONTROL_SERVER_MIN_MAJOR_VERSION 1
-#define DRIVERCONTROL_SERVER_MAX_MAJOR_VERSION 2
+#define DRIVERCONTROL_SERVER_MAX_MAJOR_VERSION 3
 
 namespace DevDriver
 {
@@ -45,8 +45,29 @@ namespace DevDriver
 
         struct DriverControlSession
         {
-            SessionState state;
-            DriverControlPayload payload;
+            SizedPayloadContainer   payloadContainer;
+            SharedPointer<ISession> pSession;
+            SessionState            state;
+
+            explicit DriverControlSession(const SharedPointer<ISession>& pSession)
+                : payloadContainer()
+                , pSession(pSession)
+                , state(SessionState::ReceivePayload)
+            {
+                memset(&payloadContainer, 0, sizeof(payloadContainer));
+            }
+
+            // Helper functions for working with SizedPayloadContainers and managing back-compat.
+            Result SendPayload(uint32 timeoutInMs)
+            {
+                // If we're running an older driver control version, always write the fixed payload size. Otherwise, write the real size.
+                const uint32 payloadSize =
+                    (pSession->GetVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION) ? payloadContainer.payloadSize
+                                                                                      : kLegacyDriverControlPayloadSize;
+
+                return pSession->Send(payloadSize, payloadContainer.payload, timeoutInMs);
+            }
+
         };
 
         DriverControlServer::DriverControlServer(IMsgChannel* pMsgChannel)
@@ -96,12 +117,8 @@ namespace DevDriver
 
         void DriverControlServer::SessionEstablished(const SharedPointer<ISession>& pSession)
         {
-            DD_UNUSED(pSession);
-
             // Allocate session data for the newly established session
-            DriverControlSession* pSessionData = DD_NEW(DriverControlSession, m_pMsgChannel->GetAllocCb())();
-            pSessionData->state = SessionState::ReceivePayload;
-            pSessionData->payload = {};
+            DriverControlSession* pSessionData = DD_NEW(DriverControlSession, m_pMsgChannel->GetAllocCb())(pSession);
             Platform::AtomicIncrement(&m_numSessions);
             pSession->SetUserData(pSessionData);
         }
@@ -114,13 +131,19 @@ namespace DevDriver
             {
                 case SessionState::ReceivePayload:
                 {
-                    uint32 bytesReceived = 0;
-                    Result result = pSession->Receive(sizeof(pSessionData->payload), &pSessionData->payload, &bytesReceived, kNoWait);
+                    Result result = pSession->ReceivePayload(&pSessionData->payloadContainer, kNoWait);
 
                     if (result == Result::Success)
                     {
-                        DD_ASSERT(sizeof(pSessionData->payload) == bytesReceived);
                         pSessionData->state = SessionState::ProcessPayload;
+                    }
+                    else
+                    {
+                        // We should only receive specific error codes here.
+                        // Assert if we see an unexpected error code.
+                        DD_ASSERT((result == Result::Error)    ||
+                                  (result == Result::NotReady) ||
+                                  (result == Result::EndOfStream));
                     }
 
                     break;
@@ -128,7 +151,8 @@ namespace DevDriver
 
                 case SessionState::ProcessPayload:
                 {
-                    switch (pSessionData->payload.command)
+                    SizedPayloadContainer& container = pSessionData->payloadContainer;
+                    switch (container.GetPayload<DriverControlHeader>().command)
                     {
                         case DriverControlMessage::PauseDriverRequest:
                         {
@@ -142,9 +166,7 @@ namespace DevDriver
                                 result = Result::Success;
                             }
 
-                            pSessionData->payload.command = DriverControlMessage::PauseDriverResponse;
-                            pSessionData->payload.pauseDriverResponse.result = result;
-
+                            container.CreatePayload<PauseDriverResponsePayload>(result);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -186,9 +208,7 @@ namespace DevDriver
                                 m_driverResumedEvent.Signal();
                             }
 
-                            pSessionData->payload.command = DriverControlMessage::ResumeDriverResponse;
-                            pSessionData->payload.resumeDriverResponse.result = result;
-
+                            container.CreatePayload<ResumeDriverResponsePayload>(result);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -197,21 +217,22 @@ namespace DevDriver
                         case DriverControlMessage::QueryDeviceClockModeRequest:
                         {
                             Result result = Result::Error;
+                            DeviceClockMode clockMode = DeviceClockMode::Unknown;
+
+                            const auto& payload = container.GetPayload<QueryDeviceClockModeRequestPayload>();
 
                             LockData();
 
-                            const uint32 gpuIndex = pSessionData->payload.queryDeviceClockModeRequest.gpuIndex;
+                            const uint32 gpuIndex = payload.gpuIndex;
                             if (gpuIndex < m_numGpus)
                             {
-                                pSessionData->payload.queryDeviceClockModeResponse.mode = m_deviceClockModes[gpuIndex];
+                                clockMode = m_deviceClockModes[gpuIndex];
                                 result = Result::Success;
                             }
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::QueryDeviceClockModeResponse;
-                            pSessionData->payload.queryDeviceClockModeResponse.result = result;
-
+                            container.CreatePayload<QueryDeviceClockModeResponsePayload>(result, clockMode);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -221,14 +242,16 @@ namespace DevDriver
                         {
                             Result result = Result::Error;
 
+                            const auto& payload = container.GetPayload<SetDeviceClockModeRequestPayload>();
+
                             LockData();
 
-                            const uint32 gpuIndex = pSessionData->payload.setDeviceClockModeRequest.gpuIndex;
+                            const uint32 gpuIndex = payload.gpuIndex;
                             if (gpuIndex < m_numGpus)
                             {
                                 if (m_deviceClockCallbackInfo.setCallback != nullptr)
                                 {
-                                    const DeviceClockMode clockMode = pSessionData->payload.setDeviceClockModeRequest.mode;
+                                    const DeviceClockMode clockMode = payload.mode;
 
                                     result = m_deviceClockCallbackInfo.setCallback(gpuIndex,
                                                                                    clockMode,
@@ -243,9 +266,7 @@ namespace DevDriver
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::SetDeviceClockModeResponse;
-                            pSessionData->payload.setDeviceClockModeResponse.result = result;
-
+                            container.CreatePayload<SetDeviceClockModeResponsePayload>(result);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -258,9 +279,11 @@ namespace DevDriver
                             float gpuClock = 0.0f;
                             float memClock = 0.0f;
 
+                            const auto& payload = container.GetPayload<QueryDeviceClockRequestPayload>();
+
                             LockData();
 
-                            const uint32 gpuIndex = pSessionData->payload.queryDeviceClockRequest.gpuIndex;
+                            const uint32 gpuIndex = payload.gpuIndex;
                             if (gpuIndex < m_numGpus)
                             {
                                 if (m_deviceClockCallbackInfo.queryClockCallback != nullptr)
@@ -274,11 +297,7 @@ namespace DevDriver
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::QueryDeviceClockResponse;
-                            pSessionData->payload.queryDeviceClockResponse.result = result;
-                            pSessionData->payload.queryDeviceClockResponse.gpuClock = gpuClock;
-                            pSessionData->payload.queryDeviceClockResponse.memClock = memClock;
-
+                            container.CreatePayload<QueryDeviceClockResponsePayload>(result, gpuClock, memClock);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -291,9 +310,11 @@ namespace DevDriver
                             float maxGpuClock = 0.0f;
                             float maxMemClock = 0.0f;
 
+                            const auto& payload = container.GetPayload<QueryMaxDeviceClockRequestPayload>();
+
                             LockData();
 
-                            const uint32 gpuIndex = pSessionData->payload.queryMaxDeviceClockRequest.gpuIndex;
+                            const uint32 gpuIndex = payload.gpuIndex;
                             if (gpuIndex < m_numGpus)
                             {
                                 if (m_deviceClockCallbackInfo.queryMaxClockCallback != nullptr)
@@ -307,11 +328,7 @@ namespace DevDriver
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::QueryMaxDeviceClockResponse;
-                            pSessionData->payload.queryMaxDeviceClockResponse.result = result;
-                            pSessionData->payload.queryMaxDeviceClockResponse.maxGpuClock = maxGpuClock;
-                            pSessionData->payload.queryMaxDeviceClockResponse.maxMemClock = maxMemClock;
-
+                            container.CreatePayload<QueryMaxDeviceClockResponsePayload>(result, maxGpuClock, maxMemClock);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -327,10 +344,7 @@ namespace DevDriver
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::QueryNumGpusResponse;
-                            pSessionData->payload.queryNumGpusResponse.result = result;
-                            pSessionData->payload.queryNumGpusResponse.numGpus = numGpus;
-
+                            container.CreatePayload<QueryNumGpusResponsePayload>(result, numGpus);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
@@ -344,28 +358,31 @@ namespace DevDriver
 
                             UnlockData();
 
-                            pSessionData->payload.command = DriverControlMessage::QueryDriverStatusResponse;
+                            DriverStatus status;
 
                             // On older versions, override EarlyInit and LateInit to the running state to maintain backwards compatibility.
                             if ((pSession->GetVersion() < DRIVERCONTROL_INITIALIZATION_STATUS_VERSION) &&
                                 ((driverStatus == DriverStatus::EarlyDeviceInit) || (driverStatus == DriverStatus::LateDeviceInit)))
                             {
-                                pSessionData->payload.queryDriverStatusResponse.status = DriverStatus::Running;
+                                status = DriverStatus::Running;
                             }
                             else
                             {
-                                pSessionData->payload.queryDriverStatusResponse.status = driverStatus;
+                                status = driverStatus;
                             }
 
+                            container.CreatePayload<QueryDriverStatusResponsePayload>(status);
                             pSessionData->state = SessionState::SendPayload;
 
                             break;
                         }
                         case DriverControlMessage::StepDriverRequest:
                         {
+                            const auto& payload = container.GetPayload<StepDriverRequestPayload>();
+
                             if (m_driverStatus == DriverStatus::Paused && m_stepCounter == 0)
                             {
-                                int32 count = Platform::Max((int32) pSessionData->payload.stepDriverRequest.count, 1);
+                                int32 count = Platform::Max((int32)payload.count, 1);
                                 Platform::AtomicAdd(&m_stepCounter, count);
                                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Stepping driver %i frames", m_stepCounter);
                                 pSessionData->state = SessionState::StepDriver;
@@ -378,10 +395,17 @@ namespace DevDriver
                             }
                             else
                             {
-                                pSessionData->payload.command = DriverControlMessage::StepDriverResponse;
-                                pSessionData->payload.stepDriverResponse.result = Result::Error;
+                                container.CreatePayload<StepDriverResponsePayload>(Result::Error);
                                 pSessionData->state = SessionState::SendPayload;
                             }
+                            break;
+                        }
+                        case DriverControlMessage::QueryClientInfoRequest:
+                        {
+                            DD_ASSERT(pSession->GetVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION);
+
+                            container.CreatePayload<QueryClientInfoResponsePayload>(m_pMsgChannel->GetClientInfo());
+                            pSessionData->state = SessionState::SendPayload;
                             break;
                         }
                         default:
@@ -396,7 +420,8 @@ namespace DevDriver
 
                 case SessionState::SendPayload:
                 {
-                    Result result = pSession->Send(sizeof(pSessionData->payload), &pSessionData->payload, kNoWait);
+                    Result result = pSessionData->SendPayload(kNoWait);
+
                     if (result == Result::Success)
                     {
                         pSessionData->state = SessionState::ReceivePayload;
@@ -409,8 +434,7 @@ namespace DevDriver
                 {
                     if (m_driverStatus == DriverStatus::Paused && m_stepCounter == 0)
                     {
-                        pSessionData->payload.command = DriverControlMessage::StepDriverResponse;
-                        pSessionData->payload.stepDriverResponse.result = Result::Success;
+                        pSessionData->payloadContainer.CreatePayload<StepDriverResponsePayload>(Result::Success);
                         pSessionData->state = SessionState::SendPayload;
                     }
                     break;

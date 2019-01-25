@@ -75,7 +75,20 @@ namespace DevDriver
             // Waits until the driver finishes initialization.
             Result WaitForDriverInitialization(uint32 timeoutInMs);
 
+            // Returns a ClientInfo struct populated for the connected client.
+            Result QueryClientInfo(ClientInfoStruct* pClientInfo);
+
         private:
+            Result SendDriverControlPayload(const SizedPayloadContainer& container,
+                                            uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                            uint32                       retryInMs   = kDefaultRetryTimeoutInMs);
+            Result ReceiveDriverControlPayload(SizedPayloadContainer* pContainer,
+                                               uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                               uint32                 retryInMs   = kDefaultRetryTimeoutInMs);
+            Result TransactDriverControlPayload(SizedPayloadContainer* pContainer,
+                                                uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                                                uint32                 retryInMs   = kDefaultRetryTimeoutInMs);
+
         };
     }
 } // DevDriver

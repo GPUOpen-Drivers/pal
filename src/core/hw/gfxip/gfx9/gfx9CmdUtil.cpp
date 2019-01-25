@@ -360,8 +360,7 @@ uint32 CmdUtil::ChainSizeInDwords(
     }
     else
     {
-        // how did we get here???
-        PAL_ASSERT_ALWAYS();
+        // Other engine types do not support chaining.
     }
 
     return (sizeInBytes / sizeof(uint32));

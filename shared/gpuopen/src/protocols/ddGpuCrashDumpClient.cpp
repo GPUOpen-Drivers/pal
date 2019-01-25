@@ -68,7 +68,7 @@ namespace DevDriver
                     payload.notify.sizeInBytes  = static_cast<uint32>(crashDumpSize); // @todo: Support 4GB+ crashes?
 
                     // Exchange messages. Make sure we get the correct command back.
-                    result = Transact(payload, payload);
+                    result = Transact(&payload);
                     if ((result == Result::Success) && (payload.command == GpuCrashDumpMessage::GpuCrashAcknowledge))
                     {
                         // Check if the server wants the crash dump.
@@ -133,7 +133,7 @@ namespace DevDriver
 
                 memcpy(payload.dataChunk.data, m_pCrashDump + m_crashDumpBytesSent, bytesToSend);
 
-                result = SendPayload(payload);
+                result = SendPayload(&payload);
 
                 if (result == Result::Success)
                 {
@@ -149,7 +149,7 @@ namespace DevDriver
                         payload.command = GpuCrashDumpMessage::GpuCrashDataSentinel;
                         payload.sentinel.result = Result::Success;
 
-                        result = SendPayload(payload);
+                        result = SendPayload(&payload);
 
                         // If we successfully sent the sentinel, return end of stream.
                         if (result == Result::Success)

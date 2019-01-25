@@ -280,8 +280,10 @@ namespace DevDriver
                                 if ((messageBuffer.header.protocolId == Protocol::System) &
                                     (static_cast<SystemMessage>(messageBuffer.header.messageId) == SystemMessage::Pong))
                                 {
-                                    const ClientMetadata metadata =
-                                        *reinterpret_cast<const ClientMetadata *>(&messageBuffer.header.sequence);
+                                    // Non-session messages don't have a sequence number. Instead the sequence field is
+                                    // aliased to contain ClientMetadata.
+                                    const ClientMetadata metadata(messageBuffer.header.sequence);
+
                                     // check to see if it matches with our initial filter
                                     if (filter.Matches(metadata))
                                     {
@@ -292,7 +294,7 @@ namespace DevDriver
                                         // metadata struct data.
                                         if (pClientMetadata != nullptr)
                                         {
-                                            pClientMetadata->value = metadata.value;
+                                            memcpy(pClientMetadata, &metadata, sizeof(ClientMetadata));
                                         }
 
                                         // if we found a matching client we break out of the inner loop.
@@ -381,9 +383,9 @@ namespace DevDriver
         {
             using namespace DevDriver::SystemProtocol;
             const ClientId &dstClientId = messageBuffer.header.dstClientId;
-            const ClientMetadata *pMetadata = reinterpret_cast<const ClientMetadata *>(&messageBuffer.header.sequence);
+            const ClientMetadata metadata(messageBuffer.header.sequence);
             forThisHost = !!((((dstClientId == kBroadcastClientId)
-                               & (pMetadata->Matches(m_clientInfoResponse.metadata)))
+                               & (metadata.Matches(m_clientInfoResponse.metadata)))
                               | ((m_clientId != kBroadcastClientId) & (dstClientId == m_clientId))));
             if ((forThisHost) & (messageBuffer.header.protocolId == Protocol::System))
             {
@@ -441,7 +443,10 @@ namespace DevDriver
         messageBuffer.header.protocolId = protocol;
         messageBuffer.header.messageId = message;
         messageBuffer.header.payloadSize = payloadSizeInBytes;
-        messageBuffer.header.sequence = metadata.value;
+        // Non-session messages don't have a sequence number.  Instead we alias the sequence field to send the ClientMetadata.
+        // If the size of ClientMetadata changes to grow beyond the size of the sequence field, we should fail the build.
+        static_assert(sizeof(ClientMetadata) <= sizeof(Sequence), "ClientMetada size changed, can't alias Sequence as ClientMetadata");
+        memcpy(&messageBuffer.header.sequence, &metadata, sizeof(Sequence));
 
         if ((pPayload != nullptr) & (payloadSizeInBytes != 0))
         {
@@ -458,7 +463,10 @@ namespace DevDriver
         messageBuffer.header.srcClientId = m_clientId;
         messageBuffer.header.protocolId = Protocol::System;
         messageBuffer.header.messageId = static_cast<MessageCode>(message);
-        messageBuffer.header.sequence = metadata.value;
+        // Non-session messages don't have a sequence number.  Instead we alias the sequence field to send the ClientMetadata.
+        // If the size of ClientMetadata changes to grow beyond the size of the sequence field, we should fail the build.
+        static_assert(sizeof(ClientMetadata) <= sizeof(Sequence), "ClientMetada size changed, can't alias Sequence as ClientMetadata");
+        memcpy(&messageBuffer.header.sequence, &metadata, sizeof(Sequence));
         return Forward(messageBuffer);
     }
 

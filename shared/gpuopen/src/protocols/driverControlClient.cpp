@@ -27,7 +27,7 @@
 #include "msgChannel.h"
 
 #define DRIVERCONTROL_CLIENT_MIN_MAJOR_VERSION 1
-#define DRIVERCONTROL_CLIENT_MAX_MAJOR_VERSION 2
+#define DRIVERCONTROL_CLIENT_MAX_MAJOR_VERSION 3
 
 namespace DevDriver
 {
@@ -48,24 +48,22 @@ namespace DevDriver
 
             if (IsConnected())
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::PauseDriverRequest;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<PauseDriverRequestPayload>();
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const PauseDriverResponsePayload& response =
+                        container.GetPayload<PauseDriverResponsePayload>();
+                    if (response.header.command == DriverControlMessage::PauseDriverResponse)
                     {
-                        if (payload.command == DriverControlMessage::PauseDriverResponse)
-                        {
-                            result = payload.pauseDriverResponse.result;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        result = response.result;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -79,24 +77,22 @@ namespace DevDriver
 
             if (IsConnected())
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::ResumeDriverRequest;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<ResumeDriverRequestPayload>();
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const ResumeDriverResponsePayload& response =
+                        container.GetPayload<ResumeDriverResponsePayload>();
+                    if (response.header.command == DriverControlMessage::ResumeDriverResponse)
                     {
-                        if (payload.command == DriverControlMessage::ResumeDriverResponse)
-                        {
-                            result = payload.resumeDriverResponse.result;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        result = response.result;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -110,24 +106,22 @@ namespace DevDriver
 
             if (IsConnected() && numSteps > 0)
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::StepDriverRequest;
-                payload.stepDriverRequest.count = numSteps;
-                result = SendPayload(payload);
+                SizedPayloadContainer container = {};
+                container.CreatePayload<StepDriverRequestPayload>(numSteps);
+
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const StepDriverResponsePayload& response =
+                        container.GetPayload<StepDriverResponsePayload>();
+                    if (response.header.command == DriverControlMessage::StepDriverResponse)
                     {
-                        if (payload.command == DriverControlMessage::StepDriverResponse)
-                        {
-                            result = payload.resumeDriverResponse.result;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        result = response.result;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -141,25 +135,23 @@ namespace DevDriver
 
             if (IsConnected() && (pNumGpus != nullptr))
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::QueryNumGpusRequest;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryNumGpusRequestPayload>();
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const QueryNumGpusResponsePayload& response =
+                        container.GetPayload<QueryNumGpusResponsePayload>();
+                    if (response.header.command == DriverControlMessage::QueryNumGpusResponse)
                     {
-                        if (payload.command == DriverControlMessage::QueryNumGpusResponse)
-                        {
-                            result = payload.queryNumGpusResponse.result;
-                            *pNumGpus = payload.queryNumGpusResponse.numGpus;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        result = response.result;
+                        *pNumGpus = response.numGpus;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -173,29 +165,56 @@ namespace DevDriver
 
             if (IsConnected() && (pClockMode != nullptr))
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::QueryDeviceClockModeRequest;
-                payload.queryDeviceClockModeRequest.gpuIndex = gpuIndex;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryDeviceClockModeRequestPayload>(gpuIndex);
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const QueryDeviceClockModeResponsePayload& response =
+                        container.GetPayload<QueryDeviceClockModeResponsePayload>();
+                    if (response.header.command == DriverControlMessage::QueryDeviceClockModeResponse)
                     {
-                        if (payload.command == DriverControlMessage::QueryDeviceClockModeResponse)
+                        result = response.result;
+                        if (result == Result::Success)
                         {
-                            result = payload.queryDeviceClockModeResponse.result;
-                            if (result == Result::Success)
-                            {
-                                *pClockMode = payload.queryDeviceClockModeResponse.mode;
-                            }
+                            *pClockMode = response.mode;
                         }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        Result DriverControlClient::QueryClientInfo(ClientInfoStruct* pClientInfo)
+        {
+            Result result = Result::Error;
+
+            if (IsConnected() && (pClientInfo != nullptr) && (m_pSession->GetVersion() >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION))
+            {
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryClientInfoRequestPayload>();
+
+                result = TransactDriverControlPayload(&container);
+                if (result == Result::Success)
+                {
+                    const QueryClientInfoResponsePayload& response =
+                        container.GetPayload<QueryClientInfoResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryClientInfoResponse)
+                    {
+                        *pClientInfo = response.clientInfo;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -209,26 +228,23 @@ namespace DevDriver
 
             if (IsConnected())
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::SetDeviceClockModeRequest;
-                payload.setDeviceClockModeRequest.mode = clockMode;
-                payload.setDeviceClockModeRequest.gpuIndex = gpuIndex;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<SetDeviceClockModeRequestPayload>(gpuIndex, clockMode);
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const SetDeviceClockModeResponsePayload& response =
+                        container.GetPayload<SetDeviceClockModeResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::SetDeviceClockModeResponse)
                     {
-                        if (payload.command == DriverControlMessage::SetDeviceClockModeResponse)
-                        {
-                            result = payload.setDeviceClockModeResponse.result;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        result = response.result;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -242,30 +258,28 @@ namespace DevDriver
 
             if (IsConnected() && (pGpuClock != nullptr) && (pMemClock != nullptr))
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::QueryDeviceClockRequest;
-                payload.queryDeviceClockRequest.gpuIndex = gpuIndex;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryDeviceClockRequestPayload>(gpuIndex);
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const QueryDeviceClockResponsePayload& response =
+                        container.GetPayload<QueryDeviceClockResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryDeviceClockResponse)
                     {
-                        if (payload.command == DriverControlMessage::QueryDeviceClockResponse)
+                        result = response.result;
+                        if (result == Result::Success)
                         {
-                            result = payload.queryDeviceClockResponse.result;
-                            if (result == Result::Success)
-                            {
-                                *pGpuClock = payload.queryDeviceClockResponse.gpuClock;
-                                *pMemClock = payload.queryDeviceClockResponse.memClock;
-                            }
+                            *pGpuClock = response.gpuClock;
+                            *pMemClock = response.memClock;
                         }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -279,30 +293,28 @@ namespace DevDriver
 
             if (IsConnected() && (pMaxGpuClock != nullptr) && (pMaxMemClock != nullptr))
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::QueryMaxDeviceClockRequest;
-                payload.queryMaxDeviceClockRequest.gpuIndex = gpuIndex;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryMaxDeviceClockRequestPayload>(gpuIndex);
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const QueryMaxDeviceClockResponsePayload& response =
+                        container.GetPayload<QueryMaxDeviceClockResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryMaxDeviceClockResponse)
                     {
-                        if (payload.command == DriverControlMessage::QueryMaxDeviceClockResponse)
+                        result = response.result;
+                        if (result == Result::Success)
                         {
-                            result = payload.queryMaxDeviceClockResponse.result;
-                            if (result == Result::Success)
-                            {
-                                *pMaxGpuClock = payload.queryMaxDeviceClockResponse.maxGpuClock;
-                                *pMaxMemClock = payload.queryMaxDeviceClockResponse.maxMemClock;
-                            }
+                            *pMaxGpuClock = response.maxGpuClock;
+                            *pMaxMemClock = response.maxMemClock;
                         }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -316,24 +328,23 @@ namespace DevDriver
 
             if (IsConnected() && (pDriverStatus != nullptr))
             {
-                DriverControlPayload payload = {};
-                payload.command = DriverControlMessage::QueryDriverStatusRequest;
+                SizedPayloadContainer container = {};
+                container.CreatePayload<QueryDriverStatusRequestPayload>();
 
-                result = SendPayload(payload);
+                result = TransactDriverControlPayload(&container);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    const QueryDriverStatusResponsePayload& response =
+                        container.GetPayload<QueryDriverStatusResponsePayload>();
+
+                    if (response.header.command == DriverControlMessage::QueryDriverStatusResponse)
                     {
-                        if (payload.command == DriverControlMessage::QueryDriverStatusResponse)
-                        {
-                            *pDriverStatus = payload.queryDriverStatusResponse.status;
-                        }
-                        else
-                        {
-                            // Invalid response payload
-                            result = Result::Error;
-                        }
+                        *pDriverStatus = response.status;
+                    }
+                    else
+                    {
+                        // Invalid response payload
+                        result = Result::Error;
                     }
                 }
             }
@@ -343,11 +354,11 @@ namespace DevDriver
 
         Result DriverControlClient::WaitForDriverInitialization(uint32 timeoutInMs)
         {
-            Result result = Result::VersionMismatch;
-            if (GetSessionVersion() >= DRIVERCONTROL_INITIALIZATION_STATUS_VERSION)
+            Result result = Result::Error;
+            if (IsConnected())
             {
-                result = Result::Error;
-                if (IsConnected())
+                result = Result::VersionMismatch;
+                if (GetSessionVersion() >= DRIVERCONTROL_INITIALIZATION_STATUS_VERSION)
                 {
                     const uint64 startTime = Platform::GetCurrentTimeInMs();
                     const uint64 kQueryDelayInMs = 250;
@@ -366,28 +377,27 @@ namespace DevDriver
                         {
                             nextQueryTime = currentTime + kQueryDelayInMs;
 
-                            DriverControlPayload payload = {};
-                            payload.command = DriverControlMessage::QueryDriverStatusRequest;
+                            SizedPayloadContainer container = {};
+                            container.CreatePayload<QueryDriverStatusRequestPayload>();
 
-                            result = SendPayload(payload);
+                            result = TransactDriverControlPayload(&container);
                             if (result == Result::Success)
                             {
-                                result = ReceivePayload(payload);
-                                if (result == Result::Success)
+                                const QueryDriverStatusResponsePayload& response =
+                                    container.GetPayload<QueryDriverStatusResponsePayload>();
+
+                                if (response.header.command == DriverControlMessage::QueryDriverStatusResponse)
                                 {
-                                    if (payload.command == DriverControlMessage::QueryDriverStatusResponse)
+                                    if ((response.status == DriverStatus::Running) ||
+                                        (response.status == DriverStatus::Paused))
                                     {
-                                        if ((payload.queryDriverStatusResponse.status == DriverStatus::Running) ||
-                                            (payload.queryDriverStatusResponse.status == DriverStatus::Paused))
-                                        {
-                                            break;
-                                        }
+                                        break;
                                     }
-                                    else
-                                    {
-                                        // Invalid response payload
-                                        result = Result::Error;
-                                    }
+                                }
+                                else
+                                {
+                                    // Invalid response payload
+                                    result = Result::Error;
                                 }
                             }
                         }
@@ -397,6 +407,42 @@ namespace DevDriver
 
             return result;
         }
-}
+
+        Result DriverControlClient::SendDriverControlPayload(
+            const SizedPayloadContainer& container,
+            uint32 timeoutInMs,
+            uint32 retryInMs)
+        {
+            // Use the legacy size for the payload if we're connected to an older client, otherwise use the real size.
+            const Version sessionVersion = (m_pSession.IsNull() == false) ? m_pSession->GetVersion() : 0;
+            const uint32 payloadSize =
+                (sessionVersion >= DRIVERCONTROL_QUERYCLIENTINFO_VERSION) ? container.payloadSize
+                                                                          : kLegacyDriverControlPayloadSize;
+
+            return SendSizedPayload(container.payload, payloadSize, timeoutInMs, retryInMs);
+        }
+
+        Result DriverControlClient::ReceiveDriverControlPayload(
+            SizedPayloadContainer* pContainer,
+            uint32 timeoutInMs,
+            uint32 retryInMs)
+        {
+            return ReceiveSizedPayload(pContainer->payload, sizeof(pContainer->payload), &pContainer->payloadSize, timeoutInMs, retryInMs);
+        }
+
+        Result DriverControlClient::TransactDriverControlPayload(
+            SizedPayloadContainer* pContainer,
+            uint32 timeoutInMs,
+            uint32 retryInMs)
+        {
+            Result result = SendDriverControlPayload(*pContainer, timeoutInMs, retryInMs);
+            if (result == Result::Success)
+            {
+                result = ReceiveDriverControlPayload(pContainer, timeoutInMs, retryInMs);
+            }
+
+            return result;
+        }
+    }
 
 } // DevDriver

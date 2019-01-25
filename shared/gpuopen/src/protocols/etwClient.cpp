@@ -50,21 +50,16 @@ namespace DevDriver
                 ETWPayload payload = {};
                 payload.command = ETWMessage::BeginTrace;
                 payload.startTrace.processId = processId;
-                result = SendPayload(payload);
+                result = Transact(&payload);
                 if (result == Result::Success)
                 {
-                    // Receive chunk data until we reach a trace data sentinel.
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    if (payload.command == ETWMessage::BeginResponse)
                     {
-                        if (payload.command == ETWMessage::BeginResponse)
-                        {
-                            result = payload.startTraceResponse.result;
-                        }
-                        else
-                        {
-                            result = Result::Error;
-                        }
+                        result = payload.startTraceResponse.result;
+                    }
+                    else
+                    {
+                        result = Result::Error;
                     }
                 }
             }
@@ -84,34 +79,29 @@ namespace DevDriver
                 ETWPayload payload = {};
                 payload.command = ETWMessage::EndTrace;
                 payload.stopTrace.discard = (pNumEvents == nullptr);
-                result = SendPayload(payload);
+                result = Transact(&payload);
                 if (result == Result::Success)
                 {
-                    // Receive chunk data until we reach a trace data sentinel.
-                    result = ReceivePayload(payload);
-                    if (result == Result::Success)
+                    if (payload.command == ETWMessage::EndResponse)
                     {
-                        if (payload.command == ETWMessage::EndResponse)
+                        if (pNumEvents != nullptr)
                         {
-                            if (pNumEvents != nullptr)
-                            {
-                                *pNumEvents = payload.stopTraceResponse.numEventsCaptured;
-                            }
+                            *pNumEvents = payload.stopTraceResponse.numEventsCaptured;
+                        }
 
-                            result = payload.stopTraceResponse.result;
-                            if (result == Result::Success && payload.stopTraceResponse.numEventsCaptured != 0)
-                            {
-                                m_sessionState = SessionState::Waiting;
-                            }
-                            else
-                            {
-                                m_sessionState = SessionState::Idle;
-                            }
+                        result = payload.stopTraceResponse.result;
+                        if (result == Result::Success && payload.stopTraceResponse.numEventsCaptured != 0)
+                        {
+                            m_sessionState = SessionState::Waiting;
                         }
                         else
                         {
-                            result = Result::Error;
+                            m_sessionState = SessionState::Idle;
                         }
+                    }
+                    else
+                    {
+                        result = Result::Error;
                     }
                 }
             }
@@ -128,7 +118,7 @@ namespace DevDriver
                 size_t numEventsCopied = 0;
                 ETWPayload payload = {};
                 // Receive chunk data until we reach a trace data sentinel.
-                Result readResult = ReceivePayload(payload);
+                Result readResult = ReceivePayload(&payload);
                 while (readResult == Result::Success && !traceCompleted)
                 {
                     switch (payload.command)
@@ -157,7 +147,7 @@ namespace DevDriver
                             break;
                     }
                     if (!traceCompleted)
-                        readResult = ReceivePayload(payload);
+                        readResult = ReceivePayload(&payload);
                 }
                 m_sessionState = SessionState::Idle;
             }

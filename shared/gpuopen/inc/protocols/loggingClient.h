@@ -36,12 +36,8 @@ namespace DevDriver
 
     namespace LoggingProtocol
     {
-        enum class LoggingClientState : uint32
-        {
-            Idle = 0,
-            Logging,
-            LoggingFinished
-        };
+        // Default value for the maximum number of messages to return from a single call to ReadLogMessages
+        constexpr uint32 kDefaultMaxLogMessages = 4096;
 
         class LoggingClient : public BaseProtocolClient
         {
@@ -49,32 +45,33 @@ namespace DevDriver
             explicit LoggingClient(IMsgChannel* pMsgChannel);
             ~LoggingClient();
 
-            // Overrides the base client's update session functionality
-            void UpdateSession(const SharedPointer<ISession>& pSession) override final;
-
-            // Overrides the base client's session termination callback to ensure state gets reset
-            void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override final;
-
             // Sends an enable logging message to the UMD
             Result EnableLogging(LogLevel priority, LoggingCategory categoryMask);
 
             // Sends a disable logging message to the UMD
-            Result DisableLogging();
+            // Messages that are received during the time the disable message is sent and the time that the response
+            // comes back from the server are stored in pLogMessages if it's provided. Otherwise they're discarded.
+            Result DisableLogging(Vector<LogMessage>* pLogMessages = nullptr);
 
             // Queries available categories and populates the provided vector
-            Result QueryCategories(Vector<NamedLoggingCategory> &categories);
+            Result QueryCategories(Vector<NamedLoggingCategory>& categories);
 
             // Reads the log messages stored on the remote server into the provided vector
-            Result ReadLogMessages(Vector<LogMessage> &logMessages);
+            // The maximum number of messages returned is limited to maxMessages
+            // Can only be called while logging is enabled
+            Result ReadLogMessages(Vector<LogMessage>& logMessages, uint32 maxMessages = kDefaultMaxLogMessages);
 
             // Returns true if the client currently contains log messages that have not been received.
+            // Can only be called while logging is enabled
             bool HasLogMessages();
+
+            // Returns true if logging is currently enabled.
+            bool IsLoggingEnabled() const;
 
         private:
             void ResetState() override;
 
             bool IsIdle() const;
-            bool IsLogging() const;
 
             Result SendLoggingPayload(const SizedPayloadContainer& container,
                                       uint32                         timeoutInMs = kDefaultCommunicationTimeoutInMs,
@@ -86,10 +83,16 @@ namespace DevDriver
                                          uint32                    timeoutInMs = kDefaultCommunicationTimeoutInMs,
                                          uint32                    retryInMs   = kDefaultRetryTimeoutInMs);
 
-            LoggingClientState m_loggingState;
-            Queue<SizedPayloadContainer, 32> m_logMessages;
-            Platform::Mutex m_mutex;
-            Platform::Event m_loggingFinishedEvent;
+#if DD_BUILD_32
+            // Add padding to make sure the SizedPayloadContainer starts at an 8 byte boundary.
+            size_t _padding;
+#endif
+
+            // A payload container used to store messages that are read during calls to HasLogMessage()
+            SizedPayloadContainer m_pendingMsg;
+
+            // True if logging is currently enabled.
+            bool m_isLoggingEnabled;
         };
     }
 }

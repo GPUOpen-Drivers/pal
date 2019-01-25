@@ -849,7 +849,12 @@ namespace DevDriver
             // Messages cannot be received after a session has entered the closing state.
             result = m_receiveWindow.semaphore.Wait(timeoutInMs);
 
-            if (result == Result::Success)
+            // Check the session state again because it's possible that the session closed while we were waiting.
+            if (m_sessionState == SessionState::Closed)
+            {
+                result = Result::EndOfStream;
+            }
+            else if (result == Result::Success)
             {
                 LockGuard<AtomicLock> lock(m_receiveWindow.lock);
                 DD_ASSERT(m_receiveWindow.nextUnreadSequence < m_receiveWindow.nextExpectedSequence);

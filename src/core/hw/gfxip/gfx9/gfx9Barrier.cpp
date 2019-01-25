@@ -636,9 +636,9 @@ void Device::ExpandColor(
         const uint32           lastMipInRange     = (firstSubresId.mipLevel + (subresRange.numMips - 1));
         const bool             hasTcCompatibleDcc = (gfx9Image.HasDccData() &&
                                                      (firstSubres.flags.supportMetaDataTexFetch == 1));
-        if (hasTcCompatibleDcc                        &&
-            ((image.GetImageCreateInfo().samples > 1) ||
-             gfx9Image.IsInMetadataMipTail(lastMipInRange)))
+        if ((hasTcCompatibleDcc && ((image.GetImageCreateInfo().samples > 1) ||
+                                    gfx9Image.IsInMetadataMipTail(lastMipInRange))) ||
+            (gfx9Image.HasFmaskData() && (gfx9Image.HasDccData() == false)))
         {
             pSyncReqs->cacheFlags |= CacheSyncFlushTcc | CacheSyncInvTcc;
         }

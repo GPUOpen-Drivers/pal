@@ -24,15 +24,21 @@
  #######################################################################################################################
 
 cmake_minimum_required(VERSION 3.5)
-project(GPUOPEN)
+project(GPUOPEN CXX)
 
-### CMake Includes #####################################################################################################
-include(AmdCmakeHelper)
+# Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 ### Create GpuOpen Library #############################################################################################
+if(NOT DEFINED GPUOPEN_LIB_NAME)
+    set(GPUOPEN_LIB_NAME gpuopen CACHE STRING "Name of generated gpuopen lib")
+endif()
 set(CMAKE_CXX_STANDARD          14)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-add_library(gpuopen STATIC "")
+add_library(${GPUOPEN_LIB_NAME} STATIC "")
+
+# Install the library into "${CMAKE_INSTALL_PREFIX}/lib"
+install(TARGETS ${GPUOPEN_LIB_NAME} DESTINATION lib)
 
 ### Cached Project Options #############################################################################################
 
@@ -42,9 +48,7 @@ else()
     set(DEVDRIVER_LOG_LEVEL 4)
 endif()
 
-set(DEVDRIVER_LOG_LEVEL ${DEVDRIVER_LOG_LEVEL} CACHE STRING "Developer driver mode log level?")
-set(DEVDRIVER_LOG_LEVEL_OPTIONS 0 1 2 3 4)
-dropdown_option(DEVDRIVER_LOG_LEVEL DEVDRIVER_LOG_LEVEL_OPTIONS)
+set(DEVDRIVER_LOG_LEVEL ${DEVDRIVER_LOG_LEVEL} CACHE STRING "Developer driver mode log level? [0-4]")
 
 if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
     file(STRINGS inc/gpuopen.h GPUOPEN_MAJOR_VERSION REGEX "^#define GPUOPEN_INTERFACE_MAJOR_VERSION [0-9]+")
@@ -55,8 +59,9 @@ if(NOT DEFINED GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION)
         string(REGEX REPLACE "^#define GPUOPEN_INTERFACE_MAJOR_VERSION " "" GPUOPEN_MAJOR_VERSION ${GPUOPEN_MAJOR_VERSION})
         message(STATUS "Detected GPUOPEN_INTERFACE_MAJOR_VERSION is " ${GPUOPEN_MAJOR_VERSION})
     endif()
-    set(GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION ${GPUOPEN_MAJOR_VERSION})
+    set(GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION ${GPUOPEN_MAJOR_VERSION} CACHE STRING "Interface version for gpuopen")
 endif()
+message(STATUS "Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION}")
 
 # Warning Options ######################################################################################################
 macro(apply_gpuopen_warnings _target)
@@ -77,22 +82,22 @@ macro(apply_gpuopen_warnings _target)
 endmacro()
 
 # Apply the standard gpuopen warnings to the library.
-apply_gpuopen_warnings(gpuopen)
+apply_gpuopen_warnings(${GPUOPEN_LIB_NAME})
 
 ### Compiler Options ###################################################################################################
 
 # CMAKE-TODO: Include all used compiler features.
-target_compile_features(gpuopen PUBLIC cxx_strong_enums)
+target_compile_features(${GPUOPEN_LIB_NAME} PUBLIC cxx_strong_enums)
 
-set_target_properties(gpuopen PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(${GPUOPEN_LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(UNIX)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(gpuopen Threads::Threads)
+    target_link_libraries(${GPUOPEN_LIB_NAME} Threads::Threads)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|(Apple)?Clang)$")
-        target_compile_options(gpuopen PRIVATE
+        target_compile_options(${GPUOPEN_LIB_NAME} PRIVATE
             -fno-exceptions
             -fno-rtti
         )
@@ -102,32 +107,41 @@ if(UNIX)
 endif()
 
 ### Build Defines ######################################################################################################
-target_compile_definitions(gpuopen PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
+target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=${GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION})
 
 # Add NDEBUG flag in release builds since several code files depend on it.
-target_compile_definitions(gpuopen PRIVATE $<$<CONFIG:Release>:NDEBUG>)
+target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)
 
 # Enable features with debug builds
-target_compile_definitions(gpuopen PRIVATE
+target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE
         $<$<CONFIG:Debug>:DEVDRIVER_FORCE_ASSERT>      # Force asserts on
         $<$<CONFIG:Debug>:DEVDRIVER_HARD_ASSERT>)      # Always throw a hard assert
 
 if (GPUOPEN_PRINT_TO_CONSOLE)
-    target_compile_definitions(gpuopen PRIVATE DEVDRIVER_PRINT_TO_CONSOLE)
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE DEVDRIVER_PRINT_TO_CONSOLE)
 endif()
 
 if(DEVDRIVER_LOG_LEVEL)
-    target_compile_definitions(gpuopen PRIVATE DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
+endif()
+
+# Indicate target architecture bits
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(TARGET_ARCHITECTURE_BITS "64")
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    set(TARGET_ARCHITECTURE_BITS "32")
+else()
+    message(FATAL_ERROR "Unsupported target architecture - pointers must be 4 or 8 bytes, not ${CMAKE_SIZEOF_VOID_P}")
 endif()
 
 ### Include Directories ################################################################################################
-target_include_directories(gpuopen PUBLIC inc)
-target_include_directories(gpuopen PRIVATE src)
+target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC inc)
+target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE src)
 
 ### Sources ############################################################################################################
 
 ### Core Components ###
-target_sources(gpuopen PRIVATE
+target_sources(${GPUOPEN_LIB_NAME} PRIVATE
     src/session.cpp
     src/sessionManager.cpp
     src/messageChannel.inl
@@ -157,25 +171,25 @@ endif()
 
 if (GPUOPEN_BUILD_METROHASH)
     set(METROHASH_PATH "src/imported/metrohash/src")
-    target_sources(gpuopen PRIVATE
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
         ${METROHASH_PATH}/metrohash64.cpp
         ${METROHASH_PATH}/metrohash128.cpp)
 endif()
 
-target_include_directories(gpuopen PRIVATE ${METROHASH_PATH})
+target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${METROHASH_PATH})
 
 ### RapidJson ###
-target_include_directories(gpuopen PUBLIC "inc/imported/rapidjson/include")
+target_include_directories(${GPUOPEN_LIB_NAME} PUBLIC "inc/imported/rapidjson/include")
 
 ### Platform ###
 if(UNIX)
-    target_sources(gpuopen PRIVATE src/posix/ddPosixPlatform.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/posix/ddPosixPlatform.cpp)
 endif()
 
 ### Local Transport ###
 # Local transports are always supported
 if(UNIX)
-    target_sources(gpuopen PRIVATE
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
         src/posix/ddPosixSocket.cpp
         src/socketMsgTransport.cpp
     )
@@ -183,10 +197,10 @@ endif()
 
 ### Helper Classes ###
 if(GPUOPEN_BUILD_SERVER_HELPERS)
-    target_sources(gpuopen PRIVATE src/devDriverServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/devDriverServer.cpp)
 endif()
 if(GPUOPEN_BUILD_CLIENT_HELPERS)
-    target_sources(gpuopen PRIVATE src/devDriverClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/devDriverClient.cpp)
 endif()
 
 ### Standard Driver Protocols ###
@@ -214,7 +228,7 @@ endif()
 
 ### Listener Components ###
 if(GPUOPEN_BUILD_LISTENER_CORE)
-    target_sources(gpuopen PRIVATE
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE
         listener/listenerCore.cpp
         listener/routerCore.cpp
         listener/transportThread.cpp
@@ -226,7 +240,7 @@ if(GPUOPEN_BUILD_LISTENER_CORE)
         listener/clientmanagers/listenerClientManager.cpp
     )
 
-    target_include_directories(gpuopen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/listener)
+    target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/listener)
 endif()
 
 #################
@@ -235,55 +249,91 @@ endif()
 
 ### Driver Control Protocol ###
 if(GPUOPEN_BUILD_PROTOCOL_DRIVERCONTROL_SERVER)
-    target_sources(gpuopen PRIVATE src/protocols/driverControlServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/driverControlServer.cpp)
 endif()
 if(GPUOPEN_BUILD_PROTOCOL_DRIVERCONTROL_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/driverControlClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/driverControlClient.cpp)
 endif()
 
 ### Settings Protocol ###
 if(GPUOPEN_BUILD_PROTOCOL_SETTINGS_SERVER)
-    target_sources(gpuopen PRIVATE src/protocols/settingsServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/settingsServer.cpp)
 endif()
 if(GPUOPEN_BUILD_PROTOCOL_SETTINGS_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/settingsClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/settingsClient.cpp)
 endif()
 
 ### Logging Protocol ###
 if(GPUOPEN_BUILD_PROTOCOL_LOGGING_SERVER)
-    target_sources(gpuopen PRIVATE src/protocols/loggingServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/loggingServer.cpp)
 endif()
 if(GPUOPEN_BUILD_PROTOCOL_LOGGING_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/loggingClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/loggingClient.cpp)
 endif()
 
 ### RGP Protocol ###
 if(GPUOPEN_BUILD_PROTOCOL_RGP_SERVER)
-    target_sources(gpuopen PRIVATE src/protocols/rgpServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/rgpServer.cpp)
 endif()
 if(GPUOPEN_BUILD_PROTOCOL_RGP_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/rgpClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/rgpClient.cpp)
 endif()
 
 ### Crash Dump Protocol ###
 if(GPUOPEN_BUILD_PROTOCOL_CRASHDUMP_SERVER)
-    target_sources(gpuopen PRIVATE src/protocols/ddGpuCrashDumpServer.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddGpuCrashDumpServer.cpp)
 endif()
 if(GPUOPEN_BUILD_PROTOCOL_CRASHDUMP_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/ddGpuCrashDumpClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddGpuCrashDumpClient.cpp)
 endif()
 
 ### URI Client ###
 if(GPUOPEN_BUILD_PROTOCOL_URI_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/ddURIClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/ddURIClient.cpp)
 endif()
 
 ### ETW Protocol ###
 
 if(GPUOPEN_BUILD_PROTOCOL_ETW_CLIENT)
-    target_sources(gpuopen PRIVATE src/protocols/etwClient.cpp)
+    target_sources(${GPUOPEN_LIB_NAME} PRIVATE src/protocols/etwClient.cpp)
 endif()
 
 ### Visual Studio Filters ##############################################################################################
-target_find_headers(gpuopen)
-target_source_groups(gpuopen)
+# Find Headers Helper ##############################################################################
+macro(target_find_headers _target)
+    get_target_property(${_target}_INCLUDES_DIRS ${_target} INCLUDE_DIRECTORIES)
+
+    if(${_target}_INCLUDES_DIRS)
+        foreach(_include_dir IN ITEMS ${${_target}_INCLUDES_DIRS})
+            file(GLOB_RECURSE _include_files
+                LIST_DIRECTORIES false
+                "${_include_dir}/*.h*"
+            )
+
+            list(APPEND ${_target}_INCLUDES ${_include_files})
+        endforeach()
+
+        target_sources(${_target} PRIVATE ${${_target}_INCLUDES})
+    endif()
+endmacro()
+
+# Source Groups Helper #############################################################################
+# This helper creates source groups for generators that support them. This is primarily MSVC and
+# XCode, but there are other generators that support IDE project files.
+#
+# Note: this only adds files that have been added to the target's SOURCES property. To add headers
+# to this list, be sure that you call target_find_headers before you call target_source_groups.
+macro(target_source_groups _target)
+    get_target_property(${_target}_SOURCES ${_target} SOURCES)
+    foreach(_source IN ITEMS ${${_target}_SOURCES})
+        set(_source ${_source})
+        get_filename_component(_source_path "${_source}" ABSOLUTE)
+        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
+        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
+        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
+        source_group("${_group_path}" FILES "${_source}")
+    endforeach()
+endmacro()
+
+target_find_headers(${GPUOPEN_LIB_NAME})
+target_source_groups(${GPUOPEN_LIB_NAME})

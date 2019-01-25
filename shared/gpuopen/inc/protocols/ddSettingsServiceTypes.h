@@ -109,6 +109,7 @@ struct RegisteredComponent
     SettingsDataHeader     settingsDataHeader;                      //< Info about how JSON data is encoded
     const void*            pSettingsData;                           //< Full settings JSON data
     size_t                 settingsDataSize;                        //< Size of full settings data blob
+    uint64                 settingsDataHash;                        //< Hash of the settings data
     void*                  pPrivateData;                            //< Private context data that will be sent back to the
                                                                     //  component when Get/SetValue functions are called.
 };

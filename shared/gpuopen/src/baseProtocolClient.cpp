@@ -34,9 +34,9 @@ namespace DevDriver
         , m_minVersion(minVersion)
         , m_maxVersion(maxVersion)
         , m_pSession()
-        , m_pendingOperationEvent(false)
         , m_connectResult(Result::Error)
         , m_state(ClientState::Disconnected)
+        , m_pendingOperationEvent(false)
     {
         DD_ASSERT(m_pMsgChannel != nullptr);
     }
@@ -80,7 +80,7 @@ namespace DevDriver
             m_pSession->Close(Result::Success);
             m_pSession.Clear();
         }
-        // Reset the state to make sure all owned objects are released before destruction.
+        // Reset the state to make sure all owned objects are released before destruction
         ResetState();
     }
 
@@ -90,6 +90,10 @@ namespace DevDriver
         if (!m_pSession.IsNull())
         {
             version = m_pSession->GetVersion();
+        }
+        else
+        {
+            DD_ALERT_REASON("Session version queried without a valid session. Did your session disconnect?");
         }
         return version;
     }

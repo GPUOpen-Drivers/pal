@@ -455,14 +455,15 @@ namespace DevDriver
         char* Strtok(char* pDst, const char* pDelimiter, char** ppContext)
         {
             DD_ASSERT(pDelimiter != nullptr);
-            DD_UNUSED(ppContext);
-            return strtok(pDst, pDelimiter);
+            return strtok_r(pDst, pDelimiter, ppContext);
         }
 
-        void Strcat(char* pDst, const char* pSrc)
+        void Strcat(char* pDst, const char* pSrc, size_t dstSize)
         {
             DD_ASSERT(pDst != nullptr);
             DD_ASSERT(pSrc != nullptr);
+            DD_UNUSED(dstSize);
+
             strcat(pDst, pSrc);
         }
 

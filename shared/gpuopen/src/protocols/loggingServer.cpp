@@ -469,6 +469,11 @@ namespace DevDriver
                     {
                         const Version sessionVersion = pSessionData->pSession->GetVersion();
 
+                        // We can only inline the message sending if the server is currently in the receive payload
+                        // state. Otherwise we might end up inserting a log message in between multi-step control
+                        // procedures in the server. Doing so would cause unexpected messages to be sent to the client.
+                        const bool canInlineMsg = (pSessionData->state == SessionState::ReceivePayload);
+
                         // Try to send out the log payload immediately if its message queue is empty
                         if (pSessionData->messages.IsEmpty() == true)
                         {
@@ -481,7 +486,7 @@ namespace DevDriver
                                                             &payload);
 
                             // Send the payload
-                            if (pSessionData->SendPayload(&payload, kNoWait) == Result::Success)
+                            if (canInlineMsg && (pSessionData->SendPayload(&payload, kNoWait) == Result::Success))
                             {
                                 DD_PRINT(LogLevel::Debug, "Sent Logging Payload To Session %d!",
                                          pSessionData->pSession->GetSessionId());
@@ -509,7 +514,8 @@ namespace DevDriver
 
                             // Only try to send one front payload rather than all payloads in the queue as we don't want the Log()
                             // thread take up too much time here
-                            if (pSessionData->SendPayload(pSessionData->messages.PeekFront(), kNoWait) == Result::Success)
+                            if (canInlineMsg &&
+                                (pSessionData->SendPayload(pSessionData->messages.PeekFront(), kNoWait) == Result::Success))
                             {
                                 DD_PRINT(LogLevel::Debug, "Sent Logging Payload To Session %d!",
                                          pSessionData->pSession->GetSessionId());

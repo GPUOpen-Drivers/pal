@@ -123,10 +123,19 @@ union GpuMemoryCreateFlags
         uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
         uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.
         uint32 crossAdapter      :  1; ///< Specifies the GPUMemory is shared cross-adapter resource.
-        uint32 reserved          : 11; ///< Reserved for future use.
 #else
-        uint32 reserved          : 14; ///< Reserved for future use.
+        uint32 reserved455       :  3;
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 464
+        uint32 cpuInvisible      :  1; ///< By default, PAL makes every allocation CPU visible if all of its preferred
+                                       ///< heaps are CPU visible. This flag can be used to override this behavior when
+                                       ///< the client knows the memory will never be mapped for CPU access. If this
+                                       ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
+#else
+        uint32 reserved464       :  1;
+#endif
+        uint32 reserved          :  10; ///< Reserved for future use.
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.
 };

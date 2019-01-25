@@ -118,6 +118,9 @@ namespace DevDriver
             // Returns a boolean indicating whether the block has any transfers in progress.
             bool HasPendingTransfers();
 
+            // Returns the current number of pending transfers.
+            uint32 QueryNumPendingTransfers();
+
             // Waits for all pending transfers to complete or for the timeout to expire.
             Result WaitForPendingTransfers(uint32 timeoutInMs);
 

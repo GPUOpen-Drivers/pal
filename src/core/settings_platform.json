@@ -1,1426 +1,4 @@
 {
-  "ComponentName": "Pal_Platform",
-  "Settings": [
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "dbgPrintConfig",
-      "Name": "DbgPrintConfig",
-      "Tags": [
-        "Debug Print"
-      ],
-      "Structure": [
-        {
-          "Type": "bool",
-          "VariableName": "infoEnabled",
-          "Name": "InfoEnabled",
-          "Description": "Enables debug print messages in the Info category [DbgPrintCatInfoMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 3336086055
-        },
-        {
-          "Type": "bool",
-          "VariableName": "warningEnabled",
-          "Name": "WarningEnabled",
-          "Description": "Enables debug print messages in the Warning category [DbgPrintCatWarnMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 3827375483
-        },
-        {
-          "Type": "bool",
-          "VariableName": "errorEnabled",
-          "Name": "ErrorEnabled",
-          "Description": "Enables debug print messages in the Error category [DbgPrintCatErrorMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 1444311189
-        },
-        {
-          "Type": "bool",
-          "VariableName": "ScEnabled",
-          "Name": "ScEnabled",
-          "Description": "Enables debug print messages in the SC category [DbgPrintCatScMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 695309361
-        },
-        {
-          "Type": "bool",
-          "VariableName": "eventPrintEnabled",
-          "Name": "EventPrintEnabled",
-          "Description": "Enables debug print messages in the Event Print category [DbgPrintCatEventPrintMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 721345714
-        },
-        {
-          "Type": "bool",
-          "VariableName": "eventPrintCbEnabled",
-          "Name": "EventPrintCbEnabled",
-          "Description": "Enables debug print messages in the Event Print Callback category [DbgPrintCatEventPrintCallbackMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 4220374213
-        }
-      ],
-      "Description": "Controls debug print category enable/disable.",
-      "HashName": 3420605593
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "assertsEnabled",
-      "Name": "AssertsEnabled",
-      "Tags": [
-        "Asserts and Alerts"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Enables driver asserts.",
-      "HashName": 1110605001
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "alertsEnabled",
-      "Name": "AlertsEnabled",
-      "Tags": [
-        "Asserts and Alerts"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Enables driver alerts.",
-      "HashName": 3333004859
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "debugOverlayEnabled",
-      "Name": "DebugOverlayEnabled",
-      "Tags": [
-        "Debug Overlay"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Enables the debug overlay.",
-      "HashName": 3362163801
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "debugOverlayConfig",
-      "Name": "DebugOverlayConfig",
-      "Tags": [
-        "Debug Overlay"
-      ],
-      "Structure": [
-        {
-          "Type": "bool",
-          "VariableName": "visualConfirmEnabled",
-          "Name": "VisualConfirmEnabled",
-          "Description": "Writes debug overlay information to the screen.",
-          "Defaults": {
-            "Default": true
-          },
-          "HashName": 1116165338
-        },
-        {
-          "Type": "bool",
-          "VariableName": "timeGraphEnabled",
-          "Name": "TimeGraphEnabled",
-          "Description": "Draws the timegraph to the screen.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 2485887783
-        },
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "IsEnum": true,
-            "Name": "DebugOverlayLocation",
-            "Values": [
-              {
-                "Value": 0,
-                "Name": "DebugOverlayUpperLeft"
-              },
-              {
-                "Value": 1,
-                "Name": "DebugOverlayUpperRight"
-              },
-              {
-                "Value": 2,
-                "Name": "DebugOverlayLowerRight"
-              },
-              {
-                "Value": 3,
-                "Name": "DebugOverlayLowerLeft"
-              },
-              {
-                "Value": 4,
-                "Name": "DebugOverlayCount"
-              }
-            ]
-          },
-          "Name": "DebugOverlayLocation",
-          "Description": "Location to display debug text.",
-          "Defaults": {
-            "Default": "DebugOverlayLowerLeft"
-          },
-          "HashName": 248899441,
-          "VariableName": "overlayLocation"
-        },
-        {
-          "Type": "string",
-          "VariableName": "renderedByString",
-          "Name": "RenderedByString",
-          "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxMiscStrLen",
-          "HashName": 3965817458
-        },
-        {
-          "Type": "string",
-          "VariableName": "miscellaneousDebugString",
-          "Name": "MiscellaneousDebugString",
-          "Description": "Debug information that the client or tester might want reported.",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxMiscStrLen",
-          "HashName": 1845251913
-        },
-        {
-          "Type": "bool",
-          "VariableName": "printFrameNumber",
-          "Name": "PrintFrameNumber",
-          "Description": "Output current frame number in the debug overlay.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 3798504442
-        }
-      ],
-      "Description": "Controls what information is displayed on the Debug Overlay.",
-      "HashName": 4215443526
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "timeGraphConfig",
-      "Name": "TimeGraphConfig",
-      "Tags": [
-        "Debug Overlay"
-      ],
-      "Structure": [
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "IsEnum": true,
-            "Name": "TimeGraphColor",
-            "Values": [
-              {
-                "Name": "BlackColor",
-                "Value": 0,
-                "Description": "Black"
-              },
-              {
-                "Name": "RedColor",
-                "Value": 1,
-                "Description": "Red"
-              },
-              {
-                "Name": "GreenColor",
-                "Value": 2,
-                "Description": "Green"
-              },
-              {
-                "Name": "BlueColor",
-                "Value": 3,
-                "Description": "Blue"
-              },
-              {
-                "Name": "YellowColor",
-                "Value": 4,
-                "Description": "Yellow"
-              },
-              {
-                "Name": "CyanColor",
-                "Value": 5,
-                "Description": "Cyan"
-              },
-              {
-                "Name": "MagentaColor",
-                "Value": 6,
-                "Description": "Magenta"
-              },
-              {
-                "Name": "WhiteColor",
-                "Value": 7,
-                "Description": "White"
-              }
-            ]
-          },
-          "Name": "GridLineColor",
-          "Description": "Color of the grid line in the time graph.",
-          "Defaults": {
-            "Default": "RedColor"
-          },
-          "HashName": 2774338144,
-          "VariableName": "gridLineColor"
-        },
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "Values": [
-              {
-                "Name": "BlackColor",
-                "Value": 0,
-                "Description": "Black"
-              },
-              {
-                "Name": "RedColor",
-                "Value": 1,
-                "Description": "Red"
-              },
-              {
-                "Name": "GreenColor",
-                "Value": 2,
-                "Description": "Green"
-              },
-              {
-                "Name": "BlueColor",
-                "Value": 3,
-                "Description": "Blue"
-              },
-              {
-                "Name": "YellowColor",
-                "Value": 4,
-                "Description": "Yellow"
-              },
-              {
-                "Name": "CyanColor",
-                "Value": 5,
-                "Description": "Cyan"
-              },
-              {
-                "Name": "MagentaColor",
-                "Value": 6,
-                "Description": "Magenta"
-              },
-              {
-                "Name": "WhiteColor",
-                "Value": 7,
-                "Description": "White"
-              }
-            ],
-            "Name": "TimeGraphColor"
-          },
-          "Name": "CpuLineColor",
-          "Description": "Color of the CPU line in the time graph.",
-          "Defaults": {
-            "Default": "YellowColor"
-          },
-          "HashName": 3593358936,
-          "VariableName": "cpuLineColor"
-        },
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "Values": [
-              {
-                "Name": "BlackColor",
-                "Value": 0,
-                "Description": "Black"
-              },
-              {
-                "Name": "RedColor",
-                "Value": 1,
-                "Description": "Red"
-              },
-              {
-                "Name": "GreenColor",
-                "Value": 2,
-                "Description": "Green"
-              },
-              {
-                "Name": "BlueColor",
-                "Value": 3,
-                "Description": "Blue"
-              },
-              {
-                "Name": "YellowColor",
-                "Value": 4,
-                "Description": "Yellow"
-              },
-              {
-                "Name": "CyanColor",
-                "Value": 5,
-                "Description": "Cyan"
-              },
-              {
-                "Name": "MagentaColor",
-                "Value": 6,
-                "Description": "Magenta"
-              },
-              {
-                "Name": "WhiteColor",
-                "Value": 7,
-                "Description": "White"
-              }
-            ],
-            "Name": "TimeGraphColor"
-          },
-          "Name": "GpuLineColor",
-          "Description": "Color of the GPU line in the time graph.",
-          "Defaults": {
-            "Default": "GreenColor"
-          },
-          "HashName": 683848132,
-          "VariableName": "gpuLineColor"
-        }
-      ],
-      "Description": "Time Graph display configuration",
-      "HashName": 4101550198
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "overlayBenchmarkConfig",
-      "Name": "OverlayBenchmarkConfig",
-      "Tags": [
-        "Debug Overlay"
-      ],
-      "Structure": [
-        {
-          "Type": "uint32",
-          "VariableName": "maxBenchmarkTime",
-          "Name": "MaxBenchmarkTime",
-          "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1613865845
-        },
-        {
-          "Type": "bool",
-          "VariableName": "usageLogEnable",
-          "Name": "UsageLogEnable",
-          "Description": "Whether or not a log entry of PAL usage will be generated to disk.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 1439000029
-        },
-        {
-          "Flags": {
-            "IsPath": true
-          },
-          "Type": "string",
-          "VariableName": "usageLogDirectory",
-          "Name": "UsageLogDirectory",
-          "Description": "Relative directory where usage logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Defaults": {
-            "WinDefault": "PalLog\\",
-            "Default": "amdpal/",
-            "LnxDefault": "amdpal/"
-          },
-          "Size": "MaxPathStrLen",
-          "HashName": 3345515589
-        },
-        {
-          "Type": "string",
-          "VariableName": "usageLogFilename",
-          "Name": "UsageLogFilename",
-          "Description": "Filename and extension of the usage log.",
-          "Defaults": {
-            "Default": "PalUsageLog.txt"
-          },
-          "Size": "MaxPathStrLen",
-          "HashName": 570887899
-        },
-        {
-          "Type": "bool",
-          "VariableName": "logFrameStats",
-          "Name": "LogFrameStats",
-          "Description": "Log frame time and average FPS during benchmark session to files. Only enabled when DebugVisualDisplay is enabled.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 2989332685
-        },
-        {
-          "Flags": {
-            "IsPath": true
-          },
-          "Type": "string",
-          "VariableName": "frameStatsLogDirectory",
-          "Name": "FrameStatsLogDirectory",
-          "Description": "Relative directory where frame statistic logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Defaults": {
-            "WinDefault": "PalLog\\",
-            "Default": "amdpal/",
-            "LnxDefault": "amdpal/"
-          },
-          "Size": "MaxPathStrLen",
-          "HashName": 1128423400
-        },
-        {
-          "Type": "uint32",
-          "VariableName": "maxLoggedFrames",
-          "Name": "MaxLoggedFrames",
-          "Description": "Max mumber of frame time samples that can be logged in a benchmark session.",
-          "Defaults": {
-            "Default": 65536
-          },
-          "HashName": 1247452473
-        }
-      ],
-      "Description": "Debug Overlay Benchmark configuration.",
-      "HashName": 1270852940
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "overlayMemoryInfoConfig",
-      "Name": "OverlayMemoryInfoConfig",
-      "Tags": [
-        "Debug Overlay"
-      ],
-      "Structure": [
-        {
-          "Type": "bool",
-          "VariableName": "combineNonLocal",
-          "Name": "CombineNonLocal",
-          "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.",
-          "Defaults": {
-            "Default": true
-          },
-          "HashName": 1412889158
-        },
-        {
-          "Type": "bool",
-          "VariableName": "reportCmdAllocator",
-          "Name": "ReportCmdAllocator",
-          "Description": "Determines if the overlay will report information about CmdAllocator allocations.",
-          "Defaults": {
-            "Default": true
-          },
-          "HashName": 819062876
-        },
-        {
-          "Type": "bool",
-          "VariableName": "reportExternal",
-          "Name": "ReportExternal",
-          "Description": "Determines if the overlay will report information about external allocations.",
-          "Defaults": {
-            "Default": true
-          },
-          "HashName": 1211449330
-        },
-        {
-          "Type": "bool",
-          "VariableName": "reportInternal",
-          "Name": "ReportInternal",
-          "Description": "Determines if the overlay will report information about internal allocations.",
-          "Defaults": {
-            "Default": true
-          },
-          "HashName": 373898840
-        }
-      ],
-      "Description": "Configures the memory usage display on the Debug Overlay.",
-      "HashName": 1508271022
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "ValidValues": {
-        "Values": [
-          {
-            "Value": 0,
-            "Name": "GpuProfilerDisabled",
-            "Description": "GPU Profiler Disabled"
-          },
-          {
-            "Value": 1,
-            "Name": "GpuProfilerCounterAndTimingOnly",
-            "Description": "Traces are disabled but perf counter and timing operations are enabled."
-          },
-          {
-            "Value": 2,
-            "Name": "GpuProfilerTraceEnabledTtv",
-            "Description": "Traces (Spm and/or Sqtt) are output in format (.csv, .out) for Thread trace viewer."
-          },
-          {
-            "Value": 3,
-            "Name": "GpuProfilerTraceEnabledRgp",
-            "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler."
-          }
-        ],
-        "Name": "GpuProfilerMode"
-      },
-      "Name": "GpuProfilerMode",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Defaults": {
-        "Default": "GpuProfilerDisabled"
-      },
-      "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11.",
-      "HashName": 3490085415,
-      "VariableName": "gpuProfilerMode"
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "LogicOp": "GreaterThan",
-            "Values": [
-              0
-            ],
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "gpuProfilerConfig",
-      "Name": "GpuProfilerConfig",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Structure": [
-        {
-          "Flags": {
-            "IsPath": true
-          },
-          "Type": "string",
-          "VariableName": "logDirectory",
-          "Name": "LogDirectory",
-          "Description": "Relative directory where GPU profiler logs are written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Defaults": {
-            "WinDefault": "PalLog\\",
-            "Default": "amdpal/",
-            "LnxDefault": "amdpal/"
-          },
-          "Size": "MaxPathStrLen",
-          "HashName": 1786197374
-        },
-        {
-          "Type": "uint32",
-          "VariableName": "startFrame",
-          "Name": "StartFrame",
-          "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3281941262
-        },
-        {
-          "Type": "uint32",
-          "VariableName": "frameCount",
-          "Name": "FrameCount",
-          "Description": "Number of frames to enable performance data collection.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3899735123
-        },
-        {
-          "Type": "bool",
-          "VariableName": "recordPipelineStats",
-          "Name": "RecordPipelineStats",
-          "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 3225763835
-        },
-        {
-          "Type": "bool",
-          "VariableName": "breakSubmitBatches",
-          "Name": "BreakSubmitBatches",
-          "Description": "Split up IQueue::Submit() calls so that the PAL core is called once per command buffer in the batch.  This can significantly reduce the GPU memory overhead of the profiler, but may have a slight impact on results.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 3699637222
-        },
-        {
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Type": "uint32",
-          "ValidValues": {
-            "IsEnum": true,
-            "Name": "GpuProfilerTraceModeFlags",
-            "Values": [
-              {
-                "Name": "GpuProfilerTraceDisabled",
-                "Value": 0,
-                "Description": "Trace Disabled"
-              },
-              {
-                "Name": "GpuProfilerTraceSpm",
-                "Value": 1,
-                "Description": "Enable SPM"
-              },
-              {
-                "Name": "GpuProfilerTraceSqtt",
-                "Value": 2,
-                "Description": "Enable SQTT"
-              }
-            ]
-          },
-          "Name": "TraceModeMask",
-          "Description": "Mask indicating which traces are enabled. Both spm trace and Sqtt trace are disabled (0x0)   Spm trace is enabled (0x1). Sqtt trace is enabled (0x2).",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 2733188403,
-          "VariableName": "traceModeMask"
-        }
-      ],
-      "Description": "Configuration options for the PAL GPU Profiler layer.",
-      "HashName": 1361464226
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "gpuProfilerPerfCounterConfig",
-      "Name": "GpuProfilerPerfCounterConfig",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Structure": [
-        {
-          "Flags": {
-            "IsFile": true
-          },
-          "Type": "string",
-          "VariableName": "globalPerfCounterConfigFile",
-          "Name": "GlobalPerfCounterConfigFile",
-          "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD. ID should correspond to the specific counter of interest for the specified Block, these can be selected by reading the performance counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows.",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxFileNameStrLen",
-          "HashName": 2182449032
-        },
-        {
-          "Type": "bool",
-          "VariableName": "cacheFlushOnCounterCollection",
-          "Name": "CacheFlushOnCounterCollection",
-          "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 1201772335
-        },
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "IsEnum": true,
-            "Name": "GpuProfilerGranularity",
-            "Values": [
-              {
-                "Value": 0,
-                "Name": "GpuProfilerGranularityDraw",
-                "Description": "Per draw.  Each separate draw will be measured."
-              },
-              {
-                "Value": 1,
-                "Name": "GpuProfilerGranularityCmdBuf",
-                "Description": "Per command buffer.  Whole command buffers will be grouped."
-              },
-              {
-                "Value": 2,
-                "Name": "GpuProfilerGranularityFrame",
-                "Description": "Per frame, the whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats will not be gathered in this mode.  NOTE: Since SQTT will be filtered by VMID if you wish to gather a thread trace across multiple queues (i.e., including async compute work), a Debug VMID should also be requested to ensure work in all queues share the same VMID."
-              }
-            ]
-          },
-          "Name": "Granularity",
-          "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid.",
-          "Defaults": {
-            "Default": "GpuProfilerGranularityDraw"
-          },
-          "HashName": 3414628368,
-          "VariableName": "granularity"
-        }
-      ],
-      "Description": "Configuration options for performance counter collection through the PAL GPU Profiler Layer.",
-      "HashName": 3485507659
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "LogicOp": "GreaterThan",
-            "Values": [
-              1
-            ],
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "gpuProfilerSqttConfig",
-      "Name": "GpuProfilerSqttConfig",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Structure": [
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint32",
-          "VariableName": "tokenMask",
-          "Name": "TokenMask",
-          "Description": "Mask indicating which SQTT tokens should be included in the trace.  Value will be written to TOKEN_MASK field in hardware.  For reference, based on GFX8 SQTT user guide: 0x0001: TIME (TT2.0 only), MISC (TT2.1+) 0x0002: TIMESTAMP 0x0004: REG 0x0008: WAVE_START 0x0010: WAVE_PS_ALLOC (TT2.0 only) / WAVE_ALLOC (TT2.1+) 0x0020: WAVE_VS_ALLOC (TT2.0 only) / REG_CSPRIV (TT2.1+) 0x0040: WAVE_END 0x0080: EVENT 0x0100: EVENT_CS 0x0200: EVENT_GFX1 0x0400: INST 0x0800: INST_PC 0x1000: INST_USERDATA 0x2000: ISSUE 0x4000: PERF 0x8000: MISC (TT2.0 only), REG_CS(TT2.1+)",
-          "Defaults": {
-            "Default": 65535
-          },
-          "HashName": 1136095484
-        },
-        {
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Type": "uint32",
-          "ValidValues": {
-            "Values": [
-              {
-                "Value": 1,
-                "Name": "ShaderEngine-0",
-                "Description": "Trace for Shader Engine 0"
-              },
-              {
-                "Value": 2,
-                "Name": "ShaderEngine-1",
-                "Description": "Trace for Shader Engine 1"
-              },
-              {
-                "Value": 4,
-                "Name": "ShaderEngine-2",
-                "Description": "Trace for Shader Engine 2"
-              },
-              {
-                "Value": 8,
-                "Name": "ShaderEngine-3",
-                "Description": "Trace for Shader Engine 3"
-              }
-            ]
-          },
-          "Name": "SEMask",
-          "Description": "Mask indicating which which SE to gather thread trace from.",
-          "Defaults": {
-            "Default": 15
-          },
-          "HashName": 4066555951,
-          "VariableName": "seMask"
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "pipelineHash",
-          "Name": "PipelineHash",
-          "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3932789981
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "vsHashHi",
-          "Name": "VsHashHi",
-          "Description": "High QWORD of the VS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3163259987
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "vsHashLo",
-          "Name": "VsHashLo",
-          "Description": "Low QWORD of the VS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3801397889
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "hsHashHi",
-          "Name": "HsHashHi",
-          "Description": "High QWORD of the HS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1390489601
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "hsHashLo",
-          "Name": "HsHashLo",
-          "Description": "Low QWORD of the HS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 886572651
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "dsHashHi",
-          "Name": "DsHashHi",
-          "Description": "High QWORD of the DS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3315456133
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "dsHashLo",
-          "Name": "DsHashLo",
-          "Description": "Low QWORD of the DS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3752365775
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "gsHashHi",
-          "Name": "GsHashHi",
-          "Description": "High QWORD of the GS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1775931482
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "gsHashLo",
-          "Name": "GsHashLo",
-          "Description": "Low QWORD of the GS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1137690412
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "psHashHi",
-          "Name": "PsHashHi",
-          "Description": "High QWORD of the PS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1805758793
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "psHashLo",
-          "Name": "PsHashLo",
-          "Description": "Low QWORD of the PS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1301841843
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "csHashHi",
-          "Name": "CsHashHi",
-          "Description": "High QWORD of the CS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1629297294
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint64",
-          "VariableName": "csHashLo",
-          "Name": "CsHashLo",
-          "Description": "Low QWORD of the CS hash to enable SQ thread traces for.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 1663440912
-        },
-        {
-          "Flags": {
-            "IsHex": true
-          },
-          "Type": "uint32",
-          "VariableName": "maxDraws",
-          "Name": "MaxDraws",
-          "Description": "Max number of draws to thread-trace.  A value of 0 indicates no limit.",
-          "Defaults": {
-            "Default": 0
-          },
-          "HashName": 3208735818
-        },
-        {
-          "Type": "bool",
-          "VariableName": "addTtvHashes",
-          "Name": "AddTtvHashes",
-          "Description": "Whether to inject the pipeline hash and client shader hases into the thread trace for Thread Trace Viewer analysis.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 2774444984
-        },
-        {
-          "Type": "size_t",
-          "VariableName": "bufferSize",
-          "Name": "BufferSize",
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
-          "Defaults": {
-            "Default": 1048576
-          },
-          "HashName": 1277078724
-        },
-        {
-          "Type": "enum",
-          "ValidValues": {
-            "Values": [
-              {
-                "Name": "GpuProfilerStallAlways",
-                "Value": 0,
-                "Description": "Always stall, never discard data"
-              },
-              {
-                "Name": "GpuProfilerStallLoseDetail",
-                "Value": 1,
-                "Description": "Lose detailed profiling data when necessary to attempt to avoid stalls"
-              },
-              {
-                "Name": "GpuProfilerStallNever",
-                "Value": 2,
-                "Description": "Never stall, discard data if the buffer is full"
-              }
-            ],
-            "Name": "GpuProfilerStallMode"
-          },
-          "Name": "StallBehavior",
-          "Description": "Behavior to take when trace buffer is full.",
-          "Defaults": {
-            "Default": "GpuProfilerStallAlways"
-          },
-          "HashName": 1063331229,
-          "VariableName": "stallBehavior"
-        }
-      ],
-      "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer.",
-      "HashName": 3046844658
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "LogicOp": "GreaterThan",
-            "Values": [
-              1
-            ],
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "gpuProfilerSpmConfig",
-      "Name": "GpuProfilerSpmConfig",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Structure": [
-        {
-          "Flags": {
-            "IsFile": true
-          },
-          "Type": "string",
-          "VariableName": "spmPerfCounterConfigFile",
-          "Name": "SpmPerfCounterConfigFile",
-          "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD.  ID should correspond counter of interest for the specified Block, these can be selected by reading the performance to the specific counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows. WARNING: Page fault will occur when attempting spm traces on GFX9 HW, unless RLC_SPM_VMID is set in the RLC_SPM_MC_CNTL register. KMD has to set this register. This register can be set manually (debug VMID: 0xb, RequestDebugVmid=true) for testing. Also, the sample delay register values need to be set for correct streaming counter data.",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxFileNameStrLen",
-          "HashName": 1274479618
-        },
-        {
-          "Type": "uint32",
-          "ValidValues": {
-            "Values": [
-              {
-                "LogicOp": "GreaterThanOrEqual",
-                "Value": 32,
-                "Description": "Minimum 32"
-              }
-            ]
-          },
-          "Name": "SpmTraceInterval",
-          "Description": "Sample interval in sclck.",
-          "Defaults": {
-            "Default": 4096
-          },
-          "HashName": 3756226799,
-          "VariableName": "spmTraceInterval"
-        },
-        {
-          "Type": "size_t",
-          "VariableName": "spmBufferSize",
-          "Name": "SpmBufferSize",
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
-          "Defaults": {
-            "Default": 1048576
-          },
-          "HashName": 3798430118
-        }
-      ],
-      "Description": "Configuration options for capturing Streaming Performance Monitors through the PAL GPU Profiler layer.",
-      "HashName": 3153542192
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "cmdBufferLoggerEnabled",
-      "Name": "CmdBufferLoggerEnabled",
-      "Tags": [
-        "CmdBuffer Logger"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Enables the command buffer logger layer, which provides ICmdBuffer level annotations directly in command buffer dumps. These annoations can later be deciphered using offline tools.",
-      "HashName": 1206982834
-    },
-    {
-      "Flags": {
-        "IsHex": true,
-        "IsBitmask": true
-      },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "CmdBufferLoggerEnabled"
-          }
-        ]
-      },
-      "Type": "uint32",
-      "ValidValues": {
-        "Values": [
-          {
-            "Value": 1,
-            "Description": "CmdBarrier"
-          },
-          {
-            "Value": 2,
-            "Description": "CmdDraws"
-          },
-          {
-            "Value": 4,
-            "Description": "CmdDispatchs"
-          },
-          {
-            "Value": 8,
-            "Description": "CmdWriteTimestamp"
-          },
-          {
-            "Value": 16,
-            "Description": "CmdBinds"
-          },
-          {
-            "Value": 32,
-            "Description": "CmdSetUserData"
-          },
-          {
-            "Value": 64,
-            "Description": "CmdSets"
-          },
-          {
-            "Value": 128,
-            "Description": "CmdBlts"
-          },
-          {
-            "Value": 256,
-            "Description": "Miscellaneous"
-          }
-        ]
-      },
-      "Name": "CmdBufferLoggerFlags",
-      "Tags": [
-        "CmdBuffer Logger"
-      ],
-      "Scope": "PrivatePalKey",
-      "Defaults": {
-        "Default": 511
-      },
-      "Description": "Bitmask controlling which ICmdBuffer calls to annotate",
-      "HashName": 2297477296,
-      "VariableName": "cmdBufferLoggerFlags"
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "interfaceLoggerEnabled",
-      "Name": "InterfaceLoggerEnabled",
-      "Tags": [
-        "Interface Logger"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Enables the PAL interface logging layer.",
-      "HashName": 2678054117
-    },
-    {
-      "Scope": "PrivatePalKey",
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "InterfaceLoggerEnabled"
-          }
-        ]
-      },
-      "Type": "struct",
-      "VariableName": "interfaceLoggerConfig",
-      "Name": "InterfaceLoggerConfig",
-      "Tags": [
-        "Interface Logger"
-      ],
-      "Structure": [
-        {
-          "Flags": {
-            "IsPath": true
-          },
-          "Type": "string",
-          "VariableName": "logDirectory",
-          "Name": "LogDirectory",
-          "Description": "Relative directory where the interface logger writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Defaults": {
-            "WinDefault": "PalLog\\",
-            "Default": "amdpal/",
-            "LnxDefault": "amdpal/"
-          },
-          "Size": "MaxPathStrLen",
-          "HashName": 885284478
-        },
-        {
-          "Type": "bool",
-          "VariableName": "multithreaded",
-          "Name": "Multithreaded",
-          "Description": "Each thread will write into its own log file, avoiding taking a global lock.",
-          "Defaults": {
-            "Default": false
-          },
-          "HashName": 800910225
-        },
-        {
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Type": "uint32",
-          "ValidValues": {
-            "Values": [
-              {
-                "Value": 1,
-                "Description": "LogFlagGeneralCalls: Functions which are hard to classify or rarely called."
-              },
-              {
-                "Value": 2,
-                "Description": "LogFlagCreateDestroy: Functions which create and destroy PAL objects."
-              },
-              {
-                "Value": 4,
-                "Description": "LogFlagBindGpuMemory: Functions relevant to GPU memory binding."
-              },
-              {
-                "Value": 8,
-                "Description": "LogFlagQueueOps: Functions relevant to IQueue operations."
-              },
-              {
-                "Value": 16,
-                "Description": "LogFlagCmdBuilding: Functions which build ICmdBuffer commands."
-              },
-              {
-                "Value": 32,
-                "Description": "LogFlagCreateSrds: Functions which create SRDs."
-              }
-            ]
-          },
-          "Name": "BasePreset",
-          "Description": "Bitmask of which interface function calls will be logged by default.",
-          "Defaults": {
-            "Default": 7
-          },
-          "HashName": 2924533825,
-          "VariableName": "basePreset"
-        },
-        {
-          "Flags": {
-            "IsHex": true,
-            "IsBitmask": true
-          },
-          "Type": "uint32",
-          "ValidValues": {
-            "Values": [
-              {
-                "Value": 1,
-                "Description": "LogFlagGeneralCalls: Functions which are hard to classify or rarely called."
-              },
-              {
-                "Value": 2,
-                "Description": "LogFlagCreateDestroy: Functions which create and destroy PAL objects."
-              },
-              {
-                "Value": 4,
-                "Description": "LogFlagBindGpuMemory: Functions relevant to GPU memory binding."
-              },
-              {
-                "Value": 8,
-                "Description": "LogFlagQueueOps: Functions relevant to IQueue operations."
-              },
-              {
-                "Value": 16,
-                "Description": "LogFlagCmdBuilding: Functions which build ICmdBuffer commands."
-              },
-              {
-                "Value": 32,
-                "Description": "LogFlagCreateSrds: Functions which create SRDs."
-              }
-            ]
-          },
-          "Name": "ElevatedPreset",
-          "Description": "Bitmask of which interface function calls will be logged when the user holds Shift-F11",
-          "Defaults": {
-            "Default": 31
-          },
-          "HashName": 4040226650,
-          "VariableName": "elevatedPreset"
-        }
-      ],
-      "Description": "Configuration options for the PAL Interface Logger layer.",
-      "HashName": 2996145826
-    }
-  ],
   "Tags": [
     "Debug Print",
     "Debug Overlay",
@@ -1429,24 +7,1446 @@
     "Interface Logger",
     "Shader Debug"
   ],
+  "DefinedConstants": [
+    {
+      "Description": "Maximum string length for a directory/path setting",
+      "Name": "MaxPathStrLen",
+      "Value": 512
+    },
+    {
+      "Description": "Maximum string length for a filename setting",
+      "Name": "MaxFileNameStrLen",
+      "Value": 256
+    },
+    {
+      "Description": "Maximum string length for a miscellaneous string setting",
+      "Name": "MaxMiscStrLen",
+      "Value": 61
+    }
+  ],
+  "ComponentName": "Pal_Platform",
   "DriverState": [
     "HaltedOnPlatformInit"
   ],
-  "DefinedConstants": [
+  "Settings": [
     {
-      "Value": 512,
-      "Name": "MaxPathStrLen",
-      "Description": "Maximum string length for a directory/path setting"
+      "Structure": [
+        {
+          "Description": "Enables debug print messages in the Info category [DbgPrintCatInfoMsg].",
+          "HashName": 3336086055,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "InfoEnabled",
+          "VariableName": "infoEnabled"
+        },
+        {
+          "Description": "Enables debug print messages in the Warning category [DbgPrintCatWarnMsg].",
+          "HashName": 3827375483,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "WarningEnabled",
+          "VariableName": "warningEnabled"
+        },
+        {
+          "Description": "Enables debug print messages in the Error category [DbgPrintCatErrorMsg].",
+          "HashName": 1444311189,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "ErrorEnabled",
+          "VariableName": "errorEnabled"
+        },
+        {
+          "Description": "Enables debug print messages in the SC category [DbgPrintCatScMsg].",
+          "HashName": 695309361,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "ScEnabled",
+          "VariableName": "ScEnabled"
+        },
+        {
+          "Description": "Enables debug print messages in the Event Print category [DbgPrintCatEventPrintMsg].",
+          "HashName": 721345714,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "EventPrintEnabled",
+          "VariableName": "eventPrintEnabled"
+        },
+        {
+          "Description": "Enables debug print messages in the Event Print Callback category [DbgPrintCatEventPrintCallbackMsg].",
+          "HashName": 4220374213,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "EventPrintCbEnabled",
+          "VariableName": "eventPrintCbEnabled"
+        }
+      ],
+      "Description": "Controls debug print category enable/disable.",
+      "Name": "DbgPrintConfig",
+      "Scope": "PrivatePalKey",
+      "HashName": 3420605593,
+      "Type": "struct",
+      "Tags": [
+        "Debug Print"
+      ],
+      "VariableName": "dbgPrintConfig"
     },
     {
-      "Value": 256,
-      "Name": "MaxFileNameStrLen",
-      "Description": "Maximum string length for a filename setting"
+      "Description": "Enables driver asserts.",
+      "Name": "AssertsEnabled",
+      "Scope": "PrivatePalKey",
+      "HashName": 1110605001,
+      "Type": "bool",
+      "VariableName": "assertsEnabled",
+      "Tags": [
+        "Asserts and Alerts"
+      ],
+      "Defaults": {
+        "Default": false
+      }
     },
     {
-      "Value": 61,
-      "Name": "MaxMiscStrLen",
-      "Description": "Maximum string length for a miscellaneous string setting"
+      "Description": "Enables driver alerts.",
+      "Name": "AlertsEnabled",
+      "Scope": "PrivatePalKey",
+      "HashName": 3333004859,
+      "Type": "bool",
+      "VariableName": "alertsEnabled",
+      "Tags": [
+        "Asserts and Alerts"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Description": "Enables the debug overlay.",
+      "Name": "DebugOverlayEnabled",
+      "Scope": "PrivatePalKey",
+      "HashName": 3362163801,
+      "Type": "bool",
+      "VariableName": "debugOverlayEnabled",
+      "Tags": [
+        "Debug Overlay"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Structure": [
+        {
+          "Description": "Writes debug overlay information to the screen.",
+          "HashName": 1116165338,
+          "Type": "bool",
+          "Defaults": {
+            "Default": true
+          },
+          "Name": "VisualConfirmEnabled",
+          "VariableName": "visualConfirmEnabled"
+        },
+        {
+          "Description": "Draws the timegraph to the screen.",
+          "HashName": 2485887783,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "TimeGraphEnabled",
+          "VariableName": "timeGraphEnabled"
+        },
+        {
+          "Description": "Location to display debug text.",
+          "HashName": 248899441,
+          "ValidValues": {
+            "Name": "DebugOverlayLocation",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "DebugOverlayUpperLeft",
+                "Value": 0
+              },
+              {
+                "Name": "DebugOverlayUpperRight",
+                "Value": 1
+              },
+              {
+                "Name": "DebugOverlayLowerRight",
+                "Value": 2
+              },
+              {
+                "Name": "DebugOverlayLowerLeft",
+                "Value": 3
+              },
+              {
+                "Name": "DebugOverlayCount",
+                "Value": 4
+              }
+            ]
+          },
+          "Type": "enum",
+          "VariableName": "overlayLocation",
+          "Name": "DebugOverlayLocation",
+          "Defaults": {
+            "Default": "DebugOverlayLowerLeft"
+          }
+        },
+        {
+          "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
+          "Size": "MaxMiscStrLen",
+          "HashName": 3965817458,
+          "Type": "string",
+          "VariableName": "renderedByString",
+          "Name": "RenderedByString",
+          "Defaults": {
+            "Default": ""
+          }
+        },
+        {
+          "Description": "Debug information that the client or tester might want reported.",
+          "Size": "MaxMiscStrLen",
+          "HashName": 1845251913,
+          "Type": "string",
+          "VariableName": "miscellaneousDebugString",
+          "Name": "MiscellaneousDebugString",
+          "Defaults": {
+            "Default": ""
+          }
+        },
+        {
+          "Description": "Output current frame number in the debug overlay.",
+          "HashName": 3798504442,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "PrintFrameNumber",
+          "VariableName": "printFrameNumber"
+        }
+      ],
+      "Description": "Controls what information is displayed on the Debug Overlay.",
+      "Tags": [
+        "Debug Overlay"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 4215443526,
+      "Name": "DebugOverlayConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "DebugOverlayEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "VariableName": "debugOverlayConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "Color of the grid line in the time graph.",
+          "HashName": 2774338144,
+          "ValidValues": {
+            "Name": "TimeGraphColor",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "Black",
+                "Name": "BlackColor",
+                "Value": 0
+              },
+              {
+                "Description": "Red",
+                "Name": "RedColor",
+                "Value": 1
+              },
+              {
+                "Description": "Green",
+                "Name": "GreenColor",
+                "Value": 2
+              },
+              {
+                "Description": "Blue",
+                "Name": "BlueColor",
+                "Value": 3
+              },
+              {
+                "Description": "Yellow",
+                "Name": "YellowColor",
+                "Value": 4
+              },
+              {
+                "Description": "Cyan",
+                "Name": "CyanColor",
+                "Value": 5
+              },
+              {
+                "Description": "Magenta",
+                "Name": "MagentaColor",
+                "Value": 6
+              },
+              {
+                "Description": "White",
+                "Name": "WhiteColor",
+                "Value": 7
+              }
+            ]
+          },
+          "Type": "enum",
+          "VariableName": "gridLineColor",
+          "Name": "GridLineColor",
+          "Defaults": {
+            "Default": "RedColor"
+          }
+        },
+        {
+          "Description": "Color of the CPU line in the time graph.",
+          "HashName": 3593358936,
+          "ValidValues": {
+            "Name": "TimeGraphColor",
+            "Values": [
+              {
+                "Description": "Black",
+                "Name": "BlackColor",
+                "Value": 0
+              },
+              {
+                "Description": "Red",
+                "Name": "RedColor",
+                "Value": 1
+              },
+              {
+                "Description": "Green",
+                "Name": "GreenColor",
+                "Value": 2
+              },
+              {
+                "Description": "Blue",
+                "Name": "BlueColor",
+                "Value": 3
+              },
+              {
+                "Description": "Yellow",
+                "Name": "YellowColor",
+                "Value": 4
+              },
+              {
+                "Description": "Cyan",
+                "Name": "CyanColor",
+                "Value": 5
+              },
+              {
+                "Description": "Magenta",
+                "Name": "MagentaColor",
+                "Value": 6
+              },
+              {
+                "Description": "White",
+                "Name": "WhiteColor",
+                "Value": 7
+              }
+            ]
+          },
+          "Type": "enum",
+          "VariableName": "cpuLineColor",
+          "Name": "CpuLineColor",
+          "Defaults": {
+            "Default": "YellowColor"
+          }
+        },
+        {
+          "Description": "Color of the GPU line in the time graph.",
+          "HashName": 683848132,
+          "ValidValues": {
+            "Name": "TimeGraphColor",
+            "Values": [
+              {
+                "Description": "Black",
+                "Name": "BlackColor",
+                "Value": 0
+              },
+              {
+                "Description": "Red",
+                "Name": "RedColor",
+                "Value": 1
+              },
+              {
+                "Description": "Green",
+                "Name": "GreenColor",
+                "Value": 2
+              },
+              {
+                "Description": "Blue",
+                "Name": "BlueColor",
+                "Value": 3
+              },
+              {
+                "Description": "Yellow",
+                "Name": "YellowColor",
+                "Value": 4
+              },
+              {
+                "Description": "Cyan",
+                "Name": "CyanColor",
+                "Value": 5
+              },
+              {
+                "Description": "Magenta",
+                "Name": "MagentaColor",
+                "Value": 6
+              },
+              {
+                "Description": "White",
+                "Name": "WhiteColor",
+                "Value": 7
+              }
+            ]
+          },
+          "Type": "enum",
+          "VariableName": "gpuLineColor",
+          "Name": "GpuLineColor",
+          "Defaults": {
+            "Default": "GreenColor"
+          }
+        }
+      ],
+      "Description": "Time Graph display configuration",
+      "Tags": [
+        "Debug Overlay"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 4101550198,
+      "Name": "TimeGraphConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "DebugOverlayEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "VariableName": "timeGraphConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.",
+          "HashName": 1613865845,
+          "Type": "uint32",
+          "Defaults": {
+            "Default": 0
+          },
+          "Name": "MaxBenchmarkTime",
+          "VariableName": "maxBenchmarkTime"
+        },
+        {
+          "Description": "Whether or not a log entry of PAL usage will be generated to disk.",
+          "HashName": 1439000029,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "UsageLogEnable",
+          "VariableName": "usageLogEnable"
+        },
+        {
+          "Description": "Relative directory where usage logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Size": "MaxPathStrLen",
+          "HashName": 3345515589,
+          "Type": "string",
+          "VariableName": "usageLogDirectory",
+          "Name": "UsageLogDirectory",
+          "Defaults": {
+            "LnxDefault": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "Default": "amdpal/"
+          }
+        },
+        {
+          "Description": "Filename and extension of the usage log.",
+          "Size": "MaxPathStrLen",
+          "HashName": 570887899,
+          "Type": "string",
+          "VariableName": "usageLogFilename",
+          "Name": "UsageLogFilename",
+          "Defaults": {
+            "Default": "PalUsageLog.txt"
+          }
+        },
+        {
+          "Description": "Log frame time and average FPS during benchmark session to files. Only enabled when DebugVisualDisplay is enabled.",
+          "HashName": 2989332685,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "LogFrameStats",
+          "VariableName": "logFrameStats"
+        },
+        {
+          "Description": "Relative directory where frame statistic logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Size": "MaxPathStrLen",
+          "HashName": 1128423400,
+          "Type": "string",
+          "VariableName": "frameStatsLogDirectory",
+          "Name": "FrameStatsLogDirectory",
+          "Defaults": {
+            "LnxDefault": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "Default": "amdpal/"
+          }
+        },
+        {
+          "Description": "Max mumber of frame time samples that can be logged in a benchmark session.",
+          "HashName": 1247452473,
+          "Type": "uint32",
+          "Defaults": {
+            "Default": 65536
+          },
+          "Name": "MaxLoggedFrames",
+          "VariableName": "maxLoggedFrames"
+        }
+      ],
+      "Description": "Debug Overlay Benchmark configuration.",
+      "Tags": [
+        "Debug Overlay"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 1270852940,
+      "Name": "OverlayBenchmarkConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "DebugOverlayEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "VariableName": "overlayBenchmarkConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.",
+          "HashName": 1412889158,
+          "Type": "bool",
+          "Defaults": {
+            "Default": true
+          },
+          "Name": "CombineNonLocal",
+          "VariableName": "combineNonLocal"
+        },
+        {
+          "Description": "Determines if the overlay will report information about CmdAllocator allocations.",
+          "HashName": 819062876,
+          "Type": "bool",
+          "Defaults": {
+            "Default": true
+          },
+          "Name": "ReportCmdAllocator",
+          "VariableName": "reportCmdAllocator"
+        },
+        {
+          "Description": "Determines if the overlay will report information about external allocations.",
+          "HashName": 1211449330,
+          "Type": "bool",
+          "Defaults": {
+            "Default": true
+          },
+          "Name": "ReportExternal",
+          "VariableName": "reportExternal"
+        },
+        {
+          "Description": "Determines if the overlay will report information about internal allocations.",
+          "HashName": 373898840,
+          "Type": "bool",
+          "Defaults": {
+            "Default": true
+          },
+          "Name": "ReportInternal",
+          "VariableName": "reportInternal"
+        }
+      ],
+      "Description": "Configures the memory usage display on the Debug Overlay.",
+      "Tags": [
+        "Debug Overlay"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 1508271022,
+      "Name": "OverlayMemoryInfoConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "DebugOverlayEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "VariableName": "overlayMemoryInfoConfig"
+    },
+    {
+      "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11.",
+      "Name": "GpuProfilerMode",
+      "HashName": 3490085415,
+      "ValidValues": {
+        "Name": "GpuProfilerMode",
+        "Values": [
+          {
+            "Description": "GPU Profiler Disabled",
+            "Name": "GpuProfilerDisabled",
+            "Value": 0
+          },
+          {
+            "Description": "Traces are disabled but perf counter and timing operations are enabled.",
+            "Name": "GpuProfilerCounterAndTimingOnly",
+            "Value": 1
+          },
+          {
+            "Description": "Traces (Spm and/or Sqtt) are output in format (.csv, .out) for Thread trace viewer.",
+            "Name": "GpuProfilerTraceEnabledTtv",
+            "Value": 2
+          },
+          {
+            "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler.",
+            "Name": "GpuProfilerTraceEnabledRgp",
+            "Value": 3
+          }
+        ]
+      },
+      "Type": "enum",
+      "Scope": "PrivatePalKey",
+      "VariableName": "gpuProfilerMode",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Defaults": {
+        "Default": "GpuProfilerDisabled"
+      }
+    },
+    {
+      "Structure": [
+        {
+          "Description": "Relative directory where GPU profiler logs are written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Size": "MaxPathStrLen",
+          "HashName": 1786197374,
+          "Type": "string",
+          "VariableName": "logDirectory",
+          "Name": "LogDirectory",
+          "Defaults": {
+            "LnxDefault": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "Default": "amdpal/"
+          }
+        },
+        {
+          "Description": "Frame number to begin performance data collection. Currently Gpu Profiler doesn't support profiling frame 0",
+          "HashName": 3281941262,
+          "Type": "uint32",
+          "Defaults": {
+            "Default": 0
+          },
+          "Name": "StartFrame",
+          "VariableName": "startFrame"
+        },
+        {
+          "Description": "Number of frames to enable performance data collection.",
+          "HashName": 3899735123,
+          "Type": "uint32",
+          "Defaults": {
+            "Default": 0
+          },
+          "Name": "FrameCount",
+          "VariableName": "frameCount"
+        },
+        {
+          "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.",
+          "HashName": 3225763835,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "RecordPipelineStats",
+          "VariableName": "recordPipelineStats"
+        },
+        {
+          "Description": "Split up IQueue::Submit() calls so that the PAL core is called once per command buffer in the batch.  This can significantly reduce the GPU memory overhead of the profiler, but may have a slight impact on results.",
+          "HashName": 3699637222,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "BreakSubmitBatches",
+          "VariableName": "breakSubmitBatches"
+        },
+        {
+          "Description": "Mask indicating which traces are enabled. Both spm trace and Sqtt trace are disabled (0x0)   Spm trace is enabled (0x1). Sqtt trace is enabled (0x2).",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "HashName": 2733188403,
+          "ValidValues": {
+            "Name": "GpuProfilerTraceModeFlags",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "Trace Disabled",
+                "Name": "GpuProfilerTraceDisabled",
+                "Value": 0
+              },
+              {
+                "Description": "Enable SPM",
+                "Name": "GpuProfilerTraceSpm",
+                "Value": 1
+              },
+              {
+                "Description": "Enable SQTT",
+                "Name": "GpuProfilerTraceSqtt",
+                "Value": 2
+              }
+            ]
+          },
+          "Type": "uint32",
+          "VariableName": "traceModeMask",
+          "Name": "TraceModeMask",
+          "Defaults": {
+            "Default": 0
+          }
+        }
+      ],
+      "Description": "Configuration options for the PAL GPU Profiler layer.",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 1361464226,
+      "Name": "GpuProfilerConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "GpuProfilerMode",
+            "LogicOp": "GreaterThan",
+            "Values": [
+              0
+            ]
+          }
+        ]
+      },
+      "VariableName": "gpuProfilerConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD. ID should correspond to the specific counter of interest for the specified Block, these can be selected by reading the performance counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows.",
+          "Flags": {
+            "IsFile": true
+          },
+          "Size": "MaxFileNameStrLen",
+          "HashName": 2182449032,
+          "Type": "string",
+          "VariableName": "globalPerfCounterConfigFile",
+          "Name": "GlobalPerfCounterConfigFile",
+          "Defaults": {
+            "Default": ""
+          }
+        },
+        {
+          "Description": "Insert cache flush and invalidate events before and after every range of commands where performance counters are collected.",
+          "HashName": 1201772335,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "CacheFlushOnCounterCollection",
+          "VariableName": "cacheFlushOnCounterCollection"
+        },
+        {
+          "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid.",
+          "HashName": 3414628368,
+          "ValidValues": {
+            "Name": "GpuProfilerGranularity",
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "Per draw.  Each separate draw will be measured.",
+                "Name": "GpuProfilerGranularityDraw",
+                "Value": 0
+              },
+              {
+                "Description": "Per command buffer.  Whole command buffers will be grouped.",
+                "Name": "GpuProfilerGranularityCmdBuf",
+                "Value": 1
+              },
+              {
+                "Description": "Per frame, the whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats will not be gathered in this mode.  NOTE: Since SQTT will be filtered by VMID if you wish to gather a thread trace across multiple queues (i.e., including async compute work), a Debug VMID should also be requested to ensure work in all queues share the same VMID.",
+                "Name": "GpuProfilerGranularityFrame",
+                "Value": 2
+              }
+            ]
+          },
+          "Type": "enum",
+          "VariableName": "granularity",
+          "Name": "Granularity",
+          "Defaults": {
+            "Default": "GpuProfilerGranularityDraw"
+          }
+        }
+      ],
+      "Description": "Configuration options for performance counter collection through the PAL GPU Profiler Layer.",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 3485507659,
+      "Name": "GpuProfilerPerfCounterConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "GpuProfilerMode",
+            "Values": [
+              1
+            ]
+          }
+        ]
+      },
+      "VariableName": "gpuProfilerPerfCounterConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "Mask indicating which SQTT tokens should be included in the trace.  Value will be written to TOKEN_MASK field in hardware.  For reference, based on GFX8 SQTT user guide: 0x0001: TIME (TT2.0 only), MISC (TT2.1+) 0x0002: TIMESTAMP 0x0004: REG 0x0008: WAVE_START 0x0010: WAVE_PS_ALLOC (TT2.0 only) / WAVE_ALLOC (TT2.1+) 0x0020: WAVE_VS_ALLOC (TT2.0 only) / REG_CSPRIV (TT2.1+) 0x0040: WAVE_END 0x0080: EVENT 0x0100: EVENT_CS 0x0200: EVENT_GFX1 0x0400: INST 0x0800: INST_PC 0x1000: INST_USERDATA 0x2000: ISSUE 0x4000: PERF 0x8000: MISC (TT2.0 only), REG_CS(TT2.1+)",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1136095484,
+          "Type": "uint32",
+          "VariableName": "tokenMask",
+          "Name": "TokenMask",
+          "Defaults": {
+            "Default": 65535
+          }
+        },
+        {
+          "Description": "Mask indicating which which SE to gather thread trace from.",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "HashName": 4066555951,
+          "ValidValues": {
+            "Values": [
+              {
+                "Description": "Trace for Shader Engine 0",
+                "Name": "ShaderEngine-0",
+                "Value": 1
+              },
+              {
+                "Description": "Trace for Shader Engine 1",
+                "Name": "ShaderEngine-1",
+                "Value": 2
+              },
+              {
+                "Description": "Trace for Shader Engine 2",
+                "Name": "ShaderEngine-2",
+                "Value": 4
+              },
+              {
+                "Description": "Trace for Shader Engine 3",
+                "Name": "ShaderEngine-3",
+                "Value": 8
+              }
+            ]
+          },
+          "Type": "uint32",
+          "VariableName": "seMask",
+          "Name": "SEMask",
+          "Defaults": {
+            "Default": 15
+          }
+        },
+        {
+          "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3932789981,
+          "Type": "uint64",
+          "VariableName": "pipelineHash",
+          "Name": "PipelineHash",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the VS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3163259987,
+          "Type": "uint64",
+          "VariableName": "vsHashHi",
+          "Name": "VsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the VS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3801397889,
+          "Type": "uint64",
+          "VariableName": "vsHashLo",
+          "Name": "VsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the HS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1390489601,
+          "Type": "uint64",
+          "VariableName": "hsHashHi",
+          "Name": "HsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the HS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 886572651,
+          "Type": "uint64",
+          "VariableName": "hsHashLo",
+          "Name": "HsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the DS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3315456133,
+          "Type": "uint64",
+          "VariableName": "dsHashHi",
+          "Name": "DsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the DS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3752365775,
+          "Type": "uint64",
+          "VariableName": "dsHashLo",
+          "Name": "DsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the GS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1775931482,
+          "Type": "uint64",
+          "VariableName": "gsHashHi",
+          "Name": "GsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the GS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1137690412,
+          "Type": "uint64",
+          "VariableName": "gsHashLo",
+          "Name": "GsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the PS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1805758793,
+          "Type": "uint64",
+          "VariableName": "psHashHi",
+          "Name": "PsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the PS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1301841843,
+          "Type": "uint64",
+          "VariableName": "psHashLo",
+          "Name": "PsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "High QWORD of the CS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1629297294,
+          "Type": "uint64",
+          "VariableName": "csHashHi",
+          "Name": "CsHashHi",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Low QWORD of the CS hash to enable SQ thread traces for.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 1663440912,
+          "Type": "uint64",
+          "VariableName": "csHashLo",
+          "Name": "CsHashLo",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Max number of draws to thread-trace.  A value of 0 indicates no limit.",
+          "Flags": {
+            "IsHex": true
+          },
+          "HashName": 3208735818,
+          "Type": "uint32",
+          "VariableName": "maxDraws",
+          "Name": "MaxDraws",
+          "Defaults": {
+            "Default": 0
+          }
+        },
+        {
+          "Description": "Whether to inject the pipeline hash and client shader hases into the thread trace for Thread Trace Viewer analysis.",
+          "HashName": 2774444984,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "AddTtvHashes",
+          "VariableName": "addTtvHashes"
+        },
+        {
+          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
+          "HashName": 1277078724,
+          "Type": "size_t",
+          "Defaults": {
+            "Default": 1048576
+          },
+          "Name": "BufferSize",
+          "VariableName": "bufferSize"
+        },
+        {
+          "Description": "Behavior to take when trace buffer is full.",
+          "HashName": 1063331229,
+          "ValidValues": {
+            "Values": [
+              {
+                "Description": "Always stall, never discard data",
+                "Name": "GpuProfilerStallAlways",
+                "Value": 0
+              },
+              {
+                "Description": "Lose detailed profiling data when necessary to attempt to avoid stalls",
+                "Name": "GpuProfilerStallLoseDetail",
+                "Value": 1
+              },
+              {
+                "Description": "Never stall, discard data if the buffer is full",
+                "Name": "GpuProfilerStallNever",
+                "Value": 2
+              }
+            ],
+            "Name": "GpuProfilerStallMode"
+          },
+          "Type": "enum",
+          "VariableName": "stallBehavior",
+          "Name": "StallBehavior",
+          "Defaults": {
+            "Default": "GpuProfilerStallAlways"
+          }
+        }
+      ],
+      "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer.",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 3046844658,
+      "Name": "GpuProfilerSqttConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "GpuProfilerMode",
+            "LogicOp": "GreaterThan",
+            "Values": [
+              1
+            ]
+          }
+        ]
+      },
+      "VariableName": "gpuProfilerSqttConfig"
+    },
+    {
+      "Structure": [
+        {
+          "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD.  ID should correspond counter of interest for the specified Block, these can be selected by reading the performance to the specific counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows. WARNING: Page fault will occur when attempting spm traces on GFX9 HW, unless RLC_SPM_VMID is set in the RLC_SPM_MC_CNTL register. KMD has to set this register. This register can be set manually (debug VMID: 0xb, RequestDebugVmid=true) for testing. Also, the sample delay register values need to be set for correct streaming counter data.",
+          "Flags": {
+            "IsFile": true
+          },
+          "Size": "MaxFileNameStrLen",
+          "HashName": 1274479618,
+          "Type": "string",
+          "VariableName": "spmPerfCounterConfigFile",
+          "Name": "SpmPerfCounterConfigFile",
+          "Defaults": {
+            "Default": ""
+          }
+        },
+        {
+          "Description": "Sample interval in sclck.",
+          "HashName": 3756226799,
+          "ValidValues": {
+            "Values": [
+              {
+                "Description": "Minimum 32",
+                "LogicOp": "GreaterThanOrEqual",
+                "Value": 32
+              }
+            ]
+          },
+          "Type": "uint32",
+          "VariableName": "spmTraceInterval",
+          "Name": "SpmTraceInterval",
+          "Defaults": {
+            "Default": 4096
+          }
+        },
+        {
+          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
+          "HashName": 3798430118,
+          "Type": "size_t",
+          "Defaults": {
+            "Default": 1048576
+          },
+          "Name": "SpmBufferSize",
+          "VariableName": "spmBufferSize"
+        }
+      ],
+      "Description": "Configuration options for capturing Streaming Performance Monitors through the PAL GPU Profiler layer.",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 3153542192,
+      "Name": "GpuProfilerSpmConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "GpuProfilerMode",
+            "LogicOp": "GreaterThan",
+            "Values": [
+              1
+            ]
+          }
+        ]
+      },
+      "VariableName": "gpuProfilerSpmConfig"
+    },
+    {
+      "Description": "Enables the command buffer logger layer, which provides ICmdBuffer level annotations directly in command buffer dumps. These annoations can later be deciphered using offline tools.",
+      "Name": "CmdBufferLoggerEnabled",
+      "Scope": "PrivatePalKey",
+      "HashName": 1206982834,
+      "Type": "bool",
+      "VariableName": "cmdBufferLoggerEnabled",
+      "Tags": [
+        "CmdBuffer Logger"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Description": "Bitmask controlling which ICmdBuffer calls to annotate",
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "CmdBufferLoggerEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "HashName": 2297477296,
+      "ValidValues": {
+        "Values": [
+          {
+            "Description": "CmdBarrier",
+            "Value": 1
+          },
+          {
+            "Description": "CmdDraws",
+            "Value": 2
+          },
+          {
+            "Description": "CmdDispatchs",
+            "Value": 4
+          },
+          {
+            "Description": "CmdWriteTimestamp",
+            "Value": 8
+          },
+          {
+            "Description": "CmdBinds",
+            "Value": 16
+          },
+          {
+            "Description": "CmdSetUserData",
+            "Value": 32
+          },
+          {
+            "Description": "CmdSets",
+            "Value": 64
+          },
+          {
+            "Description": "CmdBlts",
+            "Value": 128
+          },
+          {
+            "Description": "Miscellaneous",
+            "Value": 256
+          }
+        ]
+      },
+      "Name": "CmdBufferLoggerFlags",
+      "Scope": "PrivatePalKey",
+      "VariableName": "cmdBufferLoggerFlags",
+      "Type": "uint32",
+      "Tags": [
+        "CmdBuffer Logger"
+      ],
+      "Defaults": {
+        "Default": 511
+      }
+    },
+    {
+      "Description": "Enables the PAL interface logging layer.",
+      "Name": "InterfaceLoggerEnabled",
+      "Scope": "PrivatePalKey",
+      "HashName": 2678054117,
+      "Type": "bool",
+      "VariableName": "interfaceLoggerEnabled",
+      "Tags": [
+        "Interface Logger"
+      ],
+      "Defaults": {
+        "Default": false
+      }
+    },
+    {
+      "Structure": [
+        {
+          "Description": "Relative directory where the interface logger writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Size": "MaxPathStrLen",
+          "HashName": 885284478,
+          "Type": "string",
+          "VariableName": "logDirectory",
+          "Name": "LogDirectory",
+          "Defaults": {
+            "LnxDefault": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "Default": "amdpal/"
+          }
+        },
+        {
+          "Description": "Each thread will write into its own log file, avoiding taking a global lock.",
+          "HashName": 800910225,
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
+          "Name": "Multithreaded",
+          "VariableName": "multithreaded"
+        },
+        {
+          "Description": "Bitmask of which interface function calls will be logged by default.",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "HashName": 2924533825,
+          "ValidValues": {
+            "Values": [
+              {
+                "Description": "LogFlagGeneralCalls: Functions which are hard to classify or rarely called.",
+                "Value": 1
+              },
+              {
+                "Description": "LogFlagCreateDestroy: Functions which create and destroy PAL objects.",
+                "Value": 2
+              },
+              {
+                "Description": "LogFlagBindGpuMemory: Functions relevant to GPU memory binding.",
+                "Value": 4
+              },
+              {
+                "Description": "LogFlagQueueOps: Functions relevant to IQueue operations.",
+                "Value": 8
+              },
+              {
+                "Description": "LogFlagCmdBuilding: Functions which build ICmdBuffer commands.",
+                "Value": 16
+              },
+              {
+                "Description": "LogFlagCreateSrds: Functions which create SRDs.",
+                "Value": 32
+              }
+            ]
+          },
+          "Type": "uint32",
+          "VariableName": "basePreset",
+          "Name": "BasePreset",
+          "Defaults": {
+            "Default": 7
+          }
+        },
+        {
+          "Description": "Bitmask of which interface function calls will be logged when the user holds Shift-F11",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "HashName": 4040226650,
+          "ValidValues": {
+            "Values": [
+              {
+                "Description": "LogFlagGeneralCalls: Functions which are hard to classify or rarely called.",
+                "Value": 1
+              },
+              {
+                "Description": "LogFlagCreateDestroy: Functions which create and destroy PAL objects.",
+                "Value": 2
+              },
+              {
+                "Description": "LogFlagBindGpuMemory: Functions relevant to GPU memory binding.",
+                "Value": 4
+              },
+              {
+                "Description": "LogFlagQueueOps: Functions relevant to IQueue operations.",
+                "Value": 8
+              },
+              {
+                "Description": "LogFlagCmdBuilding: Functions which build ICmdBuffer commands.",
+                "Value": 16
+              },
+              {
+                "Description": "LogFlagCreateSrds: Functions which create SRDs.",
+                "Value": 32
+              }
+            ]
+          },
+          "Type": "uint32",
+          "VariableName": "elevatedPreset",
+          "Name": "ElevatedPreset",
+          "Defaults": {
+            "Default": 31
+          }
+        }
+      ],
+      "Description": "Configuration options for the PAL Interface Logger layer.",
+      "Tags": [
+        "Interface Logger"
+      ],
+      "Scope": "PrivatePalKey",
+      "HashName": 2996145826,
+      "Name": "InterfaceLoggerConfig",
+      "Type": "struct",
+      "DependsOn": {
+        "Settings": [
+          {
+            "Name": "InterfaceLoggerEnabled",
+            "Values": [
+              true
+            ]
+          }
+        ]
+      },
+      "VariableName": "interfaceLoggerConfig"
     }
   ]
 }

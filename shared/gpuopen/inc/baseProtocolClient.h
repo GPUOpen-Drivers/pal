@@ -118,12 +118,12 @@ namespace DevDriver
 
         // Templated wrapper around ReceiveSizedPayload
         template <typename T>
-        Result ReceivePayload(T&     payload,
+        Result ReceivePayload(T*     pPayload,
                               uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs,
                               uint32 retryInMs   = kDefaultRetryTimeoutInMs)
         {
             uint32 bytesReceived = 0;
-            Result result = ReceiveSizedPayload(&payload, sizeof(T), &bytesReceived, timeoutInMs, retryInMs);
+            Result result = ReceiveSizedPayload(pPayload, sizeof(T), &bytesReceived, timeoutInMs, retryInMs);
 
             // Return an error if we don't get back the size we were expecting.
             if ((result == Result::Success) & (bytesReceived != sizeof(T)))
@@ -156,57 +156,35 @@ namespace DevDriver
 
         // Templated wrapper around SendSizedPayload
         template <typename T>
-        Result SendPayload(T&     payload,
-                           uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                           uint32 retryInMs   = kDefaultRetryTimeoutInMs)
+        Result SendPayload(const T* pPayload,
+                           uint32   timeoutInMs = kDefaultCommunicationTimeoutInMs,
+                           uint32   retryInMs   = kDefaultRetryTimeoutInMs)
         {
-            return SendSizedPayload(&payload, sizeof(T), timeoutInMs, retryInMs);
+            return SendSizedPayload(pPayload, sizeof(T), timeoutInMs, retryInMs);
         }
 
-        // Attempts to perform a payload "transaction" which is defined as sending one payload out, and receiving one in response.
-        Result TransactSized(const void* pSendPayload,
-                             uint32      sendSize,
-                             void*       pReceivePayload,
-                             uint32      receiveSize,
-                             uint32*     pBytesReceived,
-                             uint32      timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                             uint32      retryInMs   = kDefaultRetryTimeoutInMs)
-        {
-            Result result = Result::Error;
-            if (IsConnected())
-            {
-                result = SendSizedPayload(pSendPayload, sendSize, timeoutInMs, retryInMs);
-                if (result == Result::Success)
-                {
-                    result = ReceiveSizedPayload(pReceivePayload, receiveSize, pBytesReceived, timeoutInMs, retryInMs);
-                }
-            }
-            return result;
-        }
-
-        // Templated wrapper around TransactSized
-        template <typename T, typename U>
-        Result Transact(const T& sendPayload,
-                        U&       receivePayload,
+        // Templated helper for common Send/Receive pattern
+        template <typename T>
+        Result Transact(T* pPayload,
                         uint32   timeoutInMs = kDefaultCommunicationTimeoutInMs,
                         uint32   retryInMs   = kDefaultRetryTimeoutInMs)
         {
             Result result = Result::Error;
             if (IsConnected())
             {
-                result = SendPayload(sendPayload, timeoutInMs, retryInMs);
+                result = SendPayload(pPayload, timeoutInMs, retryInMs);
                 if (result == Result::Success)
                 {
-                    result = ReceivePayload(receivePayload, timeoutInMs, retryInMs);
+                    result = ReceivePayload(pPayload, timeoutInMs, retryInMs);
                 }
             }
             return result;
         }
 
     private:
-        Platform::Event m_pendingOperationEvent;
         Result m_connectResult;
         ClientState m_state;
+        Platform::Event m_pendingOperationEvent;
     };
 
 } // DevDriver

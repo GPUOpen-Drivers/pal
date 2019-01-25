@@ -104,9 +104,17 @@ Result SettingsService::HandleRequest(
         {
             result = HandleGetComponents(pContext);
         }
+        else if (strcmp(pCommandArg, "settingsDataHash") == 0)
+        {
+            result = HandleGetSettingDataHash(pContext);
+        }
         else if (strcmp(pCommandArg, "settingsData") == 0)
         {
             result = HandleGetSettingData(pContext);
+        }
+        else if (strcmp(pCommandArg, "queryCurrentValues") == 0)
+        {
+            result = HandleQueryValues(pContext);
         }
         else if (strcmp(pCommandArg, "getValue") == 0)
         {
@@ -153,6 +161,36 @@ Result SettingsService::HandleGetComponents(
 }
 
 // =====================================================================================================================
+Result SettingsService::HandleGetSettingDataHash(
+    IURIRequestContext* pContext)
+{
+    Result result = Result::SettingsUriInvalidComponent;
+
+    // This uses the same strtok context started in HandleRequest, which is safe because it can only be called on one thread
+    // at a time (enforced by URI Server)
+    const char* pComponentName = Platform::Strtok(nullptr, " ", &m_pContext);
+    if (pComponentName != nullptr)
+    {
+        Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+        const uint32 componentHash = MetroHash::MetroHash32(reinterpret_cast<const uint8*>(pComponentName), strlen(pComponentName));
+        const auto iter = m_registeredComponents.Find(componentHash);
+        if (iter != m_registeredComponents.End())
+        {
+            const auto& component = iter->value;
+            IByteWriter* pWriter = nullptr;
+            result = pContext->BeginByteResponse(&pWriter);
+            if (result == Result::Success)
+            {
+                pWriter->WriteBytes(&component.settingsDataHash, sizeof(uint64));
+                result = pWriter->End();
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result SettingsService::HandleGetSettingData(
     IURIRequestContext* pContext)
 {
@@ -184,6 +222,103 @@ Result SettingsService::HandleGetSettingData(
 }
 
 // =====================================================================================================================
+// Queries the value for the given settingNameHash, allocating memory for the value if required.  Returns true if memory
+// was malloc'd for the setting value, it is up to the caller to free the memory in that case.
+bool SettingsService::GetValue(
+    const RegisteredComponent& component,
+    SettingNameHash            settingName,
+    SettingValue**             ppSettingValue)
+{
+    bool needsCleanup = false;
+    void* pValueBuffer = m_pDefaultGetValueBuffer;
+    SettingValue* pSettingValue = static_cast<SettingValue*>(pValueBuffer);
+    pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
+    pSettingValue->valueSize = kDefaultGetValueMaxDataSize;
+
+    // First call to get the value size
+    Result result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
+    if (result != Result::Success)
+    {
+        DD_ASSERT((result == Result::SettingsUriInvalidSettingValueSize) && (pSettingValue->valueSize < kMaxSettingValueSize));
+
+        // The only other result we should expect is insuffient memory, in that case the required memory
+        // size is returned in the valueSize field.  Allocate a buffer big enough to hold the struct and the associated data
+        pValueBuffer = DD_MALLOC((pSettingValue->valueSize + sizeof(SettingValue)), DD_DEFAULT_ALIGNMENT, m_allocCb);
+        if (pValueBuffer != nullptr)
+        {
+            needsCleanup = true;
+            pSettingValue = static_cast<SettingValue*>(pValueBuffer);
+            pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
+            // Try again with our newly malloc'd buffer size
+            result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
+        }
+        else
+        {
+            // Malloc failed, we're out of memory
+            result = Result::InsufficientMemory;
+        }
+    }
+
+    DD_ASSERT(ppSettingValue != nullptr);
+    (*ppSettingValue) = (result == Result::Success) ? pSettingValue : nullptr;
+
+    return needsCleanup;
+}
+
+// =====================================================================================================================
+Result SettingsService::HandleQueryValues(
+    IURIRequestContext* pContext)
+{
+    Result result = Result::Success;
+    // This uses the same strtok context started in HandleRequest, which is safe because it can only be called on one thread
+    // at a time (enforced by URI Server)
+    const char* pComponentName = Platform::Strtok(nullptr, " ", &m_pContext);
+    if (pComponentName != nullptr)
+    {
+        Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+
+        // First look for the component
+        const uint32 componentHash =
+            MetroHash::MetroHash32(reinterpret_cast<const uint8*>(pComponentName), strlen(pComponentName));
+        const auto iter = m_registeredComponents.Find(componentHash);
+        if (iter != m_registeredComponents.End())
+        {
+            const auto& component = iter->value;
+            IByteWriter* pWriter = nullptr;
+            result = pContext->BeginByteResponse(&pWriter);
+            if (result == Result::Success)
+            {
+                // For each hash in pSettingsHashes fill out a SettingValue struct and write as a byte response
+                for (uint32 i = 0; i < component.numSettings; i++)
+                {
+                    SettingNameHash settingName = component.pSettingsHashes[i];
+                    SettingValue* pSettingValue = nullptr;
+                    bool needsCleanup = GetValue(component, settingName, &pSettingValue);
+                    if ((pSettingValue != nullptr) && (pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0))
+                    {
+                        pWriter->WriteBytes(&settingName, sizeof(SettingNameHash));
+                        pWriter->WriteBytes(pSettingValue, sizeof(SettingValue));
+                        pWriter->WriteBytes(pSettingValue->pValuePtr, pSettingValue->valueSize);
+                    }
+
+                    if (needsCleanup)
+                    {
+                        DD_FREE(pSettingValue, m_allocCb);
+                    }
+                }
+                result = pWriter->End();
+            }
+        }
+        else
+        {
+            result = Result::SettingsUriInvalidComponent;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result SettingsService::HandleGetValue(
     IURIRequestContext* pContext)
 {
@@ -207,36 +342,10 @@ Result SettingsService::HandleGetValue(
             // Verify that the setting shows up in the settings set
             if (IsSettingNameValid(component, settingName))
             {
-                void* pValueBuffer = m_pDefaultGetValueBuffer;
-                SettingValue* pSettingValue = static_cast<SettingValue*>(pValueBuffer);
-                pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
-                pSettingValue->valueSize = kDefaultGetValueMaxDataSize;
+                SettingValue* pSettingValue = nullptr;
+                bool needsCleanup = GetValue(component, settingName, &pSettingValue);
 
-                // First call to get the value size
-                result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
-                if (result != Result::Success)
-                {
-                    DD_ASSERT((result == Result::InsufficientMemory) &&
-                              (pSettingValue->valueSize < kMaxSettingValueSize));
-
-                    // The only other result we should expect is insuffient memory, in that case the required memory
-                    // size is returned in the valueSize field.  Allocate a buffer big enough to hold the struct and the associated data
-                    pValueBuffer = DD_MALLOC((pSettingValue->valueSize + sizeof(SettingValue)), DD_DEFAULT_ALIGNMENT, m_allocCb);
-                    if (pValueBuffer != nullptr)
-                    {
-                        pSettingValue = static_cast<SettingValue*>(pValueBuffer);
-                        pSettingValue->pValuePtr = VoidPtrInc(pValueBuffer, sizeof(SettingValue));
-                        // Try again with our newly malloc'd buffer size
-                        result = component.pfnGetValue(settingName, pSettingValue, component.pPrivateData);
-                    }
-                    else
-                    {
-                        // Malloc failed, we're out of memory
-                        result = Result::InsufficientMemory;
-                    }
-                }
-
-                if (result == Result::Success)
+                if (pSettingValue != nullptr)
                 {
                     if ((pSettingValue->pValuePtr != nullptr) && (pSettingValue->valueSize > 0))
                     {
@@ -266,10 +375,10 @@ Result SettingsService::HandleGetValue(
                     DD_ASSERT_ALWAYS();
                 }
 
-                if ((pValueBuffer != nullptr) && (pValueBuffer != m_pDefaultGetValueBuffer))
+                if (needsCleanup)
                 {
                     // Free the memory if we allocated a separate buffer to hold the value
-                    DD_FREE(pValueBuffer, m_allocCb);
+                    DD_FREE(pSettingValue, m_allocCb);
                 }
             }
             else

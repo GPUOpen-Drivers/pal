@@ -235,6 +235,12 @@ namespace DevDriver
             // ========================================================================================================
             void SendSentinel(Result status, uint32 crc32 = 0)
             {
+                if (!m_pBlock.IsNull())
+                {
+                    // Notify the block that we're ending the transfer.
+                    m_pBlock->EndTransfer();
+                    m_pBlock.Clear();
+                }
                 m_scratchPayload.CreatePayload<TransferDataSentinel>(status, crc32);
                 m_state = SessionState::SendPayload;
                 SendScratchPayloadAndMoveToIdle();
@@ -273,9 +279,6 @@ namespace DevDriver
                     // If we've finished transferring all block data, send the sentinel and free the block.
                     if (m_bytesTransferred == m_totalBytes)
                     {
-                        // Notify the block that a transfer is completing.
-                        m_pBlock->EndTransfer();
-                        m_pBlock.Clear();
                         SendSentinel(Result::Success, m_crc32);
                     }
                 }

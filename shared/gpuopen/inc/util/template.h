@@ -319,5 +319,12 @@ namespace DevDriver
         {
 
         };
+
+        // Struct whose ::Value member is equal to true if T is an enumeration type, and false otherwise.
+        template<typename T>
+        struct IsEnum : BoolType<std::is_enum<T>::value>
+        {
+
+        };
     }
 } // DevDriver

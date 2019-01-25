@@ -406,7 +406,13 @@ Result GpuMemory::Init(
         m_flags.nonLocalOnly = 1;
         // NOTE: Any memory object not being used as a page-directory or page-table block is considered to be CPU
         // visible as long as all of its selected heaps are CPU visible.
-        m_flags.cpuVisible   = ((m_flags.pageDirectory == 0) && (m_flags.pageTableBlock == 0));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 464
+        m_flags.cpuVisible = ((m_flags.pageDirectory  == 0) &&
+                              (m_flags.pageTableBlock == 0) &&
+                              (createInfo.flags.cpuInvisible == 0));
+#else
+        m_flags.cpuVisible = ((m_flags.pageDirectory == 0) && (m_flags.pageTableBlock == 0));
+#endif
 
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {

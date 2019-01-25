@@ -176,12 +176,19 @@ DevDriver::Result PipelineUriService::HandleRequest(DevDriver::IURIRequestContex
 
     const char* const pArgDelim = " ";
     char* pStrtokContext = nullptr;
+    // Safety note: Strtok handles nullptr by returning nullptr. We handle that below.
     char* pCmdName       = Platform::Strtok(pContext->GetRequestArguments(), pArgDelim, &pStrtokContext);
     char* pCmdArg1       = Platform::Strtok(nullptr, pArgDelim, &pStrtokContext);
     char* pCmdArg2       = Platform::Strtok(nullptr, pArgDelim, &pStrtokContext);
 
-    if ((strcmp(pCmdName, "getIndex") == 0) && //
-        (pCmdArg2 == nullptr))                 // One or zero arguments
+    if (pCmdName == nullptr)
+    {
+        // This happens when no command is given, and the request string looks like: "pipeline://".
+        // Really, no command *is* a command... that we don't support.
+        // We must explicitly handle this here, because it is undefined behavior to pass nullptr to strcmp.
+    }
+    else if ((strcmp(pCmdName, "getIndex") == 0) && //
+             (pCmdArg2 == nullptr))                 // One or zero arguments
     {
         if (m_driverInfo.pfnGetPipelineHashes != nullptr)
         {

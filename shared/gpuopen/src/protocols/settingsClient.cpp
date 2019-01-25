@@ -51,11 +51,7 @@ namespace DevDriver
                 SettingsPayload payload = {};
                 payload.command = SettingsMessage::QueryNumSettingsRequest;
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -83,11 +79,7 @@ namespace DevDriver
                 SettingsPayload payload = {};
                 payload.command = SettingsMessage::QuerySettingsRequest;
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -97,7 +89,7 @@ namespace DevDriver
                         uint32 settingsReceived = 0;
                         for (uint32 settingIndex = 0; settingIndex < settingsSent; ++settingIndex)
                         {
-                            result = ReceivePayload(payload);
+                            result = ReceivePayload(&payload);
                             if (result == Result::Success)
                             {
                                 if (payload.command == SettingsMessage::QuerySettingsDataResponse)
@@ -142,11 +134,7 @@ namespace DevDriver
                 payload.command = SettingsMessage::QuerySettingRequest;
                 Platform::Strncpy(payload.querySettingRequest.name, pName, sizeof(payload.querySettingRequest.name));
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -184,11 +172,7 @@ namespace DevDriver
                 Platform::Strncpy(payload.setSettingRequest.name, pName, sizeof(payload.setSettingRequest.name));
                 memcpy(&payload.setSettingRequest.value, pValue, sizeof(SettingValue));
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -216,11 +200,7 @@ namespace DevDriver
                 SettingsPayload payload = {};
                 payload.command = SettingsMessage::QueryNumCategoriesRequest;
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -248,11 +228,7 @@ namespace DevDriver
                 SettingsPayload payload = {};
                 payload.command = SettingsMessage::QueryCategoriesRequest;
 
-                result = SendPayload(payload);
-                if (result == Result::Success)
-                {
-                    result = ReceivePayload(payload);
-                }
+                result = Transact(&payload);
 
                 if (result == Result::Success)
                 {
@@ -262,7 +238,7 @@ namespace DevDriver
                         uint32 categoriesReceived = 0;
                         for (uint32 categoryIndex = 0; categoryIndex < categoriesSent; ++categoryIndex)
                         {
-                            result = ReceivePayload(payload);
+                            result = ReceivePayload(&payload);
                             if (result == Result::Success)
                             {
                                 if (payload.command == SettingsMessage::QueryCategoriesDataResponse)

@@ -35,65 +35,16 @@ namespace DevDriver
     {
         LoggingClient::LoggingClient(IMsgChannel* pMsgChannel)
             : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_MAJOR_VERSION, LOGGING_CLIENT_MAX_MAJOR_VERSION)
-            , m_loggingState(LoggingClientState::Idle)
-            , m_logMessages(pMsgChannel->GetAllocCb())
-            , m_loggingFinishedEvent(true)
+#if DD_BUILD_32
+            , _padding(0)
+#endif
+            , m_isLoggingEnabled(false)
         {
+            m_pendingMsg.payloadSize = 0;
         }
 
         LoggingClient::~LoggingClient()
         {
-        }
-
-        void LoggingClient::UpdateSession(const SharedPointer<ISession>& pSession)
-        {
-            BaseProtocolClient::UpdateSession(pSession);
-
-            if (IsLogging())
-            {
-                // Receive all logging messages.
-                SizedPayloadContainer container = {};
-
-                Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-
-                // Attempt to receive messages until we either get all of them, or encounter an error.
-                while (IsLogging() && (ReceiveLoggingPayload(&container, kNoWait) == Result::Success))
-                {
-                    const LoggingHeader* pHeader = reinterpret_cast<LoggingHeader*>(container.payload);
-                    if (pHeader->command == LoggingMessage::LogMessage)
-                    {
-                        DD_PRINT(LogLevel::Debug, "Received Logging Payload From Session %d!", pSession->GetSessionId());
-                        m_logMessages.PushBack(container);
-                    }
-                    else if (pHeader->command == LoggingMessage::LogMessageSentinel)
-                    {
-                        DD_PRINT(LogLevel::Debug, "Received Logging Sentinel From Session %d!", pSession->GetSessionId());
-
-                        // Update our state since we've received all log messages.
-                        m_loggingState = LoggingClientState::LoggingFinished;
-
-                        // Trigger the logging finished event once we get the sentinel.
-                        // This allows the DisableLogging function to complete.
-                        m_loggingFinishedEvent.Signal();
-
-                        break;
-                    }
-                    else
-                    {
-                        // This should never happen. This means this is an unexpected packet type.
-                        DD_UNREACHABLE();
-                    }
-                }
-            }
-        }
-
-        void LoggingClient::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
-        {
-            BaseProtocolClient::SessionTerminated(pSession, terminationReason);
-            // ResetState() dumps all pending log messages. If the server disconnects and the session dies, any
-            // unread log messages will be lost.
-            // @todo: Separate log messages from internal state and allow preservation past session termination.
-            ResetState();
         }
 
         Result LoggingClient::EnableLogging(LogLevel priority, LoggingCategory categoryMask)
@@ -119,10 +70,7 @@ namespace DevDriver
 
                         if (result == Result::Success)
                         {
-                            m_loggingState = LoggingClientState::Logging;
-
-                            // Reset the logging finished event since we're starting a new logging session.
-                            m_loggingFinishedEvent.Clear();
+                            m_isLoggingEnabled = true;
                         }
                     }
                     else
@@ -136,40 +84,57 @@ namespace DevDriver
             return result;
         }
 
-        Result LoggingClient::DisableLogging()
+        Result LoggingClient::DisableLogging(Vector<LogMessage>* pLogMessages)
         {
             Result result = Result::Error;
-            if (IsConnected() && IsLogging())
+            if (IsConnected() && IsLoggingEnabled())
             {
                 SizedPayloadContainer container = {};
                 LoggingHeader* pHeader = reinterpret_cast<LoggingHeader*>(container.payload);
                 pHeader->command = LoggingMessage::DisableLogging;
                 container.payloadSize = sizeof(LoggingHeader);
 
+                // Send the disable logging request.
                 if (SendLoggingPayload(container) == Result::Success)
                 {
-                    // Wait until the session update thread receives the logging sentinel before we continue.
-                    if (m_loggingFinishedEvent.Wait(kInfiniteTimeout) == Result::Success)
+                    // Process messages until we find the sentinel.
+                    bool foundSentinel = false;
+                    while (ReceiveLoggingPayload(&container) == Result::Success)
                     {
-                        // If we've successfully finished logging, then set the result to success.
-                        // (We may end up here in the Idle state if the session is disconnected during logging)
-                        if (m_loggingState == LoggingClientState::LoggingFinished)
+                        const LogMessagePayload* pPayload = reinterpret_cast<const LogMessagePayload*>(container.payload);
+                        if (pPayload->header.command == LoggingMessage::LogMessageSentinel)
                         {
-                            // Set the state back to idle.
-                            m_loggingState = LoggingClientState::Idle;
+                            DD_PRINT(LogLevel::Debug, "Received Logging Sentinel From Session %d!", m_pSession->GetSessionId());
 
-                            result = Result::Success;
+                            foundSentinel = true;
+                            break;
+                        }
+                        else if (pPayload->header.command == LoggingMessage::LogMessage)
+                        {
+                            // If the caller provided a log message container, push the messages into it.
+                            if (pLogMessages != nullptr)
+                            {
+                                pLogMessages->PushBack(Platform::Move(pPayload->message));
+                            }
                         }
                         else
                         {
-                            // The ResetState function should always put us in the Idle state in the event of a session disconnect.
-                            DD_ASSERT(m_loggingState == LoggingClientState::Idle);
+                            // We should never get another message type here.
+                            DD_UNREACHABLE();
                         }
+                    }
+
+                    // Update the logging enabled variable.
+                    m_isLoggingEnabled = false;
+
+                    if (foundSentinel)
+                    {
+                        result = Result::Success;
                     }
                     else
                     {
-                        // We should always successfully wait.
-                        DD_UNREACHABLE();
+                        // We should always find the sentinel unless we disconnect.
+                        DD_ASSERT(IsConnected() == false);
                     }
                 }
             }
@@ -235,20 +200,53 @@ namespace DevDriver
             return result;
         }
 
-        Result LoggingClient::ReadLogMessages(Vector<LogMessage>& logMessages)
+        Result LoggingClient::ReadLogMessages(Vector<LogMessage>& logMessages, uint32 maxMessages)
         {
-            Result result = (IsConnected() && IsLogging()) ? Result::NotReady : Result::Error;
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+            Result result = Result::Error;
 
-            while (m_logMessages.IsEmpty() == false)
+            if (IsConnected() && IsLoggingEnabled())
             {
-                const LogMessagePayload* pPayload = reinterpret_cast<const LogMessagePayload*>(m_logMessages.PeekFront()->payload);
-                logMessages.PushBack(Platform::Move(pPayload->message));
-                m_logMessages.PopFront();
-            }
-            if (logMessages.Size() > 0)
-            {
-                result = Result::Success;
+                result = Result::NotReady;
+
+                uint32 messageCount = 0;
+
+                // Enqueue the pending message if we have one.
+                // A pending message can be created by a call to HasLogMessages(). HasLogMessages() has no way to
+                // return messages to the caller, so we inject the message into the regular log stream here.
+                if ((m_pendingMsg.payloadSize > 0) && (messageCount < maxMessages))
+                {
+                    const LogMessagePayload* pPayload =
+                        reinterpret_cast<const LogMessagePayload*>(m_pendingMsg.payload);
+
+                    // Should be impossible to see a sentinel here.
+                    DD_ASSERT(pPayload->header.command != LoggingMessage::LogMessageSentinel);
+
+                    logMessages.PushBack(Platform::Move(pPayload->message));
+                    m_pendingMsg.payloadSize = 0;
+                    ++messageCount;
+
+                    result = Result::Success;
+                }
+
+                // Check for new log messages on the message bus.
+                SizedPayloadContainer container = {};
+                uint32 receiveDelayMs = kDefaultCommunicationTimeoutInMs;
+                while ((messageCount < maxMessages) &&
+                       (ReceiveLoggingPayload(&container, receiveDelayMs) == Result::Success))
+                {
+                    const LogMessagePayload* pPayload = reinterpret_cast<const LogMessagePayload*>(container.payload);
+                    DD_ASSERT(pPayload->header.command == LoggingMessage::LogMessage);
+
+                    DD_PRINT(LogLevel::Debug, "Received Logging Payload From Session %d!", m_pSession->GetSessionId());
+                    logMessages.PushBack(Platform::Move(pPayload->message));
+                    ++messageCount;
+
+                    result = Result::Success;
+
+                    // We only want the first read to wait for new messages.
+                    // After that we only want to get the remaining messages in the receive window.
+                    receiveDelayMs = kNoWait;
+                }
             }
 
             return result;
@@ -256,26 +254,39 @@ namespace DevDriver
 
         bool LoggingClient::HasLogMessages()
         {
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-            return (m_logMessages.IsEmpty() == false);
+            bool result = false;
+
+            if (IsConnected() && IsLoggingEnabled())
+            {
+                // If we don't have any pending messages, check if there's a new one.
+                if (m_pendingMsg.payloadSize == 0)
+                {
+                    result = (ReceiveLoggingPayload(&m_pendingMsg, kNoWait) == Result::Success);
+                }
+                else
+                {
+                    // We already have a pending message.
+                    result = true;
+                }
+            }
+
+            return result;
         }
 
         void LoggingClient::ResetState()
         {
-            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
-            m_loggingState = LoggingClientState::Idle;
-            m_logMessages.Clear();
-            m_loggingFinishedEvent.Signal();
+            m_isLoggingEnabled = false;
+            m_pendingMsg.payloadSize = 0;
         }
 
         bool LoggingClient::IsIdle() const
         {
-            return (m_loggingState == LoggingClientState::Idle);
+            return (m_isLoggingEnabled == false);
         }
 
-        bool LoggingClient::IsLogging() const
+        bool LoggingClient::IsLoggingEnabled() const
         {
-            return (m_loggingState == LoggingClientState::Logging);
+            return m_isLoggingEnabled;
         }
 
         Result LoggingClient::SendLoggingPayload(

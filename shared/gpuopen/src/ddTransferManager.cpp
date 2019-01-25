@@ -308,6 +308,13 @@ namespace DevDriver
         }
 
         // ============================================================================================================
+        uint32 ServerBlock::QueryNumPendingTransfers()
+        {
+            Platform::LockGuard<Platform::Mutex> lockGuard(m_pendingTransfersMutex);
+            return m_numPendingTransfers;
+        }
+
+        // ============================================================================================================
         Result ServerBlock::WaitForPendingTransfers(uint32 timeoutInMs)
         {
             return m_transfersCompletedEvent.Wait(timeoutInMs);

@@ -274,14 +274,7 @@ bool BitMaskScanForward(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
-#if defined(_WIN64) && defined(_M_X64)
-    *pIndex = (sizeof(T) > 4) ? static_cast<uint32>(::_tzcnt_u64(mask)) : (::_tzcnt_u32(static_cast<uint32>(mask)));
-#elif defined(_WIN64)
-    auto*const pOut = reinterpret_cast<unsigned long*>(pIndex);
-    (sizeof(T) > 4) ? (::_BitScanForward64(pOut, mask)) : (::_BitScanForward(pOut, static_cast<uint32>(mask)));
-#else
     *pIndex = (sizeof(T) > 4) ? __builtin_ctzll(mask) : __builtin_ctz(static_cast<uint32>(mask));
-#endif
 
     if (mask != 0)
     {
@@ -302,12 +295,7 @@ bool BitMaskScanReverse(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
-#if defined(_WIN64)
-    auto*const pOut = reinterpret_cast<unsigned long*>(pIndex);
-    (sizeof(T) > 4) ? (::_BitScanReverse64(pOut, mask)) : (::_BitScanReverse(pOut, static_cast<uint32>(mask)));
-#else
     *pIndex = (sizeof(T) > 4) ? (63u - __builtin_clzll(mask)) : (31u - __builtin_clz(static_cast<uint32>(mask)));
-#endif
 
     if (mask != 0)
     {
