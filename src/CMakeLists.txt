@@ -402,6 +402,14 @@ if(PAL_BUILD_CORE)
         if(PAL_BUILD_GFX9)
             # Add the GFX9 files here, only if the client wants GFXIP 9 support.
             target_compile_definitions(pal PRIVATE PAL_BUILD_GFX9)
+            if(PAL_BUILD_VEGA20)
+                target_compile_definitions(pal PRIVATE PAL_BUILD_VEGA20)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_VEGA20)
+            endif()
+            if(PAL_BUILD_RAVEN2)
+                target_compile_definitions(pal PRIVATE PAL_BUILD_RAVEN2)
+                target_compile_definitions(pal PRIVATE CHIP_HDR_RAVEN2)
+            endif()
             target_sources(pal PRIVATE
                 core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp
                 core/hw/gfxip/gfx9/gfx9Barrier.cpp

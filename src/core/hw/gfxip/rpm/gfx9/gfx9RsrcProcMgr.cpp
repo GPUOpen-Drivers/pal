@@ -385,7 +385,8 @@ void RsrcProcMgr::CmdCopyMemory(
     //     - Size exceeds the maximum supported by CPDMA.
     //     - Source or destination are virtual resources (CP would halt).
     bool useCsCopy = srcGpuMemory.IsVirtual() || dstGpuMemory.IsVirtual();
-    for (uint32 i = 0; i < regionCount; i++)
+
+    for (uint32 i = 0; !useCsCopy && (i < regionCount); i++)
     {
         if (pRegions[i].copySize > m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes)
         {
@@ -1106,9 +1107,10 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     ) const
 {
     // There are only four ranges of pipelines that vary by export format and these are their bases.
-    PAL_ASSERT((basePipeline == Copy_32ABGR)            ||
-               (basePipeline == SlowColorClear0_32ABGR) ||
-               (basePipeline == ScaledCopy2d_32ABGR)    ||
+    PAL_ASSERT((basePipeline == Copy_32ABGR)             ||
+               (basePipeline == ResolveFixedFunc_32ABGR) ||
+               (basePipeline == SlowColorClear0_32ABGR)  ||
+               (basePipeline == ScaledCopy2d_32ABGR)     ||
                (basePipeline == ScaledCopy3d_32ABGR));
 
     const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
@@ -3286,6 +3288,27 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH,
                                                                     EngineType::EngineTypeCompute,
                                                                     pCmdSpace);
+
+                    // Two things can happen next. We will either be copying the leftover pixels with CPDMA or with
+                    // more CS invocations. CPDMA is preferred, but we will fallback on CS if the copy is too large
+                    // (unlikely in this case), or if one of the resources has virtual memory (e.g. sparse).
+                    // We check the latter here and assume the former won't happen.
+                    const auto pImageMem  = srcImage.GetBoundGpuMemory().Memory();
+                    const bool needCsCopy = pImageMem->IsVirtual() || dstGpuMemory.IsVirtual();
+
+                    if (needCsCopy)
+                    {
+                        // Even though we have waited for the CS to finish, we may still run into a write after write
+                        // hazard. We need to flush and invalidate the L2 cache as well.
+                        AcquireMemInfo acquireInfo = {};
+                        acquireInfo.engineType  = EngineTypeCompute;
+                        acquireInfo.tcCacheOp   = TcCacheOp::WbInvL1L2;
+                        acquireInfo.baseAddress = dstGpuMemory.Desc().gpuVirtAddr;
+                        acquireInfo.sizeBytes   = dstGpuMemory.Desc().size;
+
+                        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo,
+                                                               pCmdSpace);
+                    }
 
                     pGfxCmdStream->CommitCommands(pCmdSpace);
 

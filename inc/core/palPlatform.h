@@ -354,6 +354,31 @@ public:
         ApplicationProfileClient client,
         const char**             pOut) = 0;
 
+    /// Enable UMD side support for the SPP feature (Shader Profiling for Power).  The gist of the initial version
+    /// of this feature is that we will profile important applications to determine which shaders are heavily memory
+    /// bound, then use these profiles to program the RLC to dynamically reduce engine clocks when running such shaders.
+    /// This should result in power savings with a limited perf impact.
+
+    /// Each of these app profiles will include one or more tables specifying how to program the RLC.
+    /// There may be multiple tables in cases where we need different RLC programming based on user controlled factors
+    /// that affect memory boundedness: resolution, MSAA rate, etc.
+
+    /// @ingroup LibInit
+    ///
+    /// @param [in]  pFilename Filename of the application or the Steam/EA/UPlay game ID to query for its profile.
+    ///                        See GpuUtil::QueryAppContentDistributionId().
+    /// @param [in]  pPathname Optional. Allows the caller to specify a pathname in addition to a filename if they wish.
+
+    /// @returns Success if the application profile exists for the specified string(s) and the profile was successfully
+    ///          retrieved, or Unsupported if the profile does not exist and the query was successfully performed.
+    ///          Otherwise, one of the following error codes may be returned:
+    ///          + ErrorInvalidPointer will be returned if pFilename is null.
+    ///          + ErrorUnavailable if this is called before IPlatform::EnumerateDevices(), or if there were no Devices
+    ///            discovered.
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) = 0;
+
     /// Reports the properties of the platform.
     ///
     /// Returns the capabilities and general properties of this platform instantiation.

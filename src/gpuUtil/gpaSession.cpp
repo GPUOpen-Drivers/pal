@@ -242,12 +242,10 @@ void FillSqttCpuInfo(
                       systemInfo.cpuBrandString,
                       sizeof(pCpuInfo->processorBrand));
 
-        // @todo: Add support for querying the cpu clock speed.
-        pCpuInfo->clockSpeed = 0;
-
-        pCpuInfo->numLogicalCores = systemInfo.cpuLogicalCoreCount;
+        pCpuInfo->clockSpeed       = systemInfo.cpuFrequency;
+        pCpuInfo->numLogicalCores  = systemInfo.cpuLogicalCoreCount;
         pCpuInfo->numPhysicalCores = systemInfo.cpuPhysicalCoreCount;
-        pCpuInfo->systemRamSize = systemInfo.totalSysMemSize;
+        pCpuInfo->systemRamSize    = systemInfo.totalSysMemSize;
     }
     else
     {
@@ -261,12 +259,10 @@ void FillSqttCpuInfo(
                       "Unknown",
                       sizeof(pCpuInfo->processorBrand));
 
-        // @todo: Add support for querying the cpu clock speed.
-        pCpuInfo->clockSpeed = 0;
-
-        pCpuInfo->numLogicalCores = 0;
+        pCpuInfo->clockSpeed       = 0;
+        pCpuInfo->numLogicalCores  = 0;
         pCpuInfo->numPhysicalCores = 0;
-        pCpuInfo->systemRamSize = 0;
+        pCpuInfo->systemRamSize    = 0;
     }
 }
 

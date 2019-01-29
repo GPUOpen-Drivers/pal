@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -83,12 +83,12 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableHawaiiPro;
         break;
 
+    case AsicRevision::Bonaire:
     case AsicRevision::Kalindi:
     case AsicRevision::Godavari:
         pTable = rpmComputeBinaryTableKalindi;
         break;
 
-    case AsicRevision::Bonaire:
     case AsicRevision::Spectre:
     case AsicRevision::Spooky:
         pTable = rpmComputeBinaryTableSpectre;
@@ -116,6 +116,14 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableVega10;
         break;
 #endif
+
+    case AsicRevision::Vega20:
+        pTable = rpmComputeBinaryTableVega20;
+        break;
+
+    case AsicRevision::Raven2:
+        pTable = rpmComputeBinaryTableRaven2;
+        break;
 
     default:
         result = Result::ErrorUnknown;

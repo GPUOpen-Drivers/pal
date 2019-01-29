@@ -44,6 +44,7 @@ static constexpr uint32 BaseLoadedShRegCount =
     1 + // mmSPI_SHADER_PGM_HI_LS
     1 + // SPI_SHADER_PGM_RSRC1_HS
     1 + // SPI_SHADER_PGM_RSRC2_HS
+    0 + // SPI_SHADER_PGM_CHKSUM_HS is not included because it is not present on all HW
     1;  // SPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
@@ -74,8 +75,6 @@ void PipelineChunkHs::EarlyInit(
 
     const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    PAL_ASSERT(chipProps.gfx9.supportSpp == 0);
 
     if (settings.enableLoadIndexForObjectBinds != false)
     {
@@ -134,6 +133,11 @@ void PipelineChunkHs::LateInit(
     // always use the ones PAL prefers.
     m_commands.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
 
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &m_commands.sh.spiShaderPgmChksumHs.u32All);
+    }
+
     m_commands.context.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
     m_commands.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
 
@@ -147,6 +151,11 @@ void PipelineChunkHs::LateInit(
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_HS, m_commands.sh.spiShaderPgmRsrc2Hs);
 
         pUploader->AddShReg(baseUserDataHs + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoHs);
+
+        if (chipProps.gfx9.supportSpp != 0)
+        {
+            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, m_commands.sh.spiShaderPgmChksumHs);
+        }
 
         pUploader->AddCtxReg(mmVGT_HOS_MIN_TESS_LEVEL, m_commands.context.vgtHosMinTessLevel);
         pUploader->AddCtxReg(mmVGT_HOS_MAX_TESS_LEVEL, m_commands.context.vgtHosMaxTessLevel);
@@ -259,6 +268,18 @@ void PipelineChunkHs::BuildPm4Headers(
                                                            mmSPI_SHADER_PGM_RSRC2_HS,
                                                            ShaderGraphics,
                                                            &m_commands.sh.hdrSpiShaderPgmRsrcHs);
+
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+                                                              ShaderGraphics,
+                                                              &m_commands.sh.hdrSpiShaderPgmChksum);
+    }
+    else
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                      &m_commands.sh.hdrSpiShaderPgmChksum);
+    }
 
     cmdUtil.BuildSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL,
                                    mmVGT_HOS_MIN_TESS_LEVEL,

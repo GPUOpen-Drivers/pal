@@ -90,8 +90,8 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 #endif
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0      },
+    { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
@@ -140,8 +140,8 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     nullptr,
     nullptr,
 #endif
-    nullptr,
-    nullptr,
+    "VEGA20:gfx906",
+    "RAVEN2:gfx909",
     nullptr,
 
     nullptr,
@@ -863,6 +863,21 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_VEGA20(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->gbAddrConfig            = 0x2A110002; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =   16; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else if (AMDGPU_IS_RAVEN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
@@ -874,6 +889,21 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
         pChipInfo->numCuPerSh              =   11; // GPU__GC__NUM_CU_PER_SH;
         pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
+        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_RAVEN2(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    {
+        pChipInfo->doubleOffchipLdsBuffers = 1;
+        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
+        pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->wavefrontSize           =   64; // GPU__GC__WAVE_SIZE;
+        pChipInfo->numShaderVisibleVgprs   =  256; // GPU__GC__NUM_GPRS;
+        pChipInfo->numCuPerSh              =    3; // GPU__GC__NUM_CU_PER_SH;
+        pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
         pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
@@ -926,6 +956,26 @@ Result Device::EarlyInit(
         m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
         m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]  = GpuHeapGartUswc;
         m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
+    }
+
+    for (uint32 i = 0; i < EngineTypeCount; i++)
+    {
+        switch (i)
+        {
+        case EngineTypeUniversal:
+        case EngineTypeCompute:
+        case EngineTypeExclusiveCompute:
+        case EngineTypeDma:
+        case EngineTypeHighPriorityUniversal:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
+        case EngineTypeHighPriorityGraphics:
+#endif
+            m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
+            break;
+        default:
+            m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 0;
+            break;
+        }
     }
 
     switch (m_chipProperties.gfxLevel)
@@ -1356,6 +1406,14 @@ Result Device::QueryRawApplicationProfile(
     ApplicationProfileClient client,
     const char**             pOut
     )
+{
+    return Result::Unsupported;
+}
+
+// =====================================================================================================================
+Result Device::EnableSppProfile(
+    const char*              pFilename,
+    const char*              pPathname)
 {
     return Result::Unsupported;
 }

@@ -968,8 +968,9 @@ void Device::BarrierRelease(
             // Check if we need to do transition BLTs.
             HwLayoutTransition transition = ConvertToBlt(pCmdBuf, imageBarrier);
 
-            transitionList[i].pImgBarrier = &imageBarrier;
-            transitionList[i].transition  = transition;
+            transitionList[i].pImgBarrier      = &imageBarrier;
+            transitionList[i].transition       = transition;
+            transitionList[i].waNeedRefreshLlc = false;
 
             uint32 bltStageMask  = 0;
             uint32 bltAccessMask = 0;
@@ -1057,6 +1058,12 @@ void Device::BarrierRelease(
                 }
             }
 
+            if (pActiveEvent == pClientEvent)
+            {
+                // If we're about to reuse this event for the post-blt release, reset it
+                pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
+            }
+
             // Get back the client provided event and signal it when the whole barrier-release is done.
             pActiveEvent = pClientEvent;
 
@@ -1111,8 +1118,9 @@ void Device::BarrierAcquire(
             // Check if we need to do transition BLTs.
             const HwLayoutTransition transition = ConvertToBlt(pCmdBuf, imgBarrier);
 
-            transitionList[i].pImgBarrier = &imgBarrier;
-            transitionList[i].transition  = transition;
+            transitionList[i].pImgBarrier      = &imgBarrier;
+            transitionList[i].transition       = transition;
+            transitionList[i].waNeedRefreshLlc = false;
 
             uint32 bltStageMask  = 0;
             uint32 bltAccessMask = 0;
@@ -1197,8 +1205,18 @@ void Device::BarrierAcquire(
             activeEventCount = 1;
         }
 
-        // Acquire for client requested global cache sync, ranged memory syncs, images.
-        // Loop through memory transitions to issue requested sync.
+        // Issue acquire for client requested global cache sync.
+        IssueAcquireSync(pCmdBuf,
+                         pCmdStream,
+                         barrierAcquireInfo.dstStageMask,
+                         barrierAcquireInfo.dstGlobalAccessMask,
+                         false,
+                         FullSyncBaseAddr,
+                         FullSyncSize,
+                         activeEventCount,
+                         ppActiveEvents);
+
+        // Loop through memory transitions to issue client-requested acquires for ranged memory syncs.
         for (uint32 i = 0; i < barrierAcquireInfo.memoryBarrierCount; i++)
         {
             const MemBarrier& barrier              = barrierAcquireInfo.pMemoryBarriers[i];
@@ -1219,6 +1237,7 @@ void Device::BarrierAcquire(
                              ppActiveEvents);
         }
 
+        // Loop through memory transitions to issue client-requested acquires for image syncs.
         for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
         {
             const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
@@ -1251,8 +1270,10 @@ void Device::BarrierReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo
     ) const
 {
-    // Command buffer owns this internal event. It's shared by all release/acquire-based barriers in the command buffer.
+    // Command buffer owns this internal event, which must be reset by the barrier before use.
+    // It's shared by all release/acquire-based barriers in the command buffer.
     const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
+    pCmdBuf->CmdResetEvent(*pEvent, Pal::HwPipePoint::HwPipePostIndexFetch);
 
     Result result = Result::Success;
 
@@ -1357,7 +1378,7 @@ void Device::IssueBlt(
         // Transition out of LayoutUninitializedTarget needs to initialize metadata memories.
         AcqRelInitMaskRam(pCmdBuf, pCmdStream, *pImgBarrier, transition);
     }
-    else if (transition != HwLayoutTransition::None)
+    else
     {
         // Image does normal BLT.
         if (image.IsDepthStencil())

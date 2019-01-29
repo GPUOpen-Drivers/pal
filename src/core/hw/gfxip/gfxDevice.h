@@ -481,6 +481,12 @@ public:
         ChNumFormat*           pFormat,
         uint32*                pPixelsPerBlock) const = 0;
 
+    virtual void IncreaseMsaaHistogram(uint32 samples) {  }
+    virtual void DecreaseMsaaHistogram(uint32 samples) {  }
+    virtual bool UpdateSppState(const IImage& presentableImage) { return true; }
+    virtual uint32 GetPixelCount() const { return 0; }
+    virtual uint32 GetMsaaRate() const { return 0; }
+
     Pal::Device* Parent() const { return m_pParent; }
     Platform* GetPlatform() const;
 

@@ -221,7 +221,16 @@ void SettingsLoader::ValidateSettings(
     // Set default value for DCC BPP Threshold unless it was already overriden
     if (pPalSettings->dccBitsPerPixelThreshold == UINT_MAX)
     {
-        pPalSettings->dccBitsPerPixelThreshold = 0;
+        // Performance testing on Vega20 has shown that it generally performs better when it's restricted
+        // to use DCC at >=64BPP, we thus set it's default DCC threshold to 64BPP unless otherwise overriden.
+        if (IsVega20(*m_pDevice))
+        {
+            pPalSettings->dccBitsPerPixelThreshold = 64;
+        }
+        else
+        {
+            pPalSettings->dccBitsPerPixelThreshold = 0;
+        }
 
     }
 
@@ -270,7 +279,13 @@ void SettingsLoader::OverrideDefaults(
         m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
     }
 
+    if (IsVega20(*m_pDevice))
+    {
+        m_settings.waDisableDfsmWithEqaa = true;
+    }
+
     if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice)
+        || IsRaven2(*m_pDevice)
         )
     {
         m_settings.waMetaAliasingFixEnabled = false;

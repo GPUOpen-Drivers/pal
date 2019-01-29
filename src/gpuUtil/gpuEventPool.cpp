@@ -113,6 +113,7 @@ Result GpuEventPool::Reset()
     {
         IGpuEvent* pEvent = nullptr;
         m_busyEvents.PopFront(&pEvent);
+        pEvent->Reset();
         m_availableEvents.PushBack(pEvent);
     }
 

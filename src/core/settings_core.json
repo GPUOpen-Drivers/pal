@@ -24,62 +24,42 @@
     "HeapPerf",
     "Emulation"
   ],
-  "DefinedConstants": [
-    {
-      "Description": "Maximum string length for a directory/path setting",
-      "Name": "MaxPathStrLen",
-      "Value": 512
-    },
-    {
-      "Description": "Maximum string length for a filename setting",
-      "Name": "MaxFileNameStrLen",
-      "Value": 256
-    },
-    {
-      "Description": "Maximum string length for a miscellaneous string setting",
-      "Name": "MaxMiscStrLen",
-      "Value": 61
-    }
-  ],
-  "ComponentName": "Pal",
-  "DriverState": [
-    "HaltedOnDeviceInit"
-  ],
   "Settings": [
     {
-      "Description": "Controls texture filtering optimizations exposed by CCC.",
-      "Name": "TFQ",
-      "Scope": "PublicCatalystKey",
-      "HashName": 4265240458,
-      "Type": "uint32",
       "VariableName": "textureOptLevel",
-      "Tags": [
-        "Public CCC Options"
-      ],
-      "Defaults": {
-        "Default": 1
-      }
-    },
-    {
-      "Description": "Controls app detect and image quality altering optimizations exposed by CCC.",
-      "Name": "CatalystAI",
-      "Scope": "PublicCatalystKey",
-      "HashName": 1901986348,
       "Type": "uint32",
-      "VariableName": "catalystAI",
+      "Defaults": {
+        "Default": 1
+      },
+      "HashName": 4265240458,
+      "Name": "TFQ",
       "Tags": [
         "Public CCC Options"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "Description": "Controls texture filtering optimizations exposed by CCC.",
+      "Scope": "PublicCatalystKey"
     },
     {
-      "Description": "Controls whether the preamble command stream for a Queue is always submitted or skipped when the same scheduler context runs back-to-back on the CP ring.",
-      "Name": "ForcePreambleCmdStream",
-      "HashName": 2987947496,
+      "VariableName": "catalystAI",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 1
+      },
+      "HashName": 1901986348,
+      "Name": "CatalystAI",
+      "Tags": [
+        "Public CCC Options"
+      ],
+      "Description": "Controls app detect and image quality altering optimizations exposed by CCC.",
+      "Scope": "PublicCatalystKey"
+    },
+    {
+      "VariableName": "forcePreambleCmdStream",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
       "ValidValues": {
-        "IsExclusive": true,
         "Values": [
           {
             "Description": "Always run the preamble cmd stream",
@@ -89,84 +69,85 @@
             "Description": "Only run the preamble cmd stream when necessary",
             "Value": false
           }
-        ]
+        ],
+        "IsExclusive": true
       },
-      "Type": "bool",
-      "Scope": "PrivatePalKey",
-      "VariableName": "forcePreambleCmdStream",
+      "HashName": 2987947496,
+      "Name": "ForcePreambleCmdStream",
       "Tags": [
         "General",
         "Performance"
       ],
-      "Defaults": {
-        "Default": true
-      }
+      "Description": "Controls whether the preamble command stream for a Queue is always submitted or skipped when the same scheduler context runs back-to-back on the CP ring.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls the maximum number of command streams that can be submitted at once to the kernel. Overrides the kernel maximum value if set to a value > 0.",
-      "Name": "MaxNumCmdStreamsPerSubmit",
-      "Scope": "PrivatePalKey",
-      "HashName": 2467045849,
-      "Type": "uint32",
       "VariableName": "maxNumCmdStreamsPerSubmit",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 2467045849,
+      "Name": "MaxNumCmdStreamsPerSubmit",
       "Tags": [
         "General"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Controls the maximum number of command streams that can be submitted at once to the kernel. Overrides the kernel maximum value if set to a value > 0.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Requests that contexts be created with high priority VMID to reduce page table invalidation penalties.",
-      "Name": "RequestHighPriorityVmid",
-      "Scope": "PrivatePalKey",
-      "HashName": 1580739202,
-      "Type": "bool",
       "VariableName": "requestHighPriorityVmid",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 1580739202,
+      "Name": "RequestHighPriorityVmid",
       "Tags": [
         "General",
         "Performance"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "Requests that contexts be created with high priority VMID to reduce page table invalidation penalties.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces.",
-      "Name": "RequestDebugVmid",
-      "Scope": "PrivatePalKey",
-      "HashName": 359792145,
-      "Type": "bool",
       "VariableName": "requestDebugVmid",
-      "Tags": [
-        "General",
-        "Debug",
-        "Profiling"
-      ],
-      "Defaults": {
-        "Default": false
-      }
-    },
-    {
-      "Description": "Disables setting GPU clocks in the driver (eg. during profiling). Enable this if using AGM to force clock values",
-      "Name": "NeverChangeClockMode",
-      "Scope": "PrivatePalKey",
-      "HashName": 2936106678,
       "Type": "bool",
-      "VariableName": "neverChangeClockMode",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 359792145,
+      "Name": "RequestDebugVmid",
       "Tags": [
         "General",
         "Debug",
         "Profiling"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Specifies the number of RBs used in a graphics copy to nonlocal destinations.  Reducing the number of RBs can increase PCIe throughput.",
-      "Name": "NonlocalDestGraphicsCopyRbs",
-      "HashName": 501901000,
+      "VariableName": "neverChangeClockMode",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 2936106678,
+      "Name": "NeverChangeClockMode",
+      "Tags": [
+        "General",
+        "Debug",
+        "Profiling"
+      ],
+      "Description": "Disables setting GPU clocks in the driver (eg. during profiling). Enable this if using AGM to force clock values",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "nonlocalDestGraphicsCopyRbs",
+      "Type": "int32",
+      "Defaults": {
+        "Default": 0
+      },
       "ValidValues": {
         "Values": [
           {
@@ -179,29 +160,28 @@
           },
           {
             "Description": "Instructs the driver to use this exact number of RBs",
-            "LogicOp": "GreaterThanOrEqual",
-            "Value": 1
+            "Value": 1,
+            "LogicOp": "GreaterThanOrEqual"
           }
         ]
       },
-      "Type": "int32",
-      "Scope": "PrivatePalKey",
-      "VariableName": "nonlocalDestGraphicsCopyRbs",
+      "HashName": 501901000,
+      "Name": "NonlocalDestGraphicsCopyRbs",
       "Tags": [
         "General",
         "Performance"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Specifies the number of RBs used in a graphics copy to nonlocal destinations.  Reducing the number of RBs can increase PCIe throughput.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls Infinitely Fast Hardware (IFH) mode. See IfhGpuMask for which ASICs are affected (default all)",
-      "Name": "IFH",
-      "HashName": 3299864138,
+      "VariableName": "ifh",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "IfhModeDisabled"
+      },
       "ValidValues": {
         "Name": "IfhMode",
-        "IsExclusive": true,
         "Description": "IFH Mode setting values.",
         "IsEnum": true,
         "Values": [
@@ -220,50 +200,50 @@
             "Name": "IfhModeKmd",
             "Value": 2
           }
-        ]
+        ],
+        "IsExclusive": true
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "ifh",
+      "HashName": 3299864138,
+      "Name": "IFH",
       "Tags": [
         "General",
         "Debug"
       ],
-      "Defaults": {
-        "Default": "IfhModeDisabled"
-      }
+      "Description": "Controls Infinitely Fast Hardware (IFH) mode. See IfhGpuMask for which ASICs are affected (default all)",
+      "Scope": "PrivatePalKey"
     },
     {
+      "VariableName": "idleAfterSubmitGpuMask",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "Idles after each call to Submit for the GPU's specified by the bitmask. GPU's are specified by the position in the bitfield and map to the LDA chain array.  Example: 0x2 would cause the GPU corresponding to the 2nd LDA chain in the array (array position 1) to idle after each submit.",
-      "Name": "IdleAfterSubmitGpuMask",
       "Scope": "PrivatePalKey",
       "HashName": 2665794079,
-      "DependsOn": {
-        "OS": [
-          "Windows"
-        ]
-      },
-      "VariableName": "idleAfterSubmitGpuMask",
-      "Type": "uint32",
+      "Name": "IdleAfterSubmitGpuMask",
       "Tags": [
         "General",
         "Debug",
         "SafeSetting"
       ],
-      "Defaults": {
-        "Default": 0
+      "Description": "Idles after each call to Submit for the GPU's specified by the bitmask. GPU's are specified by the position in the bitfield and map to the LDA chain array.  Example: 0x2 would cause the GPU corresponding to the 2nd LDA chain in the array (array position 1) to idle after each submit.",
+      "DependsOn": {
+        "OS": [
+          "Windows"
+        ]
       }
     },
     {
-      "Description": "Toss points enables stripping out of GPU work for more focused performace analysis. This setting controls which work will be tossed.",
-      "Name": "TossPointMode",
-      "HashName": 440136999,
+      "VariableName": "tossPointMode",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "TossPointNone"
+      },
       "ValidValues": {
         "Name": "TossPointMode",
-        "IsExclusive": true,
         "Description": "Toss Point Modes",
         "IsEnum": true,
         "Values": [
@@ -307,81 +287,83 @@
             "Name": "TossPointSimplePs",
             "Value": 7
           }
-        ]
+        ],
+        "IsExclusive": true
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "tossPointMode",
+      "HashName": 440136999,
+      "Name": "TossPointMode",
       "Tags": [
         "General",
         "Performance"
       ],
-      "Defaults": {
-        "Default": "TossPointNone"
-      }
+      "Description": "Toss points enables stripping out of GPU work for more focused performace analysis. This setting controls which work will be tossed.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "This setting forces MSAA color images to always prefer fixed function resolves over any other resolve method (if FixedFunc resolves are supported by the image). This will override the client's preferred resolve method",
-      "Name": "ForceFixedFuncColorResolve",
-      "Scope": "PrivatePalKey",
-      "HashName": 4239167273,
-      "Type": "bool",
       "VariableName": "forceFixedFuncColorResolve",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 4239167273,
+      "Name": "ForceFixedFuncColorResolve",
       "Tags": [
         "General",
         "Debug",
         "Resource Settings"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "This setting forces MSAA color images to always prefer fixed function resolves over any other resolve method (if FixedFunc resolves are supported by the image). This will override the client's preferred resolve method",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "64-bit address to use for unbound descriptors. This will show up in the faulting address if a page fault is triggered due to an unbound descriptor in an application.",
+      "VariableName": "unboundDescriptorAddress",
+      "Type": "gpusize",
+      "Defaults": {
+        "Default": 16045690984833335023
+      },
       "Flags": {
         "IsHex": true
       },
-      "Scope": "PrivatePalKey",
+      "Description": "64-bit address to use for unbound descriptors. This will show up in the faulting address if a page fault is triggered due to an unbound descriptor in an application.",
       "Name": "UnboundDescriptorAddress",
-      "HashName": 2972919517,
-      "Type": "gpusize",
-      "VariableName": "unboundDescriptorAddress",
       "Tags": [
         "General",
         "SafeSetting"
       ],
-      "Defaults": {
-        "Default": 16045690984833335023
-      }
+      "HashName": 2972919517,
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Clears local frame buffer to zero. The allocated local frame buffer is not cleared to zero on Linux.  Applications sometimes assume that the driver will clear the framebuffer on Linux (which would match Windows behavior).",
+      "VariableName": "clearAllocatedLfb",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "HashName": 2657420565,
+      "Name": "ClearAllocatedLfb",
       "Tags": [
         "General",
         "Debug",
         "SafeSetting"
       ],
-      "Scope": "PrivatePalKey",
-      "HashName": 2657420565,
-      "Name": "ClearAllocatedLfb",
-      "VariableName": "clearAllocatedLfb",
-      "Type": "bool",
+      "Description": "Clears local frame buffer to zero. The allocated local frame buffer is not cleared to zero on Linux.  Applications sometimes assume that the driver will clear the framebuffer on Linux (which would match Windows behavior).",
       "DependsOn": {
         "OS": [
           "Linux"
         ]
-      },
-      "Defaults": {
-        "Default": false
       }
     },
     {
-      "Description": "Bitmask of surface types which should not allow 4kB swizzle modes for chips which use AddrMgr2.",
+      "VariableName": "addr2Disable4kBSwizzleMode",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
       },
-      "HashName": 2252676842,
       "ValidValues": {
         "Name": "Addr2Disable4kBSwizzle",
         "Description": "Bitmask values that correspond to image types for controlling 4kB swizzle modes.",
@@ -409,53 +391,52 @@
           }
         ]
       },
+      "HashName": 2252676842,
       "Name": "Addr2Disable4KbSwizzleMode",
-      "Scope": "PrivatePalKey",
-      "VariableName": "addr2Disable4kBSwizzleMode",
-      "Type": "uint32",
       "Tags": [
         "General",
         "Resource Settings"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Bitmask of surface types which should not allow 4kB swizzle modes for chips which use AddrMgr2.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Whether to disable XOR tile modes.",
-      "Name": "Addr2DisableXorTileMode",
-      "Scope": "PrivatePalKey",
-      "HashName": 576052426,
-      "Type": "bool",
       "VariableName": "addr2DisableXorTileMode",
-      "Tags": [
-        "General",
-        "Resource Settings"
-      ],
+      "Type": "bool",
       "Defaults": {
         "Default": false
-      }
+      },
+      "Description": "Whether to disable XOR tile modes.",
+      "Name": "Addr2DisableXorTileMode",
+      "Tags": [
+        "General",
+        "Resource Settings"
+      ],
+      "HashName": 576052426,
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Determines if the developer mode overlay will report information about HDR mode.",
-      "Name": "OverlayReportHDR",
-      "Scope": "PrivatePalKey",
-      "HashName": 2354711641,
-      "Type": "bool",
       "VariableName": "overlayReportHDR",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
+      "HashName": 2354711641,
+      "Name": "OverlayReportHDR",
       "Tags": [
         "General",
         "DevMode",
         "HDR"
       ],
-      "Defaults": {
-        "Default": true
-      }
+      "Description": "Determines if the developer mode overlay will report information about HDR mode.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Selects which methods of whole-pipeline optimizations are enabled. 0x1 - Trim unused Shader outputs (which allows dead-code removal to trimunused Shader inputs as well, and bubble-up to all pipeline stages).  By default, only the removal of unused shader outputs is performed.",
-      "Name": "WholePipelineOptimizations",
-      "HashName": 2263765076,
+      "VariableName": "wholePipelineOptimizations",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "OptTrimUnusedOutputs"
+      },
       "ValidValues": {
         "Name": "PipelineOptFlags",
         "Description": "Whole pipeline optimization modes",
@@ -473,313 +454,312 @@
           }
         ]
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "wholePipelineOptimizations",
+      "HashName": 2263765076,
+      "Name": "WholePipelineOptimizations",
       "Tags": [
         "Performance"
       ],
-      "Defaults": {
-        "Default": "OptTrimUnusedOutputs"
-      }
+      "Description": "Selects which methods of whole-pipeline optimizations are enabled. 0x1 - Trim unused Shader outputs (which allows dead-code removal to trimunused Shader inputs as well, and bubble-up to all pipeline stages).  By default, only the removal of unused shader outputs is performed.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "If set we will use a set of hard-coded heap performance values instead of the usual ASIC-specific values.  This setting is intended for bring-up testing as we will return zeros for all performance data on unknown GPUs.  This can cause strange behavior (e.g., poor performance) in some applications.",
-      "Name": "ForceHeapPerfToFixedValues",
-      "Scope": "PrivatePalKey",
-      "HashName": 2415703124,
-      "Type": "bool",
       "VariableName": "forceHeapPerfToFixedValues",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 2415703124,
+      "Name": "ForceHeapPerfToFixedValues",
       "Tags": [
         "Performance",
         "Bringup",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "If set we will use a set of hard-coded heap performance values instead of the usual ASIC-specific values.  This setting is intended for bring-up testing as we will return zeros for all performance data on unknown GPUs.  This can cause strange behavior (e.g., poor performance) in some applications.",
+      "Scope": "PrivatePalKey"
     },
     {
+      "VariableName": "cpuReadPerfForLocal",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU read performance for local memory",
       "Name": "CpuReadPerfForLocal",
-      "HashName": 1067711036,
-      "Type": "float",
-      "VariableName": "cpuReadPerfForLocal",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 1067711036
     },
     {
+      "VariableName": "cpuWritePerfForLocal",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU write performance for local memory",
       "Name": "CpuWritePerfForLocal",
-      "HashName": 2730570157,
-      "Type": "float",
-      "VariableName": "cpuWritePerfForLocal",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2730570157
     },
     {
+      "VariableName": "gpuReadPerfForLocal",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU read performance for local memory",
       "Name": "GpuReadPerfForLocal",
-      "HashName": 2638610736,
-      "Type": "float",
-      "VariableName": "gpuReadPerfForLocal",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2638610736
     },
     {
+      "VariableName": "gpuWritePerfForLocal",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU write performance for local memory",
       "Name": "GpuWritePerfForLocal",
-      "HashName": 2013287873,
-      "Type": "float",
-      "VariableName": "gpuWritePerfForLocal",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2013287873
     },
     {
+      "VariableName": "gpuReadPerfForInvisible",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU read performance for invisible memory",
       "Name": "GpuReadPerfForInvisible",
-      "HashName": 3386043224,
-      "Type": "float",
-      "VariableName": "gpuReadPerfForInvisible",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 3386043224
     },
     {
+      "VariableName": "gpuWritePerfForInvisible",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU write performance for invisible memory",
       "Name": "GpuWritePerfForInvisible",
-      "HashName": 2595291601,
-      "Type": "float",
-      "VariableName": "gpuWritePerfForInvisible",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2595291601
     },
     {
+      "VariableName": "cpuWritePerfForGartUswc",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU write performance for GartUswc memory",
       "Name": "CpuWritePerfForGartUswc",
-      "HashName": 4095131286,
-      "Type": "float",
-      "VariableName": "cpuWritePerfForGartUswc",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 4095131286
     },
     {
+      "VariableName": "cpuReadPerfForGartUswc",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU read performance for GartUswc memory",
       "Name": "CpuReadPerfForGartUswc",
-      "HashName": 664236849,
-      "Type": "float",
-      "VariableName": "cpuReadPerfForGartUswc",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 664236849
     },
     {
+      "VariableName": "gpuReadPerfForGartUswc",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU read performance for GartUswc memory",
       "Name": "GpuReadPerfForGartUswc",
-      "HashName": 3761700869,
-      "Type": "float",
-      "VariableName": "gpuReadPerfForGartUswc",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 3761700869
     },
     {
+      "VariableName": "gpuWritePerfForGartUswc",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU write performance for GartUswc memory",
       "Name": "GpuWritePerfForGartUswc",
-      "HashName": 2574159802,
-      "Type": "float",
-      "VariableName": "gpuWritePerfForGartUswc",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2574159802
     },
     {
+      "VariableName": "cpuReadPerfForGartCacheable",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU read performance for GartCacheable memory",
       "Name": "CpuReadPerfForGartCacheable",
-      "HashName": 2869172375,
-      "Type": "float",
-      "VariableName": "cpuReadPerfForGartCacheable",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2869172375
     },
     {
+      "VariableName": "cpuWritePerfForGartCacheable",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "CPU write performance for GartCacheable memory",
       "Name": "CpuWritePerfForGartCacheable",
-      "HashName": 959708118,
-      "Type": "float",
-      "VariableName": "cpuWritePerfForGartCacheable",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 959708118
     },
     {
+      "VariableName": "gpuReadPerfForGartCacheable",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU read performance for GartCacheable memory",
       "Name": "GpuReadPerfForGartCacheable",
-      "HashName": 2062750395,
-      "Type": "float",
-      "VariableName": "gpuReadPerfForGartCacheable",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 2062750395
     },
     {
+      "VariableName": "gpuWritePerfForGartCacheable",
+      "Type": "float",
+      "Defaults": {
+        "Default": 1
+      },
       "Description": "GPU write performance for GartCacheable memory",
       "Name": "GpuWritePerfForGartCacheable",
-      "HashName": 1621029738,
-      "Type": "float",
-      "VariableName": "gpuWritePerfForGartCacheable",
       "Tags": [
         "Performance",
         "HeapPerf"
       ],
-      "Defaults": {
-        "Default": 1
-      }
+      "HashName": 1621029738
     },
     {
-      "Description": "Re-use allocation list across submissions in Linux. This will improve CPU performance of command buffer submission, but will potentially cause GPU memory de-allocation to be delayed.",
-      "Tags": [
-        "Performance"
-      ],
+      "VariableName": "allocationListReusable",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
       "Scope": "PrivatePalKey",
       "HashName": 1727036994,
       "Name": "AllocationListReusable",
-      "VariableName": "allocationListReusable",
-      "Type": "bool",
+      "Tags": [
+        "Performance"
+      ],
+      "Description": "Re-use allocation list across submissions in Linux. This will improve CPU performance of command buffer submission, but will potentially cause GPU memory de-allocation to be delayed.",
       "DependsOn": {
         "OS": [
           "Linux"
         ]
-      },
-      "Defaults": {
-        "Default": true
       }
     },
     {
-      "Description": "Timeout value to override app-specified value for fence timeouts.  This setting is meaningless if the app specified zero seconds.  A value of zero here means to use the app-specified timeout value.  Useful on HW simulation where working cases can result in false timeouts.  Value specified in seconds",
-      "Name": "FenceTimeoutOverride",
-      "Scope": "PrivatePalKey",
-      "HashName": 970172817,
-      "Type": "uint32",
       "VariableName": "fenceTimeoutOverrideInSec",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 970172817,
+      "Name": "FenceTimeoutOverride",
       "Tags": [
         "Performance",
         "Emulation"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Timeout value to override app-specified value for fence timeouts.  This setting is meaningless if the app specified zero seconds.  A value of zero here means to use the app-specified timeout value.  Useful on HW simulation where working cases can result in false timeouts.  Value specified in seconds",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "If set, when calling RemapVirtualMemoryPages(), PAL will only do one unmap/map protect operation at a time, instead of trying to group the operations by BaseAddress.  This affects WDDM2 only.",
-      "Name": "UpdateOneGpuVirtualAddress",
-      "Scope": "PrivatePalKey",
-      "HashName": 4178383571,
-      "Type": "bool",
       "VariableName": "updateOneGpuVirtualAddress",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 4178383571,
+      "Name": "UpdateOneGpuVirtualAddress",
       "Tags": [
         "Performance",
         "SafeSetting",
         "Debug"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "If set, when calling RemapVirtualMemoryPages(), PAL will only do one unmap/map protect operation at a time, instead of trying to group the operations by BaseAddress.  This affects WDDM2 only.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "All allocations will be permanently kept resident without management by the client with AddGpuMemoryReferences.  This may reduce the runtime overhead of submission on Linux, but won't work properly if the application overcommits the available GPU memory.",
-      "Name": "AlwaysResident",
-      "Scope": "PrivatePalKey",
-      "HashName": 198913068,
-      "Type": "bool",
       "VariableName": "alwaysResident",
-      "Tags": [
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": false
-      }
-    },
-    {
-      "Description": "Disable Fence based on Sync Object. Force use Timestamp Fence. By default Fence type is selected according to the system configuration.",
-      "Name": "DisableSyncobjFence",
-      "Scope": "PrivatePalKey",
-      "HashName": 1287715858,
       "Type": "bool",
-      "VariableName": "disableSyncobjFence",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 198913068,
+      "Name": "AlwaysResident",
       "Tags": [
         "Performance"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "All allocations will be permanently kept resident without management by the client with AddGpuMemoryReferences.  This may reduce the runtime overhead of submission on Linux, but won't work properly if the application overcommits the available GPU memory.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "With this feature enabled VM addresses are always valid within the local VM context.  This eliminates the need to add private memory into the resource list. This may reduce the runtime overhead of submission on Linux, but won't work for memory shared by multiple processes.",
-      "Name": "EnableVmAlwaysValid",
-      "HashName": 1718264096,
+      "VariableName": "disableSyncobjFence",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 1287715858,
+      "Name": "DisableSyncobjFence",
+      "Tags": [
+        "Performance"
+      ],
+      "Description": "Disable Fence based on Sync Object. Force use Timestamp Fence. By default Fence type is selected according to the system configuration.",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "enableVmAlwaysValid",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "VmAlwaysValidDefaultEnable"
+      },
       "ValidValues": {
         "Name": "VmAlwaysValidEnable",
-        "IsExclusive": true,
         "Description": "Defines the supported VM always valid modes.",
         "IsEnum": true,
         "Values": [
@@ -798,44 +778,44 @@
             "Name": "VmAlwaysValidForceEnable",
             "Value": 2
           }
-        ]
+        ],
+        "IsExclusive": true
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "enableVmAlwaysValid",
+      "HashName": 1718264096,
+      "Name": "EnableVmAlwaysValid",
       "Tags": [
         "Performance"
       ],
-      "Defaults": {
-        "Default": "VmAlwaysValidDefaultEnable"
-      }
+      "Description": "With this feature enabled VM addresses are always valid within the local VM context.  This eliminates the need to add private memory into the resource list. This may reduce the runtime overhead of submission on Linux, but won't work for memory shared by multiple processes.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Disables SyncObject support for semaphores which means semaphores will be based on ProOnly or Legacy interfaces according to the system configuration.",
-      "Tags": [
-        "Performance"
-      ],
+      "VariableName": "disableSyncObject",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "Scope": "PrivatePalKey",
       "HashName": 830933859,
       "Name": "DisableSyncObject",
-      "VariableName": "disableSyncObject",
-      "Type": "bool",
+      "Tags": [
+        "Performance"
+      ],
+      "Description": "Disables SyncObject support for semaphores which means semaphores will be based on ProOnly or Legacy interfaces according to the system configuration.",
       "DependsOn": {
         "OS": [
           "Linux"
         ]
-      },
-      "Defaults": {
-        "Default": false
       }
     },
     {
-      "Description": "Determines if dumping is enabled, and whether it is at record or submit time.",
-      "Name": "CmdBufDumpMode",
-      "HashName": 3607991033,
+      "VariableName": "cmdBufDumpMode",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "CmdBufDumpModeDisabled"
+      },
       "ValidValues": {
         "Name": "CmdBufDumpMode",
-        "IsExclusive": true,
         "Description": "Defines the supported command buffer dump modes.",
         "IsEnum": true,
         "Values": [
@@ -854,25 +834,26 @@
             "Name": "CmdBufDumpModeSubmitTime",
             "Value": 2
           }
-        ]
+        ],
+        "IsExclusive": true
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufDumpMode",
+      "HashName": 3607991033,
+      "Name": "CmdBufDumpMode",
       "Tags": [
         "Printing and Logging"
       ],
-      "Defaults": {
-        "Default": "CmdBufDumpModeDisabled"
-      }
+      "Description": "Determines if dumping is enabled, and whether it is at record or submit time.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls the format of command buffer dumps.",
-      "Name": "CmdBufDumpFormat",
-      "HashName": 1905164977,
+      "VariableName": "cmdBufDumpFormat",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "CmdBufDumpFormatText"
+      },
+      "Scope": "PrivatePalKey",
       "ValidValues": {
         "Name": "CmdBufDumpFormat",
-        "IsExclusive": true,
         "Description": "Defines the supported formats for command buffer dumping.",
         "IsEnum": true,
         "Values": [
@@ -891,8 +872,15 @@
             "Name": "CmdBufDumpFormatBinaryHeaders",
             "Value": 2
           }
-        ]
+        ],
+        "IsExclusive": true
       },
+      "HashName": 1905164977,
+      "Name": "CmdBufDumpFormat",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "Description": "Controls the format of command buffer dumps.",
       "DependsOn": {
         "Settings": [
           {
@@ -903,25 +891,26 @@
             ]
           }
         ]
-      },
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufDumpFormat",
-      "Type": "enum",
-      "Tags": [
-        "Printing and Logging"
-      ],
-      "Defaults": {
-        "Default": "CmdBufDumpFormatText"
       }
     },
     {
-      "Description": "Relative directory where command buffer dumps are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+      "Type": "string",
+      "Name": "CmdBufDumpDirectory",
+      "Size": "MaxPathStrLen",
+      "Defaults": {
+        "Default": "amdpal/",
+        "WinDefault": "PalCmdBuffers\\",
+        "LnxDefault": "amdpal/"
+      },
       "Flags": {
         "IsPath": true
       },
-      "Size": "MaxPathStrLen",
+      "VariableName": "cmdBufDumpDirectory",
+      "Description": "Relative directory where command buffer dumps are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
       "Scope": "PrivatePalKey",
-      "Name": "CmdBufDumpDirectory",
+      "Tags": [
+        "Printing and Logging"
+      ],
       "HashName": 3293295025,
       "DependsOn": {
         "Settings": [
@@ -933,28 +922,21 @@
             ]
           }
         ]
-      },
-      "VariableName": "cmdBufDumpDirectory",
-      "Type": "string",
-      "Tags": [
-        "Printing and Logging"
-      ],
-      "Defaults": {
-        "LnxDefault": "amdpal/",
-        "WinDefault": "PalCmdBuffers\\",
-        "Default": "amdpal/"
       }
     },
     {
-      "Description": "The starting frame to start dumping command buffers.",
-      "Tags": [
-        "Printing and Logging"
-      ],
+      "VariableName": "submitTimeCmdBufDumpStartFrame",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
       "Scope": "PrivatePalKey",
       "HashName": 1639305458,
       "Name": "SubmitTimeCmdBufDumpStartFrame",
-      "VariableName": "submitTimeCmdBufDumpStartFrame",
-      "Type": "uint32",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "Description": "The starting frame to start dumping command buffers.",
       "DependsOn": {
         "Settings": [
           {
@@ -965,21 +947,21 @@
             ]
           }
         ]
-      },
-      "Defaults": {
-        "Default": 0
       }
     },
     {
-      "Description": "The ending frame to stop dumping command buffers.",
-      "Tags": [
-        "Printing and Logging"
-      ],
+      "VariableName": "submitTimeCmdBufDumpEndFrame",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
       "Scope": "PrivatePalKey",
       "HashName": 4221961293,
       "Name": "SubmitTimeCmdBufDumpEndFrame",
-      "VariableName": "submitTimeCmdBufDumpEndFrame",
-      "Type": "uint32",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "Description": "The ending frame to stop dumping command buffers.",
       "DependsOn": {
         "Settings": [
           {
@@ -997,108 +979,108 @@
             ]
           }
         ]
-      },
-      "Defaults": {
-        "Default": 0
       }
     },
     {
-      "Description": "Controls whether command stream commit sizes are logged to a file.",
-      "Tags": [
-        "Printing and Logging"
-      ],
+      "VariableName": "logCmdBufCommitSizes",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "Scope": "PrivatePalKey",
       "HashName": 2222002517,
       "Name": "LogCmdBufCommitSizes",
-      "VariableName": "logCmdBufCommitSizes",
-      "Type": "bool",
-      "DependsOn": {
-        "BuildType": [
-          "dbg"
-        ]
-      },
-      "Defaults": {
-        "Default": false
-      }
-    },
-    {
-      "Description": "Enables Pipeline Logging",
       "Tags": [
         "Printing and Logging"
       ],
-      "Scope": "PrivatePalKey",
-      "HashName": 835791563,
-      "Name": "LogPipelineInfo",
-      "VariableName": "logPipelines",
-      "Type": "bool",
+      "Description": "Controls whether command stream commit sizes are logged to a file.",
       "DependsOn": {
         "BuildType": [
           "dbg"
         ]
-      },
+      }
+    },
+    {
+      "VariableName": "logPipelines",
+      "Type": "bool",
       "Defaults": {
         "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "HashName": 835791563,
+      "Name": "LogPipelineInfo",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "Description": "Enables Pipeline Logging",
+      "DependsOn": {
+        "BuildType": [
+          "dbg"
+        ]
       }
     },
     {
       "Structure": [
         {
+          "VariableName": "logInternal",
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
           "Description": "Contols logging of internally generated pipelines (i.e. RPM pipelines, etc",
-          "HashName": 1161296785,
-          "Type": "bool",
-          "Defaults": {
-            "Default": false
-          },
           "Name": "LogInternal",
-          "VariableName": "logInternal"
+          "HashName": 1161296785
         },
         {
+          "VariableName": "logExternal",
+          "Type": "bool",
+          "Defaults": {
+            "Default": false
+          },
           "Description": "Contols logging of externally generated pipelines (i.e. the application's pipelines",
-          "HashName": 80714519,
-          "Type": "bool",
-          "Defaults": {
-            "Default": false
-          },
           "Name": "LogExternal",
-          "VariableName": "logExternal"
+          "HashName": 80714519
         },
         {
-          "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file",
-          "HashName": 2954641676,
+          "VariableName": "logShadersSeparately",
           "Type": "bool",
           "Defaults": {
             "Default": false
           },
+          "Description": "If true, each shader in a pipeline will be logged to a separate file on disk. Otherwise the whole pipeline is placed in a single file",
           "Name": "LogShadersSeparately",
-          "VariableName": "logShadersSeparately"
+          "HashName": 2954641676
         },
         {
-          "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.",
-          "HashName": 2579830276,
+          "VariableName": "logDuplicatePipelines",
           "Type": "bool",
           "Defaults": {
             "Default": true
           },
+          "Description": "If true, duplicate pipelines will be dumped to a file with a numeric suffix attached to the filename to distinguish each copy of the pipeline.",
           "Name": "LogDuplicatePipelines",
-          "VariableName": "logDuplicatePipelines"
+          "HashName": 2579830276
         },
         {
-          "Description": "If true, disassembly information will be embedded into compiled ELF binaries.",
-          "HashName": 3586402143,
+          "VariableName": "embedPipelineDisassembly",
           "Type": "bool",
           "Defaults": {
             "Default": false
           },
+          "Description": "If true, disassembly information will be embedded into compiled ELF binaries.",
           "Name": "EmbedPipelineDisassembly",
-          "VariableName": "embedPipelineDisassembly"
+          "HashName": 3586402143
         },
         {
-          "Description": "Bitfield which allows for filtering pipeline logging to exclude specific pipeline types.  If a bit is set then that pipeline type will NOT be logged.  The bits are defined in the ValidValues array.",
+          "VariableName": "pipelineTypeFilter",
+          "Type": "uint32",
+          "Defaults": {
+            "Default": 0
+          },
           "Flags": {
             "IsBitmask": true,
             "IsHex": true
           },
-          "HashName": 1911443886,
           "ValidValues": {
             "Name": "PipelineLogFilters",
             "IsEnum": true,
@@ -1135,50 +1117,41 @@
               }
             ]
           },
-          "Type": "uint32",
-          "VariableName": "pipelineTypeFilter",
+          "HashName": 1911443886,
           "Name": "PipelineTypeFilter",
-          "Defaults": {
-            "Default": 0
-          }
+          "Description": "Bitfield which allows for filtering pipeline logging to exclude specific pipeline types.  If a bit is set then that pipeline type will NOT be logged.  The bits are defined in the ValidValues array."
         },
         {
-          "Description": "Specific pipeline hash to log.",
+          "VariableName": "logPipelineHash",
+          "Type": "uint64",
+          "Defaults": {
+            "Default": 0
+          },
           "Flags": {
             "IsHex": true
           },
           "HashName": 3585556466,
-          "Type": "uint64",
-          "VariableName": "logPipelineHash",
           "Name": "LogPipelineHash",
-          "Defaults": {
-            "Default": 0
-          }
+          "Description": "Specific pipeline hash to log."
         },
         {
-          "Description": "Relative directory where pipeline information logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent. Each unique pipeline is in a separate file within that directory. The log name is based on a hash of the pipeline's create info and which shader stages are active.",
+          "VariableName": "pipelineLogDirectory",
+          "Type": "string",
+          "Size": "MaxPathStrLen",
+          "Defaults": {
+            "Default": "amdpal/",
+            "WinDefault": "PalPipelines\\",
+            "LnxDefault": "amdpal/"
+          },
           "Flags": {
             "IsPath": true
           },
-          "Size": "MaxPathStrLen",
-          "HashName": 3768253245,
-          "Type": "string",
-          "VariableName": "pipelineLogDirectory",
+          "Description": "Relative directory where pipeline information logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent. Each unique pipeline is in a separate file within that directory. The log name is based on a hash of the pipeline's create info and which shader stages are active.",
           "Name": "PipelineLogDirectory",
-          "Defaults": {
-            "LnxDefault": "amdpal/",
-            "WinDefault": "PalPipelines\\",
-            "Default": "amdpal/"
-          }
+          "HashName": 3768253245
         }
       ],
-      "Description": "Pipeline Logging configuration options",
-      "Tags": [
-        "Printing and Logging"
-      ],
-      "Scope": "PrivatePalKey",
-      "Name": "PipelineLogConfig",
-      "HashName": 2587845825,
+      "VariableName": "pipelineLogConfig",
       "Type": "struct",
       "DependsOn": {
         "BuildType": [
@@ -1193,51 +1166,60 @@
           }
         ]
       },
-      "VariableName": "pipelineLogConfig"
+      "Description": "Pipeline Logging configuration options",
+      "Name": "PipelineLogConfig",
+      "Tags": [
+        "Printing and Logging"
+      ],
+      "HashName": 2587845825,
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Specifies how many DWORDs of command space is reserved by ReserveCommands(). This will be clamped by each CmdStream to their CmdAllocator's chunk size.",
-      "Name": "CmdStreamReserveLimit",
-      "Scope": "PrivatePalKey",
-      "HashName": 3843913604,
-      "Type": "uint32",
       "VariableName": "cmdStreamReserveLimit",
-      "Tags": [
-        "Command Buffer"
-      ],
+      "Type": "uint32",
       "Defaults": {
         "Default": 256
-      }
-    },
-    {
-      "Description": "If true, the command stream will memset all command space to CmdStreamMemsetValue. This will only function on debug builds.",
+      },
+      "HashName": 3843913604,
+      "Name": "CmdStreamReserveLimit",
       "Tags": [
         "Command Buffer"
       ],
+      "Description": "Specifies how many DWORDs of command space is reserved by ReserveCommands(). This will be clamped by each CmdStream to their CmdAllocator's chunk size.",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "cmdStreamEnableMemsetOnReserve",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "Scope": "PrivatePalKey",
       "HashName": 3927521274,
       "Name": "CmdStreamEnableMemsetOnReserve",
-      "VariableName": "cmdStreamEnableMemsetOnReserve",
-      "Type": "bool",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Description": "If true, the command stream will memset all command space to CmdStreamMemsetValue. This will only function on debug builds.",
       "DependsOn": {
         "BuildType": [
           "dbg"
         ]
-      },
-      "Defaults": {
-        "Default": false
       }
     },
     {
-      "Description": "If CmdStreamEnableMemsetOnReserve is true all command space will be memset to this value. This will only function on debug builds.",
-      "Tags": [
-        "Command Buffer"
-      ],
+      "VariableName": "cmdStreamMemsetValue",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 4294967295
+      },
       "Scope": "PrivatePalKey",
       "HashName": 3661455441,
       "Name": "CmdStreamMemsetValue",
-      "VariableName": "cmdStreamMemsetValue",
-      "Type": "uint32",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Description": "If CmdStreamEnableMemsetOnReserve is true all command space will be memset to this value. This will only function on debug builds.",
       "DependsOn": {
         "BuildType": [
           "dbg"
@@ -1248,43 +1230,42 @@
             "Value": true
           }
         ]
-      },
-      "Defaults": {
-        "Default": 4294967295
       }
     },
     {
-      "Description": "If true, each command chunk will allocate a system memory staging buffer. Commands will be stored in this buffer until the chunk is finalized.",
-      "Name": "CmdBufChunkEnableStagingBuffer",
-      "Scope": "PrivatePalKey",
-      "HashName": 169161685,
-      "Type": "bool",
       "VariableName": "cmdBufChunkEnableStagingBuffer",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": false
-      }
-    },
-    {
-      "Description": "If true, each command allocator will free its command chunk allocations when the client calls ICmdAllocator::Reset() even though this behavior is against the rules of the DX12 specification.",
-      "Name": "CmdAllocatorFreeOnReset",
-      "Scope": "PrivatePalKey",
-      "HashName": 1461164706,
       "Type": "bool",
-      "VariableName": "cmdAllocatorFreeOnReset",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 169161685,
+      "Name": "CmdBufChunkEnableStagingBuffer",
       "Tags": [
         "Command Buffer"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "If true, each command chunk will allocate a system memory staging buffer. Commands will be stored in this buffer until the chunk is finalized.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls fine-grained optimization of each command buffer's PM4 stream. Can improve performance of CP-bound applications that have CPU cycles to spare.",
-      "Name": "CmdBufOptimizePm4",
-      "HashName": 1018895288,
+      "VariableName": "cmdAllocatorFreeOnReset",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
+      "HashName": 1461164706,
+      "Name": "CmdAllocatorFreeOnReset",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Description": "If true, each command allocator will free its command chunk allocations when the client calls ICmdAllocator::Reset() even though this behavior is against the rules of the DX12 specification.",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "cmdBufOptimizePm4",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "Pm4OptDefaultEnable"
+      },
       "ValidValues": {
         "Name": "Pm4OptEnable",
         "IsExlusive": true,
@@ -1307,21 +1288,22 @@
           }
         ]
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufOptimizePm4",
+      "HashName": 1018895288,
+      "Name": "CmdBufOptimizePm4",
       "Tags": [
         "Command Buffer",
         "Performance"
       ],
-      "Defaults": {
-        "Default": "Pm4OptDefaultEnable"
-      }
+      "Description": "Controls fine-grained optimization of each command buffer's PM4 stream. Can improve performance of CP-bound applications that have CPU cycles to spare.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "When PM4 optimization is enabled this setting controls when command streams will use the optimizer.",
-      "Name": "CmdBufOptimizePm4Mode",
-      "HashName": 2490816619,
+      "VariableName": "cmdBufOptimizePm4Mode",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "Pm4OptModeImmediate"
+      },
+      "Scope": "PrivatePalKey",
       "ValidValues": {
         "Name": "Pm4OptMode",
         "IsExlusive": true,
@@ -1339,6 +1321,12 @@
           }
         ]
       },
+      "HashName": 2490816619,
+      "Name": "CmdBufOptimizePm4Mode",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Description": "When PM4 optimization is enabled this setting controls when command streams will use the optimizer.",
       "DependsOn": {
         "Settings": [
           {
@@ -1349,21 +1337,14 @@
             ]
           }
         ]
-      },
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufOptimizePm4Mode",
-      "Type": "enum",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": "Pm4OptModeImmediate"
       }
     },
     {
-      "Description": "Globally overrides the CMD_BUFFER_ONE_TIME_SUBMIT command buffer building flag.",
-      "Name": "CmdBufForceOneTimeSubmit",
-      "HashName": 909934676,
+      "VariableName": "cmdBufForceOneTimeSubmit",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "CmdBufForceOneTimeSubmitDefault"
+      },
       "ValidValues": {
         "Name": "CmdBufForceOneTimeSubmit",
         "IsExlusive": true,
@@ -1386,20 +1367,20 @@
           }
         ]
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufForceOneTimeSubmit",
+      "HashName": 909934676,
+      "Name": "CmdBufForceOneTimeSubmit",
       "Tags": [
         "Command Buffer"
       ],
-      "Defaults": {
-        "Default": "CmdBufForceOneTimeSubmitDefault"
-      }
+      "Description": "Globally overrides the CMD_BUFFER_ONE_TIME_SUBMIT command buffer building flag.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls to what degree command buffers support mid-command buffer preemption.",
-      "Name": "CmdBufPreemptionMode",
-      "HashName": 3640527208,
+      "VariableName": "cmdBufPreemptionMode",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "CmdBufPreemptModeEnable"
+      },
       "ValidValues": {
         "Name": "CmdBufPreemptMode",
         "IsEnum": true,
@@ -1421,20 +1402,20 @@
           }
         ]
       },
-      "Type": "enum",
-      "Scope": "PrivatePalKey",
-      "VariableName": "cmdBufPreemptionMode",
+      "HashName": 3640527208,
+      "Name": "CmdBufPreemptionMode",
       "Tags": [
         "Command Buffer"
       ],
-      "Defaults": {
-        "Default": "CmdBufPreemptModeEnable"
-      }
+      "Description": "Controls to what degree command buffers support mid-command buffer preemption.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Toggles whether or not PAL should add a postamble to universal Queue submissions to dump CE RAM whenever MCBP is enabled.",
-      "Name": "CommandBufferForceCeRamDumpInPostamble",
-      "HashName": 3413911781,
+      "VariableName": "commandBufferForceCeRamDumpInPostamble",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "ValidValues": {
         "Values": [
           {
@@ -1447,54 +1428,54 @@
           }
         ]
       },
-      "Type": "bool",
-      "Scope": "PrivatePalKey",
-      "VariableName": "commandBufferForceCeRamDumpInPostamble",
+      "HashName": 3413911781,
+      "Name": "CommandBufferForceCeRamDumpInPostamble",
       "Tags": [
         "Command Buffer"
       ],
-      "Defaults": {
-        "Default": false
-      }
+      "Description": "Toggles whether or not PAL should add a postamble to universal Queue submissions to dump CE RAM whenever MCBP is enabled.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Combines the DE per-submit and per-context preambles into one per-submit preamble.",
-      "Name": "CommandBufferCombineDePreambles",
-      "Scope": "PrivatePalKey",
-      "HashName": 148412311,
-      "Type": "bool",
       "VariableName": "commandBufferCombineDePreambles",
-      "Tags": [
-        "Command Buffer"
-      ],
+      "Type": "bool",
       "Defaults": {
         "Default": false
-      }
-    },
-    {
-      "Description": "If true, PAL will verify that all register writes in command buffers are properly shadowed when mid command buffer preemption is enabled. This can have a noticable impact on CPU performance. This setting is ignored in release builds.",
+      },
+      "HashName": 148412311,
+      "Name": "CommandBufferCombineDePreambles",
       "Tags": [
         "Command Buffer"
       ],
+      "Description": "Combines the DE per-submit and per-context preambles into one per-submit preamble.",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "cmdUtilVerifyShadowedRegRanges",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
       "Scope": "PrivatePalKey",
       "HashName": 3890704045,
       "Name": "CmdUtilVerifyShadowedRegRanges",
-      "VariableName": "cmdUtilVerifyShadowedRegRanges",
-      "Type": "bool",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Description": "If true, PAL will verify that all register writes in command buffers are properly shadowed when mid command buffer preemption is enabled. This can have a noticable impact on CPU performance. This setting is ignored in release builds.",
       "DependsOn": {
         "BuildType": [
           "dbg",
           "dev"
         ]
-      },
-      "Defaults": {
-        "Default": true
       }
     },
     {
-      "Description": "If non-zero, it forces all SubmitOptModes to a specific value. 0: No Override 1: SubmitOptMode::Default 2: SubmitOptMode::Disabled 3: SubmitOptMode::MinKernelSubmits 4: SubmitOptMode::MinGpuCmdOverhead ",
-      "Name": "SubmitOptModeOverride",
-      "HashName": 3054810609,
+      "VariableName": "submitOptModeOverride",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
       "ValidValues": {
         "Values": [
           {
@@ -1519,22 +1500,23 @@
           }
         ]
       },
-      "Type": "uint32",
-      "Scope": "PrivatePalKey",
-      "VariableName": "submitOptModeOverride",
+      "HashName": 3054810609,
+      "Name": "SubmitOptModeOverride",
       "Tags": [
         "Command Buffer"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "If non-zero, it forces all SubmitOptModes to a specific value. 0: No Override 1: SubmitOptMode::Default 2: SubmitOptMode::Disabled 3: SubmitOptMode::MinKernelSubmits 4: SubmitOptMode::MinGpuCmdOverhead ",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Bitmask which enables bank & pipe tile swizzling for surfaces.",
+      "VariableName": "tileSwizzleMode",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 7
+      },
       "Flags": {
         "IsHex": true
       },
-      "HashName": 1146877010,
       "ValidValues": {
         "Name": "TileSwizzleBits",
         "IsEnum": true,
@@ -1566,43 +1548,43 @@
           }
         ]
       },
+      "HashName": 1146877010,
       "Name": "TileSwizzleMode",
-      "Scope": "PrivatePalKey",
-      "VariableName": "tileSwizzleMode",
-      "Type": "uint32",
       "Tags": [
         "Resource Settings"
       ],
-      "Defaults": {
-        "Default": 7
-      }
+      "Description": "Bitmask which enables bank & pipe tile swizzling for surfaces.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "On WDDM2 platforms, PAL is able to send a set of flags through to the kernel which can control how the KMD handles each GPU VA mapping when reserving VA space, mapping VA space or updating the GPU page mappings. If this setting is true then PAL will request that extra validation is performed to ensure that every GPU virtual address mapping to a specific physical allocation specifies a matching set of these KMD flags.",
-      "Tags": [
-        "Resource Settings"
-      ],
+      "VariableName": "enableVidMmGpuVaMappingValidation",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "Scope": "PrivatePalKey",
       "HashName": 2751785051,
       "Name": "EnableVidMmGpuVaMappingValidation",
-      "VariableName": "enableVidMmGpuVaMappingValidation",
-      "Type": "bool",
+      "Tags": [
+        "Resource Settings"
+      ],
+      "Description": "On WDDM2 platforms, PAL is able to send a set of flags through to the kernel which can control how the KMD handles each GPU VA mapping when reserving VA space, mapping VA space or updating the GPU page mappings. If this setting is true then PAL will request that extra validation is performed to ensure that every GPU virtual address mapping to a specific physical allocation specifies a matching set of these KMD flags.",
       "DependsOn": {
         "OS": [
           "Win8",
           "Win10"
         ]
-      },
-      "Defaults": {
-        "Default": false
       }
     },
     {
-      "Description": "Sets a preferred swizzle type when using AddrLib2.",
+      "VariableName": "addr2PreferredSwizzleTypeSet",
+      "Type": "enum",
+      "Defaults": {
+        "Default": "Addr2PreferredDefault"
+      },
       "Flags": {
         "IsHex": true
       },
-      "HashName": 1836557167,
       "ValidValues": {
         "Name": "Addr2PreferredSwizzleTypeSet",
         "IsEnum": true,
@@ -1634,110 +1616,117 @@
           }
         ]
       },
+      "HashName": 1836557167,
       "Name": "Addr2PreferredSwizzleTypeSet",
-      "Scope": "PrivatePalKey",
-      "VariableName": "addr2PreferredSwizzleTypeSet",
-      "Type": "enum",
       "Tags": [
         "Resource Settings"
       ],
-      "Defaults": {
-        "Default": "Addr2PreferredDefault"
-      }
+      "Description": "Sets a preferred swizzle type when using AddrLib2.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "If true, attempt to prefetch pipeline shader code and data into L2 before executing the pipeline.",
-      "Name": "PipelinePrefetchEnable",
-      "Scope": "PrivatePalKey",
-      "HashName": 3661325567,
-      "Type": "bool",
       "VariableName": "pipelinePrefetchEnable",
-      "Tags": [
-        "Prefetching (L2 Cache Warming)"
-      ],
+      "Type": "bool",
       "Defaults": {
         "Default": true
-      }
-    },
-    {
-      "Description": "When this setting is non-zero, clamp shader prefetching to this many bytes.",
-      "Name": "ShaderPrefetchClampSize",
-      "Scope": "PrivatePalKey",
-      "HashName": 2406290039,
-      "Type": "uint32",
-      "VariableName": "shaderPrefetchClampSize",
+      },
+      "HashName": 3661325567,
+      "Name": "PipelinePrefetchEnable",
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "If true, attempt to prefetch pipeline shader code and data into L2 before executing the pipeline.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Artificially limits the maximum number of SGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used.",
-      "Name": "MaxAvailableSgpr",
-      "Scope": "PrivatePalKey",
-      "HashName": 1008439776,
+      "VariableName": "shaderPrefetchClampSize",
       "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 2406290039,
+      "Name": "ShaderPrefetchClampSize",
+      "Tags": [
+        "Prefetching (L2 Cache Warming)"
+      ],
+      "Description": "When this setting is non-zero, clamp shader prefetching to this many bytes.",
+      "Scope": "PrivatePalKey"
+    },
+    {
       "VariableName": "maxAvailableSgpr",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 1008439776,
+      "Name": "MaxAvailableSgpr",
       "Tags": [
         "Shader Options"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Artificially limits the maximum number of SGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Artificially limits the maximum number of VGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used.",
-      "Name": "MaxAvailableVgpr",
-      "Scope": "PrivatePalKey",
-      "HashName": 2116546305,
-      "Type": "uint32",
       "VariableName": "maxAvailableVgpr",
-      "Tags": [
-        "Shader Options"
-      ],
-      "Defaults": {
-        "Default": 0
-      }
-    },
-    {
-      "Description": "Controls how many CS thread-groups are allowed to launch per compute unit.  This throttles the shader, which can sometimes enable more graphics shader work to complete in parallel. A value of zero disables limiting the number of thread-groups to launch.  This field is  ignored for graphics shaders.",
-      "Name": "MaxThreadGroupsPerComputeUnit",
-      "Scope": "PrivatePalKey",
-      "HashName": 1284517999,
       "Type": "uint32",
-      "VariableName": "maxThreadGroupsPerComputeUnit",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 2116546305,
+      "Name": "MaxAvailableVgpr",
       "Tags": [
         "Shader Options"
       ],
-      "Defaults": {
-        "Default": 0
-      }
+      "Description": "Artificially limits the maximum number of VGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Controls the maximum size of the scratch ring allocation. If the application requests more scratch memory than this, the driver will limit the number of waves in flight to comply with the memory restriction.",
-      "Name": "MaxScratchRingSize",
-      "Scope": "PrivatePalKey",
-      "HashName": 784528758,
-      "Type": "gpusize",
+      "VariableName": "maxThreadGroupsPerComputeUnit",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 0
+      },
+      "HashName": 1284517999,
+      "Name": "MaxThreadGroupsPerComputeUnit",
+      "Tags": [
+        "Shader Options"
+      ],
+      "Description": "Controls how many CS thread-groups are allowed to launch per compute unit.  This throttles the shader, which can sometimes enable more graphics shader work to complete in parallel. A value of zero disables limiting the number of thread-groups to launch.  This field is  ignored for graphics shaders.",
+      "Scope": "PrivatePalKey"
+    },
+    {
       "VariableName": "maxScratchRingSize",
+      "Type": "gpusize",
+      "Defaults": {
+        "Default": 268435456
+      },
+      "HashName": 784528758,
+      "Name": "MaxScratchRingSize",
       "Tags": [
         "Scratch",
         "Performance"
       ],
-      "Defaults": {
-        "Default": 268435456
-      }
+      "Description": "Controls the maximum size of the scratch ring allocation. If the application requests more scratch memory than this, the driver will limit the number of waves in flight to comply with the memory restriction.",
+      "Scope": "PrivatePalKey"
     },
     {
+      "VariableName": "ifhGpuMask",
+      "Type": "uint32",
+      "Defaults": {
+        "Default": 15
+      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "Mask of the GPUs to have all submits dropped. See IFH setting for IFH mode that will be applied. If the bit is set, the GPU will have its submits dropped.",
-      "Name": "IfhGpuMask",
       "Scope": "PrivatePalKey",
       "HashName": 3517626664,
+      "Name": "IfhGpuMask",
+      "Tags": [
+        "MGPU",
+        "General",
+        "Debug"
+      ],
+      "Description": "Mask of the GPUs to have all submits dropped. See IFH setting for IFH mode that will be applied. If the bit is set, the GPU will have its submits dropped.",
       "DependsOn": {
         "Settings": [
           {
@@ -1748,97 +1737,108 @@
             ]
           }
         ]
-      },
-      "VariableName": "ifhGpuMask",
-      "Type": "uint32",
-      "Tags": [
-        "MGPU",
-        "General",
-        "Debug"
-      ],
-      "Defaults": {
-        "Default": 15
       }
     },
     {
-      "Description": "Enables support for the HW compositor (crossDisplayPresent) if the hardware supports HW compositing.",
-      "Name": "HwCompositingEnabled",
-      "Scope": "PrivatePalKey",
-      "HashName": 1872169717,
-      "Type": "bool",
       "VariableName": "hwCompositingEnabled",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
+      "HashName": 1872169717,
+      "Name": "HwCompositingEnabled",
       "Tags": [
         "MGPU"
       ],
-      "Defaults": {
-        "Default": true
-      }
+      "Description": "Enables support for the HW compositor (crossDisplayPresent) if the hardware supports HW compositing.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Enables support for MGPU in PAL. If MGPU Compatibility is disabled, all GPUs will still be exposed to the application, but no MGPU-specific compatibility flags will be returned.",
-      "Name": "MgpuCompatibilityEnabled",
-      "Scope": "PrivatePalKey",
-      "HashName": 1177937299,
-      "Type": "bool",
       "VariableName": "mgpuCompatibilityEnabled",
-      "Tags": [
-        "MGPU"
-      ],
-      "Defaults": {
-        "Default": true
-      }
-    },
-    {
-      "Description": "Enables support for peer memory and peer memory transfers if the hardware is capable.",
-      "Name": "PeerMemoryEnabled",
-      "Scope": "PrivatePalKey",
-      "HashName": 259362511,
       "Type": "bool",
-      "VariableName": "peerMemoryEnabled",
+      "Defaults": {
+        "Default": true
+      },
+      "HashName": 1177937299,
+      "Name": "MgpuCompatibilityEnabled",
       "Tags": [
         "MGPU"
       ],
-      "Defaults": {
-        "Default": true
-      }
+      "Description": "Enables support for MGPU in PAL. If MGPU Compatibility is disabled, all GPUs will still be exposed to the application, but no MGPU-specific compatibility flags will be returned.",
+      "Scope": "PrivatePalKey"
     },
     {
-      "Description": "Forces the present technique to use the GDI BLT path.",
+      "VariableName": "peerMemoryEnabled",
+      "Type": "bool",
+      "Defaults": {
+        "Default": true
+      },
+      "HashName": 259362511,
+      "Name": "PeerMemoryEnabled",
       "Tags": [
-        "WSI"
+        "MGPU"
       ],
+      "Description": "Enables support for peer memory and peer memory transfers if the hardware is capable.",
+      "Scope": "PrivatePalKey"
+    },
+    {
+      "VariableName": "forcePresentViaGdi",
+      "Type": "bool",
+      "Defaults": {
+        "Default": false
+      },
       "Scope": "PrivatePalKey",
       "HashName": 2607871653,
       "Name": "ForcePresentViaGdi",
-      "VariableName": "forcePresentViaGdi",
-      "Type": "bool",
-      "DependsOn": {
-        "OS": [
-          "Windows"
-        ]
-      },
-      "Defaults": {
-        "Default": false
-      }
-    },
-    {
-      "Description": "When true window mode present path will go through OpenGL runtime. When false window mode present path still go legacy DWM API path.",
       "Tags": [
         "WSI"
       ],
-      "Scope": "PrivatePalKey",
-      "HashName": 2466363770,
-      "Name": "PresentViaOglRuntime",
-      "VariableName": "presentViaOglRuntime",
-      "Type": "bool",
+      "Description": "Forces the present technique to use the GDI BLT path.",
       "DependsOn": {
         "OS": [
           "Windows"
         ]
-      },
+      }
+    },
+    {
+      "VariableName": "presentViaOglRuntime",
+      "Type": "bool",
       "Defaults": {
         "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "HashName": 2466363770,
+      "Name": "PresentViaOglRuntime",
+      "Tags": [
+        "WSI"
+      ],
+      "Description": "When true window mode present path will go through OpenGL runtime. When false window mode present path still go legacy DWM API path.",
+      "DependsOn": {
+        "OS": [
+          "Windows"
+        ]
       }
     }
-  ]
+  ],
+  "DefinedConstants": [
+    {
+      "Description": "Maximum string length for a directory/path setting",
+      "Name": "MaxPathStrLen",
+      "Value": 512
+    },
+    {
+      "Description": "Maximum string length for a filename setting",
+      "Name": "MaxFileNameStrLen",
+      "Value": 256
+    },
+    {
+      "Description": "Maximum string length for a miscellaneous string setting",
+      "Name": "MaxMiscStrLen",
+      "Value": 61
+    }
+  ],
+  "DriverState": [
+    "HaltedOnDeviceInit"
+  ],
+  "ComponentName": "Pal"
 }

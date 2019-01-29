@@ -145,7 +145,11 @@
 #endif // DEBUG
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(static_assert)
+#define ADDR_C_ASSERT(__e) static_assert(__e, "")
+#else
 #define ADDR_C_ASSERT(__e) typedef char __ADDR_C_ASSERT__[(__e) ? 1 : -1]
+#endif
 
 namespace Addr
 {

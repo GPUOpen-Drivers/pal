@@ -227,6 +227,13 @@ public:
         const char**             pOut) override
         { return m_pNextLayer->QueryRawApplicationProfile(pFilename, pPathname, client, pOut); }
 
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) override
+    {
+        return m_pNextLayer->EnableSppProfile(pFilename, pPathname);
+    }
+
     virtual Result GetProperties(
         PlatformProperties* pProperties) override
         { return m_pNextLayer->GetProperties(pProperties); }

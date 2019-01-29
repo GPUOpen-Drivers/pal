@@ -186,7 +186,9 @@ enum class AsicRevision : uint32
 #if PAL_BUILD_GFX9
     Vega10     = 0x18,
     Vega12     = 0x19,
+    Vega20     = 0x1A,
     Raven      = 0x1B,
+    Raven2     = 0x1C,
 #endif // PAL_BUILD_GFX9
 
 };
@@ -708,8 +710,11 @@ struct DeviceProperties
                 /// on another GPU due to a hardware bug.
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
 
+                /// Indicates whether the engine supports the command allocator tracks which chunk is idle.
+                uint32 supportsTrackBusyChunks         :  1;
+
                 /// Reserved for future use.
-                uint32 reserved                        : 19;
+                uint32 reserved                        : 18;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1025,7 +1030,7 @@ struct DeviceProperties
             {
                 struct
                 {
-                    uint32  placeholder0     :  1;
+                    uint32  eccProtectedGprs :  1;  ///< Whether or not the GPU has ECC protection on its VGPR's
                     uint32  reserved :  31;         ///< Reserved for future use.
                 };
                 uint32  u32All;                      ///< Flags packed as a 32-bit unsigned integer.

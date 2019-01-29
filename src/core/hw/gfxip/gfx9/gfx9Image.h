@@ -378,8 +378,12 @@ private:
     ADDR2_MIP_INFO                           m_addrMipOutput[MaxNumPlanes][MaxImageMipLevels];
     ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT  m_addrSurfSetting[MaxNumPlanes];
 
-    // The byte offset of where each aspect begins, relative to the image's bound memory
+    // The byte offset of where each aspect begins, relative to the image's bound memory.
     gpusize                                  m_aspectOffset[MaxNumPlanes];
+
+    // For YUV planar surfaces, this is the size of one slice worth of data across all aspects.
+    // For other surfaces, this is the image size.
+    gpusize                                  m_totalAspectSize;
 
     const Device&  m_gfxDevice;
     Gfx9Htile*     m_pHtile;

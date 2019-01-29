@@ -353,6 +353,14 @@ private:
         ApplicationProfileClient client,
         const char**             pOut) override;
 
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) override;
+
+    virtual Result SelectSppTable(
+        uint32 pixelCount,
+        uint32 msaaRate) const override { return Result::Unsupported; }
+
     virtual bool ReadSetting(
         const char*          pSettingName,
         Util::ValueType      valueType,

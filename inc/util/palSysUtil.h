@@ -94,6 +94,8 @@ struct SystemInfo
     uint32  cpuLogicalCoreCount;    ///< Number of logical cores on the cpu
     uint32  cpuPhysicalCoreCount;   ///< Number of physical cores on the cpu
     uint32  totalSysMemSize;        ///< Total system memory (RAM) size in megabytes
+    uint32  cpuFrequency;           ///< Reports CPU clock speed (from Registry for Windows;
+                                    ///< current average processor speed for Linux) in MHz.
     union
     {
         struct

@@ -89,6 +89,7 @@ enum class AmdGpuMachineType : uint8
     Gfx902  = 0x2d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX902
     Gfx904  = 0x2e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX904
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
+    Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
 #endif
 };
 
@@ -125,6 +126,8 @@ enum GfxIpStepping : uint16
     GfxIpSteppingVega10 = 0,
     GfxIpSteppingRaven  = 2,
     GfxIpSteppingVega12 = 4,
+    GfxIpSteppingVega20 = 6,
+    GfxIpSteppingRaven2 = 9,
 
 };
 

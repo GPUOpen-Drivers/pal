@@ -5832,14 +5832,11 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();
-    if (Formats::BitsPerPixel(srcCreateInfo.swizzledFormat.format) == 128)
-    {
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveFixedFunc128Bpp), });
-    }
-    else
-    {
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveFixedFunc), });
-    }
+
+    const GraphicsPipeline* pipeline =
+        GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, dstCreateInfo.swizzledFormat);
+
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pipeline, });
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcCreateInfo.samples, srcCreateInfo.fragments));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);

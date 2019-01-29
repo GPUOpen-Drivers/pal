@@ -1231,6 +1231,8 @@ BOOL_32 Gfx9Lib::HwlInitGlobalParams(
             ADDR_ASSERT(m_settings.isRaven == FALSE);
 #endif
 
+            ADDR_ASSERT(m_settings.isVega20 == FALSE);
+
 #if ADDR_VEGA12_BUILD
             if (m_settings.isVega12)
             {
@@ -1277,6 +1279,7 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
 #if ADDR_VEGA12_BUILD
             m_settings.isVega12 = ASICREV_IS_VEGA12_P(uChipRevision);
 #endif
+            m_settings.isVega20 = ASICREV_IS_VEGA20_P(uChipRevision);
             m_settings.isDce12 = 1;
 
             if (m_settings.isVega10 == 0)
@@ -1298,6 +1301,11 @@ ChipFamily Gfx9Lib::HwlConvertChipFamily(
                 m_settings.isRaven = 1;
 
                 m_settings.depthPipeXorDisable = 1;
+            }
+
+            if (ASICREV_IS_RAVEN2(uChipRevision))
+            {
+                m_settings.isRaven = 1;
             }
 
             if (m_settings.isRaven == 0)

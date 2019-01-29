@@ -57,6 +57,7 @@ Image::Image(
     const Pal::Device& device)
     :
     GfxImage(pParentImage, pImageInfo, device),
+    m_totalAspectSize(0),
     m_gfxDevice(static_cast<const Device&>(*device.GetGfxDevice())),
     m_pHtile(nullptr),
     m_pDcc(nullptr),
@@ -290,6 +291,8 @@ void Image::GetMetaEquationConstParam(
 void Image::SetupAspectOffsets()
 {
     const Pal::Image*  pParent      = Parent();
+    const auto&        createFormat = pParent->GetImageCreateInfo().swizzledFormat;
+    const bool         isYuvPlanar  = Formats::IsYuvPlanar(createFormat.format);
     const auto&        imageInfo    = pParent->GetImageInfo();
     gpusize            aspectOffset = 0;
 
@@ -299,7 +302,9 @@ void Image::SetupAspectOffsets()
         // Record where this aspect starts
         m_aspectOffset[planeIdx] = aspectOffset;
 
-        SwizzledFormat planeFormat = m_createInfo.swizzledFormat; // this is a don't care for this function
+        // Don't check the YUV status based on the return value of "planeFormat" as that will indicated the X8/X16
+        // format reflective of how the data is accessed (i.e., the HW doesn't natively understand YUV operations).
+        SwizzledFormat planeFormat = createFormat; // this is a don't care for this function
         ImageAspect    planeAspect = ImageAspect::Color;
         pParent->DetermineFormatAndAspectForPlane(&planeFormat, &planeAspect, planeIdx);
 
@@ -308,9 +313,12 @@ void Image::SetupAspectOffsets()
         const auto*     pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
         const auto*     pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
 
-        // Bump up our offset by the size of this plane
-        aspectOffset += pAddrOutput->surfSize;
+        // aspect-offset to correspond to the size of the entire aspect.
+        aspectOffset += (isYuvPlanar ? pAddrOutput->sliceSize : pAddrOutput->surfSize);
     } // end loop through every possible aspect
+
+    // Record the adderss where m_aspectOffset starts repeating.
+    m_totalAspectSize = aspectOffset;
 }
 
 // =====================================================================================================================

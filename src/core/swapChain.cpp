@@ -237,6 +237,15 @@ Result SwapChain::Present(
     const PresentSwapChainInfo& presentInfo,
     IQueue*                     pQueue)
 {
+    if (presentInfo.pSrcImage != nullptr)
+    {
+        if (m_pDevice->GetGfxDevice()->UpdateSppState(*presentInfo.pSrcImage))
+        {
+            const uint32 pixelCount = m_pDevice->GetGfxDevice()->GetPixelCount();
+            const uint32 msaaRate   = m_pDevice->GetGfxDevice()->GetMsaaRate();
+            m_pDevice->SelectSppTable(pixelCount, msaaRate);
+        }
+    }
     Result result = m_pScheduler->Present(presentInfo, pQueue);
 
     if ((m_createInfo.swapChainMode != SwapChainMode::Mailbox) && (m_createInfo.flags.canAcquireBeforeSignaling == 1))

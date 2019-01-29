@@ -63,7 +63,7 @@ struct Gfx9ChipSettings
 #else
         UINT_32                     : 1;
 #endif
-        UINT_32                     : 1;
+        UINT_32 isVega20            : 1;
         UINT_32 reserved0           : 27;
 
         // Display engine IP version name
@@ -622,8 +622,33 @@ private:
         return allowedSwSet;
     }
 
+    BOOL_32 IsInMipTail(
+        AddrResourceType  resourceType,
+        AddrSwizzleMode   swizzleMode,
+        Dim3d             mipTailDim,
+        UINT_32           width,
+        UINT_32           height,
+        UINT_32           depth) const
+    {
+        BOOL_32 inTail = ((width <= mipTailDim.w) &&
+                          (height <= mipTailDim.h) &&
+                          (IsThin(resourceType, swizzleMode) || (depth <= mipTailDim.d)));
+
+        return inTail;
+    }
+
     BOOL_32 ValidateNonSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
     BOOL_32 ValidateSwModeParams(const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
+
+    UINT_32 GetBankXorBits(UINT_32 macroBlockBits) const
+    {
+        UINT_32 pipeBits = GetPipeXorBits(macroBlockBits);
+
+        // Bank xor bits
+        UINT_32 bankBits = Min(macroBlockBits - pipeBits - m_pipeInterleaveLog2, m_banksLog2);
+
+        return bankBits;
+    }
 
     Gfx9ChipSettings m_settings;
 

@@ -314,9 +314,10 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     ) const
 {
     // There are only four ranges of pipelines that vary by export format and these are their bases.
-    PAL_ASSERT((basePipeline == Copy_32ABGR)            ||
-               (basePipeline == SlowColorClear0_32ABGR) ||
-               (basePipeline == ScaledCopy2d_32ABGR)    ||
+    PAL_ASSERT((basePipeline == Copy_32ABGR)             ||
+               (basePipeline == ResolveFixedFunc_32ABGR) ||
+               (basePipeline == SlowColorClear0_32ABGR)  ||
+               (basePipeline == ScaledCopy2d_32ABGR)     ||
                (basePipeline == ScaledCopy3d_32ABGR));
 
     // Note: Nonzero targetIndex has not been support for Copy_32R yet!

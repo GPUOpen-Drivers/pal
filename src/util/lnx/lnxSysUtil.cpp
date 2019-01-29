@@ -180,6 +180,7 @@ Result QuerySystemInfo(
             CpuCoreCount*        pCoreCount         = nullptr;
             bool                 coreCountPopulated = false;
             GenericAllocatorAuto allocator;
+            uint32               cpuClockSpeedTotal = 0;
 
             auto pBuf = static_cast<char* const>(PAL_CALLOC(BufSize, &allocator, AllocInternalTemp));
             PhysicalPackageCoreCountMap coreCountPerPhysicalId(MaxSocketsHint, &allocator);
@@ -202,6 +203,22 @@ Result QuerySystemInfo(
                             result = coreCountPerPhysicalId.FindAllocate(physicalId,
                                                                          &coreCountPopulated,
                                                                          &pCoreCount);
+                        }
+                        else
+                        {
+                            PAL_ASSERT_ALWAYS();
+                        }
+                        continue;
+                    }
+
+                    pMatchStr = strstr(pBuf, "cpu MHz");
+                    if (pMatchStr != nullptr)
+                    {
+                        uint32 cpuClockSpeed = 0;
+
+                        if (sscanf(pMatchStr, "cpu MHz : %d", &cpuClockSpeed) == 1)
+                        {
+                            cpuClockSpeedTotal += cpuClockSpeed;
                         }
                         else
                         {
@@ -250,6 +267,7 @@ Result QuerySystemInfo(
                     pSystemInfo->cpuLogicalCoreCount  += coreCount.logicalCoreCount;
                     pSystemInfo->cpuPhysicalCoreCount += coreCount.physicalCoreCount;
                 }
+                pSystemInfo->cpuFrequency = cpuClockSpeedTotal / pSystemInfo->cpuLogicalCoreCount;
             }
         }
 

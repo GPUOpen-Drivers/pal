@@ -104,6 +104,10 @@ public:
         Pal::ApplicationProfileClient client,
         const char**             pOut) override;
 
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) override;
+
     virtual Result GetProperties(
         PlatformProperties* pProperties) override;
 

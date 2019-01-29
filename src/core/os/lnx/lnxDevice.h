@@ -158,6 +158,14 @@ public:
             ApplicationProfileClient client,
             const char**             pOut) override { return Result::Unsupported; }
 
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) override { return Result::Unsupported; }
+
+    virtual Result SelectSppTable(
+        uint32 pixelCount,
+        uint32 msaaRate) const override { return Result::Unsupported; }
+
     virtual bool IsMasterGpu() const override { return true; }
 
     virtual Result AddGpuMemoryReferences(

@@ -384,6 +384,10 @@ uint32 GetMaxEventId(
                 {
                     maxEventId = MaxScPerfcntSelVg12;
                 }
+                if (AMDGPU_IS_VEGA20(pProps->familyId, pProps->eRevId))
+                {
+                    maxEventId = MaxScPerfcntSelVg20;
+                }
             }
             else if (block == GpuBlock::Tcc)
             {
@@ -391,6 +395,10 @@ uint32 GetMaxEventId(
                 static_assert((MaxTccPerfSelVg10_Vg12 == MaxTccPerfSelRaven),
                               "Max TCC perf counter enumeration doesn't match!\n");
 
+                if (AMDGPU_IS_VEGA20(pProps->familyId, pProps->eRevId))
+                {
+                    maxEventId = MaxTccPerfSelVg20;
+                }
             }
         } // end check for an invalid block ID
     }
@@ -559,7 +567,12 @@ void SetupUmcchBlockInfo(
     {
         pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_vg12[0];
     }
+    else if (ASICREV_IS_VEGA20_P(pProps->eRevId))
+    {
+        pPerfCtrAddr = &Gfx9UmcchPerfCounterInfo_vg20[0];
+    }
     else if (ASICREV_IS_RAVEN(pProps->eRevId)
+     || ASICREV_IS_RAVEN2(pProps->eRevId)
     )
     {
         // Both Ravens.

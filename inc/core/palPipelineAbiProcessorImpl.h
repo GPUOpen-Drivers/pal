@@ -170,6 +170,12 @@ void PipelineAbiProcessor<Allocator>::SetGfxIpVersion(
         case GfxIpSteppingVega12:
             m_flags.machineType = AmdGpuMachineType::Gfx904;
             break;
+        case GfxIpSteppingVega20:
+            m_flags.machineType = AmdGpuMachineType::Gfx906;
+            break;
+        case 9:
+            m_flags.machineType = AmdGpuMachineType::Gfx909;
+            break;
         }
         break;
 #endif
@@ -721,6 +727,11 @@ void PipelineAbiProcessor<Allocator>::GetGfxIpVersion(
         *pGfxIpMajorVer = 9;
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 6;
+        break;
+    case AmdGpuMachineType::Gfx909:
+        *pGfxIpMajorVer = 9;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 9;
         break;
 #endif
     default:

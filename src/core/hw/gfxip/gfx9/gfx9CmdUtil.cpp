@@ -324,6 +324,11 @@ CmdUtil::CmdUtil(
                 m_registerInfo.mmPaStereoCntl   = Vg12::mmPA_STEREO_CNTL;
                 m_registerInfo.mmPaStateStereoX = Vg12::mmPA_STATE_STEREO_X;
             }
+            else if (IsVega20(parent))
+            {
+                m_registerInfo.mmPaStereoCntl   = Vg20::mmPA_STEREO_CNTL;
+                m_registerInfo.mmPaStateStereoX = Vg20::mmPA_STATE_STEREO_X;
+            }
         }
 
         m_registerInfo.mmAtcPerfResultCntl    = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;

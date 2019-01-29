@@ -651,6 +651,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             const SettingsLoader* const pSettingsLoader = m_pDevice->GetSettingsLoader();
 
             if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice)
+                || IsVega20(*m_pDevice)
                 )
             {
                 if (createInfo.flags.videoReferenceOnly)

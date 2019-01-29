@@ -32,6 +32,10 @@ namespace Pal
 {
 namespace Gfx9
 {
+static_assert((Vg12::mmPA_STEREO_CNTL == Vg20::mmPA_STEREO_CNTL),
+              "mmPA_STEREO_CNTL has moved between Vega12 and Vega20!");
+static_assert((Vg12::mmPA_STATE_STEREO_X == Vg20::mmPA_STATE_STEREO_X),
+              "PA_STATE_STEREO_X has moved between Vega12 and Vega20!");
 
 // Defines the set of ranges of user-config registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9UserConfigShadowRange[] =
@@ -240,6 +244,82 @@ const RegisterRange Gfx9CsShShadowRange[] =
     },
 };
 constexpr uint32 Gfx9NumCsShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRange));
+
+// Defines the set of ranges of GFX SH registers we shadow when mid command buffer preemption is enabled.
+const RegisterRange Gfx9ShShadowRangeRaven2[] =
+{
+    {
+        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS - PERSISTENT_SPACE_START),    // 0x2C06
+        1
+    },
+    {
+        (mmSPI_SHADER_PGM_LO_PS - PERSISTENT_SPACE_START),                      // 0x2C08 - 0x2C2B
+        (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
+    },
+    {
+        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_VS - PERSISTENT_SPACE_START),    // 0x2C45
+        1
+    },
+    {
+        (mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),                  // 0x2C47 - 0x2C6B
+        (mmSPI_SHADER_USER_DATA_VS_31 - mmSPI_SHADER_LATE_ALLOC_VS + 1),
+    },
+    {
+        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),    // 0x2C80 - 0x2C85
+        (Gfx09::mmSPI_SHADER_PGM_HI_ES - Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS + 1),
+    },
+    {
+        (mmSPI_SHADER_PGM_LO_GS - PERSISTENT_SPACE_START),                      // 0x2C88 - 0x2C8B
+        (mmSPI_SHADER_PGM_RSRC2_GS - mmSPI_SHADER_PGM_LO_GS + 1),
+    },
+    {
+        (mmSPI_SHADER_USER_DATA_ES_0 - PERSISTENT_SPACE_START),                 // 0x2CCC - 0x2CEB
+        (Gfx09::mmSPI_SHADER_USER_DATA_ES_31 - mmSPI_SHADER_USER_DATA_ES_0 + 1),
+    },
+    {
+        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS - PERSISTENT_SPACE_START),    // 0x2D00 - 0x2D05
+        (Gfx09::mmSPI_SHADER_PGM_HI_LS - Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS + 1),
+    },
+    {
+        (mmSPI_SHADER_PGM_LO_HS - PERSISTENT_SPACE_START),                      // 0x2D08 - 0x2D2B
+        (Gfx09::mmSPI_SHADER_USER_DATA_LS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
+    },
+};
+constexpr uint32 Gfx9NumShShadowRangesRaven2 = static_cast<uint32>(Util::ArrayLen(Gfx9ShShadowRangeRaven2));
+
+// Defines the set of ranges of CS SH registers we shadow when mid command buffer preemption is enabled.
+const RegisterRange Gfx9CsShShadowRangeRaven2[] =
+{
+    {
+        (mmCOMPUTE_START_X - PERSISTENT_SPACE_START),                           // 0x2E04 - 0x2E09
+        (mmCOMPUTE_NUM_THREAD_Z - mmCOMPUTE_START_X + 1),
+    },
+    {
+        (mmCOMPUTE_PERFCOUNT_ENABLE - PERSISTENT_SPACE_START),                  // 0x2E0B - 0x2EOD
+        (mmCOMPUTE_PGM_HI - mmCOMPUTE_PERFCOUNT_ENABLE + 1),
+    },
+    {
+        (mmCOMPUTE_PGM_RSRC1 - PERSISTENT_SPACE_START),                         // 0x2E12 - 0x2E13
+        (mmCOMPUTE_PGM_RSRC2 - mmCOMPUTE_PGM_RSRC1 + 1),
+    },
+    {
+        (mmCOMPUTE_RESOURCE_LIMITS - PERSISTENT_SPACE_START),                   // 0x2E15
+        1,
+    },
+    {
+        (mmCOMPUTE_TMPRING_SIZE - PERSISTENT_SPACE_START),                      // 0x2E18
+        1,
+    },
+    {
+        (Gfx09_1x::mmCOMPUTE_SHADER_CHKSUM - PERSISTENT_SPACE_START),           // 0x2E2A
+        1
+    },
+    {
+        (mmCOMPUTE_USER_DATA_0 - PERSISTENT_SPACE_START),                       // 0x2E40 - 0x2E4F
+        (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
+    },
+};
+constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRangeRaven2));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // Defines the set of ranges of registers which cannot be shadowed for various reasons. Gfx6/7 have their own lists

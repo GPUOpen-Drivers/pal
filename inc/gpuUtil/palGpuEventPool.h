@@ -78,7 +78,8 @@ public:
     /// @param [in] defaultCapacity  The default number of gpu events pre-allocated in the pool for efficiency.
     Pal::Result Init(Pal::uint32 defaultCapacity);
 
-    /// Reset the pool by moving all allocated GpuEvent objects back to available list.
+    /// Reset the pool by reseting and moving all allocated GpuEvent objects back to available list.
+    /// This should only be called after all work referring to those events have finished
     Pal::Result Reset();
 
     /// Provide an unused GpuEvent from available list, or allocate a new one if available list is empty.

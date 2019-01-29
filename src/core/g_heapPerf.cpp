@@ -309,6 +309,26 @@ void SettingsLoader::SetupHeapPerfRatings(
     }
     else
 #endif
+#if PAL_BUILD_GFX9 && PAL_BUILD_RAVEN2
+    if (IsRaven2(*(static_cast<Pal::Device*>(m_pDevice))))
+    {
+        pSettings->cpuWritePerfForLocal = 4.2f;
+        pSettings->cpuReadPerfForLocal = 0.017f;
+        pSettings->gpuWritePerfForLocal = 10.f;
+        pSettings->gpuReadPerfForLocal = 11.f;
+        pSettings->gpuWritePerfForInvisible = 10.f;
+        pSettings->gpuReadPerfForInvisible = 11.f;
+        pSettings->cpuWritePerfForGartUswc = 4.f;
+        pSettings->cpuReadPerfForGartUswc = 0.05f;
+        pSettings->gpuWritePerfForGartUswc = 10.f;
+        pSettings->gpuReadPerfForGartUswc = 11.f;
+        pSettings->cpuWritePerfForGartCacheable = 3.9f;
+        pSettings->cpuReadPerfForGartCacheable = 3.9f;
+        pSettings->gpuWritePerfForGartCacheable = 10.f;
+        pSettings->gpuReadPerfForGartCacheable = 11.f;
+    }
+    else
+#endif
     if (IsSpectre(*(static_cast<Pal::Device*>(m_pDevice))))
     {
         pSettings->cpuWritePerfForLocal = 3.9f;
@@ -429,6 +449,26 @@ void SettingsLoader::SetupHeapPerfRatings(
         pSettings->cpuReadPerfForGartCacheable = 4.4f;
         pSettings->gpuWritePerfForGartCacheable = 5.2f;
         pSettings->gpuReadPerfForGartCacheable = 4.8f;
+    }
+    else
+#endif
+#if PAL_BUILD_GFX9 && PAL_BUILD_VEGA20
+    if (IsVega20(*(static_cast<Pal::Device*>(m_pDevice))))
+    {
+        pSettings->cpuWritePerfForLocal = 6.6f;
+        pSettings->cpuReadPerfForLocal = 0.019f;
+        pSettings->gpuWritePerfForLocal = 430.f;
+        pSettings->gpuReadPerfForLocal = 490.f;
+        pSettings->gpuWritePerfForInvisible = 450.f;
+        pSettings->gpuReadPerfForInvisible = 490.f;
+        pSettings->cpuWritePerfForGartUswc = 6.1f;
+        pSettings->cpuReadPerfForGartUswc = 0.07f;
+        pSettings->gpuWritePerfForGartUswc = 6.7f;
+        pSettings->gpuReadPerfForGartUswc = 9.7f;
+        pSettings->cpuWritePerfForGartCacheable = 7.8f;
+        pSettings->cpuReadPerfForGartCacheable = 7.8f;
+        pSettings->gpuWritePerfForGartCacheable = 5.9f;
+        pSettings->gpuReadPerfForGartCacheable = 9.7f;
     }
     else
 #endif

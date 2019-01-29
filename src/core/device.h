@@ -316,7 +316,8 @@ struct GpuEngineProperties
                 uint32 supportSvm                      :  1;
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
                 uint32 mustUseSvmIfSupported           :  1;
-                uint32 reserved                        : 12;
+                uint32 supportsTrackBusyChunks         :  1;
+                uint32 reserved                        : 11;
             };
             uint32 u32All;
         } flags;
@@ -716,7 +717,7 @@ struct GpuChipProperties
                                                                       // instead of CmdReleaseThenAcquire().
                                                                       // Note: ReleaseAcquireInterface support is a
                                                                       //       prerequisite.
-                uint32 placeholder2                             :  1; // Placeholder. Do not use.
+                uint32 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
                 uint32 reserved                                 :  5;
             };
 
@@ -897,6 +898,14 @@ public:
         const char*              pPathname,
         ApplicationProfileClient client,
         const char**             pOut) = 0;
+
+    virtual Result EnableSppProfile(
+        const char*              pFilename,
+        const char*              pPathname) = 0;
+
+    virtual Result SelectSppTable(
+        uint32 pixelCount,
+        uint32 msaaRate) const = 0;
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetQueueSize(
@@ -2089,16 +2098,26 @@ PAL_INLINE bool IsVega12(const Device& device)
 {
     return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+PAL_INLINE bool IsVega20(const Device& device)
+{
+    return AMDGPU_IS_VEGA20(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 
 PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+PAL_INLINE bool IsRaven2(const Device& device)
+{
+    return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 #endif // PAL_BUILD_GFX9
 
 static bool IsGfx091xPlus(const Device& device)
 {
     return (IsVega12(device)
+            || IsVega20(device)
+            || IsRaven2(device)
            );
 }
 

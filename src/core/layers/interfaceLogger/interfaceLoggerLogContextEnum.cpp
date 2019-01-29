@@ -950,8 +950,8 @@ void LogContext::Enum(
         nullptr,
         nullptr,
 #endif
-        nullptr,
-        nullptr,
+        "Vega20",
+        "Raven2",
         nullptr,
 
         nullptr,

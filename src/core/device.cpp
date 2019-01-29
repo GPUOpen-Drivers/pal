@@ -1736,6 +1736,7 @@ Result Device::GetProperties(
             pEngineInfo->flags.runsInPhysicalMode              = engineInfo.flags.physicalAddressingMode;
             pEngineInfo->flags.supportPersistentCeRam          = engineInfo.flags.supportPersistentCeRam;
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
+            pEngineInfo->flags.supportsTrackBusyChunks         = engineInfo.flags.supportsTrackBusyChunks;
 
             for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; engineIdx++)
             {
@@ -1952,6 +1953,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx9Props.gsVgtTableDepth;
 
             pInfo->gfxipProperties.shaderCore.flags.u32All = 0;
+            pInfo->gfxipProperties.shaderCore.flags.eccProtectedGprs = gfx9Props.eccProtectedGprs;
 
             // Tessellation distribution mode flags.
             pInfo->gfxipProperties.flags.supportPatchTessDistribution     =

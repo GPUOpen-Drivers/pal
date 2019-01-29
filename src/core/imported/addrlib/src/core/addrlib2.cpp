@@ -62,7 +62,17 @@ const Dim3d Lib::Block1K_3d[]  = {{16, 8, 8}, {8, 8, 8}, {8, 8, 4}, {8, 4, 4}, {
 */
 Lib::Lib()
     :
-    Addr::Lib()
+    Addr::Lib(),
+    m_se(0),
+    m_rbPerSe(0),
+    m_maxCompFrag(0),
+    m_banksLog2(0),
+    m_pipesLog2(0),
+    m_seLog2(0),
+    m_rbPerSeLog2(0),
+    m_maxCompFragLog2(0),
+    m_pipeInterleaveLog2(0),
+    m_blockVarSizeLog2(0)
 {
 }
 
@@ -77,7 +87,17 @@ Lib::Lib()
 */
 Lib::Lib(const Client* pClient)
     :
-    Addr::Lib(pClient)
+    Addr::Lib(pClient),
+    m_se(0),
+    m_rbPerSe(0),
+    m_maxCompFrag(0),
+    m_banksLog2(0),
+    m_pipesLog2(0),
+    m_seLog2(0),
+    m_rbPerSeLog2(0),
+    m_maxCompFragLog2(0),
+    m_pipeInterleaveLog2(0),
+    m_blockVarSizeLog2(0)
 {
 }
 
@@ -1689,28 +1709,6 @@ UINT_32 Lib::GetPipeXorBits(
     UINT_32 pipeBits = Min(xorBits, m_pipesLog2 + m_seLog2);
 
     return pipeBits;
-}
-
-/**
-************************************************************************************************************************
-*   Lib::GetBankXorBits
-*
-*   @brief
-*       Internal function to get bits number for pipe/se xor operation
-*
-*   @return
-*       ADDR_E_RETURNCODE
-************************************************************************************************************************
-*/
-UINT_32 Lib::GetBankXorBits(
-    UINT_32 macroBlockBits) const
-{
-    UINT_32 pipeBits = GetPipeXorBits(macroBlockBits);
-
-    // Bank xor bits
-    UINT_32 bankBits = Min(macroBlockBits - pipeBits - m_pipeInterleaveLog2, m_banksLog2);
-
-    return bankBits;
 }
 
 /**

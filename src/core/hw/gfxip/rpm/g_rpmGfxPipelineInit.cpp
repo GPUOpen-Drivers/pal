@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2019 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -100,6 +100,14 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableVega12;
         break;
 #endif
+
+    case AsicRevision::Vega20:
+        pTable = rpmGfxBinaryTableVega20;
+        break;
+
+    case AsicRevision::Raven2:
+        pTable = rpmGfxBinaryTableRaven2;
+        break;
 
     default:
         result = Result::ErrorUnknown;
@@ -781,6 +789,278 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[Copy_UNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32ABGR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_32ABGR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32GR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_32GR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_32R].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_32R].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_32R],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_FP16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_FP16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_SINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_SINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_SNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_SNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_UINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_UINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc_UNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.cbState.logicOp           = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
+        pipeInfo.rsState.depthClampDisable = true;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
+        pipeInfo.rsState.depthClampEnable  = false;
+#endif
+
+        internalInfo = { };
+        internalInfo.flags.resolveFixedFunc = true;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            internalInfo,
+            &pPipelineMem[ResolveFixedFunc_UNORM16],
             AllocInternal);
     }
 
@@ -3318,68 +3598,6 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[ResolveDepthCopy],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc128Bpp].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc128Bpp].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Float;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-
-        internalInfo = { };
-        internalInfo.flags.resolveFixedFunc = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            internalInfo,
-            &pPipelineMem[ResolveFixedFunc128Bpp],
-            AllocInternal);
-    }
-
-    if (result == Result::Success)
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary    = pTable[ResolveFixedFunc].pBuffer;
-        pipeInfo.pipelineBinarySize = pTable[ResolveFixedFunc].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 381
-        pipeInfo.rsState.depthClampDisable = true;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 381
-        pipeInfo.rsState.depthClampEnable  = false;
-#endif
-
-        internalInfo = { };
-        internalInfo.flags.resolveFixedFunc = true;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            internalInfo,
-            &pPipelineMem[ResolveFixedFunc],
             AllocInternal);
     }
 

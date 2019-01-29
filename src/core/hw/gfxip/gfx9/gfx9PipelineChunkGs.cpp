@@ -44,6 +44,7 @@ static constexpr uint32 BaseLoadedShRegCount =
     1 + // mmSPI_SHADER_PGM_HI_ES
     1 + // SPI_SHADER_PGM_RSRC1_GS
     1 + // SPI_SHADER_PGM_RSRC2_GS
+    0 + // SPI_SHADER_PGM_CHKSUM_GS is not included because it is not present on all HW
     1;  // SPI_SHADER_USER_DATA_ES_0 + ConstBufTblStartReg
 
 // Base count of Context registers which are loaded using LOAD_CNTX_REG_INDEX when binding to a command buffer.
@@ -82,8 +83,6 @@ void PipelineChunkGs::EarlyInit(
 
     const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    PAL_ASSERT(chipProps.gfx9.supportSpp == 0);
 
     if (settings.enableLoadIndexForObjectBinds != false)
     {
@@ -178,6 +177,11 @@ void PipelineChunkGs::LateInit(
         m_commands.dynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
     }
 
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, &m_commands.sh.spiShaderPgmChksumGs.u32All);
+    }
+
     if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
         m_commands.shLds.gsUserDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
@@ -217,6 +221,11 @@ void PipelineChunkGs::LateInit(
         pUploader->AddShReg(mmSPI_SHADER_PGM_RSRC2_GS, m_commands.sh.spiShaderPgmRsrc2Gs);
 
         pUploader->AddShReg(baseUserDataGs + ConstBufTblStartReg, m_commands.sh.spiShaderUserDataLoGs);
+
+        if (chipProps.gfx9.supportSpp != 0)
+        {
+            pUploader->AddShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, m_commands.sh.spiShaderPgmChksumGs);
+        }
 
         if (loadInfo.enableNgg)
         {
@@ -363,6 +372,18 @@ void PipelineChunkGs::BuildPm4Headers(
     m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(mmUserDataStartGsShaderStage + ConstBufTblStartReg,
                                                           ShaderGraphics,
                                                           &m_commands.sh.hdrSpiShaderUserDataGs);
+
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildSetOneShReg(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
+                                                              ShaderGraphics,
+                                                              &m_commands.sh.hdrSpiShaderPgmChksum);
+    }
+    else
+    {
+        m_commands.sh.spaceNeeded += cmdUtil.BuildNop(CmdUtil::ShRegSizeDwords + 1,
+                                                      &m_commands.sh.hdrSpiShaderPgmChksum);
+    }
 
     if (loadInfo.enableNgg || loadInfo.usesOnChipGs)
     {

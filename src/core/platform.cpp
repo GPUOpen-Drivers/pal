@@ -280,6 +280,28 @@ Result Platform::QueryRawApplicationProfile(
 }
 
 // =====================================================================================================================
+// Queries the kernel-mode driver to determine if there is a platform-wide spp profile for a specific application that
+// the client would like to honor.
+Result Platform::EnableSppProfile(
+    const char*              pFilename,
+    const char*              pPathname)
+{
+    PAL_ASSERT(pFilename != nullptr);
+
+    Result result = Result::ErrorUnavailable;
+
+    if (m_deviceCount >= 1)
+    {
+        // NOTE: The spp profiles are meant to be interpreted at system-wide scope. We'll only query the
+        // first discovered physical GPU under the assumption that all GPU's would return the same profile (or none
+        // at all, as the case may be).
+        result = m_pDevice[0]->EnableSppProfile(pFilename, pPathname);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Platform::GetProperties(
     PlatformProperties* pProperties)
 {

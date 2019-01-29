@@ -790,6 +790,26 @@ Result Device::InitGpuProperties()
         m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
     }
 
+    for (uint32 i = 0; i < EngineTypeCount; i++)
+    {
+        switch (i)
+        {
+        case EngineTypeUniversal:
+        case EngineTypeCompute:
+        case EngineTypeExclusiveCompute:
+        case EngineTypeDma:
+        case EngineTypeHighPriorityUniversal:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 431
+        case EngineTypeHighPriorityGraphics:
+#endif
+            m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 1;
+            break;
+        default:
+            m_engineProperties.perEngine[i].flags.supportsTrackBusyChunks = 0;
+            break;
+        }
+    }
+
     // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
     switch (m_chipProperties.gfxLevel)
     {

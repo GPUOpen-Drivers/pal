@@ -116,6 +116,10 @@ Image::Image(
     m_gpuMemLayout.swizzleEqIndices[0]     = InvalidSwizzleEqIndex;
     m_gpuMemLayout.swizzleEqIndices[1]     = InvalidSwizzleEqIndex;
 
+    if (IsRenderTarget())
+    {
+        m_pDevice->GetGfxDevice()->IncreaseMsaaHistogram(createInfo.samples);
+    }
 }
 static_assert(ADDR_TM_LINEAR_GENERAL == 0,
               "If ADDR_TM_LINEAR_GENERAL does not equal 0, the default in internalCreateInfo must be set to it.");
@@ -657,6 +661,10 @@ void Image::Destroy()
     if (m_pPrivateScreen != nullptr)
     {
         m_pPrivateScreen->ReturnImageId(m_privateScreenImageId);
+    }
+    if (IsRenderTarget())
+    {
+        m_pDevice->GetGfxDevice()->DecreaseMsaaHistogram(m_createInfo.samples);
     }
     this->~Image();
 }

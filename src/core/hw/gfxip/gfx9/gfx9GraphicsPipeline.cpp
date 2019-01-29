@@ -2008,6 +2008,10 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
         {
             enStereo = m_commands.set.context.paStereoCntl.vg12.EN_STEREO;
         }
+        else if (IsVega20(device))
+        {
+            enStereo = m_commands.set.context.paStereoCntl.vg20.EN_STEREO;
+        }
     }
 
     return (enStereo != 0);
@@ -2024,6 +2028,10 @@ bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
         if (IsVega12(palDevice))
         {
             vpIdOffset = m_commands.set.context.paStereoCntl.vg12.VP_ID_OFFSET;
+        }
+        else if (IsVega20(palDevice))
+        {
+            vpIdOffset = m_commands.set.context.paStereoCntl.vg20.VP_ID_OFFSET;
         }
     }
 
@@ -2081,6 +2089,10 @@ void GraphicsPipeline::SetupStereoRegisters()
                 if (IsVega12(device))
                 {
                     SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg12);
+                }
+		else if (IsVega20(device))
+                {
+                    SetPaStereoCntl(rtSliceOffset, vpIdOffset, &m_commands.set.context.paStereoCntl.vg20);
                 }
             }
         }

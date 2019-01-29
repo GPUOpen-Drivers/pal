@@ -1127,7 +1127,8 @@ uint32 DmaCmdBuffer::GetLinearRowPitchForTiledCopy(
     //    Multiple of 4 for 8bpp
     //    Multiple of 2 for 16bpp
     //    Multiple of 1 for 32bpp
-    PAL_ASSERT(IsRaven(*m_pDevice) || ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
+    PAL_ASSERT(IsRaven(*m_pDevice) || IsRaven2(*m_pDevice) ||
+               ((rowPitchInPixels % Util::Max(1u, (4 / bytesPerPixel))) == 0));
 #endif
 
     return GetLinearRowPitchForLinearCopy(rowPitchInBytes, bytesPerPixel);

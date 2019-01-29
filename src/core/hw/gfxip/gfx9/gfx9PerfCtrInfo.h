@@ -231,6 +231,43 @@ static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_vg10[] =
     { Vg10::mmUMCCH15_PerfMonCtlClk, Vg10::mmUMCCH15_PerfMonCtl1, Vg10::mmUMCCH15_PerfMonCtr1_Lo},
 };
 
+// UMCCH perf counter reg address offset mapping for Vega20.
+static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_vg20[] =
+{
+    { mmUMCCH0_PerfMonCtlClk,        mmUMCCH0_PerfMonCtl1,        mmUMCCH0_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH1_PerfMonCtlClk,  Vega::mmUMCCH1_PerfMonCtl1,  Vega::mmUMCCH1_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH2_PerfMonCtlClk,  Vega::mmUMCCH2_PerfMonCtl1,  Vega::mmUMCCH2_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH3_PerfMonCtlClk,  Vega::mmUMCCH3_PerfMonCtl1,  Vega::mmUMCCH3_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH4_PerfMonCtlClk,  Vega::mmUMCCH4_PerfMonCtl1,  Vega::mmUMCCH4_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH5_PerfMonCtlClk,  Vega::mmUMCCH5_PerfMonCtl1,  Vega::mmUMCCH5_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH6_PerfMonCtlClk,  Vega::mmUMCCH6_PerfMonCtl1,  Vega::mmUMCCH6_PerfMonCtr1_Lo },
+    { Vega::mmUMCCH7_PerfMonCtlClk,  Vega::mmUMCCH7_PerfMonCtl1,  Vega::mmUMCCH7_PerfMonCtr1_Lo },
+    { Vg20::mmUMCCH8_PerfMonCtlClk,  Vg20::mmUMCCH8_PerfMonCtl1,  Vg20::mmUMCCH8_PerfMonCtr1_Lo },
+    { Vg20::mmUMCCH9_PerfMonCtlClk,  Vg20::mmUMCCH9_PerfMonCtl1,  Vg20::mmUMCCH9_PerfMonCtr1_Lo },
+    { Vg20::mmUMCCH10_PerfMonCtlClk, Vg20::mmUMCCH10_PerfMonCtl1, Vg20::mmUMCCH10_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH11_PerfMonCtlClk, Vg20::mmUMCCH11_PerfMonCtl1, Vg20::mmUMCCH11_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH12_PerfMonCtlClk, Vg20::mmUMCCH12_PerfMonCtl1, Vg20::mmUMCCH12_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH13_PerfMonCtlClk, Vg20::mmUMCCH13_PerfMonCtl1, Vg20::mmUMCCH13_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH14_PerfMonCtlClk, Vg20::mmUMCCH14_PerfMonCtl1, Vg20::mmUMCCH14_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH15_PerfMonCtlClk, Vg20::mmUMCCH15_PerfMonCtl1, Vg20::mmUMCCH15_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH16_PerfMonCtlClk, Vg20::mmUMCCH16_PerfMonCtl1, Vg20::mmUMCCH16_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH17_PerfMonCtlClk, Vg20::mmUMCCH17_PerfMonCtl1, Vg20::mmUMCCH17_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH18_PerfMonCtlClk, Vg20::mmUMCCH18_PerfMonCtl1, Vg20::mmUMCCH18_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH19_PerfMonCtlClk, Vg20::mmUMCCH19_PerfMonCtl1, Vg20::mmUMCCH19_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH20_PerfMonCtlClk, Vg20::mmUMCCH20_PerfMonCtl1, Vg20::mmUMCCH20_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH21_PerfMonCtlClk, Vg20::mmUMCCH21_PerfMonCtl1, Vg20::mmUMCCH21_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH22_PerfMonCtlClk, Vg20::mmUMCCH22_PerfMonCtl1, Vg20::mmUMCCH22_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH23_PerfMonCtlClk, Vg20::mmUMCCH23_PerfMonCtl1, Vg20::mmUMCCH23_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH24_PerfMonCtlClk, Vg20::mmUMCCH24_PerfMonCtl1, Vg20::mmUMCCH24_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH25_PerfMonCtlClk, Vg20::mmUMCCH25_PerfMonCtl1, Vg20::mmUMCCH25_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH26_PerfMonCtlClk, Vg20::mmUMCCH26_PerfMonCtl1, Vg20::mmUMCCH26_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH27_PerfMonCtlClk, Vg20::mmUMCCH27_PerfMonCtl1, Vg20::mmUMCCH27_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH28_PerfMonCtlClk, Vg20::mmUMCCH28_PerfMonCtl1, Vg20::mmUMCCH28_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH29_PerfMonCtlClk, Vg20::mmUMCCH29_PerfMonCtl1, Vg20::mmUMCCH29_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH30_PerfMonCtlClk, Vg20::mmUMCCH30_PerfMonCtl1, Vg20::mmUMCCH30_PerfMonCtr1_Lo},
+    { Vg20::mmUMCCH31_PerfMonCtlClk, Vg20::mmUMCCH31_PerfMonCtl1, Vg20::mmUMCCH31_PerfMonCtr1_Lo}
+};
+
 // UMCCH perf counter reg address offset mapping for both Raven.
 static constexpr UmcchPerfCounterAddr Gfx9UmcchPerfCounterInfo_Raven[2] =
 {

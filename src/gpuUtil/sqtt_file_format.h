@@ -583,7 +583,7 @@ typedef struct SqttFileChunkCpuInfo
     uint32_t            processorBrand[12];    /*!< Cpu brand string. */
     uint32_t            reserved[2];           /*!< Reserved for future use. */
     uint64_t            cpuTimestampFrequency; /*!< The frequency of the cpu timestamp clock in Hz. */
-    uint32_t            clockSpeed;            /*!< The maximum clock speed of the cpu in Hz. */
+    uint32_t            clockSpeed;            /*!< The maximum clock speed of the cpu in MHz. */
     uint32_t            numLogicalCores;       /*!< The number of threads that can run simultaneously on the cpu. */
     uint32_t            numPhysicalCores;      /*!< The number of physical cores in the cpu. */
     uint32_t            systemRamSize;         /*!< The size of system RAM in MB. */

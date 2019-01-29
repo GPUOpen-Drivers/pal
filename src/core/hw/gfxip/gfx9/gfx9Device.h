@@ -482,6 +482,12 @@ public:
     uint32 ComputeNoTessPatchPrimGroupSize(uint32 patchControlPoints) const;
     uint32 ComputeTessPrimGroupSize(uint32 numPatchesPerThreadGroup) const;
 
+    void IncreaseMsaaHistogram(uint32 samples) override;
+    void DecreaseMsaaHistogram(uint32 samples) override;
+    bool UpdateSppState(const IImage& presentableImage) override;
+    uint32 GetPixelCount() const override { return m_presentResolution.height * m_presentResolution.width; }
+    uint32 GetMsaaRate() const override { return m_msaaRate; }
+
 #if DEBUG
     uint32* TemporarilyHangTheGpu(uint32 number, uint32* pCmdSpace) const override;
 #endif
@@ -666,6 +672,16 @@ private:
     BoundGpuMemory m_computeTrapBuffer;
     BoundGpuMemory m_graphicsTrapHandler;
     BoundGpuMemory m_graphicsTrapBuffer;
+
+    // PAL will track the current application states: Resolution and MSAA rate.
+    // MSAA will be determined by tracking images created that support being bound as a color target.
+    // A histogram of 1X, 2X, 4X, 8X, 16X samples will be tracked, incrementing the appropriate value on image creation
+    // and decrementing the appropriate value on destruction.
+    volatile uint32         m_msaaHistogram[MsaaLevelCount];
+    // MSAA rate will be the MSAA level of the "pile" that is the highest in the histogram.
+    volatile uint32         m_msaaRate;
+    // Resolution will be determined at each present by examining the width and height of the presented image.
+    volatile Extent2d       m_presentResolution;
 
     // Local copy of the GB_ADDR_CONFIG register
     const uint32      m_gbAddrConfig;

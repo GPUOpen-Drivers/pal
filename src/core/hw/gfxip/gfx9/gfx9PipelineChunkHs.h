@@ -103,6 +103,9 @@ private:
             PM4_ME_SET_SH_REG             hdrSpiShaderUserDataHs;
             regSPI_SHADER_USER_DATA_LS_1  spiShaderUserDataLoHs;
 
+            // Checksum register is optional, as not all GFX9+ hardware uses it. If we don't have it, NOP will be added.
+            PM4_ME_SET_SH_REG            hdrSpiShaderPgmChksum;
+            regSPI_SHADER_PGM_CHKSUM_HS  spiShaderPgmChksumHs;
             // Command space needed, in DWORDs.  This field must always be last in the structure to not interfere
             // w/ the actual commands contained above.
             size_t  spaceNeeded;

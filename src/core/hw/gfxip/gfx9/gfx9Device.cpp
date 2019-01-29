@@ -168,6 +168,9 @@ Device::Device(
               GetFrameCountRegister(pDevice)),
     m_cmdUtil(*this),
     m_queueContextUpdateCounter(0),
+    // The default value of MSAA rate is 1xMSAA.
+    m_msaaRate(1),
+    m_presentResolution({ 0,0 }),
     m_gbAddrConfig(m_pParent->ChipProperties().gfx9.gbAddrConfig),
     m_gfxIpLevel(pDevice->ChipProperties().gfxLevel)
 {
@@ -178,6 +181,7 @@ Device::Device(
         m_firstUserDataReg[shaderStage] = GetBaseUserDataReg(static_cast<HwShaderStage>(shaderStage)) +
                                           FastUserDataStartReg;
     }
+    memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
 }
 
 // =====================================================================================================================
@@ -792,6 +796,7 @@ bool Device::DetermineHwStereoRenderingSupported(
         if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
         {
             hwStereoRenderingSupported |= IsVega12(*Parent());
+            hwStereoRenderingSupported |= IsVega20(*Parent());
             if (hwStereoRenderingSupported)
             {
                 // The bits number of RT_SLICE_OFFSET in PA_STEREO_CNTL.
@@ -2849,6 +2854,16 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumRbPerSe        = 2;
             pInfo->gfx9.timestampResetOnIdle = 1;
         }
+        else if (ASICREV_IS_RAVEN2(pInfo->eRevId))
+        {
+            pInfo->revision                  = AsicRevision::Raven2;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingRaven2;
+            pInfo->gfx9.numTccBlocks         = 2;
+            pInfo->gfx9.maxNumCuPerSh        = 3;
+            pInfo->gfx9.maxNumRbPerSe        = 1;
+            pInfo->gfx9.supportSpp           = 1;
+            pInfo->gfx9.timestampResetOnIdle = 1;
+        }
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -2882,6 +2897,16 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.rbPlus               = 1;
             pInfo->gfx9.timestampResetOnIdle = 1;
             pInfo->gfx9.numSdpInterfaces     = 8;
+        }
+        else if (ASICREV_IS_VEGA20_P(pInfo->eRevId))
+        {
+            pInfo->revision                  = AsicRevision::Vega20;
+            pInfo->gfxStepping               = Abi::GfxIpSteppingVega20;
+            pInfo->gfx9.numTccBlocks         = 16;
+            pInfo->gfx9.maxNumCuPerSh        = 16;
+            pInfo->gfx9.maxNumRbPerSe        = 4;
+            pInfo->gfx9.timestampResetOnIdle = 1;
+            pInfo->gfx9.numSdpInterfaces     = 32;
         }
         else
         {
@@ -3291,6 +3316,63 @@ uint32 Device::ComputeTessPrimGroupSize(
 }
 
 // =====================================================================================================================
+// When creating a image used as color target, we increment the corresponding MSAA histogram pile by 1.
+void Device::IncreaseMsaaHistogram(
+    uint32 samples)
+{
+    Util::AtomicIncrement(&m_msaaHistogram[Log2(samples)]);
+}
+
+// =====================================================================================================================
+// When destroying a image being used color target, we decrease the corresponding MSAA histogram pile by 1.
+void Device::DecreaseMsaaHistogram(
+    uint32 samples)
+{
+    Util::AtomicDecrement(&m_msaaHistogram[Log2(samples)]);
+}
+
+// =====================================================================================================================
+// Update MSAA rate and presentable image resolution.
+// Return true if the MSAA rate or presentable image resolution gets updated.
+// Return false if neither of the spp states has to be updated.
+bool Device::UpdateSppState(
+    const IImage& presentableImage)
+{
+    bool updated = false;
+
+    const uint32 resolutionHeight = presentableImage.GetImageCreateInfo().extent.height;
+    const uint32 resolutionWidth  = presentableImage.GetImageCreateInfo().extent.width;
+    const uint32 preHeight        = Util::AtomicExchange(&m_presentResolution.height, resolutionHeight);
+    const uint32 preWidth         = Util::AtomicExchange(&m_presentResolution.width, resolutionWidth);
+    if ((preHeight != m_presentResolution.height) || (preWidth != m_presentResolution.width))
+    {
+        updated = true;
+    }
+
+    // We anticipate that every application will have more Msaa1 render targets than any other sampel rate.
+    // To properly determine the MSAA rate of the application, we skip Msaa1 and start from Msaa2.
+    // If m_msaaHistogram[1], m_msaaHistogram[2], m_msaaHistogram[3] and m_msaaHistogram[4] are all 0,
+    // lastestMsaaRate will be 1 << 0.
+    uint32 maxMsaaImgCount = 0;
+    uint32 latestMsaaRate  = 1 << 0;
+    for (uint32 i = 1; i < MsaaLevelCount; i++)
+    {
+        if (m_msaaHistogram[i] > maxMsaaImgCount)
+        {
+            latestMsaaRate = 1 << i;
+            maxMsaaImgCount = m_msaaHistogram[i];
+        }
+    }
+    if (m_msaaRate != latestMsaaRate)
+    {
+        m_msaaRate = latestMsaaRate;
+        updated = true;
+    }
+
+    return updated;
+}
+
+// =====================================================================================================================
 uint16 Device::GetBaseUserDataReg(
     HwShaderStage  shaderStage
     ) const
@@ -3485,6 +3567,12 @@ const RegisterRange* Device::GetRegisterRange(
             break;
 
         case RegRangeSh:
+            if (IsRaven2(*Parent()))
+            {
+                pRange         = Gfx9ShShadowRangeRaven2;
+                *pRangeEntries = Gfx9NumShShadowRangesRaven2;
+            }
+            else
             {
                 pRange         = Gfx9ShShadowRange;
                 *pRangeEntries = Gfx9NumShShadowRanges;
@@ -3492,6 +3580,12 @@ const RegisterRange* Device::GetRegisterRange(
             break;
 
         case RegRangeCsSh:
+            if (IsRaven2(*Parent()))
+            {
+                pRange         = Gfx9CsShShadowRangeRaven2;
+                *pRangeEntries = Gfx9NumCsShShadowRangesRaven2;
+            }
+            else
             {
                 pRange         = Gfx9CsShShadowRange;
                 *pRangeEntries = Gfx9NumCsShShadowRanges;
