@@ -123,9 +123,6 @@ Result CreateDevice(
         }
 
         pPfnTable->pfnCreateFmaskViewSrds = &Device::CreateFmaskViewSrds;
-#if ((PAL_BUILD_NAV21 || PAL_BUILD_NAVI21_LITE) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 434))
-        pPfnTable->pfnCreateBvhSrds       = &Device::CreateBvhSrds;
-#endif
     }
 
     return result;
@@ -575,6 +572,10 @@ Result Device::CreateEngine(
     if (result == Result::Success)
     {
         (*ppEngine) = pEngine;
+    }
+    else if (pEngine != nullptr)
+    {
+        PAL_DELETE(pEngine, GetPlatform());
     }
 
     return result;
@@ -2776,7 +2777,12 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxLateAllocVsLimit   = 64;
 
     // The gfx9 CP uses the gfx L2 for all operations.
-    pInfo->gfxip.queuesUseCaches = true;
+    pInfo->gfxip.queuesUseCaches         = 1;
+
+    pInfo->gfxip.supportGl2Uncached      = 1;
+    pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
+                                            CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
+                                            CoherStreamOut | CoherMemory);
 
     pInfo->gfxip.maxUserDataEntries = MaxUserDataEntries;
     memcpy(&pInfo->gfxip.fastUserDataEntries[0], &FastUserDataEntriesByStage[0], sizeof(FastUserDataEntriesByStage));
@@ -2907,6 +2913,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumRbPerSe        = 4;
             pInfo->gfx9.timestampResetOnIdle = 1;
             pInfo->gfx9.numSdpInterfaces     = 32;
+            pInfo->gfx9.eccProtectedGprs     = 1;
         }
         else
         {

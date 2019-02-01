@@ -196,6 +196,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     gpusize           offset)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
+    const GfxIpLevel gfxLevel = pThis->m_device.Parent()->ChipProperties().gfxLevel;
 
     if (issueSqttMarkerEvent)
     {
@@ -207,10 +208,10 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
+    gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
     pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0, 0, 0, pCmdSpace);
 
-    if (pThis->m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
+    if (gfxLevel == GfxIpLevel::GfxIp6)
     {
         // Refer to comments added in CmdDispatch
         if (pThis->m_gfxCmdBufState.packetPredicate != 0)
@@ -233,6 +234,39 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
             pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr,
                                                         CmdUtil::GetDispatchIndirectMecSize(),
                                                         pCmdSpace);
+        }
+
+        // CP Spec requires 32 byte alignment for the indirect buffer data on the MEC. If the input buffer is not
+        // aligned, we need to make a temporary copy before the Dispatch.
+        static constexpr gpusize AlignmentBytes = 32;
+        if ((gfxLevel == GfxIpLevel::GfxIp7) && (IsPow2Aligned(gpuVirtAddr, AlignmentBytes) == false))
+        {
+            // Allocate 12 bytes scrach mem buffer which is 32 bytes aligned.
+            const gpusize unalignedGpuVirtAddr = gpuVirtAddr;
+            gpuVirtAddr = pThis->AllocateGpuScratchMem(sizeof(DispatchIndirectArgs) / sizeof(uint32),
+                                                       AlignmentBytes / sizeof(uint32));
+
+            // Copy dispatch buffer content from original dispatch buffer to scrach mem buffer.
+            DmaDataInfo dmaDataInfo = {};
+            dmaDataInfo.dstSel = CPDMA_DST_SEL_DST_ADDR_USING_L2;
+            dmaDataInfo.srcSel = CPDMA_SRC_SEL_SRC_ADDR_USING_L2;
+            dmaDataInfo.sync = true;
+            dmaDataInfo.usePfp = false;
+            dmaDataInfo.dstAddr = gpuVirtAddr;
+            dmaDataInfo.srcAddr = unalignedGpuVirtAddr;
+            dmaDataInfo.numBytes = sizeof(DispatchIndirectArgs);
+
+            pCmdSpace += pThis->m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
+
+            // Flush L2 cache since indirect dispatch buffer reading will bypass L2.
+            regCP_COHER_CNTL coherCntl = {};
+            coherCntl.bits.TC_ACTION_ENA = 1;
+            pCmdSpace += pThis->m_cmdUtil.BuildGenericSync(coherCntl,
+                                                           SURFACE_SYNC_ENGINE_ME,
+                                                           gpuVirtAddr,
+                                                           sizeof(DispatchIndirectArgs),
+                                                           true,
+                                                           pCmdSpace);
         }
 
         pCmdSpace += pThis->m_cmdUtil.BuildDispatchIndirectMec(gpuVirtAddr, pCmdSpace);

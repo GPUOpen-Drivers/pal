@@ -548,8 +548,21 @@ struct GpuChipProperties
                                                      // having param cache and position buffer space.
         uint32 numSlotsPerEvent;                     // Number of slots allocated for a GPU event. One slot is
                                                      // one dword size.
-        bool   queuesUseCaches;                      // If gfxip queue processors use cached reads/writes.
         uint32 shaderPrefetchBytes;                  // Number of bytes the SQ will prefetch, if any.
+
+        uint32 gl2UncachedCpuCoherency;              // If supportGl2Uncached is set, then this is a bitmask of all
+                                                     // CacheCoherencyUsageFlags that will be coherent with CPU
+                                                     // reads/writes. Note that reporting CoherShader only means
+                                                     // that GLC accesses will be CPU coherent.
+                                                     // Note: Only valid if supportGl2Uncached is true.
+
+        struct
+        {
+            uint32 queuesUseCaches             :  1; // If gfxip queue processors use cached reads/writes.
+            uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
+                                                     // un-cached memory. See gl2UncachedCpuCoherency
+            uint32 reserved                    :  30;
+        };
     } gfxip;
 #endif
 
@@ -2103,6 +2116,10 @@ PAL_INLINE bool IsVega20(const Device& device)
     return AMDGPU_IS_VEGA20(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
+PAL_INLINE bool IsRavenFamily(const Device& device)
+{
+    return FAMILY_IS_RV(device.ChipProperties().familyId);
+}
 PAL_INLINE bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);

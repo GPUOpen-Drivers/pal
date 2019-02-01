@@ -26,6 +26,7 @@
 #include "ddClientURIService.h"
 #include "msgChannel.h"
 #include "ddTransferManager.h"
+#include "ddVersion.h"
 
 namespace DevDriver
 {
@@ -65,6 +66,9 @@ namespace DevDriver
                 {
                     // Write the header
                     pResponse->Write("--- Client Information ---");
+
+                    // Write the gpuopen library version string
+                    pResponse->Write("\nClient Version String: %s", GetVersionString());
 
                     // Write the gpuopen library interface version
                     pResponse->Write("\nClient Available Interface Version: %u.%u", GPUOPEN_INTERFACE_MAJOR_VERSION, GPUOPEN_INTERFACE_MINOR_VERSION);

@@ -121,7 +121,6 @@ private:
 
     CommonPreamblePm4Img      m_commonPreamble;      // Image of PM4 commands for common state.
     UniversalPreamblePm4Img   m_universalPreamble;   // Image of PM4 commands for universal-only state.
-    StateShadowPreamblePm4Img m_stateShadowPreamble; // Image of PM4 commands for GPU state-shadowing.
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalQueueContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalQueueContext);

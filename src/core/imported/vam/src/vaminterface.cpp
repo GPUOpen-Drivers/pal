@@ -267,7 +267,8 @@ VAM_RETURNCODE VAM_API VAMExcludeRange (
 */
 VAM_SECTION_HANDLE VAM_API VAMCreateSection (
     VAM_HANDLE                      hVam,                       ///< Input handle of the VAM instance
-    VAM_CREATESECTION_INPUT*        pCreateSectionIn)           ///< Input data structure for creating the section
+    VAM_CREATESECTION_INPUT*        pCreateSectionIn,           ///< Input data structure for creating the section
+    VAM_RETURNCODE* const           pRetCode)                   ///< Result of the operation, if it failed the information why it failed is needed
 {
     VAM_SECTION_HANDLE hSection = NULL;
 
@@ -278,7 +279,12 @@ VAM_SECTION_HANDLE VAM_API VAMCreateSection (
         hSection = pObj->CreateSection( pCreateSectionIn->sectionSizeInBytes,
                                         pCreateSectionIn->clientObject,
                                         pCreateSectionIn->flags,
-                                        pCreateSectionIn->sectionAddress);
+                                        pCreateSectionIn->sectionAddress,
+                                        pRetCode);
+    }
+    else
+    {
+        *pRetCode = VAM_INVALIDPARAMETERS;
     }
 
     return hSection;

@@ -191,6 +191,15 @@ Result GpuMemory::ValidateCreateInfo(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+    if ((result == Result::Success) && createInfo.flags.gl2Uncached &&
+        (pDevice->ChipProperties().gfxip.supportGl2Uncached == 0))
+    {
+        // The gl2Uncached flag can't be set if the feature isn't supported!
+        result = Result::ErrorInvalidFlags;
+    }
+#endif
+
     return result;
 }
 

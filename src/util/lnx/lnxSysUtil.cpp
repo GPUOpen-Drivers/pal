@@ -161,6 +161,7 @@ Result QuerySystemInfo(
 
         pSystemInfo->cpuLogicalCoreCount  = 0;
         pSystemInfo->cpuPhysicalCoreCount = 0;
+        pSystemInfo->cpuFrequency = 0;
 
         // parse /proc/cpuinfo to get logical and physical core info
         File cpuInfoFile;

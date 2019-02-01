@@ -503,7 +503,7 @@ T Pow2AlignDown(
 /// Determines the maximum of two numbers.
 ///
 /// @returns The larger of the two inputs.
-template<typename T>
+template <typename T>
 constexpr T Max(
     T value1,  ///< First value to check.
     T value2)  ///< Second value to check.
@@ -511,8 +511,20 @@ constexpr T Max(
     return ((value1 > value2) ? value1 : value2);
 }
 
+/// Determines the maximum of N numbers.
+///
+/// @returns The largest of all the inputs.
+template <typename T, typename... Ts>
+constexpr T Max(
+    T     value1,  ///< First value to check.
+    T     value2,  ///< Second value to check.
+    Ts... values)  ///< Additional values to check.
+{
+    return Max(((value1 > value2) ? value1 : value2), values...);
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 390
-template<typename T>
+template <typename T>
 constexpr PAL_INLINE T ConstexprMax(
     T value1,  ///< First value to check.
     T value2)  ///< Second value to check.
@@ -524,7 +536,7 @@ constexpr PAL_INLINE T ConstexprMax(
 /// Determines the minimum of two numbers.
 ///
 /// @returns The smaller of the two inputs.
-template<typename T>
+template <typename T>
 constexpr T Min(
     T value1,  ///< First value to check.
     T value2)  ///< Second value to check.
@@ -532,10 +544,22 @@ constexpr T Min(
     return ((value1 < value2) ? value1 : value2);
 }
 
+/// Determines the minimum of N numbers.
+///
+/// @returns The smallest of all the inputs.
+template <typename T, typename... Ts>
+constexpr T Min(
+    T     value1,  ///< First value to check.
+    T     value2,  ///< Second value to check.
+    Ts... values)  ///< Additional values to check.
+{
+    return Min(((value1 < value2) ? value1 : value2), values...);
+}
+
 /// Clamps the input number so that it falls in-between the lower and upper bounds (inclusive).
 ///
 /// @returns Clamped input number.
-template<typename T>
+template <typename T>
 constexpr T Clamp(
     T input,      ///< Input number to clamp.
     T lowBound,   ///< Lower-bound to clamp to.
@@ -552,6 +576,17 @@ PAL_INLINE uint32 NumBytesToNumDwords(
     uint32 numBytes)  ///< Byte count to convert.
 {
     return Pow2Align(numBytes, static_cast<uint32>(sizeof(uint32))) / sizeof(uint32);
+}
+
+/// Compare two strings ignoring case
+PAL_INLINE int Strcasecmp(
+    const char* pSrc,     ///< [in] The source string to be compared.
+    const char* pDst)     ///< [in] The dest string to compare.
+{
+    PAL_ASSERT(pSrc != nullptr);
+    PAL_ASSERT(pDst != nullptr);
+
+    return strcasecmp(pDst, pSrc);
 }
 
 /// Performs a safe strcpy by requiring the destination buffer size.

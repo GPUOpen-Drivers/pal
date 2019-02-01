@@ -731,6 +731,17 @@ PAL_INLINE bool IsMacroPixelPacked(
     return ((FormatInfoTable[static_cast<size_t>(format)].properties & MacroPixelPacked) != 0);
 }
 
+/// Checks if the specified format is one of the rgb macro-pixel-packed ones.
+///
+/// @param [in] format The format to check.
+///
+/// @returns True if the specified format is a rgb macro-pixel-packed. False otherwise.
+PAL_INLINE bool IsMacroPixelPackedRgbOnly(
+    ChNumFormat format)
+{
+    return (IsMacroPixelPacked(format) && (IsYuv(format) == false));
+}
+
 /// Returns the base-2 logarithm of of the subsampling ratio between the luma plane and chroma plane(s) of a YUV planar
 /// format. The dimensions of the luma plane should be right-shifted by these amounts to determine the dimensions of the
 /// chroma plane(s).

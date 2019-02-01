@@ -1220,6 +1220,13 @@ void LogContext::Struct(
         Value("globallyCoherent");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+    if (value.gl2Uncached)
+    {
+        Value("gl2Uncached");
+    }
+#endif
+
     if (value.xdmaBuffer)
     {
         Value("xdmaBuffer");

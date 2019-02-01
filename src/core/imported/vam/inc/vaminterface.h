@@ -41,7 +41,7 @@ extern "C"
 
 /**
 ***************************************************************************************************
-* VAM Version
+* Virtual Address Manager Version
 *    Date           Version  Description
 *    12 May 2009    1.0      Initial version
 *
@@ -119,7 +119,8 @@ typedef VAM_RETURNCODE (VAM_API* VAM_FREESYSMEM)(
 */
 typedef VAM_PTB_HANDLE (VAM_API* VAM_ALLOCPTB)(
     VAM_CLIENT_HANDLE       hClient,        ///< Client handle
-    VAM_VIRTUAL_ADDRESS     PTBBaseAddr     ///< Base virtual address to be mapped by the PTB
+    VAM_VIRTUAL_ADDRESS     PTBBaseAddr,    ///< Base virtual address to be mapped by the PTB
+    VAM_RETURNCODE* const   pRetCode        ///< Operation error code or VAM_OK if ended successful
 );
 
 /**
@@ -573,7 +574,8 @@ typedef struct _VAM_CREATESECTION_INPUT
 */
 VAM_SECTION_HANDLE VAM_API VAMCreateSection (
     VAM_HANDLE                      hVam,                       ///< Input handle of the VAM instance
-    VAM_CREATESECTION_INPUT*        pCreateSectionIn            ///< Input data structure for creating the section
+    VAM_CREATESECTION_INPUT*        pCreateSectionIn,           ///< Input data structure for creating the section
+    VAM_RETURNCODE* const           pRetCode                    ///< Result of the operation, if it failed the information why it failed is needed
 );
 
 /**

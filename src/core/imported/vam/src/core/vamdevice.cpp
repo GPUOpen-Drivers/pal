@@ -663,7 +663,8 @@ VAM_SECTION_HANDLE VamDevice::CreateSection(
     VAM_VA_SIZE                     requestedSectionSizeInBytes,
     VAM_CLIENT_OBJECT               clientObject,
     VAM_CREATESECTION_FLAGS         flags,
-    VAM_VIRTUAL_ADDRESS             sectionAddress)
+    VAM_VIRTUAL_ADDRESS             sectionAddress,
+    VAM_RETURNCODE* const           pRetCode)
 {
     VAM_VA_SIZE         sectionSize;
     VAM_SECTION_HANDLE  hSection;
@@ -671,11 +672,13 @@ VAM_SECTION_HANDLE VamDevice::CreateSection(
 
     if (requestedSectionSizeInBytes == 0)
     {
+        *pRetCode = VAM_INVALIDPARAMETERS;
         // Requested section size is 0, error
         return NULL;
     }
 
-    if (AcquireSyncObj() != VAM_OK)
+    *pRetCode = AcquireSyncObj();
+    if (*pRetCode != VAM_OK)
     {
         return NULL;
     }
@@ -689,7 +692,8 @@ VAM_SECTION_HANDLE VamDevice::CreateSection(
     pSection = AllocSection(sectionSize,
                             clientObject,
                             flags,
-                            sectionAddress);
+                            sectionAddress,
+                            pRetCode);
 
     // The section handle returned to the client is simply the pointer to this section object.
     hSection = static_cast<VAM_SECTION_HANDLE>(pSection);
@@ -1255,9 +1259,9 @@ VamSection* VamDevice::AllocSection(
     VAM_VA_SIZE                     sectionSize,
     VAM_CLIENT_OBJECT               clientObject,
     VAM_CREATESECTION_FLAGS         flags,
-    VAM_VIRTUAL_ADDRESS             sectionAddress)
+    VAM_VIRTUAL_ADDRESS             sectionAddress,
+    VAM_RETURNCODE* const           pRetCode)
 {
-    VAM_RETURNCODE      ret;
     VAM_ALLOCATION      sectionAllocation = { 0 };
     VamSection*         pSection = NULL;
 
@@ -1269,7 +1273,7 @@ VamSection* VamDevice::AllocSection(
         if (sectionAddress == 0)
         {
             // Optional start address is absent, bigK size alignment
-            ret = globalVASpace().AllocateVASpace(sectionSize,
+            *pRetCode = globalVASpace().AllocateVASpace(sectionSize,
                                                   m_bigKSize,
                                                   sectionAllocation);
         }
@@ -1285,19 +1289,19 @@ VamSection* VamDevice::AllocSection(
             endVA        = ROUND_UP(sectionAddress + sectionSize, (long long) m_bigKSize) - 1;
             adjustedSize = endVA - startVA + 1;
 
-            ret = globalVASpace().AllocateVASpaceWithAddress(startVA,
+            *pRetCode = globalVASpace().AllocateVASpaceWithAddress(startVA,
                                                              adjustedSize,
                                                              sectionAllocation);
         }
 
-        if (ret == VAM_OK)
+        if (*pRetCode == VAM_OK)
         {
             // Initialize the section's default VA space state
-            ret = pSection->VASpace().Init(sectionAllocation.address,     // start of section's VA space
-                                           sectionAllocation.size,        // size of section's VA space
-                                           GLOBAL_ALLOC_ALGMT_SIZE);      // minimum alignment granularity for section VA space is page size
+            *pRetCode = pSection->VASpace().Init(sectionAllocation.address, // start of section's VA space
+                                           sectionAllocation.size,          // size of section's VA space
+                                           GLOBAL_ALLOC_ALGMT_SIZE);        // minimum alignment granularity for section VA space is page size
 
-            if (ret == VAM_OK)
+            if (*pRetCode == VAM_OK)
             {
                 // Add the newly-created section to section list
                 sectionList().insertLast(pSection);
@@ -1308,7 +1312,7 @@ VamSection* VamDevice::AllocSection(
             sectionAllocation.address = 0;
         }
 
-        if (ret == VAM_OK)
+        if (*pRetCode == VAM_OK)
         {
             // Count the total number of sections
             globalVASpace().incSectionCount();
@@ -1324,6 +1328,10 @@ VamSection* VamDevice::AllocSection(
             delete pSection;
             pSection = NULL;
         }
+    }
+    else
+    {
+        *pRetCode = VAM_OUTOFMEMORY;
     }
 
     return pSection;
@@ -1736,13 +1744,18 @@ VAM_RETURNCODE VamDevice::FreeSysMem(
 }
 
 VAM_PTB_HANDLE VamDevice::AllocPTB(
-    VAM_VIRTUAL_ADDRESS     PTBBaseAddr)
+    VAM_VIRTUAL_ADDRESS     PTBBaseAddr,
+    VAM_RETURNCODE* const   pRetCode)
 {
     VAM_PTB_HANDLE   hPTBAlloc = 0;
 
     if (m_callbacks.allocPTB != NULL)
     {
-        hPTBAlloc = m_callbacks.allocPTB(m_hClient, PTBBaseAddr);
+        hPTBAlloc = m_callbacks.allocPTB(m_hClient, PTBBaseAddr, pRetCode);
+    }
+    else
+    {
+        *pRetCode = VAM_OK;
     }
 
     return hPTBAlloc;

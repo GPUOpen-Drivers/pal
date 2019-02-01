@@ -40,6 +40,9 @@ namespace DevDriver
 #endif
             , m_isLoggingEnabled(false)
         {
+#if DD_BUILD_32
+            DD_UNUSED(_padding);
+#endif
             m_pendingMsg.payloadSize = 0;
         }
 

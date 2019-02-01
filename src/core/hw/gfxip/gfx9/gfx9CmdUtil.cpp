@@ -2186,7 +2186,6 @@ size_t CmdUtil::BuildLoadShRegs(
     gpusize              gpuVirtAddr,
     const RegisterRange* pRanges,
     uint32               rangeCount,
-    uint32               maxRangeCount,
     Pm4ShaderType        shaderType,
     void*                pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
@@ -2197,7 +2196,7 @@ size_t CmdUtil::BuildLoadShRegs(
     PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 4));
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
-    uint32 packetSize       = (sizeof(PM4PFP_LOAD_SH_REG) / sizeof(uint32)) + (2 * (rangeCount - 1));
+    const uint32 packetSize = (sizeof(PM4PFP_LOAD_SH_REG) / sizeof(uint32)) + (2 * (rangeCount - 1));
     auto*const   pPacket    = static_cast<PM4PFP_LOAD_SH_REG*>(pBuffer);
 
     pPacket->header.u32All              = Type3Header(IT_LOAD_SH_REG, packetSize, false, shaderType);
@@ -2207,17 +2206,7 @@ size_t CmdUtil::BuildLoadShRegs(
 
     // Note: This is a variable-length packet. The PM4PFP_LOAD_SH_REG packet contains space for the first register
     // range, but not the others (though they are expected to immediately follow in the command buffer).
-    const uint32 rangeCountByteSize = sizeof(RegisterRange) * rangeCount;
-    memcpy(&pPacket->ordinal4, pRanges, rangeCountByteSize);
-
-    // Different HW may have different number of register ranges. Therefore it is possible to have empty register range
-    // left in pm4 image. Fill these empty space with NOPs.
-    if (maxRangeCount > rangeCount)
-    {
-        const uint32 nopDwordSize = (maxRangeCount - rangeCount) * sizeof(RegisterRange) / sizeof(uint32);
-        BuildNop(nopDwordSize, Util::VoidPtrInc(&pPacket->ordinal4, rangeCountByteSize));
-        packetSize += nopDwordSize;
-    }
+    memcpy(&pPacket->ordinal4, pRanges, (sizeof(RegisterRange) * rangeCount));
 
     return packetSize;
 }
@@ -2321,7 +2310,6 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
     gpusize              gpuVirtAddr,
     const RegisterRange* pRanges,
     uint32               rangeCount,
-    uint32               maxRangeCount,
     void*                pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
@@ -2331,7 +2319,7 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
     PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 4));
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
-    uint32 packetSize       = (sizeof(PM4PFP_LOAD_UCONFIG_REG) / sizeof(uint32)) + (2 * (rangeCount - 1));
+    const uint32 packetSize = (sizeof(PM4PFP_LOAD_UCONFIG_REG) / sizeof(uint32)) + (2 * (rangeCount - 1));
     auto*const   pPacket    = static_cast<PM4PFP_LOAD_UCONFIG_REG*>(pBuffer);
 
     pPacket->header.u32All              = Type3Header(IT_LOAD_UCONFIG_REG, packetSize);
@@ -2341,17 +2329,7 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
 
     // Note: This is a variable-length packet. The PM4PFP_LOAD_UCONFIG_REG packet contains space for the first register
     // range, but not the others (though they are expected to immediately follow in the command buffer).
-    const uint32 rangeCountByteSize = sizeof(RegisterRange) * rangeCount;
-    memcpy(&pPacket->ordinal4, pRanges, rangeCountByteSize);
-
-    // Different HW may have different number of register ranges. Therefore it is possible to have empty register range
-    // space in pm4 image. Fill these empty space with NOPs.
-    if (maxRangeCount > rangeCount)
-    {
-        const uint32 nopDwordSize = (maxRangeCount - rangeCount) * sizeof(RegisterRange) / sizeof(uint32);
-        BuildNop(nopDwordSize, Util::VoidPtrInc(&pPacket->ordinal4, rangeCountByteSize));
-        packetSize += nopDwordSize;
-    }
+    memcpy(&pPacket->ordinal4, pRanges, (sizeof(RegisterRange) * rangeCount));
 
     return packetSize;
 }

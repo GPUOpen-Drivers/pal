@@ -311,13 +311,14 @@ uint32* CmdStream::WriteSetOneConfigReg<false>(
 // =====================================================================================================================
 // Builds a PM4 packet to set the given set of sequential config registers.  Returns a pointer to the next unused DWORD
 // in pCmdSpace.
+template <bool isPerfCtr>
 uint32* CmdStream::WriteSetSeqConfigRegs(
     uint32      startRegAddr,
     uint32      endRegAddr,
     const void* pData,
     uint32*     pCmdSpace)
 {
-    const size_t totalDwords = m_cmdUtil.BuildSetSeqConfigRegs(startRegAddr, endRegAddr, pCmdSpace);
+    const size_t totalDwords = m_cmdUtil.BuildSetSeqConfigRegs<isPerfCtr>(startRegAddr, endRegAddr, pCmdSpace);
 
     memcpy(&pCmdSpace[CmdUtil::ConfigRegSizeDwords],
            pData,
@@ -325,6 +326,18 @@ uint32* CmdStream::WriteSetSeqConfigRegs(
 
     return (pCmdSpace + totalDwords);
 }
+template
+uint32* CmdStream::WriteSetSeqConfigRegs<true>(
+    uint32      startRegAddr,
+    uint32      endRegAddr,
+    const void* pData,
+    uint32*     pCmdSpace);
+template
+uint32* CmdStream::WriteSetSeqConfigRegs<false>(
+    uint32      startRegAddr,
+    uint32      endRegAddr,
+    const void* pData,
+    uint32*     pCmdSpace);
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.

@@ -71,7 +71,7 @@ public:
         VaPartition           vaPartition) const override;
 
 protected:
-    void*  AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr) override;
+    Result AllocPageTableBlock(VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr, VAM_PTB_HANDLE* hPtbAlloc) override;
     void   FreePageTableBlock(VAM_PTB_HANDLE hPtbAlloc) override;
 
     // VAM callbacks.
@@ -79,7 +79,10 @@ protected:
     static VAM_RETURNCODE    VAM_STDCALL FreeSysMemCb(VAM_CLIENT_HANDLE hPal, void* pAddress);
     static VAM_RETURNCODE    VAM_STDCALL AcquireSyncObjCb(VAM_CLIENT_HANDLE hPal, VAM_ACQSYNCOBJ_INPUT* pAcqSyncObjIn);
     static void              VAM_STDCALL ReleaseSyncObjCb(VAM_CLIENT_HANDLE hPal, VAM_SYNCOBJECT_HANDLE hSyncObj);
-    static VAM_PTB_HANDLE    VAM_STDCALL AllocPtbCb(VAM_CLIENT_HANDLE hPal, VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr);
+    static VAM_PTB_HANDLE    VAM_STDCALL AllocPtbCb(
+        VAM_CLIENT_HANDLE    hPal,
+        VAM_VIRTUAL_ADDRESS  ptbBaseVirtAddr,
+        VAM_RETURNCODE*const pResult);
     static VAM_RETURNCODE    VAM_STDCALL FreePtbCb(VAM_CLIENT_HANDLE hPal, VAM_PTB_HANDLE hPtbAlloc);
     static VAM_VIDMEM_HANDLE VAM_STDCALL AllocVidMemCb(VAM_CLIENT_HANDLE hPal, VAM_ALLOCVIDMEM_INPUT* pAllocVidMemIn);
     static VAM_RETURNCODE    VAM_STDCALL FreeVidMemCb(VAM_CLIENT_HANDLE hPal, VAM_VIDMEM_HANDLE hVidMem);

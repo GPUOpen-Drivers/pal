@@ -135,7 +135,15 @@ union GpuMemoryCreateFlags
 #else
         uint32 reserved464       :  1;
 #endif
-        uint32 reserved          :  10; ///< Reserved for future use.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+        uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
+                                       ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
+#else
+        uint32 reserved465       :  1;
+#endif
+
+        uint32 reserved          :  9; ///< Reserved for future use.
     };
     uint32     u32All;                ///< Flags packed as 32-bit uint.
 };

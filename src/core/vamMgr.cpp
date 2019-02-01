@@ -105,11 +105,18 @@ Result VamMgr::Finalize(
         {
             excludeRangeIn.virtualAddress = memProps.excludedRange[i].baseVirtAddr;
             excludeRangeIn.sizeInBytes    = memProps.excludedRange[i].size;
-
-            if (VAMExcludeRange(m_hVamInstance, &excludeRangeIn) != VAM_OK)
+            VAM_RETURNCODE ret = VAMExcludeRange(m_hVamInstance, &excludeRangeIn);
+            if (ret != VAM_OK)
             {
                 PAL_ALERT_ALWAYS();
-                result = Result::ErrorOutOfGpuMemory;
+                if (ret == VAM_OUTOFMEMORY)
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+                else
+                {
+                    result = Result::ErrorOutOfGpuMemory;
+                }
                 break;
             }
         }
@@ -129,11 +136,19 @@ Result VamMgr::Finalize(
 
                 if (vamSectionIn.sectionSizeInBytes > 0)
                 {
-                    m_hSection[i] = VAMCreateSection(m_hVamInstance, &vamSectionIn);
+                    VAM_RETURNCODE ret = VAM_OK;
+                    m_hSection[i] = VAMCreateSection(m_hVamInstance, &vamSectionIn, &ret);
                     if (m_hSection[i] == nullptr)
                     {
                         PAL_ALERT_ALWAYS();
-                        result = Result::ErrorOutOfGpuMemory;
+                        if ((ret == VAM_OUTOFMEMORY) || (ret == VAM_ERROR))
+                        {
+                            result = Result::ErrorOutOfMemory;
+                        }
+                        else
+                        {
+                            result = Result::ErrorOutOfGpuMemory;
+                        }
                         break;
                     }
                 }

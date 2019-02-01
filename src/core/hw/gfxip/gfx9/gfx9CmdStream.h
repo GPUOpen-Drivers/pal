@@ -112,6 +112,7 @@ public:
         Pm4ShaderType shaderType,
         const void*   pData,
         uint32*       pCmdSpace);
+    template <bool isPerfCtr = false>
     uint32* WriteSetSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
     template <bool pm4OptImmediate>
     uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);

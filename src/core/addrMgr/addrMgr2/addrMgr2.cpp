@@ -156,7 +156,7 @@ Result AddrMgr2::InitSubresourcesForImage(
     SubResourceInfo*   pSubResInfoList,
     void*              pSubResTileInfoList,
     bool*              pDccUnsupported
-    ) const
+) const
 {
     // For AddrMgr2 style addressing, there's no chance of a single subresource being incapable of supporting DCC.
     *pDccUnsupported = false;
@@ -309,14 +309,16 @@ Result AddrMgr2::InitSubresourcesForImage(
                                                        pSubResInfoList,
                                                        pSubResTileInfoList,
                                                        pGpuMemSize);
+            SubResourceInfo*const pSubResInfo = (pSubResInfoList + subResIt.Index());
+            const uint32 swizzleMode          = pImage->GetGfxImage()->GetSwTileMode(pSubResInfo);
 
-            // For non-mipmap or non 2d and non arrayed textures, the swizzleOffset is the same as mem offset.
-            if ((createInfo.mipLevels == 1) ||
-                ((createInfo.imageType != Pal::ImageType::Tex2d) && (createInfo.arraySize == 1)))
+            // For linear modes or with on-mipmap or non 2d and non arrayed textures, the swizzleOffset is the same as
+            // mem offset.
+            if (IsLinearSwizzleMode(static_cast<AddrSwizzleMode>(swizzleMode)) ||
+                ((createInfo.mipLevels == 1) ||
+                 ((createInfo.imageType != Pal::ImageType::Tex2d) && (createInfo.arraySize == 1))))
             {
-                SubResourceInfo*const pSubRes = (pSubResInfoList + subResIt.Index());
-
-                pSubRes->swizzleOffset = pSubRes->offset;
+                pSubResInfo->swizzleOffset = pSubResInfo->offset;
             }
         } while (subResIt.Next());
     }

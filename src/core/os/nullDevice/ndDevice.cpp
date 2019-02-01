@@ -43,13 +43,10 @@ namespace Pal
 namespace NullDevice
 {
 
-enum GfxEngine : uint32
-{
-    GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND,
+static constexpr uint32 GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND;
 #if PAL_BUILD_GFX9
-    GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND,
+static constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
 #endif
-};
 
 #define PAL_UNDEFINED_NULL_DEVICE  FAMILY_UNKNOWN, 0, 0, CIASICIDGFXENGINE_UNKNOWN, 0
 
@@ -100,6 +97,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
 };
@@ -144,6 +142,7 @@ const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
     "RAVEN2:gfx909",
     nullptr,
 
+    nullptr,
     nullptr,
     nullptr,
     nullptr,

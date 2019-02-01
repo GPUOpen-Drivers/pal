@@ -91,28 +91,6 @@ struct ComputePreamblePm4Img
     size_t           spaceNeeded;
 };
 
-// Contains the commands necessary to set-up state shadowing of GPU registers. Unless mid command buffer preemption
-// is enabled, only the context control packet will be populated.
-struct StateShadowPreamblePm4Img
-{
-    PM4_PFP_CONTEXT_CONTROL   contextControl;
-    PM4_PFP_CLEAR_STATE       clearState;
-
-    PM4_PFP_LOAD_UCONFIG_REG  loadUserCfgRegs;
-    RegisterRange             userCfgRegs[MaxNumUserConfigRanges - 1];
-
-    PM4_PFP_LOAD_CONTEXT_REG  loadContextRegs;
-    RegisterRange             contextRegs[MaxNumContextRanges - 1];
-
-    PM4_PFP_LOAD_SH_REG       loadShRegsGfx;
-    RegisterRange             gfxShRegs[MaxNumShRanges - 1];
-
-    PM4_PFP_LOAD_SH_REG       loadShRegsCs;
-    RegisterRange             csShRegs[MaxNumCsShRanges - 1];
-
-    size_t                    spaceNeeded;
-};
-
 // Gfx9-specific registers associated with the preamble
 struct Gfx9UniversalPreamblePm4Img
 {

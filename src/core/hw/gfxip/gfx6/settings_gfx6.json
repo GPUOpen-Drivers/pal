@@ -1,4 +1,7 @@
 {
+  "DriverState": [
+    "HaltedOnDeviceInit"
+  ],
   "Tags": [
     "General",
     "Graphics Pipelines",
@@ -14,34 +17,38 @@
     "Gfx8"
   ],
   "Hwl": "Gfx6",
-  "DriverState": [
-    "HaltedOnDeviceInit"
-  ],
   "ComponentName": "Gfx6_Pal",
   "Settings": [
     {
-      "VariableName": "enableLoadIndexForObjectBinds",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "EnableLoadIndexForObjectBinds",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "Toggles whether or not LOAD_INDEX packets are used for binding objects to the command buffer in place of set packets.",
-      "Name": "EnableLoadIndexForObjectBinds",
       "Tags": [
         "General"
       ],
-      "HashName": 2416072074,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "enableLoadIndexForObjectBinds",
+      "HashName": 2416072074
     },
     {
-      "VariableName": "cpDmaSrcAlignment",
-      "Type": "enum",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "CpDmaSrcAlignment",
       "Defaults": {
         "Default": "CpDmaAlignmentDefault"
       },
+      "Type": "enum",
+      "Description": "Source address/copy size alignment in bytes for CP DMA. The default value is 4, and 32 for better performance on certain GPUs having a particular hardware bug",
+      "Tags": [
+        "General",
+        "Gfx6"
+      ],
+      "VariableName": "cpDmaSrcAlignment",
       "ValidValues": {
+        "IsExclusive": true,
         "Name": "CpDmaAlignmentMode",
-        "IsEnum": true,
         "Values": [
           {
             "Name": "CpDmaAlignmentDefault",
@@ -52,872 +59,864 @@
             "Value": 32
           }
         ],
-        "IsExclusive": true
+        "IsEnum": true
       },
-      "Description": "Source address/copy size alignment in bytes for CP DMA. The default value is 4, and 32 for better performance on certain GPUs having a particular hardware bug",
-      "Name": "CpDmaSrcAlignment",
-      "Tags": [
-        "General",
-        "Gfx6"
-      ],
-      "HashName": 2945629691,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 2945629691
     },
     {
-      "VariableName": "disableBorderColorPaletteBinds",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DisableBorderColorPaletteBinds",
-      "Tags": [
-        "General",
-        "Gfx6"
-      ],
-      "HashName": 3825276041,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "forceOcclusionQueryResult",
-      "Type": "bool",
       "Defaults": {
         "Default": false
       },
-      "Description": "Forcing the occlusion query result will disable occlusion queries and use the result value from the setting ForceOcclusionQueryResultValue.",
-      "Name": "ForceOcclusionQueryResult",
+      "Type": "bool",
+      "Description": "Disables binding of border color palettes, and forces any samplers created to use a transparent black color. ",
       "Tags": [
         "General",
         "Gfx6"
       ],
-      "HashName": 1419797586,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "disableBorderColorPaletteBinds",
+      "HashName": 3825276041
     },
     {
-      "VariableName": "forceOcclusionQueryResultValue",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "ForceOcclusionQueryResult",
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "Forcing the occlusion query result will disable occlusion queries and use the result value from the setting ForceOcclusionQueryResultValue.",
+      "Tags": [
+        "General",
+        "Gfx6"
+      ],
+      "VariableName": "forceOcclusionQueryResult",
+      "HashName": 1419797586
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "ForceOcclusionQueryResultValue",
       "Defaults": {
         "Default": 1
       },
+      "Type": "uint32",
       "Description": "Forces Occlusion queries to return this value if ForceOcclusionQueryResult is enabled.",
-      "Name": "ForceOcclusionQueryResultValue",
       "Tags": [
         "General",
         "Gfx6"
       ],
-      "HashName": 3761151579,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "forceOcclusionQueryResultValue",
+      "HashName": 3761151579
     },
     {
-      "VariableName": "primGroupSize",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "PrimgroupSize",
       "Defaults": {
         "Default": 128
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "PAL will enable optimizations when generally efficient.",
-            "Value": 1,
-            "LogicOp": "GreaterThanOrEqual"
-          },
-          {
-            "Description": "Values larger than 256 are expected to hurt performance.",
-            "Value": 65536,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Number of primitives sent to one VGT before switching to the next. This setting only affects non-tessellation pipelines.",
-      "Name": "PrimgroupSize",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3402504325,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "primGroupSize",
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "GreaterThanOrEqual",
+            "Value": 1,
+            "Description": "PAL will enable optimizations when generally efficient."
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 65536,
+            "Description": "Values larger than 256 are expected to hurt performance."
+          }
+        ]
+      },
+      "HashName": 3402504325
     },
     {
-      "VariableName": "dynamicPrimGroupEnable",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DynamicPrimgroupEnable",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "When this is enabled, draws using VS/PS pipelines will ignore Gfx6PrimgroupSize and selectan optimal primitive group size based on a sliding window of previous draws.",
-      "Name": "DynamicPrimgroupEnable",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1334465030,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dynamicPrimGroupEnable",
+      "HashName": 1334465030
     },
     {
-      "VariableName": "dynamicPrimGroupMin",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DynamicPrimgroupMin",
       "Defaults": {
         "Default": 32
       },
+      "Type": "uint32",
       "Description": "The lower limit for the dynamic primitive group size.",
-      "Name": "DynamicPrimgroupMin",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 4066308367,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dynamicPrimGroupMin",
+      "HashName": 4066308367
     },
     {
-      "VariableName": "dynamicPrimGroupMax",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DynamicPrimgroupMax",
       "Defaults": {
         "Default": 128
       },
+      "Type": "uint32",
       "Description": "The upper limit for the dynamic primitive group size.",
-      "Name": "DynamicPrimgroupMax",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3763031297,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dynamicPrimGroupMax",
+      "HashName": 3763031297
     },
     {
-      "VariableName": "dynamicPrimGroupStep",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DynamicPrimgroupStep",
       "Defaults": {
         "Default": 32
       },
+      "Type": "uint32",
+      "Description": "The dynamic primitive group size is limited to multiples of this value.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx6"
+      ],
+      "VariableName": "dynamicPrimGroupStep",
       "ValidValues": {
         "Values": [
           {
-            "Value": 2,
-            "LogicOp": "PowerOf"
+            "LogicOp": "PowerOf",
+            "Value": 2
           }
         ]
       },
-      "Description": "The dynamic primitive group size is limited to multiples of this value.",
-      "Name": "DynamicPrimgroupStep",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx6"
-      ],
-      "HashName": 2488885191,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 2488885191
     },
     {
-      "VariableName": "dynamicPrimGroupWindowSize",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DynamicPrimgroupWindowSize",
       "Defaults": {
         "Default": 32
       },
+      "Type": "uint32",
       "Description": "The number of previous draws to examine when selecting a new primitive group size.",
-      "Name": "DynamicPrimgroupWindowSize",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1070254748,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dynamicPrimGroupWindowSize",
+      "HashName": 1070254748
     },
     {
-      "VariableName": "switchVgtOnDraw",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "SwitchVgtOnDraw",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "If true, the HW will alternate VGT's between draws rather than between sets of primitives within a draw. True is safer, but less performant.",
-      "Name": "SwitchVgtOnDraw",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1102013901,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "switchVgtOnDraw",
+      "HashName": 1102013901
     },
     {
-      "VariableName": "esGsRatio",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "EsGsRatio",
       "Defaults": {
         "Default": 4
       },
+      "Type": "uint32",
       "Description": "Provides an approximation for the ratio between ES threads and GS threadsbeing launched. ES uses more threads because ES runs per-Vertex and theGS runs per-Primitive.",
-      "Name": "EsGsRatio",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3217804174,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "esGsRatio",
+      "HashName": 3217804174
     },
     {
-      "VariableName": "vsForcePartialWave",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "VsForcePartialWave",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "If true, forces the VGT to issue a VS wave as soon as a primgroup isfinished.",
-      "Name": "VsForcePartialWave",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1946161867,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "vsForcePartialWave",
+      "HashName": 1946161867
     },
     {
-      "VariableName": "vsHalfPackThreshold",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "VsHalfPackThreshold",
       "Defaults": {
         "Default": 16
       },
+      "Type": "uint32",
       "Description": "Load half-packed VS waves, forcing them to use half as much space in the param cache at the expense of inefficient use of ALU resources, if the export count is >= this threshold. This can help performance in some cases.",
-      "Name": "VsHalfPackThreshold",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 987247393,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "vsHalfPackThreshold",
+      "HashName": 987247393
     },
     {
-      "VariableName": "esCuGroupEnabled",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "If true, the HW-ES stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-ES prefers to send only one wave to each CU before moving to the next enabled CU.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "EsCuGroupEnabled",
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "If true, the HW-ES stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-ES prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1448769209,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "esCuGroupEnabled",
+      "HashName": 1448769209
     },
     {
-      "VariableName": "gsCuGroupEnabled",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "GsCuGroupEnabled",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx6"
-      ],
-      "HashName": 2295262967,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "vsCuGroupEnabled",
-      "Type": "bool",
       "Defaults": {
         "Default": false
       },
-      "Description": "If true, the HW-VS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-VS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Name": "VsCuGroupEnabled",
+      "Type": "bool",
+      "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1712293842,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gsCuGroupEnabled",
+      "HashName": 2295262967
     },
     {
-      "VariableName": "psCuGroupEnabled",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "VsCuGroupEnabled",
+      "Defaults": {
+        "Default": false
+      },
       "Type": "bool",
+      "Description": "If true, the HW-VS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-VS prefers to send only one wave to each CU before moving to the next enabled CU.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx6"
+      ],
+      "VariableName": "vsCuGroupEnabled",
+      "HashName": 1712293842
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "PsCuGroupEnabled",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "If true, the HW-PS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-PS prefers to send only one wave to each CU before moving to the next enabled CU.",
-      "Name": "PsCuGroupEnabled",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1924559864,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "psCuGroupEnabled",
+      "HashName": 1924559864
     },
     {
-      "VariableName": "tessFactorBufferSizePerSe",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "TessFactorBufferSizePerSe",
       "Defaults": {
         "Default": 4096
       },
+      "Type": "uint32",
       "Description": "Controls the size of the tess-factor buffer. This size is per-SE, andmeasured in DWORDs.",
-      "Name": "TessFactorBufferSizePerSe",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3112016659,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "tessFactorBufferSizePerSe",
+      "HashName": 3112016659
     },
     {
-      "VariableName": "disableTessDonutWalkPattern",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "TessWalkPattern",
       "Defaults": {
         "Default": 0
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Donut walking pattern for optimal reuse.",
-            "Value": 0
-          },
-          {
-            "Description": "Single-ring walking pattern, has suboptimal reuse.",
-            "Value": 1
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Vertex walking pattern for tessellation.",
-      "Name": "TessWalkPattern",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2972449453,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "disableTessDonutWalkPattern",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "Donut walking pattern for optimal reuse."
+          },
+          {
+            "Value": 1,
+            "Description": "Single-ring walking pattern, has suboptimal reuse."
+          }
+        ]
+      },
+      "HashName": 2972449453
     },
     {
-      "VariableName": "maxTessFactor",
-      "Type": "float",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "MaxTessFactor",
       "Defaults": {
         "Default": 64.0
       },
+      "Type": "float",
       "Description": "Clamps the maximum tessellation factor.",
-      "Name": "MaxTessFactor",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3272504111,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "maxTessFactor",
+      "HashName": 3272504111
     },
     {
-      "VariableName": "numTessPatchesPerTg",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "NumTessPatchesPerThreadGroup",
       "Defaults": {
         "Default": 0
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Allows the driver to choose the optimal value.",
-            "Value": 0
-          },
-          {
-            "Description": "Will always work, but is the slowest.",
-            "Value": 1
-          },
-          {
-            "Description": "Clamped based on HW resources.",
-            "Value": 1,
-            "LogicOp": "GreaterThan"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Controls the number of patches-per-thread-group to run when tessellationis enabled. This value is normally limited by hardware resources (LDS,TFBuffer, Threads).Offchip Tess rounds this to the nearest multiple of four.",
-      "Name": "NumTessPatchesPerThreadGroup",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 2699532302,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "numTessPatchesPerTg",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "Allows the driver to choose the optimal value."
+          },
+          {
+            "Value": 1,
+            "Description": "Will always work, but is the slowest."
+          },
+          {
+            "LogicOp": "GreaterThan",
+            "Value": 1,
+            "Description": "Clamped based on HW resources."
+          }
+        ]
+      },
+      "HashName": 2699532302
     },
     {
-      "VariableName": "numOffchipLdsBuffers",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "NumOffchipLdsBuffers",
       "Defaults": {
         "Default": 508
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Disables offchip tessellation.",
-            "Value": 0
-          },
-          {
-            "Description": "Gfx6 range of offchip tessellation buffers.",
-            "Value": 126,
-            "LogicOp": "LessThanOrEqual"
-          },
-          {
-            "Description": "Gfx7+ range of offchip tessellation buffers.",
-            "Value": 508,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Controls the number of LDS buffers used for offchip tessellation.",
-      "Name": "NumOffchipLdsBuffers",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 4150915470,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "numOffchipLdsBuffers",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "Disables offchip tessellation."
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 126,
+            "Description": "Gfx6 range of offchip tessellation buffers."
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 508,
+            "Description": "Gfx7+ range of offchip tessellation buffers."
+          }
+        ]
+      },
+      "HashName": 4150915470
     },
     {
-      "VariableName": "useMaxOffchipLdsBuffers",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "UseMaxOffchipLdsBuffers",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "If true, offchip tessellation will always use the maximum number ofLDS buffers possible (based on Chip ID).",
-      "Name": "UseMaxOffchipLdsBuffers",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3365086421,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "useMaxOffchipLdsBuffers",
+      "HashName": 3365086421
     },
     {
-      "VariableName": "dsWavesPerSimdOverflow",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "TessDsWavesPerSimdOverflow",
       "Defaults": {
         "Default": 4
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "HS and DS can be optimized to force all waves to gooff-chip which saves LDS space and the logic to choose on-chip or off-chip.",
-            "Value": 0
-          },
-          {
-            "Description": "Number of DS waves (3-4 is recommended).",
-            "Value": 15,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Controls VGT_TF_PARAM::NUM_DS_WAVES_PER_SIMD for offchip tessellation. Sets how many DS wavefronts are sent to the same SIMD beforeoverflowing to other SIMDs to use offchip LDS data.",
-      "Name": "TessDsWavesPerSimdOverflow",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3832811323,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dsWavesPerSimdOverflow",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "HS and DS can be optimized to force all waves to gooff-chip which saves LDS space and the logic to choose on-chip or off-chip."
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 15,
+            "Description": "Number of DS waves (3-4 is recommended)."
+          }
+        ]
+      },
+      "HashName": 3832811323
     },
     {
-      "VariableName": "offchipTfDegree",
-      "Type": "float",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "TessOffchipTfDegree",
       "Defaults": {
         "Default": 4.0
       },
+      "Type": "float",
       "Description": "Controls the tessellation factor for writing to offchip LDS in the HS. Lower values send more data offchip. Writing to offchip data incursoverhead and is intended for higher Tess-Factors.",
-      "Name": "TessOffchipTfDegree",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3548610473,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "offchipTfDegree",
+      "HashName": 3548610473
     },
     {
-      "VariableName": "gfx6OffChipHsSkipDataCopyNullPatch",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "OffChipHsSkipDataCopyNullPatch",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "Enables SC optimization to skip copying data from HS for null patches ",
-      "Name": "OffChipHsSkipDataCopyNullPatch",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1952167388,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx6OffChipHsSkipDataCopyNullPatch",
+      "HashName": 1952167388
     },
     {
-      "VariableName": "lsCuEnLimitMask",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 4294967295
-      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "This mask is AND-ed with the driver-decided LS-specific CU_EN mask to further allow limiting of enabled CUs for LS waves. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "LsCuEnLimitMask",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided LS-specific CU_EN mask to further allow limiting of enabled CUs for LS waves. ",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1219961810,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "lsCuEnLimitMask",
+      "HashName": 1219961810
     },
     {
-      "VariableName": "esCuEnLimitMask",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 4294967295
-      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "This mask is AND-ed with the driver-decided ES-specific CU_EN mask to further allow limiting of enabled CUs for ES waves. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "EsCuEnLimitMask",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided ES-specific CU_EN mask to further allow limiting of enabled CUs for ES waves. ",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 1411431225,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "esCuEnLimitMask",
+      "HashName": 1411431225
     },
     {
-      "VariableName": "gsCuEnLimitMask",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 4294967295
-      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "This mask is AND-ed with the driver-decided GS-specific CU_EN mask to further allow limiting of enabled CUs for GS waves. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "GsCuEnLimitMask",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided GS-specific CU_EN mask to further allow limiting of enabled CUs for GS waves. ",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3021103171,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gsCuEnLimitMask",
+      "HashName": 3021103171
     },
     {
-      "VariableName": "vsCuEnLimitMask",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 4294967295
-      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "This mask is AND-ed with the driver-decided VS-specific CU_EN mask to further allow limiting of enabled CUs for VS waves. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "VsCuEnLimitMask",
+      "Defaults": {
+        "Default": 4294967295
+      },
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided VS-specific CU_EN mask to further allow limiting of enabled CUs for VS waves. ",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 989310036,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "vsCuEnLimitMask",
+      "HashName": 989310036
     },
     {
-      "VariableName": "psCuEnLimitMask",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 4294967295
-      },
       "Flags": {
         "IsHex": true
       },
-      "Description": "This mask is AND-ed with the driver-decided PS-specific CU_EN mask to further allow limiting of enabled CUs for PS waves. ",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "PsCuEnLimitMask",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx6"
-      ],
-      "HashName": 1509811598,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "csCuEnLimitMask",
-      "Type": "uint32",
       "Defaults": {
         "Default": 4294967295
       },
-      "Flags": {
-        "IsHex": true
-      },
-      "Description": "This mask is AND-ed with the driver-decided CS-specific CU_EN mask to further allow limiting of enabled CUs for CS waves. ",
-      "Name": "CsCuEnLimitMask",
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided PS-specific CU_EN mask to further allow limiting of enabled CUs for PS waves. ",
       "Tags": [
         "Graphics Pipelines",
         "Gfx6"
       ],
-      "HashName": 3382331351,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "psCuEnLimitMask",
+      "HashName": 1509811598
     },
     {
-      "VariableName": "csMaxWavesPerCu",
-      "Type": "uint32",
+      "Flags": {
+        "IsHex": true
+      },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "CsCuEnLimitMask",
       "Defaults": {
-        "Default": 0
+        "Default": 4294967295
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Do not limit number of waves in flight in each compute unit.",
-            "Value": 0
-          },
-          {
-            "Description": "Limits the number of waves in flight in each compute unit.",
-            "Value": 40,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
-      "Description": "Controls the WAVES_PER_SH field in the COMPUTE_RESOURCE_LIMITS register; note that it is specified per-CU rather than per-SH for convenience.",
+      "Type": "uint32",
+      "Description": "This mask is AND-ed with the driver-decided CS-specific CU_EN mask to further allow limiting of enabled CUs for CS waves. ",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx6"
+      ],
+      "VariableName": "csCuEnLimitMask",
+      "HashName": 3382331351
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "CsMaxWavesPerCu",
-      "Tags": [
-        "Compute Pipelines",
-        "Gfx6"
-      ],
-      "HashName": 4216700794,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "csLockThreshold",
-      "Type": "uint32",
       "Defaults": {
         "Default": 0
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Disables locking.",
-            "Value": 0
-          },
-          {
-            "Description": "CS per-SH low threshold for locking.",
-            "Value": 4,
-            "LogicOp": "MultipleOf"
-          }
-        ]
-      },
-      "Description": "Controls the LOCK_THRESHOLD field in the COMPUTE_RESOURCE_LIMITS register.",
-      "Name": "CsLockThreshold",
+      "Type": "uint32",
+      "Description": "Controls the WAVES_PER_SH field in the COMPUTE_RESOURCE_LIMITS register; note that it is specified per-CU rather than per-SH for convenience.",
       "Tags": [
         "Compute Pipelines",
         "Gfx6"
       ],
-      "HashName": 346110079,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "csMaxWavesPerCu",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "Do not limit number of waves in flight in each compute unit."
+          },
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 40,
+            "Description": "Limits the number of waves in flight in each compute unit."
+          }
+        ]
+      },
+      "HashName": 4216700794
     },
     {
-      "VariableName": "csSimdDestCntl",
-      "Type": "enum",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "CsLockThreshold",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Controls the LOCK_THRESHOLD field in the COMPUTE_RESOURCE_LIMITS register.",
+      "Tags": [
+        "Compute Pipelines",
+        "Gfx6"
+      ],
+      "VariableName": "csLockThreshold",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "Disables locking."
+          },
+          {
+            "LogicOp": "MultipleOf",
+            "Value": 4,
+            "Description": "CS per-SH low threshold for locking."
+          }
+        ]
+      },
+      "HashName": 346110079
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "CsSimdDestCntl",
       "Defaults": {
         "Default": "CsSimdDestCntlDefault"
       },
+      "Type": "enum",
+      "Description": "Controls the SIMD_DEST_CNTL field of the COMPUTE_RESOURCE_LIMITS register. By default, this flag is calulated based on the number of waves in the dispatch. If the number of waves is a multiple of 4, this flag is set, otherwise it is cleared.",
+      "Tags": [
+        "Compute Pipelines",
+        "Gfx6"
+      ],
+      "VariableName": "csSimdDestCntl",
       "ValidValues": {
         "Name": "CsSimdDestCntlMode",
         "Values": [
           {
-            "Description": "Keeps the default SIMD_DEST_CNTL behavior.",
             "Name": "CsSimdDestCntlDefault",
-            "Value": 0
+            "Value": 0,
+            "Description": "Keeps the default SIMD_DEST_CNTL behavior."
           },
           {
-            "Description": "Forces SIMD_DEST_CNTL to 1.",
             "Name": "CsSimdDestCntlForce1",
-            "Value": 1
+            "Value": 1,
+            "Description": "Forces SIMD_DEST_CNTL to 1."
           },
           {
-            "Description": "Forces SIMD_DEST_CNTL to 0.",
             "Name": "CsSimdDestCntlForce0",
-            "Value": 2
+            "Value": 2,
+            "Description": "Forces SIMD_DEST_CNTL to 0."
           }
         ]
       },
-      "Description": "Controls the SIMD_DEST_CNTL field of the COMPUTE_RESOURCE_LIMITS register. By default, this flag is calulated based on the number of waves in the dispatch. If the number of waves is a multiple of 4, this flag is set, otherwise it is cleared.",
-      "Name": "CsSimdDestCntl",
-      "Tags": [
-        "Compute Pipelines",
-        "Gfx6"
-      ],
-      "HashName": 3574730191,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 3574730191
     },
     {
-      "VariableName": "anisoFilterOptEnabled",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Controls whether anisotropic filtering optimizations are enabled.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "AnisoFilterOptEnabled",
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "Controls whether anisotropic filtering optimizations are enabled.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 958470227,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "anisoFilterOptEnabled",
+      "HashName": 958470227
     },
     {
-      "VariableName": "samplerCeilingLogicEnabled",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "Controls whether the round-up logic for samplers is enabled.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "CeilingLogicEnabled",
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "Controls whether the round-up logic for samplers is enabled.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 2986992899,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerCeilingLogicEnabled",
+      "HashName": 2986992899
     },
     {
-      "VariableName": "samplerPrecisionFixEnabled",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "Controls whether rounding of values coming out of the normalizer is enabled.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "PrecisionFixEnabled",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "Controls whether rounding of values coming out of the normalizer is enabled.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 286847775,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerPrecisionFixEnabled",
+      "HashName": 286847775
     },
     {
-      "VariableName": "samplerPerfMip",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 0
-      },
-      "Description": "Controls the value of the PERF_MIP field in Sampler SRD's.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "SamplerPerfMip",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Controls the value of the PERF_MIP field in Sampler SRD's.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 3696903510,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerPerfMip",
+      "HashName": 3696903510
     },
     {
-      "VariableName": "samplerAnisoThreshold",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 0
-      },
-      "Description": "Controls the value of the anisotropy threshold for Sampler SRD's.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "SamplerAnisoThreshold",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Controls the value of the anisotropy threshold for Sampler SRD's.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 1521283108,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerAnisoThreshold",
+      "HashName": 1521283108
     },
     {
-      "VariableName": "samplerAnisoBias",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 0
-      },
-      "Description": "Controls the value of the anisotropy bias for Sampler SRD's.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "SamplerAnisoBias",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Controls the value of the anisotropy bias for Sampler SRD's.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 4085812096,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerAnisoBias",
+      "HashName": 4085812096
     },
     {
-      "VariableName": "samplerSecAnisoBias",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 0
-      },
-      "Description": "Controls the value of the secondary anisotropy bias for Sampler SRD's.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "SamplerSecAnisoBias",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Controls the value of the secondary anisotropy bias for Sampler SRD's.",
       "Tags": [
         "Texture Filtering",
         "Gfx6"
       ],
-      "HashName": 2654965201,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "samplerSecAnisoBias",
+      "HashName": 2654965201
     },
     {
-      "VariableName": "fastColorClearEnable",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "If true, CMask will be used to support fast color clears on singlesampled Color Target Images.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "FastColorClearEnable",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "If true, CMask will be used to support fast color clears on singlesampled Color Target Images.",
       "Tags": [
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 1938040824,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "fastColorClearEnable",
+      "HashName": 1938040824
     },
     {
-      "VariableName": "fastColorClearOn3dEnable",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "If true, CMask will be used to support fast color clears on singlesampled 3D Color Target Images.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "FastColorClearOn3DEnable",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "If true, CMask will be used to support fast color clears on singlesampled 3D Color Target Images.",
       "Tags": [
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 655987862,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "fastColorClearOn3dEnable",
+      "HashName": 655987862
     },
     {
-      "VariableName": "fmaskCompressEnable",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "If false, the FMASK_COMPRESSION_DISABLE bit of CB_COLOR_INFO forColor-Target Views will be set. This field is valid on CI+ only",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "FmaskCompressEnable",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "If false, the FMASK_COMPRESSION_DISABLE bit of CB_COLOR_INFO forColor-Target Views will be set. This field is valid on CI+ only",
       "Tags": [
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 1936153062,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "fmaskCompressEnable",
+      "HashName": 1936153062
     },
     {
-      "VariableName": "blendOptimizationsEnable",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "If true, writes the BLEND_OPT_DONT_RD_DST and BLEND_OPT_DISCARD_PIXELbits of the CB_COLOR_INFO for Blend States.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "BlendOptimizationEnable",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "If true, writes the BLEND_OPT_DONT_RD_DST and BLEND_OPT_DISCARD_PIXELbits of the CB_COLOR_INFO for Blend States.",
       "Tags": [
         "Color Targets",
         "Gfx6"
       ],
-      "HashName": 3560979294,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "blendOptimizationsEnable",
+      "HashName": 3560979294
     },
     {
-      "VariableName": "htileEnable",
-      "Type": "bool",
-      "Defaults": {
-        "Default": true
-      },
-      "Description": "If true, HTile will be enabled for depth/stencil Images.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "HtileEnable",
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
+      "Description": "If true, HTile will be enabled for depth/stencil Images.",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2379988876,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "htileEnable",
+      "HashName": 2379988876
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DepthCompressEnable",
-      "VariableName": "depthCompressEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -928,21 +927,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
       "Description": "If true, depth compression will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3404166969,
-      "Defaults": {
-        "Default": true
-      }
+      "VariableName": "depthCompressEnable",
+      "HashName": 3404166969
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "StencilCompressEnable",
-      "VariableName": "stencilCompressEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -953,21 +952,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
       "Description": "If true, stencil compression will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3041432192,
-      "Defaults": {
-        "Default": true
-      }
+      "VariableName": "stencilCompressEnable",
+      "HashName": 3041432192
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "LinearHtileEnable",
-      "VariableName": "linearHtileEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -978,21 +977,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
       "Description": "If true, the Linear HTile optimization will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 3857035179,
-      "Defaults": {
-        "Default": false
-      }
+      "VariableName": "linearHtileEnable",
+      "HashName": 3857035179
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DbPreloadEnable",
-      "VariableName": "dbPreloadEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -1003,21 +1002,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
       "Description": "If true, DB preloading will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2946289999,
-      "Defaults": {
-        "Default": false
-      }
+      "VariableName": "dbPreloadEnable",
+      "HashName": 2946289999
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DbPreloadWinEnable",
-      "VariableName": "dbPreloadWinEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -1028,21 +1027,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
       "Description": "If true, DB preload window dimensions will be used instead of the depth buffer's dimensions.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 4030437501,
-      "Defaults": {
-        "Default": false
-      }
+      "VariableName": "dbPreloadWinEnable",
+      "HashName": 4030437501
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DbPerTileExpClearEnable",
-      "VariableName": "dbPerTileExpClearEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -1053,21 +1052,21 @@
           }
         ]
       },
-      "Description": "If true, per-tile tracking of exp/clear will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
-      "Tags": [
-        "Depth/Stencil",
-        "Gfx6"
-      ],
-      "HashName": 399713165,
       "Defaults": {
         "Default": false
-      }
+      },
+      "Type": "bool",
+      "Description": "If true, per-tile tracking of exp/clear will be enabled.",
+      "Tags": [
+        "Depth/Stencil",
+        "Gfx6"
+      ],
+      "VariableName": "dbPerTileExpClearEnable",
+      "HashName": 399713165
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "HiDepthEnable",
-      "VariableName": "hiDepthEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -1078,21 +1077,21 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
       "Description": "If true, hierarchical depth testing will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 950148604,
-      "Defaults": {
-        "Default": true
-      }
+      "VariableName": "hiDepthEnable",
+      "HashName": 950148604
     },
     {
+      "Scope": "PrivatePalGfx6Key",
       "Name": "HiStencilEnable",
-      "VariableName": "hiStencilEnable",
-      "Type": "bool",
       "DependsOn": {
         "Settings": [
           {
@@ -1103,589 +1102,590 @@
           }
         ]
       },
+      "Defaults": {
+        "Default": true
+      },
+      "Type": "bool",
       "Description": "If true, hierarchical stencil testing will be enabled.",
-      "Scope": "PrivatePalGfx6Key",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 37862373,
-      "Defaults": {
-        "Default": true
-      }
+      "VariableName": "hiStencilEnable",
+      "HashName": 37862373
     },
     {
-      "VariableName": "dbRequestSize",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 0
-      },
       "Flags": {
         "IsHex": true
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "256-bit request size.",
-            "Value": 0
-          },
-          {
-            "Description": "512-bit request size.",
-            "Value": 1
-          }
-        ]
-      },
-      "Description": "Specifies the DB read request size.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DbRequestSize",
+      "Defaults": {
+        "Default": 0
+      },
+      "Type": "uint32",
+      "Description": "Specifies the DB read request size.",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 2835145461,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dbRequestSize",
+      "ValidValues": {
+        "Values": [
+          {
+            "Value": 0,
+            "Description": "256-bit request size."
+          },
+          {
+            "Value": 1,
+            "Description": "512-bit request size."
+          }
+        ]
+      },
+      "HashName": 2835145461
     },
     {
-      "VariableName": "dbAddr5SwizzleMask",
-      "Type": "uint32",
+      "Flags": {
+        "IsHex": true
+      },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DbAddr5SwizzleMask",
       "Defaults": {
         "Default": 1
       },
-      "Flags": {
-        "IsHex": true
-      },
+      "Type": "uint32",
       "Description": "Controls the value of DB_DEPTH_INFO.ADDR5_SWIZZLE_MASK.",
-      "Name": "DbAddr5SwizzleMask",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 1221993759,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dbAddr5SwizzleMask",
+      "HashName": 1221993759
     },
     {
-      "VariableName": "dbDisableColorOnValidation",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "DbDisableColorOnValidation",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "Controls the DB_RENDER_OVERRIDE2.DISABLE_COLOR_ON_VALIDATION register field",
-      "Name": "DbDisableColorOnValidation",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 4057416918,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "dbDisableColorOnValidation",
+      "HashName": 4057416918
     },
     {
-      "VariableName": "enableSeparateAspectMetadataInit",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "EnableSeparateAspectMetadataInit",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "If true, HTile for depth and stencil aspects may be initialized separately",
-      "Name": "EnableSeparateAspectMetadataInit",
       "Tags": [
         "Depth/Stencil",
         "Gfx6"
       ],
-      "HashName": 250077184,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "enableSeparateAspectMetadataInit",
+      "HashName": 250077184
     },
     {
-      "VariableName": "gfx7VsPartialWaveWithEoiEnabled",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "VsPartialWaveWithEoiEnabled",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "If true, PARTIAL_VS_WAVE_ON will be set whenever SWITCH_ON_EOI is set.",
-      "Name": "VsPartialWaveWithEoiEnabled",
       "Tags": [
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 392471174,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx7VsPartialWaveWithEoiEnabled",
+      "HashName": 392471174
     },
     {
-      "VariableName": "gfx7OffchipLdsBufferSize",
-      "Type": "enum",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "OffchipLdsBufferSize",
       "Defaults": {
         "Default": "OffchipLdsBufferSize8192"
       },
+      "Type": "enum",
+      "Description": "Controls the size of each offchip LDS Buffer.",
+      "Tags": [
+        "Sea Islands",
+        "Gfx7"
+      ],
+      "VariableName": "gfx7OffchipLdsBufferSize",
       "ValidValues": {
+        "IsExclusive": true,
         "Name": "OffchipLdsBufferSize",
         "Values": [
           {
-            "Description": "8k DWORDs.",
             "Name": "OffchipLdsBufferSize8192",
-            "Value": 0
+            "Value": 0,
+            "Description": "8k DWORDs."
           },
           {
-            "Description": "4k DWORDs.",
             "Name": "OffchipLdsBufferSize4096",
-            "Value": 1
+            "Value": 1,
+            "Description": "4k DWORDs."
           },
           {
-            "Description": "2k DWORDs.",
             "Name": "OffchipLdsBufferSize2048",
-            "Value": 2
+            "Value": 2,
+            "Description": "2k DWORDs."
           },
           {
-            "Description": "1k DWORDs.",
             "Name": "OffchipLdsBufferSize1024",
-            "Value": 3
+            "Value": 3,
+            "Description": "1k DWORDs."
           }
-        ],
-        "IsExclusive": true
+        ]
       },
-      "Description": "Controls the size of each offchip LDS Buffer.",
-      "Name": "OffchipLdsBufferSize",
-      "Tags": [
-        "Sea Islands",
-        "Gfx7"
-      ],
-      "HashName": 4262839798,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 4262839798
     },
     {
-      "VariableName": "gfx7LateAllocVsOnCuAlwaysOn",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "LateAllocVsOnCuAlwaysOn",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "If true, SPI_SHADER_LATE_ALLOC_VS feature will be enabled on the AlwaysOn CUs basis.",
-      "Name": "LateAllocVsOnCuAlwaysOn",
       "Tags": [
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 1551275668,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx7LateAllocVsOnCuAlwaysOn",
+      "HashName": 1551275668
     },
     {
-      "VariableName": "gfx7EnableOutOfOrderPrimitives",
-      "Type": "enum",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "EnableOutOfOrderPrimitives",
       "Defaults": {
         "Default": "OutOfOrderPrimSafe"
       },
+      "Type": "enum",
+      "Description": "Enable out-of-order primitive mode. Only available Hawaii and VI parts that have more than one VGT. May cause a hang on Hawaii.",
+      "Tags": [
+        "Sea Islands",
+        "Gfx7"
+      ],
+      "VariableName": "gfx7EnableOutOfOrderPrimitives",
       "ValidValues": {
+        "IsExclusive": true,
         "Name": "OutOfOrderPrimMode",
         "Values": [
           {
-            "Description": "Always disable.",
             "Name": "OutOfOrderPrimDisable",
-            "Value": 0
+            "Value": 0,
+            "Description": "Always disable."
           },
           {
-            "Description": "Enable when known to not affect render output.",
             "Name": "OutOfOrderPrimSafe",
-            "Value": 1
+            "Value": 1,
+            "Description": "Enable when known to not affect render output."
           },
           {
-            "Description": "Enable when suspected to not affect render output.",
             "Name": "OutOfOrderPrimAggressive",
-            "Value": 2
+            "Value": 2,
+            "Description": "Enable when suspected to not affect render output."
           },
           {
-            "Description": "Always enable.",
             "Name": "OutOfOrderPrimAlways",
-            "Value": 3
+            "Value": 3,
+            "Description": "Always enable."
           }
-        ],
-        "IsExclusive": true
+        ]
       },
-      "Description": "Enable out-of-order primitive mode. Only available Hawaii and VI parts that have more than one VGT. May cause a hang on Hawaii.",
-      "Name": "EnableOutOfOrderPrimitives",
-      "Tags": [
-        "Sea Islands",
-        "Gfx7"
-      ],
-      "HashName": 4194624623,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 4194624623
     },
     {
-      "VariableName": "gfx7OutOfOrderWatermark",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "OutOfOrderWatermark",
       "Defaults": {
         "Default": 7
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Values are log(2) of the watermark.",
-            "Value": 7,
-            "LogicOp": "LessThanOrEqual"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "The watermark value for out-of-order primitives.",
-      "Name": "OutOfOrderWatermark",
       "Tags": [
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 2921949520,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx7OutOfOrderWatermark",
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Value": 7,
+            "Description": "Values are log(2) of the watermark."
+          }
+        ]
+      },
+      "HashName": 2921949520
     },
     {
-      "VariableName": "gfx7GsMaxLdsSize",
-      "Type": "uint32",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "GsMaxLdsSize",
       "Defaults": {
         "Default": 8192
       },
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "Must be 128 dword aligned.",
-            "Value": 128,
-            "LogicOp": "MultipleOf"
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Maximum amount of LDS space to alloc for each on-chip GS subgroup, in DWORDs. Must be 128 dword aligned. ",
-      "Name": "GsMaxLdsSize",
       "Tags": [
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 3033759533,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx7GsMaxLdsSize",
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "MultipleOf",
+            "Value": 128,
+            "Description": "Must be 128 dword aligned."
+          }
+        ]
+      },
+      "HashName": 3033759533
     },
     {
-      "VariableName": "gfx7EnableOnchipGs",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "EnableOnchipGs",
       "Defaults": {
         "Default": true
       },
-      "Description": "If true, onchip GS will be used if possible.",
-      "Name": "EnableOnchipGs",
-      "Tags": [
-        "Sea Islands",
-        "Gfx7"
-      ],
-      "HashName": 4034461831,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "gfx7GsOffChipThreshold",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 64
-      },
-      "Description": "If the number of GS prims per subgroup * GS instance count is less than this threshold use off-chip GS. ",
-      "Name": "GsOffChipThreshold",
-      "Tags": [
-        "Sea Islands",
-        "Gfx7"
-      ],
-      "HashName": 1659075697,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "gfx7IdealGsPrimsPerSubGroup",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 64
-      },
-      "Description": "Target number of GS prims per subgroup when running with on-chip GS. ",
-      "Name": "GsPrimsPerSubGroup",
-      "Tags": [
-        "Sea Islands",
-        "Gfx7"
-      ],
-      "HashName": 307437762,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "gfx7AvoidVgtNullPrims",
       "Type": "bool",
+      "Description": "If true, onchip GS will be used if possible.",
+      "Tags": [
+        "Sea Islands",
+        "Gfx7"
+      ],
+      "VariableName": "gfx7EnableOnchipGs",
+      "HashName": 4034461831
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "GsOffChipThreshold",
+      "Defaults": {
+        "Default": 64
+      },
+      "Type": "uint32",
+      "Description": "If the number of GS prims per subgroup * GS instance count is less than this threshold use off-chip GS. ",
+      "Tags": [
+        "Sea Islands",
+        "Gfx7"
+      ],
+      "VariableName": "gfx7GsOffChipThreshold",
+      "HashName": 1659075697
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "GsPrimsPerSubGroup",
+      "Defaults": {
+        "Default": 64
+      },
+      "Type": "uint32",
+      "Description": "Target number of GS prims per subgroup when running with on-chip GS. ",
+      "Tags": [
+        "Sea Islands",
+        "Gfx7"
+      ],
+      "VariableName": "gfx7IdealGsPrimsPerSubGroup",
+      "HashName": 307437762
+    },
+    {
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "AvoidVgtNullPrims",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Description": "If true, 4x prim rate will be disabled whenever a draw could cause any VGT to issue nullprimitives. In some cases, issuing null primitives can cause a performance drop greaterthan the performance gain of 4x prim rate. This cannot be enabled on ASICs that do notsupport 4x prim rate.",
-      "Name": "AvoidVgtNullPrims",
       "Tags": [
         "Sea Islands",
         "Gfx7"
       ],
-      "HashName": 1901956459,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx7AvoidVgtNullPrims",
+      "HashName": 1901956459
     },
     {
-      "VariableName": "gfx8PatchDistributionFactor",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 8
-      },
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "PatchDistributionFactor",
+      "Defaults": {
+        "Default": 8
+      },
+      "Type": "uint32",
+      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3445840960,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8PatchDistributionFactor",
+      "HashName": 3445840960
     },
     {
-      "VariableName": "gfx8DonutDistributionFactor",
-      "Type": "uint32",
-      "Defaults": {
-        "Default": 8
-      },
-      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "DonutDistributionFactor",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "HashName": 891881186,
-      "Scope": "PrivatePalGfx6Key"
-    },
-    {
-      "VariableName": "gfx8TrapezoidDistributionFactor",
-      "Type": "uint32",
       "Defaults": {
         "Default": 8
       },
-      "Description": "Used by the hardware when distributed tessellation is in TRAPEZOID mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.  Note: The Trapezoid is supported by only a few ASICs in gfxip-8+.",
-      "Name": "TrapezoidDistributionFactor",
+      "Type": "uint32",
+      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 674984646,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8DonutDistributionFactor",
+      "HashName": 891881186
     },
     {
-      "VariableName": "gfx8UseDcc",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "TrapezoidDistributionFactor",
+      "Defaults": {
+        "Default": 8
+      },
       "Type": "uint32",
+      "Description": "Used by the hardware when distributed tessellation is in TRAPEZOID mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.  Note: The Trapezoid is supported by only a few ASICs in gfxip-8+.",
+      "Tags": [
+        "Volcanic Islands",
+        "Gfx8"
+      ],
+      "VariableName": "gfx8TrapezoidDistributionFactor",
+      "HashName": 674984646
+    },
+    {
       "Defaults": {
         "Default": 243
       },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "UseDcc",
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
       },
-      "ValidValues": {
-        "Name": "Gfx8UseDcc",
-        "IsEnum": true,
-        "Values": [
-          {
-            "Description": "Single sample render targets.",
-            "Name": "Gfx8UseDccSingleSample",
-            "Value": 1
-          },
-          {
-            "Description": "SRGB numeric format images.",
-            "Name": "Gfx8UseDccSrgb",
-            "Value": 2
-          },
-          {
-            "Description": "Non-TC compatible shader read.",
-            "Name": "Gfx8UseDccNonTcCompatShaderRead",
-            "Value": 4
-          },
-          {
-            "Description": "Partially resident textures.",
-            "Name": "Gfx8UseDccPrt",
-            "Value": 8
-          },
-          {
-            "Description": "2x multisample render targets.",
-            "Name": "Gfx8UseDccMultiSample2x",
-            "Value": 16
-          },
-          {
-            "Description": "4x multisample render targets.",
-            "Name": "Gfx8UseDccMultiSample4x",
-            "Value": 32
-          },
-          {
-            "Description": "8x multisample render targets.",
-            "Name": "Gfx8UseDccMultiSample8x",
-            "Value": 64
-          },
-          {
-            "Description": "EQAA render targets.",
-            "Name": "Gfx8UseDccEqaa",
-            "Value": 128
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Bitmask of cases where DCC (delta color compression) surfaces will be used.",
-      "Name": "UseDcc",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 4029518654,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8UseDcc",
+      "ValidValues": {
+        "Name": "Gfx8UseDcc",
+        "Values": [
+          {
+            "Name": "Gfx8UseDccSingleSample",
+            "Value": 1,
+            "Description": "Single sample render targets."
+          },
+          {
+            "Name": "Gfx8UseDccSrgb",
+            "Value": 2,
+            "Description": "SRGB numeric format images."
+          },
+          {
+            "Name": "Gfx8UseDccNonTcCompatShaderRead",
+            "Value": 4,
+            "Description": "Non-TC compatible shader read."
+          },
+          {
+            "Name": "Gfx8UseDccPrt",
+            "Value": 8,
+            "Description": "Partially resident textures."
+          },
+          {
+            "Name": "Gfx8UseDccMultiSample2x",
+            "Value": 16,
+            "Description": "2x multisample render targets."
+          },
+          {
+            "Name": "Gfx8UseDccMultiSample4x",
+            "Value": 32,
+            "Description": "4x multisample render targets."
+          },
+          {
+            "Name": "Gfx8UseDccMultiSample8x",
+            "Value": 64,
+            "Description": "8x multisample render targets."
+          },
+          {
+            "Name": "Gfx8UseDccEqaa",
+            "Value": 128,
+            "Description": "EQAA render targets."
+          }
+        ],
+        "IsEnum": true
+      },
+      "HashName": 4029518654
     },
     {
-      "VariableName": "gfx8AlwaysDecompress",
-      "Type": "uint32",
       "Defaults": {
         "Default": 0
       },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "AlwaysDecompress",
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
       },
+      "Type": "uint32",
+      "Description": "Controls whether the specified decompress / expand / eliminate operations willalways occur when requested.",
+      "Tags": [
+        "Volcanic Islands",
+        "Gfx8"
+      ],
+      "VariableName": "gfx8AlwaysDecompress",
       "ValidValues": {
         "Name": "DecompressMask",
         "Values": [
           {
-            "Description": "DCC decompress.",
             "Name": "DecompressDcc",
-            "Value": 1
+            "Value": 1,
+            "Description": "DCC decompress."
           },
           {
-            "Description": "Depth expand.",
             "Name": "DecompressHtile",
-            "Value": 2
+            "Value": 2,
+            "Description": "Depth expand."
           },
           {
-            "Description": "FMask decompress.",
             "Name": "DecompressFmask",
-            "Value": 4
+            "Value": 4,
+            "Description": "FMask decompress."
           },
           {
-            "Description": "Fast clear eliminate.",
             "Name": "DecompressFastClear",
-            "Value": 8
+            "Value": 8,
+            "Description": "Fast clear eliminate."
           }
         ]
       },
-      "Description": "Controls whether the specified decompress / expand / eliminate operations willalways occur when requested.",
-      "Name": "AlwaysDecompress",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "HashName": 2887583419,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 2887583419
     },
     {
-      "VariableName": "gfx8RbPlusEnable",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "RbPlusEnable",
       "Defaults": {
         "Default": true
       },
+      "Type": "bool",
       "Description": "If true, RbPlus will be enabled for ASIC of RbPlus capability.",
-      "Name": "RbPlusEnable",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 2122164302,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8RbPlusEnable",
+      "HashName": 2122164302
     },
     {
-      "VariableName": "gfx8FastClearAllTcCompatColorSurfs",
-      "Type": "uint32",
       "Defaults": {
         "Default": 3
       },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "FastClearAllTcCompatColorSurfs",
       "Flags": {
         "IsBitmask": true
       },
-      "ValidValues": {
-        "Name": "Gfx8FastClearTcCompatSurfs",
-        "IsEnum": true,
-        "Values": [
-          {
-            "Description": "Non-standard clear colors will use graphics engine.",
-            "Name": "Gfx8FastClearAllTcCompatColorSurfsNever",
-            "Value": 0
-          },
-          {
-            "Description": "Non-AA images will always use fast clears.",
-            "Name": "Gfx8FastClearAllTcCompatColorSurfsNoAa",
-            "Value": 1
-          },
-          {
-            "Description": "MSAA images will always use fast clears.",
-            "Name": "Gfx8FastClearAllTcCompatColorSurfsMsaa",
-            "Value": 2
-          }
-        ]
-      },
+      "Type": "uint32",
       "Description": "Bitfield to enable fast clears for all TC compatible color surfaces regardlessof the clear color.",
-      "Name": "FastClearAllTcCompatColorSurfs",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3864495440,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8FastClearAllTcCompatColorSurfs",
+      "ValidValues": {
+        "Name": "Gfx8FastClearTcCompatSurfs",
+        "Values": [
+          {
+            "Name": "Gfx8FastClearAllTcCompatColorSurfsNever",
+            "Value": 0,
+            "Description": "Non-standard clear colors will use graphics engine."
+          },
+          {
+            "Name": "Gfx8FastClearAllTcCompatColorSurfsNoAa",
+            "Value": 1,
+            "Description": "Non-AA images will always use fast clears."
+          },
+          {
+            "Name": "Gfx8FastClearAllTcCompatColorSurfsMsaa",
+            "Value": 2,
+            "Description": "MSAA images will always use fast clears."
+          }
+        ],
+        "IsEnum": true
+      },
+      "HashName": 3864495440
     },
     {
-      "VariableName": "gfx8CheckMetaDataFetchFromStartMip",
-      "Type": "uint32",
       "Defaults": {
         "Default": 3
       },
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "CheckMetaDataFetchFromStartMip",
       "Flags": {
         "IsBitmask": true,
         "IsHex": true
       },
+      "Type": "uint32",
+      "Description": "Image view srd selects zero-th mip address of both surface and meta data as base address. It is possible that meta data of zero-th mip has not been initialized if perSubResInit=1. It is generally correct but when mip interleave exists, child mips might be non-tc-compatible and just fetching 'expanded' meta data value interleaved in zero-th mip (since we were deciding whether meta data fetch shall be enabled based on zero-th mip), but meta data values in zero-th mip not yet intialized. So we decide whether meta data fetch should be enabled based on start mip in view range rather than zero-th mip. If start mip is tc-compatible, it's safe for non-tc-compatible child mips to fetch 'expanded' meta data value interleaved in meta data of start mip, since start mip must be in valid shader read state thus meta data already intialized.Bitmask of cases whether meta data fetch shall be enabled based on start mip rather than zero-th mip.",
+      "Tags": [
+        "Volcanic Islands",
+        "Gfx8"
+      ],
+      "VariableName": "gfx8CheckMetaDataFetchFromStartMip",
       "ValidValues": {
         "Name": "Gfx8CheckMetaDataFetchFromStartMip",
-        "IsEnum": true,
         "Values": [
           {
-            "Description": "Depth-stencil target.",
             "Name": "Gfx8CheckMetaDataFetchFromStartMipDepthStencil",
-            "Value": 1
+            "Value": 1,
+            "Description": "Depth-stencil target."
           },
           {
-            "Description": "Color target.",
             "Name": "Gfx8CheckMetaDataFetchFromStartMipColorTarget",
-            "Value": 2
+            "Value": 2,
+            "Description": "Color target."
           }
-        ]
+        ],
+        "IsEnum": true
       },
-      "Description": "Image view srd selects zero-th mip address of both surface and meta data as base address. It is possible that meta data of zero-th mip has not been initialized if perSubResInit=1. It is generally correct but when mip interleave exists, child mips might be non-tc-compatible and just fetching 'expanded' meta data value interleaved in zero-th mip (since we were deciding whether meta data fetch shall be enabled based on zero-th mip), but meta data values in zero-th mip not yet intialized. So we decide whether meta data fetch should be enabled based on start mip in view range rather than zero-th mip. If start mip is tc-compatible, it's safe for non-tc-compatible child mips to fetch 'expanded' meta data value interleaved in meta data of start mip, since start mip must be in valid shader read state thus meta data already intialized.Bitmask of cases whether meta data fetch shall be enabled based on start mip rather than zero-th mip.",
-      "Name": "CheckMetaDataFetchFromStartMip",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "HashName": 999816292,
-      "Scope": "PrivatePalGfx6Key"
+      "HashName": 999816292
     },
     {
-      "VariableName": "gfx8IgnoreMipInterleave",
-      "Type": "bool",
-      "Defaults": {
-        "Default": false
-      },
-      "Description": "For tc-compatible mip chian, when mip interleave exists on gfx8, the first affected mip is allowed to be tc-compatible but memset fast clear is not allowed, while following child mips will be non-tc-compatible. When tc reads across mipLevels, by imageViewSrd combined of startSubRes+mipLevels (in veiw range), only one pair of COMPRESSION_EN__VI/META_DATA_ADDRESS__VI could be set, thus all the mip chain might be regarded as tc-compatible with respect to the start mip, as a result, the non-tc-compatible child mipLevels will reference htile interleaved in the start mip (although interleaved htile reserved for child mip will always be in expanded value). Once mipInterleave detected, we will pad htile size of all child mips into htile of first affected mip, since tc reading following child mip might reference interleaved htile in the first affected mip . We still allocate additional non-tc-compatible htile for each following child mipLevel for compressed db access on itself.  If true, mip interleave will be ignored and no padding of child mip htile will be inserted into the fisrt affectd mip .",
+      "Scope": "PrivatePalGfx6Key",
       "Name": "IgnoreMipInterleave",
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "For tc-compatible mip chian, when mip interleave exists on gfx8, the first affected mip is allowed to be tc-compatible but memset fast clear is not allowed, while following child mips will be non-tc-compatible. When tc reads across mipLevels, by imageViewSrd combined of startSubRes+mipLevels (in veiw range), only one pair of COMPRESSION_EN__VI/META_DATA_ADDRESS__VI could be set, thus all the mip chain might be regarded as tc-compatible with respect to the start mip, as a result, the non-tc-compatible child mipLevels will reference htile interleaved in the start mip (although interleaved htile reserved for child mip will always be in expanded value). Once mipInterleave detected, we will pad htile size of all child mips into htile of first affected mip, since tc reading following child mip might reference interleaved htile in the first affected mip . We still allocate additional non-tc-compatible htile for each following child mipLevel for compressed db access on itself.  If true, mip interleave will be ignored and no padding of child mip htile will be inserted into the fisrt affectd mip .",
       "Tags": [
         "Volcanic Islands",
         "Gfx8"
       ],
-      "HashName": 3804096310,
-      "Scope": "PrivatePalGfx6Key"
+      "VariableName": "gfx8IgnoreMipInterleave",
+      "HashName": 3804096310
     },
     {
-      "VariableName": "waMiscGsNullPrim",
-      "Type": "bool",
+      "Scope": "PrivatePalGfx6Key",
+      "Name": "WaMiscGsNullPrim",
       "Defaults": {
         "Default": false
       },
+      "Type": "bool",
       "Flags": {
         "RereadSetting": true
       },
-      "Description": "Used to force the GS Null Primitive workaround on or off. By default, the driver decides based on Chip ID.",
-      "Name": "WaMiscGsNullPrim",
       "Tags": [
         "Hardware Workarounds"
       ],
-      "HashName": 203570314,
-      "Scope": "PrivatePalGfx6Key"
+      "Description": "Used to force the GS Null Primitive workaround on or off. By default, the driver decides based on Chip ID.",
+      "VariableName": "waMiscGsNullPrim",
+      "HashName": 203570314
     }
   ]
 }

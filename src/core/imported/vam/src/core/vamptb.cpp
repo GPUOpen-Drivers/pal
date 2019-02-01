@@ -330,15 +330,11 @@ VAM_RETURNCODE PtbManager::AssignPtb(
             if (GetPtb(idx) == NULL)
             {
                 // No active PTB at this index, allocate one
-                hPtbAlloc = m_pVamDevice->AllocPTB(idx * m_ptbMappedSize + m_baseAddr);
+                hPtbAlloc = m_pVamDevice->AllocPTB(idx * m_ptbMappedSize + m_baseAddr, &ret);
 
                 if (hPtbAlloc != NULL)
                 {
                     ret = SetPtb(idx, hPtbAlloc);
-                }
-                else
-                {
-                    ret = VAM_PTBALLOCFAILED;
                 }
 
                 // Error found, terminate immediately

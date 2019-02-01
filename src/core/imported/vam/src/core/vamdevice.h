@@ -77,7 +77,8 @@ public:
         VAM_VA_SIZE                     requestedSectionSizeInBytes,
         VAM_CLIENT_OBJECT               clientObject,
         VAM_CREATESECTION_FLAGS         flags,
-        VAM_VIRTUAL_ADDRESS             sectionAddress);
+        VAM_VIRTUAL_ADDRESS             sectionAddress,
+        VAM_RETURNCODE* const           pRetCode);
 
     VAM_RETURNCODE DestroySection(
         VAM_SECTION_HANDLE              hSection);
@@ -150,7 +151,8 @@ public:
         VAM_VA_SIZE                     sectionSize,
         VAM_CLIENT_OBJECT               clientObject,
         VAM_CREATESECTION_FLAGS         flags,
-        VAM_VIRTUAL_ADDRESS             sectionAddress);
+        VAM_VIRTUAL_ADDRESS             sectionAddress,
+        VAM_RETURNCODE* const           pRetCode);
 
     VAM_RETURNCODE FreeSection(
         VamSection*                     pSection,
@@ -176,7 +178,8 @@ public:
         VOID*                           pVirtAddr);
 
     VAM_PTB_HANDLE AllocPTB(
-        VAM_VIRTUAL_ADDRESS             PTBBaseAddr);
+        VAM_VIRTUAL_ADDRESS             PTBBaseAddr,
+        VAM_RETURNCODE* const           pRetCode);
 
     VAM_RETURNCODE FreePTB(
         VAM_CLIENT_HANDLE               hPTBAlloc);

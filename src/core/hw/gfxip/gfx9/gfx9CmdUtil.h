@@ -456,7 +456,6 @@ public:
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
-        uint32               maxRangeCount,
         Pm4ShaderType        shaderType,
         void*                pBuffer) const;
     size_t BuildLoadShRegs(
@@ -482,7 +481,6 @@ public:
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
-        uint32               maxRangeCount,
         void*                pBuffer) const;
 
     size_t BuildNop(size_t numDwords, void* pBuffer) const;

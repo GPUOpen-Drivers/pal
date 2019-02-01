@@ -659,14 +659,37 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
     }
 
-    pCmdSpace = cmdStream.WritePm4Image(m_stateShadowPreamble.spaceNeeded,
-                                        &m_stateShadowPreamble,
-                                        pCmdSpace);
+    pCmdSpace += cmdUtil.BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
+    pCmdSpace += cmdUtil.BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
+
+    if (m_useShadowing)
+    {
+        const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
+        const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
+        const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
+
+        uint32      numEntries = 0;
+        const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+
+        pRegRange  = m_pDevice->GetRegisterRange(RegRangeContext, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadContextRegs(contextRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+
+        pRegRange  = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+
+        pRegRange  = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+    }
 
     cmdStream.CommitCommands(pCmdSpace);
 
     if (initShadowMemory)
     {
+        const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
+        const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
+        const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
+
         pCmdSpace = cmdStream.ReserveCommands();
 
         // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
@@ -684,34 +707,15 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
         // might contain invalid value. We don't need to load context register again because in the
         // InitializeContextRegisters() we will set the contexts that we can load.
-        gpusize     gpuVirtAddr        = m_shadowGpuMem.GpuVirtAddr();
-        uint32      numEntries         = 0;
-        const auto* pRegRange          = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
-                                                     pRegRange,
-                                                     numEntries,
-                                                     MaxNumUserConfigRanges,
-                                                     pCmdSpace);
-        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
-
-        gpuVirtAddr += (sizeof(uint32) * CntxRegCount);
+        uint32      numEntries = 0;
+        const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+        pCmdSpace += cmdUtil.BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
         pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                             pRegRange,
-                                             numEntries,
-                                             MaxNumShRanges,
-                                             ShaderGraphics,
-                                             pCmdSpace);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
 
         pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        pCmdSpace += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                             pRegRange,
-                                             numEntries,
-                                             MaxNumCsShRanges,
-                                             ShaderCompute,
-                                             pCmdSpace);
-        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
+        pCmdSpace += cmdUtil.BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
 
         cmdStream.CommitCommands(pCmdSpace);
 
@@ -722,7 +726,7 @@ void UniversalQueueContext::BuildPerSubmitCommandStream(
         {
             InitializeContextRegistersGfx9(&cmdStream, 0, nullptr, nullptr);
         }
-    }
+    } // if initShadowMemory
 }
 
 // =====================================================================================================================
@@ -1016,56 +1020,9 @@ void UniversalQueueContext::RebuildCommandStreams()
 // Assembles the universal-only specific PM4 headers for the queue context preamble.
 void UniversalQueueContext::BuildUniversalPreambleHeaders()
 {
-    memset(&m_universalPreamble,   0, sizeof(m_universalPreamble));
-    memset(&m_stateShadowPreamble, 0, sizeof(m_stateShadowPreamble));
+    memset(&m_universalPreamble, 0, sizeof(m_universalPreamble));
 
-    const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
-
-    PM4PFP_CONTEXT_CONTROL contextControl = m_pDevice->GetContextControl();
-
-    if (m_useShadowing)
-    {
-        gpusize gpuVirtAddr = m_shadowGpuMem.GpuVirtAddr();
-
-        uint32       numEntries = 0;
-        const auto*  pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadUserConfigRegs(gpuVirtAddr,
-                                                                             pRegRange,
-                                                                             numEntries,
-                                                                             MaxNumUserConfigRanges,
-                                                                             &m_stateShadowPreamble.loadUserCfgRegs);
-        gpuVirtAddr += (sizeof(uint32) * UserConfigRegCount);
-
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeContext, &numEntries);
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadContextRegs(gpuVirtAddr,
-                                                                          pRegRange,
-                                                                          numEntries,
-                                                                          &m_stateShadowPreamble.loadContextRegs);
-        gpuVirtAddr += (sizeof(uint32) * CntxRegCount);
-
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                                                     pRegRange,
-                                                                     numEntries,
-                                                                     MaxNumShRanges,
-                                                                     ShaderGraphics,
-                                                                     &m_stateShadowPreamble.loadShRegsGfx);
-
-        pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-        m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildLoadShRegs(gpuVirtAddr,
-                                                                     pRegRange,
-                                                                     numEntries,
-                                                                     MaxNumCsShRanges,
-                                                                     ShaderCompute,
-                                                                     &m_stateShadowPreamble.loadShRegsCs);
-        gpuVirtAddr += (sizeof(uint32) * ShRegCount);
-    }
-
-    m_stateShadowPreamble.spaceNeeded +=
-        cmdUtil.BuildContextControl(contextControl, &m_stateShadowPreamble.contextControl);
-
-    m_stateShadowPreamble.spaceNeeded += cmdUtil.BuildClearState(cmd__pfp_clear_state__clear_state,
-                                                                 &m_stateShadowPreamble.clearState);
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     m_universalPreamble.spaceNeeded += (sizeof(GdsRangeCompute) / sizeof(uint32));
 

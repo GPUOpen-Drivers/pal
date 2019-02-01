@@ -661,12 +661,9 @@ void Queue::OutputTraceDataToFile(
         {
             // Output trace data in thread trace viewer format.
             // Output separate files for thread trace data (.out) and spm trace data (.csv) for ThreadTraceViewer.
-            void*  pResult     = nullptr;
-            void*  pResultBase = nullptr;
-            size_t dataSize    = 0;
-            Result result      = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
-                                                                 &dataSize,
-                                                                 pResult);
+            void*  pResult  = nullptr;
+            size_t dataSize = 0;
+            Result result   = logItem.pGpaSession->GetResults(logItem.gpaSampleId, &dataSize, pResult);
             PAL_ASSERT(dataSize != 0);
 
             if (result == Result::Success)
@@ -675,10 +672,6 @@ void Queue::OutputTraceDataToFile(
                 if (pResult == nullptr)
                 {
                     result = Result::ErrorOutOfMemory;
-                }
-                else
-                {
-                    pResultBase = pResult;
                 }
             }
 
@@ -689,54 +682,42 @@ void Queue::OutputTraceDataToFile(
                                                                  pResult);
             }
 
-            // Below crack open the .rgp blob in the GpuProfiler to translate it to ThreadTraceView format
+            // Below crack open the .rgp blob in the GpuProfiler to translate it to ThreadTraceView format. We assume
+            // SQTT data comes before SPM data.
             if (result == Result::Success)
             {
-                // Mandatory chunks: The following chunks are expected to be in the rgp file whether or not thread
-                // trace is enabled.
-                SqttFileHeader* pFileHeader = static_cast<SqttFileHeader*>(pResult);
-                pResult = Util::VoidPtrInc(pResult, pFileHeader->chunkOffset);
-
-                SqttFileChunkCpuInfo* pCpuInfo = static_cast<SqttFileChunkCpuInfo*>(pResult);
-                pResult = Util::VoidPtrInc(pResult, pCpuInfo->header.sizeInBytes);
-
-                SqttFileChunkAsicInfo* pGpuInfo = static_cast<SqttFileChunkAsicInfo*>(pResult);
-                pResult = Util::VoidPtrInc(pResult, pGpuInfo->header.sizeInBytes);
-
-                SqttFileChunkApiInfo* pApiInfo = static_cast<SqttFileChunkApiInfo*>(pResult);
-                pResult = Util::VoidPtrInc(pResult, pApiInfo->header.sizeInBytes);
-
                 if (m_pDevice->IsThreadTraceEnabled())
                 {
-                    // Optional chunks: The following chunks are expected to be in the RGP file only if thread trace
-                    // is enabled.
-                    SqttFileChunkSqttDesc* pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
-                    while (pDesc->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DESC)
-                    {
-                        pResult = Util::VoidPtrInc(pResult, pDesc->header.sizeInBytes);
+                    // Find the first SQTT_DESC chunk, stopping if we reach the end before finding any.
+                    size_t      offset = sizeof(SqttFileHeader);
+                    const auto* pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
 
-                        SqttFileChunkSqttData* pData = static_cast<SqttFileChunkSqttData*>(pResult);
-                        pResult = Util::VoidPtrInc(pResult, sizeof(*pData));
+                    while ((offset < dataSize) && (pChunk->chunkIdentifier.chunkType != SQTT_FILE_CHUNK_TYPE_SQTT_DESC))
+                    {
+                        offset += pChunk->sizeInBytes;
+                        pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
+                    }
+
+                    // Process all SQTT chunks. These come in pairs of SQTT_DESC and SQTT_DATA chunks.
+                    const auto* pDesc = static_cast<const SqttFileChunkSqttDesc*>(VoidPtrInc(pResult, offset));
+
+                    while ((offset < dataSize) &&
+                           (pDesc->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DESC))
+                    {
+                        offset += pDesc->header.sizeInBytes;
+                        const auto* pData = static_cast<const SqttFileChunkSqttData*>(VoidPtrInc(pResult, offset));
+                        PAL_ASSERT(pData->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DATA);
 
                         File logFile;
                         const uint32 shaderEngine = pDesc->shaderEngineIndex;
                         const uint32 computeUnit = pDesc->v1.computeUnitIndex;
 
                         OpenSqttFile(shaderEngine, computeUnit, m_curLogSqttIdx, &logFile, logItem);
-                        logFile.Write(pResult, pData->size);
+                        logFile.Write(VoidPtrInc(pResult, pData->offset), pData->size);
                         logFile.Close();
 
-                        pResult = Util::VoidPtrInc(pResult, pData->size);
-                        pDesc = static_cast<SqttFileChunkSqttDesc*>(pResult);
-                    }
-
-                    // Skip the shader ISA db chunk if present. Thread trace viewer doesn't need this info.
-                    SqttFileChunkIsaDatabase* pShaderDb = static_cast<SqttFileChunkIsaDatabase*>(pResult);
-                    pResult = Util::VoidPtrInc(pResult, sizeof(SqttFileChunkIsaDatabase));
-
-                    if (pShaderDb->recordCount > 0)
-                    {
-                        pResult = Util::VoidPtrInc(pResult, (pShaderDb->size - sizeof(SqttFileChunkIsaDatabase)));
+                        offset += pData->header.sizeInBytes;
+                        pDesc = static_cast<const SqttFileChunkSqttDesc*>(VoidPtrInc(pResult, offset));
                     }
 
                     m_logFile.Printf("%u,", m_curLogSqttIdx++);
@@ -748,7 +729,6 @@ void Queue::OutputTraceDataToFile(
                     File spmFile;
                     OpenSpmFile(&spmFile, logItem);
 
-                    SqttFileChunkSpmDb* pSpmDbChunk = static_cast<SqttFileChunkSpmDb*>(pResult);
                     spmFile.Printf("Time,");
 
                     // ThreadTraceViewer output: print the first line consisting of the counter names.
@@ -758,66 +738,69 @@ void Queue::OutputTraceDataToFile(
                         spmFile.Printf("%s,", &counter.name[0]);
                     }
 
-                    uint64* pTimestamp = static_cast<uint64*>(Util::VoidPtrInc(pResult, sizeof(SqttFileChunkSpmDb)));
+                    // Find the first SPM_DB chunk, stopping if we reach the end before finding any.
+                    size_t      offset = sizeof(SqttFileHeader);
+                    const auto* pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
 
-                    const uint64 counterInfoOffset = sizeof(SqttFileChunkSpmDb) +
-                                                     (pSpmDbChunk->numTimestamps * sizeof(gpusize)); // num timestmaps
-
-                    const uint64 counterDataOffset = counterInfoOffset +
-                                    (pSpmDbChunk->numSpmCounterInfo * sizeof(SpmCounterInfo)); // num SpmCounterInfo(s)
-
-                    // Amount of data for one counter.
-                    const gpusize counterDataSize = pSpmDbChunk->numTimestamps * sizeof(uint16);
-
-                    // Points to the first SpmCounterInfo.
-                    SpmCounterInfo* pCounterInfoStart =
-                        static_cast<SpmCounterInfo*>(Util::VoidPtrInc(pResult, static_cast<size_t>(counterInfoOffset)));
-
-                    SpmCounterInfo* pCounterInfo = nullptr; // Used to iterate over SpmCounterInfo[]
-                    const uint16* pCounterData   = nullptr; // Used to iterate over counter data values.
-
-                    // ThreadTraceViewer output: print the frame number
-                    uint32 cbStartTime = 0;
-                    uint32 cbEndTime = 1;
-                    spmFile.Printf("\nframe%u_cb%u,%u,%u\n", m_curLogFrame, m_curLogCmdBufIdx, cbStartTime, cbEndTime);
-
-                    gpusize firstTimestamp = pTimestamp[0];
-
-                    // Note: ThreadTraceViewer crashes (1) On providing the actual timestamps which is a 64 bit number,
-                    // (2) If the first timestamp is 0, hence we are skipping the first timestamp and data!
-                    // (3) potentially if the timestamp interval is too small.
-                    for (uint32 sample = 1; sample < pSpmDbChunk->numTimestamps; ++sample)
+                    while ((offset < dataSize) && (pChunk->chunkIdentifier.chunkType != SQTT_FILE_CHUNK_TYPE_SPM_DB))
                     {
-                        // ThreadTraceViewer output: print the timestamp.
-                        spmFile.Printf("%u,", (pTimestamp[sample] - firstTimestamp));
-
-                        pCounterInfo = pCounterInfoStart;
-
-                        uint32 counterIdx = 0;
-                        for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); i++)
-                        {
-                            const auto& counter = m_pDevice->StreamingPerfCounters()[i];
-                            uint32 sumAll = 0;
-                            for (uint32 j = 0; j < counter.instanceCount; j++)
-                            {
-                                pCounterData =
-                                    static_cast<uint16*>(Util::VoidPtrInc(
-                                        pResult,
-                                        pCounterInfo[counterIdx++].dataOffset));
-                                sumAll += pCounterData[sample];
-                            }
-                            spmFile.Printf("%u,", sumAll);
-                        }
-                        PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
-                        spmFile.Printf("\n");
+                        offset += pChunk->sizeInBytes;
+                        pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
                     }
 
-                    spmFile.Close();
-                }
+                    const auto* pSpmDbChunk = static_cast<const SqttFileChunkSpmDb*>(VoidPtrInc(pResult, offset));
 
+                    if ((offset < dataSize) &&
+                        (pSpmDbChunk->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SPM_DB))
+                    {
+                        // Extract the SPM DB data arrays.
+                        offset += sizeof(*pSpmDbChunk);
+
+                        const size_t offsetToData = offset;
+
+                        const auto* pTimestamp = static_cast<const gpusize*>(VoidPtrInc(pResult, offset));
+                        offset += pSpmDbChunk->numTimestamps * sizeof(*pTimestamp);
+
+                        const auto* pCounterInfo = static_cast<const SpmCounterInfo*>(VoidPtrInc(pResult, offset));
+                        offset += pSpmDbChunk->numSpmCounterInfo * sizeof(*pCounterInfo);
+
+                        // ThreadTraceViewer output: print the frame number
+                        uint32 cbStartTime = 0;
+                        uint32 cbEndTime   = 1;
+                        spmFile.Printf("\nframe%u_cb%u,%u,%u\n",
+                                       m_curLogFrame, m_curLogCmdBufIdx, cbStartTime, cbEndTime);
+
+                        const gpusize firstTimestamp = pTimestamp[0];
+
+                        // Note: ThreadTraceViewer crashes (1) On providing the actual timestamps which is a 64 bit number,
+                        // (2) If the first timestamp is 0, hence we are skipping the first timestamp and data!
+                        // (3) potentially if the timestamp interval is too small.
+                        for (uint32 sample = 1; sample < pSpmDbChunk->numTimestamps; ++sample)
+                        {
+                            // ThreadTraceViewer output: print the timestamp.
+                            spmFile.Printf("%u,", (pTimestamp[sample] - firstTimestamp));
+
+                            uint32 counterIdx = 0;
+                            for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); i++)
+                            {
+                                uint32 sumAll = 0;
+                                for (uint32 j = 0; j < m_pDevice->StreamingPerfCounters()[i].instanceCount; j++)
+                                {
+                                    const size_t offsetToCntr = offsetToData + pCounterInfo[counterIdx++].dataOffset;
+                                    const auto*  pData = static_cast<const uint16*>(VoidPtrInc(pResult, offsetToCntr));
+                                    sumAll += pData[sample];
+                                }
+                                spmFile.Printf("%u,", sumAll);
+                            }
+
+                            PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
+                            spmFile.Printf("\n");
+                        }
+                    }
+                }
             }
 
-            PAL_SAFE_FREE(pResultBase, m_pDevice->GetPlatform());
+            PAL_SAFE_FREE(pResult, m_pDevice->GetPlatform());
         }
     }
     else if (logItem.errors.perfExpOutOfMemory != 0)

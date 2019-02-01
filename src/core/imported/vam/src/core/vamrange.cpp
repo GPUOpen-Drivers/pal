@@ -236,6 +236,10 @@ VAM_RETURNCODE VamVARange::AllocateVASpaceWithAddress(
                         allocation.size     = adjustedSize;
                         ret = VAM_OK;
                     }
+                    else
+                    {
+                        ret = VAM_OUTOFMEMORY;
+                    }
                 }
                 else
                 {

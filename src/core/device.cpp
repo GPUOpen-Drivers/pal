@@ -2015,6 +2015,11 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.tcpSizeInBytes         = m_chipProperties.gfxip.tcpSizeInBytes;
         pInfo->gfxipProperties.shaderCore.maxLateAllocVsLimit    = m_chipProperties.gfxip.maxLateAllocVsLimit;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+        pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
+        pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
+#endif
+
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
         pInfo->gfxipProperties.srdSizes.fmaskView  = m_chipProperties.srdSizes.fmaskView;
@@ -2940,7 +2945,11 @@ Result Device::CreateGpuMemory(
 {
     GpuMemoryInternalCreateInfo internalInfo = {};
     internalInfo.flags.isClient = 1;
-    if (createInfo.flags.busAddressable)
+    if (createInfo.flags.busAddressable
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+        || createInfo.flags.gl2Uncached
+#endif
+        )
     {
         internalInfo.mtype = MType::Uncached;
     }

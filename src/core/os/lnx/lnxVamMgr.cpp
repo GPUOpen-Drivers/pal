@@ -189,12 +189,14 @@ Result VamMgr::FreeVirtualAddress(
 
 // =====================================================================================================================
 // Creates a GPU memory object for a page table block.  This method is protected by VAM's use of m_vamSyncObj.
-void* VamMgr::AllocPageTableBlock(
-    VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr)  // Base GPU VA the new PTB will map.
+Result VamMgr::AllocPageTableBlock(
+    VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr, // Base GPU VA the new PTB will map.
+    VAM_PTB_HANDLE*     phPtbAlloc)
 {
     // On Linux, kernel allocates and manages the PTB and PD allocations, so we don't need to allocate anything here.
     // Just give VAM back a dummy pointer so it doesn't complain about a null return value.
-    return this;
+    *phPtbAlloc = this;
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -261,8 +263,9 @@ void VAM_STDCALL VamMgr::ReleaseSyncObjCb(
 // =====================================================================================================================
 // VAM callback to allocate GPU memory for a page table block.
 VAM_PTB_HANDLE VAM_STDCALL VamMgr::AllocPtbCb(
-    VAM_CLIENT_HANDLE   hClient,
-    VAM_VIRTUAL_ADDRESS ptbBaseVirtAddr)
+    VAM_CLIENT_HANDLE    hClient,
+    VAM_VIRTUAL_ADDRESS  ptbBaseVirtAddr,
+    VAM_RETURNCODE*const pResult)
 {
     VamMgr*const pVamMgr = static_cast<VamMgr*>(hClient);
     PAL_ASSERT(pVamMgr != nullptr);
@@ -271,7 +274,23 @@ VAM_PTB_HANDLE VAM_STDCALL VamMgr::AllocPtbCb(
     // and alignment.  ptbBaseVA is the starting GPU virtual address which the new PTB will map.
 
     // A pointer to the PTB GPU memory object is returned to VAM as a handle.
-    void*const pPtbGpuMem = pVamMgr->AllocPageTableBlock(ptbBaseVirtAddr);
+    VAM_PTB_HANDLE pPtbGpuMem = nullptr;
+    Result res = pVamMgr->AllocPageTableBlock(ptbBaseVirtAddr, &pPtbGpuMem);
+    switch (res)
+    {
+    case Result::Success:
+        *pResult = VAM_OK;
+        break;
+    case Result::ErrorOutOfMemory:
+        *pResult = VAM_OUTOFMEMORY;
+        break;
+    case Result::ErrorOutOfGpuMemory:
+        *pResult = VAM_PTBALLOCFAILED;
+        break;
+    default:
+        *pResult = VAM_ERROR;
+        break;
+    }
     return static_cast<VAM_PTB_HANDLE>(pPtbGpuMem);
 }
 

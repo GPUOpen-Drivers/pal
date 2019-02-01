@@ -142,6 +142,7 @@ target_include_directories(${GPUOPEN_LIB_NAME} PRIVATE src)
 
 ### Core Components ###
 target_sources(${GPUOPEN_LIB_NAME} PRIVATE
+    src/ddVersion.cpp
     src/session.cpp
     src/sessionManager.cpp
     src/messageChannel.inl

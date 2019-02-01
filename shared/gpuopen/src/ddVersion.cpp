@@ -23,8 +23,16 @@
  *
  **********************************************************************************************************************/
 
-// Bump up after each promotion from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MAJOR        199
+#include "ddVersion.h"
 
-// Bump up after each cherry-up from stg/pal to stg/pal_prm
-#define PAL_VERSION_NUMBER_MINOR        0
+#define DD_VERSION_STRING "v19.01.21"
+
+namespace DevDriver
+{
+
+const char* GetVersionString()
+{
+    return DD_VERSION_STRING;
+}
+
+} // DevDriver

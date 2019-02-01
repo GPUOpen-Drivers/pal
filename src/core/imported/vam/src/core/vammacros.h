@@ -52,7 +52,7 @@
 #define SUB_ALLOC_ALGMT_SIZE            256
 #define PTE_SIZE_IN_BYTES               8
 
-#if _DEBUG
+#if VAM_DEBUG
         #include <signal.h>
         #define VAM_DBG_BREAK()         { raise(SIGTRAP); }
 #else

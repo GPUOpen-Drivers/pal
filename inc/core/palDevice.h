@@ -924,6 +924,14 @@ struct DeviceProperties
                                     ///  irrelevant to clients, but may be useful to tools.
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+        uint32 gl2UncachedCpuCoherency; ///< If supportGl2Uncached is set, then this is a bitmask of all
+                                        ///  CacheCoherencyUsageFlags that will be coherent with CPU reads/writes.
+                                        ///  Note that reporting CoherShader only means that GLC accesses will be
+                                        ///  CPU coherent.
+                                        ///  Note: Only valid if @ref supportGl2Uncached is true.
+#endif
+
         union
         {
             struct
@@ -988,7 +996,14 @@ struct DeviceProperties
 #else
                 uint32 placeholder6                             : 2; ///< Placeholder, do not use
 #endif
-                uint32 reserved                                 : 6; ///< Reserved for future use.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 465
+                uint32 supportGl2Uncached                       : 1; ///< Indicates support for the allocation of GPU L2
+                                                                     ///  un-cached memory. @see gl2UncachedCpuCoherency
+#else
+                uint32 placeholder7                             : 1; ///< Placeholder, do not use
+#endif
+                uint32 reserved                                 : 5; ///< Reserved for future use.
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

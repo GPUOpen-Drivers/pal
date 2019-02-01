@@ -2655,7 +2655,9 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
     PAL_ASSERT(m_device.CmdUtil().IsPrivilegedConfigReg(userDataAddr) == false);
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(userDataAddr, markerData, pCmdSpace);
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<false>(userDataAddr, markerData, pCmdSpace);
+    }
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
 
@@ -2680,11 +2682,12 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
         // Reserve and commit command space inside this loop.  Some of the RGP packets are unbounded, like adding a
         // comment string, so it's not safe to assume the whole packet will fit under our reserve limit.
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(userDataAddr,
-                                                        userDataAddr + dwordsToWrite - 1,
-                                                        pDwordData,
-                                                        pCmdSpace);
+        {
+            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(userDataAddr,
+                                                                   userDataAddr + dwordsToWrite - 1,
+                                                                   pDwordData,
+                                                                   pCmdSpace);
+        }
         pDwordData += dwordsToWrite;
         numDwords  -= dwordsToWrite;
 

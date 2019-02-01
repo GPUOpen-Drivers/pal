@@ -371,13 +371,6 @@ void Device::SetupWorkarounds()
             // Enable degenerate primitive filtering for Polaris
             m_degeneratePrimFilter = true;
 
-            if (IsPolaris10(*m_pParent)
-               )
-            {
-                // Enable 4x prim rate with reset index enabled for point list / line strip / tri strip.
-                m_supportFlags.support4VgtWithResetIdx = 1;
-            }
-
             // Enable small primitive filter control
             // PA: Lines incorrectly dropped by the small primitive filter
             m_smallPrimFilter = (SmallPrimFilterEnablePoint    |
@@ -3109,7 +3102,7 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.maxLateAllocVsLimit = 64;
 
         // The gfx6-8 CP generally doesn't use cached TCC access. In the cases that it does it's expected by PAL.
-        pInfo->gfxip.queuesUseCaches = false;
+        pInfo->gfxip.queuesUseCaches = 1;
 
         pInfo->imageProperties.prtFeatures = Gfx8PrtFeatures;
         pInfo->gfx6.supportPatchTessDistribution = 1;
