@@ -1725,31 +1725,41 @@ uint32 GpaSession::BeginSample(
 // =====================================================================================================================
 // Updates the trace parameters for a specific sample.
 Pal::Result GpaSession::UpdateSampleTraceParams(
-    Pal::ICmdBuffer* pCmdBuf,
-    Pal::uint32      sampleId)
+    Pal::ICmdBuffer*       pCmdBuf,
+    Pal::uint32            sampleId,
+    UpdateSampleTraceMode  updateMode)
 {
-    PAL_ASSERT(m_sessionState == GpaSessionState::Building);
-    PAL_ASSERT(m_flags.enableSampleUpdates);
-
     Pal::Result result = Pal::Result::ErrorInvalidPointer;
 
     if (pCmdBuf != nullptr)
     {
-        SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
-        PAL_ASSERT(pSampleItem != nullptr);
-
-        if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
+        if (updateMode == UpdateSampleTraceMode::MinimalToFullMask)
         {
-            const bool skipInstTokens = pSampleItem->sampleConfig.sqtt.flags.supressInstructionTokens;
-            const ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst :
-                                                                        SqttTokenConfigAllTokens;
-            pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment, tokenConfig);
+            PAL_ASSERT(m_sessionState == GpaSessionState::Building);
+            PAL_ASSERT(m_flags.enableSampleUpdates);
 
-            result = Result::Success;
+            SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
+            PAL_ASSERT(pSampleItem != nullptr);
+
+            if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
+            {
+                ThreadTraceTokenConfig tokenConfig = SqttTokenConfigAllTokens;
+                const bool skipInstTokens = pSampleItem->sampleConfig.sqtt.flags.supressInstructionTokens;
+                tokenConfig = skipInstTokens ? SqttTokenConfigNoInst : SqttTokenConfigAllTokens;
+
+                pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment, tokenConfig);
+                result = Result::Success;
+            }
+            else
+            {
+                result = Pal::Result::ErrorInvalidObjectType;
+            }
         }
         else
         {
-            result = Pal::Result::ErrorInvalidObjectType;
+            // Otherwise we update the token mask inline in the command buffer
+            pCmdBuf->CmdUpdateSqttTokenMask((updateMode == UpdateSampleTraceMode::StartInstructionTrace) ?
+                SqttTokenConfigAllTokens : SqttTokenConfigNoInst);
         }
     }
 
@@ -1827,6 +1837,19 @@ bool GpaSession::IsReady() const
     }
 
     return isReady;
+}
+
+// =====================================================================================================================
+// Updates the API specific trace information for an RGP trace type sample.
+void GpaSession::SetSampleTraceApiInfo(
+    const SampleTraceApiInfo& traceApiInfo,
+    uint32                    sampleId
+    ) const
+{
+    SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
+    PAL_ASSERT((pSampleItem->sampleConfig.type == GpaSampleType::Trace) && (pSampleItem->pPerfSample != nullptr));
+
+    pSampleItem->pPerfSample->SetSampleTraceApiInfo(traceApiInfo);
 }
 
 // =====================================================================================================================
@@ -3278,6 +3301,74 @@ Result GpaSession::DumpRgpData(
     apiInfo.apiType = SQTT_API_TYPE_VULKAN;
     apiInfo.versionMajor = m_apiMajorVer;
     apiInfo.versionMinor = m_apiMinorVer;
+
+    // Add the API specific trace info
+    const SampleTraceApiInfo& traceApiInfo = pTraceSample->GetSampleTraceApiInfo();
+
+    switch(traceApiInfo.profilingMode)
+    {
+    case TraceProfilingMode::Present:
+        apiInfo.profilingMode = SqttProfilingMode::SQTT_PROFILING_MODE_PRESENT;
+        break;
+
+    case TraceProfilingMode::UserMarkers:
+        static_assert((kUserMarkerStringLength == UserMarkerStringLength),
+            "GpaSession UserMarkerStringLength does not match RGP file format spec value.");
+        apiInfo.profilingMode = SqttProfilingMode::SQTT_PROFILING_MODE_USER_MARKERS;
+        memcpy(&apiInfo.profilingModeData.userMarkerProfilingData.start[0],
+            &traceApiInfo.profilingModeData.userMarkerData.start[0],
+            kUserMarkerStringLength);
+        memcpy(&apiInfo.profilingModeData.userMarkerProfilingData.end[0],
+            &traceApiInfo.profilingModeData.userMarkerData.end[0],
+            kUserMarkerStringLength);
+        break;
+
+    case TraceProfilingMode::FrameNumber:
+        apiInfo.profilingMode = SqttProfilingMode::SQTT_PROFILING_MODE_INDEX;
+        apiInfo.profilingModeData.indexProfilingData.start =
+            traceApiInfo.profilingModeData.frameNumberData.start;
+        apiInfo.profilingModeData.indexProfilingData.end =
+            traceApiInfo.profilingModeData.frameNumberData.end;
+        break;
+
+    case TraceProfilingMode::Tags:
+        apiInfo.profilingMode = SqttProfilingMode::SQTT_PROFILING_MODE_TAG;
+        apiInfo.profilingModeData.tagProfilingData.beginHi =
+            Util::HighPart(traceApiInfo.profilingModeData.tagData.start);
+        apiInfo.profilingModeData.tagProfilingData.beginLo =
+            Util::LowPart(traceApiInfo.profilingModeData.tagData.start);
+        apiInfo.profilingModeData.tagProfilingData.endHi =
+            Util::HighPart(traceApiInfo.profilingModeData.tagData.end);
+        apiInfo.profilingModeData.tagProfilingData.endLo =
+            Util::LowPart(traceApiInfo.profilingModeData.tagData.end);
+        break;
+
+    default:
+        // Invalid/Unknown profiling mode
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    switch(traceApiInfo.instructionTraceMode)
+    {
+    case InstructionTraceMode::Disabled:
+        apiInfo.instructionTraceMode = SqttInstructionTraceMode::SQTT_INSTRUCTION_TRACE_DISABLED;
+        break;
+
+    case InstructionTraceMode::FullFrame:
+        apiInfo.instructionTraceMode = SqttInstructionTraceMode::SQTT_INSTRUCTION_TRACE_FULL_FRAME;
+        break;
+
+    case InstructionTraceMode::ApiPso:
+        apiInfo.instructionTraceMode = SqttInstructionTraceMode::SQTT_INSTRUCTION_TRACE_API_PSO;
+        apiInfo.instructionTraceData.apiPsoData.apiPsoFilter = traceApiInfo.instructionTraceModeData.apiPsoHash;
+        break;
+
+    default:
+        // Invalid/Unknown instruction trace mode
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
 
     if ((result == Result::Success) && (pRgpOutput != nullptr))
     {

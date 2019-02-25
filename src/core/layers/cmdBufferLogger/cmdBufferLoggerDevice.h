@@ -33,6 +33,12 @@ namespace Pal
 namespace CmdBufferLogger
 {
 
+struct CmdBufferTimestampData
+{
+    uint64 cmdBufferHash;
+    uint32 counter;
+};
+
 // =====================================================================================================================
 class Device : public DeviceDecorator
 {
@@ -47,6 +53,15 @@ public:
         const CmdBufferCreateInfo& createInfo,
         void*                      pPlacementAddr,
         ICmdBuffer**               ppCmdBuffer) override;
+
+    virtual size_t GetQueueSize(
+        const QueueCreateInfo& createInfo,
+        Result*                pResult) const override;
+
+    virtual Result CreateQueue(
+        const QueueCreateInfo& createInfo,
+        void*                  pPlacementAddr,
+        IQueue**               ppQueue) override;
 
     virtual size_t GetImageSize(
         const ImageCreateInfo& createInfo,

@@ -35,7 +35,7 @@
 
 #include "gpuopen.h"
 
-#define RGP_PROTOCOL_MAJOR_VERSION 8
+#define RGP_PROTOCOL_MAJOR_VERSION 9
 #define RGP_PROTOCOL_MINOR_VERSION 0
 
 #define RGP_INTERFACE_VERSION ((RGP_INTERFACE_MAJOR_VERSION << 16) | RGP_INTERFACE_MINOR_VERSION)
@@ -46,6 +46,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  9.0    | Decoupled trace parameters from execute trace request.                                                   |
 *|  8.0    | Added support for capturing the RGP trace on specific frame or dispatch                                  |
 *|         | Added bitfield to control whether driver internal code objects are included in the code object database  |
 *|  7.0    | Added support for aborting traces that are still in the pending state on the server.                     |
@@ -58,6 +59,7 @@
 ***********************************************************************************************************************
 */
 
+#define RGP_DECOUPLED_TRACE_PARAMETERS 9
 #define RGP_FRAME_CAPTURE_VERSION 8
 #define RGP_PENDING_ABORT_VERSION 7
 #define RGP_TRIGGER_MARKERS_VERSION 6
@@ -85,6 +87,10 @@ namespace DevDriver
             EnableProfilingResponse,
             TraceDataHeader,
             AbortTrace,
+            QueryTraceParametersRequest,
+            QueryTraceParametersResponse,
+            UpdateTraceParametersRequest,
+            UpdateTraceParametersResponse,
             Count
         };
 
@@ -242,6 +248,45 @@ namespace DevDriver
 
         DD_CHECK_SIZE(TraceParametersV5, 552);
 
+        DD_NETWORK_STRUCT(TraceParametersV6, 4)
+        {
+            uint32 gpuMemoryLimitInMb;
+            uint32 numPreparationFrames;
+            uint32 captureStartIndex;
+            uint32 captureStopIndex;
+            CaptureTriggerMode captureMode;
+
+            union
+            {
+                struct
+                {
+                    uint32 enableInstructionTokens : 1;
+                    uint32 allowComputePresents : 1;
+                    uint32 captureDriverCodeObjects : 1;
+                    uint32 reserved : 29;
+                };
+                uint32 u32All;
+            } flags;
+
+            // Begin Tag
+            uint32 beginTagHigh;
+            uint32 beginTagLow;
+
+            // End Tag
+            uint32 endTagHigh;
+            uint32 endTagLow;
+
+            // Begin/End Marker Strings
+            char beginMarker[kMarkerStringLength];
+            char endMarker[kMarkerStringLength];
+
+            // Target pipeline hash
+            uint32 pipelineHashHi;
+            uint32 pipelineHashLo;
+        };
+
+        DD_CHECK_SIZE(TraceParametersV6, 560);
+
         enum struct ProfilingStatus : uint32
         {
             NotAvailable = 0,
@@ -288,13 +333,6 @@ namespace DevDriver
 
         DD_CHECK_SIZE(ExecuteTraceRequestPayloadV5, 552);
 
-        DD_NETWORK_STRUCT(ExecuteTraceResponsePayload, 4)
-        {
-            Result result;
-        };
-
-        DD_CHECK_SIZE(ExecuteTraceResponsePayload, 4);
-
         DD_NETWORK_STRUCT(TraceDataChunkPayload, 4)
         {
             TraceDataChunk chunk;
@@ -332,6 +370,28 @@ namespace DevDriver
 
         DD_CHECK_SIZE(EnableProfilingResponsePayload, 4);
 
+        DD_NETWORK_STRUCT(QueryTraceParametersResponsePayload, 4)
+        {
+            Result            result;
+            TraceParametersV6 parameters;
+        };
+
+        DD_CHECK_SIZE(QueryTraceParametersResponsePayload, 564);
+
+        DD_NETWORK_STRUCT(UpdateTraceParametersRequestPayload, 4)
+        {
+            TraceParametersV6 parameters;
+        };
+
+        DD_CHECK_SIZE(UpdateTraceParametersRequestPayload, 560);
+
+        DD_NETWORK_STRUCT(UpdateTraceParametersResponsePayload, 4)
+        {
+            Result result;
+        };
+
+        DD_CHECK_SIZE(UpdateTraceParametersResponsePayload, 4);
+
         DD_NETWORK_STRUCT(RGPPayload, 4)
         {
             RGPMessage  command;
@@ -339,17 +399,19 @@ namespace DevDriver
             char        padding[3];
             union
             {
-                ExecuteTraceRequestPayload          executeTraceRequest;
-                ExecuteTraceRequestPayloadV2        executeTraceRequestV2;
-                ExecuteTraceRequestPayloadV3        executeTraceRequestV3;
-                ExecuteTraceRequestPayloadV4        executeTraceRequestV4;
-                ExecuteTraceRequestPayloadV5        executeTraceRequestV5;
-                ExecuteTraceResponsePayload         executeTraceResponse;
-                TraceDataChunkPayload               traceDataChunk;
-                TraceDataSentinelPayload            traceDataSentinel;
-                TraceDataHeaderPayload              traceDataHeader;
-                QueryProfilingStatusResponsePayload queryProfilingStatusResponse;
-                EnableProfilingResponsePayload      enableProfilingStatusResponse;
+                ExecuteTraceRequestPayload           executeTraceRequest;
+                ExecuteTraceRequestPayloadV2         executeTraceRequestV2;
+                ExecuteTraceRequestPayloadV3         executeTraceRequestV3;
+                ExecuteTraceRequestPayloadV4         executeTraceRequestV4;
+                ExecuteTraceRequestPayloadV5         executeTraceRequestV5;
+                TraceDataChunkPayload                traceDataChunk;
+                TraceDataSentinelPayload             traceDataSentinel;
+                TraceDataHeaderPayload               traceDataHeader;
+                QueryProfilingStatusResponsePayload  queryProfilingStatusResponse;
+                EnableProfilingResponsePayload       enableProfilingStatusResponse;
+                QueryTraceParametersResponsePayload  queryTraceParametersResponse;
+                UpdateTraceParametersRequestPayload  updateTraceParametersRequest;
+                UpdateTraceParametersResponsePayload updateTraceParametersResponse;
             };
         };
 

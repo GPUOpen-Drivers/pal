@@ -52,14 +52,11 @@ struct ComputePipelineSignatureData
     // of thread groups launched in a Dispatch operation. Two sequential SPI user-data registers are needed to store
     // the address, this is the first register.
     uint32  numWorkGroupsRegAddr;
-    // First user-data entry (+1) containing the GPU virtual address of each indirect user-data table used by this
-    // pipeline. Zero indicates that an indirect user-data table is not accessed.
-    uint32  indirectTableAddr[CmdGeneratorMaxIndirectUserDataTables];
 };
 
 // Contains all information the indirect command generation shader(s) need to represent a graphics pipeline signature.
 // NOTE: This *must* be compatible with the 'GraphicsPipelineSignature' structure defined in
-// core/hw/gfxip/rpm/gfx6/globals.hlsl!
+// core/hw/gfxip/rpm/gfx6/gfx6Chip.hlsl!
 struct GraphicsPipelineSignatureData
 {
     // First user-data entry which is spilled to GPU memory. A value of 'NO_SPILLING' indicates the pipeline does
@@ -70,12 +67,9 @@ struct GraphicsPipelineSignatureData
     // Register address for the draw index of a multi-draw indirect. This is an optional feature for each pipeline,
     // so it may be 'ENTRY_NOT_MAPPED'.
     uint32  drawIndexRegAddr;
-    // First user-data entry (+1) containing the GPU virtual address of the stream-output SRD table used by this
-    // pipeline. Zero indicates that stream-output is not used by this pipeline.
-    uint32  streamOutTableAddr;
-    // First user-data entry (+1) containing the GPU virtual address of each indirect user-data table used by this
-    // pipeline. Zero indicates that an indirect user-data table is not accessed.
-    uint32  indirectTableAddr[CmdGeneratorMaxIndirectUserDataTables];
+    // Register address for the GPU virtual address of the vertex buffer table used by this pipeline. Zero
+    // indicates that the vertex buffer table is not accessed.
+    uint32 vertexBufTableRegAddr;
 };
 
 // NOTE: The shader(s) used to generate these indirect command buffers launch one thread per command in the Y
@@ -226,7 +220,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         //  + SET_SH_REG (N registers; one packet per shader stage)
         size = ((CmdUtil::GetSetDataHeaderSize() + param.userData.entryCount) * shaderStageCount);
         break;
-    case IndirectOpType::IndirectTableSrd:
+    case IndirectOpType::VertexBufTableSrd:
     case IndirectOpType::Skip:
         // INDIRECT_TABLE_SRD and SKIP operations don't directly generate any PM4 packets.
         break;
@@ -241,9 +235,9 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         (opType == IndirectOpType::DrawIndexOffset2))
     {
         // Each type of Dispatch or Draw operation may require additional command buffer space if this command
-        // generator modifies user-data entries or indirect user-data tables:
+        // generator modifies user-data entries or the vertex buffer table:
         //  + SET_SH_REG (1 register); one packet per HW shader stage [Spill Table]
-        //  + SET_SH_REG (1 register); one packet per used shader stage, per indirect table [Indirect User-Data]
+        //  + SET_SH_REG (1 register); one packet per draw [VB table]
         if (m_properties.userDataWatermark != 0)
         {
             // Spill table applies to all HW shader stages if any user data spilled.
@@ -251,12 +245,9 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 
             size += ((CmdUtil::GetSetDataHeaderSize() + 1) * spillTableShaderStageCount);
         }
-        for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
+        if (m_properties.vertexBufTableSize != 0)
         {
-            if (m_properties.indirectUserDataThreshold[id] != NoIndirectTableWrites)
-            {
-                size += ((CmdUtil::GetSetDataHeaderSize() + 1) * shaderStageCount);
-            }
+            size += (CmdUtil::GetSetDataHeaderSize() + 1);
         }
         const PalPlatformSettings& settings = m_device.Parent()->GetPlatform()->PlatformSettings();
         const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
@@ -344,13 +335,13 @@ void IndirectCmdGenerator::InitParamBuffer(
                 }
                 break;
             case IndirectParamType::BindUntypedSrd:
-                m_pParamData[p].type    = IndirectOpType::IndirectTableSrd;
-                m_pParamData[p].data[0] = param.untypedSrd.tableId;
-                m_pParamData[p].data[1] = param.untypedSrd.dwordOffset;
-                // The indirect user-data thresholds track the lowest offset (in DWORDs) of indirect user-data tables
-                // modified by this command generator.
-                m_properties.indirectUserDataThreshold[param.untypedSrd.tableId] =
-                    Min(param.untypedSrd.dwordOffset, m_properties.indirectUserDataThreshold[param.untypedSrd.tableId]);
+                PAL_ASSERT(param.untypedSrd.tableId == 0);
+                m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
+                m_pParamData[p].data[0] = param.untypedSrd.dwordOffset;
+
+                // Update the vertex buffer table size to indicate to the command-generation shader that the vertex
+                // buffer is being updated by this generator.
+                m_properties.vertexBufTableSize = ((sizeof(BufferSrd) * MaxVertexBuffers) / sizeof(uint32));
                 break;
             default:
                 PAL_NOT_IMPLEMENTED();
@@ -452,18 +443,6 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         pData->spillThreshold       = signature.spillThreshold;
         pData->numWorkGroupsRegAddr = signature.numWorkGroupsRegAddr;
-
-        for (uint32 idx = 0; idx < CmdGeneratorMaxIndirectUserDataTables; ++idx)
-        {
-            if (idx < MaxIndirectUserDataTables)
-            {
-                pData->indirectTableAddr[idx] = signature.indirectTableAddr[idx];
-            }
-            else
-            {
-                pData->indirectTableAddr[idx] = UserDataNotMapped;
-            }
-        }
     }
     else
     {
@@ -472,28 +451,17 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
             static_cast<uint32>(viewInfo.stride / sizeof(uint32)),
             1,
             &viewInfo.gpuAddr));
+        PAL_ASSERT(pData != nullptr);
 
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
-        pData->spillThreshold = signature.spillThreshold;
-        pData->vertexOffsetRegAddr = signature.vertexOffsetRegAddr;
-        pData->drawIndexRegAddr = signature.drawIndexRegAddr;
-        pData->streamOutTableAddr = signature.streamOutTableAddr;
-
-        for (uint32 idx = 0; idx < CmdGeneratorMaxIndirectUserDataTables; ++idx)
-        {
-            if (idx < MaxIndirectUserDataTables)
-            {
-                pData->indirectTableAddr[idx] = signature.indirectTableAddr[idx];
-            }
-            else
-            {
-                pData->indirectTableAddr[idx] = UserDataNotMapped;
-            }
-        }
+        pData->spillThreshold        = signature.spillThreshold;
+        pData->vertexOffsetRegAddr   = signature.vertexOffsetRegAddr;
+        pData->drawIndexRegAddr      = signature.drawIndexRegAddr;
+        pData->vertexBufTableRegAddr = signature.vertexBufTableRegAddr;
     }
 
-    viewInfo.range  = viewInfo.stride;
+    viewInfo.range          = viewInfo.stride;
     viewInfo.swizzledFormat = UndefinedSwizzledFormat;
 
     m_device.Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pSrd);

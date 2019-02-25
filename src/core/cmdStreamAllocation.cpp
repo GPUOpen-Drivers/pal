@@ -224,7 +224,7 @@ CmdStreamChunk::CmdStreamChunk(
 }
 
 // =====================================================================================================================
-// Marks the next "sizeInDwords" DWORDs for command space use and return a pointer to them.
+// Marks the next "sizeInDwords" DWORDs and return a pointer to them.
 // The caller must make sure that this chunk has enough space.
 uint32* CmdStreamChunk::GetSpace(
     uint32 sizeInDwords)
@@ -237,7 +237,7 @@ uint32* CmdStreamChunk::GetSpace(
 }
 
 // =====================================================================================================================
-// Marks the next "sizeInDwords" DWORDs for command space use and return a pointer to them.
+// Marks the next "sizeInDwords" DWORDs and return a pointer to them.
 // The caller must make sure that this chunk has enough space.
 uint32* CmdStreamChunk::GetSpace(
     uint32   sizeInDwords,
@@ -251,6 +251,29 @@ uint32* CmdStreamChunk::GetSpace(
 
     PAL_ASSERT(pGpuVirtAddr != nullptr);
     (*pGpuVirtAddr) = GpuVirtAddr() + (m_usedDataSizeDwords * sizeof(uint32));
+
+    m_usedDataSizeDwords += sizeInDwords;
+
+    return pSpace;
+}
+
+// =====================================================================================================================
+// Marks the next "sizeInDwords" DWORDs and return a pointer to them.
+// The caller must make sure that this chunk has enough space.
+uint32* CmdStreamChunk::GetSpace(
+    uint32           sizeInDwords,
+    Pal::GpuMemory** ppGpuMem,     // [out] Pointer to the GPU memory object of the allocated space. Must not be null!
+    gpusize*         pOffset)      // [out] GPU virtual address offset of the allocated space. Must not be null!
+{
+    // It is impossible to retrieve the GPU virtual address of the allocated space when the chunk is located in system
+    // memory!
+    PAL_ASSERT(m_allocation.UsesSystemMemory() == false);
+
+    uint32*const pSpace = (m_pWriteAddr + m_usedDataSizeDwords);
+
+    PAL_ASSERT((ppGpuMem != nullptr) && (pOffset != nullptr));
+    (*ppGpuMem) = GpuMemory();
+    (*pOffset)  = GpuMemoryOffset() + (m_usedDataSizeDwords * sizeof(uint32));
 
     m_usedDataSizeDwords += sizeInDwords;
 

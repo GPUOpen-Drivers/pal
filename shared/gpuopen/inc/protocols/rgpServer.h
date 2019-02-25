@@ -73,6 +73,8 @@ namespace DevDriver
 
             char beginMarker[kMarkerStringLength];
             char endMarker[kMarkerStringLength];
+
+            uint64 pipelineHash;
         };
 
         struct RGPSession;
@@ -128,10 +130,10 @@ namespace DevDriver
             void UnlockData();
             void ClearCurrentSession();
 
-            Platform::Mutex m_mutex;
-            TraceStatus m_traceStatus;
-            RGPSession* m_pCurrentSessionData;
-            ProfilingStatus m_profilingStatus;
+            Platform::Mutex           m_mutex;
+            TraceStatus               m_traceStatus;
+            RGPSession*               m_pCurrentSessionData;
+            ProfilingStatus           m_profilingStatus;
             ServerTraceParametersInfo m_traceParameters;
         };
     }

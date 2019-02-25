@@ -896,19 +896,28 @@ void DmaCmdBuffer::WriteEventCmd(
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
-    auto*const   pPacket      = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
+    auto*        pPacket      = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
 
     SDMA_PKT_FENCE packet;
 
     packet.HEADER_UNION.DW_0_DATA   = 0;
     packet.HEADER_UNION.op          = SDMA_OP_FENCE;
-    packet.ADDR_LO_UNION.addr_31_0  = LowPart(dstAddr);
     packet.ADDR_HI_UNION.addr_63_32 = HighPart(dstAddr);
     packet.DATA_UNION.DW_3_DATA     = data;
 
-    *pPacket = packet;
+    // Set remaining (unused) event slots as early as possible. GFX9 and above may have supportReleaseAcquireInterface=1
+    // which enables multiple slots (one dword per slot) for a GpuEvent. If the interface is not enabled, PAL client can
+    // still treat the GpuEvent as one dword, but PAL needs to handle the unused extra dwords internally by setting it
+    // as early in the pipeline as possible.
+    const uint32 numEventSlots = m_pDevice->ChipProperties().gfxip.numSlotsPerEvent;
 
-    m_cmdStream.CommitCommands(pCmdSpace + packetDwords);
+    for (uint32 i = 0; i < numEventSlots; i++)
+    {
+        packet.ADDR_LO_UNION.addr_31_0 = LowPart(dstAddr + (i * sizeof(uint32)));
+        *pPacket++ = packet;
+    }
+
+    m_cmdStream.CommitCommands(pCmdSpace + packetDwords * numEventSlots);
 }
 
 // =====================================================================================================================

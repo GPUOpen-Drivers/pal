@@ -71,9 +71,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 
     memset(&m_computeState,        0, sizeof(m_computeState));
     memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
-
-    memset(&m_indirectUserDataInfo[0], 0, sizeof(m_indirectUserDataInfo));
-    memset(&m_spillTableCs,            0, sizeof(m_spillTableCs));
+    memset(&m_spillTableCs,        0, sizeof(m_spillTableCs));
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
@@ -218,12 +216,6 @@ void ComputeCmdBuffer::ResetState()
     memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
 
     ResetUserDataTable(&m_spillTableCs);
-
-    for (uint16 id = 0; id < MaxIndirectUserDataTables; ++id)
-    {
-        ResetUserDataTable(&m_indirectUserDataInfo[id].state);
-        m_indirectUserDataInfo[id].watermark = m_indirectUserDataInfo[id].state.sizeInDwords;
-    }
 }
 
 // =====================================================================================================================
@@ -236,53 +228,6 @@ void ComputeCmdBuffer::CmdBindPipeline(
     m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
 
     m_computeState.dynamicCsInfo = params.cs;
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdSetIndirectUserData(
-    uint16      tableId,
-    uint32      dwordOffset,
-    uint32      dwordSize,
-    const void* pSrcData)
-{
-    PAL_ASSERT(dwordSize > 0);
-    PAL_ASSERT((dwordOffset + dwordSize) <= m_indirectUserDataInfo[tableId].state.sizeInDwords);
-
-    // All this method needs to do is to update the CPU-side copy of the indirect user-data table and mark the table
-    // contents as dirty, so it will be validated at Dispatch-time.
-    uint32* pDst = (m_indirectUserDataInfo[tableId].pData + dwordOffset);
-    auto*   pSrc = static_cast<const uint32*>(pSrcData);
-    for (uint32 i = 0; i < dwordSize; ++i)
-    {
-        *pDst = *pSrc;
-        ++pDst;
-        ++pSrc;
-    }
-
-    if (dwordOffset < m_indirectUserDataInfo[tableId].watermark)
-    {
-        // Only mark the contents as dirty if the updated user-data falls within the current high watermark. This
-        // will help avoid redundant validation for data which the client doesn't care about at the moment.
-        m_indirectUserDataInfo[tableId].state.dirty = 1;
-    }
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdSetIndirectUserDataWatermark(
-    uint16 tableId,
-    uint32 dwordLimit)
-{
-    PAL_ASSERT(tableId < MaxIndirectUserDataTables);
-
-    dwordLimit = Min(dwordLimit, m_indirectUserDataInfo[tableId].state.sizeInDwords);
-    if (dwordLimit > m_indirectUserDataInfo[tableId].watermark)
-    {
-        // If the current high watermark is increasing, we need to mark the contents as dirty because data beyond
-        // the old watermark wouldn't have been uploaded to embedded command space before the previous dispatch.
-        m_indirectUserDataInfo[tableId].state.dirty = 1;
-    }
-
-    m_indirectUserDataInfo[tableId].watermark = dwordLimit;
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -348,21 +293,6 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
 
     // NOTE: Compute command buffers shouldn't have changed either of their CmdSetUserData callbacks.
     PAL_ASSERT(memcmp(&m_funcTable, &cmdBuffer.m_funcTable, sizeof(m_funcTable)) == 0);
-}
-
-// =====================================================================================================================
-// Helper method for initializing the states for the indirect user-data tables.
-void ComputeCmdBuffer::SetupIndirectUserDataTables(
-    uint32* pIndirectUserDataTables)
-{
-    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-    {
-        m_indirectUserDataInfo[id].pData = pIndirectUserDataTables;
-        pIndirectUserDataTables         += m_device.Parent()->IndirectUserDataTableSize(id);
-
-        m_indirectUserDataInfo[id].state.sizeInDwords =
-            static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
-    }
 }
 
 } // Pal

@@ -42,7 +42,6 @@ namespace Gfx6
 const ComputePipelineSignature NullCsSignature =
 {
     { 0, },                     // User-data mapping for each shader stage
-    { UserDataNotMapped, },     // Indirect user-data table mapping
     UserDataNotMapped,          // Register address for numWorkGroups
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
@@ -137,19 +136,21 @@ void ComputePipeline::SetupSignatureFromElf(
         } // If HasEntry()
     } // For each user-SGPR
 
-    // Indirect user-data table(s):
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Indirect user-data table(s) are not supported on compute pipelines, so just assert that the table addresses
+    // are unmapped.
     if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
     {
-        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
-        {
-            const uint32 value = metadata.pipeline.indirectUserDataTableAddresses[i];
-            if (value != UserDataNotMapped)
-            {
-                m_signature.indirectTableAddr[i] = static_cast<uint16>(value);
-                m_signature.stage.indirectTableRegAddr[i] = entryToRegAddr[value - 1];
-            }
-        }
+        constexpr uint32 MetadataIndirectTableAddressCount =
+            (sizeof(metadata.pipeline.indirectUserDataTableAddresses) /
+             sizeof(metadata.pipeline.indirectUserDataTableAddresses[0]));
+        constexpr uint32 DummyAddresses[MetadataIndirectTableAddressCount] = { 0 };
+
+        PAL_ASSERT_MSG(0 == memcmp(&metadata.pipeline.indirectUserDataTableAddresses[0],
+                                   &DummyAddresses[0], sizeof(DummyAddresses)),
+                       "Indirect user-data tables are not supported for Compute Pipelines!");
     }
+#endif
 
     // NOTE: We skip the stream-out table address here because it is not used by compute pipelines.
 

@@ -69,7 +69,7 @@ void TextWriter::WriteText(const char* pString, uint32 length)
                 unsigned char c = pString[i];
                 if (!(isprint(c) || isspace(c)))
                 {
-                    DD_PRINT(LogLevel::Error, "Attempting to write non-writable character \"%c\" (0x%x)\n", c, c);
+                    DD_PRINT(LogLevel::Debug, "Attempting to write non-writable character \"%c\" (0x%x)\n", c, c);
                     m_lastResult = Result::UriInvalidChar;
                     break;
                 }

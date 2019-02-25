@@ -127,17 +127,6 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     memset(&m_properties, 0, sizeof(m_properties));
     m_properties.gfxLevel = m_device.Parent()->ChipProperties().gfxLevel;
 
-    // Initialize the indirect user-data table sizes according to the properties of the parent Device, and initialize
-    // the indirect user-data thresholds to indicate that no table writes are performed by this generator.
-    for (uint32 id = 0; id < CmdGeneratorMaxIndirectUserDataTables; ++id)
-    {
-        m_properties.indirectUserDataThreshold[id] = NoIndirectTableWrites;
-    }
-    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-    {
-        m_properties.indirectUserDataSize[id] = static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
-    }
-
     memset(&m_propertiesSrd[0], 0, sizeof(m_propertiesSrd));
     memset(&m_paramBufSrd[0], 0, sizeof(m_paramBufSrd));
     memset(&m_touchedUserData[0], 0, sizeof(m_touchedUserData));

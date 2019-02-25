@@ -29,24 +29,17 @@ project(GPUOPEN CXX)
 # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-### Create GpuOpen Library #############################################################################################
 if(NOT DEFINED GPUOPEN_LIB_NAME)
     set(GPUOPEN_LIB_NAME gpuopen CACHE STRING "Name of generated gpuopen lib")
 endif()
-set(CMAKE_CXX_STANDARD          14)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-add_library(${GPUOPEN_LIB_NAME} STATIC "")
+
+### Create GpuOpen Library #############################################################################################
+add_library(${GPUOPEN_LIB_NAME} STATIC)
 
 # Install the library into "${CMAKE_INSTALL_PREFIX}/lib"
 install(TARGETS ${GPUOPEN_LIB_NAME} DESTINATION lib)
 
 ### Cached Project Options #############################################################################################
-
-if(CMAKE_BUILD_TYPE_DEBUG)
-    set(DEVDRIVER_LOG_LEVEL 0)
-else()
-    set(DEVDRIVER_LOG_LEVEL 4)
-endif()
 
 set(DEVDRIVER_LOG_LEVEL ${DEVDRIVER_LOG_LEVEL} CACHE STRING "Developer driver mode log level? [0-4]")
 
@@ -65,9 +58,31 @@ message(STATUS "Building gpuopen lib as ${GPUOPEN_LIB_NAME} GPUOPEN_CLIENT_INTER
 
 # Warning Options ######################################################################################################
 macro(apply_gpuopen_warnings _target)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|(Apple)?Clang)$")
+    option(
+        DEVDRIVER_USE_CPP17 "Optionally build using the C++17 standard. If disabled, it builds as C++11"
+        OFF)
+    option(
+        DEVDRIVER_FORCE_COLOR_OUPUT "Force colored diagnostic messages (Clang/gcc only)"
+        OFF)
+
+    if(DEVDRIVER_USE_CPP17)
+        message(STATUS "Using C++17 for ${GPUOPEN_LIB_NAME}")
+        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 17)
+    else()
+        set_property(TARGET ${_target} PROPERTY CXX_STANDARD 11)
+    endif()
+    # Do not fallback to c++98 if the compiler does not support 11/17.
+    set_property(TARGET ${_target} PROPERTY CXX_STANDARD_REQUIRED TRUE)
+    # Do not use flags like `-std=gnu++11`, instead use `-std=c++11`.
+    set_property(TARGET ${_target} PROPERTY CXX_EXTENSIONS        FALSE)
+
+    # Apply GNU/Clang compatible warnings
+    if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(${_target} PRIVATE -Wall -Wextra -Werror -Wno-missing-field-initializers)
+    endif()
+
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         target_compile_options(${_target} PRIVATE
-            -Wall -Wextra
             # This warning triggers when you memcpy into or out of a "non trivial" type.
             # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
             #   it not count.
@@ -76,6 +91,25 @@ macro(apply_gpuopen_warnings _target)
             #   This warning is new in gcc 8.x
             -Wno-class-memaccess
         )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            # For details on customizing this, see the docs:
+            #   https://gcc.gnu.org/onlinedocs/gcc-5.2.0/gcc/Language-Independent-Options.html
+            target_compile_options(${_target} PRIVATE -fdiagnostics-color)
+        endif()
+     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        target_compile_options(${_target} PRIVATE
+            # No Clang-specific options yet
+        )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
+        endif()
+    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+        target_compile_options(${_target} PRIVATE
+            # No AppleClang-specific options yet
+        )
+        if (DEVDRIVER_FORCE_COLOR_OUPUT)
+            target_compile_options(${_target} PRIVATE -fcolor-diagnostics)
+        endif()
     else()
         message(FATAL_ERROR "Using unknown compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()
@@ -85,9 +119,6 @@ endmacro()
 apply_gpuopen_warnings(${GPUOPEN_LIB_NAME})
 
 ### Compiler Options ###################################################################################################
-
-# CMAKE-TODO: Include all used compiler features.
-target_compile_features(${GPUOPEN_LIB_NAME} PUBLIC cxx_strong_enums)
 
 set_target_properties(${GPUOPEN_LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -112,17 +143,30 @@ target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC GPUOPEN_CLIENT_INTERFACE_M
 # Add NDEBUG flag in release builds since several code files depend on it.
 target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)
 
-# Enable features with debug builds
-target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE
-        $<$<CONFIG:Debug>:DEVDRIVER_FORCE_ASSERT>      # Force asserts on
-        $<$<CONFIG:Debug>:DEVDRIVER_HARD_ASSERT>)      # Always throw a hard assert
+# Also enable these features from CMake
+option(DEVDRIVER_ASSERTS_ENABLE     "Print info when asserts fail" OFF)
+option(DEVDRIVER_ASSERTS_DEBUGBREAK "Trigger a debug break when asserts fail - implies DEVDRIVER_ASSERTS_ENABLE" OFF)
+
+# Enable features with debug builds unconditionally
+target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC
+        $<$<CONFIG:Debug>:DEVDRIVER_ASSERTS_ENABLE>
+        $<$<CONFIG:Debug>:DEVDRIVER_ASSERTS_DEBUGBREAK>)
+
+if (DEVDRIVER_ASSERTS_DEBUGBREAK)
+    set(DEVDRIVER_ASSERTS_ENABLE ON)
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_ASSERTS_DEBUGBREAK)
+endif()
+
+if (DEVDRIVER_ASSERTS_ENABLE)
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_ASSERTS_ENABLE)
+endif()
 
 if (GPUOPEN_PRINT_TO_CONSOLE)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE DEVDRIVER_PRINT_TO_CONSOLE)
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_PRINT_TO_CONSOLE)
 endif()
 
 if(DEVDRIVER_LOG_LEVEL)
-    target_compile_definitions(${GPUOPEN_LIB_NAME} PRIVATE DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
+    target_compile_definitions(${GPUOPEN_LIB_NAME} PUBLIC DEVDRIVER_LOG_LEVEL=${DEVDRIVER_LOG_LEVEL})
 endif()
 
 # Indicate target architecture bits

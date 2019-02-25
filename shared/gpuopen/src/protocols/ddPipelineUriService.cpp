@@ -308,8 +308,9 @@ DevDriver::Result PipelineUriService::HandleRequest(DevDriver::IURIRequestContex
 
     if (m_pWriter != nullptr)
     {
-        m_pWriter->End();
+        const Result end_result = m_pWriter->End();
         m_pWriter = nullptr;
+        DD_PRINT(LogLevel::Error, "m_pWriter->End() == 0x%X", end_result);
         DD_ASSERT_REASON("PipelineUriService didn't finish writing a request.");
     }
 

@@ -56,6 +56,13 @@ namespace DevDriver
             // Queries available categories and populates the provided vector
             Result QueryCategories(Vector<NamedLoggingCategory>& categories);
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
+            // Attempts to read a log message from the bus using the specified timeout value
+            // Returns NotReady if the timeout expires before a message becomes available
+            // Returns Success if a log message was successfully written to pLogMessage and an error otherwise
+            // Can only be called while logging is enabled
+            Result ReadLogMessage(LogMessage* pLogMessage, uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs);
+#else
             // Reads the log messages stored on the remote server into the provided vector
             // The maximum number of messages returned is limited to maxMessages
             // Can only be called while logging is enabled
@@ -64,6 +71,7 @@ namespace DevDriver
             // Returns true if the client currently contains log messages that have not been received.
             // Can only be called while logging is enabled
             bool HasLogMessages();
+#endif
 
             // Returns true if logging is currently enabled.
             bool IsLoggingEnabled() const;
@@ -83,6 +91,7 @@ namespace DevDriver
                                          uint32                    timeoutInMs = kDefaultCommunicationTimeoutInMs,
                                          uint32                    retryInMs   = kDefaultRetryTimeoutInMs);
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 #if DD_BUILD_32
             // Add padding to make sure the SizedPayloadContainer starts at an 8 byte boundary.
             size_t _padding;
@@ -90,6 +99,7 @@ namespace DevDriver
 
             // A payload container used to store messages that are read during calls to HasLogMessage()
             SizedPayloadContainer m_pendingMsg;
+#endif
 
             // True if logging is currently enabled.
             bool m_isLoggingEnabled;

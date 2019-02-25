@@ -41,8 +41,6 @@ class Device;
 class ComputeCmdBuffer : public Pal::ComputeCmdBuffer
 {
 public:
-    static size_t GetSize(const Device& device);
-
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;

@@ -178,8 +178,9 @@ namespace DevDriver
 
                             // Allow resuming the driver from the initial "halted on {Device/Platform} init" states and
                             // from the regular paused state.
-                            if ((m_driverStatus == DriverStatus::HaltedOnDeviceInit) ||
+                            if ((m_driverStatus == DriverStatus::HaltedOnDeviceInit)   ||
                                 (m_driverStatus == DriverStatus::HaltedOnPlatformInit) ||
+                                (m_driverStatus == DriverStatus::HaltedPostDeviceInit) ||
                                 (m_driverStatus == DriverStatus::Paused))
                             {
                                 // If we're resuming from the paused state, move to the running state, otherwise we're moving from
@@ -196,6 +197,7 @@ namespace DevDriver
                                     result = Result::Success;
                                     break;
 
+                                case DriverStatus::HaltedPostDeviceInit:
                                 case DriverStatus::Paused:
                                     m_driverStatus = DriverStatus::Running;
                                     result = Result::Success;
@@ -380,7 +382,9 @@ namespace DevDriver
                         {
                             const auto& payload = container.GetPayload<StepDriverRequestPayload>();
 
-                            if (m_driverStatus == DriverStatus::Paused && m_stepCounter == 0)
+                            if (((m_driverStatus == DriverStatus::Paused)                ||
+                                 (m_driverStatus == DriverStatus::HaltedPostDeviceInit)) &&
+                                 m_stepCounter == 0)
                             {
                                 int32 count = Platform::Max((int32)payload.count, 1);
                                 Platform::AtomicAdd(&m_stepCounter, count);
@@ -432,7 +436,12 @@ namespace DevDriver
 
                 case SessionState::StepDriver:
                 {
-                    if (m_driverStatus == DriverStatus::Paused && m_stepCounter == 0)
+                    // If we're paused with no pending step request or we're in one of the Halted states then return success
+                    // for a step request.
+                    if ((m_driverStatus == DriverStatus::Paused && m_stepCounter == 0) ||
+                        ((m_driverStatus == DriverStatus::HaltedOnPlatformInit)        ||
+                         (m_driverStatus == DriverStatus::HaltedOnDeviceInit)          ||
+                         (m_driverStatus == DriverStatus::HaltedPostDeviceInit)))
                     {
                         pSessionData->payloadContainer.CreatePayload<StepDriverResponsePayload>(Result::Success);
                         pSessionData->state = SessionState::SendPayload;
@@ -473,7 +482,8 @@ namespace DevDriver
                 }
             }
 
-            if (m_driverStatus == DriverStatus::Paused)
+            if ((m_driverStatus == DriverStatus::Paused) ||
+                (m_driverStatus == DriverStatus::HaltedPostDeviceInit))
             {
                 Result waitResult = Result::NotReady;
                 while (waitResult == Result::NotReady)
@@ -499,8 +509,10 @@ namespace DevDriver
 
         bool DriverControlServer::IsDriverInitialized() const
         {
-            // The running and paused states can only be reached after the driver has fully initialized.
-            return ((m_driverStatus == DriverStatus::Running) || (m_driverStatus == DriverStatus::Paused));
+            // Running, Paused and HaltedPostDeviceInit all indicate the driver is initialized.
+            return ((m_driverStatus == DriverStatus::HaltedPostDeviceInit) ||
+                    (m_driverStatus == DriverStatus::Running) ||
+                    (m_driverStatus == DriverStatus::Paused));
         }
 
         void DriverControlServer::FinishDriverInitialization()
@@ -508,12 +520,16 @@ namespace DevDriver
             if (m_driverStatus == DriverStatus::LateDeviceInit)
             {
                 DD_PRINT(LogLevel::Verbose, "[DriverControlServer] Driver initialization finished\n");
-                m_driverStatus = DriverStatus::Running;
 
                 if (m_initStepRequested)
                 {
+                    m_initStepRequested = false;
                     PauseDriver();
                     WaitForDriverResume();
+                }
+                else
+                {
+                    m_driverStatus = DriverStatus::Running;
                 }
             }
         }
@@ -529,8 +545,9 @@ namespace DevDriver
 
         void DriverControlServer::PauseDriver()
         {
-            if ((m_driverStatus == DriverStatus::Running) ||
+            if ((m_driverStatus == DriverStatus::Running)         ||
                 (m_driverStatus == DriverStatus::EarlyDeviceInit) ||
+                (m_driverStatus == DriverStatus::LateDeviceInit)  ||
                 (m_driverStatus == DriverStatus::PlatformInit))
             {
                 switch(m_driverStatus)
@@ -541,6 +558,10 @@ namespace DevDriver
 
                 case DriverStatus::EarlyDeviceInit:
                     m_driverStatus = DriverStatus::HaltedOnDeviceInit;
+                    break;
+
+                case DriverStatus::LateDeviceInit:
+                    m_driverStatus = DriverStatus::HaltedPostDeviceInit;
                     break;
 
                 case DriverStatus::PlatformInit:
@@ -558,8 +579,9 @@ namespace DevDriver
 
         void DriverControlServer::ResumeDriver()
         {
-            if ((m_driverStatus == DriverStatus::Paused) ||
-                (m_driverStatus == DriverStatus::HaltedOnDeviceInit) ||
+            if ((m_driverStatus == DriverStatus::Paused)               ||
+                (m_driverStatus == DriverStatus::HaltedOnDeviceInit)   ||
+                (m_driverStatus == DriverStatus::HaltedPostDeviceInit) ||
                 (m_driverStatus == DriverStatus::HaltedOnPlatformInit))
             {
                 switch (m_driverStatus)
@@ -572,6 +594,7 @@ namespace DevDriver
                     m_driverStatus = DriverStatus::EarlyDeviceInit;
                     break;
 
+                case DriverStatus::HaltedPostDeviceInit:
                 case DriverStatus::Paused:
                     m_driverStatus = DriverStatus::Running;
                     break;

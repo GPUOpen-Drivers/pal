@@ -73,6 +73,7 @@ constexpr OsWindowHandle NullWindowHandle = 0u; ///< Value representing a null o
 constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot abstract a Windows VidPnSourceId, this
                                                  ///  represents an invalid value. (Note: zero is a valid value.)
 
+constexpr uint32 MaxVertexBuffers         = 32;  ///< Maximum number of vertex buffers per pipeline.
 constexpr uint32 MaxColorTargets          = 8;   ///< Maximum number of color targets.
 constexpr uint32 MaxStreamOutTargets      = 4;   ///< Maximum number of stream output target buffers.
 constexpr uint32 MaxDescriptorSets        = 2;   ///< Maximum number of descriptor sets.

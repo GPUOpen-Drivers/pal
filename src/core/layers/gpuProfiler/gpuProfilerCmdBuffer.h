@@ -417,6 +417,8 @@ public:
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
         IPerfExperiment*              pPerfExperiment,
         const ThreadTraceTokenConfig& sqttTokenConfig) override;
+    virtual void CmdUpdateSqttTokenMask(
+        const ThreadTraceTokenConfig& sqttTokenConfig) override;
     virtual void CmdEndPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdInsertTraceMarker(
@@ -685,6 +687,7 @@ private:
     void ReplayCmdEndWhile(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBeginPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdatePerfExperimentSqttTokenMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdUpdateSqttTokenMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdEndPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertRgpTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

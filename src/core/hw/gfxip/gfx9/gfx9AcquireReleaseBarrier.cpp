@@ -1004,12 +1004,11 @@ void Device::BarrierRelease(
         }
 
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
-        const IGpuEvent* pActiveEvent = pClientEvent;
+        // If we have internal BLT(s), use internal event to signal/wait.
+        const IGpuEvent* pActiveEvent = (bltTransitionCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
 
-        // If we have internal BLT(s), enable internal event to signal/wait.
-        if (bltTransitionCount > 0)
+        if (pActiveEvent != nullptr)
         {
-            pActiveEvent = pCmdBuf->GetInternalEvent();
             pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
         }
 
@@ -1058,14 +1057,13 @@ void Device::BarrierRelease(
                 }
             }
 
-            if (pActiveEvent == pClientEvent)
-            {
-                // If we're about to reuse this event for the post-blt release, reset it
-                pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
-            }
-
             // Get back the client provided event and signal it when the whole barrier-release is done.
             pActiveEvent = pClientEvent;
+
+            if (pActiveEvent != nullptr)
+            {
+                pCmdBuf->CmdResetEvent(*pActiveEvent, HwPipePostIndexFetch);
+            }
 
             // Release from BLTs.
             IssueReleaseSync(pCmdBuf,

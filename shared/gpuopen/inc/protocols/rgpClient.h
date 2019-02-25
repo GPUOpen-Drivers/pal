@@ -74,11 +74,17 @@ namespace DevDriver
 
             char beginMarker[kMarkerStringLength];
             char endMarker[kMarkerStringLength];
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
+            uint64 pipelineHash;
+#endif
         };
 
         struct BeginTraceInfo
         {
+#if !DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
             ClientTraceParametersInfo parameters;   // Parameters for the trace
+#endif
             ChunkCallbackInfo         callbackInfo; // Callback used to return trace data
         };
 
@@ -118,6 +124,14 @@ namespace DevDriver
             // has profiling enabled.
             Result EnableProfiling();
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
+            // Queries the connected driver's trace parameters.
+            Result QueryTraceParameters(ClientTraceParametersInfo* pParameters);
+
+            // Updates the connected driver's trace parameters.
+            Result UpdateTraceParameters(const ClientTraceParametersInfo& parameters);
+#endif
+
         private:
             void ResetState() override;
 
@@ -131,13 +145,22 @@ namespace DevDriver
 
             struct ClientTraceContext
             {
-                TraceState state;
-                BeginTraceInfo traceInfo;
-                uint32 numChunksReceived;
-                uint32 numChunks;
+                TraceState                state;
+                BeginTraceInfo            traceInfo;
+#if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
+                ClientTraceParametersInfo traceParameters;
+#endif
+                uint32                    numChunksReceived;
+                uint32                    numChunks;
             };
 
             ClientTraceContext m_traceContext;
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION)
+            // Used by UpdateTraceParameters in back-compat mode to save the trace parameters
+            // until a call to BeginTrace.
+            ClientTraceParametersInfo m_tempTraceParameters;
+#endif
 
             DD_STATIC_CONST uint32 kRGPChunkTimeoutInMs = 3000;
         };

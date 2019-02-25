@@ -54,6 +54,7 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     bool IsEnabled() const { return m_layerEnabled; }
+    bool IsTimestampingEnabled() const;
 
     static void PAL_STDCALL CmdBufferLoggerCb(
         void*                   pPrivateData,

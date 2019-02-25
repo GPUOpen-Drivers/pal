@@ -188,6 +188,7 @@ void %ClassName%::DevDriverRegister()\n\
             component.pfnSetValue = ISettingsLoader::SetValue;\n\
             component.pSettingsData = &%JsonDataArrayName%[0];\n\
             component.settingsDataSize = sizeof(%JsonDataArrayName%);\n\
+            component.settingsDataHash = %SettingsDataHash%;\n\
             component.settingsDataHeader.isEncoded = %IsJsonEncoded%;\n\
             component.settingsDataHeader.magicBufferId = %MagicBufferId%;\n\
             component.settingsDataHeader.magicBufferOffset = %MagicBufferOffset%;\n\

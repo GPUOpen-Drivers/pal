@@ -46,13 +46,6 @@ enum class GeneratorType : uint32
     DrawIndexed,
 };
 
-// Maximum number of indirect user-data tables handled by the shader(s) used for indirect command generators. This
-// can never be less than the number of indirect user-data tables required by a particular client.
-constexpr uint32 CmdGeneratorMaxIndirectUserDataTables = 3;
-static_assert(CmdGeneratorMaxIndirectUserDataTables >= MaxIndirectUserDataTables,
-              "The indirect command generation shaders need to be updated to suport the number of indirect user-data"
-              " tables required by the current client!");
-
 // Contains properties of a specific command generator.
 // NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx6/globals.hlsl !
 struct GeneratorProperties
@@ -65,22 +58,15 @@ struct GeneratorProperties
     // Index of the last user-data entry modified by this command Generator, plus one. Zero indicateas that the
     // generator does not modify user-data entries.
     uint32  userDataWatermark;
-    // Offset of the first DWORD of each indirect user-data table modified by this command Generator. A value of
-    // 'NoIndirectTableWrites' indicates that the generator does not modify a particular indirect user-data table.
-    uint32  indirectUserDataThreshold[CmdGeneratorMaxIndirectUserDataTables];
-    // Size (in DWORDs) of each indirect user-data table. The command Generator will only generate commands to update
-    // the indirect user-data table(s) whose thresholds are smaller than the table's size.
-    uint32  indirectUserDataSize[CmdGeneratorMaxIndirectUserDataTables];
+    // Size (in DWORDs) of the vertex buffer table. The command Generator will only generate commands to update
+    // the vertex buffer table when this is nonzero.
+    uint32  vertexBufTableSize;
 
     uint32  cmdBufStride; // Stride (in bytes) of the generated command buffer per indirect command.
     uint32  argBufStride; // Stride (in bytes) of the argument buffer per indirect command.
 
     GfxIpLevel  gfxLevel; // GFX IP level for the parent Device.
 };
-
-// Special value for GeneratorProperties::indirectUserDataThreshold[] indicating that an indirect user-data table is
-// not modified at all by a command Generator.
-constexpr uint32 NoIndirectTableWrites = UINT_MAX;
 
 // Contains properties of a specific CmdExecuteIndirectCmds() invocation.
 // NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx6/globals.hlsl !

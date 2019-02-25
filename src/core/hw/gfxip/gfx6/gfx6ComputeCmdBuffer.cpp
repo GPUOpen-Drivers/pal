@@ -42,24 +42,6 @@ namespace Gfx6
 {
 
 // =====================================================================================================================
-size_t ComputeCmdBuffer::GetSize(
-    const Device& device)
-{
-    size_t bytes = sizeof(ComputeCmdBuffer);
-
-    // NOTE: Because compute command buffers always use embedded data to manage the client's indirect user-data tables,
-    // we need to track their contents along with the command buffer's state. Since the sizes of these tables is dynamic
-    // and the client configures them at run-time, we will store them immediately following the command buffer object
-    // itself in memory.
-    for (uint32 tableId = 0; tableId < MaxIndirectUserDataTables; ++tableId)
-    {
-        bytes += (sizeof(uint32) * device.Parent()->IndirectUserDataTableSize(tableId));
-    }
-
-    return bytes;
-}
-
-// =====================================================================================================================
 ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
@@ -103,10 +85,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
-    // The indirect user data tables immediately follow the command buffer object in memory.  The GfxIp-specific
-    // command buffer object's size must be used in order to ensure the location is correct.
-    SetupIndirectUserDataTables(reinterpret_cast<uint32*>(this + 1));
-
     Result result = Pal::ComputeCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
@@ -532,68 +510,35 @@ uint32* ComputeCmdBuffer::ValidateUserData(
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
     // Step #1:
-    // If any indirect user-data tables were updated since the previous Dispatch, and are referenced by the current
-    // pipeline, they must be relocated to a new location in GPU memory, and re-uploaded.  This will result in the
-    // user-data entry associated with those tables also being updated with the new address.
-    for (uint16 tableId = 0; tableId < MaxIndirectUserDataTables; ++tableId)
-    {
-        const uint16 entryPlusOne = m_pSignatureCs->indirectTableAddr[tableId];
-        if ((entryPlusOne != UserDataNotMapped) && (m_indirectUserDataInfo[tableId].watermark > 0))
-        {
-            bool relocated = false;
-            if (m_indirectUserDataInfo[tableId].state.dirty)
-            {
-                UpdateUserDataTable(&m_indirectUserDataInfo[tableId].state,
-                                    m_indirectUserDataInfo[tableId].watermark,
-                                    0,
-                                    m_indirectUserDataInfo[tableId].pData);
-                relocated = true;
-            }
-            // The GPU virtual address for the indirect table needs to be updated if either the table was relocated,
-            // or if the pipeline has changed and the previous pipeline's mapping for this table doesn't match the
-            // new mapping.
-            if ((HasPipelineChanged && (pPrevSignature->indirectTableAddr[tableId] != entryPlusOne)) || relocated)
-            {
-                const uint32 gpuVirtAddrLo = LowPart(m_indirectUserDataInfo[tableId].state.gpuVirtAddr);
-                const uint16 entry         = (entryPlusOne - 1);
-
-                WideBitfieldSetBit(m_computeState.csUserDataEntries.touched, entry);
-                WideBitfieldSetBit(m_computeState.csUserDataEntries.dirty,   entry);
-                m_computeState.csUserDataEntries.entries[entry] = gpuVirtAddrLo;
-            }
-        }
-    } // for each indirect user-data table
-
-    // Step #2:
-    // All indirect user-data tables are now up-to-date in GPU memory, and their GPU virtual addresses are now stored
-    // in the associated user-data entries.  It is now safe to write all dirty user-data entries to their mapped user
-    // SGPR's (including any which were dirtied in step #1), and to check if the spill table needs updating.
+    // Write all dirty user-data entries to their mapped user SGPR's and check if the spill table needs updating.
     pCmdSpace = WriteDirtyUserDataEntries(pCmdSpace);
 
-    if (m_pSignatureCs->spillThreshold != NoUserDataSpilling)
+    const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
+    if (spillThreshold != NoUserDataSpilling)
     {
-        PAL_ASSERT(m_pSignatureCs->userDataLimit > 0);
-        bool relocated = false;
+        const uint16 userDataLimit = m_pSignatureCs->userDataLimit;
+        PAL_ASSERT(userDataLimit > 0);
 
-        // Step #3:
+        // Step #2:
         // The spill table will be marked dirty if the checks during step #2 above found that any dirty user-data falls
         // within the spilled region for the active pipeline.  Also, if the pipeline is changing, it is possible that
         // the region of the spill table which was relevant to that pipeline doesn't match the important region for the
         // new pipeline.  In that case, the spill table contents must also be updated.
-        if ((HasPipelineChanged && ((m_pSignatureCs->spillThreshold < pPrevSignature->spillThreshold) ||
-                                    (m_pSignatureCs->userDataLimit  > pPrevSignature->userDataLimit)))
+        bool relocated = false;
+        if ((HasPipelineChanged && ((spillThreshold < pPrevSignature->spillThreshold) ||
+                                    (userDataLimit  > pPrevSignature->userDataLimit)))
             || m_spillTableCs.dirty)
         {
-            const uint32 sizeInDwords = (m_pSignatureCs->userDataLimit - m_pSignatureCs->spillThreshold);
+            const uint32 sizeInDwords = (userDataLimit - spillThreshold);
 
             UpdateUserDataTable(&m_spillTableCs,
                                 sizeInDwords,
-                                m_pSignatureCs->spillThreshold,
+                                spillThreshold,
                                 &m_computeState.csUserDataEntries.entries[0]);
             relocated = true;
         }
 
-        // Step #4:
+        // Step #3:
         // If the spill table was relocated during step #3, or if the pipeline is changing and the previous pipeline
         // did not spill any user-data to memory, we need to re-write the spill table GPU address to its user-SGPR.
         if ((HasPipelineChanged && (pPrevSignature->spillThreshold == NoUserDataSpilling)) || relocated)
@@ -1144,27 +1089,11 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
     // because RPM will have pushed its own state before calling this method.
     const uint32* pUserDataEntries = &m_computeRestoreState.csUserDataEntries.entries[0];
 
-    // Total amount of embedded data space needed for each generated command, including indirect user-data tables and
-    // user-data spilling.
-    uint32 embeddedDwords = 0;
-    // Amount of embedded data space needed for each generated command, per indirect user-data table:
-    uint32 indirectTableDwords[MaxIndirectUserDataTables] = { };
     // User-data high watermark for this command Generator. It depends on the command Generator itself, as well as the
     // pipeline signature for the active pipeline. This is due to the fact that if the command Generator modifies the
     // contents of an indirect user-data table, the command Generator must also fix-up the user-data entry used for the
     // table's GPU virtual address.
     uint32 userDataWatermark = properties.userDataWatermark;
-
-    for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-    {
-        if ((signature.indirectTableAddr[id] != 0) &&
-            (properties.indirectUserDataThreshold[id] < m_device.Parent()->IndirectUserDataTableSize(id)))
-        {
-            userDataWatermark       = Max<uint32>(userDataWatermark, (signature.indirectTableAddr[id] - 1));
-            indirectTableDwords[id] = static_cast<uint32>(m_device.Parent()->IndirectUserDataTableSize(id));
-            embeddedDwords         += indirectTableDwords[id];
-        }
-    }
 
     const uint32 commandDwords = (generator.Properties().cmdBufStride / sizeof(uint32));
     // There are three possibilities when determining how much spill-table space a generated command will need:
@@ -1176,7 +1105,9 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
     ///     stuff it would normally do.
     const uint32 spillDwords =
         (signature.spillThreshold < properties.userDataWatermark) ? properties.maxUserDataEntries : 0;
-    embeddedDwords += spillDwords;
+    // Total amount of embedded data space needed for each generated command, including indirect user-data tables and
+    // user-data spilling.
+    uint32 embeddedDwords = spillDwords;
 
     // Ask the DE command stream to make sure the command chunk is ready to receive GPU-generated commands (this
     // includes setting up padding for size alignment, allocating command space, etc.
@@ -1195,13 +1126,6 @@ CmdStreamChunk* ComputeCmdBuffer::GetChunkForCmdGeneration(
         // and spill-table contents, because the generator will only update the table entries which get modified.
         for (uint32 cmd = 0; cmd < (*pCommandsInChunk); ++cmd)
         {
-            for (uint32 id = 0; id < MaxIndirectUserDataTables; ++id)
-            {
-                memcpy(pDataSpace,
-                       m_indirectUserDataInfo[id].pData,
-                       (sizeof(uint32) * m_indirectUserDataInfo[id].watermark));
-                pDataSpace += indirectTableDwords[id];
-            }
             memcpy(pDataSpace, pUserDataEntries, (sizeof(uint32) * spillDwords));
             pDataSpace += spillDwords;
         }
@@ -1344,6 +1268,9 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32                data)
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+    // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
+    PAL_ASSERT(m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent == 1);
 
     if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.cpBltActive))
     {
@@ -1541,16 +1468,6 @@ void ComputeCmdBuffer::InheritStateFromCmdBuf(
 {
     const ComputeCmdBuffer* pComputeCmdBuffer = static_cast<const ComputeCmdBuffer*>(pCmdBuffer);
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
-
-    for (uint16 i = 0; i < MaxIndirectUserDataTables; i++)
-    {
-        const uint32  numEntries = pComputeCmdBuffer->m_indirectUserDataInfo[i].watermark;
-        const uint32* pData      = pComputeCmdBuffer->m_indirectUserDataInfo[i].pData;
-        if (numEntries > 0)
-        {
-            CmdSetIndirectUserData(i, 0, numEntries, pData);
-        }
-    }
 }
 
 // =====================================================================================================================

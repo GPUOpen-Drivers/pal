@@ -87,10 +87,18 @@ public:
     virtual size_t GetInfoAlignment() const override { return sizeof(uint32); }
 
     uint32* WriteSetupCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
     uint32* WriteUpdateSqttTokenMaskCommands(
         CmdStream*                    pCmdStream,
         uint32*                       pCmdSpace,
         const ThreadTraceTokenConfig& sqttTokenConfig) const;
+
+    static uint32* WriteUpdateSqttTokenMask(
+        CmdStream*                    pCmdStream,
+        uint32*                       pCmdSpace,
+        const ThreadTraceTokenConfig& sqttTokenConfig,
+        const Device&                 device);
+
     uint32* WriteStartCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteStopCommands(gpusize baseGpuVirtAddr, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
@@ -142,9 +150,9 @@ private:
     };
 
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
-                          SqttTokenMask*                pTokenMask,
-                          SqttRegMask*                  pRegMask) const;
+    static void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
+                                 SqttTokenMask*                pTokenMask,
+                                 SqttRegMask*                  pRegMask);
 
     const Device& m_device;
 

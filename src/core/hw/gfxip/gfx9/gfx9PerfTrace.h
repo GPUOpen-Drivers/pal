@@ -125,6 +125,11 @@ public:
         uint32*                       pCmdSpace,
         const ThreadTraceTokenConfig& sqttTokenConfig) const override;
 
+    static uint32* WriteUpdateSqttTokenMask(
+        CmdStream*                    pCmdStream,
+        uint32*                       pCmdSpace,
+        const ThreadTraceTokenConfig& sqttTokenConfig);
+
     virtual uint32* WriteStopCommands(
         gpusize    baseGpuVirtAddr,
         CmdStream* pCmdStream,
@@ -176,9 +181,9 @@ private:
 
     void    SetOptions();
     uint32* WriteGrbmGfxIndex(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
-                          SqttTokenMask*                pTokenMask,
-                          SqttRegMask*                  pRegMask) const;
+    static void GetHwTokenConfig(const ThreadTraceTokenConfig& tokenConfig,
+                                 SqttTokenMask*                pTokenMask,
+                                 SqttRegMask*                  pRegMask);
 
     /// Default thread trace SIMD mask: enable all four SIMD's.
     static constexpr uint32 SimdMaskAll = 0xF;

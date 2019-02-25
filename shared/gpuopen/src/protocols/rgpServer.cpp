@@ -30,7 +30,7 @@
 #include "util/queue.h"
 
 #define RGP_SERVER_MIN_MAJOR_VERSION 2
-#define RGP_SERVER_MAX_MAJOR_VERSION 8
+#define RGP_SERVER_MAX_MAJOR_VERSION 9
 
 namespace DevDriver
 {
@@ -183,7 +183,7 @@ namespace DevDriver
                                                               traceParameters.endMarker,
                                                               sizeof(m_traceParameters.endMarker));
                                         }
-                                        else if (pSession->GetVersion() >= RGP_FRAME_CAPTURE_VERSION)
+                                        else if (pSession->GetVersion() == RGP_FRAME_CAPTURE_VERSION)
                                         {
                                             const TraceParametersV5& traceParameters = pSessionData->payload.executeTraceRequestV5.parameters;
 
@@ -192,27 +192,25 @@ namespace DevDriver
                                             m_traceParameters.captureMode = traceParameters.captureMode;
                                             m_traceParameters.flags.u32All = traceParameters.flags.u32All;
 
-                                            if (traceParameters.captureMode == CaptureTriggerMode::Index)
-                                            {
-                                                m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
-                                                m_traceParameters.captureStopIndex  = traceParameters.captureStopIndex;
-                                            }
-                                            else if (traceParameters.captureMode == CaptureTriggerMode::Markers)
-                                            {
-                                                m_traceParameters.beginTag =
-                                                    ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) | traceParameters.beginTagLow);
-                                                m_traceParameters.endTag =
-                                                    ((static_cast<uint64>(traceParameters.endTagHigh) << 32) | traceParameters.endTagLow);
+                                            m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
+                                            m_traceParameters.captureStopIndex  = traceParameters.captureStopIndex;
 
-                                                Platform::Strncpy(m_traceParameters.beginMarker,
-                                                                  traceParameters.beginMarker,
-                                                                  sizeof(m_traceParameters.beginMarker));
+                                            m_traceParameters.beginTag =
+                                                ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) | traceParameters.beginTagLow);
+                                            m_traceParameters.endTag =
+                                                ((static_cast<uint64>(traceParameters.endTagHigh) << 32) | traceParameters.endTagLow);
 
-                                                Platform::Strncpy(m_traceParameters.endMarker,
-                                                                  traceParameters.endMarker,
-                                                                  sizeof(m_traceParameters.endMarker));
-                                            }
-                                            // No further processing needed for CaptureTriggerMode::Present
+                                            Platform::Strncpy(m_traceParameters.beginMarker,
+                                                              traceParameters.beginMarker,
+                                                              sizeof(m_traceParameters.beginMarker));
+
+                                            Platform::Strncpy(m_traceParameters.endMarker,
+                                                              traceParameters.endMarker,
+                                                              sizeof(m_traceParameters.endMarker));
+                                        }
+                                        else if (pSession->GetVersion() >= RGP_DECOUPLED_TRACE_PARAMETERS)
+                                        {
+                                            // Nothing to do here since the trace parameters are now handled by UpdateTraceParameters
                                         }
                                         else
                                         {
@@ -228,20 +226,20 @@ namespace DevDriver
                                     }
                                     else
                                     {
-                                        if (pSessionData->version >= RGP_TRACE_PROGRESS_VERSION)
-                                        {
-                                            pSessionData->payload.command = RGPMessage::TraceDataHeader;
-                                            pSessionData->payload.traceDataHeader.numChunks = 0;
-                                            pSessionData->payload.traceDataHeader.sizeInBytes = 0;
-                                            pSessionData->payload.traceDataHeader.result = Result::Error;
-                                        }
-                                        else
-                                        {
-                                            pSessionData->payload.command = RGPMessage::TraceDataSentinel;
-                                            pSessionData->payload.traceDataSentinel.result = Result::Error;
-                                        }
+                                    if (pSessionData->version >= RGP_TRACE_PROGRESS_VERSION)
+                                    {
+                                        pSessionData->payload.command = RGPMessage::TraceDataHeader;
+                                        pSessionData->payload.traceDataHeader.numChunks = 0;
+                                        pSessionData->payload.traceDataHeader.sizeInBytes = 0;
+                                        pSessionData->payload.traceDataHeader.result = Result::Error;
+                                    }
+                                    else
+                                    {
+                                        pSessionData->payload.command = RGPMessage::TraceDataSentinel;
+                                        pSessionData->payload.traceDataSentinel.result = Result::Error;
+                                    }
 
-                                        pSessionData->state = SessionState::SendPayload;
+                                    pSessionData->state = SessionState::SendPayload;
                                     }
 
                                     break;
@@ -274,6 +272,117 @@ namespace DevDriver
                                     }
 
                                     pSessionData->payload.enableProfilingStatusResponse.result = result;
+
+                                    pSessionData->state = SessionState::SendPayload;
+
+                                    break;
+                                }
+
+                                case RGPMessage::QueryTraceParametersRequest:
+                                {
+                                    pSessionData->payload.command = RGPMessage::QueryTraceParametersResponse;
+
+                                    // Make sure our session version is new enough to use this interface.
+                                    Result result =
+                                        (pSession->GetVersion() >= RGP_DECOUPLED_TRACE_PARAMETERS) ? Result::Success
+                                                                                                   : Result::VersionMismatch;
+
+                                    if (result == Result::Success)
+                                    {
+                                        TraceParametersV6& parameters =
+                                            pSessionData->payload.queryTraceParametersResponse.parameters;
+
+                                        parameters.gpuMemoryLimitInMb   = m_traceParameters.gpuMemoryLimitInMb;
+                                        parameters.numPreparationFrames = m_traceParameters.numPreparationFrames;
+
+                                        parameters.captureStartIndex    = m_traceParameters.captureStartIndex;
+                                        parameters.captureStopIndex     = m_traceParameters.captureStopIndex;
+
+                                        parameters.captureMode          = m_traceParameters.captureMode;
+
+                                        parameters.flags.u32All         = m_traceParameters.flags.u32All;
+
+                                        parameters.beginTagHigh = static_cast<uint32>(m_traceParameters.beginTag >> 32);
+                                        parameters.beginTagLow  = static_cast<uint32>(m_traceParameters.beginTag & 0xFFFFFFFF);
+                                        parameters.endTagHigh = static_cast<uint32>(m_traceParameters.endTag >> 32);
+                                        parameters.endTagLow  = static_cast<uint32>(m_traceParameters.endTag & 0xFFFFFFFF);
+
+                                        Platform::Strncpy(parameters.beginMarker,
+                                                          m_traceParameters.beginMarker,
+                                                          sizeof(parameters.beginMarker));
+
+                                        Platform::Strncpy(parameters.endMarker,
+                                                          m_traceParameters.endMarker,
+                                                          sizeof(parameters.endMarker));
+
+                                        parameters.pipelineHashHi =
+                                            static_cast<uint32>(m_traceParameters.pipelineHash >> 32);
+                                        parameters.pipelineHashLo =
+                                            static_cast<uint32>(m_traceParameters.pipelineHash & 0xFFFFFFFF);
+                                    }
+
+                                    pSessionData->payload.queryTraceParametersResponse.result = result;
+
+                                    pSessionData->state = SessionState::SendPayload;
+
+                                    break;
+                                }
+
+                                case RGPMessage::UpdateTraceParametersRequest:
+                                {
+                                    pSessionData->payload.command = RGPMessage::UpdateTraceParametersResponse;
+
+                                    // Make sure our session version is new enough to use this interface.
+                                    Result result =
+                                        (pSession->GetVersion() >= RGP_DECOUPLED_TRACE_PARAMETERS) ? Result::Success
+                                                                                                   : Result::VersionMismatch;
+
+                                    if (result == Result::Success)
+                                    {
+                                        // Trace parameters can only be updated if there's no trace in progress.
+                                        if (m_traceStatus == TraceStatus::Idle)
+                                        {
+                                            const TraceParametersV6& traceParameters =
+                                                pSessionData->payload.updateTraceParametersRequest.parameters;
+
+                                            m_traceParameters.gpuMemoryLimitInMb = traceParameters.gpuMemoryLimitInMb;
+                                            m_traceParameters.numPreparationFrames = traceParameters.numPreparationFrames;
+                                            m_traceParameters.captureMode = traceParameters.captureMode;
+                                            m_traceParameters.flags.u32All = traceParameters.flags.u32All;
+
+                                            m_traceParameters.captureStartIndex = traceParameters.captureStartIndex;
+                                            m_traceParameters.captureStopIndex = traceParameters.captureStopIndex;
+
+                                            m_traceParameters.beginTag =
+                                                ((static_cast<uint64>(traceParameters.beginTagHigh) << 32) |
+                                                  traceParameters.beginTagLow);
+                                            m_traceParameters.endTag =
+                                                ((static_cast<uint64>(traceParameters.endTagHigh) << 32) |
+                                                  traceParameters.endTagLow);
+
+                                            Platform::Strncpy(m_traceParameters.beginMarker,
+                                                traceParameters.beginMarker,
+                                                sizeof(m_traceParameters.beginMarker));
+
+                                            Platform::Strncpy(m_traceParameters.endMarker,
+                                                traceParameters.endMarker,
+                                                sizeof(m_traceParameters.endMarker));
+
+                                            m_traceParameters.pipelineHash =
+                                                ((static_cast<uint64>(traceParameters.pipelineHashHi) << 32) |
+                                                  static_cast<uint64>(traceParameters.pipelineHashLo));
+
+                                            result = Result::Success;
+                                        }
+                                        else
+                                        {
+                                            // Set the result to NotReady since we can handle this request eventually,
+                                            // just not right now.
+                                            result = Result::NotReady;
+                                        }
+                                    }
+
+                                    pSessionData->payload.updateTraceParametersResponse.result = result;
 
                                     pSessionData->state = SessionState::SendPayload;
 

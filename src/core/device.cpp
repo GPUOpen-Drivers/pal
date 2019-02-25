@@ -1374,18 +1374,21 @@ Result Device::Finalize(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
     if (result == Result::Success)
     {
-        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
+        if ((finalizeInfo.indirectUserDataTable[0].offsetInDwords +
+             finalizeInfo.indirectUserDataTable[0].sizeInDwords) > finalizeInfo.ceRamSizeUsed[EngineTypeUniversal])
         {
-            if ((finalizeInfo.indirectUserDataTable[i].offsetInDwords +
-                 finalizeInfo.indirectUserDataTable[i].sizeInDwords) > finalizeInfo.ceRamSizeUsed[EngineTypeUniversal])
-            {
-                result = Result::ErrorInvalidOrdinal;
-                break;
-            }
+            result = Result::ErrorInvalidMemorySize;
+        }
+        else if ((sizeof(uint32) * finalizeInfo.indirectUserDataTable[0].sizeInDwords) >
+                 (m_chipProperties.srdSizes.bufferView * MaxVertexBuffers))
+        {
+            result = Result::ErrorInvalidMemorySize;
         }
     }
+#endif
 
     if (result == Result::Success)
     {
@@ -1737,6 +1740,7 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportPersistentCeRam          = engineInfo.flags.supportPersistentCeRam;
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
             pEngineInfo->flags.supportsTrackBusyChunks         = engineInfo.flags.supportsTrackBusyChunks;
+            pEngineInfo->flags.supportsUnmappedPrtPageAccess   = engineInfo.flags.supportsUnmappedPrtPageAccess;
 
             for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; engineIdx++)
             {

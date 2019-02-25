@@ -869,6 +869,7 @@ void LogContext::Struct(
     }
     EndMap();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
     KeyAndBeginList("indirectUserDataTables", false);
     for (uint32 idx = 0; idx < MaxIndirectUserDataTables; ++idx)
     {
@@ -881,6 +882,7 @@ void LogContext::Struct(
         EndMap();
     }
     EndList();
+#endif
 
     KeyAndStruct("supportedFullScreenFrameMetadata", value.supportedFullScreenFrameMetadata);
     KeyAndEnum("internalTexOptLevel", value.internalTexOptLevel);
@@ -2100,10 +2102,13 @@ void LogContext::Struct(
     KeyAndValue("imageIndex", value.imageIndex);
     KeyAndBeginList("flags", true);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 466
     if (value.flags.turboSyncEnabled)
     {
         Value("turboSyncEnabled");
     }
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 441
     if (value.flags.notifyOnly)
     {

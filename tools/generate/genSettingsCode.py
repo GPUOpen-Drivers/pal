@@ -100,6 +100,8 @@ def genDefaultLine(defaultValue, varName, isString, isHex, size):
     elif isHex:
         try:
             defaultValueStr = hex(defaultValue)
+            if defaultValueStr[-1] == "L":
+                defaultValueStr = defaultValueStr[:-1]
         except TypeError:
             print("Couldn't convert setting " + varName + " to hex format.")
             defaultValueStr = str(defaultValue)
@@ -704,6 +706,7 @@ includeFileList += "#include \"palHashMapImpl.h\"\n"
 jsonUintData = ""
 isEncoded = "false"
 magicBufferHash = 0
+settingsDataHash = 0
 if args.magicBufferFilename == "":
     paddedUints = []
     for i in range(0, len(settingsJsonStr)):
@@ -733,6 +736,7 @@ else:
     wrapper.initial_indent = "    "
     wrapper.subsequent_indent = "    "
     jsonUintData = "\n".join(wrapper.wrap(paddedJsonStr))
+    settingsDataHash = fnv1a(paddedJsonStr)
     isEncoded = "true"
 jsonArrayName = "g_" + lowerCamelComponentName +"JsonData"
 jsonDataArray = codeTemplates.JsonDataArray.replace("%JsonArrayData%", jsonUintData)
@@ -783,6 +787,7 @@ devDriverRegister = devDriverRegister.replace("%JsonDataArrayName%", jsonArrayNa
 devDriverRegister = devDriverRegister.replace("%IsJsonEncoded%", isEncoded)
 devDriverRegister = devDriverRegister.replace("%MagicBufferId%", str(magicBufferHash))
 devDriverRegister = devDriverRegister.replace("%MagicBufferOffset%", str(args.magicBufferOffset))
+devDriverRegister = devDriverRegister.replace("%SettingsDataHash%", str(settingsDataHash))
 
 headerDoxComment = codeTemplates.HeaderFileDoxComment.replace("%FileName%", headerFileName)
 copyrightAndWarning = codeTemplates.CopyrightAndWarning.replace("%Year%", time.strftime("%Y"))

@@ -156,6 +156,8 @@ namespace DevDriver
     {
         if (m_active)
         {
+            DD_PRINT(LogLevel::Info, "[SessionManager] Shutting down active sessions...");
+
             m_active = false;
 
             // Close all active sessions.
@@ -174,6 +176,8 @@ namespace DevDriver
             {
                 m_pMessageChannel->Update();
             }
+
+            DD_PRINT(LogLevel::Info, "[SessionManager] All sessions closed");
         }
         return Result::Success;
     }

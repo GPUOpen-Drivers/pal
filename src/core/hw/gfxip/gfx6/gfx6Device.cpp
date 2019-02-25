@@ -1282,7 +1282,7 @@ size_t Device::GetCmdBufferSize(
 
     if (createInfo.queueType == QueueTypeCompute)
     {
-        cmdBufferSize = ComputeCmdBuffer::GetSize(*this);
+        cmdBufferSize = sizeof(ComputeCmdBuffer);
     }
     else if (createInfo.queueType == QueueTypeUniversal)
     {
@@ -3101,8 +3101,8 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.tcpSizeInBytes      = 16384;
         pInfo->gfxip.maxLateAllocVsLimit = 64;
 
-        // The gfx6-8 CP generally doesn't use cached TCC access. In the cases that it does it's expected by PAL.
-        pInfo->gfxip.queuesUseCaches = 1;
+        pInfo->gfxip.supportGl2Uncached      = 0;
+        pInfo->gfxip.gl2UncachedCpuCoherency = 0;
 
         pInfo->imageProperties.prtFeatures = Gfx8PrtFeatures;
         pInfo->gfx6.supportPatchTessDistribution = 1;
@@ -3289,6 +3289,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsMismatchedTileTokenCopy = 1;
     pUniversal->flags.supportsImageInitBarrier        = 1;
     pUniversal->flags.supportsImageInitPerSubresource = 1;
+    pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pUniversal->reservedCeRamSize                     = ReservedCeRamBytes;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
@@ -3326,6 +3327,7 @@ void InitializeGpuEngineProperties(
     pCompute->flags.supportsMismatchedTileTokenCopy = 1;
     pCompute->flags.supportsImageInitBarrier        = 1;
     pCompute->flags.supportsImageInitPerSubresource = 1;
+    pCompute->flags.supportsUnmappedPrtPageAccess   = 1;
     pCompute->minTiledImageCopyAlignment.width      = 1;
     pCompute->minTiledImageCopyAlignment.height     = 1;
     pCompute->minTiledImageCopyAlignment.depth      = 1;
@@ -3346,6 +3348,7 @@ void InitializeGpuEngineProperties(
     pDma->flags.supportsImageInitBarrier        = 1;
     pDma->flags.supportsImageInitPerSubresource = 1;
     pDma->flags.supportsMismatchedTileTokenCopy = 1;
+    pDma->flags.supportsUnmappedPrtPageAccess   = 0; // SDMA can't ignore VM faults for PRT resources on GFXIP 6/7/8.
 
     if (FAMILY_IS_SI(familyId))
     {
@@ -3388,10 +3391,7 @@ Pal::ISettingsLoader* CreateSettingsLoader(
     Util::IndirectAllocator* pAllocator,
     Pal::Device*             pDevice)
 {
-    void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx6::SettingsLoader), alignof(Gfx6::SettingsLoader),
-                                    pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
-
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx6::SettingsLoader(pAllocator, pDevice) : nullptr;
+    return PAL_NEW(Gfx6::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pAllocator, pDevice);
 }
 
 } // Gfx6

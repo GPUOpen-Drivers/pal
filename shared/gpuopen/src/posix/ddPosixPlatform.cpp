@@ -38,8 +38,10 @@
 #include <cstdarg>
 #include <time.h>
 
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 // Make sure our timeout definition matches the Windows value.
 static_assert(DevDriver::kInfiniteTimeout == ~(0u), "Infinite Timeout value does not match OS definition!");
+#endif
 
 namespace DevDriver
 {
@@ -105,30 +107,37 @@ namespace DevDriver
         // Thread routines.....
         //
 
-        void* PlatformThreadShim(void *pThreadParam)
+        void* PlatformThreadShim(void* pThreadParameter)
         {
-            DD_ASSERT(pThreadParam != nullptr);
-            const ThreadStorage *thread = reinterpret_cast<const ThreadStorage *>(pThreadParam);
-            thread->callback(thread->parameter);
+            DD_ASSERT(pThreadParameter != nullptr);
+            const ThreadStorage* pThread = reinterpret_cast<const ThreadStorage *>(pThreadParameter);
+            pThread->pFnFunction(pThread->pParameter);
             return nullptr;
         }
 
         Thread::Thread() : m_thread() {};
 
-        Thread::~Thread() {};
-
-        Result Thread::Start(void(*threadCallback)(void *), void *threadParameter)
+        Thread::~Thread()
         {
-            DD_ASSERT(threadCallback != nullptr);
+            if (IsJoinable())
+            {
+                DD_ASSERT_REASON("Thread object left scope without joining");
+            }
+        };
 
+        Result Thread::Start(ThreadFunction pFnThreadFunc, void* pThreadParameter)
+        {
             Result result = Result::Error;
 
-            if (m_thread.callback == nullptr)
+            // Check if this thread handle has already been initialized.
+            // pthread_t types act as opaque, and do not work portably when compared directly.
+            // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
+            if ((m_thread.pFnFunction == nullptr) && (pFnThreadFunc != nullptr))
             {
-                m_thread.parameter = threadParameter;
-                m_thread.callback = threadCallback;
+                m_thread.pParameter  = pThreadParameter;
+                m_thread.pFnFunction = pFnThreadFunc;
 
-                if (pthread_create(&m_thread.handle, nullptr, &PlatformThreadShim, &m_thread) == 0)
+                if (pthread_create(&m_thread.hThread, nullptr, &PlatformThreadShim, &m_thread) == 0)
                 {
                     result = Result::Success;
                 }
@@ -142,16 +151,51 @@ namespace DevDriver
             return result;
         }
 
-        Result Thread::Join()
+        Result Thread::Join(uint32 timeoutInMs)
         {
-            DD_ASSERT(m_thread.callback != nullptr);
+            Result result = IsJoinable() ? Result::Success : Result::Error;
 
-            Result result = Result::Error;
-
-            if (pthread_join(m_thread.handle, nullptr) == 0)
+            timespec timeout = {};
+            if (result == Result::Success)
             {
-                memset(&m_thread, 0, sizeof(ThreadStorage));
-                result = Result::Success;
+                result = GetAbsTime(timeoutInMs, &timeout);
+            }
+
+            if (result == Result::Success)
+            {
+#if defined(__linux__)
+                const int ret = pthread_timedjoin_np(m_thread.hThread, nullptr, &timeout);
+#else
+                // TODO: pthread_timedjoin_np is a GNU extension and is not available on non-GNU platforms.
+                // This behavior is not equivalent to pthread_timedjoin_np and this will block forever if
+                // the thread never exits. This will be corrected in a later change.
+                const int ret = pthread_join(m_thread.hThread, nullptr);
+#endif
+                switch (ret)
+                {
+                    case 0:
+                        memset(&m_thread, 0, sizeof(ThreadStorage));
+                        result = Result::Success;
+                        break;
+                    case ETIMEDOUT:
+                        result = Result::NotReady;
+                        break;
+                    default:
+                        // See:
+                        //      man 3 pthread_join
+                        //      man 3 pthread_timedjoin_np
+                        // Expected errors you might see here if something went wrong:
+                        //      EDEADLK
+                        //            A deadlock was detected (e.g., two threads tried to join with
+                        //            each other); or thread specifies the calling thread.
+                        //      EINVAL thread is not a joinable thread.
+                        //      EINVAL Another thread is already waiting to join with this thread.
+                        //      EINVAL abstime value is invalid (tv_sec is less than 0 or tv_nsec is greater than 1e9).
+                        //      ESRCH  No thread with the ID thread could be found.
+                        DD_PRINT(LogLevel::Debug, "pthread_timedjoin_np() failed with 0x%x", ret);
+                        result = Result::Error;
+                        break;
+                }
             }
 
             DD_ALERT(result != Result::Error);
@@ -160,7 +204,9 @@ namespace DevDriver
 
         bool Thread::IsJoinable() const
         {
-            return m_thread.callback != nullptr;
+            // pthread_t types act as opaque, and do not work portably when compared directly.
+            // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
+            return (m_thread.pFnFunction != nullptr);
         }
 
         /////////////////////////////////////////////////////

@@ -634,6 +634,10 @@ public:
         const ThreadTraceTokenConfig& sqttTokenConfig) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdUpdateSqttTokenMask(
+        const ThreadTraceTokenConfig& sqttTokenConfig) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdEndPerfExperiment(IPerfExperiment* pPerfExperiment) override
         { PAL_NEVER_CALLED(); }
 
@@ -792,9 +796,14 @@ public:
 
     bool HasAddressDependentCmdStream() const;
 
-    gpusize AllocateGpuScratchMem(
+    PAL_INLINE gpusize AllocateGpuScratchMem(
         uint32 sizeInDwords,
-        uint32 alignmentInDwords);
+        uint32 alignmentInDwords)
+    {
+        gpusize    offset  = 0;
+        GpuMemory* pGpuMem = nullptr;
+        return AllocateGpuScratchMem(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
+    }
 
 protected:
     CmdBuffer(const Device&              device,
@@ -831,6 +840,12 @@ protected:
 
     // Allocated embedded dat for physical engines. The function returns the memory object and offset.
     uint32* CmdAllocateEmbeddedData(
+        uint32      sizeInDwords,
+        uint32      alignmentInDwords,
+        GpuMemory** ppGpuMem,
+        gpusize*    pOffset);
+
+    gpusize AllocateGpuScratchMem(
         uint32      sizeInDwords,
         uint32      alignmentInDwords,
         GpuMemory** ppGpuMem,

@@ -40,6 +40,7 @@
 // Forward declarations
 namespace Util { struct AllocInfo; }
 namespace Util { struct FreeInfo;  }
+namespace Util { enum SystemAllocType : uint32; }
 
 // GCC versions prior to 4.9 break C++11 compatibility by putting max_align_t in the global namespace.
 /// Default malloc alignment. Usually equal to 16 bytes for x64 targets.
@@ -105,23 +106,26 @@ namespace Util { struct FreeInfo;  }
 /// call the constructor in the PAL_NEW and PAL_NEW_ARRAY implementations, but we do not want to overload global
 /// placement new or include \<new\> since either could interfere with the client.  Adding a dummy parameter allows us
 /// to define a PAL-only placement new implementation.
-enum class DummyEnum : Util::uint32
+namespace Util
 {
-    Val
+struct Dummy
+{
+    explicit Dummy() { }  ///< Explicit default constructor prevents this from being instantiated via unqualified "{}".
 };
+}
 
 /// @internal
 ///
-/// PAL-internal placement new override.  The DummyEnum is used to ensure there won't be a conflict if a client tries to
+/// PAL-internal placement new override.  The Dummy is used to ensure there won't be a conflict if a client tries to
 /// override global placement new.
 ///
 /// @param [in] size    Size of the memory allocation.
 /// @param [in] pObjMem Memory where object will be constructed.
 /// @param [in] dummy   Unused.
 extern void* PAL_CDECL operator new(
-    size_t    size,
-    void*     pObjMem,
-    DummyEnum dummy);
+    size_t        size,
+    void*         pObjMem,
+    Util::Dummy   dummy) noexcept;
 
 /// @internal
 ///
@@ -132,12 +136,12 @@ extern void* PAL_CDECL operator new(
 /// @param [in] pObjMem Unused.
 /// @param [in] dummy   Unused.
 extern void PAL_CDECL operator delete(
-    void*     pObj,
-    void*     pObjMem,
-    DummyEnum dummy);
+    void*        pObj,
+    void*        pObjMem,
+    Util::Dummy  dummy) noexcept;
 
 /// Placement new macro.
-#define PAL_PLACEMENT_NEW(_ptr) new((_ptr), DummyEnum::Val)
+#define PAL_PLACEMENT_NEW(_ptr) new((_ptr), Util::Dummy{})
 
 /// Allocates heap memory and calls constructor for an object of the specified type.
 ///

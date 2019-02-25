@@ -85,6 +85,9 @@ public:
     Pal::IGpuMemory* GetCopySampleDataGpuMem() { return m_pCopySampleGpuMem; }
     Pal::gpusize     GetCopySampleDataOffset() { return m_copySampleOffset; }
 
+    const SampleTraceApiInfo& GetSampleTraceApiInfo() const { return m_traceApiInfo; }
+    void SetSampleTraceApiInfo(SampleTraceApiInfo traceApiInfo) { m_traceApiInfo = traceApiInfo; }
+
 protected:
     PerfSample(
         Pal::IDevice*         pDevice,
@@ -93,7 +96,8 @@ protected:
         :
         m_pDevice(pDevice),
         m_pAllocator(pAllocator),
-        m_pPerfExperiment(pPerfExperiment)
+        m_pPerfExperiment(pPerfExperiment),
+        m_traceApiInfo()
     {}
 
     Pal::IDevice*         m_pDevice;
@@ -103,6 +107,7 @@ protected:
     Pal::gpusize          m_sampleDataOffset;        // Offset of the sample results in gpu memory.
     Pal::gpusize          m_pSampleDataBufferSize;   // Size of the sample data gpu memory.
     void*                 m_pPerfExpResults;         // Sample data gpu memory mapped to be CPU-readable.
+    SampleTraceApiInfo    m_traceApiInfo;
 
     // The sample data GPU memory location and offset are stored here. On request, a copy is initiated from this
     // location to this sample's sample data memory location.

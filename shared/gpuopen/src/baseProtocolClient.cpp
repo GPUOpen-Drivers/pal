@@ -161,7 +161,7 @@ namespace DevDriver
                 // session, the event will never be signaled.
 
                 // todo - implement more robust timeout system
-                m_pendingOperationEvent.Wait(kInfiniteTimeout);
+                m_pendingOperationEvent.Wait(kLogicFailureTimeout);
                 result = m_connectResult;
             }
             else

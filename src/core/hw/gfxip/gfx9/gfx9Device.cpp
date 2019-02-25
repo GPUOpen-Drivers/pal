@@ -606,8 +606,9 @@ Result Device::CreateDummyCommandStream(
         pCmdStream->Begin(beginFlags, nullptr);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-
-        pCmdSpace += m_cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords, pCmdSpace);
+        {
+            pCmdSpace += m_cmdUtil.BuildNop(CmdUtil::MinNopSizeInDwords, pCmdSpace);
+        }
 
         pCmdStream->CommitCommands(pCmdSpace);
         pCmdStream->End();
@@ -1178,7 +1179,7 @@ size_t Device::GetCmdBufferSize(
 
     if (createInfo.queueType == QueueTypeCompute)
     {
-        cmdBufferSize = ComputeCmdBuffer::GetSize(*this);
+        cmdBufferSize = sizeof(ComputeCmdBuffer);
     }
     else if (createInfo.queueType == QueueTypeUniversal)
     {
@@ -2776,9 +2777,6 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.tcpSizeInBytes        = 16384;
     pInfo->gfxip.maxLateAllocVsLimit   = 64;
 
-    // The gfx9 CP uses the gfx L2 for all operations.
-    pInfo->gfxip.queuesUseCaches         = 1;
-
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
                                             CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
@@ -3097,6 +3095,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsMismatchedTileTokenCopy = 1;
     pUniversal->flags.supportsImageInitBarrier        = 1;
     pUniversal->flags.supportsImageInitPerSubresource = 1;
+    pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pUniversal->reservedCeRamSize                     = ReservedCeRamBytes;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
@@ -3124,6 +3123,7 @@ void InitializeGpuEngineProperties(
     pCompute->flags.supportsMismatchedTileTokenCopy = 1;
     pCompute->flags.supportsImageInitBarrier        = 1;
     pCompute->flags.supportsImageInitPerSubresource = 1;
+    pCompute->flags.supportsUnmappedPrtPageAccess   = 1;
     pCompute->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pCompute->minTiledImageCopyAlignment.width      = 1;
     pCompute->minTiledImageCopyAlignment.height     = 1;
@@ -3142,6 +3142,7 @@ void InitializeGpuEngineProperties(
     // is interleaved.
     pInfo->perEngine[EngineTypeDma].flags.supportsImageInitBarrier        = 1;
     pInfo->perEngine[EngineTypeDma].flags.supportsMismatchedTileTokenCopy = 1;
+    pInfo->perEngine[EngineTypeDma].flags.supportsUnmappedPrtPageAccess   = 1;
 
     // TODO: Get these from KMD once the information is reported by it
 
@@ -3201,10 +3202,7 @@ Pal::ISettingsLoader* CreateSettingsLoader(
     Util::IndirectAllocator* pAllocator,
     Pal::Device*             pDevice)
 {
-    void* pMemory = PAL_MALLOC_BASE(sizeof(Gfx9::SettingsLoader), alignof(Gfx9::SettingsLoader),
-        pDevice->GetPlatform(), AllocInternal, Util::MemBlkType::New);
-
-    return (pMemory != nullptr) ? PAL_PLACEMENT_NEW(pMemory) Gfx9::SettingsLoader(pAllocator, pDevice) : nullptr;
+    return PAL_NEW(Gfx9::SettingsLoader, pDevice->GetPlatform(), AllocInternal)(pAllocator, pDevice);
  }
 
 // =====================================================================================================================

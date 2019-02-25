@@ -134,12 +134,15 @@ enum HwLayoutTransition : uint32
 };
 
 // PAL needs to reserve enough CE RAM space for the stream-out SRD table and for the user-data spill table for each
-// pipeline bind point. Client CE RAM will be allocated after and CE load command needs a start alignment of 32 bytes,
+// pipeline bind point.  Client CE RAM will be allocated after and CE load command needs a start alignment of 32 bytes,
 // so PAL CE RAM needs to be multiple of 32 bytes to make sure loading only client CE RAM can be correctly done.
 constexpr size_t ReservedCeRamBytes =
-    ((sizeof(BufferSrd) * MaxStreamOutTargets)                                             +
+    ((sizeof(BufferSrd) * MaxStreamOutTargets) +
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 469
+     (sizeof(BufferSrd) * MaxVertexBuffers) +
+#endif
      (sizeof(uint32) * static_cast<uint32>(PipelineBindPoint::Count) * MaxUserDataEntries) +
-     ((sizeof(Util::Abi::PrimShaderCbLayout) + 255u) & ~255u)                              +
+     ((sizeof(Util::Abi::PrimShaderCbLayout) + 255u) & ~255u) +
      (31)) & ~31;
 constexpr size_t ReservedCeRamDwords = (ReservedCeRamBytes / sizeof(uint32));
 

@@ -61,15 +61,6 @@ public:
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
 
-    virtual void CmdSetIndirectUserData(
-        uint16      tableId,
-        uint32      dwordOffset,
-        uint32      dwordSize,
-        const void* pSrcData) override;
-    virtual void CmdSetIndirectUserDataWatermark(
-        uint16 tableId,
-        uint32 dwordLimit) override;
-
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
@@ -135,17 +126,6 @@ protected:
         { CmdBuffer::P2pBltWaCopyNextRegion(m_pCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
-
-    void SetupIndirectUserDataTables(uint32* pIndirectUserDataTables);
-
-    struct
-    {
-        // Client-specified high-watermark for each indirect user-data table.  This indicates how much of each
-        // table is uploaded to embedded data before a dispatch.
-        uint32                      watermark;
-        uint32*                     pData; // Tracks the contents of each indirect user-data table.
-        EmbeddedUserDataTableState  state; // Tracks the state of the indirect user-date table in GPU memory.
-    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
 
     EmbeddedUserDataTableState  m_spillTableCs; // Tracks the state of the compute user-data spill table.
 

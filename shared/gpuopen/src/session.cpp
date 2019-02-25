@@ -389,7 +389,7 @@ namespace DevDriver
             payload.minVersion = m_pProtocolOwner->GetMinVersion();
             payload.maxVersion = m_pProtocolOwner->GetMaxVersion();
             payload.sessionVersion = m_sessionVersion;
-            result = WriteMessageIntoSendWindow(SessionMessage::Syn, sizeof(SynPayload), &payload, kInfiniteTimeout);
+            result = WriteMessageIntoSendWindow(SessionMessage::Syn, sizeof(SynPayload), &payload, kLogicFailureTimeout);
 
             if (result == Result::Success)
             {
@@ -496,7 +496,7 @@ namespace DevDriver
         const Result result = WriteMessageIntoSendWindow(SessionMessage::SynAck,
                                                          sizeof(SynAckPayload),
                                                          &payload,
-                                                         kInfiniteTimeout);
+                                                         kLogicFailureTimeout);
         if (result == Result::Success)
         {
             SetState(SessionState::SynReceived);
@@ -802,7 +802,7 @@ namespace DevDriver
     {
         if (m_sessionState == SessionState::FinWait1)
         {
-            if (WriteMessageIntoSendWindow(SessionMessage::Fin, 0, nullptr, kInfiniteTimeout) == Result::Success)
+            if (WriteMessageIntoSendWindow(SessionMessage::Fin, 0, nullptr, kLogicFailureTimeout) == Result::Success)
             {
                 SetState(SessionState::FinWait2);
             }
@@ -897,7 +897,7 @@ namespace DevDriver
 
     void Session::Shutdown(Result reason)
     {
-	    m_sessionTerminationReason = reason;
+        m_sessionTerminationReason = reason;
 
         switch (m_sessionState)
         {

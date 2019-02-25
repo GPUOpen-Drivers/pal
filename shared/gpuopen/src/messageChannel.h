@@ -60,7 +60,7 @@ namespace DevDriver
 
         void Update(uint32 timeoutInMs = kDefaultUpdateTimeoutInMs) override final;
 
-        Result Register(uint32 timeoutInMs = kInfiniteTimeout) override final;
+        Result Register(uint32 timeoutInMs = kLogicFailureTimeout) override final;
         Result Unregister() override final;
         bool IsConnected() override final;
 

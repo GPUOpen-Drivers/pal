@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/g_palPlatformSettings.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
@@ -149,6 +150,14 @@ Result Platform::GetScreens(
 }
 
 // =====================================================================================================================
+bool Platform::IsTimestampingEnabled() const
+{
+    CmdBufferLoggerSingleStep singleStep = {};
+    singleStep.u32All = PlatformSettings().cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
+    return (singleStep.timestampDraws | singleStep.timestampDispatches | singleStep.timestampBarriers);
+}
+
+// =====================================================================================================================
 void PAL_STDCALL Platform::CmdBufferLoggerCb(
     void*                   pPrivateData,
     const uint32            deviceIndex,
@@ -202,9 +211,20 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         break;
     }
     case Developer::CallbackType::DrawDispatch:
+    {
         PAL_ASSERT(pCbData != nullptr);
-        TranslateDrawDispatchData(pCbData);
+        const bool hasValidData = TranslateDrawDispatchData(pCbData);
+
+        if (hasValidData)
+        {
+            Developer::DrawDispatchData* pData      = static_cast<Developer::DrawDispatchData*>(pCbData);
+            CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
+
+            pCmdBuffer->HandleDrawDispatch(pData->cmdType <= Developer::DrawDispatchType::FirstDispatch);
+        }
+
         break;
+    }
     default:
         PAL_ASSERT_ALWAYS();
         break;

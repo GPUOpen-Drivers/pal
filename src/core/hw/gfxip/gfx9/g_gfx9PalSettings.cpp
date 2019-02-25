@@ -68,7 +68,7 @@ void SettingsLoader::SetupDefaults()
 
     m_settings.forceRegularClearCode = false;
     m_settings.forceGraphicsFillMemoryPath = false;
-    m_settings.waitOnMetadataMipTail = true;
+    m_settings.waitOnMetadataMipTail = false;
     m_settings.blendOptimizationsEnable = true;
     m_settings.fastColorClearEnable = true;
     m_settings.fastColorClearOn3dEnable = true;
@@ -111,6 +111,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.primGroupSize = 128;
     m_settings.psCuGroupEnabled = true;
     m_settings.gfx9RbPlusEnable = true;
+
     m_settings.switchVgtOnDraw = false;
     m_settings.tessFactorBufferSizePerSe = 8192;
     m_settings.disableTessDonutWalkPattern = 0;
@@ -127,6 +128,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.csCuEnLimitMask = 0xffffffff;
     m_settings.gfx9OffChipHsCopyMethod = Gfx9OffChipHsCopyAllAtEnd;
     m_settings.gfx9OffChipHsSkipDataCopyNullPatch = true;
+    m_settings.gfx9OffChipHsMultiWavePatchDataCopy = false;
     m_settings.gfx9OptimizeDsDataFetch = false;
     m_settings.nggEnableMode = NggPipelineTypeAll;
     m_settings.nggSubgroupSize = NggSubgroupOptimizeForPrims;
@@ -139,6 +141,8 @@ void SettingsLoader::SetupDefaults()
     m_settings.nggEnableFasterLaunchRate = false;
     m_settings.enableOrderedIdMode = true;
     m_settings.nggRingSize = 32;
+    m_settings.nggDisableCullingVmemInstrThreshold = 0.0;
+    m_settings.nggDisableCullingValuInstrThreshold = 0.0;
     m_settings.binningMode = Gfx9DeferredBatchBinAccurate;
     m_settings.customBatchBinSize = 0x800080;
 
@@ -531,6 +535,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.gfx9OffChipHsSkipDataCopyNullPatch,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsMultiWavePatchDataCopyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gfx9OffChipHsMultiWavePatchDataCopy,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOptimizeDsDataFetchStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx9OptimizeDsDataFetch,
@@ -589,6 +598,16 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggRingSizeStr,
                            Util::ValueType::Uint,
                            &m_settings.nggRingSize,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggDisableCullingVmemInstrThresholdStr,
+                           Util::ValueType::Float,
+                           &m_settings.nggDisableCullingVmemInstrThreshold,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggDisableCullingValuInstrThresholdStr,
+                           Util::ValueType::Float,
+                           &m_settings.nggDisableCullingValuInstrThreshold,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDeferredBatchBinModeStr,
@@ -1228,6 +1247,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1952167388, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gfx9OffChipHsMultiWavePatchDataCopy;
+    info.valueSize = sizeof(m_settings.gfx9OffChipHsMultiWavePatchDataCopy);
+    m_settingsInfoMap.Insert(2396748146, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.gfx9OptimizeDsDataFetch;
     info.valueSize = sizeof(m_settings.gfx9OptimizeDsDataFetch);
     m_settingsInfoMap.Insert(2405308569, info);
@@ -1286,6 +1310,16 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.nggRingSize;
     info.valueSize = sizeof(m_settings.nggRingSize);
     m_settingsInfoMap.Insert(3858230864, info);
+
+    info.type      = SettingType::Float;
+    info.pValuePtr = &m_settings.nggDisableCullingVmemInstrThreshold;
+    info.valueSize = sizeof(m_settings.nggDisableCullingVmemInstrThreshold);
+    m_settingsInfoMap.Insert(2329541169, info);
+
+    info.type      = SettingType::Float;
+    info.pValuePtr = &m_settings.nggDisableCullingValuInstrThreshold;
+    info.valueSize = sizeof(m_settings.nggDisableCullingValuInstrThreshold);
+    m_settingsInfoMap.Insert(742646984, info);
 
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.binningMode;
@@ -1508,6 +1542,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
+            component.settingsDataHash = 3221951552;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

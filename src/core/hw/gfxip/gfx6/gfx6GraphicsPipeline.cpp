@@ -46,9 +46,8 @@ namespace Gfx6
 const GraphicsPipelineSignature NullGfxSignature =
 {
     { 0, },                     // User-data mapping for each shader stage
-    { UserDataNotMapped, },     // Indirect user-data table mapping
-    UserDataNotMapped,          // Stream-out table mapping
-    UserDataNotMapped,          // Stream-out table user-SGPR address
+    UserDataNotMapped,          // Vertex buffer table register address
+    UserDataNotMapped,          // Stream-out table register address
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
     NoUserDataSpilling,         // Spill threshold
@@ -1510,6 +1509,26 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     HwShaderStage             stage,
     uint16*                   pEsGsLdsSizeReg)
 {
+    const uint16 streamOutTableEntryPlus1 = (metadata.pipeline.hasEntry.streamOutTableAddress == 0)
+                                            ? UserDataNotMapped
+                                            : static_cast<uint16>(metadata.pipeline.streamOutTableAddress);
+    const uint16 indirectTableEntryPlus1 = (metadata.pipeline.hasEntry.indirectUserDataTableAddresses == 0)
+                                            ? UserDataNotMapped
+                                            : static_cast<uint16>(metadata.pipeline.indirectUserDataTableAddresses[0]);
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
+    {
+        constexpr uint32 MetadataIndirectTableAddressCount =
+            (sizeof(metadata.pipeline.indirectUserDataTableAddresses) /
+             sizeof(metadata.pipeline.indirectUserDataTableAddresses[0]));
+        constexpr uint32 DummyAddresses[MetadataIndirectTableAddressCount - 1] = { 0 };
+
+        PAL_ASSERT_MSG(0 == memcmp(&metadata.pipeline.indirectUserDataTableAddresses[1],
+                                   &DummyAddresses[0], sizeof(DummyAddresses)),
+                       "Multiple indirect user-data tables are not supported!");
+    }
+#endif
+
     constexpr uint16 BaseRegAddr[] =
     {
         mmSPI_SHADER_USER_DATA_LS_0,
@@ -1540,7 +1559,25 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         uint32 value = 0;
         if (registers.HasEntry(offset, &value))
         {
-            if (value < MaxUserDataEntries)
+            // Backwards compatibility for the stream-out table user-SGPR.  Older ABI versions encoded this by mapping
+            // the table's address to a user-data entry which was written internally by PAL.
+            if ((value + 1) == streamOutTableEntryPlus1)
+            {
+                // There can only be one stream-output table per pipeline.
+                PAL_ASSERT((m_signature.streamOutTableRegAddr == offset) ||
+                           (m_signature.streamOutTableRegAddr == UserDataNotMapped));
+                m_signature.streamOutTableRegAddr = offset;
+            }
+            // Backwards compatibility for the indirect user-data table user-SGPR.  Older ABI versions encoded this by
+            // mapping the table's address to a user-data entry which was written internally by PAL.
+            else if ((value + 1) == indirectTableEntryPlus1)
+            {
+                // There can only be one indirect user-data table per pipeline.
+                PAL_ASSERT((m_signature.vertexBufTableRegAddr == offset) ||
+                           (m_signature.vertexBufTableRegAddr == UserDataNotMapped));
+                m_signature.vertexBufTableRegAddr = offset;
+            }
+            else if (value < MaxUserDataEntries)
             {
                 if (pStage->firstUserSgprRegAddr == UserDataNotMapped)
                 {
@@ -1620,19 +1657,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         } // If HasEntry()
     } // For each user-SGPR
 
-    for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
-    {
-        if (m_signature.indirectTableAddr[i] != UserDataNotMapped)
-        {
-            pStage->indirectTableRegAddr[i] = entryToRegAddr[m_signature.indirectTableAddr[i] - 1];
-        }
-    }
-
-    if ((stage == HwShaderStage::Vs) && (m_signature.streamOutTableAddr != UserDataNotMapped))
-    {
-        m_signature.streamOutTableRegAddr = entryToRegAddr[m_signature.streamOutTableAddr - 1];
-    }
-
     // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
     MetroHash64::Hash(
         reinterpret_cast<const uint8*>(pStage),
@@ -1648,19 +1672,6 @@ void GraphicsPipeline::SetupSignatureFromElf(
     uint16*                   pEsGsLdsSizeRegGs,
     uint16*                   pEsGsLdsSizeRegVs)
 {
-    if (metadata.pipeline.hasEntry.streamOutTableAddress != 0)
-    {
-        m_signature.streamOutTableAddr = static_cast<uint16>(metadata.pipeline.streamOutTableAddress);
-    }
-
-    if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
-    {
-        for (uint32 i = 0; i < MaxIndirectUserDataTables; ++i)
-        {
-            m_signature.indirectTableAddr[i] = static_cast<uint16>(metadata.pipeline.indirectUserDataTableAddresses[i]);
-        }
-    }
-
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
         m_signature.spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);

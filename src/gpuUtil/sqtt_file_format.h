@@ -279,6 +279,71 @@ static_assert(sizeof(SqttFileChunkAsicInfo::cuMask)    == 1024 / 8, "cuMask does
 static_assert(sizeof(SqttFileChunkAsicInfo::cuMask[0]) == 32   / 8, "cuMask SE size doesn't match RGP Spec");
 static_assert(sizeof(SqttFileChunkAsicInfo::reserved1) == 1024 / 8, "reserved1 doesn't match RGP Spec");
 
+/** An enumeration of the SQTT profiling mode.
+*/
+typedef enum SqttProfilingMode
+{
+    SQTT_PROFILING_MODE_PRESENT      = 0x0,            /*!< Present based profiling. */
+    SQTT_PROFILING_MODE_USER_MARKERS = 0x1,            /*!< User Marker based profiling. */
+    SQTT_PROFILING_MODE_INDEX        = 0x2,            /*!< Index (dispatch/frame number) based profiling. */
+    SQTT_PROFILING_MODE_TAG          = 0x3,            /*!< Tag based profiling. */
+} SqttProfilingMode;
+
+static constexpr uint32_t kUserMarkerStringLength = 256;
+
+/** An union of the SQTT profiling mode data.
+*/
+typedef union SqttProfilingModeData
+{
+    struct
+    {
+        char start[kUserMarkerStringLength];
+        char end[kUserMarkerStringLength];
+    } userMarkerProfilingData;
+
+    struct
+    {
+        uint32_t start;
+        uint32_t end;
+    } indexProfilingData;
+
+    struct
+    {
+        uint32_t beginHi;
+        uint32_t beginLo;
+        uint32_t endHi;
+        uint32_t endLo;
+    } tagProfilingData;
+
+} SqttProfilingModeData;
+
+/** An enumeration of the SQTT instruction trace mode.
+*/
+typedef enum SqttInstructionTraceMode
+{
+    SQTT_INSTRUCTION_TRACE_DISABLED   = 0x0,         /*!< Instruction trace was disabled. */
+    SQTT_INSTRUCTION_TRACE_FULL_FRAME = 0x1,         /*!< Instruction trace was enabled for the full frame. */
+    SQTT_INSTRUCTION_TRACE_API_PSO    = 0x2,         /*!< Instruction trace was enabled for a single PSO. */
+} SqttInstructionTraceMode;
+
+/** An structure containing the SQTT instruction trace mode data. For now there is only data for the API PSO
+instruction trace mode.
+*/
+typedef union SqttInstructionTraceData
+{
+    struct
+    {
+        uint64_t apiPsoFilter;
+    } apiPsoData;
+
+    struct
+    {
+        char start[kUserMarkerStringLength];
+        char end[kUserMarkerStringLength];
+    } userMarkerData;
+
+} SqttInstructionTraceData;
+
 /** A structure encapsulating information about the API on which the trace was performed.
  */
 typedef struct SqttFileChunkApiInfo
@@ -287,6 +352,11 @@ typedef struct SqttFileChunkApiInfo
     SqttApiType                 apiType;                    /*!< The type of API used. */
     uint16_t                    versionMajor;               /*!< The major API version. */
     uint16_t                    versionMinor;               /*!< The minor API version. */
+    SqttProfilingMode           profilingMode;              /*!< The profiling mode used to capture this trace. */
+    SqttProfilingModeData       profilingModeData;          /*!< The input arguments provided for the profilingMode. */
+    SqttInstructionTraceMode    instructionTraceMode;       /*!< The mode used for instruction tracing. */
+    uint32_t                    reserved;                   /*!< Reserved for 64-bit alignment. */
+    SqttInstructionTraceData    instructionTraceData;       /*!< Input arguments related to instructionTraceMode. */
 } SqttFileChunkApiInfo;
 
 /** An enumeration of the SQTT versions.

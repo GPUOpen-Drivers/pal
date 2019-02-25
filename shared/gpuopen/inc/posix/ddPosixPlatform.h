@@ -53,6 +53,26 @@ static_assert(false, "Unknown platform detected")
 
 #define DD_RESTRICT __restrict__
 
+#define DD_DEBUG_BREAK() raise(SIGTRAP)
+
+// Don't use this macro. Use DD_ASSERT instead.
+//
+// This macro tells the compiler to take a boolean expression as absolute truth.
+// Branches or operations can be deleted in optimization passes if you use this on
+// something that's true *most* of the time, but not *all* of it.
+//
+// Observe this example: https://godbolt.org/z/3Asevh
+// The programmer accidentally creates conflicting conditions in `square()`.
+// As a a result, the entire square function is deleted and so are any code blocks
+// that call it.
+//
+// Be very careful.
+#if defined(__clang__)
+#define DD_AXIOMATICALLY_CANNOT_HAPPEN(expr) __builtin_assume(expr)
+#else
+#define DD_AXIOMATICALLY_CANNOT_HAPPEN(expr) ((expr) ? DD_UNUSED(0) : __builtin_unreachable())
+#endif
+
 namespace DevDriver
 {
     namespace Platform
@@ -90,42 +110,14 @@ namespace DevDriver
 
         struct ThreadStorage
         {
-            void(*callback)(void *);
-            void *parameter;
-            pthread_t handle;
+            ThreadFunction pFnFunction;
+            void*          pParameter;
+            pthread_t      hThread;
+
+            ThreadStorage()
+            {
+                memset(this, 0, sizeof(*this));
+            }
         };
-
-        inline static void DebugBreak(
-            const char* pFile,
-            unsigned int line,
-            const char* pFunction,
-            const char* pAssertion) __attribute__((noreturn));
-
-        static void DebugBreak(
-            const char* pFile,
-            unsigned int line,
-            const char* pFunction,
-            const char* pAssertion)
-        {
-            DD_UNUSED(pFile);
-            DD_UNUSED(line);
-            DD_UNUSED(pFunction);
-            DD_UNUSED(pAssertion);
-
-#if defined(DEVDRIVER_HARD_ASSERT)
-#if !defined(NDEBUG)
-#if defined(DD_LINUX)
-            __assert_fail(pAssertion, pFile, line, pFunction);
-#endif
-#else
-#if defined(SIGTRAP)
-            raise(SIGTRAP);
-#else
-            raise(SIGINT);
-#endif
-#endif
-#endif
-            __builtin_unreachable();
-        }
     }
 }

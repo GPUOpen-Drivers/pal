@@ -27,6 +27,7 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerImage.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
+#include "core/layers/cmdBufferLogger/cmdBufferLoggerQueue.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -138,6 +139,46 @@ Result Device::CreateCmdBuffer(
     {
         pNextCmdBuffer->SetClientData(pPlacementAddr);
         (*ppCmdBuffer) = pCmdBuffer;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetQueueSize(
+    const QueueCreateInfo& createInfo,
+    Result*                pResult
+    ) const
+{
+    return m_pNextLayer->GetQueueSize(createInfo, pResult) + sizeof(Queue);
+}
+
+// =====================================================================================================================
+Result Device::CreateQueue(
+    const QueueCreateInfo& createInfo,
+    void*                  pPlacementAddr,
+    IQueue**               ppQueue)
+{
+    IQueue* pNextQueue = nullptr;
+    Queue*  pQueue = nullptr;
+
+    Result result = m_pNextLayer->CreateQueue(createInfo,
+                                              NextObjectAddr<Queue>(pPlacementAddr),
+                                              &pNextQueue);
+
+    if (result == Result::Success)
+    {
+        PAL_ASSERT(pNextQueue != nullptr);
+        pNextQueue->SetClientData(pPlacementAddr);
+
+        pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this);
+
+        result = pQueue->Init(createInfo.engineType, createInfo.queueType);
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppQueue) = pQueue;
     }
 
     return result;

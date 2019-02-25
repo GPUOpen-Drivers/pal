@@ -539,9 +539,6 @@ struct UserDataEntryMap
     uint8  mappedEntry[NumUserDataRegisters - FastUserDataStartReg];
     uint8  userSgprCount;           // Number of valid entries in the mappedEntry array.
     uint16 firstUserSgprRegAddr;    // Address of the first user-SGPR which is mapped to user-data entries.
-    // Address of the user-SGPR which is used for each indirect user-data table GPU virtual address.  Zero indicates
-    // that the indirect user-data table is not referenced by this stage.
-    uint16 indirectTableRegAddr[MaxIndirectUserDataTables];
     // Address of the user-SGPR used for the spill table GPU virtual address for this stage.  Zero indicates that this
     // stage does not read any entries from the spill table.
     uint16 spillTableRegAddr;
@@ -556,10 +553,6 @@ struct ComputePipelineSignature
 {
     // User-data entry mapping for the lone compute HW shader stage: (CS)
     UserDataEntryMap  stage;
-
-    // First user-data entry (+1) containing the GPU virtual address of each indirect user-data table used by this
-    // pipeline. Zero indicates that an indirect user-data table is not accessed.
-    uint16  indirectTableAddr[MaxIndirectUserDataTables];
 
     // Register address for the GPU virtual address pointing to the internal constant buffer containing the number
     // of thread groups launched in a Dispatch operation. Two sequential SPI user-data registers are needed to store
@@ -585,13 +578,12 @@ struct GraphicsPipelineSignature
     // User-data entry mapping for each graphics HW shader stage: (LS, HS, ES, GS, VS, PS)
     UserDataEntryMap  stage[NumHwShaderStagesGfx];
 
-    // First user-data entry (+1) containing the GPU virtual address of each indirect user-data table used by this
-    // pipeline. Zero indicates that an indirect user-data table is not accessed.
-    uint16  indirectTableAddr[MaxIndirectUserDataTables];
-    // First user-data entry (+1) containing the GPU virtual address of the stream-output SRD table used by this
-    // pipeline. Zero indicates that stream-output is not used by this pipeline.
-    uint16  streamOutTableAddr;
-    uint16  streamOutTableRegAddr; // User-SGPR address for the stream-out table.
+    // Register address for the GPU virtual address of the vertex buffer table used by this pipeline. Zero
+    // indicates that the vertex buffer table is not accessed.
+    uint16  vertexBufTableRegAddr;
+    // Register address for the GPU virtual address of the stream-output table used by this pipeline. Zero
+    // indicates that stream-output is not used by this pipeline.
+    uint16  streamOutTableRegAddr;
 
     // Register address for the vertex ID offset of a draw. The instance ID offset is always the very next register.
     uint16  vertexOffsetRegAddr;

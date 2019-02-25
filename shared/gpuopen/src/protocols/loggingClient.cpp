@@ -35,15 +35,19 @@ namespace DevDriver
     {
         LoggingClient::LoggingClient(IMsgChannel* pMsgChannel)
             : BaseProtocolClient(pMsgChannel, Protocol::Logging, LOGGING_CLIENT_MIN_MAJOR_VERSION, LOGGING_CLIENT_MAX_MAJOR_VERSION)
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 #if DD_BUILD_32
             , _padding(0)
 #endif
+#endif
             , m_isLoggingEnabled(false)
         {
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
 #if DD_BUILD_32
             DD_UNUSED(_padding);
 #endif
             m_pendingMsg.payloadSize = 0;
+#endif
         }
 
         LoggingClient::~LoggingClient()
@@ -203,6 +207,34 @@ namespace DevDriver
             return result;
         }
 
+#if DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
+        Result LoggingClient::ReadLogMessage(LogMessage* pLogMessage, uint32 timeoutInMs)
+        {
+            Result result = Result::Error;
+
+            if (IsConnected() && IsLoggingEnabled() && (pLogMessage != nullptr))
+            {
+                // Check for a new log message on the message bus.
+                SizedPayloadContainer container = {};
+                result = ReceiveLoggingPayload(&container, timeoutInMs);
+                if (result == Result::Success)
+                {
+                    const LogMessagePayload* pPayload = reinterpret_cast<const LogMessagePayload*>(container.payload);
+                    if (pPayload->header.command == LoggingMessage::LogMessage)
+                    {
+                        memcpy(pLogMessage, &pPayload->message, sizeof(pPayload->message));
+                    }
+                    else
+                    {
+                        result = Result::Error;
+                        DD_ASSERT_REASON("Unexpected payload type");
+                    }
+                }
+            }
+
+            return result;
+        }
+#else
         Result LoggingClient::ReadLogMessages(Vector<LogMessage>& logMessages, uint32 maxMessages)
         {
             Result result = Result::Error;
@@ -275,11 +307,15 @@ namespace DevDriver
 
             return result;
         }
+#endif
 
         void LoggingClient::ResetState()
         {
             m_isLoggingEnabled = false;
+
+#if !DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
             m_pendingMsg.payloadSize = 0;
+#endif
         }
 
         bool LoggingClient::IsIdle() const

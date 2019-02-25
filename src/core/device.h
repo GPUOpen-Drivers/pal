@@ -317,7 +317,8 @@ struct GpuEngineProperties
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
                 uint32 mustUseSvmIfSupported           :  1;
                 uint32 supportsTrackBusyChunks         :  1;
-                uint32 reserved                        : 11;
+                uint32 supportsUnmappedPrtPageAccess   :  1;
+                uint32 reserved                        : 10;
             };
             uint32 u32All;
         } flags;
@@ -558,10 +559,9 @@ struct GpuChipProperties
 
         struct
         {
-            uint32 queuesUseCaches             :  1; // If gfxip queue processors use cached reads/writes.
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
-            uint32 reserved                    :  30;
+            uint32 reserved                    : 31;
         };
     } gfxip;
 #endif
@@ -661,6 +661,7 @@ struct GpuChipProperties
         {
             uint32 backendDisableMask;
             uint32 gbAddrConfig;
+            uint32 spiConfigCntl;
             uint32 paScTileSteeringOverride;
             uint32 numShaderEngines;
             uint32 numShaderArrays;
@@ -731,7 +732,8 @@ struct GpuChipProperties
                                                                       // Note: ReleaseAcquireInterface support is a
                                                                       //       prerequisite.
                 uint32 eccProtectedGprs                         :  1; // Are VGPR's ECC-protected?
-                uint32 reserved                                 :  5;
+                uint32 overrideDefaultSpiConfigCntl             :  1; // KMD provides default value for SPI_CONFIG_CNTL.
+                uint32 reserved                                 :  4;
             };
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
@@ -1511,10 +1513,10 @@ public:
     CmdStream* GetDummyCommandStream(EngineType engineType)
         { return m_pDummyCommandStreams[engineType]; }
 
-    size_t IndirectUserDataTableSize(uint32 tableId) const
-        { return m_finalizeInfo.indirectUserDataTable[tableId].sizeInDwords; }
-    size_t IndirectUserDataTableCeRamOffset(uint32 tableId) const
-        { return m_finalizeInfo.indirectUserDataTable[tableId].offsetInDwords; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
+    size_t IndirectUserDataTableCeRamOffset() const
+        { return m_finalizeInfo.indirectUserDataTable[0].offsetInDwords; }
+#endif
 
     size_t CeRamBytesUsed(EngineType engine) const
         { return m_finalizeInfo.ceRamSizeUsed[engine]; }

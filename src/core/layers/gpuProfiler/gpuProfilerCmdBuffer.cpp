@@ -3149,8 +3149,25 @@ void CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    pTgtCmdBuffer->CmdUpdatePerfExperimentSqttTokenMask(ReadTokenVal<IPerfExperiment*>(),
-                                                        ReadTokenVal<ThreadTraceTokenConfig>());
+    IPerfExperiment*        pPerfExperiment = ReadTokenVal<IPerfExperiment*>();
+    const ThreadTraceTokenConfig sqttConfig = ReadTokenVal<ThreadTraceTokenConfig>();
+    pTgtCmdBuffer->CmdUpdatePerfExperimentSqttTokenMask(pPerfExperiment, sqttConfig);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdUpdateSqttTokenMask(
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
+    InsertToken(CmdBufCallId::CmdUpdateSqttTokenMask);
+    InsertToken(sqttTokenConfig);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdUpdateSqttTokenMask(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdUpdateSqttTokenMask(ReadTokenVal<ThreadTraceTokenConfig>());
 }
 
 // =====================================================================================================================
@@ -3450,6 +3467,7 @@ void CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdFlglDisable,
         &CmdBuffer::ReplayCmdBeginPerfExperiment,
         &CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask,
+        &CmdBuffer::ReplayCmdUpdateSqttTokenMask,
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 38
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 39
 
 #define GPUOPEN_INTERFACE_MINOR_VERSION 0
 
@@ -41,10 +41,16 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
     "The specified GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION is not supported.");
 #endif
 
+// Next version number for interface breaking changes
+#define DD_UNRELEASED_MAJOR_VERSION 40
+
 /*
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 39.0    | Simplified the LoggingClient interface to remove the internal pending message requirement.               |
+*|         | Removed kInfiniteTimeout and replaced its uses with kLogicFailureTimeout.                                |
+*|         | Decoupled RGP trace parameters from trace execution.                                                     |
 *| 38.0    | Added support for specifying hostname in ListenerCreateInfo and renamed enableUWP flag to                |
 *|         | enableKernelTransport.                                                                                   |
 *| 37.0    | Added support for Querying ClientInfo from DriverControlProtocol                                         |
@@ -147,6 +153,8 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 ***********************************************************************************************************************
 */
 
+#define GPUOPEN_DECOUPLED_RGP_PARAMETERS_VERSION 39
+#define GPUOPEN_SIMPLER_LOGGING_VERSION 39
 #define GPUOPEN_LISTENER_HOSTNAME_VERSION 38
 #define GPUOPEN_SETTINGS_URI_LINUX_BUILD 35
 #define GPUOPEN_VERSIONED_URI_SERVICES_VERSION 34
@@ -187,6 +195,23 @@ static_assert((GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_MINIMUM_INTERFA
 #include <cstddef>
 #include <stdint.h>
 
+// Macros for conditional language support.
+#ifdef _MSVC_LANG
+#define DD_CPLUSPLUS _MSVC_LANG
+#else
+#define DD_CPLUSPLUS __cplusplus
+#endif
+// Denotes versions of the C++ standard from __cplusplus.
+// See here for details on what values you can expect:
+//      https://en.cppreference.com/w/cpp/preprocessor/replace
+#define CPP98 (199711L)
+#define CPP11 (201103L)
+#define CPP14 (201402L)
+#define CPP17 (201703L)
+#define DD_CPLUSPLUS_SUPPORTS(x) (DD_CPLUSPLUS >= (x))
+
+static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdriver.");
+
 #if !defined(DD_STATIC_CONST)
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define DD_STATIC_CONST static constexpr
@@ -218,6 +243,19 @@ static_assert(false, "Error: unsupported compiler detected. Support is required 
 #define DD_UNUSED(x) (static_cast<void>(x))
 
 #define DD_SANITIZE_RESULT(x) ((x != Result::Success) ? Result::Error : x)
+
+#define DD_STRINGIFY(str) #str
+#define DD_STRINGIFY_(x) DD_STRINGIFY(x)
+
+// Use this macro to mark Result values that have not been handled correctly.
+// !! New code should NOT use this. Instead, handle the result and/or use DD_ASSERT. !!
+#define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), __FILE__, __LINE__, __func__)
+
+#if DD_CPLUSPLUS_SUPPORTS(CPP17)
+#define DD_NODISCARD [[nodiscard]]
+#else
+#define DD_NODISCARD
+#endif
 
 // Include in the private section of a class declaration in order to disallow use of the copy and assignment operator
 #define DD_DISALLOW_COPY_AND_ASSIGN(_typename) \
@@ -271,12 +309,19 @@ namespace DevDriver
 #endif
 
     DD_STATIC_CONST Handle kNullPtr = DD_PTR_TO_HANDLE(NULL);
-    DD_STATIC_CONST uint32 kInfiniteTimeout = ~(0u);
+
+#if DD_VERSION_SUPPORTS(GPUOPEN_SIMPLER_LOGGING_VERSION)
+    // A common timeout in milliseconds for components to use when they do not expect timeout to fail.
+    // If an operation that uses this timeout returns Result::NotReady, consider it a fatal error.
+    DD_STATIC_CONST uint32 kLogicFailureTimeout = 1000;
+#else
+    DD_STATIC_CONST uint32 kInfiniteTimeout     = ~(0u);
+    DD_STATIC_CONST uint32 kLogicFailureTimeout = kInfiniteTimeout;
+#endif
     DD_STATIC_CONST uint32 kNoWait = (0u);
 
     ////////////////////////////
     // Common result codes
-    // enum struct Result : uint32
     enum struct Result : uint32
     {
         Success = 0,
@@ -312,6 +357,16 @@ namespace DevDriver
         SettingsUriInvalidSettingValue = 2002,
         SettingsUriInvalidSettingValueSize = 2003,
     };
+
+    // Implementation for DD_UNHANDLED_RESULT.
+    // This is a specialized assert that should be used through the macro, and not called directly.
+    // This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
+    static inline void MarkUnhandledResultImpl(
+        Result      result,
+        const char* pExpr,
+        const char* pFile,
+        int         lineNumber,
+        const char* pFunc);
 
     ////////////////////////////
     // Common logging levels
@@ -536,7 +591,7 @@ namespace DevDriver
     {
         TransportType::Remote,
         kDefaultNetworkPort,
-        "127.0.0.1"
+        "localhost"
     };
 
     // Default named pipe information

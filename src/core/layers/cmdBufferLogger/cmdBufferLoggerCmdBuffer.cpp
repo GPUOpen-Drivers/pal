@@ -882,14 +882,19 @@ static void DumpClearDepthStencilImageFlags(
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
     ICmdBuffer*                pNextCmdBuffer,
-    const Device*              pDevice,
+    Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo)
     :
     CmdBufferDecorator(pNextCmdBuffer, static_cast<DeviceDecorator*>(pDevice->GetNextLayer())),
     m_pDevice(pDevice),
-    m_allocator(1 * 1024 * 1024)
+    m_allocator(1 * 1024 * 1024),
+    m_pTimestamp(nullptr),
+    m_timestampAddr(0),
+    m_counter(0)
 {
-    m_flags.u32All = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerFlags;
+    const auto& cmdBufferLoggerConfig = pDevice->GetPlatform()->PlatformSettings().cmdBufferLoggerConfig;
+    m_annotations.u32All = cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
+    m_singleStep.u32All  = cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
 
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
@@ -907,18 +912,116 @@ CmdBuffer::CmdBuffer(
 // =====================================================================================================================
 Result CmdBuffer::Init()
 {
-    return m_allocator.Init();
+    Result result = m_allocator.Init();
+
+    if ((result == Result::Success) && IsTimestampingActive())
+    {
+        DeviceProperties deviceProps = {};
+        result = m_pDevice->GetProperties(&deviceProps);
+
+        GpuMemoryCreateInfo createInfo = {};
+        if (result == Result::Success)
+        {
+            result = Result::ErrorOutOfMemory;
+
+            const Pal::gpusize allocGranularity = deviceProps.gpuMemoryProperties.virtualMemAllocGranularity;
+
+            createInfo.size               = Util::Pow2Align(sizeof(CmdBufferTimestampData), allocGranularity);
+            createInfo.alignment          = Util::Pow2Align(sizeof(uint64), allocGranularity);
+            createInfo.vaRange            = VaRange::Default;
+            createInfo.priority           = GpuMemPriority::VeryLow;
+            createInfo.heapCount          = 1;
+            createInfo.heaps[0]           = GpuHeap::GpuHeapInvisible;
+            createInfo.flags.virtualAlloc = 1;
+
+            m_pTimestamp = static_cast<IGpuMemory*>(PAL_MALLOC(m_pDevice->GetGpuMemorySize(createInfo, &result),
+                                                               m_pDevice->GetPlatform(),
+                                                               AllocInternal));
+
+            if (m_pTimestamp != nullptr)
+            {
+                result = m_pDevice->CreateGpuMemory(createInfo, static_cast<void*>(m_pTimestamp), &m_pTimestamp);
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_timestampAddr = m_pTimestamp->Desc().gpuVirtAddr;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void CmdBuffer::AddTimestamp()
+{
+    m_counter++;
+
+    char desc[256] = {};
+    Snprintf(&desc[0], sizeof(desc), "Incrementing counter for the next event with counter value 0x%08x.", m_counter);
+    GetNextLayer()->CmdCommentString(&desc[0]);
+
+    GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
+                                      m_counter,
+                                      ImmediateDataWidth::ImmediateData32Bit,
+                                      m_timestampAddr + offsetof(CmdBufferTimestampData, counter));
+}
+
+// =====================================================================================================================
+void CmdBuffer::AddSingleStepBarrier()
+{
+    BarrierInfo barrier = {};
+    barrier.waitPoint   = HwPipePoint::HwPipeTop;
+
+    constexpr HwPipePoint PipePoints[] =
+    {
+        HwPipePoint::HwPipeBottom,
+        HwPipePoint::HwPipePostCs
+    };
+    barrier.pPipePoints        = &PipePoints[0];
+    barrier.pipePointWaitCount = static_cast<uint32>(ArrayLen(PipePoints));
+
+    char desc[256] = {};
+    Snprintf(&desc[0], sizeof(desc), "Waiting for the previous event with counter value 0x%08x.", m_counter);
+    GetNextLayer()->CmdCommentString(&desc[0]);
+
+    GetNextLayer()->CmdBarrier(barrier);
 }
 
 // =====================================================================================================================
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
+    m_counter = 0;
+
     Result result = GetNextLayer()->Begin(NextCmdBufferBuildInfo(info));
 
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::Begin));
+    }
+
+    if (IsTimestampingActive())
+    {
+        char buffer[256] = {};
+        Snprintf(&buffer[0], sizeof(buffer), "Updating CmdBuffer Hash to 0x%016llX.", reinterpret_cast<uint64>(this));
+        GetNextLayer()->CmdCommentString(&buffer[0]);
+        Snprintf(&buffer[0], sizeof(buffer), "Resetting counter to 0.");
+        GetNextLayer()->CmdCommentString(&buffer[0]);
+
+        GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
+                                          reinterpret_cast<uint64>(this),
+                                          ImmediateDataWidth::ImmediateData64Bit,
+                                          m_timestampAddr + offsetof(CmdBufferTimestampData, cmdBufferHash));
+        GetNextLayer()->CmdWriteImmediate(HwPipePoint::HwPipeTop,
+                                          0,
+                                          ImmediateDataWidth::ImmediateData32Bit,
+                                          m_timestampAddr + offsetof(CmdBufferTimestampData, counter));
     }
 
     return result;
@@ -927,7 +1030,7 @@ Result CmdBuffer::Begin(
 // =====================================================================================================================
 Result CmdBuffer::End()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::End));
     }
@@ -940,6 +1043,7 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
+    m_counter = 0;
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
@@ -982,7 +1086,7 @@ static void CmdBindPipelineToString(
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindPipeline));
 
@@ -996,7 +1100,7 @@ void CmdBuffer::CmdBindPipeline(
 void CmdBuffer::CmdBindMsaaState(
     const IMsaaState* pMsaaState)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindMsaaState));
 
@@ -1010,7 +1114,7 @@ void CmdBuffer::CmdBindMsaaState(
 void CmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindColorBlendState));
 
@@ -1024,7 +1128,7 @@ void CmdBuffer::CmdBindColorBlendState(
 void CmdBuffer::CmdBindDepthStencilState(
     const IDepthStencilState* pDepthStencilState)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindDepthStencilState));
 
@@ -1040,7 +1144,7 @@ void CmdBuffer::CmdBindIndexData(
     uint32    indexCount,
     IndexType indexType)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindIndexData));
 
@@ -1189,7 +1293,7 @@ void DumpBindTargetParams(
 void CmdBuffer::CmdBindTargets(
     const BindTargetParams& params)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindTargets));
         DumpBindTargetParams(this, params);
@@ -1211,7 +1315,7 @@ void CmdBuffer::CmdBindTargets(
 void CmdBuffer::CmdBindStreamOutTargets(
     const BindStreamOutTargetParams& params)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindStreamOutTargets));
     }
@@ -1247,7 +1351,7 @@ void CmdBuffer::CmdBindBorderColorPalette(
     PipelineBindPoint          pipelineBindPoint,
     const IBorderColorPalette* pPalette)
 {
-    if (m_flags.logCmdBinds)
+    if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindBorderColorPalette));
 
@@ -1302,7 +1406,7 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataCs(
 {
     auto* pCmdBuf = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pCmdBuf->Flags().logCmdSetUserData)
+    if (pCmdBuf->Annotations().logCmdSetUserData)
     {
         pCmdBuf->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetUserData));
 
@@ -1321,7 +1425,7 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
 {
     auto* pCmdBuf = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pCmdBuf->Flags().logCmdSetUserData)
+    if (pCmdBuf->Annotations().logCmdSetUserData)
     {
         pCmdBuf->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetUserData));
 
@@ -1363,7 +1467,7 @@ void CmdBuffer::CmdSetIndirectUserData(
     uint32      dwordSize,
     const void* pSrcData)
 {
-    if (m_flags.logCmdSetUserData)
+    if (m_annotations.logCmdSetUserData)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetIndirectUserData));
 
@@ -1396,7 +1500,7 @@ void CmdBuffer::CmdSetIndirectUserDataWatermark(
     uint16 tableId,
     uint32 dwordLimit)
 {
-    if (m_flags.logCmdSetUserData)
+    if (m_annotations.logCmdSetUserData)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetIndirectUserDataWatermark));
 
@@ -1410,7 +1514,7 @@ void CmdBuffer::CmdSetIndirectUserDataWatermark(
 void CmdBuffer::CmdSetBlendConst(
     const BlendConstParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetBlendConst));
 
@@ -1424,7 +1528,7 @@ void CmdBuffer::CmdSetBlendConst(
 void CmdBuffer::CmdSetInputAssemblyState(
     const InputAssemblyStateParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetInputAssemblyState));
 
@@ -1438,7 +1542,7 @@ void CmdBuffer::CmdSetInputAssemblyState(
 void CmdBuffer::CmdSetTriangleRasterState(
     const TriangleRasterStateParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetTriangleRasterState));
 
@@ -1452,7 +1556,7 @@ void CmdBuffer::CmdSetTriangleRasterState(
 void CmdBuffer::CmdSetPointLineRasterState(
     const PointLineRasterStateParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPointLineRasterState));
 
@@ -1466,7 +1570,7 @@ void CmdBuffer::CmdSetPointLineRasterState(
 void CmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetDepthBiasState));
 
@@ -1480,7 +1584,7 @@ void CmdBuffer::CmdSetDepthBiasState(
 void CmdBuffer::CmdSetDepthBounds(
     const DepthBoundsParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetDepthBounds));
 
@@ -1494,7 +1598,7 @@ void CmdBuffer::CmdSetDepthBounds(
 void CmdBuffer::CmdSetStencilRefMasks(
     const StencilRefMaskParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetStencilRefMasks));
 
@@ -1509,7 +1613,7 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
     uint32                       numSamplesPerPixel,
     const MsaaQuadSamplePattern& quadSamplePattern)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetMsaaQuadSamplePattern));
 
@@ -1523,7 +1627,7 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetViewports));
 
@@ -1537,7 +1641,7 @@ void CmdBuffer::CmdSetViewports(
 void CmdBuffer::CmdSetScissorRects(
     const ScissorRectParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetScissorRects));
 
@@ -1551,7 +1655,7 @@ void CmdBuffer::CmdSetScissorRects(
 void CmdBuffer::CmdSetGlobalScissor(
     const GlobalScissorParams& params)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetGlobalScissor));
 
@@ -1776,7 +1880,7 @@ static void CmdBarrierToString(
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
-    if (m_flags.logCmdBarrier)
+    if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBarrier));
 
@@ -1830,6 +1934,16 @@ void CmdBuffer::CmdBarrier(
     nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
 
     GetNextLayer()->CmdBarrier(nextBarrierInfo);
+
+    if (m_singleStep.waitIdleDispatches)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBarriers)
+    {
+        AddTimestamp();
+    }
 
     PAL_SAFE_DELETE_ARRAY(ppGpuEvents, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppTargets, &allocator);
@@ -2006,6 +2120,25 @@ void CmdBuffer::DescribeBarrier(
     }
 
     GetNextLayer()->CmdCommentString("}");
+}
+
+// =====================================================================================================================
+// Adds single-step and timestamp logic for any internal draws/dispatches that the internal PAL core might do.
+void CmdBuffer::HandleDrawDispatch(
+    bool isDraw)
+{
+    const bool timestampEvent = (isDraw) ? m_singleStep.timestampDraws : m_singleStep.timestampDispatches;
+    const bool waitIdleEvent  = (isDraw) ? m_singleStep.waitIdleDraws  : m_singleStep.waitIdleDispatches;
+
+    if (waitIdleEvent)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (timestampEvent)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2237,7 +2370,7 @@ void CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
-    if (m_flags.logCmdBarrier)
+    if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdRelease));
 
@@ -2288,7 +2421,7 @@ void CmdBuffer::CmdAcquire(
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
 {
-    if (m_flags.logCmdBarrier)
+    if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdAcquire));
 
@@ -2350,7 +2483,7 @@ void CmdBuffer::CmdAcquire(
 void CmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
-    if (m_flags.logCmdBarrier)
+    if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdReleaseThenAcquire));
 
@@ -2401,7 +2534,7 @@ void CmdBuffer::CmdWaitRegisterValue(
     uint32      mask,
     CompareFunc compareFunc)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWaitRegisterValue));
 
@@ -2419,7 +2552,7 @@ void CmdBuffer::CmdWaitMemoryValue(
     uint32            mask,
     CompareFunc       compareFunc)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWaitMemoryValue));
 
@@ -2436,7 +2569,7 @@ void CmdBuffer::CmdWaitBusAddressableMemoryMarker(
     uint32            mask,
     CompareFunc       compareFunc)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWaitBusAddressableMemoryMarker));
 
@@ -2456,7 +2589,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDraws)
+    if (pThis->m_annotations.logCmdDraws)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDraw));
 
@@ -2476,6 +2609,8 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     }
 
     pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount);
+
+    pThis->HandleDrawDispatch(true);
 }
 
 // =====================================================================================================================
@@ -2489,13 +2624,15 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDraws)
+    if (pThis->m_annotations.logCmdDraws)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDrawOpaque));
         // TODO: Add comment string.
     }
 
     pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
+
+    pThis->HandleDrawDispatch(true);
 }
 
 // =====================================================================================================================
@@ -2509,7 +2646,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDraws)
+    if (pThis->m_annotations.logCmdDraws)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDrawIndexed));
 
@@ -2531,6 +2668,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     }
 
     pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount);
+
+    pThis->HandleDrawDispatch(true);
 }
 
 // =====================================================================================================================
@@ -2544,7 +2683,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDraws)
+    if (pThis->m_annotations.logCmdDraws)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDrawIndirectMulti));
 
@@ -2552,6 +2691,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
     }
 
     pThis->GetNextLayer()->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+
+    pThis->HandleDrawDispatch(true);
 }
 
 // =====================================================================================================================
@@ -2565,7 +2706,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDraws)
+    if (pThis->m_annotations.logCmdDraws)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDrawIndexedIndirectMulti));
 
@@ -2577,6 +2718,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
                                                        stride,
                                                        maximumCount,
                                                        countGpuAddr);
+
+    pThis->HandleDrawDispatch(true);
 }
 
 // =====================================================================================================================
@@ -2588,7 +2731,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDispatchs)
+    if (pThis->m_annotations.logCmdDispatchs)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatch));
 
@@ -2606,6 +2749,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
     }
 
     pThis->GetNextLayer()->CmdDispatch(x, y, z);
+
+    pThis->HandleDrawDispatch(false);
 }
 
 // =====================================================================================================================
@@ -2616,7 +2761,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDispatchs)
+    if (pThis->m_annotations.logCmdDispatchs)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchIndirect));
 
@@ -2624,6 +2769,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
     }
 
     pThis->GetNextLayer()->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+
+    pThis->HandleDrawDispatch(false);
 }
 
 // =====================================================================================================================
@@ -2638,7 +2785,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    if (pThis->m_flags.logCmdDispatchs)
+    if (pThis->m_annotations.logCmdDispatchs)
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchOffset));
 
@@ -2646,12 +2793,14 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
     }
 
     pThis->GetNextLayer()->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+
+    pThis->HandleDrawDispatch(false);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdStartGpuProfilerLogging()
 {
-    if (m_flags.logCmdDispatchs)
+    if (m_annotations.logCmdDispatchs)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdStartGpuProfilerLogging));
     }
@@ -2662,7 +2811,7 @@ void CmdBuffer::CmdStartGpuProfilerLogging()
 // =====================================================================================================================
 void CmdBuffer::CmdStopGpuProfilerLogging()
 {
-    if (m_flags.logCmdDispatchs)
+    if (m_annotations.logCmdDispatchs)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdStopGpuProfilerLogging));
     }
@@ -2677,7 +2826,7 @@ void CmdBuffer::CmdUpdateMemory(
     gpusize           dataSize,
     const uint32*     pData)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdUpdateMemory));
         DumpGpuMemoryInfo(this, &dstGpuMemory, "dstGpuMemory", "");
@@ -2686,6 +2835,16 @@ void CmdBuffer::CmdUpdateMemory(
     }
 
     GetNextLayer()->CmdUpdateMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, dataSize, pData);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2694,7 +2853,7 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     gpusize           offset,
     uint32            value)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdUpdateBusAddressableMemoryMarker));
         DumpGpuMemoryInfo(this, &dstGpuMemory, "dstGpuMemory", "");
@@ -2703,6 +2862,16 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     }
 
     GetNextLayer()->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2712,7 +2881,7 @@ void CmdBuffer::CmdFillMemory(
     gpusize           fillSize,
     uint32            data)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFillMemory));
         DumpGpuMemoryInfo(this, &dstGpuMemory, "dstGpuMemory", "");
@@ -2721,6 +2890,16 @@ void CmdBuffer::CmdFillMemory(
     }
 
     GetNextLayer()->CmdFillMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, fillSize, data);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2730,7 +2909,7 @@ void CmdBuffer::CmdCopyTypedBuffer(
     uint32                       regionCount,
     const TypedBufferCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyTypedBuffer));
         DumpGpuMemoryInfo(this, &srcGpuMemory, "srcGpuMemory", "");
@@ -2743,6 +2922,16 @@ void CmdBuffer::CmdCopyTypedBuffer(
                                        *NextGpuMemory(&dstGpuMemory),
                                        regionCount,
                                        pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2751,7 +2940,7 @@ void CmdBuffer::CmdCopyRegisterToMemory(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyRegisterToMemory));
         DumpGpuMemoryInfo(this, &dstGpuMemory, "dstGpuMemory", "");
@@ -2760,6 +2949,16 @@ void CmdBuffer::CmdCopyRegisterToMemory(
     }
 
     GetNextLayer()->CmdCopyRegisterToMemory(srcRegisterOffset, *NextGpuMemory(&dstGpuMemory), dstOffset);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2916,7 +3115,7 @@ void CmdBuffer::CmdCopyImage(
     const ImageCopyRegion* pRegions,
     uint32                 flags)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyImage));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -2935,13 +3134,23 @@ void CmdBuffer::CmdCopyImage(
                               regionCount,
                               pRegions,
                               flags);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdScaledCopyImage(
     const ScaledCopyInfo&        copyInfo)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdScaledCopyImage));
         DumpImageInfo(this, copyInfo.pSrcImage, "srcImage", "");
@@ -2966,6 +3175,16 @@ void CmdBuffer::CmdScaledCopyImage(
     nextCopyInfo.flags          = copyInfo.flags;
 
     GetNextLayer()->CmdScaledCopyImage(nextCopyInfo);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -2979,7 +3198,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
     TexFilter                         filter,
     const ColorSpaceConversionTable&  cscTable)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdColorSpaceConversionCopy));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -2998,6 +3217,16 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
                                                 pRegions,
                                                 filter,
                                                 cscTable);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3005,7 +3234,7 @@ void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
     const IImage& dstImage)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCloneImageData));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -3015,6 +3244,16 @@ void CmdBuffer::CmdCloneImageData(
     }
 
     GetNextLayer()->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3105,7 +3344,7 @@ void CmdBuffer::CmdCopyMemoryToImage(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyMemoryToImage));
         DumpGpuMemoryInfo(this, &srcGpuMemory, "srcGpuMemory", "");
@@ -3120,6 +3359,16 @@ void CmdBuffer::CmdCopyMemoryToImage(
                                       dstImageLayout,
                                       regionCount,
                                       pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3130,7 +3379,7 @@ void CmdBuffer::CmdCopyImageToMemory(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyImageToMemory));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -3145,6 +3394,16 @@ void CmdBuffer::CmdCopyImageToMemory(
                                       *NextGpuMemory(&dstGpuMemory),
                                       regionCount,
                                       pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3154,7 +3413,7 @@ void CmdBuffer::CmdCopyMemory(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyMemory));
         DumpGpuMemoryInfo(this, &srcGpuMemory, "srcGpuMemory", "");
@@ -3163,6 +3422,16 @@ void CmdBuffer::CmdCopyMemory(
     }
 
     GetNextLayer()->CmdCopyMemory(*NextGpuMemory(&srcGpuMemory), *NextGpuMemory(&dstGpuMemory), regionCount, pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3219,7 +3488,7 @@ void CmdBuffer::CmdCopyMemoryToTiledImage(
     uint32                            regionCount,
     const MemoryTiledImageCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyMemoryToTiledImage));
         DumpGpuMemoryInfo(this, &srcGpuMemory, "srcGpuMemory", "");
@@ -3235,6 +3504,16 @@ void CmdBuffer::CmdCopyMemoryToTiledImage(
                                               dstImageLayout,
                                               regionCount,
                                               pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3245,7 +3524,7 @@ void CmdBuffer::CmdCopyTiledImageToMemory(
     uint32                            regionCount,
     const MemoryTiledImageCopyRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyTiledImageToMemory));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -3261,6 +3540,16 @@ void CmdBuffer::CmdCopyTiledImageToMemory(
                                               *NextGpuMemory(&dstGpuMemory),
                                               regionCount,
                                               pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3271,7 +3560,7 @@ void CmdBuffer::CmdCopyImageToPackedPixelImage(
     const ImageCopyRegion* pRegions,
     Pal::PackedPixelType   packPixelType)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyImageToPackedPixelImage));
 
@@ -3283,6 +3572,16 @@ void CmdBuffer::CmdCopyImageToPackedPixelImage(
                                                    regionCount,
                                                    pRegions,
                                                    packPixelType);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3295,7 +3594,7 @@ void CmdBuffer::CmdClearColorBuffer(
     uint32            rangeCount,
     const Range*      pRanges)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearColorBuffer));
 
@@ -3309,6 +3608,16 @@ void CmdBuffer::CmdClearColorBuffer(
                                      bufferExtent,
                                      rangeCount,
                                      pRanges);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3318,7 +3627,7 @@ void CmdBuffer::CmdClearBoundColorTargets(
     uint32                          regionCount,
     const ClearBoundTargetRegion*   pClearRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearBoundColorTargets));
 
@@ -3329,6 +3638,16 @@ void CmdBuffer::CmdClearBoundColorTargets(
                                            pBoundColorTargets,
                                            regionCount,
                                            pClearRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3342,7 +3661,7 @@ void CmdBuffer::CmdClearColorImage(
     const Box*         pBoxes,
     uint32             flags)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearColorImage));
         DumpImageInfo(this, &image, "image", "");
@@ -3361,6 +3680,16 @@ void CmdBuffer::CmdClearColorImage(
                                     boxCount,
                                     pBoxes,
                                     flags);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3373,7 +3702,7 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
     uint32                          regionCount,
     const ClearBoundTargetRegion*   pClearRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearBoundDepthStencilTargets));
 
@@ -3382,6 +3711,16 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
 
     GetNextLayer()->CmdClearBoundDepthStencilTargets(
         depth, stencil, samples, fragments, flag, regionCount, pClearRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3397,7 +3736,7 @@ void CmdBuffer::CmdClearDepthStencil(
     const Rect*        pRects,
     uint32             flags)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearDepthStencil));
         DumpImageInfo(this, &image, "image", "");
@@ -3420,6 +3759,16 @@ void CmdBuffer::CmdClearDepthStencil(
                                          rectCount,
                                          pRects,
                                          flags);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3430,7 +3779,7 @@ void CmdBuffer::CmdClearBufferView(
     uint32            rangeCount,
     const Range*      pRanges)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearBufferView));
         DumpGpuMemoryInfo(this, &gpuMemory, "gpuMemory", "");
@@ -3444,6 +3793,16 @@ void CmdBuffer::CmdClearBufferView(
                                     pBufferViewSrd,
                                     rangeCount,
                                     pRanges);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3455,7 +3814,7 @@ void CmdBuffer::CmdClearImageView(
     uint32            rectCount,
     const Rect*       pRects)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdClearImageView));
         DumpImageInfo(this, &image, "image", "");
@@ -3471,6 +3830,16 @@ void CmdBuffer::CmdClearImageView(
                                    pImageViewSrd,
                                    rectCount,
                                    pRects);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3483,7 +3852,7 @@ void CmdBuffer::CmdResolveImage(
     uint32                    regionCount,
     const ImageResolveRegion* pRegions)
 {
-    if (m_flags.logCmdBlts)
+    if (m_annotations.logCmdBlts)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResolveImage));
         DumpImageInfo(this, &srcImage, "srcImage", "");
@@ -3501,6 +3870,16 @@ void CmdBuffer::CmdResolveImage(
                                     resolveMode,
                                     regionCount,
                                     pRegions);
+
+    if (m_singleStep.waitIdleBlts)
+    {
+        AddSingleStepBarrier();
+    }
+
+    if (m_singleStep.timestampBlts)
+    {
+        AddTimestamp();
+    }
 }
 
 // =====================================================================================================================
@@ -3508,7 +3887,7 @@ void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
     HwPipePoint      setPoint)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetEvent));
 
@@ -3523,7 +3902,7 @@ void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
     HwPipePoint      resetPoint)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResetEvent));
 
@@ -3537,7 +3916,7 @@ void CmdBuffer::CmdResetEvent(
 void CmdBuffer::CmdPredicateEvent(
     const IGpuEvent& gpuEvent)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdPredicateEvent));
 
@@ -3554,7 +3933,7 @@ void CmdBuffer::CmdMemoryAtomic(
     uint64            srcData,
     AtomicOp          atomicOp)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdMemoryAtomic));
 
@@ -3570,7 +3949,7 @@ void CmdBuffer::CmdResetQueryPool(
     uint32            startQuery,
     uint32            queryCount)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResetQueryPool));
 
@@ -3587,7 +3966,7 @@ void CmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBeginQuery));
 
@@ -3603,7 +3982,7 @@ void CmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdEndQuery));
 
@@ -3624,7 +4003,7 @@ void CmdBuffer::CmdResolveQuery(
     gpusize           dstOffset,
     gpusize           dstStride)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdResolveQuery));
 
@@ -3652,7 +4031,7 @@ void CmdBuffer::CmdSetPredication(
     bool              waitResults,
     bool              accumulateData)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPredication));
 
@@ -3675,7 +4054,7 @@ void CmdBuffer::CmdWriteTimestamp(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWriteTimestamp));
 
@@ -3692,7 +4071,7 @@ void CmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWriteImmediate));
 
@@ -3710,7 +4089,7 @@ void CmdBuffer::CmdLoadGds(
     gpusize           srcMemOffset,
     uint32            size)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadGds));
 
@@ -3733,7 +4112,7 @@ void CmdBuffer::CmdStoreGds(
     uint32            size,
     bool              waitForWC)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdStoreGds));
 
@@ -3757,7 +4136,7 @@ void CmdBuffer::CmdUpdateGds(
 {
     PAL_ASSERT(pData != nullptr);
 
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdUpdateGds));
 
@@ -3777,7 +4156,7 @@ void CmdBuffer::CmdFillGds(
     uint32            fillSize,
     uint32            data)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFillGds));
 
@@ -3794,7 +4173,7 @@ void CmdBuffer::CmdFillGds(
 void CmdBuffer::CmdLoadBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadBufferFilledSizes));
 
@@ -3808,7 +4187,7 @@ void CmdBuffer::CmdLoadBufferFilledSizes(
 void CmdBuffer::CmdSaveBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSaveBufferFilledSizes));
 
@@ -3823,7 +4202,7 @@ void CmdBuffer::CmdSetBufferFilledSize(
     uint32  bufferId,
     uint32  offset)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetBufferFilledSize));
 
@@ -3840,7 +4219,7 @@ void CmdBuffer::CmdLoadCeRam(
     uint32            ramOffset,
     uint32            dwordSize)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadCeRam));
 
@@ -3856,7 +4235,7 @@ void CmdBuffer::CmdWriteCeRam(
     uint32      ramOffset,
     uint32      dwordSize)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWriteCeRam));
 
@@ -3875,7 +4254,7 @@ void CmdBuffer::CmdDumpCeRam(
     uint32            currRingPos,
     uint32            ringSize)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDumpCeRam));
 
@@ -3910,7 +4289,7 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdExecuteNestedCmdBuffers));
 
@@ -3938,7 +4317,7 @@ void CmdBuffer::CmdExecuteIndirectCmds(
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdExecuteIndirectCmds));
 
@@ -3960,7 +4339,7 @@ void CmdBuffer::CmdIf(
     uint64            mask,
     CompareFunc       compareFunc)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdIf));
 
@@ -3977,7 +4356,7 @@ void CmdBuffer::CmdIf(
 // =====================================================================================================================
 void CmdBuffer::CmdElse()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdElse));
 
@@ -3990,7 +4369,7 @@ void CmdBuffer::CmdElse()
 // =====================================================================================================================
 void CmdBuffer::CmdEndIf()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdEndIf));
 
@@ -4008,7 +4387,7 @@ void CmdBuffer::CmdWhile(
     uint64            mask,
     CompareFunc       compareFunc)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWhile));
 
@@ -4025,7 +4404,7 @@ void CmdBuffer::CmdWhile(
 // =====================================================================================================================
 void CmdBuffer::CmdEndWhile()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdEndWhile));
 
@@ -4042,7 +4421,7 @@ void CmdBuffer::CmdSetHiSCompareState0(
     uint32      compValue,
     bool        enable)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState0));
 
@@ -4059,7 +4438,7 @@ void CmdBuffer::CmdSetHiSCompareState1(
     uint32      compValue,
     bool        enable)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetHiSCompareState1));
 
@@ -4072,7 +4451,7 @@ void CmdBuffer::CmdSetHiSCompareState1(
 // =====================================================================================================================
 void CmdBuffer::CmdFlglSync()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglSync));
 
@@ -4085,7 +4464,7 @@ void CmdBuffer::CmdFlglSync()
 // =====================================================================================================================
 void CmdBuffer::CmdFlglEnable()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglEnable));
 
@@ -4098,7 +4477,7 @@ void CmdBuffer::CmdFlglEnable()
 // =====================================================================================================================
 void CmdBuffer::CmdFlglDisable()
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglDisable));
 
@@ -4112,7 +4491,7 @@ void CmdBuffer::CmdFlglDisable()
 void CmdBuffer::CmdBeginPerfExperiment(
     IPerfExperiment* pPerfExperiment)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBeginPerfExperiment));
 
@@ -4127,7 +4506,7 @@ void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
     IPerfExperiment*              pPerfExperiment,
     const ThreadTraceTokenConfig& sqttTokenConfig)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdUpdatePerfExperimentSqttTokenMask));
 
@@ -4138,10 +4517,32 @@ void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdUpdateSqttTokenMask(
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
+    ICmdBuffer* pNext = GetNextLayer();
+    if (m_annotations.logMiscellaneous)
+    {
+        pNext->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetUserData));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        pNext->CmdCommentString("SqttTokenConfig:");
+        Snprintf(pString, StringLength, "TokenMask   = %04x", sqttTokenConfig.tokenMask);
+        pNext->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "RegMask     = %04x", sqttTokenConfig.regMask);
+        pNext->CmdCommentString(pString);
+    }
+
+    pNext->CmdUpdateSqttTokenMask(sqttTokenConfig);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdEndPerfExperiment(
     IPerfExperiment* pPerfExperiment)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdEndPerfExperiment));
 
@@ -4156,7 +4557,7 @@ void CmdBuffer::CmdInsertTraceMarker(
     PerfTraceMarkerType markerType,
     uint32              markerData)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdInsertTraceMarker));
 
@@ -4171,7 +4572,7 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
     uint32      numDwords,
     const void* pData)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdInsertRgpTraceMarker));
 
@@ -4185,7 +4586,7 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSaveComputeState));
 
@@ -4199,7 +4600,7 @@ void CmdBuffer::CmdSaveComputeState(
 void CmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
-    if (m_flags.logMiscellaneous)
+    if (m_annotations.logMiscellaneous)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdRestoreComputeState));
 
@@ -4222,7 +4623,7 @@ void CmdBuffer::CmdSetUserClipPlanes(
     uint32               planeCount,
     const UserClipPlane* pPlanes)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetUserClipPlanes));
 
@@ -4235,7 +4636,7 @@ void CmdBuffer::CmdSetUserClipPlanes(
 // =====================================================================================================================
 void CmdBuffer::CmdXdmaWaitFlipPending()
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdXdmaWaitFlipPending));
 
@@ -4249,7 +4650,7 @@ void CmdBuffer::CmdXdmaWaitFlipPending()
 void CmdBuffer::CmdSetViewInstanceMask(
     uint32 mask)
 {
-    if (m_flags.logCmdSets)
+    if (m_annotations.logCmdSets)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetViewInstanceMask));
 

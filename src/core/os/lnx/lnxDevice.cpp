@@ -192,11 +192,10 @@ Result Device::Create(
                       hwDeviceSizes.oss   +
                       addrMgrSize);
 
-        void*  pMemory  = PAL_MALLOC_BASE(totalSize,
-                                          alignof(Device),
-                                          pPlatform,
-                                          Util::AllocInternal,
-                                          Util::MemBlkType::Malloc);
+        void*  pMemory  = PAL_MALLOC_ALIGNED(totalSize,
+                                             alignof(Device),
+                                             pPlatform,
+                                             Util::AllocInternal);
 
         if (pMemory != nullptr)
         {

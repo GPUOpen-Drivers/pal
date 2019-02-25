@@ -2603,6 +2603,14 @@ void CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdUpdateSqttTokenMask(
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
+    // This function is not logged because it should only be called by other debug tools.
+    GetNextLayer()->CmdUpdateSqttTokenMask(sqttTokenConfig);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdEndPerfExperiment(
     IPerfExperiment* pPerfExperiment)
 {

@@ -33,16 +33,33 @@
 
 #include "gpuopen.h"
 
+// Always enable asserts in Debug builds
 #if !defined(NDEBUG)
-#if !defined(DEVDRIVER_FORCE_ASSERT)
-#define DEVDRIVER_FORCE_ASSERT
+#if !defined(DEVDRIVER_ASSERTS_ENABLE)
+#define DEVDRIVER_ASSERTS_ENABLE
 #endif
-#if !defined(DEVDRIVER_HARD_ASSERT)
-#define DEVDRIVER_HARD_ASSERT
+#if !defined(DEVDRIVER_ASSERTS_DEBUGBREAK)
+#define DEVDRIVER_ASSERTS_DEBUGBREAK
 #endif
 #endif
 
+// Common Typedefs
+// These types are shared between all platforms,
+// and need to be defined before including a specific platform header.
+
 #include <inttypes.h>
+
+namespace DevDriver
+{
+
+namespace Platform
+{
+    // Used by the Platform::Thread implementation.
+    typedef void (*ThreadFunction)(void* pThreadParameter);
+
+} // namespace Platform
+
+} // namespace DevDriver
 
 #if   defined(__APPLE__) || defined(__linux__)
 #include "posix/ddPosixPlatform.h"
@@ -60,6 +77,18 @@
 #define DD_OS_STRING "Linux"
 #else
 #define DD_OS_STRING "Unknown"
+#endif
+
+#if !defined(DD_RESTRICT)
+#error "Restrict not defined by platform!"
+#endif
+
+#if !defined(DD_DEBUG_BREAK)
+#error "Debug break not defined by platform!"
+#endif
+
+#if !defined(DD_AXIOMATICALLY_CANNOT_HAPPEN)
+#error "Axiomatically-cannot-happen not defined by platform!"
 #endif
 
 #include "util/template.h"
@@ -80,17 +109,21 @@
 #define DD_WILL_PRINT(lvl) ((lvl >= DEVDRIVER_LOG_LEVEL_VALUE) & (lvl < DevDriver::LogLevel::Count))
 #define DD_PRINT(lvl, ...) DevDriver::LogString<lvl>(__VA_ARGS__)
 
-#if !defined(DEVDRIVER_FORCE_ASSERT)
+#if defined(DEVDRIVER_ASSERTS_DEBUGBREAK)
+#define DD_ASSERT_DEBUG_BREAK() DD_DEBUG_BREAK()
+#else
+#define DD_ASSERT_DEBUG_BREAK()
+#endif
 
-#define DD_ALERT(statement)      (DD_UNUSED(0))
-#define DD_ASSERT(statement)     (DD_UNUSED(0))
-#define DD_ASSERT_REASON(reason) (DD_UNUSED(0))
-#define DD_ALERT_REASON(reason)  (DD_UNUSED(0))
+#if !defined(DEVDRIVER_ASSERTS_ENABLE)
+
+#define DD_ALERT(statement)      DD_UNUSED(0)
+#define DD_ASSERT(statement)     DD_AXIOMATICALLY_CANNOT_HAPPEN(statement)
+#define DD_ASSERT_REASON(reason) DD_UNUSED(0)
+#define DD_ALERT_REASON(reason)  DD_UNUSED(0)
 
 #else
 
-#define DD_STRINGIFY(str) #str
-#define DD_STRINGIFY_(x) DD_STRINGIFY(x)
 #define DD_ALERT(statement)                                                                     \
 {                                                                                               \
     if (!(statement))                                                                           \
@@ -106,7 +139,7 @@
     {                                                                                           \
         DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s\n",           \
             __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                             \
-        DevDriver::Platform::DebugBreak(__FILE__, __LINE__, __func__, DD_STRINGIFY(statement)); \
+        DD_ASSERT_DEBUG_BREAK();                                                                \
     }                                                                                           \
 }
 
@@ -120,13 +153,9 @@
 {                                                                                   \
     DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s\n",   \
         __FILE__, __LINE__, __func__, reason);                                      \
-    DevDriver::Platform::DebugBreak(__FILE__, __LINE__, __func__, reason);          \
+    DD_ASSERT_DEBUG_BREAK();                                                        \
 }
 
-#endif
-
-#if !defined(DD_RESTRICT)
-#define DD_RESTRICT
 #endif
 
 /// Convenience macro that always asserts.
@@ -163,8 +192,9 @@ namespace DevDriver
         public:
             Thread();
             ~Thread();
-            Result Start(void(*threadCallback)(void *), void *threadParameter);
-            Result Join();
+            Result Start(ThreadFunction pFnThreadFunc, void* pThreadParameter);
+            Result Join(uint32 timeoutInMs = kNoWait);
+
             bool IsJoinable() const;
 
         private:
@@ -362,5 +392,36 @@ namespace DevDriver
         while (length--)
             crc = (crc >> 8) ^ lookupTable[(crc & 0xFF) ^ *pCurrent++];
         return ~crc;
+    }
+
+    // Implementation for DD_UNHANDLED_RESULT.
+    // This is a specialized assert that should be used through the macro, and not called directly.
+    // This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
+    static inline void MarkUnhandledResultImpl(
+        Result      result,
+        const char* pExpr,
+        const char* pFile,
+        int         lineNumber,
+        const char* pFunc)
+    {
+#if defined(DEVDRIVER_ASSERTS_ENABLE)
+        if (result != Result::Success)
+        {
+            DD_PRINT(::DevDriver::LogLevel::Error,
+                     "%s (%d): Unchecked Result in %s: \"%s\" == 0x%X\n",
+                     pFile,
+                     lineNumber,
+                     pFunc,
+                     pExpr,
+                     result);
+            DD_DEBUG_BREAK();
+        }
+#else
+        DD_UNUSED(result);
+        DD_UNUSED(pExpr);
+        DD_UNUSED(pFile);
+        DD_UNUSED(lineNumber);
+        DD_UNUSED(pFunc);
+#endif
     }
 }

@@ -78,7 +78,7 @@ namespace DevDriver
 
         if (m_pMsgChannel != nullptr)
         {
-            result = m_pMsgChannel->Register(kInfiniteTimeout);
+            result = m_pMsgChannel->Register(kLogicFailureTimeout);
 
             if (result == Result::Success)
             {

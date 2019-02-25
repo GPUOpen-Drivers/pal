@@ -88,7 +88,7 @@ namespace DevDriver
         MessageBuffer messageBuffer = {};
 
         // Attempt to read a message from the queue with a timeout.
-        if (m_updateSemaphore.Wait(kInfiniteTimeout) == Result::Success)
+        if (m_updateSemaphore.Wait(kLogicFailureTimeout) == Result::Success)
         {
             Result status = ReadTransportMessage(messageBuffer, timeoutInMs);
             while (status == Result::Success)
@@ -247,7 +247,7 @@ namespace DevDriver
             result = Result::NotReady;
             // acquire the update semaphore. this prevents the update thread from processing messages
             // as it is possible it could process messages the client was looking for
-            if (m_updateSemaphore.Wait(kInfiniteTimeout) == Result::Success)
+            if (m_updateSemaphore.Wait(kLogicFailureTimeout) == Result::Success)
             {
                 const uint64 startTime = Platform::GetCurrentTimeInMs();
                 uint64 timeDelta = 0;
@@ -770,7 +770,7 @@ namespace DevDriver
         if (m_msgThread.IsJoinable())
         {
             m_msgThreadParams.active = false;
-            result = m_msgThread.Join();
+            result = m_msgThread.Join(kLogicFailureTimeout);
         }
         return DD_SANITIZE_RESULT(result);
     }

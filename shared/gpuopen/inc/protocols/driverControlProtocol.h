@@ -107,6 +107,7 @@ namespace DevDriver
             LateDeviceInit,
             PlatformInit,
             HaltedOnPlatformInit,
+            HaltedPostDeviceInit,
             Count
         };
 

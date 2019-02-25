@@ -132,7 +132,8 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerSpmConfig.spmTraceInterval = 4096;
     m_settings.gpuProfilerSpmConfig.spmBufferSize = 1048576;
     m_settings.cmdBufferLoggerEnabled = false;
-    m_settings.cmdBufferLoggerFlags = 0x1ff;
+    m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
+    m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep = 0x0;
     m_settings.interfaceLoggerEnabled = false;
     memset(m_settings.interfaceLoggerConfig.logDirectory, 0, 512);
     strncpy(m_settings.interfaceLoggerConfig.logDirectory, "amdpal/", 512);
@@ -495,9 +496,14 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
                            &m_settings.cmdBufferLoggerEnabled,
                            InternalSettingScope::PrivatePalKey);
 
-    pDevice->ReadSetting(pCmdBufferLoggerFlagsStr,
+    pDevice->ReadSetting(pCmdBufferLoggerConfig_CmdBufferLoggerAnnotationsStr,
                            Util::ValueType::Uint,
-                           &m_settings.cmdBufferLoggerFlags,
+                           &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pCmdBufferLoggerConfig_CmdBufferLoggerSingleStepStr,
+                           Util::ValueType::Uint,
+                           &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pInterfaceLoggerEnabledStr,
@@ -868,9 +874,14 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(1206982834, info);
 
     info.type      = SettingType::Uint;
-    info.pValuePtr = &m_settings.cmdBufferLoggerFlags;
-    info.valueSize = sizeof(m_settings.cmdBufferLoggerFlags);
-    m_settingsInfoMap.Insert(2297477296, info);
+    info.pValuePtr = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations;
+    info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations);
+    m_settingsInfoMap.Insert(1084594400, info);
+
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep;
+    info.valueSize = sizeof(m_settings.cmdBufferLoggerConfig.cmdBufferLoggerSingleStep);
+    m_settingsInfoMap.Insert(1570291248, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.interfaceLoggerEnabled;
@@ -918,6 +929,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
+            component.settingsDataHash = 2454639958;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

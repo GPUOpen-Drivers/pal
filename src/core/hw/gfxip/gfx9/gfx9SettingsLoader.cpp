@@ -262,6 +262,9 @@ void SettingsLoader::OverrideDefaults(
         // HW does not actually pipe-align the data.  In these cases, the L2 cache needs to be flushed prior
         // to the metadata being read by a shader.
         m_settings.waDepthStencilTargetMetadataNeedsTccFlush = true;
+
+        // Metadata is not pipe aligned once we get down to the mip chain within the tail
+        m_settings.waitOnMetadataMipTail = true;
     }
 
     if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice))

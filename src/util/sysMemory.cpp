@@ -29,9 +29,10 @@
 // PAL-internal placement new override.  The DummyEnum is used to ensure there won't be a conflict if a client tries to
 // override global placement new.  Must be in the global namespace, not Util.
 void* PAL_CDECL operator new(
-    size_t    size,     // Size of the memory allocation.
-    void*     pObjMem,  // Memory where the object will be constructed.
-    DummyEnum dummy)    // Unused.
+    size_t        size,     // Size of the memory allocation.
+    void*         pObjMem,  // Memory where the object will be constructed.
+    Util::Dummy   dummy     // Unused.
+    ) noexcept
 {
     return pObjMem;
 }
@@ -40,9 +41,10 @@ void* PAL_CDECL operator new(
 // Silences compiler warnings about not have a matching delete for the placement new override above.  Will never be
 // called.  Must be in the global namespace, not Util.
 void PAL_CDECL operator delete(
-    void*     pObj,
-    void*     pObjMem,
-    DummyEnum dummy)
+    void*        pObj,
+    void*        pObjMem,
+    Util::Dummy  dummy
+    ) noexcept
 {
     PAL_NEVER_CALLED();
 }

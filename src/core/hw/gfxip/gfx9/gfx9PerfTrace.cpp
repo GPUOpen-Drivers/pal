@@ -326,7 +326,7 @@ void Gfx9ThreadTrace::GetHwTokenConfig(
     const ThreadTraceTokenConfig& tokenConfig, // [in] The input token config.
     SqttTokenMask*                pTokenMask,  // [out] The token mask in HW format.
     SqttRegMask*                  pRegMask     // [out] The reg mask in HW format.
-    ) const
+    )
 {
     const auto& configTokens  = tokenConfig.tokenMask;
     const auto& configRegMask = tokenConfig.regMask;
@@ -657,12 +657,24 @@ uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
     // Set GRBM_GFX_INDEX to isolate the SE/SH this trace is associated with.
     pCmdSpace = WriteGrbmGfxIndex(pCmdStream, pCmdSpace);
 
+    return Gfx9ThreadTrace::WriteUpdateSqttTokenMask(pCmdStream, pCmdSpace, sqttTokenConfig);
+}
+
+// =====================================================================================================================
+// Static function which writes the commands required to update the sqtt token mask without setting GRBM_GFX_INDEX.
+uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMask(
+    CmdStream*                    pCmdStream,
+    uint32*                       pCmdSpace,
+    const ThreadTraceTokenConfig& sqttTokenConfig)
+{
     SqttTokenMask tokenMask = {};
-    SqttRegMask   regMask   = {};
+    SqttRegMask   regMask = {};
     GetHwTokenConfig(sqttTokenConfig, &tokenMask, &regMask);
 
     // Update the token mask register
-    regSQ_THREAD_TRACE_TOKEN_MASK tokenMaskReg = m_sqThreadTraceTokenMask;
+    // This will lose the REG_DROP_ON_STALL bit, but realistically if you're dynamically switching the token mask,
+    //  you are trying to minimize both stalls and data loss, so you don't want to drop registers
+    regSQ_THREAD_TRACE_TOKEN_MASK tokenMaskReg = {};
     tokenMaskReg.gfx09.TOKEN_MASK = tokenMask.u16All;
     tokenMaskReg.gfx09.REG_MASK   = regMask.u8All;
 
@@ -670,7 +682,7 @@ uint32* Gfx9ThreadTrace::WriteUpdateSqttTokenMaskCommands(
                                                   tokenMaskReg.u32All,
                                                   pCmdSpace);
 
-    // NOTE: It is the caller's responsibility to reset GRBM_GFX_INDEX.
+    // NOTE: It is the caller's responsibility to reset GRBM_GFX_INDEX if necessary.
 
     return pCmdSpace;
 }

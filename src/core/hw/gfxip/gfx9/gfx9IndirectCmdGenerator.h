@@ -50,7 +50,7 @@ enum class IndirectOpType : uint32
                         // other variation since it avoids unnecessary memory reads by the CP.
     SetUserData,        // Sets one or more consecutive virtualized user-data entries. These entries may end up
                         // being mapped to either physical SPI user-data registers or to the spill table.
-    IndirectTableSrd,   // Builds an untyped buffer SRD in an indirect user-data table.
+    VertexBufTableSrd,  // Builds an untyped buffer SRD in the vertex buffer table.
 };
 
 // Contains all information the indirect command generation shader(s) need to generate a command buffer snippet for
@@ -74,9 +74,8 @@ struct IndirectParamData
     //  [0] = First user-data entry to update
     //  [1] = Number of user-data entries to update
     //  IndirectTableSrd:
-    //  [0] = ID of the indirect table to modify
-    //  [1] = Offset into the table where the SRD is written (in DWORDs)
-    uint32  data[4];
+    //  [0] = Offset into the table where the SRD is written (in DWORDs)
+    uint32  data[2];
 };
 
 // =====================================================================================================================
@@ -155,13 +154,6 @@ static void PAL_INLINE CommandGeneratorTouchedUserData(
     for (uint32 idx = 0; idx < NumUserDataFlagsParts; ++idx)
     {
         mask[idx] &= ~(generator.TouchedUserDataEntries()[idx]);
-    }
-    for (uint32 idx = 0; idx < MaxIndirectUserDataTables; ++idx)
-    {
-        if (signature.indirectTableAddr[idx] != UserDataNotMapped)
-        {
-            Util::WideBitfieldClearBit(mask, (signature.indirectTableAddr[idx] - 1));
-        }
     }
 }
 

@@ -130,8 +130,11 @@ public:
 
     void Destroy() { this->~CmdStreamChunk(); }
 
+    // The three overload functions only returns valid CPU address if the memory is CPU visible.
     uint32* GetSpace(uint32 sizeInDwords);
     uint32* GetSpace(uint32 sizeInDwords, gpusize* pGpuVirtAddr);
+    uint32* GetSpace(uint32 sizeInDwords, GpuMemory** ppGpuMem, gpusize* pOffset);
+
     void    ReclaimSpace(uint32 sizeInDwords);
     uint32  ComputeSpaceSize(uint32 sizeInDwords, uint32 alignmentInDwords = 1) const;
     uint32* ValidateCmdGenerationDataSpace(uint32 sizeInDwords, gpusize* pGpuVirtAddr);

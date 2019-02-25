@@ -60,7 +60,11 @@ PerfExperiment::PerfExperiment(
     m_counterFlags.u32All      = 0;
     m_sqPerfCounterCtrl.u32All = 0;
 
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
+    if (pDevice->Parent()->ChipProperties().gfx9.overrideDefaultSpiConfigCntl != 0)
+    {
+        m_spiConfigCntlDefault = pDevice->Parent()->ChipProperties().gfx9.spiConfigCntl;
+    }
+    else if (m_gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_spiConfigCntlDefault = Gfx09::mmSPI_CONFIG_CNTL_DEFAULT;
     }

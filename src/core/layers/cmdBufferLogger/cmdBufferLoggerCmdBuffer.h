@@ -35,7 +35,7 @@ namespace Pal
 namespace CmdBufferLogger
 {
 
-union CmdBufferLoggerFlags
+union CmdBufferLoggerAnnotations
 {
     struct
     {
@@ -54,6 +54,23 @@ union CmdBufferLoggerFlags
     uint32 u32All;
 };
 
+union CmdBufferLoggerSingleStep
+{
+    struct
+    {
+        uint32 timestampDraws      :  1;
+        uint32 timestampDispatches :  1;
+        uint32 timestampBarriers   :  1;
+        uint32 timestampBlts       :  1;
+        uint32 waitIdleDraws       :  1;
+        uint32 waitIdleDispatches  :  1;
+        uint32 waitIdleBarriers    :  1;
+        uint32 waitIdleBlts        :  1;
+        uint32 reserved            : 24;
+    };
+    uint32 u32All;
+};
+
 class Device;
 
 // =====================================================================================================================
@@ -67,7 +84,7 @@ class CmdBuffer: public CmdBufferDecorator
 {
 public:
     CmdBuffer(ICmdBuffer*                pNextCmdBuffer,
-              const Device*              pDevice,
+              Device*                    pDevice,
               const CmdBufferCreateInfo& createInfo);
     Result Init();
 
@@ -423,6 +440,8 @@ public:
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
         IPerfExperiment*              pPerfExperiment,
         const ThreadTraceTokenConfig& sqttTokenConfig) override;
+    virtual void CmdUpdateSqttTokenMask(
+        const ThreadTraceTokenConfig& sqttTokenConfig) override;
     virtual void CmdEndPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdInsertTraceMarker(
@@ -479,9 +498,13 @@ public:
     void DescribeBarrier(
         const Developer::BarrierData* pData);
 
-    Util::VirtualLinearAllocator* Allocator()    { return &m_allocator; }
-    CmdBufferLoggerFlags          Flags()        { return m_flags;      }
-    const Device*                 LoggerDevice() { return m_pDevice;    }
+    void HandleDrawDispatch(
+        bool isDraw);
+
+    Util::VirtualLinearAllocator* Allocator()    { return &m_allocator;   }
+    CmdBufferLoggerAnnotations    Annotations()  { return m_annotations;  }
+    const Device*                 LoggerDevice() { return m_pDevice;      }
+    IGpuMemory*                   TimestampMem() { return m_pTimestamp;   }
 
 private:
     virtual ~CmdBuffer() { }
@@ -548,9 +571,18 @@ private:
         uint32      yDim,
         uint32      zDim);
 
-    const Device*const           m_pDevice;
+    bool IsTimestampingActive() const
+        { return (m_singleStep.timestampBarriers | m_singleStep.timestampDispatches | m_singleStep.timestampDraws); }
+    void AddTimestamp();
+    void AddSingleStepBarrier();
+
+    Device*const                 m_pDevice;
     Util::VirtualLinearAllocator m_allocator;       // Temp storage for argument translation.
-    CmdBufferLoggerFlags         m_flags;
+    CmdBufferLoggerAnnotations   m_annotations;
+    CmdBufferLoggerSingleStep    m_singleStep;
+    IGpuMemory*                  m_pTimestamp;
+    gpusize                      m_timestampAddr;
+    uint32                       m_counter;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

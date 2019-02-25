@@ -548,11 +548,12 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     // Record that the tail object in our chunk list has less space available than it did before.
     m_embeddedData.chunkDwordsAvailable -= alignedSizeInDwords;
 
-    gpusize gpuAddress = 0;
-    const uint32 alignmentOffset  = alignedSizeInDwords - sizeInDwords;
-    *pOffset        = (alignmentOffset + pNewChunk->DwordsAllocated())*sizeof(uint32) + pNewChunk->GpuMemoryOffset();
-    *ppGpuMem       = const_cast<GpuMemory*>(pNewChunk->GpuMemory());
-    uint32* pSpace  = pNewChunk->GetSpace(alignedSizeInDwords, &gpuAddress) + alignmentOffset;
+    const uint32 alignmentOffsetInDwords = alignedSizeInDwords - sizeInDwords;
+    gpusize      allocationOffset        = 0;
+    uint32*      pSpace                  = pNewChunk->GetSpace(alignedSizeInDwords, ppGpuMem, &allocationOffset) +
+                                           alignmentOffsetInDwords;
+
+    *pOffset = allocationOffset + (alignmentOffsetInDwords * sizeof(uint32));
 
     return pSpace;
 }
@@ -561,10 +562,13 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 // Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as CE RAM dumps, etc.  This
 // will result in pulling a new chunk from the command allocator if necessary.  This memory has the same lifetime as the
 // embedded data allocations and the command buffer itself.
-// Returns: GPU virtual address of the memory.
+// Returns the GPU memory object pointer that can accomodate the specified number of dwords of the scratch memory.
+// The offset of the allocated scratch memory to the scratch GpuMemory starting address is also returned.
 gpusize CmdBuffer::AllocateGpuScratchMem(
-    uint32 sizeInDwords,
-    uint32 alignmentInDwords)
+    uint32      sizeInDwords,
+    uint32      alignmentInDwords,
+    GpuMemory** ppGpuMem,
+    gpusize*    pOffset)
 {
     // The size of an aligned data allocation can change per chunk.  We may need to compute the size twice if this
     // call results in pulling a new chunk from the allocator.
@@ -596,11 +600,13 @@ gpusize CmdBuffer::AllocateGpuScratchMem(
     // Record that the tail object in our chunk list has less space available than it did before.
     m_gpuScratchMem.chunkDwordsAvailable -= alignedSizeInDwords;
 
-    gpusize gpuVirtAddr  = 0;
-    uint32*const pUnused = pNewChunk->GetSpace(alignedSizeInDwords, &gpuVirtAddr);
+    const uint32 alignmentOffsetInDwords = alignedSizeInDwords - sizeInDwords;
+    gpusize      allocationOffset        = 0;
+    uint32*const pUnused                 = pNewChunk->GetSpace(alignedSizeInDwords, ppGpuMem, &allocationOffset);
 
-    // Compute aligned GPU virtual address for caller.
-    return (gpuVirtAddr + (sizeof(uint32) * (alignedSizeInDwords - sizeInDwords)));
+    *pOffset = allocationOffset + (alignmentOffsetInDwords * sizeof(uint32));
+
+    return ((*ppGpuMem)->Desc().gpuVirtAddr + (*pOffset));
 }
 
 // =====================================================================================================================

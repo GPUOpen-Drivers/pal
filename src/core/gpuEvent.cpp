@@ -81,7 +81,7 @@ Result GpuEvent::Init()
 
 #if PAL_BUILD_GFX
     // If queues read/write through caches we can deadlock GPU events by ignoring CPU writes.
-    if (m_pDevice->ChipProperties().gfxip.queuesUseCaches)
+    if (m_pDevice->ChipProperties().gfxip.supportGl2Uncached && cpuVisible)
     {
         internalInfo.mtype = MType::Uncached;
     }

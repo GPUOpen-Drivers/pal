@@ -84,6 +84,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.dsWavesPerSimdOverflow = 4;
     m_settings.offchipTfDegree = 4.0;
     m_settings.gfx6OffChipHsSkipDataCopyNullPatch = false;
+    m_settings.gfx6OffChipHsMultiWavePatchDataCopy = false;
     m_settings.lsCuEnLimitMask = 0xffffffff;
     m_settings.esCuEnLimitMask = 0xffffffff;
     m_settings.gsCuEnLimitMask = 0xffffffff;
@@ -283,6 +284,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsSkipDataCopyNullPatchStr,
                            Util::ValueType::Boolean,
                            &m_settings.gfx6OffChipHsSkipDataCopyNullPatch,
+                           InternalSettingScope::PrivatePalGfx6Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOffChipHsMultiWavePatchDataCopyStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.gfx6OffChipHsMultiWavePatchDataCopy,
                            InternalSettingScope::PrivatePalGfx6Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pLsCuEnLimitMaskStr,
@@ -711,6 +717,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gfx6OffChipHsSkipDataCopyNullPatch);
     m_settingsInfoMap.Insert(1952167388, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.gfx6OffChipHsMultiWavePatchDataCopy;
+    info.valueSize = sizeof(m_settings.gfx6OffChipHsMultiWavePatchDataCopy);
+    m_settingsInfoMap.Insert(2396748146, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.lsCuEnLimitMask;
     info.valueSize = sizeof(m_settings.lsCuEnLimitMask);
@@ -997,6 +1008,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx6PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx6PalJsonData);
+            component.settingsDataHash = 2374228883;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

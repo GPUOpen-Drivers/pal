@@ -578,6 +578,8 @@ public:
 
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) override;
 
+    virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
+
     virtual void CmdLoadCeRam(
         const IGpuMemory& srcGpuMemory,
         gpusize           memOffset,
@@ -1029,16 +1031,15 @@ private:
 
     struct
     {
-        // Client-specified high-watermark for each indirect user-data table. This indicates how much of each table
-        // is dumped from CE RAM to memory before a draw or dispatch.
+        // Per-pipeline watermark of the size of the vertex buffer table needed per draw (in DWORDs).
         uint32              watermark : 31;
-        // Tracks whether or not this indirect user-data table was modified somewhere in the command buffer.
+        // Tracks whether or not the vertex buffer table was modified somewhere in the command buffer.
         uint32              modified  :  1;
-        uint32*             pData;  // Tracks the contents of each indirect user-data table.
+        BufferSrd*          pSrds;  // Tracks the contents of the vertex buffer table.
 
         CeRamUserDataTableState  state;  // Tracks the state for the indirect user-data table
 
-    }  m_indirectUserDataInfo[MaxIndirectUserDataTables];
+    }  m_vbTable;
 
     struct
     {

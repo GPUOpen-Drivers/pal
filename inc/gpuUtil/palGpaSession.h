@@ -77,6 +77,19 @@ enum class GpaSessionState : Pal::uint32
     Ready      = 3,
 };
 
+/// The various ways you can change trace options after it has started.
+enum class UpdateSampleTraceMode : Pal::uint32
+{
+    MinimalToFullMask      = 0, ///< Used to convert a minimal trace (needed for context in compute presents) to a full
+                                ///   trace according to the options in the active trace. Requires enableSampleUpdates.
+                                ///  Additionally, this must be called between BeginSample() and EndSample() and
+                                ///   queue timing must also be enabled on the GpaSession when this function is called.
+    StartInstructionTrace  = 1, ///< Used to enable instruction-level trace globally at any time. Can be run without an
+                                ///  active sample. Useful for targeting specific parts of a frame.
+    StopInstructionTrace   = 2, ///< Used to disable instruction-level trace globally at any time. Can be run without an
+                                ///  active sample.
+};
+
 /// Specifies basic type of sample to perfom - either a normal set of "global" perf counters, or a trace consisting
 /// of SQ thread trace and/or streaming performance counters.
 enum class GpaSampleType : Pal::uint32
@@ -262,6 +275,63 @@ struct RegisterPipelineInfo
     Pal::uint64 apiPsoHash;  ///< Client-provided PSO hash.
 };
 
+/// Enumeration of RGP trace profiling modes
+enum class TraceProfilingMode : Pal::uint32
+{
+    Present     = 0,    ///< Present triggered capture
+    UserMarkers = 1,    ///< Capture triggered by user marker
+    FrameNumber = 2,    ///< Capture based on frame number
+    Tags        = 3,    ///< Tag based capture
+};
+
+/// Constant defines the maximum length for a user marker string.
+static constexpr Pal::uint32 UserMarkerStringLength = 256;
+
+/// Defines data specific to each profiling mode used to capture an RGP trace.
+union TraceProfilingModeData
+{
+    struct
+    {
+        char start[UserMarkerStringLength];     ///< User marker string used to start trace capture.
+        char end[UserMarkerStringLength];       ///< User marker string used to end trace capture.
+    } userMarkerData;
+
+    struct
+    {
+        Pal::uint32 start;                      ///< Frame number used to start the trace.
+        Pal::uint32 end;                        ///< Frame number used to end the trace.
+    } frameNumberData;
+
+    struct
+    {
+        Pal::uint64 start;                      ///< Tag used to start the trace.
+        Pal::uint64 end;                        ///< Tag used to end the trace.
+    } tagData;
+};
+
+/// Enumerates the different instruction level data modes for an RGP trace
+enum class InstructionTraceMode : Pal::uint32
+{
+    Disabled  = 0,    ///< Instruction level data was disabled for trace.
+    FullFrame = 1,    ///< Instruction level data was enabled for the full trace.
+    ApiPso    = 2,    ///< Instruction level data was enabled only for a single API PSO
+};
+
+/// Defines the data used to control enabling of instruction level data.
+struct InstructionTraceModeData
+{
+    Pal::uint64 apiPsoHash;     ///< Hash of the API PSO targeted for instruction level data.
+};
+
+/// Struct for supplying API specific information about an RGP trace
+struct SampleTraceApiInfo
+{
+    TraceProfilingMode       profilingMode;             ///< Profiling mode used to trigger the trace.
+    TraceProfilingModeData   profilingModeData;         ///< Profiling mode specific data.
+    InstructionTraceMode     instructionTraceMode;      ///< Instruction trace mode for the trace.
+    InstructionTraceModeData instructionTraceModeData;  ///< Instruction trace mode data.
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -427,20 +497,25 @@ public:
 
     /// Updates the trace parameters for a specific sample.
     ///
-    /// @param [in] pCmdBuf   Command buffer to issue the update commands.
-    /// @param [in] sampleId  Identifies the sample to be updated.  This should be a value returned by BeginSample().
-    ///                       This value must also correspond to a thread trace sample specifically.
+    /// @param [in] pCmdBuf    Command buffer to issue the update commands.
+    /// @param [in] sampleId   Identifies the sample to be updated, if required by the mode.  This should be a value
+    ///                        returned by BeginSample(), and must correspond to a thread trace sample.
+    /// @param [in] updateMode The way the sample parameters should be set. Some modes have additional restrictions.
+    ///                        @see UpdateSampleTraceMode
     ///
     /// @returns Success if the update was successful.  Otherwise, possible errors
     ///          include:
     ///          + ErrorInvalidPointer if pCmdBuf is nullptr.
-    ///          + ErrorInvalidObjectType if the sample associated with sampleId is not a trace sample.
-    ///
-    /// @note UpdateSampleTraceParams() must be called after BeginSample() and before EndSample() and queue timing must
-    ///       also be enabled on the gpa session when this function is called.
+    ///          + ErrorInvalidObjectType if a sample is required and the sample associated with sampleId is not a
+    ///                                   trace sample.
     Pal::Result UpdateSampleTraceParams(
         Pal::ICmdBuffer*          pCmdBuf,
-        Pal::uint32               sampleId);
+        Pal::uint32               sampleId,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 467
+        UpdateSampleTraceMode     updateMode);
+#else
+        UpdateSampleTraceMode     updateMode = UpdateSampleTraceMode::MinimalToFullMask);
+#endif
 
     /// Marks the end of a range of command buffer operations to be measured.
     ///
@@ -458,6 +533,15 @@ public:
     void EndSample(
         Pal::ICmdBuffer* pCmdBuf,
         Pal::uint32      sampleId);
+
+    /// Provides API specific information about an RGP trace.
+    ///
+    /// @param [in] traceApiInfo  Const reference to the struct of API specific information.
+    /// @param [in] sampleId      Sample ID (returned by BeginSample) for the RGP trace type sample info is being
+    ///                           provided for.
+    void SetSampleTraceApiInfo(
+        const SampleTraceApiInfo& traceApiInfo,
+        Pal::uint32               sampleId) const;
 
     /// Reports if GPU execution of this session has completed and results are _ready_ for querying from the CPU via
     /// GetResults().

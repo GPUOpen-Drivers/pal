@@ -3010,12 +3010,19 @@ public:
     /// Updates the sqtt token mask on the specified performance experiment.
     ///
     /// @param [in] pPerfExperiment Performance experiment to update.
-    /// @param [in] tokenConfig pdated token and reg mask to apply.
+    /// @param [in] tokenConfig updated token and reg mask to apply.
     ///
     /// @note: This function is only valid to call if pPerfExperiment is a thread trace experiment that is currently
     //         active.
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
         IPerfExperiment*              pPerfExperiment,
+        const ThreadTraceTokenConfig& tokenConfig) = 0;
+
+    /// Updates the sqtt token mask on all running traces, if any.
+    ///
+    /// @note This may overwrite the stall settings (making them more conservative)
+    /// @param [in] tokenConfig updated token and reg mask to apply.
+    virtual void CmdUpdateSqttTokenMask(
         const ThreadTraceTokenConfig& tokenConfig) = 0;
 
     /// Ends the specified performance experiment.

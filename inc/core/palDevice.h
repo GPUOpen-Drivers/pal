@@ -109,7 +109,7 @@ enum class VaRange : uint32;
 constexpr uint32 MaxDeviceName = 256;
 
 /// Maximum number of indirect user-data tables managed by PAL's command buffer objects.  @see DeviceFinalizeInfo.
-constexpr uint32 MaxIndirectUserDataTables = 3;
+constexpr uint32 MaxIndirectUserDataTables = 1;
 
 /// Maximum number of supported entries in the MSAA sample pattern palette.  See IDevice::SetSamplePatternPalette().
 constexpr uint32 MaxSamplePatternPaletteEntries = 16;
@@ -713,8 +713,11 @@ struct DeviceProperties
                 /// Indicates whether the engine supports the command allocator tracks which chunk is idle.
                 uint32 supportsTrackBusyChunks         :  1;
 
+                /// Indicates whether the engine can safely access non-resident ranges of resources.
+                uint32 supportsUnmappedPrtPageAccess   :  1;
+
                 /// Reserved for future use.
-                uint32 reserved                        : 18;
+                uint32 reserved                        : 17;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1083,6 +1086,7 @@ struct DeviceProperties
             uint32 tcpSizeInBytes;          ///< Size of one L1 TCP cache in bytes. There is one TCP per CU.
             uint32 maxLateAllocVsLimit;     ///< Maximum number of VS waves that can be in flight without
                                             ///  having param cache and position buffer space.
+            uint32 shaderPrefetchBytes;     ///< Number of bytes the SQ will prefetch, if any.
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 442)
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
@@ -1279,6 +1283,7 @@ struct DeviceFinalizeInfo
                                            ///  of (ceRamSizeUsed * queueCounts) must be <= ceRamSizeAvailable for that
                                            ///  engine type.  Each entry must be either zero or a multiple of 32 bytes.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 469
     /// PAL provides several "indirect" user-data tables to the client for use within a command buffer.  Each of these
     /// tables resides in GPU memory and is fully managed by PAL, with the client able to update the tables' contents
     /// just like the normal user-data entries.  Typically, the contents of these tables are updated using the Constant
@@ -1301,6 +1306,7 @@ struct DeviceFinalizeInfo
                                     ///  improved performance at the expense of a larger GPU memory footprint.
 #endif
     } indirectUserDataTable[MaxIndirectUserDataTables];
+#endif
 
     /// @see PrivateScreenNotifyInfo
     /// Private screen notify info, must be filled when supportPrivateScreens=1. The client pointer and callback are to

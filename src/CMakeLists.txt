@@ -548,6 +548,7 @@ if(PAL_BUILD_CORE)
                 core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
                 core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
+                core/layers/cmdBufferLogger/cmdBufferLoggerQueue.cpp
             )
         endif()
 
