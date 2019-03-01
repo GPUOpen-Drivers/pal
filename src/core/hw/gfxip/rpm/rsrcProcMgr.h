@@ -577,6 +577,7 @@ private:
 
     const ComputePipeline* GetCsResolvePipeline(
         const Image&  srcImage,
+        ImageAspect   aspect,
         ResolveMode   mode,
         ResolveMethod method) const;
 

@@ -353,7 +353,22 @@ uint32 GetMaxEventId(
 
         if (maxEventId == 0)
         {
-            if ((block == GpuBlock::Cpg) || (block == GpuBlock::Ia))
+            if (block == GpuBlock::Cpg)
+            {
+                if (FAMILY_IS_AI(pProps->familyId))
+                {
+                    maxEventId = MaxCpgPerfcountSelVega;
+                }
+                else if (AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId))
+                {
+                    maxEventId = MaxCpgPerfcountSelRv1x;
+                }
+                else if (AMDGPU_IS_RAVEN2(pProps->familyId, pProps->eRevId))
+                {
+                    maxEventId = MaxCpgPerfcountSelRv2x;
+                }
+            }
+            else if (block == GpuBlock::Ia)
             {
                 if ((AMDGPU_IS_VEGA10(pProps->familyId, pProps->eRevId)) ||
                     (AMDGPU_IS_RAVEN(pProps->familyId, pProps->eRevId)))

@@ -1515,6 +1515,9 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     const uint16 indirectTableEntryPlus1 = (metadata.pipeline.hasEntry.indirectUserDataTableAddresses == 0)
                                             ? UserDataNotMapped
                                             : static_cast<uint16>(metadata.pipeline.indirectUserDataTableAddresses[0]);
+    const HwShaderStage vbTableStage =
+            (IsTessEnabled() ? HwShaderStage::Ls : (IsGsEnabled() ? HwShaderStage::Es : HwShaderStage::Vs));
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     if (metadata.pipeline.hasEntry.indirectUserDataTableAddresses != 0)
     {
@@ -1549,8 +1552,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         mmSPI_SHADER_USER_DATA_PS_15,
     };
 
-    uint16  entryToRegAddr[MaxUserDataEntries] = { };
-
     const uint32 stageId = static_cast<uint32>(stage);
     auto*const   pStage  = &m_signature.stage[stageId];
 
@@ -1563,19 +1564,21 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             // the table's address to a user-data entry which was written internally by PAL.
             if ((value + 1) == streamOutTableEntryPlus1)
             {
-                // There can only be one stream-output table per pipeline.
-                PAL_ASSERT((m_signature.streamOutTableRegAddr == offset) ||
-                           (m_signature.streamOutTableRegAddr == UserDataNotMapped));
-                m_signature.streamOutTableRegAddr = offset;
+                if (stage == HwShaderStage::Vs)
+                {
+                    m_signature.streamOutTableRegAddr = offset;
+                }
             }
             // Backwards compatibility for the indirect user-data table user-SGPR.  Older ABI versions encoded this by
             // mapping the table's address to a user-data entry which was written internally by PAL.
             else if ((value + 1) == indirectTableEntryPlus1)
             {
-                // There can only be one indirect user-data table per pipeline.
-                PAL_ASSERT((m_signature.vertexBufTableRegAddr == offset) ||
-                           (m_signature.vertexBufTableRegAddr == UserDataNotMapped));
-                m_signature.vertexBufTableRegAddr = offset;
+                if (stage == vbTableStage)
+                {
+                    m_signature.vertexBufTableRegAddr = offset;
+                }
+                PAL_ASSERT_MSG(stage == vbTableStage,
+                               "Indirect user-data tables are only supported for vertex shaders now!");
             }
             else if (value < MaxUserDataEntries)
             {
@@ -1586,7 +1589,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 
                 PAL_ASSERT(offset >= pStage->firstUserSgprRegAddr);
                 const uint8 userSgprId = static_cast<uint8>(offset - pStage->firstUserSgprRegAddr);
-                entryToRegAddr[value]  = offset;
 
                 pStage->mappedEntry[userSgprId] = static_cast<uint8>(value);
                 pStage->userSgprCount = Max<uint8>(userSgprId + 1, pStage->userSgprCount);
@@ -1656,6 +1658,25 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             }
         } // If HasEntry()
     } // For each user-SGPR
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Backwards compatibility for the stream-out table user-SGPR.  Older ABI versions encoded this by mapping the
+    // table's address to a user-data entry which was written internally by PAL.
+    if ((stage == HwShaderStage::Vs) &&
+        (m_signature.streamOutTableRegAddr == UserDataNotMapped) && (streamOutTableEntryPlus1 != UserDataNotMapped))
+    {
+        PAL_ASSERT_MSG((streamOutTableEntryPlus1 - 1) < m_signature.spillThreshold,
+                       "Mapping the stream-out table address to spilled user-data is no longer supported!");
+    }
+    // Backwards compatibility for the indirect user-data table user-SGPR.  Older ABI versions encoded this by
+    // mapping the table's address to a user-data entry which was written internally by PAL.
+    if ((stage == vbTableStage) &&
+        (m_signature.vertexBufTableRegAddr == UserDataNotMapped) && (indirectTableEntryPlus1 != UserDataNotMapped))
+    {
+        PAL_ASSERT_MSG((indirectTableEntryPlus1 - 1) < m_signature.spillThreshold,
+                       "Mapping the indirect user-data table address to spilled user-data is no longer supported!");
+    }
+#endif
 
     // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
     MetroHash64::Hash(

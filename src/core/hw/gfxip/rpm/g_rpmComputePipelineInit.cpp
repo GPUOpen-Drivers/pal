@@ -578,6 +578,42 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil2xMax, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil2xMin, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil4xMax, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil4xMin, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil8xMax, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::MsaaResolveStencil8xMin, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::PackedPixelComposite, pDevice, pTable, pPipelineMem);
     }
 

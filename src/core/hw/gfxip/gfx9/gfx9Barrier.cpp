@@ -164,11 +164,14 @@ void Device::TransitionDepthStencil(
             // this same barrier, we have just initialized the htile to known values.
             if (TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false)
             {
-                // If we're on the compute engine, then force the use of a CS expand of hTile data...  If the
-                // panel setting requests forced expands, then use this path as well if the command buffer supports
-                // compute operations.
-                if ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
-                    (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()))
+                // Use compute if:
+                //   - We're on the compute engine
+                //   - or we should force ExpandHiZRange for resummarize and we support compute operations
+                const bool useCompute =
+                    ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
+                     (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()));
+
+                if (useCompute)
                 {
                     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
                     DescribeBarrier(pCmdBuf,

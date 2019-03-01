@@ -4851,14 +4851,8 @@ void RsrcProcMgr::ResolveImageCompute(
 
     LateExpandResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method);
 
-    // Select a Resolve shader based on the source Image's sample-count and resolve method.
-    const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage, resolveMode, method);
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-    // Save the command buffer's state and bind the pipeline.
+    // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
 
     // Basic resolves need one slot per region per image, FMask resolves need a third slot for the source Image's FMask.
     const bool   isCsFmask = (method.shaderCsFmask == 1);
@@ -4867,6 +4861,15 @@ void RsrcProcMgr::ResolveImageCompute(
     // Execute the Resolve for each region in the specified list.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
+        // Select a Resolve shader based on the source Image's sample-count and resolve method.
+        const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage, pRegions[idx].srcAspect, resolveMode, method);
+
+        uint32 threadsPerGroup[3] = {};
+        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+        // Bind the pipeline.
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, });
+
         // Set both subresources to the first slice of the required mip level
         const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
         const SubresId dstSubres = { pRegions[idx].dstAspect, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
@@ -4898,14 +4901,14 @@ void RsrcProcMgr::ResolveImageCompute(
         // 1 - Num Samples
         // 2 - Gamma correction option (1 if the destination format is SRGB, 0 otherwise)
         // 3 - Copy sample 0 (single sample) flag. (1 for integer formats, 0 otherwise). For DS images this flag
-        //     is forced to 1.
+        //     is 1 if resolve mode is set as average.
         const uint32 imageData[3] =
         {
             srcImage.GetImageCreateInfo().samples,
             Formats::IsSrgb(dstFormat.format),
-            ((pRegions[idx].srcAspect == ImageAspect::Stencil) ||
-             Formats::IsSint(srcFormat.format)                 ||
-             Formats::IsUint(srcFormat.format)),
+            ((pRegions[idx].srcAspect == ImageAspect::Stencil) ? (resolveMode == ResolveMode::Average)
+                                                               : (Formats::IsSint(srcFormat.format) ||
+                                                                  Formats::IsUint(srcFormat.format))),
         };
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, &imageData[0]);
@@ -5038,12 +5041,15 @@ void RsrcProcMgr::ResolveImageCompute(
 // Selects a compute Resolve pipeline based on the properties of the given Image and resolve method.
 const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
     const Image&  srcImage,
+    ImageAspect   aspect,
     ResolveMode   mode,
     ResolveMethod method
     ) const
 {
     const ComputePipeline* pPipeline = nullptr;
     const auto& createInfo = srcImage.GetImageCreateInfo();
+    const bool  isStencil  = (aspect == ImageAspect::Stencil);
+
     // If the sample and fragment counts are different then this must be an EQAA resolve.
     if (createInfo.samples != createInfo.fragments)
     {
@@ -5126,10 +5132,12 @@ const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve2x);
                 break;
             case ResolveMode::Minimum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve2xMin);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil2xMin)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve2xMin);
                 break;
             case ResolveMode::Maximum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve2xMax);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil2xMax)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve2xMax);
                 break;
             default:
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve2x);
@@ -5144,10 +5152,12 @@ const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve4x);
                 break;
             case ResolveMode::Minimum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve4xMin);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil4xMin)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve4xMin);
                 break;
             case ResolveMode::Maximum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve4xMax);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil4xMax)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve4xMax);
                 break;
             default:
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve4x);
@@ -5162,10 +5172,12 @@ const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve8x);
                 break;
             case ResolveMode::Minimum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve8xMin);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil8xMin)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve8xMin);
                 break;
             case ResolveMode::Maximum:
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve8xMax);
+                pPipeline = isStencil ? GetPipeline(RpmComputePipeline::MsaaResolveStencil8xMax)
+                                      : GetPipeline(RpmComputePipeline::MsaaResolve8xMax);
                 break;
             default:
                 pPipeline = GetPipeline(RpmComputePipeline::MsaaResolve8x);

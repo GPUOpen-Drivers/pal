@@ -534,9 +534,15 @@ public:
         uint64              timeout
         ) const override;
 
+    virtual Result GetCalibratedTimestamps(
+        CalibratedTimestamps* pCalibratedTimestamps) const override
+        { return m_pNextLayer->GetCalibratedTimestamps(pCalibratedTimestamps); }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
     virtual Result CalibrateGpuTimestamp(
         GpuTimestampCalibration* pCalibrationData) const override
         { return m_pNextLayer->CalibrateGpuTimestamp(pCalibrationData); }
+#endif
 
     virtual void BindTrapHandler(
         PipelineBindPoint pipelineType,

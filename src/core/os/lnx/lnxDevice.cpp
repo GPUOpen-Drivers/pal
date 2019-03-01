@@ -733,6 +733,12 @@ Result Device::GetProperties(
         // Linux don't support changing the queue priority at the submission granularity.
         pInfo->osProperties.supportDynamicQueuePriority = false;
 
+        // Expose available time domains for calibrated timestamps
+        pInfo->osProperties.timeDomains.supportDevice = true;
+        pInfo->osProperties.timeDomains.supportClockMonotonic = true;
+        pInfo->osProperties.timeDomains.supportClockMonotonicRaw = false; // Enable this once KMD interface is updated
+        pInfo->osProperties.timeDomains.supportQueryPerformanceCounter = false;
+
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
             static_cast<Platform*>(m_pPlatform)->IsHostMappedForeignMemorySupported();
     }
@@ -1482,21 +1488,36 @@ void Device::InitOutputPaths()
 }
 
 // =====================================================================================================================
-// Correlates a current GPU timsetamp with the CPU clock, allowing tighter CPU/GPU synchronization using timestamps.
-// NOTE: This operation is currently not supported on Linux.
-Result Device::CalibrateGpuTimestamp(
-    GpuTimestampCalibration* pCalibrationData
+// Captures a GPU timestamp with the corresponding CPU timestamps, allowing tighter CPU/GPU timeline synchronization.
+Result Device::GetCalibratedTimestamps(
+    CalibratedTimestamps* pCalibratedTimestamps
     ) const
 {
-    uint64 gpuTimestamp = 0;
-    Result result = Result::ErrorUnavailable;
+    Result result = Result::Success;
 
-    if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_TIMESTAMP, sizeof(gpuTimestamp), &gpuTimestamp) == 0)
+    if (pCalibratedTimestamps != nullptr)
     {
-        // the cpu timestamp is measured in ticks
-        pCalibrationData->cpuWinPerfCounter = GetPerfCpuTime();
-        pCalibrationData->gpuTimestamp = gpuTimestamp;
-        result = Result::Success;
+        uint64 gpuTimestamp = 0;
+        uint64 cpuTimestampBeforeGpuTimestamp = GetPerfCpuTime();
+
+        if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_TIMESTAMP, sizeof(gpuTimestamp), &gpuTimestamp) == 0)
+        {
+            uint64 cpuTimestampAfterGpuTimestamp = GetPerfCpuTime();
+
+            pCalibratedTimestamps->gpuTimestamp               = gpuTimestamp;
+            pCalibratedTimestamps->cpuClockMonotonicTimestamp = cpuTimestampBeforeGpuTimestamp;
+            pCalibratedTimestamps->maxDeviation               = cpuTimestampAfterGpuTimestamp -
+                                                                    cpuTimestampBeforeGpuTimestamp;
+        }
+        else
+        {
+            // Unable to get a GPU timestamp, return error.
+            result = Result::ErrorUnavailable;
+        }
+    }
+    else
+    {
+        result = Result::ErrorInvalidPointer;
     }
 
     return result;

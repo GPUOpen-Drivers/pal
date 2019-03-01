@@ -1139,6 +1139,20 @@ struct DeviceProperties
 
         uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
         VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
+
+        union
+        {
+            struct
+            {
+                uint32 supportDevice                  : 1;  ///< GPU time domain
+                uint32 supportClockMonotonic          : 1;  ///< POSIX CLOCK_MONOTONIC time domain
+                uint32 supportClockMonotonicRaw       : 1;  ///< POSIX CLOCK_MONOTONIC_RAW time domain
+                uint32 supportQueryPerformanceCounter : 1;  ///< Windows Query Performance Counter time domain
+
+                uint32 reserved                       : 28; ///< Reserved for future use.
+            };
+            uint32 u32All;
+        } timeDomains;
     } osProperties;                 ///< OS-specific properties of this device.
 
     struct
@@ -1765,6 +1779,17 @@ struct SamplePos
 /// to implement samplepos shader instruction support.
 typedef SamplePos SamplePatternPalette[MaxSamplePatternPaletteEntries][MaxMsaaRasterizerSamples];
 
+/// Provides a GPU timestamp along with the corresponding CPU timestamps, for use in calibrating CPU and GPU timelines.
+struct CalibratedTimestamps
+{
+    uint64 gpuTimestamp;                  ///< GPU timestamp value compatible with ICmdBuffer::CmdWriteTimestamp().
+    uint64 cpuClockMonotonicTimestamp;    ///< POSIX CLOCK_MONOTONIC timestamp
+    uint64 cpuClockMonotonicRawTimestamp; ///< POSIX CLOCK_MONOTONIC_RAW timestamp
+    uint64 cpuQueryPerfCounterTimestamp;  ///< Windows QueryPerformanceCounter timestamp
+    uint64 maxDeviation;                  ///< Maximum deviation in nanoseconds between the GPU and CPU timestamps
+};
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
 /// Reports a current GPU timestamp along with a current CPU clock value, for use in calibrating CPU and GPU timelines.
 struct GpuTimestampCalibration
 {
@@ -1776,6 +1801,7 @@ struct GpuTimestampCalibration
                                      ///  [QueryPerformanceCounter](http://tinyurl.com/9a45puz).
     };
 };
+#endif
 
 /// Specifies connector types
 enum class DisplayConnectorType : uint32
@@ -2620,6 +2646,21 @@ public:
         bool                waitAll,
         uint64              timeout) const = 0;
 
+    /// Correlates a GPU timestamp with the corresponding CPU timestamps, for tighter CPU/GPU timeline synchronization
+    ///
+    /// @param [out] pCalibratedTimestamps  Reports a current GPU timestamp along with the CPU timestamps at the time
+    ///                                     that GPU timestamp was written.  The CPU timestamps are OS-specific.  Also
+    ///                                     reports a maximum deviation between the captured timestamps in nanoseconds.
+    ///
+    /// @returns Success if the request was successful.  Otherwise, one of the following errors may be returned:
+    ///          + ErrorInvalidPointer if:
+    ///              - pCalibratedTimestamps is null.
+    ///          + ErrorUnavailable if:
+    ///              - unable to capture timestamps for all requested time domains.
+    virtual Result GetCalibratedTimestamps(
+        CalibratedTimestamps* pCalibratedTimestamps) const = 0;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 470)
     /// Correlates a current GPU timestamp with the CPU clock, allowing tighter CPU/GPU synchronization using
     /// timestamps.
     ///
@@ -2627,9 +2668,52 @@ public:
     ///                                timestamp was written.  The CPU clock data is OS-specific.
     ///
     /// @returns Success if the calibration was successful.  Otherwise, one of the following errors may be returned:
-    ///          + ErrorInvalidPointer if pCalibrationData is null.
+    ///          + ErrorInvalidPointer if:
+    ///              - pCalibrationData is null.
+    ///          + ErrorUnavailable if:
+    ///              - neither the query performance counter nor clock monotonic time domain is available
     virtual Result CalibrateGpuTimestamp(
-        GpuTimestampCalibration* pCalibrationData) const = 0;
+        GpuTimestampCalibration* pCalibrationData) const
+    {
+        Result timestampResult = Result::Success;
+
+        if (pCalibrationData != nullptr)
+        {
+            CalibratedTimestamps timestamps = {};
+
+            timestampResult = GetCalibratedTimestamps(&timestamps);
+
+            if (timestampResult == Result::Success)
+            {
+                DeviceProperties properties = {};
+
+                GetProperties(&properties);
+
+                if (properties.osProperties.timeDomains.supportQueryPerformanceCounter == true)
+                {
+                    pCalibrationData->cpuWinPerfCounter = timestamps.cpuQueryPerfCounterTimestamp;
+                    pCalibrationData->gpuTimestamp = timestamps.gpuTimestamp;
+                }
+                else if (properties.osProperties.timeDomains.supportClockMonotonic == true)
+                {
+                    pCalibrationData->cpuWinPerfCounter = timestamps.cpuClockMonotonicTimestamp;
+                    pCalibrationData->gpuTimestamp = timestamps.gpuTimestamp;
+                }
+                else
+                {
+                    PAL_ASSERT_ALWAYS();
+                    timestampResult = Result::ErrorUnavailable;
+                }
+            }
+        }
+        else
+        {
+            timestampResult = Result::ErrorInvalidPointer;
+        }
+
+        return timestampResult;
+    }
+#endif
 
     /// Binds the specified GPU memory as a trap handler for the specified pipeline type.  This GPU memory must hold
     /// shader machine code (i.e., the client must generate HW-specific shader binaries through some external means,

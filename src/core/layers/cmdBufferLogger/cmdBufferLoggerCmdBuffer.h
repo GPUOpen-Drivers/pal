@@ -488,12 +488,7 @@ public:
         bool        enable) override;
 
     // Part of the IDestroyable public interface.
-    virtual void Destroy() override
-    {
-        ICmdBuffer* pNextLayer = m_pNextLayer;
-        this->~CmdBuffer();
-        pNextLayer->Destroy();
-    }
+    virtual void Destroy() override;
 
     void DescribeBarrier(
         const Developer::BarrierData* pData);

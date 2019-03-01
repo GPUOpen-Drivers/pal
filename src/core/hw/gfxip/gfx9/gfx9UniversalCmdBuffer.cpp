@@ -810,6 +810,7 @@ void UniversalCmdBuffer::CmdBindIndexData(
     uint32    indexCount,
     IndexType indexType)
 {
+
     if (m_graphicsState.iaState.indexAddr != gpuAddr)
     {
         m_drawTimeHwState.dirty.indexBufferBase        = 1;

@@ -133,8 +133,8 @@ public:
         const DeviceGdsAllocInfo&   requested,
         DeviceGdsAllocInfo*         pAllocated) override;
 
-    virtual Result CalibrateGpuTimestamp(
-        GpuTimestampCalibration* pCalibrationData) const override;
+    virtual Result GetCalibratedTimestamps(
+        CalibratedTimestamps* pCalibratedTimestamps) const override;
 
     virtual Result GetMultiGpuCompatibility(
             const IDevice&        otherDevice,

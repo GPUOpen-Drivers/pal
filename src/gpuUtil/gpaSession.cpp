@@ -1336,12 +1336,12 @@ Pal::Result GpaSession::SampleTimingClocks()
     {
         // Calibrate the cpu and gpu clocks
 
-        Pal::GpuTimestampCalibration timestampCalibration = {};
-        result = m_pDevice->CalibrateGpuTimestamp(&timestampCalibration);
+        Pal::CalibratedTimestamps timestamps = { };
+        result = m_pDevice->GetCalibratedTimestamps(&timestamps);
 
         if (result == Result::Success)
         {
-            result = m_timestampCalibrations.PushBack(timestampCalibration);
+            result = m_timestampCalibrations.PushBack(timestamps);
         }
 
         // Sample the current gpu clock speeds
@@ -2162,16 +2162,27 @@ Pal::Result GpaSession::ExternalTimedQueueSemaphoreOperation(
 // =====================================================================================================================
 // Converts a CPU timestamp to a GPU timestamp using a GpuTimestampCalibration struct
 Pal::uint64 GpaSession::ConvertCpuTimestampToGpuTimestamp(
-    Pal::uint64                         cpuTimestamp,
-    const Pal::GpuTimestampCalibration& calibration
+    Pal::uint64                      cpuTimestamp,
+    const Pal::CalibratedTimestamps& calibration
     ) const
 {
     const Pal::uint64 cpuTimestampFrequency = static_cast<Pal::uint64>(Util::GetPerfFrequency());
     const Pal::uint64 gpuTimestampFrequency = m_deviceProps.timestampFrequency;
 
+    Pal::uint64 cpuPerfCounter = 0uLL;
+    if (m_deviceProps.osProperties.timeDomains.supportQueryPerformanceCounter != 0)
+    {
+        cpuPerfCounter = calibration.cpuQueryPerfCounterTimestamp;
+    }
+    else if (m_deviceProps.osProperties.timeDomains.supportClockMonotonic != 0)
+    {
+        cpuPerfCounter = calibration.cpuClockMonotonicTimestamp;
+    }
+    PAL_ASSERT(cpuPerfCounter != 0uLL);
+
     // Convert from host time into wall time.
-    const Pal::int64 signedHostClock = static_cast<Pal::int64>(cpuTimestamp);
-    const Pal::int64 rebasedHostClock = signedHostClock - calibration.cpuWinPerfCounter;
+    const Pal::int64 signedHostClock  = static_cast<Pal::int64>(cpuTimestamp);
+    const Pal::int64 rebasedHostClock = (signedHostClock - cpuPerfCounter);
     const double deltaInMicro =
         static_cast<double>(rebasedHostClock) / static_cast<double>((cpuTimestampFrequency / 1000));
 
@@ -2192,8 +2203,7 @@ Pal::uint64 GpaSession::ExtractGpuTimestampFromQueueEvent(
     PAL_ASSERT(m_timestampCalibrations.NumElements() > 0);
 
     // Always use the last calibration value since that's how RGP currently does this.
-    const Pal::GpuTimestampCalibration& calibration =
-        m_timestampCalibrations.At(m_timestampCalibrations.NumElements() - 1);
+    const Pal::CalibratedTimestamps& calibration = m_timestampCalibrations.Back();
 
     const Pal::uint64 gpuTimestamp =
         ConvertCpuTimestampToGpuTimestamp(queueEvent.cpuCompletionTimestamp, calibration);
@@ -3923,11 +3933,19 @@ Result GpaSession::DumpRgpData(
 
         for (uint32 sampleIndex = 0; sampleIndex < numClockCalibrationSamples; ++sampleIndex)
         {
-            const Pal::GpuTimestampCalibration& timestampCalibration = m_timestampCalibrations.At(sampleIndex);
+            const Pal::CalibratedTimestamps& timestampCalibration = m_timestampCalibrations.At(sampleIndex);
 
             clockCalibration.header.chunkIdentifier.chunkIndex = sampleIndex;
-            clockCalibration.cpuTimestamp = timestampCalibration.cpuWinPerfCounter;
-            clockCalibration.gpuTimestamp = timestampCalibration.gpuTimestamp;
+            if (m_deviceProps.osProperties.timeDomains.supportQueryPerformanceCounter != 0)
+            {
+                clockCalibration.cpuTimestamp = timestampCalibration.cpuQueryPerfCounterTimestamp;
+                clockCalibration.gpuTimestamp = timestampCalibration.gpuTimestamp;
+            }
+            else if (m_deviceProps.osProperties.timeDomains.supportClockMonotonic != 0)
+            {
+                clockCalibration.cpuTimestamp = timestampCalibration.cpuClockMonotonicTimestamp;
+                clockCalibration.gpuTimestamp = timestampCalibration.gpuTimestamp;
+            }
 
             // Write the chunk header into the buffer
             if ((result == Result::Success) && (pRgpOutput != nullptr))

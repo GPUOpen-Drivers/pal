@@ -784,7 +784,7 @@ private:
     Util::Vector<TimedQueueEventItem, 16, GpaAllocator> m_queueEvents;
 
     // List of timestamp calibration samples
-    Util::Vector<Pal::GpuTimestampCalibration, 4, GpaAllocator> m_timestampCalibrations;
+    Util::Vector<Pal::CalibratedTimestamps, 4, GpaAllocator> m_timestampCalibrations;
 
     // The most recent gpu clocks sample
     GpuClocksSample m_lastGpuClocksSample;
@@ -809,9 +809,9 @@ private:
                                                      const TimedQueueSemaphoreInfo& timedSemaphoreInfo,
                                                      bool isSignalOperation);
 
-    /// Converts a CPU timestamp to a GPU timestamp using a GpuTimestampCalibration struct
-    Pal::uint64 ConvertCpuTimestampToGpuTimestamp(Pal::uint64                         cpuTimestamp,
-                                                  const Pal::GpuTimestampCalibration& calibration) const;
+    /// Converts a CPU timestamp to a GPU timestamp using a CalibratedTimestamps struct
+    Pal::uint64 ConvertCpuTimestampToGpuTimestamp(Pal::uint64                      cpuTimestamp,
+                                                  const Pal::CalibratedTimestamps& calibration) const;
 
     /// Extracts a GPU timestamp from a queue event
     Pal::uint64 ExtractGpuTimestampFromQueueEvent(const TimedQueueEventItem& queueEvent) const;

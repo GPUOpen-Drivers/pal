@@ -269,9 +269,9 @@ Result Device::AssignVirtualAddress(
 }
 
 // =====================================================================================================================
-// Correlates a current GPU timsetamp with the CPU clock, allowing tighter CPU/GPU synchronization using timestamps.
-Result Device::CalibrateGpuTimestamp(
-    GpuTimestampCalibration* pCalibrationData
+// Captures a GPU timestamp with the corresponding CPU timestamps, allowing tighter CPU/GPU timeline synchronization.
+Result Device::GetCalibratedTimestamps(
+    CalibratedTimestamps* pCalibratedTimestamps
     ) const
 {
     PAL_NOT_IMPLEMENTED();

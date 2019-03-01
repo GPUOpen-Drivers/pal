@@ -80,8 +80,8 @@ public:
     Result AssignVirtualAddress(const Pal::GpuMemory& gpuMemory, gpusize* pGpuVirtAddr, VaPartition vaPartition);
 
     // NOTE: Part of the public IDevice interface.
-    virtual Result CalibrateGpuTimestamp(
-        GpuTimestampCalibration* pCalibrationData) const override;
+    virtual Result GetCalibratedTimestamps(
+        CalibratedTimestamps* pCalibratedTimestamps) const override;
 
     virtual Result Cleanup() override;
 

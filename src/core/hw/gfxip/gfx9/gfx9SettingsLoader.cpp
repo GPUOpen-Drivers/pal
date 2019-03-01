@@ -117,6 +117,24 @@ void SettingsLoader::ValidateSettings(
 
     auto pPalSettings = m_pDevice->GetPublicSettings();
 
+    if (m_settings.binningMaxAllocCountLegacy == 0)
+    {
+        // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
+        // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
+        // batches to ping-pong.
+        m_settings.binningMaxAllocCountLegacy =
+            Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
+    }
+
+    if (m_settings.binningMaxAllocCountNggOnChip == 0)
+    {
+        // With NGG + on chip PC there is a single view of the PC rather than a division per SE. The recommended value
+        // for MAX_ALLOC_COUNT is TotalParamCacheCacheLines / 2 / 3. There's a divide by 2 because the register units
+        // are "2 cache lines" and a divide by 3 is because the HW team estimates it is best to only have one third of
+        // the PC used by a single batch.
+        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
+    }
+
     if (IsVega10(*m_pDevice))
     {
         // Vega10 has a HW bug where during Tessellation, the SPI can load incorrect SDATA terms for offchip LDS.
@@ -245,8 +263,10 @@ void SettingsLoader::ValidateSettings(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    // Enable workarounds which are common to all Gfx9/Gfx9+ hardware.
-    if (IsGfx9(*m_pDevice))
+    const Pal::Device& device = *m_pDevice;
+
+    // Enable workarounds which are common to all Gfx9 hardware.
+    if (IsGfx9(device))
     {
         m_settings.nggEnableMode = NggPipelineTypeDisabled;
 
@@ -265,53 +285,33 @@ void SettingsLoader::OverrideDefaults(
 
         // Metadata is not pipe aligned once we get down to the mip chain within the tail
         m_settings.waitOnMetadataMipTail = true;
-    }
 
-    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice))
-    {
-        m_settings.waHtilePipeBankXorMustBeZero = true;
+        if (IsVega10(device) || IsRaven(device))
+        {
+            m_settings.waHtilePipeBankXorMustBeZero = true;
 
-        m_settings.waWrite1xAASampleLocationsToZero = true;
+            m_settings.waWrite1xAASampleLocationsToZero = true;
 
-        m_settings.waMiscPopsMissedOverlap = true;
+            m_settings.waMiscPopsMissedOverlap = true;
 
-        m_settings.waMiscScissorRegisterChange = true;
+            m_settings.waMiscScissorRegisterChange = true;
 
-        m_settings.waDisableDfsmWithEqaa = true;
+            m_settings.waDisableDfsmWithEqaa = true;
 
-        m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
-    }
+            m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
+        }
 
-    if (IsVega20(*m_pDevice))
-    {
-        m_settings.waDisableDfsmWithEqaa = true;
-    }
+        if (IsVega20(device))
+        {
+            m_settings.waDisableDfsmWithEqaa = true;
+        }
 
-    if (IsVega10(*m_pDevice) || IsRaven(*m_pDevice)
-        || IsRaven2(*m_pDevice)
-        )
-    {
-        m_settings.waMetaAliasingFixEnabled = false;
-    }
-
-    const auto& gfx9Props = m_pDevice->ChipProperties().gfx9;
-
-    if (m_settings.binningMaxAllocCountLegacy == 0)
-    {
-        // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
-        // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
-        // batches to ping-pong.
-        m_settings.binningMaxAllocCountLegacy =
-            Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
-    }
-
-    if (m_settings.binningMaxAllocCountNggOnChip == 0)
-    {
-        // With NGG + on chip PC there is a single view of the PC rather than a division per SE. The recommended value
-        // for MAX_ALLOC_COUNT is TotalParamCacheCacheLines / 2 / 3. There's a divide by 2 because the register units
-        // are "2 cache lines" and a divide by 3 is because the HW team estimates it is best to only have one third of
-        // the PC used by a single batch.
-        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 6;
+        if (IsVega10(device) || IsRaven(device)
+            || IsRaven2(device)
+            )
+        {
+            m_settings.waMetaAliasingFixEnabled = false;
+        }
     }
 
     m_state = SettingsLoaderState::LateInit;

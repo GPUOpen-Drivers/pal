@@ -211,19 +211,30 @@ void Queue::Destroy()
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     if (pPlatform->IsTimestampingEnabled())
     {
-        m_pDevice->RemoveGpuMemoryReferences(1, &m_pTimestamp, this);
+        if (m_pTimestamp != nullptr)
+        {
+            m_pDevice->RemoveGpuMemoryReferences(1, &m_pTimestamp, this);
+            m_pTimestamp->Destroy();
+            PAL_SAFE_FREE(m_pTimestamp, pPlatform);
+        }
 
-        m_pTimestamp->Destroy();
-        PAL_SAFE_FREE(m_pTimestamp, pPlatform);
+        if (m_pCmdBuffer != nullptr)
+        {
+            m_pCmdBuffer->Destroy();
+            PAL_SAFE_FREE(m_pCmdBuffer, pPlatform);
+        }
 
-        m_pCmdBuffer->Destroy();
-        PAL_SAFE_FREE(m_pCmdBuffer, pPlatform);
+        if (m_pCmdAllocator != nullptr)
+        {
+            m_pCmdAllocator->Destroy();
+            PAL_SAFE_FREE(m_pCmdAllocator, pPlatform);
+        }
 
-        m_pCmdAllocator->Destroy();
-        PAL_SAFE_FREE(m_pCmdAllocator, pPlatform);
-
-        m_pFence->Destroy();
-        PAL_SAFE_FREE(m_pFence, pPlatform);
+        if (m_pFence != nullptr)
+        {
+            m_pFence->Destroy();
+            PAL_SAFE_FREE(m_pFence, pPlatform);
+        }
     }
 
     IQueue* pNextLayer = m_pNextLayer;

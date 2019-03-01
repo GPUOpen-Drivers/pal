@@ -620,11 +620,13 @@ HwLayoutTransition Device::ConvertToDepthStencilBlt(
     // state to something that uses HiZ.
     else if ((oldState == DepthStencilDecomprNoHiZ) && (newState != DepthStencilDecomprNoHiZ))
     {
-        // If we're on the compute engine, then force the use of a CS expand of hTile data...  If the
-        // panel setting requests forced expands, then use this path as well if the command buffer supports
-        // compute operations.
-        if ((pCmdBuf->IsGraphicsSupported() == false) ||
-            (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()))
+        // Use compute if:
+        //   - We're on the compute engine
+        //   - or we should force ExpandHiZRange for resummarize and we support compute operations
+        const bool useCompute =
+            ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
+             (Pal::Image::ForceExpandHiZRangeForResummarize && pCmdBuf->IsComputeSupported()));
+        if (useCompute)
         {
             // CS blit to open-up the HiZ range.
             transition = HwLayoutTransition::HwlExpandHtileHiZRange;

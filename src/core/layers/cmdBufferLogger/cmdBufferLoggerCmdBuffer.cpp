@@ -950,11 +950,33 @@ Result CmdBuffer::Init()
 
         if (result == Result::Success)
         {
+            GpuMemoryRef memRef = {};
+            memRef.pGpuMemory   = m_pTimestamp;
+            result = m_pDevice->AddGpuMemoryReferences(1, &memRef, nullptr, GpuMemoryRefCantTrim);
+        }
+
+        if (result == Result::Success)
+        {
             m_timestampAddr = m_pTimestamp->Desc().gpuVirtAddr;
         }
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void CmdBuffer::Destroy()
+{
+    if (IsTimestampingActive() && (m_pTimestamp != nullptr))
+    {
+        m_pDevice->RemoveGpuMemoryReferences(1, &m_pTimestamp, nullptr);
+        m_pTimestamp->Destroy();
+        PAL_SAFE_FREE(m_pTimestamp, m_pDevice->GetPlatform());
+    }
+
+    ICmdBuffer* pNextLayer = m_pNextLayer;
+    this->~CmdBuffer();
+    pNextLayer->Destroy();
 }
 
 // =====================================================================================================================
